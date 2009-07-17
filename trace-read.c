@@ -18,6 +18,7 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+#define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
 #include <dirent.h>
 #include <stdio.h>
@@ -38,6 +39,8 @@
 #include "parse-events.h"
 
 static int input_fd;
+
+static int read_page;
 
 static int file_bigendian;
 static int host_bigendian;
@@ -286,6 +289,27 @@ struct cpu_data {
 static int cpus;
 static struct cpu_data *cpu_data;
 
+static void init_read(int cpu)
+{
+	off64_t ret;
+	off64_t save_seek;
+
+	cpu_data[cpu].page = malloc_or_die(PAGE_SIZE);
+
+	/* other parts of the code may expect the pointer to not move */
+	save_seek = lseek64(input_fd, 0, SEEK_CUR);
+
+	ret = lseek64(input_fd, (off64_t)cpu_data[cpu].offset, SEEK_SET);
+	if (ret < 0)
+		die("failed to lseek");
+	ret = read(input_fd, cpu_data[cpu].page, PAGE_SIZE);
+	if (ret < 0)
+		die("failed to read page");
+
+	/* reset the file pointer back */
+	lseek64(input_fd, save_seek, SEEK_SET);
+}
+
 static void init_cpu(int cpu)
 {
 	if (!cpu_data[cpu].size) {
@@ -293,17 +317,61 @@ static void init_cpu(int cpu)
 		return;
 	}
 
+	if (read_page) {
+		init_read(cpu);
+		return;
+	}
+
 	cpu_data[cpu].page = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE,
 				  input_fd, cpu_data[cpu].offset);
-	if (cpu_data[cpu].page == MAP_FAILED)
-		die("failed to mmap cpu %d at offset 0x%llx",
-		    cpu, cpu_data[cpu].offset);
+	if (cpu_data[cpu].page == MAP_FAILED) {
+		/* fall back to just reading pages */
+		fprintf(stderr, "Can not mmap file, will read instead\n");
+		read_page = 1;
+
+		init_read(cpu);
+	}
+}
+
+static void update_cpu_data_index(int cpu)
+{
+	cpu_data[cpu].offset += PAGE_SIZE;
+	cpu_data[cpu].size -= PAGE_SIZE;
+	cpu_data[cpu].index = 0;
 }
 
 static void get_next_page(int cpu)
 {
+	off64_t save_seek;
+	off64_t ret;
+
 	if (!cpu_data[cpu].page)
 		return;
+
+	if (read_page) {
+		if (cpu_data[cpu].size <= PAGE_SIZE) {
+			free(cpu_data[cpu].page);
+			cpu_data[cpu].page = NULL;
+			return;
+		}
+
+		update_cpu_data_index(cpu);
+
+		/* other parts of the code may expect the pointer to not move */
+		save_seek = lseek64(input_fd, 0, SEEK_CUR);
+
+		ret = lseek64(input_fd, cpu_data[cpu].offset, SEEK_SET);
+		if (ret < 0)
+			die("failed to lseek");
+		ret = read(input_fd, cpu_data[cpu].page, PAGE_SIZE);
+		if (ret < 0)
+			die("failed to read page");
+
+		/* reset the file pointer back */
+		lseek64(input_fd, save_seek, SEEK_SET);
+
+		return;
+	}
 
 	munmap(cpu_data[cpu].page, PAGE_SIZE);
 	cpu_data[cpu].page = NULL;
@@ -311,9 +379,7 @@ static void get_next_page(int cpu)
 	if (cpu_data[cpu].size <= PAGE_SIZE)
 		return;
 
-	cpu_data[cpu].offset += PAGE_SIZE;
-	cpu_data[cpu].size -= PAGE_SIZE;
-	cpu_data[cpu].index = 0;
+	update_cpu_data_index(cpu);
 	
 	cpu_data[cpu].page = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE,
 				  input_fd, cpu_data[cpu].offset);
