@@ -1597,11 +1597,11 @@ static unsigned long long read_size(void *ptr, int size)
 	case 1:
 		return *(unsigned char *)ptr;
 	case 2:
-		return *(unsigned short *)ptr;
+		return data2host2(ptr);
 	case 4:
-		return *(unsigned int *)ptr;
+		return data2host4(ptr);
 	case 8:
-		return *(unsigned long long *)ptr;
+		return data2host8(ptr);
 	default:
 		/* BUG! */
 		return 0;
@@ -2334,7 +2334,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs)
 
 	event = find_event(type);
 	if (!event)
-		die("ug! no event found");
+		die("ug! no event found for type %d", type);
 
 	pid = parse_common_pid(data);
 	comm = find_cmdline(pid);

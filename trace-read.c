@@ -42,8 +42,8 @@ static int input_fd;
 
 static int read_page;
 
-static int file_bigendian;
-static int host_bigendian;
+int file_bigendian;
+int host_bigendian;
 static int long_size;
 
 static int filter_cpu = -1;
@@ -67,43 +67,6 @@ static int read_or_die(void *data, int size)
 		    size, r);
 	return r;
 }
-
-static unsigned int __data2host4(unsigned int data)
-{
-	unsigned long long swap;
-
-	if (host_bigendian == file_bigendian)
-		return data;
-
-	swap = ((data & 0xffULL) << 24) |
-		((data & (0xffULL << 8)) << 8) |
-		((data & (0xffULL << 16)) >> 8) |
-		((data & (0xffULL << 24)) >> 24);
-
-	return swap;
-}
-
-static unsigned long long __data2host8(unsigned long long data)
-{
-	unsigned long long swap;
-
-	if (host_bigendian == file_bigendian)
-		return data;
-
-	swap = ((data & 0xffULL) << 56) |
-		((data & (0xffULL << 8)) << 40) |
-		((data & (0xffULL << 16)) << 24) |
-		((data & (0xffULL << 24)) << 8) |
-		((data & (0xffULL << 32)) >> 8) |
-		((data & (0xffULL << 40)) >> 24) |
-		((data & (0xffULL << 48)) >> 40) |
-		((data & (0xffULL << 56)) >> 56);
-
-	return swap;
-}
-
-#define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
-#define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
 
 static unsigned int read4(void)
 {

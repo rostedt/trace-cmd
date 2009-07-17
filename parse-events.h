@@ -168,4 +168,58 @@ int parse_ftrace_file(char *buf, unsigned long size);
 int parse_event_file(char *buf, unsigned long size, char *system);
 void print_event(int cpu, void *data, int size, unsigned long long nsecs);
 
+extern int file_bigendian;
+extern int host_bigendian;
+
+static inline unsigned short __data2host2(unsigned short data)
+{
+	unsigned short swap;
+
+	if (host_bigendian == file_bigendian)
+		return data;
+
+	swap = ((data & 0xffULL) << 8) |
+		((data & (0xffULL << 8)) >> 8);
+
+	return swap;
+}
+
+static inline unsigned int __data2host4(unsigned int data)
+{
+	unsigned int swap;
+
+	if (host_bigendian == file_bigendian)
+		return data;
+
+	swap = ((data & 0xffULL) << 24) |
+		((data & (0xffULL << 8)) << 8) |
+		((data & (0xffULL << 16)) >> 8) |
+		((data & (0xffULL << 24)) >> 24);
+
+	return swap;
+}
+
+static inline unsigned long long __data2host8(unsigned long long data)
+{
+	unsigned long long swap;
+
+	if (host_bigendian == file_bigendian)
+		return data;
+
+	swap = ((data & 0xffULL) << 56) |
+		((data & (0xffULL << 8)) << 40) |
+		((data & (0xffULL << 16)) << 24) |
+		((data & (0xffULL << 24)) << 8) |
+		((data & (0xffULL << 32)) >> 8) |
+		((data & (0xffULL << 40)) >> 24) |
+		((data & (0xffULL << 48)) >> 40) |
+		((data & (0xffULL << 56)) >> 56);
+
+	return swap;
+}
+
+#define data2host2(ptr)		__data2host2(*(unsigned short *)ptr)
+#define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
+#define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
+
 #endif /* _PARSE_EVENTS_H */
