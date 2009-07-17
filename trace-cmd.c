@@ -49,6 +49,8 @@
 #define ITER_CTRL	"trace_options"
 #define MAX_LATENCY	"tracing_max_latency"
 
+unsigned int page_size;
+
 static const char *output_file = "trace.dat";
 static int output_fd;
 
@@ -513,7 +515,7 @@ static int create_recorder(int cpu)
 	int brass[2];
 	int pid;
 	int ret;
-	char buf[PAGE_SIZE];
+	char buf[page_size];
 
 	pid = fork();
 	if (pid < 0)
@@ -547,13 +549,13 @@ static int create_recorder(int cpu)
 		die("can not create pipe");
 
 	do {
-		ret = splice(in_fd, NULL, brass[1], NULL, PAGE_SIZE, 1 /* SPLICE_F_MOVE */);
+		ret = splice(in_fd, NULL, brass[1], NULL, page_size, 1 /* SPLICE_F_MOVE */);
 		if (ret < 0) {
 			perror("in");
 			printf("errno=%d\n", errno);
 			die("splice in");
 		}
-		ret = splice(brass[0], NULL, out_fd, NULL, PAGE_SIZE, 3 /* and NON_BLOCK */);
+		ret = splice(brass[0], NULL, out_fd, NULL, page_size, 3 /* and NON_BLOCK */);
 		if (ret < 0 && errno != EAGAIN) {
 			perror("in");
 			printf("errno=%d\n", errno);
@@ -563,7 +565,7 @@ static int create_recorder(int cpu)
 
 	/* splice only reads full pages */
 	do {
-		ret = read(in_fd, buf, PAGE_SIZE);
+		ret = read(in_fd, buf, page_size);
 		if (ret > 0)
 			write(out_fd, buf, ret);
 	} while (ret > 0);
@@ -601,13 +603,13 @@ static ssize_t write_or_die(const void *buf, size_t len)
 	return ret;
 }
 
-static int bigendian(void)
+int bigendian(void)
 {
 	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
 	unsigned int *ptr;
 
 	ptr = (unsigned int *)str;
-	return *ptr == 0x1234;
+	return *ptr == 0x01020304;
 }
 
 static unsigned long long copy_file_fd(int fd)
@@ -864,6 +866,7 @@ static void read_tracing_data(void)
 
 	write_or_die(VERSION, strlen(VERSION) + 1);
 
+	/* save endian */
 	if (bigendian())
 		buf[0] = 1;
 	else
@@ -871,8 +874,13 @@ static void read_tracing_data(void)
 
 	write_or_die(buf, 1);
 
+	/* save size of long */
 	buf[0] = sizeof(long);
 	write_or_die(buf, 1);
+
+	/* save page_size */
+	page_size = getpagesize();
+	write_or_die(&page_size, 4);
 
 	read_header_files();
 	read_ftrace_files();
@@ -947,7 +955,7 @@ static void read_thread_data(void)
 
 	/* hold any extra data for data */
 	offset += cpu_count * (16);
-	offset = (offset + (PAGE_SIZE - 1)) & ~(PAGE_MASK);
+	offset = (offset + (page_size - 1)) & ~(PAGE_MASK);
 
 	for (i = 0; i < cpu_count; i++) {
 		file = malloc_or_die(strlen(output_file) + 20);
@@ -959,7 +967,7 @@ static void read_thread_data(void)
 		offsets[i] = offset;
 		sizes[i] = st.st_size;
 		offset += st.st_size;
-		offset = (offset + (PAGE_SIZE - 1)) & ~(PAGE_MASK);
+		offset = (offset + (page_size - 1)) & ~(PAGE_MASK);
 
 		write_or_die(&offsets[i], 8);
 		write_or_die(&sizes[i], 8);

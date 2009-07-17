@@ -48,15 +48,6 @@ static int long_size;
 
 static int filter_cpu = -1;
 
-static int bigendian(void)
-{
-	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
-	unsigned int *ptr;
-
-	ptr = (unsigned int *)str;
-	return *ptr == 0x01020304;
-}
-
 static int read_or_die(void *data, int size)
 {
 	int r;
@@ -257,7 +248,7 @@ static void init_read(int cpu)
 	off64_t ret;
 	off64_t save_seek;
 
-	cpu_data[cpu].page = malloc_or_die(PAGE_SIZE);
+	cpu_data[cpu].page = malloc_or_die(page_size);
 
 	/* other parts of the code may expect the pointer to not move */
 	save_seek = lseek64(input_fd, 0, SEEK_CUR);
@@ -265,7 +256,7 @@ static void init_read(int cpu)
 	ret = lseek64(input_fd, (off64_t)cpu_data[cpu].offset, SEEK_SET);
 	if (ret < 0)
 		die("failed to lseek");
-	ret = read(input_fd, cpu_data[cpu].page, PAGE_SIZE);
+	ret = read(input_fd, cpu_data[cpu].page, page_size);
 	if (ret < 0)
 		die("failed to read page");
 
@@ -285,7 +276,7 @@ static void init_cpu(int cpu)
 		return;
 	}
 
-	cpu_data[cpu].page = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE,
+	cpu_data[cpu].page = mmap(NULL, page_size, PROT_READ, MAP_PRIVATE,
 				  input_fd, cpu_data[cpu].offset);
 	if (cpu_data[cpu].page == MAP_FAILED) {
 		/* fall back to just reading pages */
@@ -298,8 +289,8 @@ static void init_cpu(int cpu)
 
 static void update_cpu_data_index(int cpu)
 {
-	cpu_data[cpu].offset += PAGE_SIZE;
-	cpu_data[cpu].size -= PAGE_SIZE;
+	cpu_data[cpu].offset += page_size;
+	cpu_data[cpu].size -= page_size;
 	cpu_data[cpu].index = 0;
 }
 
@@ -312,7 +303,7 @@ static void get_next_page(int cpu)
 		return;
 
 	if (read_page) {
-		if (cpu_data[cpu].size <= PAGE_SIZE) {
+		if (cpu_data[cpu].size <= page_size) {
 			free(cpu_data[cpu].page);
 			cpu_data[cpu].page = NULL;
 			return;
@@ -326,7 +317,7 @@ static void get_next_page(int cpu)
 		ret = lseek64(input_fd, cpu_data[cpu].offset, SEEK_SET);
 		if (ret < 0)
 			die("failed to lseek");
-		ret = read(input_fd, cpu_data[cpu].page, PAGE_SIZE);
+		ret = read(input_fd, cpu_data[cpu].page, page_size);
 		if (ret < 0)
 			die("failed to read page");
 
@@ -336,15 +327,15 @@ static void get_next_page(int cpu)
 		return;
 	}
 
-	munmap(cpu_data[cpu].page, PAGE_SIZE);
+	munmap(cpu_data[cpu].page, page_size);
 	cpu_data[cpu].page = NULL;
 
-	if (cpu_data[cpu].size <= PAGE_SIZE)
+	if (cpu_data[cpu].size <= page_size)
 		return;
 
 	update_cpu_data_index(cpu);
 	
-	cpu_data[cpu].page = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE,
+	cpu_data[cpu].page = mmap(NULL, page_size, PROT_READ, MAP_PRIVATE,
 				  input_fd, cpu_data[cpu].offset);
 	if (cpu_data[cpu].page == MAP_FAILED)
 		die("failed to mmap cpu %d at offset 0x%llx",
@@ -571,6 +562,7 @@ void trace_report (int argc, char **argv)
 	char *version;
 	int show_funcs = 0;
 	int show_endian = 0;
+	int show_page_size = 0;
 	int c;
 
 	if (argc < 2)
@@ -587,7 +579,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fe",
+		c = getopt_long (argc-1, argv+1, "+hi:fep",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -603,6 +595,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'e':
 			show_endian = 1;
+			break;
+		case 'p':
+			show_page_size = 1;
 			break;
 		case 0:
 			switch(option_index) {
@@ -640,6 +635,14 @@ void trace_report (int argc, char **argv)
 
 	read_or_die(buf, 1);
 	long_size = buf[0];
+
+	page_size = read4();
+	if (show_page_size) {
+		printf("file page size is %d, and host page size is %d\n",
+		       page_size,
+		       getpagesize());
+		return;
+	}
 
 	if (show_endian) {
 		printf("file is %s endian and host is %s endian\n",

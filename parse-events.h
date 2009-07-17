@@ -1,12 +1,10 @@
 #ifndef _PARSE_EVENTS_H
 #define _PARSE_EVENTS_H
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE		4096ULL
-#endif
+extern unsigned int page_size;
 
 #ifndef PAGE_MASK
-#define PAGE_MASK (PAGE_SIZE - 1)
+#define PAGE_MASK (page_size - 1)
 #endif
 
 enum {
@@ -170,6 +168,8 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs);
 
 extern int file_bigendian;
 extern int host_bigendian;
+
+int bigendian(void);
 
 static inline unsigned short __data2host2(unsigned short data)
 {
