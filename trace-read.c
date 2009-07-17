@@ -388,8 +388,18 @@ struct record *peak_data(int cpu)
 		/* FIXME: handle header page */
 		cpu_data[cpu].timestamp = data2host8(ptr);
 		ptr += 8;
-		cpu_data[cpu].page_size = data2host8(ptr);
-		ptr += 8;
+		switch (long_size) {
+		case 4:
+			cpu_data[cpu].page_size = data2host4(ptr);
+			ptr += 4;
+			break;
+		case 8:
+			cpu_data[cpu].page_size = data2host8(ptr);
+			ptr += 8;
+			break;
+		default:
+			die("bad long size");
+		}
 	}
 
 read_again:
