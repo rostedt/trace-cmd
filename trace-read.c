@@ -162,7 +162,14 @@ static void read_header_files(void)
 	size = read8();
 	header_page = malloc_or_die(size);
 	read_or_die(header_page, size);
+	parse_header_page(header_page, size);
 	free(header_page);
+
+	/*
+	 * The size field in the page is of type long,
+	 * use that instead, since it represents the kernel.
+	 */
+	long_size = header_page_size_size;
 
 	read_or_die(buf, 13);
 	if (memcmp(buf, "header_event", 13) != 0)
@@ -377,9 +384,11 @@ struct record *peak_data(int cpu)
 
 	if (!index) {
 		/* FIXME: handle header page */
+		if (header_page_ts_size != 8)
+			die("expected a long long type for timestamp");
 		cpu_data[cpu].timestamp = data2host8(ptr);
 		ptr += 8;
-		switch (long_size) {
+		switch (header_page_size_size) {
 		case 4:
 			cpu_data[cpu].page_size = data2host4(ptr);
 			ptr += 4;
@@ -391,6 +400,7 @@ struct record *peak_data(int cpu)
 		default:
 			die("bad long size");
 		}
+		ptr = cpu_data[cpu].page + header_page_data_offset;
 	}
 
 read_again:

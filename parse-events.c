@@ -29,6 +29,13 @@
 
 #include "parse-events.h"
 
+int header_page_ts_offset;
+int header_page_ts_size;
+int header_page_size_offset;
+int header_page_size_size;
+int header_page_data_offset;
+int header_page_data_size;
+
 static char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
@@ -2411,6 +2418,64 @@ void print_args(struct print_arg *args)
 		printf("\n");
 		print_args(args->next);
 	}
+}
+
+static void parse_header_field(char *type,
+			       int *offset, int *size)
+{
+	char *token;
+
+	if (read_expected(EVENT_ITEM, "field") < 0)
+		return;
+	if (read_expected(EVENT_OP, ":") < 0)
+		return;
+
+	/* type */
+	if (read_expect_type(EVENT_ITEM, &token) < 0)
+		return;
+	free_token(token);
+
+	if (read_expected(EVENT_ITEM, type) < 0)
+		return;
+	if (read_expected(EVENT_OP, ";") < 0)
+		return;
+	if (read_expected(EVENT_ITEM, "offset") < 0)
+		return;
+	if (read_expected(EVENT_OP, ":") < 0)
+		return;
+	if (read_expect_type(EVENT_ITEM, &token) < 0)
+		return;
+	*offset = atoi(token);
+	free_token(token);
+	if (read_expected(EVENT_OP, ";") < 0)
+		return;
+	if (read_expected(EVENT_ITEM, "size") < 0)
+		return;
+	if (read_expected(EVENT_OP, ":") < 0)
+		return;
+	if (read_expect_type(EVENT_ITEM, &token) < 0)
+		return;
+	*size = atoi(token);
+	free_token(token);
+	if (read_expected(EVENT_OP, ";") < 0)
+		return;
+	if (read_expect_type(EVENT_NEWLINE, &token) < 0)
+		return;
+	free_token(token);
+}
+
+int parse_header_page(char *buf, unsigned long size)
+{
+	init_input_buf(buf, size);
+
+	parse_header_field("timestamp", &header_page_ts_offset,
+			   &header_page_ts_size);
+	parse_header_field("commit", &header_page_size_offset,
+			   &header_page_size_size);
+	parse_header_field("data", &header_page_data_offset,
+			   &header_page_data_size);
+
+	return 0;
 }
 
 int parse_ftrace_file(char *buf, unsigned long size)

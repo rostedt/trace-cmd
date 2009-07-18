@@ -222,4 +222,13 @@ static inline unsigned long long __data2host8(unsigned long long data)
 #define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
 #define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
 
+extern int header_page_ts_offset;
+extern int header_page_ts_size;
+extern int header_page_size_offset;
+extern int header_page_size_size;
+extern int header_page_data_offset;
+extern int header_page_data_size;
+
+int parse_header_page(char *buf, unsigned long size);
+
 #endif /* _PARSE_EVENTS_H */
