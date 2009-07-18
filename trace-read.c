@@ -351,12 +351,18 @@ static void get_next_page(int cpu)
 
 static unsigned int type_len4host(unsigned int type_len_ts)
 {
-	return type_len_ts & ((1 << 5) - 1);
+	if (file_bigendian)
+		return (type_len_ts >> 27) & ((1 << 5) - 1);
+	else
+		return type_len_ts & ((1 << 5) - 1);
 }
 
 static unsigned int ts4host(unsigned int type_len_ts)
 {
-	return type_len_ts >> 5;
+	if (file_bigendian)
+		return type_len_ts & ((1 << 27) - 1);
+	else
+		return type_len_ts >> 5;
 }
 
 static int calc_index(void *ptr, int cpu)
