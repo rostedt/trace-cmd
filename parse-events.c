@@ -1278,6 +1278,9 @@ static long long arg_num_eval(struct print_arg *arg)
 			}
 			break;
 		case '=':
+			left = arg_num_eval(arg->op.left);
+			right = arg_num_eval(arg->op.right);
+
 			if (arg->op.op[1] != '=')
 				die("unknown op '%s'", arg->op.op);
 
