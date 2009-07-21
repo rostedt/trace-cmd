@@ -2210,7 +2210,7 @@ static void pretty_print(void *data, int size, struct event *event)
 				if (*(ptr+1) == 'F' ||
 				    *(ptr+1) == 'f') {
 					ptr++;
-					show_func = 1;
+					show_func = *(ptr+1);
 				}
 
 				/* fall through */
@@ -2238,9 +2238,10 @@ static void pretty_print(void *data, int size, struct event *event)
 				if (show_func) {
 					func = find_func(val);
 					if (func) {
-						printf("%s+0x%llx",
-						       func->func,
-						       val - func->addr);
+						printf("%s", func->func);
+						if (show_func == 'F')
+							printf("+0x%llx",
+							       val - func->addr);
 						break;
 					}
 				}
