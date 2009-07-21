@@ -159,8 +159,10 @@ void *malloc_or_die(unsigned int size);
 
 void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);
+void parse_ftrace_printk(char *file, unsigned int size);
 
 void print_funcs(void);
+void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
 int parse_event_file(char *buf, unsigned long size, char *system);

@@ -262,6 +262,92 @@ void print_funcs(void)
 	}
 }
 
+static struct printk_map {
+	unsigned long long		addr;
+	char				*printk;
+} *printk_list;
+static unsigned int printk_count;
+
+static int printk_cmp(const void *a, const void *b)
+{
+	const struct func_map *fa = a;
+	const struct func_map *fb = b;
+
+	if (fa->addr < fb->addr)
+		return -1;
+	if (fa->addr > fb->addr)
+		return 1;
+
+	return 0;
+}
+
+static struct printk_map *find_printk(unsigned long long addr)
+{
+	struct printk_map *printk;
+	struct printk_map key;
+
+	key.addr = addr;
+
+	printk = bsearch(&key, printk_list, printk_count, sizeof(*printk_list),
+			 printk_cmp);
+
+	return printk;
+}
+
+void parse_ftrace_printk(char *file, unsigned int size)
+{
+	struct printk_list {
+		struct printk_list	*next;
+		unsigned long long	addr;
+		char			*printk;
+	} *list = NULL, *item;
+	char *line;
+	char *next;
+	char *addr_str;
+	int ret;
+	int i;
+
+	line = strtok_r(file, "\n", &next);
+	while (line) {
+		item = malloc_or_die(sizeof(*item));
+		ret = sscanf(line, "%as : %as",
+			     &addr_str,
+			     &item->printk);
+		item->addr = strtoull(addr_str, NULL, 16);
+		free(addr_str);
+
+		item->next = list;
+		list = item;
+		line = strtok_r(NULL, "\n", &next);
+		printk_count++;
+	}
+
+	printk_list = malloc_or_die(sizeof(*printk_list) * printk_count + 1);
+
+	i = 0;
+	while (list) {
+		printk_list[i].printk = list->printk;
+		printk_list[i].addr = list->addr;
+		i++;
+		item = list;
+		list = list->next;
+		free(item);
+	}
+
+	qsort(printk_list, printk_count, sizeof(*printk_list), printk_cmp);
+}
+
+void print_printk(void)
+{
+	int i;
+
+	for (i = 0; i < printk_count; i++) {
+		printf("%016llx %s\n",
+		       printk_list[i].addr,
+		       printk_list[i].printk);
+	}
+}
+
 struct event *alloc_event(void)
 {
 	struct event *event;
@@ -1915,14 +2001,167 @@ static void print_str_arg(void *data, int size,
 	}
 }
 
+static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct event *event)
+{
+	static struct format_field *field, *ip_field;
+	struct print_arg *args, *arg, **next;
+	unsigned long long ip, val;
+	char *ptr;
+	void *bptr;
+
+	if (!field) {
+		field = find_field(event, "buf");
+		if (!field)
+			die("can't find buffer field for binary printk");
+		ip_field = find_field(event, "ip");
+		if (!ip_field)
+			die("can't find ip field for binary printk");
+	}
+
+	ip = read_size(data + ip_field->offset, ip_field->size);
+
+	/*
+	 * The first arg is the IP pointer.
+	 */
+	args = malloc_or_die(sizeof(*args));
+	arg = args;
+	arg->next = NULL;
+	next = &arg->next;
+
+	arg->type = PRINT_ATOM;
+	arg->atom.atom = malloc_or_die(32);
+	sprintf(arg->atom.atom, "%lld", ip);
+
+	/* skip the first "%pf : " */
+	for (ptr = fmt + 6, bptr = data + field->offset;
+	     bptr < data + size && *ptr; ptr++) {
+		int ls = 0;
+
+		if (*ptr == '%') {
+ process_again:
+			ptr++;
+			switch (*ptr) {
+			case '%':
+				break;
+			case 'l':
+				ls++;
+				goto process_again;
+			case 'L':
+				ls = 2;
+				goto process_again;
+			case '0' ... '9':
+				goto process_again;
+			case 'p':
+				ls = 1;
+				/* fall through */
+			case 'd':
+			case 'u':
+			case 'x':
+			case 'i':
+				bptr = (void *)(((unsigned long)bptr + (long_size - 1)) &
+						~(long_size - 1));
+				switch (ls) {
+				case 0:
+				case 1:
+					ls = long_size;
+					break;
+				case 2:
+					ls = 8;
+				}
+				val = read_size(bptr, ls);
+				bptr += ls;
+				arg = malloc_or_die(sizeof(*arg));
+				arg->next = NULL;
+				arg->type = PRINT_ATOM;
+				arg->atom.atom = malloc_or_die(32);
+				sprintf(arg->atom.atom, "%lld", val);
+				*next = arg;
+				next = &arg->next;
+				break;
+			case 's':
+				arg = malloc_or_die(sizeof(*arg));
+				arg->next = NULL;
+				arg->type = PRINT_STRING;
+				arg->string.string = strdup(bptr);
+				bptr += strlen(bptr) + 1;
+				*next = arg;
+				next = &arg->next;
+			}
+		}
+	}
+
+	return args;
+}
+
+static void free_args(struct print_arg *args)
+{
+	struct print_arg *next;
+
+	while (args) {
+		next = args->next;
+
+		if (args->type == PRINT_ATOM)
+			free(args->atom.atom);
+		else
+			free(args->string.string);
+		free(args);
+		args = next;
+	}
+}
+
+static char *get_bprint_format(void *data, int size, struct event *event)
+{
+	unsigned long long addr;
+	static struct format_field *field;
+	struct printk_map *printk;
+	char *format;
+	char *p;
+
+	if (!field) {
+		field = find_field(event, "fmt");
+		if (!field)
+			die("can't find format field for binary printk");
+		printf("field->offset = %d size=%d\n", field->offset, field->size);
+	}
+
+	addr = read_size(data + field->offset, field->size);
+
+	printk = find_printk(addr);
+	if (!printk) {
+		format = malloc_or_die(45);
+		sprintf(format, "%%pf : (NO FORMAT FOUND at %llx)\n",
+			addr);
+		return format;
+	}
+
+	p = printk->printk;
+	/* Remove any quotes. */
+	if (*p == '"')
+		p++;
+	format = malloc_or_die(strlen(p) + 10);
+	sprintf(format, "%s : %s", "%pf", p);
+	/* remove ending quotes and new line since we will add one too */
+	p = format + strlen(format) - 1;
+	if (*p == '"')
+		*p = 0;
+
+	p -= 2;
+	if (strcmp(p, "\\n") == 0)
+		*p = 0;
+
+	return format;
+}
+
 static void pretty_print(void *data, int size, struct event *event)
 {
 	struct print_fmt *print_fmt = &event->print_fmt;
 	struct print_arg *arg = print_fmt->args;
+	struct print_arg *args = NULL;
 	const char *ptr = print_fmt->format;
 	unsigned long long val;
 	struct func_map *func;
 	const char *saveptr;
+	char *bprint_fmt = NULL;
 	char format[32];
 	int show_func;
 	int len;
@@ -1930,6 +2169,13 @@ static void pretty_print(void *data, int size, struct event *event)
 
 	if (event->flags & EVENT_FL_ISFUNC)
 		ptr = " %pF <-- %pF";
+
+	if (event->flags & EVENT_FL_ISBPRINT) {
+		bprint_fmt = get_bprint_format(data, size, event);
+		args = make_bprint_args(bprint_fmt, data, size, event);
+		arg = args;
+		ptr = bprint_fmt;
+	}
 
 	for (; *ptr; ptr++) {
 		ls = 0;
@@ -2022,6 +2268,11 @@ static void pretty_print(void *data, int size, struct event *event)
 			}
 		} else
 			printf("%c", *ptr);
+	}
+
+	if (args) {
+		free_args(args);
+		free(bprint_fmt);
 	}
 }
 
@@ -2545,6 +2796,9 @@ int parse_ftrace_file(char *buf, unsigned long size)
 
 	else if (strcmp(event->name, "funcgraph_exit") == 0)
 		event->flags |= EVENT_FL_ISFUNCRET;
+
+	else if (strcmp(event->name, "bprint") == 0)
+		event->flags |= EVENT_FL_ISBPRINT;
 
 	event->id = event_read_id();
 	if (event->id < 0)

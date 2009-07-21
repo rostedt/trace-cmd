@@ -148,6 +148,23 @@ static void read_proc_kallsyms(void)
 	free(buf);
 }
 
+static void read_ftrace_printk(void)
+{
+	unsigned int size;
+	char *buf;
+
+	size = read4();
+	if (!size)
+		return;
+
+	buf = malloc_or_die(size);
+	read_or_die(buf, size);
+
+	parse_ftrace_printk(buf, size);
+
+	free(buf);
+}
+
 static void read_header_files(void)
 {
 	unsigned long long size;
@@ -579,6 +596,7 @@ void trace_report (int argc, char **argv)
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
+	int show_printk = 0;
 	int c;
 
 	if (argc < 2)
@@ -595,7 +613,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fep",
+		c = getopt_long (argc-1, argv+1, "+hi:fepP",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -608,6 +626,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'f':
 			show_funcs = 1;
+			break;
+		case 'P':
+			show_printk = 1;
 			break;
 		case 'e':
 			show_endian = 1;
@@ -671,9 +692,14 @@ void trace_report (int argc, char **argv)
 	read_ftrace_files();
 	read_event_files();
 	read_proc_kallsyms();
+	read_ftrace_printk();
 
 	if (show_funcs) {
 		print_funcs();
+		return;
+	}
+	if (show_printk) {
+		print_printk();
 		return;
 	}
 	read_data_info();

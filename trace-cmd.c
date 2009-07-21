@@ -849,6 +849,29 @@ static void read_proc_kallsyms(void)
 
 }
 
+static void read_ftrace_printk(void)
+{
+	unsigned int size, check_size;
+	const char *path;
+	struct stat st;
+	int ret;
+
+	path = get_tracing_file("printk_formats");
+	ret = stat(path, &st);
+	if (ret < 0) {
+		/* not found */
+		size = 0;
+		write_or_die(&size, 4);
+		return;
+	}
+	size = get_size(path);
+	write_or_die(&size, 4);
+	check_size = copy_file(path);
+	if (size != check_size)
+		die("error in size of file '%s'", path);
+
+}
+
 static void read_tracing_data(void)
 {
 	char buf[BUFSIZ];
@@ -886,6 +909,7 @@ static void read_tracing_data(void)
 	read_ftrace_files();
 	read_event_files();
 	read_proc_kallsyms();
+	read_ftrace_printk();
 }
 
 static unsigned long long read_thread_file(int cpu)
@@ -1006,6 +1030,7 @@ void usage(char **argv)
 	       "          -i input file [default trace.dat]\n"
 	       "          -e show file endianess\n"
 	       "          -f show function list\n"
+	       "          -P show printk list\n"
 	       "\n"
 	       " %s list [-e][-p]\n"
 	       "          -e list available events\n"
