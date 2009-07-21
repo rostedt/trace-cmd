@@ -733,25 +733,65 @@ int event_read_fields(struct event *event, struct format_field **fields)
 			goto fail;
 
 		if (strcmp(token, "[") == 0) {
+			enum event_type last_type = type;
+			char *brackets = token;
+			int len;
+
 			field->flags |= FIELD_IS_ARRAY;
-			/* add brackets to type */
-			do {
-				field->type = realloc(field->type,
-						      strlen(field->type) +
-						      strlen(token) + 1);
-				strcat(field->type, token);
+
+			type = read_token(&token);
+		        while (strcmp(token, "]") != 0) {
+				if (last_type == EVENT_ITEM &&
+				    type == EVENT_ITEM)
+					len = 2;
+				else
+					len = 1;
+				last_type = type;
+
+				brackets = realloc(brackets,
+						   strlen(brackets) +
+						   strlen(token) + len);
+				if (len == 2)
+					strcat(brackets, " ");
+				strcat(brackets, token);
 				free_token(token);
 				type = read_token(&token);
 				if (type == EVENT_NONE) {
 					die("failed to find token");
 					goto fail;
 				}
-			} while (type != EVENT_OP || strcmp(token, "]") != 0);
-			field->type = realloc(field->type,
-					      strlen(field->type) + 2);
-			strcat(field->type, "]");
+			}
+
 			free_token(token);
+
+			brackets = realloc(brackets, strlen(brackets) + 2);
+			strcat(brackets, "]");
+
+			/* add brackets to type */
+
 			type = read_token(&token);
+			/*
+			 * If the next token is not an OP, then it is of
+			 * the format: type [] item;
+			 */
+			if (type == EVENT_ITEM) {
+				field->type = realloc(field->type,
+						      strlen(field->type) +
+						      strlen(field->name) +
+						      strlen(brackets) + 2);
+				strcat(field->type, " ");
+				strcat(field->type, field->name);
+				free_token(field->name);
+				strcat(field->type, brackets);
+				field->name = token;
+				type = read_token(&token);
+			} else {
+				field->type = realloc(field->type,
+						      strlen(field->type) +
+						      strlen(brackets) + 1);
+				strcat(field->type, brackets);
+			}
+			free(brackets);
 		}
 
 		if (test_type_token(type, token,  EVENT_OP, ";"))
