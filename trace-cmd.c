@@ -1114,7 +1114,7 @@ int main (int argc, char **argv)
 		exit(0);
 
 	} else {
-		fprintf(stderr, "unkown command: %s\n", argv[1]);
+		fprintf(stderr, "unknown command: %s\n", argv[1]);
 		usage(argv);
 	}
 
