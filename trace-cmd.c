@@ -361,7 +361,7 @@ static void enable_event(const char *name)
 	char *path;
 	int ret;
 
-	printf("enable %s\n", name);
+	fprintf(stderr, "enable %s\n", name);
 	if (strcmp(name, "all") == 0) {
 		path = get_tracing_file("events/enable");
 		fp = fopen(path, "w");
@@ -550,17 +550,11 @@ static int create_recorder(int cpu)
 
 	do {
 		ret = splice(in_fd, NULL, brass[1], NULL, page_size, 1 /* SPLICE_F_MOVE */);
-		if (ret < 0) {
-			perror("in");
-			printf("errno=%d\n", errno);
+		if (ret < 0)
 			die("splice in");
-		}
 		ret = splice(brass[0], NULL, out_fd, NULL, page_size, 3 /* and NON_BLOCK */);
-		if (ret < 0 && errno != EAGAIN) {
-			perror("in");
-			printf("errno=%d\n", errno);
+		if (ret < 0 && errno != EAGAIN)
 			die("splice out");
-		}
 	} while (!finished);
 
 	/* splice only reads full pages */
@@ -998,7 +992,7 @@ static void read_thread_data(void)
 	}
 
 	for (i = 0; i < cpu_count; i++) {
-		printf("offset=%llx\n", offsets[i]);
+		fprintf(stderr, "offset=%llx\n", offsets[i]);
 		ret = lseek64(output_fd, offsets[i], SEEK_SET);
 		if (ret < 0)
 			die("could not seek to %lld\n", offsets[i]);
@@ -1074,7 +1068,7 @@ int main (int argc, char **argv)
 				if (plugin)
 					die("only one plugin allowed");
 				plugin = optarg;
-				printf("  plugin %s\n", plugin);
+				fprintf(stderr, "  plugin %s\n", plugin);
 				break;
 			case 'd':
 				disable = 1;
