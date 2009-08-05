@@ -1144,7 +1144,9 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		   strcmp(token, "+") == 0 ||
 		   strcmp(token, "*") == 0 ||
 		   strcmp(token, "^") == 0 ||
-		   strcmp(token, "/") == 0) {
+		   strcmp(token, "/") == 0 ||
+		   strcmp(token, "==") == 0 ||
+		   strcmp(token, "!=") == 0) {
 
 		left = malloc_or_die(sizeof(*left));
 
@@ -1287,6 +1289,18 @@ static long long arg_num_eval(struct print_arg *arg)
 				die("unknown op '%s'", arg->op.op);
 
 			val = left == right;
+			break;
+		case '!':
+			left = arg_num_eval(arg->op.left);
+			right = arg_num_eval(arg->op.right);
+
+			switch (arg->op.op[1]) {
+			case '=':
+				val = left != right;
+				break;
+			default:
+				die("unknown op '%s'", arg->op.op);
+			}
 			break;
 		default:
 			die("unknown op '%s'", arg->op.op);
