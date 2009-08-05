@@ -487,7 +487,6 @@ enum event_type __read_token(char **tok)
 		case '&':
 		case '>':
 		case '<':
-		case '!':
 			last_ch = ch;
 			ch = __peek_char();
 			if (ch != last_ch)
@@ -499,6 +498,8 @@ enum event_type __read_token(char **tok)
 				goto test_equal;
 			}
 			break;
+		case '!':
+			goto test_equal;
 		}
 		buf[i] = 0;
 		*tok = strdup(buf);
