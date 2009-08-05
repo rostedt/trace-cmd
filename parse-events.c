@@ -499,6 +499,7 @@ enum event_type __read_token(char **tok)
 			}
 			break;
 		case '!':
+		case '=':
 			goto test_equal;
 		}
 		buf[i] = 0;
