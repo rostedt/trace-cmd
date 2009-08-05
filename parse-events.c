@@ -2235,7 +2235,7 @@ static void pretty_print(void *data, int size, struct event *event)
 				if (*(ptr+1) == 'F' ||
 				    *(ptr+1) == 'f') {
 					ptr++;
-					show_func = *(ptr+1);
+					show_func = *ptr;
 				}
 
 				/* fall through */
