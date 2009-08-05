@@ -376,7 +376,7 @@ static void enable_event(const char *name)
 	}
 
 	path = get_tracing_file("set_event");
-	fp = fopen(path, "w");
+	fp = fopen(path, "a");
 	if (!fp)
 		die("writing to '%s'", path);
 	put_tracing_file(path);
