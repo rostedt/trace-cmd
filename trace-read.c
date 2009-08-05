@@ -387,7 +387,7 @@ static int calc_index(void *ptr, int cpu)
 	return (unsigned long)ptr - (unsigned long)cpu_data[cpu].page;
 }
 
-struct record *peak_data(int cpu)
+struct record *peek_data(int cpu)
 {
 	struct record *data;
 	void *page = cpu_data[cpu].page;
@@ -431,7 +431,7 @@ read_again:
 
 	if (index >= cpu_data[cpu].page_size) {
 		get_next_page(cpu);
-		return peak_data(cpu);
+		return peek_data(cpu);
 	}
 
 	type_len_ts = data2host4(ptr);
@@ -491,7 +491,7 @@ struct record *read_data(int cpu)
 {
 	struct record *data;
 
-	data = peak_data(cpu);
+	data = peek_data(cpu);
 	cpu_data[cpu].next = NULL;
 
 	return data;
@@ -568,12 +568,12 @@ static void read_data_info(void)
 		ts = 0;
 		if (filter_cpu >= 0) {
 			cpu = filter_cpu;
-			data = peak_data(cpu);
+			data = peek_data(cpu);
 			if (data)
 				next = cpu;
 		} else {
 			for (cpu = 0; cpu < cpus; cpu++) {
-				data = peak_data(cpu);
+				data = peek_data(cpu);
 				if (data && (!ts || data->ts < ts)) {
 					ts = data->ts;
 					next = cpu;

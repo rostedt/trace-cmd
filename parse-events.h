@@ -147,7 +147,7 @@ struct record {
 
 void usage(char **argv);
 
-struct record *peak_data(int cpu);
+struct record *peek_data(int cpu);
 struct record *read_data(int cpu);
 
 void parse_set_info(int nr_cpus, int long_sz);

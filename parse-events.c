@@ -436,7 +436,7 @@ static int __read_char(void)
 	return input_buf[input_buf_ptr++];
 }
 
-static int __peak_char(void)
+static int __peek_char(void)
 {
 	if (input_buf_ptr >= input_buf_siz)
 		return -1;
@@ -476,7 +476,7 @@ enum event_type __read_token(char **tok)
 	case EVENT_OP:
 		switch (ch) {
 		case '-':
-			next_ch = __peak_char();
+			next_ch = __peek_char();
 			if (next_ch == '>') {
 				buf[i++] = __read_char();
 				break;
@@ -489,7 +489,7 @@ enum event_type __read_token(char **tok)
 		case '<':
 		case '!':
 			last_ch = ch;
-			ch = __peak_char();
+			ch = __peek_char();
 			if (ch != last_ch)
 				goto test_equal;
 			buf[i++] = __read_char();
@@ -505,7 +505,7 @@ enum event_type __read_token(char **tok)
 		return type;
 
  test_equal:
-		ch = __peak_char();
+		ch = __peek_char();
 		if (ch == '=')
 			buf[i++] = __read_char();
 		break;
@@ -543,7 +543,7 @@ enum event_type __read_token(char **tok)
 		break;
 	}
 		
-	while (get_type(__peak_char()) == type) {
+	while (get_type(__peek_char()) == type) {
 		if (i == (BUFSIZ - 1)) {
 			buf[i] = 0;
 			if (*tok) {
@@ -2547,13 +2547,13 @@ pretty_print_func_ent(void *data, int size, struct event *event,
 	val = read_size(data + field->offset, field->size);
 
 	/*
-	 * peak_data may unmap the data pointer. Copy it first.
+	 * peek_data may unmap the data pointer. Copy it first.
 	 */
 	copy_data = malloc_or_die(size);
 	memcpy(copy_data, data, size);
 	data = copy_data;
 
-	rec = peak_data(cpu);
+	rec = peek_data(cpu);
 	if (rec) {
 		rec = get_return_for_leaf(cpu, pid, val, rec);
 		if (rec) {
