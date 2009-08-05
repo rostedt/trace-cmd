@@ -1898,8 +1898,27 @@ static unsigned long long eval_num_arg(void *data, int size,
 	return val;
 }
 
+struct flag {
+	const char *name;
+	unsigned long long value;
+};
+
+static const struct flag flags[] = {
+	{ "HI_SOFTIRQ", 0 },
+	{ "TIMER_SOFTIRQ", 1 },
+	{ "NET_TX_SOFTIRQ", 2 },
+	{ "NET_RX_SOFTIRQ", 3 },
+	{ "BLOCK_SOFTIRQ", 4 },
+	{ "TASKLET_SOFTIRQ", 5 },
+	{ "SCHED_SOFTIRQ", 6 },
+	{ "HRTIMER_SOFTIRQ", 7 },
+	{ "RCU_SOFTIRQ", 8 },
+};
+
 static unsigned long long eval_flag(const char *flag)
 {
+	int i;
+
 	/*
 	 * Some flags in the format files do not get converted.
 	 * If the flag is not numeric, see if it is something that
@@ -1908,24 +1927,10 @@ static unsigned long long eval_flag(const char *flag)
 	if (isdigit(flag[0]))
 		return strtoull(flag, NULL, 0);
 
-	if (strcmp("HI_SOFTIRQ", flag) == 0)
-		return 0;
-	if (strcmp("TIMER_SOFTIRQ", flag) == 0)
-		return 1;
-	if (strcmp("NET_TX_SOFTIRQ", flag) == 0)
-		return 2;
-	if (strcmp("NET_RX_SOFTIRQ", flag) == 0)
-		return 3;
-	if (strcmp("BLOCK_SOFTIRQ", flag) == 0)
-		return 4;
-	if (strcmp("TASKLET_SOFTIRQ", flag) == 0)
-		return 5;
-	if (strcmp("SCHED_SOFTIRQ", flag) == 0)
-		return 6;
-	if (strcmp("HRTIMER_SOFTIRQ", flag) == 0)
-		return 7;
-	if (strcmp("RCU_SOFTIRQ", flag) == 0)
-		return 8;
+	for (i = 0; i < sizeof(flags)/sizeof(flags[0]); i++)
+		if (strcmp(flags[i].name, flag) == 0)
+			return flags[i].value;
+
 	return 0;
 }
 
