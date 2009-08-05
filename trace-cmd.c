@@ -227,8 +227,7 @@ static char *get_tracing_file(const char *name)
 
 static void put_tracing_file(char *file)
 {
-	if (file)
-		free(file);
+	free(file);
 }
 
 static void write_trace(const char *file, const char *val)
