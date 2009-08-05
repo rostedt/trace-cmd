@@ -1913,6 +1913,9 @@ static const struct flag flags[] = {
 	{ "SCHED_SOFTIRQ", 6 },
 	{ "HRTIMER_SOFTIRQ", 7 },
 	{ "RCU_SOFTIRQ", 8 },
+
+	{ "HRTIMER_NORESTART", 0 },
+	{ "HRTIMER_RESTART", 1 },
 };
 
 static unsigned long long eval_flag(const char *flag)
