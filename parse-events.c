@@ -1966,6 +1966,7 @@ static void print_str_arg(void *data, int size,
 		/* ?? */
 		return;
 	case PRINT_ATOM:
+		printf("%s", arg->atom.atom);
 		return;
 	case PRINT_FIELD:
 		if (!arg->field.field) {
