@@ -1024,6 +1024,35 @@ out_free:
 	return EVENT_ERROR;
 }
 
+enum event_type
+process_array(struct event *event, struct print_arg *top, char **tok)
+{
+	struct print_arg *arg;
+	enum event_type type;
+	char *token = NULL;
+
+	arg = malloc_or_die(sizeof(*arg));
+	memset(arg, 0, sizeof(*arg));
+
+	*tok = NULL;
+	type = process_arg(event, arg, &token);
+	if (test_type_token(type, token, EVENT_OP, "]"))
+		goto out_free;
+
+	top->op.right = arg;
+
+	free_token(token);
+	type = read_token_item(&token);
+	*tok = token;
+
+	return type;
+
+out_free:
+	free_token(*tok);
+	free_arg(arg);
+	return EVENT_ERROR;
+}
+
 static int get_op_prio(char *op)
 {
 	if (!op[1]) {
@@ -1167,6 +1196,17 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		type = process_arg(event, right, tok);
 		
 		arg->op.right = right;
+
+	} else if (strcmp(token, "[") == 0) {
+
+		left = malloc_or_die(sizeof(*left));
+
+		arg->type = PRINT_OP;
+		arg->op.op = token;
+		arg->op.left = left;
+
+		arg->op.prio = 0;
+		type = process_array(event, arg, tok);
 
 	} else {
 		die("unknown op '%s'", token);
