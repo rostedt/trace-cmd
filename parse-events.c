@@ -1679,6 +1679,7 @@ int event_read_print(struct event *event)
 	if (read_expect_type(EVENT_DQUOTE, &token) < 0)
 		goto fail;
 
+ concat:
 	event->print_fmt.format = token;
 	event->print_fmt.args = NULL;
 
@@ -1688,6 +1689,21 @@ int event_read_print(struct event *event)
 	if (type == EVENT_NONE)
 		return 0;
 
+	/* Handle concatination of print lines */
+	if (type == EVENT_DQUOTE) {
+		char *cat;
+
+		cat = malloc_or_die(strlen(event->print_fmt.format) +
+				    strlen(token) + 1);
+		strcpy(cat, event->print_fmt.format);
+		strcat(cat, token);
+		free_token(token);
+		free_token(event->print_fmt.format);
+		event->print_fmt.format = NULL;
+		token = cat;
+		goto concat;
+	}
+			     
 	if (test_type_token(type, token, EVENT_DELIM, ","))
 		goto fail;
 
