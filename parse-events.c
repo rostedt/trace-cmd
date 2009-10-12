@@ -537,7 +537,10 @@ enum event_type __read_token(char **tok)
 			last_ch = ch;
 			ch = __read_char();
 			buf[i++] = ch;
-		} while (ch != quote_ch && last_ch != '\\');
+			/* the '\' '\' will cancel itself */
+			if (ch == '\\' && last_ch == '\\')
+				last_ch = 0;
+		} while (ch != quote_ch || last_ch == '\\');
 		/* remove the last quote */
 		i--;
 		goto out;
