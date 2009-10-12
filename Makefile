@@ -1,10 +1,16 @@
 CC = gcc
 AR = ar
 EXT = -std=gnu99
-CFLAGS = -g -Wall # -O2
 INCLUDES = -I. -I/usr/local/include
 
 LIBS = -L. -ltracecmd -ldl
+
+PACKAGES= gtk+-2.0 libgnome-2.0 libgnomecanvas-2.0 libgnomeui-2.0 libxml-2.0
+
+CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES))
+CONFIG_LIBS = $(shell pkg-config --libs $(PACKAGES))
+
+CFLAGS = -g -Wall $(CONFIG_FLAGS)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
@@ -24,8 +30,14 @@ trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
 
-trace-cmd:: trace-cmd.o trace-read.o
-	$(CC) $^ $(LIBS) -rdynamic -o $@
+trace-cmd:: trace-cmd.o trace-read.o trace-view.o
+	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+
+.PHONY: view_depends
+view_depends:
+	@pkg-config --cflags $(PACKAGES)
+
+trace-view.o::		parse-events.h view_depends
 
 parse-events.o: parse-events.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
