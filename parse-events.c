@@ -1193,8 +1193,25 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 
 		right = malloc_or_die(sizeof(*right));
 
-		type = process_arg(event, right, tok);
-		
+		type = read_token(&token);
+		*tok = token;
+
+		/* could just be a type pointer */
+		if ((strcmp(arg->op.op, "*") == 0) &&
+		    type == EVENT_DELIM && (strcmp(token, ")") == 0)) {
+			if (left->type != PRINT_ATOM)
+				die("bad pointer type");
+			left->atom.atom = realloc(left->atom.atom,
+					    sizeof(left->atom.atom) + 3);
+			strcat(left->atom.atom, " *");
+			*arg = *left;
+			free(arg);
+
+			return type;
+		}
+
+		type = process_arg_token(event, right, tok, type);
+
 		arg->op.right = right;
 
 	} else if (strcmp(token, "[") == 0) {
@@ -1213,7 +1230,6 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		/* the arg is now the left side */
 		return EVENT_NONE;
 	}
-
 
 	if (type == EVENT_OP) {
 		int prio;
