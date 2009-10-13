@@ -131,12 +131,14 @@ struct event {
 };
 
 enum {
-	EVENT_FL_ISFTRACE	= 1,
-	EVENT_FL_ISPRINT	= 2,
-	EVENT_FL_ISBPRINT	= 4,
-	EVENT_FL_ISFUNC		= 8,
-	EVENT_FL_ISFUNCENT	= 16,
-	EVENT_FL_ISFUNCRET	= 32,
+	EVENT_FL_ISFTRACE	= 0x01,
+	EVENT_FL_ISPRINT	= 0x02,
+	EVENT_FL_ISBPRINT	= 0x04,
+	EVENT_FL_ISFUNC		= 0x08,
+	EVENT_FL_ISFUNCENT	= 0x10,
+	EVENT_FL_ISFUNCRET	= 0x20,
+
+	EVENT_FL_FAILED		= 0x80000000
 };
 
 struct record {
@@ -156,6 +158,7 @@ void trace_report(int argc, char **argv);
 
 void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
+void warn(char *fmt, ...);
 
 void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);

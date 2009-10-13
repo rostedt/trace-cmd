@@ -147,6 +147,21 @@ void die(char *fmt, ...)
 	exit(ret);
 }
 
+void warn(char *fmt, ...)
+{
+	va_list ap;
+
+	if (errno)
+		perror("trace-cmd");
+
+	va_start(ap, fmt);
+	fprintf(stderr, "  ");
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+
+	fprintf(stderr, "\n");
+}
+
 void *malloc_or_die(unsigned int size)
 {
 	void *data;
