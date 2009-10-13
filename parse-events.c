@@ -2875,6 +2875,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs)
 		printf("%8.8s-%-5d %3d",
 		       comm, pid, cpu);
 		print_lat_fmt(data, size);
+		printf(" ");
 	} else
 		printf("%16s-%-5d [%03d] %5lu.%06lu: %s: ",
 		       comm, pid,  cpu,
