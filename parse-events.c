@@ -1917,6 +1917,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 {
 	unsigned long long val = 0;
 	unsigned long long left, right;
+	struct print_arg *larg;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -1943,6 +1944,26 @@ static unsigned long long eval_num_arg(void *data, int size,
 		return 0;
 		break;
 	case PRINT_OP:
+		if (strcmp(arg->op.op, "[") == 0) {
+			/*
+			 * Arrays are special, since we don't want
+			 * to read the arg as is.
+			 */
+			if (arg->op.left->type != PRINT_FIELD)
+				goto default_op; /* oops, all bets off */
+			larg = arg->op.left;
+			if (!larg->field.field) {
+				larg->field.field =
+					find_any_field(event, larg->field.name);
+				if (!larg->field.field)
+					die("field %s not found", larg->field.name);
+			}
+			right = eval_num_arg(data, size, event, arg->op.right);
+			val = read_size(data + larg->field.field->offset +
+					right * long_size, long_size);
+			break;
+		}
+ default_op:
 		left = eval_num_arg(data, size, event, arg->op.left);
 		right = eval_num_arg(data, size, event, arg->op.right);
 		switch (arg->op.op[0]) {
