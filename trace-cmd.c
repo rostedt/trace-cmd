@@ -157,7 +157,6 @@ void warn(char *fmt, ...)
 
 	if (errno)
 		perror("trace-cmd");
-	breakpoint();
 	errno = 0;
 
 	va_start(ap, fmt);
