@@ -1219,6 +1219,7 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 	} else if (strcmp(token, "[") == 0) {
 
 		left = malloc_or_die(sizeof(*left));
+		*left = *arg;
 
 		arg->type = PRINT_OP;
 		arg->op.op = token;
