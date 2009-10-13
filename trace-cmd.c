@@ -153,6 +153,8 @@ void warn(char *fmt, ...)
 
 	if (errno)
 		perror("trace-cmd");
+	breakpoint();
+	errno = 0;
 
 	va_start(ap, fmt);
 	fprintf(stderr, "  ");
@@ -1039,6 +1041,7 @@ void usage(char **argv)
 	       "          -e show file endianess\n"
 	       "          -f show function list\n"
 	       "          -P show printk list\n"
+	       "          -l show latency format (default with latency tracers)\n"
 	       "\n"
 	       " %s list [-e][-p]\n"
 	       "          -e list available events\n"
@@ -1057,6 +1060,8 @@ int main (int argc, char **argv)
 	int events = 0;
 
 	int c;
+
+	errno = 0;
 
 	if (argc < 2)
 		usage(argv);

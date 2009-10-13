@@ -613,7 +613,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepP",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPl",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -635,6 +635,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'p':
 			show_page_size = 1;
+			break;
+		case 'l':
+			latency_format = 1;
 			break;
 		case 0:
 			switch(option_index) {

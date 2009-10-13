@@ -234,6 +234,17 @@ extern int header_page_size_size;
 extern int header_page_data_offset;
 extern int header_page_data_size;
 
+extern int latency_format;
+
 int parse_header_page(char *buf, unsigned long size);
+
+/* taken from kernel/trace/trace.h */
+enum trace_flag_type {
+	TRACE_FLAG_IRQS_OFF		= 0x01,
+	TRACE_FLAG_IRQS_NOSUPPORT	= 0x02,
+	TRACE_FLAG_NEED_RESCHED		= 0x04,
+	TRACE_FLAG_HARDIRQ		= 0x08,
+	TRACE_FLAG_SOFTIRQ		= 0x10,
+};
 
 #endif /* _PARSE_EVENTS_H */
