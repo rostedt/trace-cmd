@@ -2313,7 +2313,27 @@ static void pretty_print(void *data, int size, struct event *event)
 
 	for (; *ptr; ptr++) {
 		ls = 0;
-		if (*ptr == '%') {
+		if (*ptr == '\\') {
+			ptr++;
+			switch (*ptr) {
+			case 'n':
+				printf("\n");
+				break;
+			case 't':
+				printf("\t");
+				break;
+			case 'r':
+				printf("\r");
+				break;
+			case '\\':
+				printf("\\");
+				break;
+			default:
+				printf("%c", *ptr);
+				break;
+			}
+
+		} else if (*ptr == '%') {
 			saveptr = ptr;
 			show_func = 0;
  cont_process:
