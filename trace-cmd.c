@@ -91,9 +91,10 @@ static void kill_threads(void)
 		return;
 
 	for (i = 0; i < cpu_count; i++) {
-		if (pids[i]) {
+		if (pids[i] > 0) {
 			kill(pids[i], SIGKILL);
 			delete_temp_file(i);
+			pids[i] = 0;
 		}
 	}
 }
@@ -106,8 +107,11 @@ static void delete_thread_data(void)
 		return;
 
 	for (i = 0; i < cpu_count; i++) {
-		if (pids[i])
+		if (pids[i]) {
 			delete_temp_file(i);
+			if (pids[i] < 0)
+				pids[i] = 0;
+		}
 	}
 }
 
@@ -119,10 +123,10 @@ static void stop_threads(void)
 		return;
 
 	for (i = 0; i < cpu_count; i++) {
-		if (pids[i]) {
+		if (pids[i] > 0) {
 			kill(pids[i], SIGINT);
 			waitpid(pids[i], NULL, 0);
-			pids[i] = 0;
+			pids[i] = -1;
 		}
 	}
 }
