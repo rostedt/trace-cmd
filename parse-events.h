@@ -1,7 +1,13 @@
 #ifndef _PARSE_EVENTS_H
 #define _PARSE_EVENTS_H
 
+#ifndef __unused
+#define __unused __attribute__ ((unused))
+#endif
+
+/* unique to trace-cmd */
 extern unsigned int page_size;
+void usage(char **argv);
 
 #ifndef PAGE_MASK
 #define PAGE_MASK (page_size - 1)
@@ -23,6 +29,9 @@ enum {
 enum format_flags {
 	FIELD_IS_ARRAY		= 1,
 	FIELD_IS_POINTER	= 2,
+	FIELD_IS_SIGNED		= 4,
+	FIELD_IS_STRING		= 8,
+	FIELD_IS_DYNAMIC	= 16,
 };
 
 struct format_field {
@@ -47,6 +56,7 @@ struct print_arg_atom {
 
 struct print_arg_string {
 	char			*string;
+	int			offset;
 };
 
 struct print_arg_field {
@@ -128,6 +138,7 @@ struct event {
 	int			flags;
 	struct format		format;
 	struct print_fmt	print_fmt;
+	char			*system;
 };
 
 enum {
@@ -147,10 +158,8 @@ struct record {
 	void *data;
 };
 
-void usage(char **argv);
-
-struct record *peek_data(int cpu);
-struct record *read_data(int cpu);
+struct record *trace_peek_data(int cpu);
+struct record *trace_read_data(int cpu);
 
 void parse_set_info(int nr_cpus, int long_sz);
 
@@ -168,7 +177,7 @@ void print_funcs(void);
 void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
-int parse_event_file(char *buf, unsigned long size, char *system);
+int parse_event_file(char *buf, unsigned long size, char *sys);
 void print_event(int cpu, void *data, int size, unsigned long long nsecs);
 
 extern int file_bigendian;

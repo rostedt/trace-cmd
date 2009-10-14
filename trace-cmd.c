@@ -272,7 +272,7 @@ static int find_trace_type(const char *type)
 	FILE *fp;
 	int ret;
 
-	path = get_tracing_file(path);
+	path = get_tracing_file(type);
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
