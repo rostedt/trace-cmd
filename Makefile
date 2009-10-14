@@ -1,9 +1,10 @@
 CC = gcc
+EXT = -std=gnu99
 CFLAGS = -g -Wall # -O2
 INCLUDES = -I. -I/usr/local/include
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $(INCLUDES) $< -o $@
+	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
 TARGETS = trace-cmd
 
