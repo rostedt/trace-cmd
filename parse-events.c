@@ -634,7 +634,7 @@ static enum event_type read_token_item(char **tok)
 static int test_type(enum event_type type, enum event_type expect)
 {
 	if (type != expect) {
-		warn("Error: expected type %d but read %d",
+		warning("Error: expected type %d but read %d",
 		    expect, type);
 		return -1;
 	}
@@ -645,13 +645,13 @@ static int test_type_token(enum event_type type, char *token,
 		    enum event_type expect, char *expect_tok)
 {
 	if (type != expect) {
-		warn("Error: expected type %d but read %d",
+		warning("Error: expected type %d but read %d",
 		    expect, type);
 		return -1;
 	}
 
 	if (strcmp(token, expect_tok) != 0) {
-		warn("Error: expected '%s' but read '%s'",
+		warning("Error: expected '%s' but read '%s'",
 		    expect_tok, token);
 		return -1;
 	}
@@ -1074,7 +1074,7 @@ out_free:
 	return EVENT_ERROR;
 }
 
-enum event_type
+static enum event_type
 process_array(struct event *event, struct print_arg *top, char **tok)
 {
 	struct print_arg *arg;
@@ -1086,7 +1086,7 @@ process_array(struct event *event, struct print_arg *top, char **tok)
 
 	*tok = NULL;
 	type = process_arg(event, arg, &token);
-	if (test_type_token(type, token, EVENT_OP, "]"))
+	if (test_type_token(type, token, EVENT_OP, (char *)"]"))
 		goto out_free;
 
 	top->op.right = arg;
@@ -1279,7 +1279,7 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		type = process_array(event, arg, tok);
 
 	} else {
-		warn("unknown op '%s'", token);
+		warning("unknown op '%s'", token);
 		event->flags |= EVENT_FL_FAILED;
 		/* the arg is now the left side */
 		return EVENT_NONE;
@@ -1606,7 +1606,7 @@ process_paren(struct event *event, struct print_arg *arg, char **tok)
 	if (type == EVENT_ERROR)
 		return EVENT_ERROR;
 
-	if (test_type_token(type, token, EVENT_DELIM, ")")) {
+	if (test_type_token(type, token, EVENT_DELIM, (char *)")")) {
 		free_token(token);
 		return EVENT_ERROR;
 	}
@@ -1833,7 +1833,7 @@ static int event_read_print(struct event *event)
 		goto concat;
 	}
 			     
-	if (test_type_token(type, token, EVENT_DELIM, ","))
+	if (test_type_token(type, token, EVENT_DELIM, (char *)","))
 		goto fail;
 
 	free_token(token);
@@ -1947,7 +1947,7 @@ static int trace_parse_common_type(void *data)
 	static int type_size;
 
 	return __parse_common(data, &type_size, &type_offset,
-			      "common_type");
+			      (char *)"common_type");
 }
 
 static int parse_common_pid(void *data)
@@ -1956,7 +1956,7 @@ static int parse_common_pid(void *data)
 	static int pid_size;
 
 	return __parse_common(data, &pid_size, &pid_offset,
-			      "common_pid");
+			      (char *)"common_pid");
 }
 
 static int parse_common_pc(void *data)
@@ -1965,7 +1965,7 @@ static int parse_common_pc(void *data)
 	static int pc_size;
 
 	return __parse_common(data, &pc_size, &pc_offset,
-			      "common_preempt_count");
+			      (char *)"common_preempt_count");
 }
 
 static int parse_common_flags(void *data)
@@ -1974,7 +1974,7 @@ static int parse_common_flags(void *data)
 	static int flags_size;
 
 	return __parse_common(data, &flags_size, &flags_offset,
-			      "common_flags");
+			      (char *)"common_flags");
 }
 
 static int parse_common_lock_depth(void *data)
@@ -1984,7 +1984,7 @@ static int parse_common_lock_depth(void *data)
 	int ret;
 
 	ret = __parse_common(data, &ld_size, &ld_offset,
-			     "common_lock_depth");
+			     (char *)"common_lock_depth");
 	if (ret < 0)
 		return -1;
 
@@ -2305,6 +2305,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 			case 'u':
 			case 'x':
 			case 'i':
+				/* the pointers are always 4 bytes aligned */
 				bptr = (void *)(((unsigned long)bptr + 3) &
 						~3);
 				switch (ls) {
@@ -2417,9 +2418,6 @@ static void pretty_print(void *data, int size, struct event *event)
 	int show_func;
 	int len;
 	int ls;
-
-	if (strcmp(event->name,"mm_page_alloc") == 0)
-		breakpoint();
 
 	if (event->flags & EVENT_FL_ISFUNC)
 		ptr = " %pF <-- %pF";
@@ -2560,26 +2558,26 @@ static inline int log10_cpu(int nb)
 	return 1;
 }
 
-static void print_lat_fmt(void *data, int size)
+static void print_lat_fmt(void *data, int size __unused)
 {
-	unsigned int flags;
+	unsigned int lat_flags;
 	unsigned int pc;
 	int lock_depth;
 	int hardirq;
 	int softirq;
 
-	flags = parse_common_flags(data);
+	lat_flags = parse_common_flags(data);
 	pc = parse_common_pc(data);
 	lock_depth = parse_common_lock_depth(data);
 
-	hardirq = flags & TRACE_FLAG_HARDIRQ;
-	softirq = flags & TRACE_FLAG_SOFTIRQ;
+	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
+	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
 
 	printf("%c%c%c",
-	       (flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
-	       (flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
+	       (lat_flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+	       (lat_flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
 	       'X' : '.',
-	       (flags & TRACE_FLAG_NEED_RESCHED) ?
+	       (lat_flags & TRACE_FLAG_NEED_RESCHED) ?
 	       'N' : '.',
 	       (hardirq && softirq) ? 'H' :
 	       hardirq ? 'h' : softirq ? 's' : '.');
@@ -2952,7 +2950,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs)
 
 	event = trace_find_event(type);
 	if (!event) {
-		warn("ug! no event found for type %d", type);
+		warning("ug! no event found for type %d", type);
 		return;
 	}
 
@@ -3215,13 +3213,13 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 
 	ret = event_read_format(event);
 	if (ret < 0) {
-		warn("failed to read event format for %s", event->name);
+		warning("failed to read event format for %s", event->name);
 		goto event_failed;
 	}
 
 	ret = event_read_print(event);
 	if (ret < 0) {
-		warn("failed to read event print fmt for %s", event->name);
+		warning("failed to read event print fmt for %s", event->name);
 		goto event_failed;
 	}
 

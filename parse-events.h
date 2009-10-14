@@ -167,7 +167,7 @@ void trace_report(int argc, char **argv);
 
 void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
-void warn(char *fmt, ...);
+void warning(char *fmt, ...);
 
 void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);

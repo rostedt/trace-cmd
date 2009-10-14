@@ -151,7 +151,7 @@ void die(char *fmt, ...)
 	exit(ret);
 }
 
-void warn(char *fmt, ...)
+void warning(char *fmt, ...)
 {
 	va_list ap;
 
