@@ -374,6 +374,42 @@ static void set_plugin(const char *name)
 	fclose(fp);
 }
 
+static void show_options(void)
+{
+	char buf[BUFSIZ];
+	char *path;
+	FILE *fp;
+	size_t n;
+
+	path = get_tracing_file("trace_options");
+	fp = fopen(path, "r");
+	if (!fp)
+		die("reading %s", path);
+	put_tracing_file(path);
+
+	do {
+		n = fread(buf, 1, BUFSIZ, fp);
+		if (n > 0)
+			fwrite(buf, 1, n, stdout);
+	} while (n > 0);
+	fclose(fp);
+}
+
+static void set_option(const char *option)
+{
+	FILE *fp;
+	char *path;
+
+	path = get_tracing_file("trace_options");
+	fp = fopen(path, "w");
+	if (!fp)
+		die("writing to '%s'", path);
+	put_tracing_file(path);
+
+	fwrite(option, 1, strlen(option), fp);
+	fclose(fp);
+}
+
 static void enable_event(const char *name)
 {
 	FILE *fp;
@@ -1033,11 +1069,12 @@ void usage(char **argv)
 
 	printf("\n"
 	       "%s version %s\n\n"
-	       "usage: %s record [-e event][-p plugin] [-d] [-o file] command ...\n"
+	       "usage: %s record [-e event][-p plugin] [-d] [-o file] [-O option ] command ...\n"
 	       "          -e run command with event enabled\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -d disable function tracer when running\n"
 	       "          -o data output file [default trace.dat]\n"
+	       "          -O option to enable (or disable)\n"
 	       "\n"
 	       " %s report [-i file] [--cpu cpu] [-e][-f]\n"
 	       "          -i input file [default trace.dat]\n"
@@ -1049,6 +1086,7 @@ void usage(char **argv)
 	       " %s list [-e][-p]\n"
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
+	       "          -o list available options\n"
 	       "\n", p, VERSION, p, p, p);
 	exit(-1);
 }
@@ -1057,10 +1095,12 @@ int main (int argc, char **argv)
 {
 	const char *plugin = NULL;
 	const char *output = NULL;
+	const char *option;
 	struct event_list *event;
 	int disable = 0;
 	int plug = 0;
 	int events = 0;
+	int options = 0;
 
 	int c;
 
@@ -1074,7 +1114,7 @@ int main (int argc, char **argv)
 		exit(0);
 	} else if (strcmp(argv[1], "record") == 0) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:p:do:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:p:do:O:")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1099,12 +1139,17 @@ int main (int argc, char **argv)
 				if (output)
 					die("only one output file allowed");
 				output = optarg;
+				break;
+			case 'O':
+				option = optarg;
+				set_option(option);
+				break;
 			}
 		}
 
 	} else if (strcmp(argv[1], "list") == 0) {
 
-		while ((c = getopt(argc-1, argv+1, "+hep")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+hepo")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1114,6 +1159,9 @@ int main (int argc, char **argv)
 				break;
 			case 'p':
 				plug = 1;
+				break;
+			case 'o':
+				options = 1;
 				break;
 			default:
 				usage(argv);
@@ -1126,11 +1174,16 @@ int main (int argc, char **argv)
 		if (plug)
 			show_plugins();
 
-		if (!events && !plug) {
+		if (options)
+			show_options();
+
+		if (!events && !plug && !options) {
 			printf("events:\n");
 			show_events();
 			printf("\nplugins:\n");
 			show_plugins();
+			printf("\noptions:\n");
+			show_options();
 		}
 
 		exit(0);
