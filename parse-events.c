@@ -2108,6 +2108,9 @@ static unsigned long long eval_num_arg(void *data, int size,
 		case '-':
 			val = left - right;
 			break;
+		case '+':
+			val = left + right;
+			break;
 		default:
 			die("unknown op '%s'", arg->op.op);
 		}
