@@ -39,6 +39,7 @@
 #include "parse-events.h"
 
 int input_fd;
+const char *input_file = "trace.dat";
 
 static int read_page;
 
@@ -591,13 +592,53 @@ static void read_data_info(void)
 	} while (next >= 0);
 }
 
+int read_trace_header(void)
+{
+	char test[] = { 23, 8, 68 };
+	char *version;
+	char buf[BUFSIZ];
+
+	input_fd = open(input_file, O_RDONLY);
+	if (input_fd < 0)
+		die("opening '%s'\n", input_file);
+
+	read_or_die(buf, 3);
+	if (memcmp(buf, test, 3) != 0)
+		die("not an trace data file");
+
+	read_or_die(buf, 7);
+	if (memcmp(buf, "tracing", 7) != 0)
+		die("not a trace file (missing tracing)");
+
+	version = read_string();
+	printf("version = %s\n", version);
+	free(version);
+
+	read_or_die(buf, 1);
+	file_bigendian = buf[0];
+	host_bigendian = bigendian();
+
+	read_or_die(buf, 1);
+	long_size = buf[0];
+
+	page_size = read4();
+
+	return 0;
+}
+
+int read_trace_files(void)
+{
+	read_header_files();
+	read_ftrace_files();
+	read_event_files();
+	read_proc_kallsyms();
+	read_ftrace_printk();
+
+	return 0;
+}
 
 void trace_report (int argc, char **argv)
 {
-	const char *input_file = "trace.dat";
-	char buf[BUFSIZ];
-	char test[] = { 23, 8, 68 };
-	char *version;
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
@@ -658,30 +699,8 @@ void trace_report (int argc, char **argv)
 		}
 	}
 
-	input_fd = open(input_file, O_RDONLY);
-	if (input_fd < 0)
-		die("opening '%s'\n", input_file);
+	read_trace_header();
 
-	read_or_die(buf, 3);
-	if (memcmp(buf, test, 3) != 0)
-		die("not an trace data file");
-
-	read_or_die(buf, 7);
-	if (memcmp(buf, "tracing", 7) != 0)
-		die("not a trace file (missing tracing)");
-
-	version = read_string();
-	printf("version = %s\n", version);
-	free(version);
-
-	read_or_die(buf, 1);
-	file_bigendian = buf[0];
-	host_bigendian = bigendian();
-
-	read_or_die(buf, 1);
-	long_size = buf[0];
-
-	page_size = read4();
 	if (show_page_size) {
 		printf("file page size is %d, and host page size is %d\n",
 		       page_size,
@@ -696,11 +715,7 @@ void trace_report (int argc, char **argv)
 		return;
 	}
 
-	read_header_files();
-	read_ftrace_files();
-	read_event_files();
-	read_proc_kallsyms();
-	read_ftrace_printk();
+	read_trace_files();
 
 	if (show_funcs) {
 		print_funcs();
