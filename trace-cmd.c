@@ -289,17 +289,26 @@ static int find_trace_type(const char *type)
 	return ret > 0;
 }
 
-static void set_ftrace(int set)
+static int set_ftrace(int set)
 {
+	struct stat buf;
+	char *path = "/proc/sys/kernel/ftrace_enabled";
 	int fd;
 	char *val = set ? "1" : "0";
 
-	fd = open("/proc/sys/kernel/ftrace_enabled", O_WRONLY);
+	/* if ftace_enable does not exist, simply ignore it */
+	fd = stat(path, &buf);
+	if (fd < 0)
+		return -ENODEV;
+
+	fd = open(path, O_WRONLY);
 	if (fd < 0)
 		die ("Can't %s ftrace", set ? "enable" : "disable");
 
 	write(fd, val, 1);
 	close(fd);
+
+	return 0;
 }
 
 void run_cmd(int argc, char **argv)
@@ -1101,6 +1110,7 @@ int main (int argc, char **argv)
 	int plug = 0;
 	int events = 0;
 	int options = 0;
+	int fset;
 
 	int c;
 
@@ -1201,7 +1211,7 @@ int main (int argc, char **argv)
 
 	read_tracing_data();
 
-	set_ftrace(!disable);
+	fset = set_ftrace(!disable);
 
 	disable_all();
 
@@ -1224,6 +1234,9 @@ int main (int argc, char **argv)
 			latency = 1;
 			stop_threads();
 		}
+		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
+				 strcmp(plugin, "function_graph") == 0))
+			die("function tracing not configured on this kernel");
 		set_plugin(plugin);
 	}
 
