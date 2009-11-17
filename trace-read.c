@@ -117,15 +117,17 @@ static char *read_string(void)
 		die("lseek");
 
 	if (str) {
-		size += i;
+		size += i + 1;
 		str = realloc(str, size);
 		if (!str)
 			die("malloc of size %d", size);
 		memcpy(str + (size - i), buf, i);
+		str[size] = 0;
 	} else {
-		size = i;
+		size = i + 1;
 		str = malloc_or_die(i);
 		memcpy(str, buf, i);
+		str[i] = 0;
 	}
 
 	return str;
