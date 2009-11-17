@@ -38,7 +38,7 @@
 
 #include "parse-events.h"
 
-static int input_fd;
+int input_fd;
 
 static int read_page;
 
