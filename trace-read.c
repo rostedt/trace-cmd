@@ -500,10 +500,13 @@ struct record *trace_read_data(int cpu)
 static void show_data(int cpu)
 {
 	struct record *record;
+	struct trace_seq s;
 
 	record = trace_read_data(cpu);
 
-	print_event(cpu, record->data, record->size, record->ts);
+	trace_seq_init(&s);
+	print_event(&s, cpu, record->data, record->size, record->ts);
+	trace_seq_do_printf(&s);
 
 	free(record);
 }

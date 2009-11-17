@@ -29,6 +29,7 @@
 #include <errno.h>
 
 #include "parse-events.h"
+#include "trace-seq.h"
 
 int header_page_ts_offset;
 int header_page_ts_size;
@@ -2161,7 +2162,7 @@ static unsigned long long eval_flag(const char *flag)
 	return 0;
 }
 
-static void print_str_arg(void *data, int size,
+static void print_str_arg(struct trace_seq *s, void *data, int size,
 			  struct event *event, struct print_arg *arg)
 {
 	struct print_flag_sym *flag;
@@ -2174,7 +2175,7 @@ static void print_str_arg(void *data, int size,
 		/* ?? */
 		return;
 	case PRINT_ATOM:
-		printf("%s", arg->atom.atom);
+		trace_seq_puts(s, arg->atom.atom);
 		return;
 	case PRINT_FIELD:
 		if (!arg->field.field) {
@@ -2186,7 +2187,7 @@ static void print_str_arg(void *data, int size,
 		memcpy(str, data + arg->field.field->offset,
 		       arg->field.field->size);
 		str[arg->field.field->size] = 0;
-		printf("%s", str);
+		trace_seq_puts(s, str);
 		free(str);
 		break;
 	case PRINT_FLAGS:
@@ -2195,13 +2196,13 @@ static void print_str_arg(void *data, int size,
 		for (flag = arg->flags.flags; flag; flag = flag->next) {
 			fval = eval_flag(flag->value);
 			if (!val && !fval) {
-				printf("%s", flag->str);
+				trace_seq_puts(s, flag->str);
 				break;
 			}
 			if (fval && (val & fval) == fval) {
 				if (print && arg->flags.delim)
-					printf("%s", arg->flags.delim);
-				printf("%s", flag->str);
+					trace_seq_puts(s, arg->flags.delim);
+				trace_seq_puts(s, flag->str);
 				print = 1;
 				val &= ~fval;
 			}
@@ -2212,7 +2213,7 @@ static void print_str_arg(void *data, int size,
 		for (flag = arg->symbol.symbols; flag; flag = flag->next) {
 			fval = eval_flag(flag->value);
 			if (val == fval) {
-				printf("%s", flag->str);
+				trace_seq_puts(s, flag->str);
 				break;
 			}
 		}
@@ -2231,7 +2232,7 @@ static void print_str_arg(void *data, int size,
 		}
 		str_offset = *(int *)(data + arg->string.offset);
 		str_offset &= 0xffff;
-		printf("%s", ((char *)data) + str_offset);
+		trace_seq_puts(s, ((char *)data) + str_offset);
 		break;
 	}
 	case PRINT_OP:
@@ -2242,9 +2243,9 @@ static void print_str_arg(void *data, int size,
 			return;
 		val = eval_num_arg(data, size, event, arg->op.left);
 		if (val)
-			print_str_arg(data, size, event, arg->op.right->op.left);
+			print_str_arg(s, data, size, event, arg->op.right->op.left);
 		else
-			print_str_arg(data, size, event, arg->op.right->op.right);
+			print_str_arg(s, data, size, event, arg->op.right->op.right);
 		break;
 	default:
 		/* well... */
@@ -2365,7 +2366,8 @@ static void free_args(struct print_arg *args)
 	}
 }
 
-static char *get_bprint_format(void *data, int size __unused, struct event *event)
+static char *
+get_bprint_format(void *data, int size __unused, struct event *event)
 {
 	unsigned long long addr;
 	static struct format_field *field;
@@ -2408,7 +2410,7 @@ static char *get_bprint_format(void *data, int size __unused, struct event *even
 	return format;
 }
 
-static void pretty_print(void *data, int size, struct event *event)
+static void pretty_print(struct trace_seq *s, void *data, int size, struct event *event)
 {
 	struct print_fmt *print_fmt = &event->print_fmt;
 	struct print_arg *arg = print_fmt->args;
@@ -2439,19 +2441,19 @@ static void pretty_print(void *data, int size, struct event *event)
 			ptr++;
 			switch (*ptr) {
 			case 'n':
-				printf("\n");
+				trace_seq_putc(s, '\n');
 				break;
 			case 't':
-				printf("\t");
+				trace_seq_putc(s, '\t');
 				break;
 			case 'r':
-				printf("\r");
+				trace_seq_putc(s, '\r');
 				break;
 			case '\\':
-				printf("\\");
+				trace_seq_putc(s, '\\');
 				break;
 			default:
-				printf("%c", *ptr);
+				trace_seq_putc(s, *ptr);
 				break;
 			}
 
@@ -2462,7 +2464,7 @@ static void pretty_print(void *data, int size, struct event *event)
 			ptr++;
 			switch (*ptr) {
 			case '%':
-				printf("%%");
+				trace_seq_putc(s, '%');
 				break;
 			case 'l':
 				ls++;
@@ -2511,22 +2513,23 @@ static void pretty_print(void *data, int size, struct event *event)
 				if (show_func) {
 					func = find_func(val);
 					if (func) {
-						printf("%s", func->func);
+						trace_seq_puts(s, func->func);
 						if (show_func == 'F')
-							printf("+0x%llx",
+							trace_seq_printf(s,
+							       "+0x%llx",
 							       val - func->addr);
 						break;
 					}
 				}
 				switch (ls) {
 				case 0:
-					printf(format, (int)val);
+					trace_seq_printf(s, format, (int)val);
 					break;
 				case 1:
-					printf(format, (long)val);
+					trace_seq_printf(s, format, (long)val);
 					break;
 				case 2:
-					printf(format, (long long)val);
+					trace_seq_printf(s, format, (long long)val);
 					break;
 				default:
 					die("bad count (%d)", ls);
@@ -2536,15 +2539,15 @@ static void pretty_print(void *data, int size, struct event *event)
 				if (!arg)
 					die("no matching argument");
 
-				print_str_arg(data, size, event, arg);
+				print_str_arg(s, data, size, event, arg);
 				arg = arg->next;
 				break;
 			default:
-				printf(">%c<", *ptr);
+				trace_seq_printf(s, ">%c<", *ptr);
 
 			}
 		} else
-			printf("%c", *ptr);
+			trace_seq_putc(s, *ptr);
 	}
 
 	if (args) {
@@ -2562,7 +2565,7 @@ static inline int log10_cpu(int nb)
 	return 1;
 }
 
-static void print_lat_fmt(void *data, int size __unused)
+static void print_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 {
 	unsigned int lat_flags;
 	unsigned int pc;
@@ -2577,7 +2580,7 @@ static void print_lat_fmt(void *data, int size __unused)
 	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
 	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
 
-	printf("%c%c%c",
+	trace_seq_printf(s, "%c%c%c",
 	       (lat_flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
 	       (lat_flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
 	       'X' : '.',
@@ -2587,18 +2590,18 @@ static void print_lat_fmt(void *data, int size __unused)
 	       hardirq ? 'h' : softirq ? 's' : '.');
 
 	if (pc)
-		printf("%x", pc);
+		trace_seq_printf(s, "%x", pc);
 	else
-		printf(".");
+		trace_seq_putc(s, '.');
 
 	if (lock_depth < 0)
-		printf(".");
+		trace_seq_putc(s, '.');
 	else
-		printf("%d", lock_depth);
+		trace_seq_printf(s, "%d", lock_depth);
 }
 
 /* taken from Linux, written by Frederic Weisbecker */
-static void print_graph_cpu(int cpu)
+static void print_graph_cpu(struct trace_seq *s, int cpu)
 {
 	int i;
 	int log10_this = log10_cpu(cpu);
@@ -2610,7 +2613,7 @@ static void print_graph_cpu(int cpu)
 	 * to the right a bit when trace output is pasted into
 	 * email:
 	 */
-	printf(" ");
+	trace_seq_putc(s, ' ');
 
 	/*
 	 * Tricky - we space the CPU field according to the max
@@ -2619,15 +2622,15 @@ static void print_graph_cpu(int cpu)
 	 * take up to 3 digits:
 	 */
 	for (i = 0; i < log10_all - log10_this; i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 
-	printf("%d) ", cpu);
+	trace_seq_printf(s, "%d) ", cpu);
 }
 
 #define TRACE_GRAPH_PROCINFO_LENGTH	14
 #define TRACE_GRAPH_INDENT	2
 
-static void print_graph_proc(int pid, const char *comm)
+static void print_graph_proc(struct trace_seq *s, int pid, const char *comm)
 {
 	/* sign + log10(MAX_INT) + '\0' */
 	char pid_str[11];
@@ -2645,13 +2648,13 @@ static void print_graph_proc(int pid, const char *comm)
 
 	/* First spaces to align center */
 	for (i = 0; i < spaces / 2; i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 
-	printf("%s-%s", comm, pid_str);
+	trace_seq_printf(s, "%s-%s", comm, pid_str);
 
 	/* Last spaces to align center */
 	for (i = 0; i < spaces - (spaces / 2); i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 }
 
 static struct record *
@@ -2687,24 +2690,25 @@ get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
 }
 
 /* Signal a overhead of time execution to the output */
-static void print_graph_overhead(unsigned long long duration)
+static void print_graph_overhead(struct trace_seq *s,
+				 unsigned long long duration)
 {
 	/* Non nested entry or return */
 	if (duration == ~0ULL)
-		return (void)printf("  ");
+		return (void)trace_seq_printf(s, "  ");
 
 	/* Duration exceeded 100 msecs */
 	if (duration > 100000ULL)
-		return (void)printf("! ");
+		return (void)trace_seq_printf(s, "! ");
 
 	/* Duration exceeded 10 msecs */
 	if (duration > 10000ULL)
-		return (void)printf("+ ");
+		return (void)trace_seq_printf(s, "+ ");
 
-	printf("  ");
+	trace_seq_printf(s, "  ");
 }
 
-static void print_graph_duration(unsigned long long duration)
+static void print_graph_duration(struct trace_seq *s, unsigned long long duration)
 {
 	unsigned long usecs = duration / 1000;
 	unsigned long nsecs_rem = duration % 1000;
@@ -2717,25 +2721,26 @@ static void print_graph_duration(unsigned long long duration)
 	sprintf(msecs_str, "%lu", usecs);
 
 	/* Print msecs */
-	len = printf("%lu", usecs);
+	len = trace_seq_printf(s, "%lu", usecs);
 
 	/* Print nsecs (we don't want to exceed 7 numbers) */
 	if (len < 7) {
 		snprintf(nsecs_str, 8 - len, "%03lu", nsecs_rem);
-		len += printf(".%s", nsecs_str);
+		len += trace_seq_printf(s, ".%s", nsecs_str);
 	}
 
-	printf(" us ");
+	trace_seq_puts(s, " us ");
 
 	/* Print remaining spaces to fit the row's width */
 	for (i = len; i < 7; i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 
-	printf("|  ");
+	trace_seq_puts(s, "|  ");
 }
 
 static void
-print_graph_entry_leaf(struct event *event, void *data, struct record *ret_rec)
+print_graph_entry_leaf(struct trace_seq *s,
+		       struct event *event, void *data, struct record *ret_rec)
 {
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
@@ -2762,10 +2767,10 @@ print_graph_entry_leaf(struct event *event, void *data, struct record *ret_rec)
 	duration = rettime - calltime;
 
 	/* Overhead */
-	print_graph_overhead(duration);
+	print_graph_overhead(s, duration);
 
 	/* Duration */
-	print_graph_duration(duration);
+	print_graph_duration(s, duration);
 
 	field = find_field(event, "depth");
 	if (!field)
@@ -2774,7 +2779,7 @@ print_graph_entry_leaf(struct event *event, void *data, struct record *ret_rec)
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 
 	field = find_field(event, "func");
 	if (!field)
@@ -2783,12 +2788,13 @@ print_graph_entry_leaf(struct event *event, void *data, struct record *ret_rec)
 	func = find_func(val);
 
 	if (func)
-		printf("%s();", func->func);
+		trace_seq_printf(s, "%s();", func->func);
 	else
-		printf("%llx();", val);
+		trace_seq_printf(s, "%llx();", val);
 }
 
-static void print_graph_nested(struct event *event, void *data)
+static void print_graph_nested(struct trace_seq *s,
+			       struct event *event, void *data)
 {
 	struct format_field *field;
 	unsigned long long depth;
@@ -2797,10 +2803,10 @@ static void print_graph_nested(struct event *event, void *data)
 	int i;
 
 	/* No overhead */
-	print_graph_overhead(-1);
+	print_graph_overhead(s, -1);
 
 	/* No time */
-	printf("           |  ");
+	trace_seq_puts(s, "           |  ");
 
 	field = find_field(event, "depth");
 	if (!field)
@@ -2809,7 +2815,7 @@ static void print_graph_nested(struct event *event, void *data)
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 
 	field = find_field(event, "func");
 	if (!field)
@@ -2818,13 +2824,14 @@ static void print_graph_nested(struct event *event, void *data)
 	func = find_func(val);
 
 	if (func)
-		printf("%s() {", func->func);
+		trace_seq_printf(s, "%s() {", func->func);
 	else
-		printf("%llx() {", val);
+		trace_seq_printf(s, "%llx() {", val);
 }
 
 static void
-pretty_print_func_ent(void *data, int size, struct event *event,
+pretty_print_func_ent(struct trace_seq *s,
+		      void *data, int size, struct event *event,
 		      int cpu, int pid, const char *comm,
 		      unsigned long secs, unsigned long usecs)
 {
@@ -2833,16 +2840,16 @@ pretty_print_func_ent(void *data, int size, struct event *event,
 	void *copy_data;
 	unsigned long val;
 
-	printf("%5lu.%06lu |  ", secs, usecs);
+	trace_seq_printf(s, "%5lu.%06lu |  ", secs, usecs);
 
-	print_graph_cpu(cpu);
-	print_graph_proc(pid, comm);
+	print_graph_cpu(s, cpu);
+	print_graph_proc(s, pid, comm);
 
-	printf(" | ");
+	trace_seq_puts(s, " | ");
 
 	if (latency_format) {
-		print_lat_fmt(data, size);
-		printf(" | ");
+		print_lat_fmt(s, data, size);
+		trace_seq_puts(s, " | ");
 	}
 
 	field = find_field(event, "func");
@@ -2862,17 +2869,18 @@ pretty_print_func_ent(void *data, int size, struct event *event,
 	if (rec) {
 		rec = get_return_for_leaf(cpu, pid, val, rec);
 		if (rec) {
-			print_graph_entry_leaf(event, data, rec);
+			print_graph_entry_leaf(s, event, data, rec);
 			goto out_free;
 		}
 	}
-	print_graph_nested(event, data);
+	print_graph_nested(s, event, data);
 out_free:
 	free(data);
 }
 
 static void
-pretty_print_func_ret(void *data, int size __unused, struct event *event,
+pretty_print_func_ret(struct trace_seq *s,
+		      void *data, int size __unused, struct event *event,
 		      int cpu, int pid, const char *comm,
 		      unsigned long secs, unsigned long usecs)
 {
@@ -2881,16 +2889,16 @@ pretty_print_func_ret(void *data, int size __unused, struct event *event,
 	struct format_field *field;
 	int i;
 
-	printf("%5lu.%06lu |  ", secs, usecs);
+	trace_seq_printf(s, "%5lu.%06lu |  ", secs, usecs);
 
-	print_graph_cpu(cpu);
-	print_graph_proc(pid, comm);
+	print_graph_cpu(s, cpu);
+	print_graph_proc(s, pid, comm);
 
-	printf(" | ");
+	trace_seq_puts(s, " | ");
 
 	if (latency_format) {
-		print_lat_fmt(data, size);
-		printf(" | ");
+		print_lat_fmt(s, data, size);
+		trace_seq_puts(s, " | ");
 	}
 
 	field = find_field(event, "rettime");
@@ -2906,10 +2914,10 @@ pretty_print_func_ret(void *data, int size __unused, struct event *event,
 	duration = rettime - calltime;
 
 	/* Overhead */
-	print_graph_overhead(duration);
+	print_graph_overhead(s, duration);
 
 	/* Duration */
-	print_graph_duration(duration);
+	print_graph_duration(s, duration);
 
 	field = find_field(event, "depth");
 	if (!field)
@@ -2918,26 +2926,28 @@ pretty_print_func_ret(void *data, int size __unused, struct event *event,
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
-		printf(" ");
+		trace_seq_putc(s, ' ');
 
-	printf("}");
+	trace_seq_putc(s, '}');
 }
 
 static void
-pretty_print_func_graph(void *data, int size, struct event *event,
+pretty_print_func_graph(struct trace_seq *s,
+			void *data, int size, struct event *event,
 			int cpu, int pid, const char *comm,
 			unsigned long secs, unsigned long usecs)
 {
 	if (event->flags & EVENT_FL_ISFUNCENT)
-		pretty_print_func_ent(data, size, event,
+		pretty_print_func_ent(s, data, size, event,
 				      cpu, pid, comm, secs, usecs);
 	else if (event->flags & EVENT_FL_ISFUNCRET)
-		pretty_print_func_ret(data, size, event,
+		pretty_print_func_ret(s, data, size, event,
 				      cpu, pid, comm, secs, usecs);
-	printf("\n");
+	trace_seq_putc(s, '\n');
 }
 
-void print_event(int cpu, void *data, int size, unsigned long long nsecs)
+void print_event(struct trace_seq *s,
+		 int cpu, void *data, int size, unsigned long long nsecs)
 {
 	struct event *event;
 	unsigned long secs;
@@ -2962,40 +2972,42 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs)
 	comm = find_cmdline(pid);
 
 	if (event->flags & (EVENT_FL_ISFUNCENT | EVENT_FL_ISFUNCRET))
-		return pretty_print_func_graph(data, size, event, cpu,
+		return pretty_print_func_graph(s, data, size, event, cpu,
 					       pid, comm, secs, usecs);
 
 	if (latency_format) {
-		printf("%8.8s-%-5d %3d",
+		trace_seq_printf(s, "%8.8s-%-5d %3d",
 		       comm, pid, cpu);
-		print_lat_fmt(data, size);
+		print_lat_fmt(s, data, size);
 	} else
-		printf("%16s-%-5d [%03d]", comm, pid,  cpu);
+		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid,  cpu);
 
-	printf(" %5lu.%06lu: %s: ", secs, usecs, event->name);
+	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
 
 	if (event->flags & EVENT_FL_FAILED) {
-		printf("EVENT '%s' FAILED TO PARSE\n",
+		trace_seq_printf(s, "EVENT '%s' FAILED TO PARSE\n",
 		       event->name);
 		return;
 	}
 
-	pretty_print(data, size, event);
-	printf("\n");
+	pretty_print(s, data, size, event);
+	trace_seq_putc(s, '\n');
 }
 
-static void print_fields(struct print_flag_sym *field)
+static void print_fields(struct trace_seq *s, struct print_flag_sym *field)
 {
-	printf("{ %s, %s }", field->value, field->str);
+	trace_seq_printf(s, "{ %s, %s }", field->value, field->str);
 	if (field->next) {
-		printf(", ");
-		print_fields(field->next);
+		trace_seq_puts(s, ", ");
+		print_fields(s, field->next);
 	}
 }
 
+/* for debugging */
 static void print_args(struct print_arg *args)
 {
 	int print_paren = 1;
+	struct trace_seq s;
 
 	switch (args->type) {
 	case PRINT_NULL:
@@ -3011,14 +3023,18 @@ static void print_args(struct print_arg *args)
 		printf("__print_flags(");
 		print_args(args->flags.field);
 		printf(", %s, ", args->flags.delim);
-		print_fields(args->flags.flags);
+		trace_seq_init(&s);
+		print_fields(&s, args->flags.flags);
+		trace_seq_do_printf(&s);
 		printf(")");
 		break;
 	case PRINT_SYMBOL:
 		printf("__print_symbolic(");
 		print_args(args->symbol.field);
 		printf(", ");
-		print_fields(args->symbol.symbols);
+		trace_seq_init(&s);
+		print_fields(&s, args->symbol.symbols);
+		trace_seq_do_printf(&s);
 		printf(")");
 		break;
 	case PRINT_STRING:

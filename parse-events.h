@@ -5,6 +5,8 @@
 #define __unused __attribute__ ((unused))
 #endif
 
+#include "trace-seq.h"
+
 /* unique to trace-cmd */
 extern unsigned int page_size;
 void usage(char **argv);
@@ -178,7 +180,8 @@ void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
 int parse_event_file(char *buf, unsigned long size, char *sys);
-void print_event(int cpu, void *data, int size, unsigned long long nsecs);
+void print_event(struct trace_seq *s,
+		 int cpu, void *data, int size, unsigned long long nsecs);
 
 extern int file_bigendian;
 extern int host_bigendian;
