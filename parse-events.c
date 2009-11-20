@@ -2721,13 +2721,16 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 	sprintf(msecs_str, "%lu", usecs);
 
 	/* Print msecs */
-	len = trace_seq_printf(s, "%lu", usecs);
+	len = s->len;
+	trace_seq_printf(s, "%lu", usecs);
 
 	/* Print nsecs (we don't want to exceed 7 numbers) */
-	if (len < 7) {
-		snprintf(nsecs_str, 8 - len, "%03lu", nsecs_rem);
-		len += trace_seq_printf(s, ".%s", nsecs_str);
+	if ((s->len - len) < 7) {
+		snprintf(nsecs_str, 8 - (s->len - len), "%03lu", nsecs_rem);
+		trace_seq_printf(s, ".%s", nsecs_str);
 	}
+
+	len = s->len - len;
 
 	trace_seq_puts(s, " us ");
 
