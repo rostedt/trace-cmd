@@ -18,5 +18,11 @@ trace-seq.o::		parse-events.h trace-seq.h
 trace-cmd: trace-cmd.o trace-read.o parse-events.o trace-seq.o
 	$(CC) $^ -o $@
 
+.PHONY: force
+force:
+
+TAGS:	force
+	find . -name '*.[ch]' | xargs etags
+
 clean:
 	$(RM) *.o *~ $(TARGETS)
