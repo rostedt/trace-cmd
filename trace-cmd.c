@@ -519,6 +519,21 @@ static void disable_all(void)
 	fclose(fp);
 }
 
+static void reset_max_latency(void)
+{
+	FILE *fp;
+	char *path;
+
+	/* reset the trace */
+	path = get_tracing_file("tracing_max_latency");
+	fp = fopen(path, "w");
+	if (!fp)
+		die("writing to '%s'", path);
+	put_tracing_file(path);
+	fwrite("0", 1, 1, fp);
+	fclose(fp);
+}
+
 static void enable_events(void)
 {
 	struct event_list *event;
@@ -1233,6 +1248,7 @@ int main (int argc, char **argv)
 		    strcmp(plugin, "wakeup_rt") == 0) {
 			latency = 1;
 			stop_threads();
+			reset_max_latency();
 		}
 		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
 				 strcmp(plugin, "function_graph") == 0))
