@@ -37,6 +37,7 @@
 #include <errno.h>
 
 #include "parse-events.h"
+#include "trace-cmd.h"
 
 int input_fd;
 const char *input_file = "trace.dat";

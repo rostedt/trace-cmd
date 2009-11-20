@@ -45,24 +45,6 @@ extern int trace_seq_do_printf(struct trace_seq *s);
 
 /* ----------------------- pevent ----------------------- */
 
-/* unique to trace-cmd */
-extern unsigned int page_size;
-void usage(char **argv);
-
-#ifndef PAGE_MASK
-#define PAGE_MASK (page_size - 1)
-#endif
-
-enum {
-	RINGBUF_TYPE_PADDING		= 29,
-	RINGBUF_TYPE_TIME_EXTEND	= 30,
-	RINGBUF_TYPE_TIME_STAMP		= 31,
-};
-
-#ifndef TS_SHIFT
-#define TS_SHIFT		27
-#endif
-
 #define NSECS_PER_SEC		1000000000ULL
 #define NSECS_PER_USEC		1000ULL
 
@@ -212,15 +194,9 @@ extern int old_format;
 
 void parse_set_info(int nr_cpus, int long_sz);
 
-void trace_report(int argc, char **argv);
-
 void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
 void warning(char *fmt, ...);
-
-void parse_cmdlines(char *file, int size);
-void parse_proc_kallsyms(char *file, unsigned int size);
-void parse_ftrace_printk(char *file, unsigned int size);
 
 extern int file_bigendian;
 extern int host_bigendian;

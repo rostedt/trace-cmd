@@ -34,7 +34,7 @@
 #include <errno.h>
 
 #include "parse-events.h"
-
+#include "trace-cmd.h"
 
 #define VERSION "0.5"
 
