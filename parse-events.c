@@ -1191,7 +1191,7 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		case '-':
 			break;
 		default:
-			die("bad op token %s", token);
+			warning("bad op token %s", token);
 			return EVENT_ERROR;
 		}
 
@@ -1732,6 +1732,8 @@ process_arg_token(struct event *event, struct print_arg *arg,
 		arg->op.op = token;
 		arg->op.left = NULL;
 		type = process_op(event, arg, &token);
+		if (type == EVENT_ERROR)
+			return type;
 
 		break;
 
