@@ -40,6 +40,8 @@ int header_page_data_size;
 
 int latency_format;
 
+int old_format;
+
 static char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
@@ -3140,6 +3142,17 @@ static void parse_header_field(const char *field,
 
 int parse_header_page(char *buf, unsigned long size)
 {
+	if (!size) {
+		/*
+		 * Old kernels did not have header page info.
+		 * Sorry but we just use what we find here in user space.
+		 */
+		header_page_ts_size = sizeof(long long);
+		header_page_size_size = sizeof(long);
+		header_page_data_offset = sizeof(long long) + sizeof(long);
+		old_format = 1;
+		return 0;
+	}
 	init_input_buf(buf, size);
 
 	parse_header_field("timestamp", &header_page_ts_offset,

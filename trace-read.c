@@ -369,6 +369,22 @@ static void get_next_page(int cpu)
 		    cpu, cpu_data[cpu].offset);
 }
 
+static unsigned int type4host(unsigned int type_len_ts)
+{
+	if (file_bigendian)
+		return (type_len_ts >> 29) & 3;
+	else
+		return type_len_ts & 3;
+}
+
+static unsigned int len4host(unsigned int type_len_ts)
+{
+	if (file_bigendian)
+		return (type_len_ts >> 27) & 7;
+	else
+		return (type_len_ts >> 2) & 7;
+}
+
 static unsigned int type_len4host(unsigned int type_len_ts)
 {
 	if (file_bigendian)
@@ -388,6 +404,74 @@ static unsigned int ts4host(unsigned int type_len_ts)
 static int calc_index(void *ptr, int cpu)
 {
 	return (unsigned long)ptr - (unsigned long)cpu_data[cpu].page;
+}
+enum old_ring_buffer_type {
+	OLD_RINGBUF_TYPE_PADDING,
+	OLD_RINGBUF_TYPE_TIME_EXTEND,
+	OLD_RINGBUF_TYPE_TIME_STAMP,
+	OLD_RINGBUF_TYPE_DATA,
+};
+
+static struct record *read_old_format(void **ptr, int cpu)
+{
+	struct record *data;
+	unsigned long long extend;
+	unsigned int type_len_ts;
+	unsigned int type;
+	unsigned int len;
+	unsigned int delta;
+	unsigned int length;
+
+	type_len_ts = data2host4(*ptr);
+	*ptr += 4;
+
+	type = type4host(type_len_ts);
+	len = len4host(type_len_ts);
+	delta = ts4host(type_len_ts);
+
+	switch (type) {
+	case OLD_RINGBUF_TYPE_PADDING:
+		*ptr = (void *)(((unsigned long)*ptr + (page_size - 1)) &
+				~(page_size - 1));
+		return NULL;
+
+	case OLD_RINGBUF_TYPE_TIME_EXTEND:
+		extend = data2host4(ptr);
+		extend <<= TS_SHIFT;
+		extend += delta;
+		cpu_data[cpu].timestamp += extend;
+		*ptr += 4;
+		return NULL;
+
+	case OLD_RINGBUF_TYPE_TIME_STAMP:
+		die("should not be here");
+		break;
+	default:
+		if (len)
+			length = len * 4;
+		else {
+			length = data2host4(*ptr);
+			length -= 4;
+			*ptr += 4;
+		}
+		break;
+	}
+
+	cpu_data[cpu].timestamp += delta;
+
+	data = malloc_or_die(sizeof(*data));
+	memset(data, 0, sizeof(*data));
+
+	data->ts = cpu_data[cpu].timestamp;
+	data->size = length;
+	data->data = *ptr;
+
+	*ptr += ((length+3)/4) * 4;
+
+	cpu_data[cpu].index = calc_index(*ptr, cpu);
+	cpu_data[cpu].next = data;
+
+	return data;
 }
 
 struct record *trace_peek_data(int cpu)
@@ -435,6 +519,17 @@ read_again:
 	if (index >= cpu_data[cpu].page_size) {
 		get_next_page(cpu);
 		return trace_peek_data(cpu);
+	}
+
+	if (old_format) {
+		data = read_old_format(&ptr, cpu);
+		if (!data) {
+			if (!ptr)
+				return NULL;
+			goto read_again;
+		}
+			
+		return data;
 	}
 
 	type_len_ts = data2host4(ptr);

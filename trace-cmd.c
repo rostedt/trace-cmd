@@ -421,6 +421,7 @@ static void set_option(const char *option)
 
 static void enable_event(const char *name)
 {
+	struct stat st;
 	FILE *fp;
 	char *path;
 	int ret;
@@ -428,6 +429,21 @@ static void enable_event(const char *name)
 	fprintf(stderr, "enable %s\n", name);
 	if (strcmp(name, "all") == 0) {
 		path = get_tracing_file("events/enable");
+
+		ret = stat(path, &st);
+		if (ret < 0) {
+			put_tracing_file(path);
+			/* need to use old way */
+			path = get_tracing_file("set_event");
+			fp = fopen(path, "w");
+			if (!fp)
+				die("writing to '%s'", path);
+			put_tracing_file(path);
+			fwrite("*:*\n", 4, 1, fp);
+			fclose(fp);
+			return;
+		}
+
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
@@ -455,11 +471,28 @@ static void enable_event(const char *name)
 
 static void disable_event(const char *name)
 {
+	struct stat st;
 	FILE *fp;
 	char *path;
+	int ret;
 
 	if (strcmp(name, "all") == 0) {
 		path = get_tracing_file("events/enable");
+
+		ret = stat(path, &st);
+		if (ret < 0) {
+			put_tracing_file(path);
+			/* need to use old way */
+			path = get_tracing_file("set_event");
+			fp = fopen(path, "w");
+			if (!fp)
+				die("writing to '%s'", path);
+			put_tracing_file(path);
+			fwrite("\n", 1, 1, fp);
+			fclose(fp);
+			return;
+		}
+
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
@@ -750,10 +783,25 @@ static unsigned long get_size(const char *file)
 static void read_header_files(void)
 {
 	unsigned long long size, check_size;
+	struct stat st;
 	char *path;
 	int fd;
+	int ret;
 
 	path = get_tracing_file("events/header_page");
+
+	ret = stat(path, &st);
+	if (ret < 0) {
+		/* old style did not show this info, just add zero */
+		put_tracing_file(path);
+		write_or_die("header_page", 12);
+		size = 0;
+		write_or_die(&size, 8);
+		write_or_die("header_event", 13);
+		write_or_die(&size, 8);
+		return;
+	}
+
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		die("can't read '%s'", path);
@@ -1029,11 +1077,17 @@ static void read_thread_data(void)
 	 * Save the command lines;
 	 */
 	file = get_tracing_file("saved_cmdlines");
-	size = get_size(file);
-	write_or_die(&size, 8);
-	check_size = copy_file(file);
-	if (size != check_size)
-		die("error in size of file '%s'", file);
+	ret = stat(file, &st);
+	if (ret >= 0) {
+		size = get_size(file);
+		write_or_die(&size, 8);
+		check_size = copy_file(file);
+		if (size != check_size)
+			die("error in size of file '%s'", file);
+	} else {
+		size = 0;
+		write_or_die(&size, 8);
+	}
 	put_tracing_file(file);
 
 	write_or_die(&cpu_count, 4);

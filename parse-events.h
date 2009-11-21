@@ -163,6 +163,8 @@ struct record {
 struct record *trace_peek_data(int cpu);
 struct record *trace_read_data(int cpu);
 
+extern int old_format;
+
 void parse_set_info(int nr_cpus, int long_sz);
 
 void trace_report(int argc, char **argv);
