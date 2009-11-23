@@ -2470,6 +2470,8 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case '%':
 				trace_seq_putc(s, '%');
 				break;
+			case '#':
+				goto cont_process;
 			case 'l':
 				ls++;
 				goto cont_process;
