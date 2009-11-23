@@ -2173,6 +2173,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	unsigned long long val, fval;
 	char *str;
 	int print;
+	int len;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -2187,10 +2188,11 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			if (!arg->field.field)
 				die("field %s not found", arg->field.name);
 		}
-		str = malloc_or_die(arg->field.field->size + 1);
-		memcpy(str, data + arg->field.field->offset,
-		       arg->field.field->size);
-		str[arg->field.field->size] = 0;
+		/* Zero sized fields, mean the rest of the data */
+		len = arg->field.field->size ? : size;
+		str = malloc_or_die(size + 1);
+		memcpy(str, data + arg->field.field->offset, len);
+		str[len] = 0;
 		trace_seq_puts(s, str);
 		free(str);
 		break;
