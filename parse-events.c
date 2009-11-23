@@ -2471,6 +2471,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				trace_seq_putc(s, '%');
 				break;
 			case '#':
+				/* FIXME: need to handle properly */
 				goto cont_process;
 			case 'l':
 				ls++;
