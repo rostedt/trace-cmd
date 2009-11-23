@@ -47,6 +47,8 @@ int file_bigendian;
 int host_bigendian;
 static int long_size;
 
+static int show_events = 0;
+
 static int filter_cpu = -1;
 
 static int read_or_die(void *data, int size)
@@ -215,8 +217,11 @@ static void read_event_file(char *system, unsigned long long size)
 {
 	char *buf;
 
-	buf = malloc_or_die(size);
+	buf = malloc_or_die(size+1);
 	read_or_die(buf, size);
+	buf[size] = 0;
+	if (show_events)
+		printf("%s\n", buf);
 	parse_event_file(buf, size, system);
 	free(buf);
 }
@@ -754,7 +759,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPl",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPlE",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -776,6 +781,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'p':
 			show_page_size = 1;
+			break;
+		case 'E':
+			show_events = 1;
 			break;
 		case 'l':
 			latency_format = 1;
@@ -820,6 +828,10 @@ void trace_report (int argc, char **argv)
 		print_printk();
 		return;
 	}
+
+	if (show_events)
+		return;
+
 	read_data_info();
 
 	return;
