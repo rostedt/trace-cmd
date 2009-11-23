@@ -560,9 +560,9 @@ read_again:
 		ptr += 12;
 		break;
 	case 0:
-		length = data2host4(ptr);
+		length = data2host4(ptr) - 4;
+		length = (length + 3) & ~3;
 		ptr += 4;
-		die("here! length=%d", length);
 		break;
 	default:
 		length = type_len * 4;
