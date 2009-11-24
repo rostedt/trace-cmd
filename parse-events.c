@@ -1034,7 +1034,7 @@ static int event_read_format(struct event *event)
 	return -1;
 }
 
-enum event_type
+static enum event_type
 process_arg_token(struct event *event, struct print_arg *arg,
 		  char **tok, enum event_type type);
 
@@ -1842,7 +1842,7 @@ fail:
 	return EVENT_ERROR;
 }
 
-enum event_type
+static enum event_type
 process_arg_token(struct event *event, struct print_arg *arg,
 		  char **tok, enum event_type type)
 {
