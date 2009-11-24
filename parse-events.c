@@ -2255,6 +2255,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 {
 	struct print_flag_sym *flag;
 	unsigned long long val, fval;
+	unsigned long addr;
 	char *str;
 	int print;
 	int len;
@@ -2274,7 +2275,19 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		}
 		/* Zero sized fields, mean the rest of the data */
 		len = arg->field.field->size ? : size;
-		str = malloc_or_die(size + 1);
+
+		/*
+		 * Some events pass in pointers. If this is not an array
+		 * and the size is the same as long_size, assume that it
+		 * is a pointer.
+		 */
+		if (!(arg->field.field->flags & FIELD_IS_ARRAY) &&
+		    len == long_size) {
+			addr = *(unsigned long *)(data + arg->field.field->offset);
+			trace_seq_printf(s, "%lx", addr);
+			break;
+		}
+		str = malloc_or_die(len + 1);
 		memcpy(str, data + arg->field.field->offset, len);
 		str[len] = 0;
 		trace_seq_puts(s, str);
