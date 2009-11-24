@@ -2136,6 +2136,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 				offset = larg->field.field->offset +
 					right * long_size;
 				len = long_size;
+				break;
 			default:
 				goto default_op; /* oops, all bets off */
 			}
