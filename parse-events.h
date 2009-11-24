@@ -88,6 +88,11 @@ struct print_arg_symbol {
 	struct print_flag_sym	*symbols;
 };
 
+struct print_arg_dynarray {
+	struct format_field	*field;
+	struct print_arg	*index;
+};
+
 struct print_arg;
 
 struct print_arg_op {
@@ -110,6 +115,7 @@ enum print_arg_type {
 	PRINT_SYMBOL,
 	PRINT_TYPE,
 	PRINT_STRING,
+	PRINT_DYNAMIC_ARRAY,
 	PRINT_OP,
 };
 
@@ -125,6 +131,7 @@ struct print_arg {
 		struct print_arg_func		func;
 		struct print_arg_string		string;
 		struct print_arg_op		op;
+		struct print_arg_dynarray	dynarray;
 	};
 };
 

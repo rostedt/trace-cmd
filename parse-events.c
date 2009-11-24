@@ -49,6 +49,8 @@ static unsigned long long input_buf_siz;
 static int cpus;
 static int long_size;
 
+static struct format_field *find_field(struct event *event, const char *name);
+
 static void init_input_buf(char *buf, unsigned long long size)
 {
 	input_buf = buf;
@@ -1593,6 +1595,63 @@ out_free:
 }
 
 static enum event_type
+process_dynamic_array(struct event *event, struct print_arg *arg, char **tok)
+{
+	struct format_field *field;
+	enum event_type type;
+	char *token;
+
+	memset(arg, 0, sizeof(*arg));
+	arg->type = PRINT_DYNAMIC_ARRAY;
+
+	if (read_expected_item(EVENT_DELIM, "(") < 0)
+		return EVENT_ERROR;
+
+	/*
+	 * The item within the parenthesis is another field that holds
+	 * the index into where the array starts.
+	 */
+	type = read_token(&token);
+	*tok = token;
+	if (type != EVENT_ITEM)
+		return EVENT_ERROR;
+
+	/* Find the field */
+
+	field = find_field(event, token);
+	if (!field)
+		return EVENT_ERROR;
+
+	arg->dynarray.field = field;
+	arg->dynarray.index = 0;
+
+	if (read_expected(EVENT_DELIM, ")") < 0)
+		return EVENT_ERROR;
+
+	type = read_token_item(&token);
+	*tok = token;
+	if (type != EVENT_OP || strcmp(token, "[") != 0)
+		return type;
+
+	free_token(token);
+	arg = malloc_or_die(sizeof(*arg));
+	type = process_arg(event, arg, &token);
+	if (type == EVENT_ERROR)
+		goto out_free;
+
+	if (!test_type_token(type, token, EVENT_OP, "]"))
+		goto out_free;
+
+	free_token(token);
+	type = read_token_item(tok);
+	return type;
+
+out_free:
+	free(arg);
+	return EVENT_ERROR;
+}
+
+static enum event_type
 process_paren(struct event *event, struct print_arg *arg, char **tok)
 {
 	struct print_arg *item_arg;
@@ -1696,6 +1755,9 @@ process_arg_token(struct event *event, struct print_arg *arg,
 		} else if (strcmp(token, "__get_str") == 0) {
 			free_token(token);
 			type = process_str(event, arg, &token);
+		} else if (strcmp(token, "__get_dynamic_array") == 0) {
+			free_token(token);
+			type = process_dynamic_array(event, arg, &token);
 		} else {
 			atom = token;
 			/* test the next token */
@@ -2014,6 +2076,8 @@ static unsigned long long eval_num_arg(void *data, int size,
 	unsigned long long val = 0;
 	unsigned long long left, right;
 	struct print_arg *larg;
+	unsigned long offset;
+	int len;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -2045,18 +2109,37 @@ static unsigned long long eval_num_arg(void *data, int size,
 			 * Arrays are special, since we don't want
 			 * to read the arg as is.
 			 */
-			if (arg->op.left->type != PRINT_FIELD)
-				goto default_op; /* oops, all bets off */
-			larg = arg->op.left;
-			if (!larg->field.field) {
-				larg->field.field =
-					find_any_field(event, larg->field.name);
-				if (!larg->field.field)
-					die("field %s not found", larg->field.name);
-			}
 			right = eval_num_arg(data, size, event, arg->op.right);
-			val = read_size(data + larg->field.field->offset +
-					right * long_size, long_size);
+			switch (arg->op.left->type) {
+			case PRINT_DYNAMIC_ARRAY:
+				breakpoint();
+				larg = arg->op.left;
+				offset = read_size(data + larg->dynarray.field->offset,
+						   larg->dynarray.field->size);
+				/*
+				 * The actual length of the dynamic array is stored
+				 * in the top half of the field, and the offset
+				 * is in the bottom half of the 32 bit field.
+				 */
+				offset &= 0xffff;
+				offset += right;
+				len = 1;
+				break;
+			case PRINT_FIELD:
+				larg = arg->op.left;
+				if (!larg->field.field) {
+					larg->field.field =
+						find_any_field(event, larg->field.name);
+					if (!larg->field.field)
+						die("field %s not found", larg->field.name);
+				}
+				offset = larg->field.field->offset +
+					right * long_size;
+				len = long_size;
+			default:
+				goto default_op; /* oops, all bets off */
+			}
+			val = read_size(data + offset, len);
 			break;
 		}
  default_op:
