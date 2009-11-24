@@ -10,7 +10,6 @@
 #include <stdarg.h>
 
 #include "parse-events.h"
-#include "trace-seq.h"
 
 /**
  * trace_seq_printf - sequence printing of trace information
@@ -29,7 +28,7 @@
 int
 trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
-	int len = (PAGE_SIZE - 1) - s->len;
+	int len = (TRACE_SEQ_SIZE - 1) - s->len;
 	va_list ap;
 	int ret;
 
@@ -63,7 +62,7 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 int
 trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 {
-	int len = (PAGE_SIZE - 1) - s->len;
+	int len = (TRACE_SEQ_SIZE - 1) - s->len;
 	int ret;
 
 	if (!len)
@@ -94,7 +93,7 @@ int trace_seq_puts(struct trace_seq *s, const char *str)
 {
 	int len = strlen(str);
 
-	if (len > ((PAGE_SIZE - 1) - s->len))
+	if (len > ((TRACE_SEQ_SIZE - 1) - s->len))
 		return 0;
 
 	memcpy(s->buffer + s->len, str, len);
@@ -105,7 +104,7 @@ int trace_seq_puts(struct trace_seq *s, const char *str)
 
 int trace_seq_putc(struct trace_seq *s, unsigned char c)
 {
-	if (s->len >= (PAGE_SIZE - 1))
+	if (s->len >= (TRACE_SEQ_SIZE - 1))
 		return 0;
 
 	s->buffer[s->len++] = c;
@@ -121,7 +120,7 @@ int trace_seq_do_printf(struct trace_seq *s)
 	if (!s->len)
 		return 0;
 
-	if (s->len < PAGE_SIZE) {
+	if (s->len < TRACE_SEQ_SIZE) {
 		s->buffer[s->len] = 0;
 		return printf("%s", s->buffer);
 	}

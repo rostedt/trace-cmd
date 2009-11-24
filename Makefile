@@ -14,7 +14,7 @@ all: $(TARGETS)
 
 trace-read.o::		parse-events.h
 trace-cmd.o::		parse-events.h
-trace-seq.o::		parse-events.h trace-seq.h
+trace-seq.o::		parse-events.h
 
 trace-cmd:: trace-cmd.o trace-read.o trace-seq.o
 	$(CC) $^ -o $@ $(LIBS)

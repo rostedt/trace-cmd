@@ -29,7 +29,6 @@
 #include <errno.h>
 
 #include "parse-events.h"
-#include "trace-seq.h"
 
 int header_page_ts_offset;
 int header_page_ts_size;
