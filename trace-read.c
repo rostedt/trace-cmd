@@ -608,7 +608,7 @@ static void show_data(int cpu)
 	record = trace_read_data(cpu);
 
 	trace_seq_init(&s);
-	print_event(&s, cpu, record->data, record->size, record->ts);
+	pevent_print_event(&s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
 
 	free(record);

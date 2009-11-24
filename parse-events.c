@@ -3192,8 +3192,8 @@ pretty_print_func_graph(struct trace_seq *s,
 	trace_seq_putc(s, '\n');
 }
 
-void print_event(struct trace_seq *s,
-		 int cpu, void *data, int size, unsigned long long nsecs)
+void pevent_print_event(struct trace_seq *s,
+			int cpu, void *data, int size, unsigned long long nsecs)
 {
 	struct event *event;
 	unsigned long secs;

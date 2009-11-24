@@ -224,8 +224,6 @@ void parse_ftrace_printk(char *file, unsigned int size);
 
 int parse_ftrace_file(char *buf, unsigned long size);
 int parse_event_file(char *buf, unsigned long size, char *sys);
-void print_event(struct trace_seq *s,
-		 int cpu, void *data, int size, unsigned long long nsecs);
 
 extern int file_bigendian;
 extern int host_bigendian;
@@ -306,6 +304,9 @@ enum trace_flag_type {
 int pevent_register_comm(char *comm, int pid);
 int pevent_register_function(char *name, unsigned long long addr, char *mod);
 int pevent_register_print_string(char *fmt, unsigned long long addr);
+
+void pevent_print_event(struct trace_seq *s,
+			int cpu, void *data, int size, unsigned long long nsecs);
 
 /* for debugging */
 void pevent_print_funcs(void);
