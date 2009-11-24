@@ -18,7 +18,7 @@ LIB_FILE = libparsevent.a
 trace-read.o::		parse-events.h
 trace-cmd.o::		parse-events.h $(LIB_FILE)
 
-trace-cmd:: trace-cmd.o trace-read.o
+trace-cmd:: trace-cmd.o trace-read.o trace-util.o
 	$(CC) $^ $(LIBS) -o $@
 
 parse-events.o: parse-events.c parse-events.h

@@ -306,4 +306,6 @@ enum trace_flag_type {
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 };
 
+int pevent_register_comm(char *comm, int pid);
+
 #endif /* _PARSE_EVENTS_H */

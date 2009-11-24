@@ -84,41 +84,32 @@ static int cmdline_cmp(const void *a, const void *b)
 	return 0;
 }
 
-void parse_cmdlines(char *file, int size __unused)
-{
-	struct cmdline_list {
-		struct cmdline_list	*next;
-		char			*comm;
-		int			pid;
-	} *list = NULL, *item;
-	char *line;
-	char *next = NULL;
-	int i;
+static struct cmdline_list {
+	struct cmdline_list	*next;
+	char			*comm;
+	int			pid;
+} *cmdlist = NULL;
 
-	line = strtok_r(file, "\n", &next);
-	while (line) {
-		item = malloc_or_die(sizeof(*item));
-		sscanf(line, "%d %as", &item->pid,
-		       (float *)(void *)&item->comm); /* workaround gcc warning */
-		item->next = list;
-		list = item;
-		line = strtok_r(NULL, "\n", &next);
-		cmdline_count++;
-	}
+static int cmdline_init(void)
+{
+	struct cmdline_list *item;
+	int i;
 
 	cmdlines = malloc_or_die(sizeof(*cmdlines) * cmdline_count);
 
 	i = 0;
-	while (list) {
-		cmdlines[i].pid = list->pid;
-		cmdlines[i].comm = list->comm;
+	while (cmdlist) {
+		cmdlines[i].pid = cmdlist->pid;
+		cmdlines[i].comm = cmdlist->comm;
 		i++;
-		item = list;
-		list = list->next;
+		item = cmdlist;
+		cmdlist = cmdlist->next;
 		free(item);
 	}
 
 	qsort(cmdlines, cmdline_count, sizeof(*cmdlines), cmdline_cmp);
+
+	return 0;
 }
 
 static char *find_cmdline(int pid)
@@ -129,6 +120,9 @@ static char *find_cmdline(int pid)
 	if (!pid)
 		return "<idle>";
 
+	if (!cmdlines)
+		cmdline_init();
+
 	key.pid = pid;
 
 	comm = bsearch(&key, cmdlines, cmdline_count, sizeof(*cmdlines),
@@ -137,6 +131,21 @@ static char *find_cmdline(int pid)
 	if (comm)
 		return comm->comm;
 	return "<...>";
+}
+
+int pevent_register_comm(char *comm, int pid)
+{
+	struct cmdline_list *item;
+
+	item = malloc_or_die(sizeof(*item));
+	item->comm = comm;
+	item->pid = pid;
+	item->next = cmdlist;
+
+	cmdlist = item;
+	cmdline_count++;
+
+	return 0;
 }
 
 static struct func_map {
