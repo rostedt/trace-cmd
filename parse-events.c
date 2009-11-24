@@ -1336,6 +1336,105 @@ fail:
 
 static char *arg_eval (struct print_arg *arg);
 
+static unsigned long long
+eval_type_str(unsigned long long val, const char *type, int pointer)
+{
+	int sign = 0;
+	char *ref;
+	int len;
+
+	len = strlen(type);
+
+	if (pointer) {
+
+		if (type[len-1] != '*') {
+			warning("pointer expected with non pointer type");
+			return val;
+		}
+
+		ref = malloc_or_die(len);
+		memcpy(ref, type, len);
+
+		/* chop off the " *" */
+		ref[len - 2] = 0;
+
+		val = eval_type_str(val, ref, 0);
+		free(ref);
+		return val;
+	}
+
+	/* check if this is a pointer */
+	if (type[len - 1] == '*')
+		return val;
+
+	/* Try to figure out the arg size*/
+	if (strncmp(type, "struct", 6) == 0)
+		/* all bets off */
+		return val;
+
+	if (strcmp(type, "u8") == 0)
+		return val & 0xff;
+
+	if (strcmp(type, "u16") == 0)
+		return val & 0xffff;
+
+	if (strcmp(type, "u32") == 0)
+		return val & 0xffffffff;
+
+	if (strcmp(type, "u64") == 0 ||
+	    strcmp(type, "s64"))
+		return val;
+
+	if (strcmp(type, "s8") == 0)
+		return (unsigned long long)(char)val & 0xff;
+
+	if (strcmp(type, "s16") == 0)
+		return (unsigned long long)(short)val & 0xffff;
+
+	if (strcmp(type, "s32") == 0)
+		return (unsigned long long)(int)val & 0xffffffff;
+
+	if (strncmp(type, "unsigned ", 9) == 0) {
+		sign = 0;
+		type += 9;
+	}
+
+	if (strcmp(type, "char") == 0) {
+		if (sign)
+			return (unsigned long long)(char)val & 0xff;
+		else
+			return val & 0xff;
+	}
+
+	if (strcmp(type, "short") == 0) {
+		if (sign)
+			return (unsigned long long)(short)val & 0xffff;
+		else
+			return val & 0xffff;
+	}
+
+	if (strcmp(type, "int") == 0) {
+		if (sign)
+			return (unsigned long long)(int)val & 0xffffffff;
+		else
+			return val & 0xffffffff;
+	}
+
+	return val;
+}
+
+/*
+ * Try to figure out the type.
+ */
+static unsigned long long
+eval_type(unsigned long long val, struct print_arg *arg, int pointer)
+{
+	if (arg->type != PRINT_TYPE)
+		die("expected type argument");
+
+	return eval_type_str(val, arg->typecast.type, pointer);
+}
+
 static long long arg_num_eval(struct print_arg *arg)
 {
 	long long left, right;
@@ -1347,6 +1446,7 @@ static long long arg_num_eval(struct print_arg *arg)
 		break;
 	case PRINT_TYPE:
 		val = arg_num_eval(arg->typecast.item);
+		val = eval_type(val, arg, 0);
 		break;
 	case PRINT_OP:
 		switch (arg->op.op[0]) {
@@ -2075,9 +2175,9 @@ static unsigned long long eval_num_arg(void *data, int size,
 {
 	unsigned long long val = 0;
 	unsigned long long left, right;
+	struct print_arg *typearg = NULL;
 	struct print_arg *larg;
 	unsigned long offset;
-	int len;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -2099,7 +2199,8 @@ static unsigned long long eval_num_arg(void *data, int size,
 	case PRINT_SYMBOL:
 		break;
 	case PRINT_TYPE:
-		return eval_num_arg(data, size, event, arg->typecast.item);
+		val = eval_num_arg(data, size, event, arg->typecast.item);
+		return eval_type(val, arg, 0);
 	case PRINT_STRING:
 		return 0;
 		break;
@@ -2113,8 +2214,11 @@ static unsigned long long eval_num_arg(void *data, int size,
 
 			/* handle typecasts */
 			larg = arg->op.left;
-			while (larg->type == PRINT_TYPE)
+			while (larg->type == PRINT_TYPE) {
+				if (!typearg)
+					typearg = larg;
 				larg = larg->typecast.item;
+			}
 
 			switch (larg->type) {
 			case PRINT_DYNAMIC_ARRAY:
@@ -2127,7 +2231,6 @@ static unsigned long long eval_num_arg(void *data, int size,
 				 */
 				offset &= 0xffff;
 				offset += right;
-				len = 1;
 				break;
 			case PRINT_FIELD:
 				if (!larg->field.field) {
@@ -2138,12 +2241,13 @@ static unsigned long long eval_num_arg(void *data, int size,
 				}
 				offset = larg->field.field->offset +
 					right * long_size;
-				len = long_size;
 				break;
 			default:
 				goto default_op; /* oops, all bets off */
 			}
-			val = read_size(data + offset, len);
+			val = read_size(data + offset, long_size);
+			if (typearg)
+				val = eval_type(val, typearg, 1);
 			break;
 		}
  default_op:
