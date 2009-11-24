@@ -1,6 +1,8 @@
 #ifndef _PARSE_EVENTS_H
 #define _PARSE_EVENTS_H
 
+#include <stdarg.h>
+
 #ifndef __unused
 #define __unused __attribute__ ((unused))
 #endif

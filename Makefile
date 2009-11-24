@@ -8,21 +8,23 @@ LIBS = -L. -lparsevent
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
-TARGETS = trace-cmd libparsevent.so
+TARGETS = libparsevent.so trace-cmd
 
 all: $(TARGETS)
 
 trace-read.o::		parse-events.h
 trace-cmd.o::		parse-events.h
-trace-seq.o::		parse-events.h
 
-trace-cmd:: trace-cmd.o trace-read.o trace-seq.o
+trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ -o $@ $(LIBS)
 
 parse-events.o: parse-events.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
 
-libparsevent.so: parse-events.o
+trace-seq.o: trace-seq.c parse-events.h
+	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+
+libparsevent.so: parse-events.o trace-seq.o
 	$(CC) --shared $^ -o $@
 
 .PHONY: force
