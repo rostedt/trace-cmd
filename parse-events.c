@@ -2110,10 +2110,14 @@ static unsigned long long eval_num_arg(void *data, int size,
 			 * to read the arg as is.
 			 */
 			right = eval_num_arg(data, size, event, arg->op.right);
-			switch (arg->op.left->type) {
+
+			/* handle typecasts */
+			larg = arg->op.left;
+			while (larg->type == PRINT_TYPE)
+				larg = larg->typecast.item;
+
+			switch (larg->type) {
 			case PRINT_DYNAMIC_ARRAY:
-				breakpoint();
-				larg = arg->op.left;
 				offset = read_size(data + larg->dynarray.field->offset,
 						   larg->dynarray.field->size);
 				/*
@@ -2126,7 +2130,6 @@ static unsigned long long eval_num_arg(void *data, int size,
 				len = 1;
 				break;
 			case PRINT_FIELD:
-				larg = arg->op.left;
 				if (!larg->field.field) {
 					larg->field.field =
 						find_any_field(event, larg->field.name);
