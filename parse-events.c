@@ -88,7 +88,7 @@ static struct cmdline_list {
 	struct cmdline_list	*next;
 	char			*comm;
 	int			pid;
-} *cmdlist = NULL;
+} *cmdlist;
 
 static int cmdline_init(void)
 {
@@ -152,8 +152,15 @@ static struct func_map {
 	unsigned long long		addr;
 	char				*func;
 	char				*mod;
-} *func_list;
+} *func_map;
 static unsigned int func_count;
+
+static struct func_list {
+	struct func_list	*next;
+	unsigned long long	addr;
+	char			*func;
+	char			*mod;
+} *funclist;
 
 static int func_cmp(const void *a, const void *b)
 {
@@ -166,67 +173,6 @@ static int func_cmp(const void *a, const void *b)
 		return 1;
 
 	return 0;
-}
-
-void parse_proc_kallsyms(char *file, unsigned int size __unused)
-{
-	struct func_list {
-		struct func_list	*next;
-		unsigned long long	addr;
-		char			*func;
-		char			*mod;
-	} *list = NULL, *item;
-	char *line;
-	char *next = NULL;
-	char *addr_str;
-	char ch;
-	int ret;
-	int i;
-
-	line = strtok_r(file, "\n", &next);
-	while (line) {
-		item = malloc_or_die(sizeof(*item));
-		item->mod = NULL;
-		ret = sscanf(line, "%as %c %as\t[%as",
-			     (float *)(void *)&addr_str, /* workaround gcc warning */
-			     &ch,
-			     (float *)(void *)&item->func,
-			     (float *)(void *)&item->mod);
-		item->addr = strtoull(addr_str, NULL, 16);
-		free(addr_str);
-
-		/* truncate the extra ']' */
-		if (item->mod)
-			item->mod[strlen(item->mod) - 1] = 0;
-
-
-		item->next = list;
-		list = item;
-		line = strtok_r(NULL, "\n", &next);
-		func_count++;
-	}
-
-	func_list = malloc_or_die(sizeof(*func_list) * func_count + 1);
-
-	i = 0;
-	while (list) {
-		func_list[i].func = list->func;
-		func_list[i].addr = list->addr;
-		func_list[i].mod = list->mod;
-		i++;
-		item = list;
-		list = list->next;
-		free(item);
-	}
-
-	qsort(func_list, func_count, sizeof(*func_list), func_cmp);
-
-	/*
-	 * Add a special record at the end.
-	 */
-	func_list[func_count].func = NULL;
-	func_list[func_count].addr = 0;
-	func_list[func_count].mod = NULL;
 }
 
 /*
@@ -250,17 +196,69 @@ static int func_bcmp(const void *a, const void *b)
 	return 1;
 }
 
+static int func_map_init(void)
+{
+	struct func_list *item;
+	int i;
+
+	func_map = malloc_or_die(sizeof(*func_map) * func_count + 1);
+
+	i = 0;
+	while (funclist) {
+		func_map[i].func = funclist->func;
+		func_map[i].addr = funclist->addr;
+		func_map[i].mod = funclist->mod;
+		i++;
+		item = funclist;
+		funclist = funclist->next;
+		free(item);
+	}
+
+	qsort(func_map, func_count, sizeof(*func_map), func_cmp);
+
+	/*
+	 * Add a special record at the end.
+	 */
+	func_map[func_count].func = NULL;
+	func_map[func_count].addr = 0;
+	func_map[func_count].mod = NULL;
+
+	return 0;
+}
+
 static struct func_map *find_func(unsigned long long addr)
 {
 	struct func_map *func;
 	struct func_map key;
 
+	if (!func_map)
+		func_map_init();
+
 	key.addr = addr;
 
-	func = bsearch(&key, func_list, func_count, sizeof(*func_list),
+	func = bsearch(&key, func_map, func_count, sizeof(*func_map),
 		       func_bcmp);
 
 	return func;
+}
+
+int pevent_register_function(char *func, unsigned long long addr,
+			     char *mod)
+{
+	struct func_list *item;
+
+	item = malloc_or_die(sizeof(*item));
+
+	item->next = funclist;
+	item->func = func;
+	item->mod = mod;
+	item->addr = addr;
+
+	funclist = item;
+
+	func_count++;
+
+	return 0;
 }
 
 void print_funcs(void)
@@ -269,10 +267,10 @@ void print_funcs(void)
 
 	for (i = 0; i < (int)func_count; i++) {
 		printf("%016llx %s",
-		       func_list[i].addr,
-		       func_list[i].func);
-		if (func_list[i].mod)
-			printf(" [%s]\n", func_list[i].mod);
+		       func_map[i].addr,
+		       func_map[i].func);
+		if (func_map[i].mod)
+			printf(" [%s]\n", func_map[i].mod);
 		else
 			printf("\n");
 	}

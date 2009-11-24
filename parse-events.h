@@ -307,5 +307,6 @@ enum trace_flag_type {
 };
 
 int pevent_register_comm(char *comm, int pid);
+int pevent_register_function(char *name, unsigned long long addr, char *mod);
 
 #endif /* _PARSE_EVENTS_H */
