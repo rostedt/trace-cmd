@@ -1263,7 +1263,7 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 					    sizeof(left->atom.atom) + 3);
 			strcat(left->atom.atom, " *");
 			*arg = *left;
-			free(arg);
+			free(left);
 
 			return type;
 		}
