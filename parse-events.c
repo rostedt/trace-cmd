@@ -279,8 +279,14 @@ void pevent_print_funcs(void)
 static struct printk_map {
 	unsigned long long		addr;
 	char				*printk;
-} *printk_list;
+} *printk_map;
 static unsigned int printk_count;
+
+static struct printk_list {
+	struct printk_list	*next;
+	unsigned long long	addr;
+	char			*printk;
+} *printklist;
 
 static int printk_cmp(const void *a, const void *b)
 {
@@ -295,58 +301,56 @@ static int printk_cmp(const void *a, const void *b)
 	return 0;
 }
 
+static void printk_map_init(void)
+{
+	struct printk_list *item;
+	int i;
+
+	printk_map = malloc_or_die(sizeof(*printk_map) * printk_count + 1);
+
+	i = 0;
+	while (printklist) {
+		printk_map[i].printk = printklist->printk;
+		printk_map[i].addr = printklist->addr;
+		i++;
+		item = printklist;
+		printklist = printklist->next;
+		free(item);
+	}
+
+	qsort(printk_map, printk_count, sizeof(*printk_map), printk_cmp);
+}
+
 static struct printk_map *find_printk(unsigned long long addr)
 {
 	struct printk_map *printk;
 	struct printk_map key;
 
+	if (!printk_map)
+		printk_map_init();
+
 	key.addr = addr;
 
-	printk = bsearch(&key, printk_list, printk_count, sizeof(*printk_list),
+	printk = bsearch(&key, printk_map, printk_count, sizeof(*printk_map),
 			 printk_cmp);
 
 	return printk;
 }
 
-void parse_ftrace_printk(char *file, unsigned int size __unused)
+int pevent_register_print_string(char *fmt, unsigned long long addr)
 {
-	struct printk_list {
-		struct printk_list	*next;
-		unsigned long long	addr;
-		char			*printk;
-	} *list = NULL, *item;
-	char *line;
-	char *next = NULL;
-	char *addr_str;
-	char *fmt;
-	int i;
+	struct printk_list *item;
 
-	line = strtok_r(file, "\n", &next);
-	while (line) {
-		item = malloc_or_die(sizeof(*item));
-		addr_str = strtok_r(line, ":", &fmt);
-		item->addr = strtoull(addr_str, NULL, 16);
-		/* fmt still has a space, skip it */
-		item->printk = strdup(fmt+1);
-		item->next = list;
-		list = item;
-		line = strtok_r(NULL, "\n", &next);
-		printk_count++;
-	}
+	item = malloc_or_die(sizeof(*item));
 
-	printk_list = malloc_or_die(sizeof(*printk_list) * printk_count + 1);
+	item->next = printklist;
+	printklist = item;
+	item->printk = fmt;
+	item->addr = addr;
 
-	i = 0;
-	while (list) {
-		printk_list[i].printk = list->printk;
-		printk_list[i].addr = list->addr;
-		i++;
-		item = list;
-		list = list->next;
-		free(item);
-	}
+	printk_count++;
 
-	qsort(printk_list, printk_count, sizeof(*printk_list), printk_cmp);
+	return 0;
 }
 
 void print_printk(void)
@@ -355,8 +359,8 @@ void print_printk(void)
 
 	for (i = 0; i < (int)printk_count; i++) {
 		printf("%016llx %s\n",
-		       printk_list[i].addr,
-		       printk_list[i].printk);
+		       printk_map[i].addr,
+		       printk_map[i].printk);
 	}
 }
 

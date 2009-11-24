@@ -54,3 +54,22 @@ void parse_proc_kallsyms(char *file, unsigned int size __unused)
 		line = strtok_r(NULL, "\n", &next);
 	}
 }
+
+void parse_ftrace_printk(char *file, unsigned int size __unused)
+{
+	unsigned long long addr;
+	char *printk;
+	char *line;
+	char *next = NULL;
+	char *addr_str;
+	char *fmt;
+
+	line = strtok_r(file, "\n", &next);
+	while (line) {
+		addr_str = strtok_r(line, ":", &fmt);
+		addr = strtoull(addr_str, NULL, 16);
+		/* fmt still has a space, skip it */
+		printk = strdup(fmt+1);
+		line = strtok_r(NULL, "\n", &next);
+	}
+}

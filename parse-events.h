@@ -307,6 +307,7 @@ enum trace_flag_type {
 
 int pevent_register_comm(char *comm, int pid);
 int pevent_register_function(char *name, unsigned long long addr, char *mod);
+int pevent_register_print_string(char *fmt, unsigned long long addr);
 
 /* for debugging */
 void pevent_print_funcs(void);
