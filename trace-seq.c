@@ -113,30 +113,6 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 	return 1;
 }
 
-int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len)
-{
-	if (len > ((PAGE_SIZE - 1) - s->len))
-		return 0;
-
-	memcpy(s->buffer + s->len, mem, len);
-	s->len += len;
-
-	return len;
-}
-
-void *trace_seq_reserve(struct trace_seq *s, size_t len)
-{
-	void *ret;
-
-	if (len > ((PAGE_SIZE - 1) - s->len))
-		return NULL;
-
-	ret = s->buffer + s->len;
-	s->len += len;
-
-	return ret;
-}
-
 int trace_seq_do_printf(struct trace_seq *s)
 {
 	char *buf;

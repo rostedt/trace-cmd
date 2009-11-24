@@ -30,10 +30,6 @@ extern int trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 
 extern int trace_seq_puts(struct trace_seq *s, const char *str);
 extern int trace_seq_putc(struct trace_seq *s, unsigned char c);
-extern int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len);
-extern int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
-				size_t len);
-extern void *trace_seq_reserve(struct trace_seq *s, size_t len);
 
 extern int trace_seq_do_printf(struct trace_seq *s);
 
