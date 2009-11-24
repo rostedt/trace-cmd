@@ -2564,6 +2564,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case 'L':
 				ls = 2;
 				goto cont_process;
+			case '.':
 			case 'z':
 			case 'Z':
 			case '0' ... '9':
