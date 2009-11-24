@@ -2169,7 +2169,7 @@ static int parse_common_lock_depth(void *data)
 	return ret;
 }
 
-struct event *trace_find_event(int id)
+static struct event *trace_find_event(int id)
 {
 	struct event *event;
 
