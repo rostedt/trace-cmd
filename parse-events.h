@@ -222,7 +222,6 @@ void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);
 void parse_ftrace_printk(char *file, unsigned int size);
 
-void print_funcs(void);
 void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
@@ -308,5 +307,8 @@ enum trace_flag_type {
 
 int pevent_register_comm(char *comm, int pid);
 int pevent_register_function(char *name, unsigned long long addr, char *mod);
+
+/* for debugging */
+void pevent_print_funcs(void);
 
 #endif /* _PARSE_EVENTS_H */

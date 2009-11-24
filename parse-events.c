@@ -261,7 +261,7 @@ int pevent_register_function(char *func, unsigned long long addr,
 	return 0;
 }
 
-void print_funcs(void)
+void pevent_print_funcs(void)
 {
 	int i;
 

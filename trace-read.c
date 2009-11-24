@@ -821,7 +821,7 @@ void trace_report (int argc, char **argv)
 	read_trace_files();
 
 	if (show_funcs) {
-		print_funcs();
+		pevent_print_funcs();
 		return;
 	}
 	if (show_printk) {
