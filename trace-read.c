@@ -825,7 +825,7 @@ void trace_report (int argc, char **argv)
 		return;
 	}
 	if (show_printk) {
-		print_printk();
+		pevent_print_printk();
 		return;
 	}
 

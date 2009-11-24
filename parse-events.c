@@ -353,7 +353,7 @@ int pevent_register_print_string(char *fmt, unsigned long long addr)
 	return 0;
 }
 
-void print_printk(void)
+void pevent_print_printk(void)
 {
 	int i;
 
