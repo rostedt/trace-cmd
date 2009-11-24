@@ -1,4 +1,5 @@
 CC = gcc
+AR = ar
 EXT = -std=gnu99
 CFLAGS = -g -Wall # -O2
 INCLUDES = -I. -I/usr/local/include
@@ -8,15 +9,17 @@ LIBS = -L. -lparsevent
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
-TARGETS = libparsevent.so trace-cmd
+TARGETS = libparsevent.a trace-cmd
 
 all: $(TARGETS)
 
+LIB_FILE = libparsevent.a
+
 trace-read.o::		parse-events.h
-trace-cmd.o::		parse-events.h
+trace-cmd.o::		parse-events.h $(LIB_FILE)
 
 trace-cmd:: trace-cmd.o trace-read.o
-	$(CC) $^ -o $@ $(LIBS)
+	$(CC) $^ $(LIBS) -o $@
 
 parse-events.o: parse-events.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
@@ -24,8 +27,13 @@ parse-events.o: parse-events.c parse-events.h
 trace-seq.o: trace-seq.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
 
-libparsevent.so: parse-events.o trace-seq.o
+LIB_OBJS = parse-events.o trace-seq.o
+
+libparsevent.so: $(LIB_OBJS)
 	$(CC) --shared $^ -o $@
+
+libparsevent.a: $(LIB_OBJS)
+	$(RM) $@;  $(AR) rcs $@ $^
 
 .PHONY: force
 force:
@@ -34,4 +42,4 @@ TAGS:	force
 	find . -name '*.[ch]' | xargs etags
 
 clean:
-	$(RM) *.o *~ $(TARGETS)
+	$(RM) *.o *~ $(TARGETS) *.a *.so
