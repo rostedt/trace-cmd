@@ -2579,6 +2579,25 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				    *(ptr+1) == 'f') {
 					ptr++;
 					show_func = *ptr;
+				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
+					unsigned char *buf;
+					char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+					if (*(ptr+1) == 'm')
+						fmt = "%.2x%.2x%.2x%.2x%.2x%.2x";
+					if (!arg->field.field) {
+						arg->field.field =
+							find_any_field(event, arg->field.name);
+						if (!arg->field.field)
+							die("field %s not found", arg->field.name);
+					}
+					if (arg->field.field->size != 6) {
+						trace_seq_printf(s, "INVALIDMAC");
+						break;
+					}
+					buf = data + arg->field.field->offset;
+					trace_seq_printf(s, fmt, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+					ptr++;
+					break;
 				}
 
 				/* fall through */
