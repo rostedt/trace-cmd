@@ -4,12 +4,35 @@
 
 #include "parse-events.h"
 
+static int get_offset(struct trace_seq *s, struct event *event, char *name)
+{
+	struct format_field *field;
+
+	field = pevent_find_field(event, name);
+	if (field)
+		return field->offset;
+
+	trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
+	return -1;
+}
+
 static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 				struct event *event)
 {
-	void *hrtimer = data + 16;
-	long long now = *(long long *)(data + 24);
+	void *hrtimer;
+	long long now;
+	int offset;
 	int ret;
+
+	offset = get_offset(s, event, "hrtimer");
+	if (offset < 0)
+		return 0;
+	hrtimer = *(void **)(data + offset);
+
+	offset = get_offset(s, event, "now");
+	if (offset < 0)
+		return 0;
+	now = *(long long *)(data + offset);
 
 	ret = trace_seq_printf(s, "hrtimer=%p now=%llu",
 			       hrtimer, now);
@@ -19,11 +42,32 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 static int timer_start_handler(struct trace_seq *s, void *data, int size,
 			       struct event *event)
 {
-	void *hrtimer = data + 16;
-	void *function = data + 24;
-	long long expires = *(long long *)(data + 32);
-	long long soft = *(long long *)(data + 40);
+	void *hrtimer;
+	void *function;
+	long long expires;
+	long long soft;
+	int offset;
 	int ret;
+
+	offset = get_offset(s, event, "hrtimer");
+	if (offset < 0)
+		return 0;
+	hrtimer = *(void **)(data + offset);
+
+	offset = get_offset(s, event, "function");
+	if (offset < 0)
+		return 0;
+	function = *(void **)(data + offset);
+
+	offset = get_offset(s, event, "expires");
+	if (offset < 0)
+		return 0;
+	expires = *(long long *)(data + offset);
+
+	offset = get_offset(s, event, "softexpires");
+	if (offset < 0)
+		return 0;
+	soft = *(long long *)(data + offset);
 
 	ret = trace_seq_printf(s, "hrtimer=%p function=%pf expires=%llu softexpires=%llu",
 			       hrtimer, function,

@@ -48,8 +48,6 @@ static unsigned long long input_buf_siz;
 static int cpus;
 static int long_size;
 
-static struct format_field *find_field(struct event *event, const char *name);
-
 static void init_input_buf(char *buf, unsigned long long size)
 {
 	input_buf = buf;
@@ -1728,7 +1726,7 @@ process_dynamic_array(struct event *event, struct print_arg *arg, char **tok)
 
 	/* Find the field */
 
-	field = find_field(event, token);
+	field = pevent_find_field(event, token);
 	if (!field)
 		return EVENT_ERROR;
 
@@ -2041,8 +2039,8 @@ find_common_field(struct event *event, const char *name)
 	return format;
 }
 
-static struct format_field *
-find_field(struct event *event, const char *name)
+struct format_field *
+pevent_find_field(struct event *event, const char *name)
 {
 	struct format_field *format;
 
@@ -2063,7 +2061,7 @@ find_any_field(struct event *event, const char *name)
 	format = find_common_field(event, name);
 	if (format)
 		return format;
-	return find_field(event, name);
+	return pevent_find_field(event, name);
 }
 
 static unsigned long long read_size(void *ptr, int size)
@@ -2498,10 +2496,10 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	void *bptr;
 
 	if (!field) {
-		field = find_field(event, "buf");
+		field = pevent_find_field(event, "buf");
 		if (!field)
 			die("can't find buffer field for binary printk");
-		ip_field = find_field(event, "ip");
+		ip_field = pevent_find_field(event, "ip");
 		if (!ip_field)
 			die("can't find ip field for binary printk");
 	}
@@ -2612,7 +2610,7 @@ get_bprint_format(void *data, int size __unused, struct event *event)
 	char *p;
 
 	if (!field) {
-		field = find_field(event, "fmt");
+		field = pevent_find_field(event, "fmt");
 		if (!field)
 			die("can't find format field for binary printk");
 		printf("field->offset = %d size=%d\n", field->offset, field->size);
@@ -2941,7 +2939,7 @@ get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
 		return NULL;
 
 	pid = parse_common_pid(next->data);
-	field = find_field(event, "func");
+	field = pevent_find_field(event, "func");
 	if (!field)
 		die("function return does not have field func");
 
@@ -3022,12 +3020,12 @@ print_graph_entry_leaf(struct trace_seq *s,
 	type = trace_parse_common_type(ret_rec->data);
 	ret_event = trace_find_event(type);
 
-	field = find_field(ret_event, "rettime");
+	field = pevent_find_field(ret_event, "rettime");
 	if (!field)
 		die("can't find rettime in return graph");
 	rettime = read_size(ret_rec->data + field->offset, field->size);
 
-	field = find_field(ret_event, "calltime");
+	field = pevent_find_field(ret_event, "calltime");
 	if (!field)
 		die("can't find rettime in return graph");
 	calltime = read_size(ret_rec->data + field->offset, field->size);
@@ -3040,7 +3038,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	/* Duration */
 	print_graph_duration(s, duration);
 
-	field = find_field(event, "depth");
+	field = pevent_find_field(event, "depth");
 	if (!field)
 		die("can't find depth in entry graph");
 	depth = read_size(data + field->offset, field->size);
@@ -3049,7 +3047,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
 		trace_seq_putc(s, ' ');
 
-	field = find_field(event, "func");
+	field = pevent_find_field(event, "func");
 	if (!field)
 		die("can't find func in entry graph");
 	val = read_size(data + field->offset, field->size);
@@ -3076,7 +3074,7 @@ static void print_graph_nested(struct trace_seq *s,
 	/* No time */
 	trace_seq_puts(s, "           |  ");
 
-	field = find_field(event, "depth");
+	field = pevent_find_field(event, "depth");
 	if (!field)
 		die("can't find depth in entry graph");
 	depth = read_size(data + field->offset, field->size);
@@ -3085,7 +3083,7 @@ static void print_graph_nested(struct trace_seq *s,
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
 		trace_seq_putc(s, ' ');
 
-	field = find_field(event, "func");
+	field = pevent_find_field(event, "func");
 	if (!field)
 		die("can't find func in entry graph");
 	val = read_size(data + field->offset, field->size);
@@ -3120,7 +3118,7 @@ pretty_print_func_ent(struct trace_seq *s,
 		trace_seq_puts(s, " | ");
 	}
 
-	field = find_field(event, "func");
+	field = pevent_find_field(event, "func");
 	if (!field)
 		die("function entry does not have func field");
 
@@ -3169,12 +3167,12 @@ pretty_print_func_ret(struct trace_seq *s,
 		trace_seq_puts(s, " | ");
 	}
 
-	field = find_field(event, "rettime");
+	field = pevent_find_field(event, "rettime");
 	if (!field)
 		die("can't find rettime in return graph");
 	rettime = read_size(data + field->offset, field->size);
 
-	field = find_field(event, "calltime");
+	field = pevent_find_field(event, "calltime");
 	if (!field)
 		die("can't find calltime in return graph");
 	calltime = read_size(data + field->offset, field->size);
@@ -3187,7 +3185,7 @@ pretty_print_func_ret(struct trace_seq *s,
 	/* Duration */
 	print_graph_duration(s, duration);
 
-	field = find_field(event, "depth");
+	field = pevent_find_field(event, "depth");
 	if (!field)
 		die("can't find depth in entry graph");
 	depth = read_size(data + field->offset, field->size);

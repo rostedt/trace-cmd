@@ -299,6 +299,9 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys);
 int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func);
 
+struct format_field *pevent_find_field(struct event *event, const char *name);
+
+
 /* for debugging */
 void pevent_print_funcs(void);
 void pevent_print_printk(void);
