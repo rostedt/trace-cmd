@@ -9,7 +9,7 @@ LIBS = -L. -lparsevent -ldl
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
-TARGETS = libparsevent.a trace-cmd plugin_hrtimer.so
+TARGETS = libparsevent.a trace-cmd plugin_hrtimer.so plugin_mac80211.so
 
 all: $(TARGETS)
 
@@ -39,6 +39,12 @@ plugin_hrtimer.o: plugin_hrtimer.c parse-events.h
 	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
 
 plugin_hrtimer.so: plugin_hrtimer.o
+	$(CC) -shared -nostartfiles -o $@ $<
+
+plugin_mac80211.o: plugin_mac80211.c parse-events.h
+	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+
+plugin_mac80211.so: plugin_mac80211.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
 .PHONY: force
