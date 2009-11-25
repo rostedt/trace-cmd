@@ -45,6 +45,11 @@ extern int trace_seq_do_printf(struct trace_seq *s);
 
 /* ----------------------- pevent ----------------------- */
 
+typedef int (*pevent_plugin_load_func)(void);
+#define PEVENT_PLUGIN_LOADER pevent_plugin_loader
+#define MAKE_STR(x) #x
+#define PEVENT_PLUGIN_LOADER_NAME MAKE_STR(pevent_plugin_loader)
+
 #define NSECS_PER_SEC		1000000000ULL
 #define NSECS_PER_USEC		1000ULL
 

@@ -20,6 +20,8 @@ void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);
 void parse_ftrace_printk(char *file, unsigned int size);
 
+int trace_load_plugins(void);
+
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
 	RINGBUF_TYPE_TIME_EXTEND	= 30,

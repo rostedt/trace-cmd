@@ -735,6 +735,8 @@ int read_trace_files(void)
 	read_proc_kallsyms();
 	read_ftrace_printk();
 
+	trace_load_plugins();
+
 	return 0;
 }
 
