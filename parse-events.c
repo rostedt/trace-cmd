@@ -2075,7 +2075,7 @@ find_any_field(struct event *event, const char *name)
 	return pevent_find_field(event, name);
 }
 
-static unsigned long long read_size(void *ptr, int size)
+unsigned long long pevent_read_number(void *ptr, int size)
 {
 	switch (size) {
 	case 1:
@@ -2125,7 +2125,7 @@ static int __parse_common(void *data, int *size, int *offset,
 		if (ret < 0)
 			return ret;
 	}
-	return read_size(data + *offset, *size);
+	return pevent_read_number(data + *offset, *size);
 }
 
 static int trace_parse_common_type(void *data)
@@ -2227,7 +2227,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 				die("field %s not found", arg->field.name);
 		}
 		/* must be a number */
-		val = read_size(data + arg->field.field->offset,
+		val = pevent_read_number(data + arg->field.field->offset,
 				arg->field.field->size);
 		break;
 	case PRINT_FLAGS:
@@ -2257,7 +2257,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 
 			switch (larg->type) {
 			case PRINT_DYNAMIC_ARRAY:
-				offset = read_size(data + larg->dynarray.field->offset,
+				offset = pevent_read_number(data + larg->dynarray.field->offset,
 						   larg->dynarray.field->size);
 				/*
 				 * The actual length of the dynamic array is stored
@@ -2280,7 +2280,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 			default:
 				goto default_op; /* oops, all bets off */
 			}
-			val = read_size(data + offset, long_size);
+			val = pevent_read_number(data + offset, long_size);
 			if (typearg)
 				val = eval_type(val, typearg, 1);
 			break;
@@ -2515,7 +2515,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 			die("can't find ip field for binary printk");
 	}
 
-	ip = read_size(data + ip_field->offset, ip_field->size);
+	ip = pevent_read_number(data + ip_field->offset, ip_field->size);
 
 	/*
 	 * The first arg is the IP pointer.
@@ -2568,7 +2568,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				default:
 					break;
 				}
-				val = read_size(bptr, ls);
+				val = pevent_read_number(bptr, ls);
 				bptr += ls;
 				arg = malloc_or_die(sizeof(*arg));
 				arg->next = NULL;
@@ -2627,7 +2627,7 @@ get_bprint_format(void *data, int size __unused, struct event *event)
 		printf("field->offset = %d size=%d\n", field->offset, field->size);
 	}
 
-	addr = read_size(data + field->offset, field->size);
+	addr = pevent_read_number(data + field->offset, field->size);
 
 	printk = find_printk(addr);
 	if (!printk) {
@@ -2954,7 +2954,7 @@ get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
 	if (!field)
 		die("function return does not have field func");
 
-	val = read_size(next->data + field->offset, field->size);
+	val = pevent_read_number(next->data + field->offset, field->size);
 
 	if (cur_pid != pid || cur_func != val)
 		return NULL;
@@ -3034,12 +3034,12 @@ print_graph_entry_leaf(struct trace_seq *s,
 	field = pevent_find_field(ret_event, "rettime");
 	if (!field)
 		die("can't find rettime in return graph");
-	rettime = read_size(ret_rec->data + field->offset, field->size);
+	rettime = pevent_read_number(ret_rec->data + field->offset, field->size);
 
 	field = pevent_find_field(ret_event, "calltime");
 	if (!field)
 		die("can't find rettime in return graph");
-	calltime = read_size(ret_rec->data + field->offset, field->size);
+	calltime = pevent_read_number(ret_rec->data + field->offset, field->size);
 
 	duration = rettime - calltime;
 
@@ -3052,7 +3052,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	field = pevent_find_field(event, "depth");
 	if (!field)
 		die("can't find depth in entry graph");
-	depth = read_size(data + field->offset, field->size);
+	depth = pevent_read_number(data + field->offset, field->size);
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
@@ -3061,7 +3061,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	field = pevent_find_field(event, "func");
 	if (!field)
 		die("can't find func in entry graph");
-	val = read_size(data + field->offset, field->size);
+	val = pevent_read_number(data + field->offset, field->size);
 	func = find_func(val);
 
 	if (func)
@@ -3088,7 +3088,7 @@ static void print_graph_nested(struct trace_seq *s,
 	field = pevent_find_field(event, "depth");
 	if (!field)
 		die("can't find depth in entry graph");
-	depth = read_size(data + field->offset, field->size);
+	depth = pevent_read_number(data + field->offset, field->size);
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
@@ -3097,7 +3097,7 @@ static void print_graph_nested(struct trace_seq *s,
 	field = pevent_find_field(event, "func");
 	if (!field)
 		die("can't find func in entry graph");
-	val = read_size(data + field->offset, field->size);
+	val = pevent_read_number(data + field->offset, field->size);
 	func = find_func(val);
 
 	if (func)
@@ -3133,7 +3133,7 @@ pretty_print_func_ent(struct trace_seq *s,
 	if (!field)
 		die("function entry does not have func field");
 
-	val = read_size(data + field->offset, field->size);
+	val = pevent_read_number(data + field->offset, field->size);
 
 	/*
 	 * peek_data may unmap the data pointer. Copy it first.
@@ -3181,12 +3181,12 @@ pretty_print_func_ret(struct trace_seq *s,
 	field = pevent_find_field(event, "rettime");
 	if (!field)
 		die("can't find rettime in return graph");
-	rettime = read_size(data + field->offset, field->size);
+	rettime = pevent_read_number(data + field->offset, field->size);
 
 	field = pevent_find_field(event, "calltime");
 	if (!field)
 		die("can't find calltime in return graph");
-	calltime = read_size(data + field->offset, field->size);
+	calltime = pevent_read_number(data + field->offset, field->size);
 
 	duration = rettime - calltime;
 
@@ -3199,7 +3199,7 @@ pretty_print_func_ret(struct trace_seq *s,
 	field = pevent_find_field(event, "depth");
 	if (!field)
 		die("can't find depth in entry graph");
-	depth = read_size(data + field->offset, field->size);
+	depth = pevent_read_number(data + field->offset, field->size);
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
