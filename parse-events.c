@@ -3404,71 +3404,6 @@ int parse_header_page(char *buf, unsigned long size)
 	return 0;
 }
 
-int parse_ftrace_file(char *buf, unsigned long size)
-{
-	struct format_field *field;
-	struct print_arg *arg, **list;
-	struct event *event;
-	int ret;
-
-	init_input_buf(buf, size);
-
-	event = alloc_event();
-	if (!event)
-		return -ENOMEM;
-
-	event->flags |= EVENT_FL_ISFTRACE;
-
-	event->name = event_read_name();
-	if (!event->name)
-		die("failed to read ftrace event name");
-
-	if (strcmp(event->name, "function") == 0)
-		event->flags |= EVENT_FL_ISFUNC;
-
-	else if (strcmp(event->name, "funcgraph_entry") == 0)
-		event->flags |= EVENT_FL_ISFUNCENT;
-
-	else if (strcmp(event->name, "funcgraph_exit") == 0)
-		event->flags |= EVENT_FL_ISFUNCRET;
-
-	else if (strcmp(event->name, "bprint") == 0)
-		event->flags |= EVENT_FL_ISBPRINT;
-
-	event->id = event_read_id();
-	if (event->id < 0)
-		die("failed to read ftrace event id");
-
-	add_event(event);
-
-	ret = event_read_format(event);
-	if (ret < 0)
-		die("failed to read ftrace event format");
-
-	ret = event_read_print(event);
-	if (ret < 0)
-		die("failed to read ftrace event print fmt");
-
-	/* New ftrace handles args */
-	if (ret > 0)
-		return 0;
-	/*
-	 * The arguments for ftrace files are parsed by the fields.
-	 * Set up the fields as their arguments.
-	 */
-	list = &event->print_fmt.args;
-	for (field = event->format.fields; field; field = field->next) {
-		arg = malloc_or_die(sizeof(*arg));
-		memset(arg, 0, sizeof(*arg));
-		*list = arg;
-		list = &arg->next;
-		arg->type = PRINT_FIELD;
-		arg->field.name = field->name;
-		arg->field.field = field;
-	}
-	return 0;
-}
-
 int parse_event_file(char *buf, unsigned long size, char *sys)
 {
 	struct event *event;
@@ -3484,6 +3419,23 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 	if (!event->name)
 		die("failed to read event name");
 
+	if (strcmp(sys, "ftrace") == 0) {
+
+		event->flags |= EVENT_FL_ISFTRACE;
+
+		if (strcmp(event->name, "function") == 0)
+			event->flags |= EVENT_FL_ISFUNC;
+
+		else if (strcmp(event->name, "funcgraph_entry") == 0)
+			event->flags |= EVENT_FL_ISFUNCENT;
+
+		else if (strcmp(event->name, "funcgraph_exit") == 0)
+			event->flags |= EVENT_FL_ISFUNCRET;
+
+		else if (strcmp(event->name, "bprint") == 0)
+			event->flags |= EVENT_FL_ISBPRINT;
+	}
+		
 	event->id = event_read_id();
 	if (event->id < 0)
 		die("failed to read event id");
@@ -3502,11 +3454,31 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 
 	event->system = strdup(sys);
 
+	add_event(event);
+
+	if (!ret && (event->flags & EVENT_FL_ISFTRACE)) {
+		struct format_field *field;
+		struct print_arg *arg, **list;
+
+		/* old ftrace had no args */
+
+		list = &event->print_fmt.args;
+		for (field = event->format.fields; field; field = field->next) {
+			arg = malloc_or_die(sizeof(*arg));
+			memset(arg, 0, sizeof(*arg));
+			*list = arg;
+			list = &arg->next;
+			arg->type = PRINT_FIELD;
+			arg->field.name = field->name;
+			arg->field.field = field;
+		}
+		return 0;
+	}
+
 #define PRINT_ARGS 0
 	if (PRINT_ARGS && event->print_fmt.args)
 		print_args(event->print_fmt.args);
 
-	add_event(event);
 	return 0;
 
  event_failed:
@@ -3514,6 +3486,11 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 	/* still add it even if it failed */
 	add_event(event);
 	return -1;
+}
+
+int parse_ftrace_file(char *buf, unsigned long size)
+{
+	return parse_event_file(buf, size, "ftrace");
 }
 
 void parse_set_info(int nr_cpus, int long_sz)
