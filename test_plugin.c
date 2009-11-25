@@ -4,7 +4,8 @@
 
 #include "parse-events.h"
 
-static int timer_expire_handler(struct trace_seq *s, void *data, int size)
+static int timer_expire_handler(struct trace_seq *s, void *data, int size,
+				struct event *event)
 {
 	void *hrtimer = data + 16;
 	long long now = *(long long *)(data + 24);
@@ -15,7 +16,8 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size)
 	return ret;
 }
 
-static int timer_start_handler(struct trace_seq *s, void *data, int size)
+static int timer_start_handler(struct trace_seq *s, void *data, int size,
+			       struct event *event)
 {
 	void *hrtimer = data + 16;
 	void *function = data + 24;

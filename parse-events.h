@@ -45,8 +45,13 @@ extern int trace_seq_do_printf(struct trace_seq *s);
 
 /* ----------------------- pevent ----------------------- */
 
+struct event;
+
+typedef int (*pevent_event_handler_func)(struct trace_seq *s,
+					 void *data, int size,
+					 struct event *event);
+
 typedef int (*pevent_plugin_load_func)(void);
-typedef int (*pevent_event_handler_func)(struct trace_seq *s, void *data, int size);
 
 #define PEVENT_PLUGIN_LOADER pevent_plugin_loader
 #define MAKE_STR(x) #x
