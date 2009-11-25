@@ -4,6 +4,7 @@
 
 #include "parse-events.h"
 
+/* return -1 (field not found/not valid number), 0 (ok), 1 (buffer full) */
 static int _print_field(struct trace_seq *s, const char *fmt,
 			struct event *event, const char *name, const void *data)
 {
@@ -11,78 +12,70 @@ static int _print_field(struct trace_seq *s, const char *fmt,
 	unsigned long long val;
 
 	if (!f)
-		return 0;
+		return -1;
 
 	if (pevent_read_number_field(f, data, &val))
-		return 0;
+		return -1;
 
 	return trace_seq_printf(s, fmt, val);
 }
 
-static int print_field(struct trace_seq *s, const char *fmt,
-		       struct event *event, const char *name, const void *data)
+/* return 0 (ok), 1 (buffer full) */
+static void print_field(struct trace_seq *s, const char *fmt,
+			struct event *event, const char *name, const void *data)
 {
 	int ret = _print_field(s, fmt, event, name, data);
 
-	if (ret == 0)
-		ret = trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
-
-	return ret;
+	if (ret == -1)
+		trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
 }
 
 static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 				struct event *event)
 {
-	int ret = 0, tmp;
+	trace_seq_printf(s, "hrtimer=");
 
-	ret += trace_seq_printf(s, "hrtimer=");
-	tmp = _print_field(s, "0x%llx", event, "timer", data);
-	if (tmp)
-		ret += tmp;
-	else
-		ret += print_field(s, "0x%llx", event, "hrtimer", data);
+	if (_print_field(s, "0x%llx", event, "timer", data) == -1)
+		print_field(s, "0x%llx", event, "hrtimer", data);
 
-	ret += trace_seq_printf(s, " now=");
+	trace_seq_printf(s, " now=");
 
-	ret += print_field(s, "%llu", event, "now", data);
+	print_field(s, "%llu", event, "now", data);
 
-	return ret;
+	return 0;
 }
 
 static int timer_start_handler(struct trace_seq *s, void *data, int size,
 			       struct event *event)
 {
 	struct format_field *fn = pevent_find_field(event, "function");
-	int ret = 0, tmp;
 
-	ret += trace_seq_printf(s, "hrtimer=");
-	tmp = _print_field(s, "0x%llx", event, "timer", data);
-	if (tmp)
-		ret += tmp;
-	else
-		ret += print_field(s, "0x%llx", event, "hrtimer", data);
+	trace_seq_printf(s, "hrtimer=");
+
+	if (_print_field(s, "0x%llx", event, "timer", data) == -1)
+		print_field(s, "0x%llx", event, "hrtimer", data);
 
 	if (!fn) {
-		ret += trace_seq_printf(s, " function=MISSING");
+		trace_seq_printf(s, " function=MISSING");
 	} else {
 		unsigned long long function;
 		const char *func;
 
 		if (pevent_read_number_field(fn, data, &function))
-			ret += trace_seq_printf(s, " function=INVALID");
+			trace_seq_printf(s, " function=INVALID");
 
 		func = pevent_find_function(function);
 
-		ret += trace_seq_printf(s, " function=%s", func);
+		trace_seq_printf(s, " function=%s", func);
 	}
 
-	ret += trace_seq_printf(s, " expires=");
-	ret += print_field(s, "%llu", event, "expires", data);
+	trace_seq_printf(s, " expires=");
+	print_field(s, "%llu", event, "expires", data);
 
-	ret += trace_seq_printf(s, " softexpires=");
-	ret += print_field(s, "%llu", event, "softexpires", data);
+	trace_seq_printf(s, " softexpires=");
+	print_field(s, "%llu", event, "softexpires", data);
 
-	return ret;
+	return 0;
 }
 
 int PEVENT_PLUGIN_LOADER(void)
