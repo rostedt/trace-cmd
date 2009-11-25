@@ -2180,6 +2180,22 @@ static struct event *trace_find_event(int id)
 	return event;
 }
 
+static struct event *
+trace_find_event_by_name(const char *sys, const char *name)
+{
+	struct event *event;
+
+	for (event = event_list; event; event = event->next) {
+		if (strcmp(event->name, name) == 0) {
+			if (!sys)
+				break;
+			if (strcmp(event->system, sys) == 0)
+				break;
+		}
+	}
+	return event;
+}
+
 static unsigned long long eval_num_arg(void *data, int size,
 				   struct event *event, struct print_arg *arg)
 {
@@ -3236,7 +3252,10 @@ void pevent_print_event(struct trace_seq *s,
 		return;
 	}
 
-	pretty_print(s, data, size, event);
+	if (event->handler)
+		event->handler(s, data, size);
+	else
+		pretty_print(s, data, size, event);
 	trace_seq_putc(s, '\n');
 }
 
@@ -3486,6 +3505,30 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
 	/* still add it even if it failed */
 	add_event(event);
 	return -1;
+}
+
+int pevent_register_event_handler(int id, char *sys_name, char *event_name,
+				  pevent_event_handler_func func)
+{
+	struct event *event;
+
+	if (id >= 0) {
+		/* search by id */
+		event = trace_find_event(id);
+		if (!event)
+			return -1;
+		if (event_name && (strcmp(event_name, event->name) != 0))
+			return -1;
+		if (sys_name && (strcmp(sys_name, event->system) != 0))
+			return -1;
+	} else {
+		event = trace_find_event_by_name(sys_name, event_name);
+		if (!event)
+			return -1;
+	}
+
+	event->handler = func;
+	return 0;
 }
 
 void parse_set_info(int nr_cpus, int long_sz)

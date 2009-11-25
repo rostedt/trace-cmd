@@ -96,14 +96,15 @@ static int load_plugin(const char *path, const char *file)
 
 	handle = dlopen(plugin, RTLD_NOW);
 	if (!handle) {
-		warning("cound not load plugin '%s'", plugin);
+		warning("cound not load plugin '%s'\n%s\n",
+			plugin, dlerror());
 		return -1;
 	}
 
 	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
 	if (!func) {
-		warning("cound not find func '%s' in plugin '%s'",
-			PEVENT_PLUGIN_LOADER_NAME, plugin);
+		warning("cound not find func '%s' in plugin '%s'\n%s\n",
+			PEVENT_PLUGIN_LOADER_NAME, plugin, dlerror());
 		return -1;
 	}
 

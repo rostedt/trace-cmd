@@ -19,7 +19,7 @@ trace-read.o::		parse-events.h
 trace-cmd.o::		parse-events.h $(LIB_FILE)
 
 trace-cmd:: trace-cmd.o trace-read.o trace-util.o
-	$(CC) $^ $(LIBS) -o $@
+	$(CC) $^ $(LIBS) -rdynamic -o $@
 
 parse-events.o: parse-events.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
