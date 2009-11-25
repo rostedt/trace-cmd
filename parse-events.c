@@ -2075,7 +2075,7 @@ find_any_field(struct event *event, const char *name)
 	return pevent_find_field(event, name);
 }
 
-unsigned long long pevent_read_number(void *ptr, int size)
+unsigned long long pevent_read_number(const void *ptr, int size)
 {
 	switch (size) {
 	case 1:
