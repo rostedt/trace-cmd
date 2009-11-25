@@ -2661,6 +2661,12 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	int len;
 	int ls;
 
+	if (event->flags & EVENT_FL_FAILED) {
+		trace_seq_printf(s, "EVENT '%s' FAILED TO PARSE",
+		       event->name);
+		return;
+	}
+
 	if (event->flags & EVENT_FL_ISFUNC)
 		ptr = " %pF <-- %pF";
 
@@ -3245,12 +3251,6 @@ void pevent_print_event(struct trace_seq *s,
 		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid,  cpu);
 
 	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
-
-	if (event->flags & EVENT_FL_FAILED) {
-		trace_seq_printf(s, "EVENT '%s' FAILED TO PARSE\n",
-		       event->name);
-		return;
-	}
 
 	if (event->handler)
 		event->handler(s, data, size);
