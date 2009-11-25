@@ -56,8 +56,6 @@ static int output_fd;
 
 static int latency;
 
-static int old_ftrace_name;
-
 static int cpu_count;
 static int *pids;
 
@@ -248,45 +246,6 @@ static char *get_tracing_file(const char *name)
 static void put_tracing_file(char *file)
 {
 	free(file);
-}
-
-static void write_trace(const char *file, const char *val)
-{
-	char *path;
-	int fd;
-
-	path = get_tracing_file(file);
-	fd = open(path, O_WRONLY);
-	if (fd < 0)
-		die("writing %s", path);
-	put_tracing_file(path);
-	write(fd, val, strlen(val));
-	close(fd);
-
-}
-
-static int find_trace_type(const char *type)
-{
-	char scan[100];
-	char *path;
-	FILE *fp;
-	int ret;
-
-	path = get_tracing_file(type);
-	fp = fopen(path, "r");
-	if (!fp)
-		die("reading %s", path);
-	put_tracing_file(path);
-	do {
-		ret = fscanf(fp, "%99s", scan);
-		if (ret > 0 && strcmp(scan, "ftrace"))
-			old_ftrace_name = 1;
-		if (ret > 0 && strcmp(scan, type) == 0)
-			break;
-	} while (ret > 0);
-	fclose(fp);
-
-	return ret > 0;
 }
 
 static int set_ftrace(int set)
