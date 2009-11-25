@@ -23,6 +23,7 @@ struct trace_seq {
 	char			buffer[TRACE_SEQ_SIZE];
 	unsigned int		len;
 	unsigned int		readpos;
+	int			full;
 };
 
 static inline void
@@ -30,6 +31,7 @@ trace_seq_init(struct trace_seq *s)
 {
 	s->len = 0;
 	s->readpos = 0;
+	s->full = 0;
 }
 
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
