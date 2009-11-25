@@ -4,89 +4,84 @@
 
 #include "parse-events.h"
 
-static int _get_offset(struct event *event, char *name)
+static int _print_field(struct trace_seq *s, const char *fmt,
+			struct event *event, const char *name, const void *data)
 {
-	struct format_field *field;
+	struct format_field *f = pevent_find_field(event, name);
+	unsigned long long val;
 
-	field = pevent_find_field(event, name);
-	if (field)
-		return field->offset;
+	if (!f)
+		return 0;
 
-	return -1;
+	if (pevent_read_number_field(f, data, &val))
+		return 0;
+
+	return trace_seq_printf(s, fmt, val);
 }
 
-static int get_offset(struct trace_seq *s, struct event *event, char *name)
+static int print_field(struct trace_seq *s, const char *fmt,
+		       struct event *event, const char *name, const void *data)
 {
-	int r = _get_offset(event, name);
+	int ret = _print_field(s, fmt, event, name, data);
 
-	if (r < 0)
-		trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
+	if (ret == 0)
+		ret = trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
 
-	return r;
+	return ret;
 }
 
 static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 				struct event *event)
 {
-	void *hrtimer;
-	long long now;
-	int offset;
-	int ret;
+	int ret = 0, tmp;
 
-	offset = _get_offset(event, "timer");
-	if (offset < 0)
-		offset = get_offset(s, event, "hrtimer");
-	if (offset < 0)
-		return 0;
-	hrtimer = *(void **)(data + offset);
+	ret += trace_seq_printf(s, "hrtimer=");
+	tmp = _print_field(s, "0x%llx", event, "timer", data);
+	if (tmp)
+		ret += tmp;
+	else
+		ret += print_field(s, "0x%llx", event, "hrtimer", data);
 
-	offset = get_offset(s, event, "now");
-	if (offset < 0)
-		return 0;
-	now = *(long long *)(data + offset);
+	ret += trace_seq_printf(s, " now=");
 
-	ret = trace_seq_printf(s, "hrtimer=%p now=%llu",
-			       hrtimer, now);
+	ret += print_field(s, "%llu", event, "now", data);
+
 	return ret;
 }
 
 static int timer_start_handler(struct trace_seq *s, void *data, int size,
 			       struct event *event)
 {
-	const char *func;
-	void *hrtimer;
-	void *function;
-	long long expires;
-	long long soft;
-	int offset;
-	int ret;
+	struct format_field *fn = pevent_find_field(event, "function");
+	int ret = 0, tmp;
 
-	offset = _get_offset(event, "timer");
-	if (offset < 0)
-		offset = get_offset(s, event, "hrtimer");
-	if (offset < 0)
-		return 0;
-	hrtimer = *(void **)(data + offset);
+	ret += trace_seq_printf(s, "hrtimer=");
+	tmp = _print_field(s, "0x%llx", event, "timer", data);
+	if (tmp)
+		ret += tmp;
+	else
+		ret += print_field(s, "0x%llx", event, "hrtimer", data);
 
-	offset = get_offset(s, event, "function");
-	if (offset < 0)
-		return 0;
-	function = *(void **)(data + offset);
-	func = pevent_find_function((unsigned long long)function);
+	if (!fn) {
+		ret += trace_seq_printf(s, " function=MISSING");
+	} else {
+		unsigned long long function;
+		const char *func;
 
-	offset = get_offset(s, event, "expires");
-	if (offset < 0)
-		return 0;
-	expires = *(long long *)(data + offset);
+		if (pevent_read_number_field(fn, data, &function))
+			ret += trace_seq_printf(s, " function=INVALID");
 
-	offset = get_offset(s, event, "softexpires");
-	if (offset < 0)
-		return 0;
-	soft = *(long long *)(data + offset);
+		func = pevent_find_function(function);
 
-	ret = trace_seq_printf(s, "hrtimer=%p function=%s expires=%llu softexpires=%llu",
-			       hrtimer, func,
-			       expires, soft);
+		ret += trace_seq_printf(s, " function=%s", func);
+	}
+
+	ret += trace_seq_printf(s, " expires=");
+	ret += print_field(s, "%llu", event, "expires", data);
+
+	ret += trace_seq_printf(s, " softexpires=");
+	ret += print_field(s, "%llu", event, "softexpires", data);
+
 	return ret;
 }
 
