@@ -4,7 +4,7 @@
 
 #include "parse-events.h"
 
-static int get_offset(struct trace_seq *s, struct event *event, char *name)
+static int _get_offset(struct event *event, char *name)
 {
 	struct format_field *field;
 
@@ -12,8 +12,17 @@ static int get_offset(struct trace_seq *s, struct event *event, char *name)
 	if (field)
 		return field->offset;
 
-	trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
 	return -1;
+}
+
+static int get_offset(struct trace_seq *s, struct event *event, char *name)
+{
+	int r = _get_offset(event, name);
+
+	if (r < 0)
+		trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
+
+	return r;
 }
 
 static int timer_expire_handler(struct trace_seq *s, void *data, int size,
@@ -24,7 +33,9 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 	int offset;
 	int ret;
 
-	offset = get_offset(s, event, "hrtimer");
+	offset = _get_offset(event, "timer");
+	if (offset < 0)
+		offset = get_offset(s, event, "hrtimer");
 	if (offset < 0)
 		return 0;
 	hrtimer = *(void **)(data + offset);
@@ -50,7 +61,9 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 	int offset;
 	int ret;
 
-	offset = get_offset(s, event, "hrtimer");
+	offset = _get_offset(event, "timer");
+	if (offset < 0)
+		offset = get_offset(s, event, "hrtimer");
 	if (offset < 0)
 		return 0;
 	hrtimer = *(void **)(data + offset);
