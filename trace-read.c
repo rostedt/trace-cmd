@@ -611,6 +611,7 @@ static void show_data(int cpu)
 	trace_seq_init(&s);
 	pevent_print_event(&s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
+	printf("\n");
 
 	free(record);
 }

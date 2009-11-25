@@ -3280,7 +3280,6 @@ void pevent_print_event(struct trace_seq *s,
 		event->handler(s, data, size, event);
 	else
 		pretty_print(s, data, size, event);
-	trace_seq_putc(s, '\n');
 }
 
 static void print_fields(struct trace_seq *s, struct print_flag_sym *field)
