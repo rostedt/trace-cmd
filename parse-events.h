@@ -302,6 +302,8 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 struct format_field *pevent_find_field(struct event *event, const char *name);
 const char *pevent_find_function(unsigned long long addr);
 unsigned long long pevent_read_number(void *ptr, int size);
+int pevent_read_number_field(struct format_field *field, const void *data,
+			     unsigned long long *value);
 
 
 /* for debugging */

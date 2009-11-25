@@ -2092,6 +2092,21 @@ unsigned long long pevent_read_number(void *ptr, int size)
 	}
 }
 
+int pevent_read_number_field(struct format_field *field, const void *data,
+			     unsigned long long *value)
+{
+	switch (field->size) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		*value = pevent_read_number(data + field->offset, field->size);
+		return 0;
+	default:
+		return -1;
+	}
+}
+
 static int get_common_info(const char *type, int *offset, int *size)
 {
 	struct event *event;
