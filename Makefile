@@ -9,7 +9,7 @@ LIBS = -L. -lparsevent -ldl
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
-TARGETS = libparsevent.a trace-cmd test_plugin
+TARGETS = libparsevent.a trace-cmd plugin_hrtimer.so
 
 all: $(TARGETS)
 
@@ -35,10 +35,10 @@ libparsevent.so: $(LIB_OBJS)
 libparsevent.a: $(LIB_OBJS)
 	$(RM) $@;  $(AR) rcs $@ $^
 
-test_plugin.o: test_plugin.c parse-events.h
+plugin_hrtimer.o: plugin_hrtimer.c parse-events.h
 	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
 
-test_plugin: test_plugin.o
+plugin_hrtimer.so: plugin_hrtimer.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
 .PHONY: force

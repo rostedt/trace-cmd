@@ -79,8 +79,6 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 
 int PEVENT_PLUGIN_LOADER(void)
 {
-	printf("HELLO WORLD!!!\n");
-
 	pevent_register_event_handler(-1, "timer", "hrtimer_expire_entry",
 				      timer_expire_handler);
 
