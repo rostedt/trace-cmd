@@ -222,9 +222,6 @@ void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);
 void parse_ftrace_printk(char *file, unsigned int size);
 
-int parse_ftrace_file(char *buf, unsigned long size);
-int parse_event_file(char *buf, unsigned long size, char *sys);
-
 extern int file_bigendian;
 extern int host_bigendian;
 
@@ -290,8 +287,6 @@ extern int header_page_data_size;
 
 extern int latency_format;
 
-int parse_header_page(char *buf, unsigned long size);
-
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {
 	TRACE_FLAG_IRQS_OFF		= 0x01,
@@ -307,6 +302,10 @@ int pevent_register_print_string(char *fmt, unsigned long long addr);
 
 void pevent_print_event(struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs);
+
+int pevent_parse_header_page(char *buf, unsigned long size);
+
+int pevent_parse_event(char *buf, unsigned long size, char *sys);
 
 /* for debugging */
 void pevent_print_funcs(void);

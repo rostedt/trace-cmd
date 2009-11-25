@@ -3379,7 +3379,7 @@ static void parse_header_field(const char *field,
 	free_token(token);
 }
 
-int parse_header_page(char *buf, unsigned long size)
+int pevent_parse_header_page(char *buf, unsigned long size)
 {
 	if (!size) {
 		/*
@@ -3404,7 +3404,7 @@ int parse_header_page(char *buf, unsigned long size)
 	return 0;
 }
 
-int parse_event_file(char *buf, unsigned long size, char *sys)
+int pevent_parse_event(char *buf, unsigned long size, char *sys)
 {
 	struct event *event;
 	int ret;
@@ -3486,11 +3486,6 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 	/* still add it even if it failed */
 	add_event(event);
 	return -1;
-}
-
-int parse_ftrace_file(char *buf, unsigned long size)
-{
-	return parse_event_file(buf, size, "ftrace");
 }
 
 void parse_set_info(int nr_cpus, int long_sz)

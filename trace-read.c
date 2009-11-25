@@ -184,7 +184,7 @@ static void read_header_files(void)
 	size = read8();
 	header_page = malloc_or_die(size);
 	read_or_die(header_page, size);
-	parse_header_page(header_page, size);
+	pevent_parse_header_page(header_page, size);
 	free(header_page);
 
 	/*
@@ -209,7 +209,7 @@ static void read_ftrace_file(unsigned long long size)
 
 	buf = malloc_or_die(size);
 	read_or_die(buf, size);
-	parse_ftrace_file(buf, size);
+	pevent_parse_event(buf, size, "ftrace");
 	free(buf);
 }
 
@@ -222,7 +222,7 @@ static void read_event_file(char *system, unsigned long long size)
 	buf[size] = 0;
 	if (show_events)
 		printf("%s\n", buf);
-	parse_event_file(buf, size, system);
+	pevent_parse_event(buf, size, system);
 	free(buf);
 }
 
