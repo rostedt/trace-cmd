@@ -42,6 +42,7 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 static int timer_start_handler(struct trace_seq *s, void *data, int size,
 			       struct event *event)
 {
+	const char *func;
 	void *hrtimer;
 	void *function;
 	long long expires;
@@ -58,6 +59,7 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 	if (offset < 0)
 		return 0;
 	function = *(void **)(data + offset);
+	func = pevent_find_function((unsigned long long)function);
 
 	offset = get_offset(s, event, "expires");
 	if (offset < 0)
@@ -69,8 +71,8 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 		return 0;
 	soft = *(long long *)(data + offset);
 
-	ret = trace_seq_printf(s, "hrtimer=%p function=%pf expires=%llu softexpires=%llu",
-			       hrtimer, function,
+	ret = trace_seq_printf(s, "hrtimer=%p function=%s expires=%llu softexpires=%llu",
+			       hrtimer, func,
 			       expires, soft);
 	return ret;
 }

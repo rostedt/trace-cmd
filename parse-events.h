@@ -300,6 +300,7 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func);
 
 struct format_field *pevent_find_field(struct event *event, const char *name);
+const char *pevent_find_function(unsigned long long addr);
 
 
 /* for debugging */

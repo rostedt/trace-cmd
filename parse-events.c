@@ -240,6 +240,17 @@ static struct func_map *find_func(unsigned long long addr)
 	return func;
 }
 
+const char *pevent_find_function(unsigned long long addr)
+{
+	struct func_map *map;
+
+	map = find_func(addr);
+	if (!map)
+		return NULL;
+
+	return map->func;
+}
+
 int pevent_register_function(char *func, unsigned long long addr,
 			     char *mod)
 {
