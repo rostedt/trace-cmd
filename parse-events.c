@@ -3459,6 +3459,8 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
 	if (event->id < 0)
 		die("failed to read event id");
 
+	event->system = strdup(sys);
+
 	ret = event_read_format(event);
 	if (ret < 0) {
 		warning("failed to read event format for %s", event->name);
@@ -3470,8 +3472,6 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
 		warning("failed to read event print fmt for %s", event->name);
 		goto event_failed;
 	}
-
-	event->system = strdup(sys);
 
 	add_event(event);
 
