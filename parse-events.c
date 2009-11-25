@@ -3527,6 +3527,9 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 			return -1;
 	}
 
+	printf("overriding event (%d) %s:%s with new print handler\n",
+	       event->id, event->system, event->name);
+
 	event->handler = func;
 	return 0;
 }

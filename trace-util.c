@@ -108,6 +108,7 @@ static int load_plugin(const char *path, const char *file)
 		return -1;
 	}
 
+	printf("registering plugin: %s\n", plugin);
 	ret = func();
 
 	/* dlclose ?? */
