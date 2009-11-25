@@ -36,8 +36,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "parse-events.h"
-#include "trace-cmd.h"
+#include "trace-local.h"
 
 int input_fd;
 const char *input_file = "trace.dat";

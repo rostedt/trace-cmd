@@ -1,6 +1,8 @@
 #ifndef _TRACE_CMD_H
 #define _TRACE_CMD_H
 
+#include "parse-events.h"
+
 extern int input_fd;
 extern const char *input_file;
 
@@ -10,7 +12,6 @@ extern unsigned int page_size;
 #define PAGE_MASK (page_size - 1)
 #endif
 
-void usage(char **argv);
 int read_trace_header(void);
 int read_trace_files(void);
 

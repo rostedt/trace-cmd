@@ -33,8 +33,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "parse-events.h"
-#include "trace-cmd.h"
+#include "trace-local.h"
 
 #define VERSION "0.5"
 

@@ -9,7 +9,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "parse-events.h"
 #include "trace-cmd.h"
 
 #define PLUGIN_DIR ".trace-cmd/plugins"
