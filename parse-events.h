@@ -51,7 +51,7 @@ struct event;
 
 typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 void *data, int size,
-					 struct event *event);
+					 struct event *event, int cpu);
 
 typedef int (*pevent_plugin_load_func)(void);
 

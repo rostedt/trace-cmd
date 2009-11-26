@@ -3276,7 +3276,7 @@ void pevent_print_event(struct trace_seq *s,
 	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
 
 	if (event->handler)
-		event->handler(s, data, size, event);
+		event->handler(s, data, size, event, cpu);
 	else
 		pretty_print(s, data, size, event);
 }

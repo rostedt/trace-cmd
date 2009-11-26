@@ -146,7 +146,7 @@ static void _print_flag(struct trace_seq *s, struct event *event,
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s, void *data, int size,
-				struct event *event)
+				struct event *event, int cpu)
 {
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_printf(s, " vif:");
@@ -172,7 +172,7 @@ static int drv_bss_info_changed(struct trace_seq *s, void *data, int size,
 }
 
 static int drv_config(struct trace_seq *s, void *data,
-		      int size, struct event *event)
+		      int size, struct event *event, int cpu)
 {
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_putc(s, ' ');

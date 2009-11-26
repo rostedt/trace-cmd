@@ -5,7 +5,7 @@
 #include "parse-events.h"
 
 static int function_handler(struct trace_seq *s, void *data, int size,
-			    struct event *event)
+			    struct event *event, int cpu)
 {
 	struct format_field *ip = pevent_find_field(event, "ip");
 	struct format_field *pip = pevent_find_field(event, "parent_ip");
