@@ -15,10 +15,12 @@ all: $(TARGETS)
 
 LIB_FILE = libtracecmd.a
 
-trace-read.o::		parse-events.h
-trace-cmd.o::		parse-events.h $(LIB_FILE)
-trace-util.o::		parse-events.h
-trace-ftrace.o::	parse-events.h
+HEADERS = parse-events.h trace-cmd.h
+
+trace-read.o::		$(HEADERS) 
+trace-cmd.o::		$(HEADERS) $(LIB_FILE)
+trace-util.o::		$(HEADERS)
+trace-ftrace.o::	$(HEADERS)
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ $(LIBS) -rdynamic -o $@
