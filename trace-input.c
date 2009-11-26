@@ -603,10 +603,7 @@ read_event(struct tracecmd_handle *handle, unsigned long long offset,
 		handle->cpu_data[cpu].index = 0;
 
 	do {
-		/* Force to read a new record */
-		handle->cpu_data[cpu].next = NULL;
-
-		record = tracecmd_peek_data(handle, cpu);
+		record = tracecmd_read_data(handle, cpu);
         } while (record && record->offset < offset);
 
 	return record;
