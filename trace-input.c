@@ -20,6 +20,9 @@
 
 
 struct cpu_data {
+	/* the first two never change */
+	unsigned long long	file_offset;
+	unsigned long long	file_size;
 	unsigned long long	offset;
 	unsigned long long	size;
 	unsigned long long	timestamp;
@@ -805,9 +808,17 @@ int tracecmd_init_data(struct tracecmd_handle *handle)
 	memset(handle->cpu_data, 0, sizeof(*handle->cpu_data) * handle->cpus);
 
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		unsigned long long offset;
+
 		handle->cpu_data[cpu].cpu = cpu;
-		handle->cpu_data[cpu].offset = read8(handle);
-		handle->cpu_data[cpu].size = read8(handle);
+
+		offset = read8(handle);
+		size = read8(handle);
+
+		handle->cpu_data[cpu].offset = offset;
+		handle->cpu_data[cpu].size = size;
+		handle->cpu_data[cpu].file_offset = offset;
+		handle->cpu_data[cpu].file_size = size;
 
 		if (init_cpu(handle, cpu))
 			return -1;
