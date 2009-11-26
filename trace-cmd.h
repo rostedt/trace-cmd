@@ -33,4 +33,9 @@ enum {
 #define TS_SHIFT		27
 #endif
 
+struct tracecmd_handle;
+
+struct tracecmd_handle *tracecmd_open(int fd);
+int tracecmd_read_headers(struct tracecmd_handle *handle);
+
 #endif /* _TRACE_CMD_H */

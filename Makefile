@@ -35,7 +35,7 @@ libparsevent.so: $(PEVENT_LIB_OBJS)
 libparsevent.a: $(PEVENT_LIB_OBJS)
 	$(RM) $@;  $(AR) rcs $@ $^
 
-TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o
+TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o
 
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(RM) $@;  $(AR) rcs $@ $^
