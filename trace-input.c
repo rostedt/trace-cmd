@@ -451,19 +451,19 @@ update_cpu_data_index(struct tracecmd_handle *handle, int cpu)
 	handle->cpu_data[cpu].index = 0;
 }
 
-static void get_next_page(struct tracecmd_handle *handle, int cpu)
+static int get_next_page(struct tracecmd_handle *handle, int cpu)
 {
 	off64_t save_seek;
 	off64_t ret;
 
 	if (!handle->cpu_data[cpu].page)
-		return;
+		return 0;
 
 	if (handle->read_page) {
 		if (handle->cpu_data[cpu].size <= handle->page_size) {
 			free(handle->cpu_data[cpu].page);
 			handle->cpu_data[cpu].page = NULL;
-			return;
+			return 0;
 		}
 
 		update_cpu_data_index(handle, cpu);
@@ -473,30 +473,31 @@ static void get_next_page(struct tracecmd_handle *handle, int cpu)
 
 		ret = lseek64(handle->fd, handle->cpu_data[cpu].offset, SEEK_SET);
 		if (ret < 0)
-			die("failed to lseek");
+			return -1;
 		ret = read(handle->fd, handle->cpu_data[cpu].page, handle->page_size);
 		if (ret < 0)
-			die("failed to read page");
+			return -1;
 
 		/* reset the file pointer back */
 		lseek64(input_fd, save_seek, SEEK_SET);
 
-		return;
+		return 0;
 	}
 
 	munmap(handle->cpu_data[cpu].page, handle->page_size);
 	handle->cpu_data[cpu].page = NULL;
 
 	if (handle->cpu_data[cpu].size <= handle->page_size)
-		return;
+		return 0;
 
 	update_cpu_data_index(handle, cpu);
 	
 	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
 				  input_fd, handle->cpu_data[cpu].offset);
 	if (handle->cpu_data[cpu].page == MAP_FAILED)
-		die("failed to mmap cpu %d at offset 0x%llx",
-		    cpu, handle->cpu_data[cpu].offset);
+		return -1;
+
+	return 0;
 }
 
 enum old_ring_buffer_type {
@@ -539,7 +540,8 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 		return NULL;
 
 	case OLD_RINGBUF_TYPE_TIME_STAMP:
-		die("should not be here");
+		warning("should not be here");
+		return NULL;
 		break;
 	default:
 		if (len)
@@ -554,7 +556,9 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 
 	handle->cpu_data[cpu].timestamp += delta;
 
-	data = malloc_or_die(sizeof(*data));
+	data = malloc(sizeof(*data));
+	if (!data)
+		return NULL;
 	memset(data, 0, sizeof(*data));
 
 	data->ts = handle->cpu_data[cpu].timestamp;
@@ -590,8 +594,10 @@ tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 
 	if (!index) {
 		/* FIXME: handle header page */
-		if (header_page_ts_size != 8)
-			die("expected a long long type for timestamp");
+		if (header_page_ts_size != 8) {
+			warning("expected a long long type for timestamp");
+			return NULL;
+		}
 		handle->cpu_data[cpu].timestamp = data2host8(ptr);
 		ptr += 8;
 		switch (header_page_size_size) {
@@ -604,7 +610,8 @@ tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 			ptr += 8;
 			break;
 		default:
-			die("bad long size");
+			warning("bad long size");
+			return NULL;
 		}
 		ptr = handle->cpu_data[cpu].page + header_page_data_offset;
 	}
@@ -613,7 +620,8 @@ read_again:
 	index = calc_index(handle, ptr, cpu);
 
 	if (index >= handle->cpu_data[cpu].page_size) {
-		get_next_page(handle, cpu);
+		if (get_next_page(handle, cpu))
+			return NULL;
 		return trace_peek_data(cpu);
 	}
 
@@ -636,8 +644,10 @@ read_again:
 
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
-		if (!delta)
-			die("error, hit unexpected end of page");
+		if (!delta) {
+			warning("error, hit unexpected end of page");
+			return NULL;
+		}
 		length = data2host4(ptr);
 		ptr += 4;
 		length *= 4;
@@ -667,7 +677,9 @@ read_again:
 
 	handle->cpu_data[cpu].timestamp += delta;
 
-	data = malloc_or_die(sizeof(*data));
+	data = malloc(sizeof(*data));
+	if (!data)
+		return NULL;
 	memset(data, 0, sizeof(*data));
 
 	data->ts = handle->cpu_data[cpu].timestamp;
@@ -692,38 +704,40 @@ tracecmd_read_data(struct tracecmd_handle *handle, int cpu)
 	return data;
 }
 
-static void init_read(struct tracecmd_handle *handle, int cpu)
+static int init_read(struct tracecmd_handle *handle, int cpu)
 {
 	off64_t ret;
 	off64_t save_seek;
 
-	handle->cpu_data[cpu].page = malloc_or_die(handle->page_size);
+	handle->cpu_data[cpu].page = malloc(handle->page_size);
+	if (!handle->cpu_data[cpu].page)
+		return -1;
 
 	/* other parts of the code may expect the pointer to not move */
 	save_seek = lseek64(input_fd, 0, SEEK_CUR);
 
 	ret = lseek64(input_fd, (off64_t)handle->cpu_data[cpu].offset, SEEK_SET);
 	if (ret < 0)
-		die("failed to lseek");
+		return -1;
 	ret = read(input_fd, handle->cpu_data[cpu].page, handle->page_size);
 	if (ret < 0)
-		die("failed to read page");
+		return -1;
 
 	/* reset the file pointer back */
 	lseek64(input_fd, save_seek, SEEK_SET);
+
+	return 0;
 }
 
-static void init_cpu(struct tracecmd_handle *handle, int cpu)
+static int init_cpu(struct tracecmd_handle *handle, int cpu)
 {
 	if (!handle->cpu_data[cpu].size) {
 		printf("CPU %d is empty\n", cpu);
-		return;
+		return 0;
 	}
 
-	if (handle->read_page) {
-		init_read(handle, cpu);
-		return;
-	}
+	if (handle->read_page)
+		return init_read(handle, cpu);
 
 	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ,
 				  MAP_PRIVATE, input_fd, handle->cpu_data[cpu].offset);
@@ -732,8 +746,9 @@ static void init_cpu(struct tracecmd_handle *handle, int cpu)
 		fprintf(stderr, "Can not mmap file, will read instead\n");
 		handle->read_page = 1;
 
-		init_read(handle, cpu);
+		return init_read(handle, cpu);
 	}
+	return 0;
 }
 
 int tracecmd_init_data(struct tracecmd_handle *handle)
@@ -780,7 +795,8 @@ int tracecmd_init_data(struct tracecmd_handle *handle)
 		handle->cpu_data[cpu].offset = read8(handle);
 		handle->cpu_data[cpu].size = read8(handle);
 
-		init_cpu(handle, cpu);
+		if (init_cpu(handle, cpu))
+			return -1;
 	}
 
 	return 0;
