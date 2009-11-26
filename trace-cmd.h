@@ -44,5 +44,7 @@ tracecmd_read_data(struct tracecmd_handle *handle, int cpu);
 
 int tracecmd_ftrace_overrides(void);
 
+/* hack for function graph work around */
+extern __thread struct tracecmd_handle *tracecmd_curr_thread_handle;
 
 #endif /* _TRACE_CMD_H */

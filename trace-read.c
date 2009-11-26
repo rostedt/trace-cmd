@@ -48,26 +48,12 @@ static int filter_cpu = -1;
 
 struct tracecmd_handle *trace_handle;
 
-struct record *trace_peek_data(int cpu)
-{
-	/* work around for libparsevent */
-
-	return tracecmd_peek_data(trace_handle, cpu);
-}
-
-struct record *trace_read_data(int cpu)
-{
-	/* work around for libparsevent */
-
-	return tracecmd_read_data(trace_handle, cpu);
-}
-
-static void show_data(int cpu)
+static void show_data(struct tracecmd_handle *handle, int cpu)
 {
 	struct record *record;
 	struct trace_seq s;
 
-	record = trace_read_data(cpu);
+	record = tracecmd_read_data(handle, cpu);
 
 	trace_seq_init(&s);
 	pevent_print_event(&s, cpu, record->data, record->size, record->ts);
@@ -131,7 +117,7 @@ static void read_data_info(struct tracecmd_handle *handle)
 			}
 		}
 		if (next >= 0)
-			show_data(next);
+			show_data(handle, next);
 
 	} while (next >= 0);
 }

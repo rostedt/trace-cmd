@@ -17,6 +17,8 @@ LIB_FILE = libtracecmd.a
 
 trace-read.o::		parse-events.h
 trace-cmd.o::		parse-events.h $(LIB_FILE)
+trace-util.o::		parse-events.h
+trace-ftrace.o::	parse-events.h
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ $(LIBS) -rdynamic -o $@

@@ -18,6 +18,7 @@
 
 #include "trace-cmd.h"
 
+
 struct cpu_data {
 	unsigned long long	offset;
 	unsigned long long	size;
@@ -39,6 +40,7 @@ struct tracecmd_handle {
 	struct cpu_data *cpu_data;
 };
 
+__thread struct tracecmd_handle *tracecmd_curr_thread_handle;
 
 static int do_read(struct tracecmd_handle *handle, void *data, int size)
 {
@@ -588,6 +590,9 @@ tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 	unsigned int delta;
 	unsigned int length;
 
+	/* Hack to work around function graph read ahead */
+	tracecmd_curr_thread_handle = handle;
+
 	if (handle->cpu_data[cpu].next)
 		return handle->cpu_data[cpu].next;
 
@@ -624,7 +629,7 @@ read_again:
 	if (index >= handle->cpu_data[cpu].page_size) {
 		if (get_next_page(handle, cpu))
 			return NULL;
-		return trace_peek_data(cpu);
+		return tracecmd_peek_data(handle, cpu);
 	}
 
 	if (old_format) {
@@ -700,7 +705,7 @@ tracecmd_read_data(struct tracecmd_handle *handle, int cpu)
 {
 	struct record *data;
 
-	data = trace_peek_data(cpu);
+	data = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
 
 	return data;

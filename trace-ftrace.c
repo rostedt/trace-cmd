@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parse-events.h"
+#include "trace-cmd.h"
 
 static struct event *fgraph_ret_event;
 static int fgraph_ret_id;
@@ -86,7 +86,7 @@ get_return_for_leaf(struct trace_seq *s, int cpu, int cur_pid,
 		return NULL;
 
 	/* this is a leaf, now advance the iterator */
-	return trace_read_data(cpu);
+	return tracecmd_read_data(tracecmd_curr_thread_handle, cpu);
 }
 
 /* Signal a overhead of time execution to the output */
@@ -241,7 +241,7 @@ fgraph_ent_handler(struct trace_seq *s, void *data, int size,
 	memcpy(copy_data, data, size);
 	data = copy_data;
 
-	rec = trace_peek_data(cpu);
+	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
 	if (rec)
 		rec = get_return_for_leaf(s, cpu, pid, val, rec);
 	if (rec)
