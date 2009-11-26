@@ -6,16 +6,9 @@
 extern int input_fd;
 extern const char *input_file;
 
-extern unsigned int page_size;
-
 #ifndef PAGE_MASK
 #define PAGE_MASK (page_size - 1)
 #endif
-
-int read_trace_header(void);
-int read_trace_files(void);
-
-void trace_report(int argc, char **argv);
 
 void parse_cmdlines(char *file, int size);
 void parse_proc_kallsyms(char *file, unsigned int size);
@@ -37,5 +30,7 @@ struct tracecmd_handle;
 
 struct tracecmd_handle *tracecmd_open(int fd);
 int tracecmd_read_headers(struct tracecmd_handle *handle);
+int tracecmd_long_size(struct tracecmd_handle *handle);
+int tracecmd_page_size(struct tracecmd_handle *handle);
 
 #endif /* _TRACE_CMD_H */

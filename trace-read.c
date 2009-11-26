@@ -38,6 +38,7 @@
 
 #include "trace-local.h"
 
+unsigned int page_size;
 int input_fd;
 const char *input_file = "trace.dat";
 
@@ -415,12 +416,34 @@ static void read_rest(void)
 	} while (r > 0);
 }
 
-unsigned int read4(void);
-unsigned long long read8(void);
-int read_or_die(void *data, int size);
-extern int long_size;
+static int read_or_die(void *data, int size)
+{
+	int r;
 
-static void read_data_info(void)
+	r = read(input_fd, data, size);
+	if (r != size)
+		die("reading input file (size expected=%d received=%d)",
+		    size, r);
+	return r;
+}
+
+static unsigned int read4(void)
+{
+	unsigned int data;
+
+	read_or_die(&data, 4);
+	return __data2host4(data);
+}
+
+static unsigned long long read8(void)
+{
+	unsigned long long data;
+
+	read_or_die(&data, 8);
+	return __data2host8(data);
+}
+
+static void read_data_info(struct tracecmd_handle *handle)
 {
 	unsigned long long ts;
 	unsigned long long size;
@@ -439,7 +462,7 @@ static void read_data_info(void)
 	cpus = read4();
 	printf("cpus=%d\n", cpus);
 
-	parse_set_info(cpus, long_size);
+	parse_set_info(cpus, tracecmd_long_size(handle));
 
 	/*
 	 * Check if this is a latency report or not.
@@ -484,19 +507,18 @@ static void read_data_info(void)
 	} while (next >= 0);
 }
 
-int read_trace_header(void)
+struct tracecmd_handle *read_trace_header(void)
 {
 	input_fd = open(input_file, O_RDONLY);
 	if (input_fd < 0)
 		die("opening '%s'\n", input_file);
 
-	tracecmd_open(input_fd);
-
-	return 0;
+	return tracecmd_open(input_fd);
 }
 
 void trace_report (int argc, char **argv)
 {
+	struct tracecmd_handle *handle;
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
@@ -560,7 +582,11 @@ void trace_report (int argc, char **argv)
 		}
 	}
 
-	read_trace_header();
+	handle = read_trace_header();
+	if (!handle)
+		die("error reading header");
+
+	page_size = tracecmd_page_size(handle);
 
 	if (show_page_size) {
 		printf("file page size is %d, and host page size is %d\n",
@@ -576,7 +602,8 @@ void trace_report (int argc, char **argv)
 		return;
 	}
 
-	read_trace_files();
+	if (tracecmd_read_headers(handle) < 0)
+		return;
 
 	if (show_funcs) {
 		pevent_print_funcs();
@@ -590,7 +617,7 @@ void trace_report (int argc, char **argv)
 	if (show_events)
 		return;
 
-	read_data_info();
+	read_data_info(handle);
 
 	return;
 }

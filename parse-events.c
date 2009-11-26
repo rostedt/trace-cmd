@@ -37,6 +37,9 @@ int header_page_size_size;
 int header_page_data_offset;
 int header_page_data_size;
 
+int file_bigendian;
+int host_bigendian;
+
 int latency_format;
 
 int old_format;

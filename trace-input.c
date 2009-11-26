@@ -18,28 +18,46 @@
 
 #include "trace-cmd.h"
 
-extern int show_events;
-
 struct tracecmd_handle {
 	int		fd;
+	int		long_size;
+	int		page_size;
+	int		print_events;
 };
 
-int file_bigendian;
-int host_bigendian;
-int long_size;
-
-int read_or_die(void *data, int size)
+static int do_read(struct tracecmd_handle *handle, void *data, int size)
 {
+	int tot = 0;
 	int r;
 
-	r = read(input_fd, data, size);
-	if (r != size)
-		die("reading input file (size expected=%d received=%d)",
-		    size, r);
-	return r;
+	do {
+		r = read(handle->fd, data, size);
+		tot += r;
+
+		if (!r)
+			break;
+		if (r < 0)
+			return r;
+	} while (tot != size);
+
+	return tot;
 }
 
-static char *read_string(void)
+static int
+do_read_check(struct tracecmd_handle *handle, void *data, int size)
+{
+	int ret;
+
+	ret = do_read(handle, data, size);
+	if (ret < 0)
+		return ret;
+	if (ret != size)
+		return -1;
+
+	return 0;
+}
+
+static char *read_string(struct tracecmd_handle *handle)
 {
 	char buf[BUFSIZ];
 	char *str = NULL;
@@ -48,12 +66,11 @@ static char *read_string(void)
 	int r;
 
 	for (;;) {
-		r = read(input_fd, buf, BUFSIZ);
+		r = do_read(handle, buf, BUFSIZ);
 		if (r < 0)
-			die("reading input file");
-
+			goto fail;
 		if (!r)
-			die("no data");
+			goto fail;
 
 		for (i = 0; i < r; i++) {
 			if (!buf[i])
@@ -66,185 +83,307 @@ static char *read_string(void)
 			size += BUFSIZ;
 			str = realloc(str, size);
 			if (!str)
-				die("malloc of size %d", size);
+				return NULL;
 			memcpy(str + (size - BUFSIZ), buf, BUFSIZ);
 		} else {
 			size = BUFSIZ;
-			str = malloc_or_die(size);
+			str = malloc(size);
+			if (!str)
+				return NULL;
 			memcpy(str, buf, size);	
 		}
 	}
 
 	/* move the file descriptor to the end of the string */
-	r = lseek(input_fd, -(r - (i+1)), SEEK_CUR);
+	r = lseek(handle->fd, -(r - (i+1)), SEEK_CUR);
 	if (r < 0)
-		die("lseek");
+		goto fail;
 
 	if (str) {
 		size += i + 1;
 		str = realloc(str, size);
 		if (!str)
-			die("malloc of size %d", size);
+			return NULL;
 		memcpy(str + (size - i), buf, i);
 		str[size] = 0;
 	} else {
 		size = i + 1;
-		str = malloc_or_die(i);
+		str = malloc(i);
+		if (!str)
+			return NULL;
 		memcpy(str, buf, i);
 		str[i] = 0;
 	}
 
 	return str;
+
+ fail:
+	if (str)
+		free(str);
+	return NULL;
 }
 
-unsigned int read4(void)
+static unsigned int read4(struct tracecmd_handle *handle)
 {
 	unsigned int data;
 
-	read_or_die(&data, 4);
+	if (do_read_check(handle, &data, 4))
+		return -1;
+
 	return __data2host4(data);
 }
 
-unsigned long long read8(void)
+static unsigned long long read8(struct tracecmd_handle *handle)
 {
 	unsigned long long data;
 
-	read_or_die(&data, 8);
+	if (do_read_check(handle, &data, 8))
+		return -1;
+
 	return __data2host8(data);
 }
 
-static void read_header_files(void)
+static int read_header_files(struct tracecmd_handle *handle)
 {
-	unsigned long long size;
-	char *header_page;
-	char *header_event;
+	long long size;
+	char *header;
 	char buf[BUFSIZ];
 
-	read_or_die(buf, 12);
-	if (memcmp(buf, "header_page", 12) != 0)
-		die("did not read header page");
+	if (do_read_check(handle, buf, 12))
+		return -1;
 
-	size = read8();
-	header_page = malloc_or_die(size);
-	read_or_die(header_page, size);
-	pevent_parse_header_page(header_page, size);
-	free(header_page);
+	if (memcmp(buf, "header_page", 12) != 0)
+		return -1;
+
+	size = read8(handle);
+	if (size < 0)
+		return -1;
+
+	header = malloc(size);
+	if (!header)
+		return -1;
+
+	if (do_read_check(handle, header, size))
+		goto failed_read;
+
+	pevent_parse_header_page(header, size);
+	free(header);
 
 	/*
 	 * The size field in the page is of type long,
 	 * use that instead, since it represents the kernel.
 	 */
-	long_size = header_page_size_size;
+	handle->long_size = header_page_size_size;
 
-	read_or_die(buf, 13);
+	if (do_read_check(handle, buf, 13))
+		return -1;
+
 	if (memcmp(buf, "header_event", 13) != 0)
-		die("did not read header event");
+		return -1;
 
-	size = read8();
-	header_event = malloc_or_die(size);
-	read_or_die(header_event, size);
-	free(header_event);
+	size = read8(handle);
+	if (size < 0)
+		return -1;
+
+	header = malloc(size);
+	if (!header)
+		return -1;
+
+	if (do_read_check(handle, header, size))
+		goto failed_read;
+
+	free(header);
+
+	return 0;
+
+ failed_read:
+	free(header);
+	return -1;
 }
 
-static void read_ftrace_file(unsigned long long size)
+static int read_ftrace_file(struct tracecmd_handle *handle,
+			    unsigned long long size)
 {
 	char *buf;
 
-	buf = malloc_or_die(size);
-	read_or_die(buf, size);
+	buf = malloc(size);
+	if (!buf)
+		return -1;
+	if (do_read_check(handle, buf, size)) {
+		free(buf);
+		return -1;
+	}
+
 	pevent_parse_event(buf, size, "ftrace");
 	free(buf);
+
+	return 0;
 }
 
-static void read_event_file(char *system, unsigned long long size)
+static int read_event_file(struct tracecmd_handle *handle,
+			   char *system, unsigned long long size)
 {
 	char *buf;
 
-	buf = malloc_or_die(size+1);
-	read_or_die(buf, size);
+	buf = malloc(size+1);
+	if (!buf)
+		return -1;
+
+	if (do_read_check(handle,buf, size)) {
+		free(buf);
+		return -1;
+	}
+
 	buf[size] = 0;
-	if (show_events)
+	if (handle->print_events)
 		printf("%s\n", buf);
 	pevent_parse_event(buf, size, system);
 	free(buf);
+
+	return 0;
 }
 
-static void read_ftrace_files(void)
+static int read_ftrace_files(struct tracecmd_handle *handle)
 {
 	unsigned long long size;
 	int count;
+	int ret;
 	int i;
 
-	count = read4();
+	count = read4(handle);
+	if (count < 0)
+		return -1;
 
 	for (i = 0; i < count; i++) {
-		size = read8();
-		read_ftrace_file(size);
+		size = read8(handle);
+		if (size < 0)
+			return -1;
+		ret = read_ftrace_file(handle, size);
+		if (ret < 0)
+			return -1;
 	}
+
+	return 0;
 }
 
-static void read_event_files(void)
+static int read_event_files(struct tracecmd_handle *handle)
 {
 	unsigned long long size;
 	char *system;
 	int systems;
 	int count;
+	int ret;
 	int i,x;
 
-	systems = read4();
+	systems = read4(handle);
+	if (systems < 0)
+		return -1;
 
 	for (i = 0; i < systems; i++) {
-		system = read_string();
+		system = read_string(handle);
+		if (!system)
+			return -1;
 
-		count = read4();
+		count = read4(handle);
+		if (count < 0)
+			goto failed;
+
 		for (x=0; x < count; x++) {
-			size = read8();
-			read_event_file(system, size);
+			size = read8(handle);
+			if (size < 0)
+				goto failed;
+
+			ret = read_event_file(handle, system, size);
+			if (ret < 0)
+				goto failed;
 		}
+		free(system);
 	}
+
+	return 0;
+
+ failed:
+	free(system);
+	return -1;
 }
 
-static void read_proc_kallsyms(void)
+static int read_proc_kallsyms(struct tracecmd_handle *handle)
 {
-	unsigned int size;
+	int size;
 	char *buf;
 
-	size = read4();
+	size = read4(handle);
 	if (!size)
-		return;
+		return 0; /* OK? */
 
-	buf = malloc_or_die(size);
-	read_or_die(buf, size);
+	if (size < 0)
+		return -1;
+
+	buf = malloc(size);
+	if (!buf)
+		return -1;
+	if (do_read_check(handle, buf, size)){
+		free(buf);
+		return -1;
+	}
 
 	parse_proc_kallsyms(buf, size);
 
 	free(buf);
+	return 0;
 }
 
-static void read_ftrace_printk(void)
+static int read_ftrace_printk(struct tracecmd_handle *handle)
 {
-	unsigned int size;
+	int size;
 	char *buf;
 
-	size = read4();
+	size = read4(handle);
 	if (!size)
-		return;
+		return 0; /* OK? */
 
-	buf = malloc_or_die(size);
-	read_or_die(buf, size);
+	if (size < 0)
+		return -1;
+
+	buf = malloc(size);
+	if (!buf)
+		return -1;
+	if (do_read_check(handle, buf, size)) {
+		free(buf);
+		return -1;
+	}
 
 	parse_ftrace_printk(buf, size);
 
 	free(buf);
+
+	return 0;
 }
 
-int read_trace_files(void)
+int tracecmd_read_headers(struct tracecmd_handle *handle)
 {
-	read_header_files();
-	read_ftrace_files();
-	read_event_files();
-	read_proc_kallsyms();
-	read_ftrace_printk();
+	int ret;
+
+	ret = read_header_files(handle);
+	if (ret < 0)
+		return -1;
+
+	ret = read_ftrace_files(handle);
+	if (ret < 0)
+		return -1;
+
+	ret = read_event_files(handle);
+	if (ret < 0)
+		return -1;
+
+	ret = read_proc_kallsyms(handle);
+	if (ret < 0)
+		return -1;
+
+	ret = read_ftrace_printk(handle);
+	if (ret < 0)
+		return -1;
+
 
 	trace_load_plugins();
 
@@ -264,30 +403,54 @@ struct tracecmd_handle *tracecmd_open(int fd)
 
 	handle->fd = fd;
 
-	input_fd = open(input_file, O_RDONLY);
-	if (input_fd < 0)
-		die("opening '%s'\n", input_file);
+	if (do_read_check(handle, buf, 3))
+		goto failed_read;
 
-	read_or_die(buf, 3);
 	if (memcmp(buf, test, 3) != 0)
-		die("not an trace data file");
+		goto failed_read;
 
-	read_or_die(buf, 7);
+	if (do_read_check(handle, buf, 7))
+		goto failed_read;
 	if (memcmp(buf, "tracing", 7) != 0)
-		die("not a trace file (missing tracing)");
+		goto failed_read;
 
-	version = read_string();
+	version = read_string(handle);
+	if (!version)
+		goto failed_read;
 	printf("version = %s\n", version);
 	free(version);
 
-	read_or_die(buf, 1);
+	if (do_read_check(handle, buf, 1))
+		goto failed_read;
+
+	/*
+	 * TODO:
+	 *  Need to make these part of the handle.
+	 *  But they are currently used by parsevent.
+	 *  That may need a handler too.
+	 */ 
 	file_bigendian = buf[0];
 	host_bigendian = bigendian();
 
-	read_or_die(buf, 1);
-	long_size = buf[0];
+	do_read_check(handle, buf, 1);
+	handle->long_size = buf[0];
 
-	page_size = read4();
+	handle->page_size = read4(handle);
 
-	return 0;
+	return handle;
+
+ failed_read:
+	free(handle);
+
+	return NULL;
+}
+
+int tracecmd_long_size(struct tracecmd_handle *handle)
+{
+	return handle->long_size;
+}
+
+int tracecmd_page_size(struct tracecmd_handle *handle)
+{
+	return handle->page_size;
 }
