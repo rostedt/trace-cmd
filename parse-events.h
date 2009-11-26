@@ -196,12 +196,6 @@ enum {
 	EVENT_FL_FAILED		= 0x80000000
 };
 
-struct record {
-	unsigned long long ts;
-	int size;
-	void *data;
-};
-
 extern int old_format;
 
 void parse_set_info(int nr_cpus, int long_sz);

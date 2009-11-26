@@ -26,6 +26,12 @@ enum {
 #define TS_SHIFT		27
 #endif
 
+struct record {
+	unsigned long long ts;
+	int size;
+	void *data;
+};
+
 struct tracecmd_handle;
 
 struct tracecmd_handle *tracecmd_open(int fd);
