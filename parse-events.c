@@ -3238,7 +3238,6 @@ pretty_print_func_graph(struct trace_seq *s,
 	else if (event->flags & EVENT_FL_ISFUNCRET)
 		pretty_print_func_ret(s, data, size, event,
 				      cpu, pid, comm, secs, usecs);
-	trace_seq_putc(s, '\n');
 }
 
 void pevent_print_event(struct trace_seq *s,
