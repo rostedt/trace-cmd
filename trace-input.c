@@ -582,6 +582,8 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 	handle->cpu_data[cpu].index = calc_index(handle, *ptr, cpu);
 	handle->cpu_data[cpu].next = data;
 
+	data->record_size = handle->cpu_data[cpu].index - index;
+
 	return data;
 }
 
@@ -604,7 +606,7 @@ read_event(struct tracecmd_handle *handle, unsigned long long offset,
 
 	do {
 		record = tracecmd_read_data(handle, cpu);
-        } while (record && (record->offset + record->size) < offset);
+        } while (record && (record->offset + record->record_size) <= offset);
 
 	return record;
 }
@@ -795,6 +797,8 @@ read_again:
 
 	handle->cpu_data[cpu].index = calc_index(handle, ptr, cpu);
 	handle->cpu_data[cpu].next = data;
+
+	data->record_size = handle->cpu_data[cpu].index - index;
 
 	return data;
 }

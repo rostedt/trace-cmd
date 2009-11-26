@@ -29,7 +29,8 @@ enum {
 struct record {
 	unsigned long long ts;
 	unsigned long long offset;
-	int size;
+	int record_size;		/* size of binary record */
+	int size;			/* size of data */
 	void *data;
 };
 
