@@ -604,7 +604,7 @@ read_event(struct tracecmd_handle *handle, unsigned long long offset,
 
 	do {
 		record = tracecmd_read_data(handle, cpu);
-        } while (record && record->offset < offset);
+        } while (record && (record->offset + record->size) < offset);
 
 	return record;
 }
