@@ -55,6 +55,13 @@ struct record *trace_peek_data(int cpu)
 	return tracecmd_peek_data(trace_handle, cpu);
 }
 
+struct record *trace_read_data(int cpu)
+{
+	/* work around for libparsevent */
+
+	return tracecmd_read_data(trace_handle, cpu);
+}
+
 static void show_data(int cpu)
 {
 	struct record *record;

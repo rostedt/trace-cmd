@@ -39,5 +39,8 @@ int tracecmd_init_data(struct tracecmd_handle *handle);
 struct record *
 tracecmd_peek_data(struct tracecmd_handle *handle, int cpu);
 
+struct record *
+tracecmd_read_data(struct tracecmd_handle *handle, int cpu);
+
 
 #endif /* _TRACE_CMD_H */
