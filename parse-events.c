@@ -3248,8 +3248,8 @@ void pevent_print_event(struct trace_seq *s,
 	int pid;
 
 	secs = nsecs / NSECS_PER_SEC;
-	nsecs -= secs * NSECS_PER_SEC;
-	usecs = nsecs / NSECS_PER_USEC;
+	usecs = nsecs - secs * NSECS_PER_SEC;
+	usecs = usecs / NSECS_PER_USEC;
 
 	type = trace_parse_common_type(data);
 
@@ -3276,7 +3276,7 @@ void pevent_print_event(struct trace_seq *s,
 	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
 
 	if (event->handler)
-		event->handler(s, data, size, event, cpu);
+		event->handler(s, data, size, event, cpu, nsecs);
 	else
 		pretty_print(s, data, size, event);
 }

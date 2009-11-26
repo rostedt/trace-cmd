@@ -31,7 +31,8 @@ static void print_field(struct trace_seq *s, const char *fmt,
 }
 
 static int timer_expire_handler(struct trace_seq *s, void *data, int size,
-				struct event *event, int cpu)
+				struct event *event, int cpu,
+				unsigned long long nsecs)
 {
 	trace_seq_printf(s, "hrtimer=");
 
@@ -46,7 +47,8 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 }
 
 static int timer_start_handler(struct trace_seq *s, void *data, int size,
-			       struct event *event, int cpu)
+			       struct event *event, int cpu,
+			       unsigned long long nsecs)
 {
 	struct format_field *fn = pevent_find_field(event, "function");
 
