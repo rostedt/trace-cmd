@@ -2039,8 +2039,8 @@ static int event_read_print(struct event *event)
 	return -1;
 }
 
-static struct format_field *
-find_common_field(struct event *event, const char *name)
+struct format_field *
+pevent_find_common_field(struct event *event, const char *name)
 {
 	struct format_field *format;
 
@@ -2067,12 +2067,12 @@ pevent_find_field(struct event *event, const char *name)
 	return format;
 }
 
-static struct format_field *
-find_any_field(struct event *event, const char *name)
+struct format_field *
+pevent_find_any_field(struct event *event, const char *name)
 {
 	struct format_field *format;
 
-	format = find_common_field(event, name);
+	format = pevent_find_common_field(event, name);
 	if (format)
 		return format;
 	return pevent_find_field(event, name);
@@ -2123,7 +2123,7 @@ static int get_common_info(const char *type, int *offset, int *size)
 		die("no event_list!");
 
 	event = event_list;
-	field = find_common_field(event, type);
+	field = pevent_find_common_field(event, type);
 	if (!field)
 		die("field '%s' not found", type);
 
@@ -2196,7 +2196,7 @@ static int parse_common_lock_depth(void *data)
 	return ret;
 }
 
-static struct event *trace_find_event(int id)
+struct event *pevent_find_event(int id)
 {
 	struct event *event;
 
@@ -2207,8 +2207,8 @@ static struct event *trace_find_event(int id)
 	return event;
 }
 
-static struct event *
-trace_find_event_by_name(const char *sys, const char *name)
+struct event *
+pevent_find_event_by_name(const char *sys, const char *name)
 {
 	struct event *event;
 
@@ -2240,7 +2240,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 		return strtoull(arg->atom.atom, NULL, 0);
 	case PRINT_FIELD:
 		if (!arg->field.field) {
-			arg->field.field = find_any_field(event, arg->field.name);
+			arg->field.field = pevent_find_any_field(event, arg->field.name);
 			if (!arg->field.field)
 				die("field %s not found", arg->field.name);
 		}
@@ -2288,7 +2288,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 			case PRINT_FIELD:
 				if (!larg->field.field) {
 					larg->field.field =
-						find_any_field(event, larg->field.name);
+						pevent_find_any_field(event, larg->field.name);
 					if (!larg->field.field)
 						die("field %s not found", larg->field.name);
 				}
@@ -2429,7 +2429,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		return;
 	case PRINT_FIELD:
 		if (!arg->field.field) {
-			arg->field.field = find_any_field(event, arg->field.name);
+			arg->field.field = pevent_find_any_field(event, arg->field.name);
 			if (!arg->field.field)
 				die("field %s not found", arg->field.name);
 		}
@@ -2490,7 +2490,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		if (arg->string.offset == -1) {
 			struct format_field *f;
 
-			f = find_any_field(event, arg->string.string);
+			f = pevent_find_any_field(event, arg->string.string);
 			arg->string.offset = f->offset;
 		}
 		str_offset = *(int *)(data + arg->string.offset);
@@ -2763,7 +2763,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						fmt = "%.2x%.2x%.2x%.2x%.2x%.2x";
 					if (!arg->field.field) {
 						arg->field.field =
-							find_any_field(event, arg->field.name);
+							pevent_find_any_field(event, arg->field.name);
 						if (!arg->field.field)
 							die("field %s not found", arg->field.name);
 					}
@@ -2845,15 +2845,6 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	}
 }
 
-static inline int log10_cpu(int nb)
-{
-	if (nb / 100)
-		return 3;
-	if (nb / 10)
-		return 2;
-	return 1;
-}
-
 static void print_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 {
 	unsigned int lat_flags;
@@ -2889,354 +2880,6 @@ static void print_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 		trace_seq_printf(s, "%d", lock_depth);
 }
 
-/* taken from Linux, written by Frederic Weisbecker */
-static void print_graph_cpu(struct trace_seq *s, int cpu)
-{
-	int i;
-	int log10_this = log10_cpu(cpu);
-	int log10_all = log10_cpu(cpus);
-
-
-	/*
-	 * Start with a space character - to make it stand out
-	 * to the right a bit when trace output is pasted into
-	 * email:
-	 */
-	trace_seq_putc(s, ' ');
-
-	/*
-	 * Tricky - we space the CPU field according to the max
-	 * number of online CPUs. On a 2-cpu system it would take
-	 * a maximum of 1 digit - on a 128 cpu system it would
-	 * take up to 3 digits:
-	 */
-	for (i = 0; i < log10_all - log10_this; i++)
-		trace_seq_putc(s, ' ');
-
-	trace_seq_printf(s, "%d) ", cpu);
-}
-
-#define TRACE_GRAPH_PROCINFO_LENGTH	14
-#define TRACE_GRAPH_INDENT	2
-
-static void print_graph_proc(struct trace_seq *s, int pid, const char *comm)
-{
-	/* sign + log10(MAX_INT) + '\0' */
-	char pid_str[11];
-	int spaces = 0;
-	int len;
-	int i;
-
-	sprintf(pid_str, "%d", pid);
-
-	/* 1 stands for the "-" character */
-	len = strlen(comm) + strlen(pid_str) + 1;
-
-	if (len < TRACE_GRAPH_PROCINFO_LENGTH)
-		spaces = TRACE_GRAPH_PROCINFO_LENGTH - len;
-
-	/* First spaces to align center */
-	for (i = 0; i < spaces / 2; i++)
-		trace_seq_putc(s, ' ');
-
-	trace_seq_printf(s, "%s-%s", comm, pid_str);
-
-	/* Last spaces to align center */
-	for (i = 0; i < spaces - (spaces / 2); i++)
-		trace_seq_putc(s, ' ');
-}
-
-static struct record *
-get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
-		    struct record *next)
-{
-	struct format_field *field;
-	struct event *event;
-	unsigned long val;
-	int type;
-	int pid;
-
-	type = trace_parse_common_type(next->data);
-	event = trace_find_event(type);
-	if (!event)
-		return NULL;
-
-	if (!(event->flags & EVENT_FL_ISFUNCRET))
-		return NULL;
-
-	pid = parse_common_pid(next->data);
-	field = pevent_find_field(event, "func");
-	if (!field)
-		die("function return does not have field func");
-
-	val = pevent_read_number(next->data + field->offset, field->size);
-
-	if (cur_pid != pid || cur_func != val)
-		return NULL;
-
-	/* this is a leaf, now advance the iterator */
-	return trace_read_data(cpu);
-}
-
-/* Signal a overhead of time execution to the output */
-static void print_graph_overhead(struct trace_seq *s,
-				 unsigned long long duration)
-{
-	/* Non nested entry or return */
-	if (duration == ~0ULL)
-		return (void)trace_seq_printf(s, "  ");
-
-	/* Duration exceeded 100 msecs */
-	if (duration > 100000ULL)
-		return (void)trace_seq_printf(s, "! ");
-
-	/* Duration exceeded 10 msecs */
-	if (duration > 10000ULL)
-		return (void)trace_seq_printf(s, "+ ");
-
-	trace_seq_printf(s, "  ");
-}
-
-static void print_graph_duration(struct trace_seq *s, unsigned long long duration)
-{
-	unsigned long usecs = duration / 1000;
-	unsigned long nsecs_rem = duration % 1000;
-	/* log10(ULONG_MAX) + '\0' */
-	char msecs_str[21];
-	char nsecs_str[5];
-	int len;
-	int i;
-
-	sprintf(msecs_str, "%lu", usecs);
-
-	/* Print msecs */
-	len = s->len;
-	trace_seq_printf(s, "%lu", usecs);
-
-	/* Print nsecs (we don't want to exceed 7 numbers) */
-	if ((s->len - len) < 7) {
-		snprintf(nsecs_str, 8 - (s->len - len), "%03lu", nsecs_rem);
-		trace_seq_printf(s, ".%s", nsecs_str);
-	}
-
-	len = s->len - len;
-
-	trace_seq_puts(s, " us ");
-
-	/* Print remaining spaces to fit the row's width */
-	for (i = len; i < 7; i++)
-		trace_seq_putc(s, ' ');
-
-	trace_seq_puts(s, "|  ");
-}
-
-static void
-print_graph_entry_leaf(struct trace_seq *s,
-		       struct event *event, void *data, struct record *ret_rec)
-{
-	unsigned long long rettime, calltime;
-	unsigned long long duration, depth;
-	unsigned long long val;
-	struct format_field *field;
-	struct func_map *func;
-	struct event *ret_event;
-	int type;
-	int i;
-
-	type = trace_parse_common_type(ret_rec->data);
-	ret_event = trace_find_event(type);
-
-	field = pevent_find_field(ret_event, "rettime");
-	if (!field)
-		die("can't find rettime in return graph");
-	rettime = pevent_read_number(ret_rec->data + field->offset, field->size);
-
-	field = pevent_find_field(ret_event, "calltime");
-	if (!field)
-		die("can't find rettime in return graph");
-	calltime = pevent_read_number(ret_rec->data + field->offset, field->size);
-
-	duration = rettime - calltime;
-
-	/* Overhead */
-	print_graph_overhead(s, duration);
-
-	/* Duration */
-	print_graph_duration(s, duration);
-
-	field = pevent_find_field(event, "depth");
-	if (!field)
-		die("can't find depth in entry graph");
-	depth = pevent_read_number(data + field->offset, field->size);
-
-	/* Function */
-	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
-		trace_seq_putc(s, ' ');
-
-	field = pevent_find_field(event, "func");
-	if (!field)
-		die("can't find func in entry graph");
-	val = pevent_read_number(data + field->offset, field->size);
-	func = find_func(val);
-
-	if (func)
-		trace_seq_printf(s, "%s();", func->func);
-	else
-		trace_seq_printf(s, "%llx();", val);
-}
-
-static void print_graph_nested(struct trace_seq *s,
-			       struct event *event, void *data)
-{
-	struct format_field *field;
-	unsigned long long depth;
-	unsigned long long val;
-	struct func_map *func;
-	int i;
-
-	/* No overhead */
-	print_graph_overhead(s, -1);
-
-	/* No time */
-	trace_seq_puts(s, "           |  ");
-
-	field = pevent_find_field(event, "depth");
-	if (!field)
-		die("can't find depth in entry graph");
-	depth = pevent_read_number(data + field->offset, field->size);
-
-	/* Function */
-	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
-		trace_seq_putc(s, ' ');
-
-	field = pevent_find_field(event, "func");
-	if (!field)
-		die("can't find func in entry graph");
-	val = pevent_read_number(data + field->offset, field->size);
-	func = find_func(val);
-
-	if (func)
-		trace_seq_printf(s, "%s() {", func->func);
-	else
-		trace_seq_printf(s, "%llx() {", val);
-}
-
-static void
-pretty_print_func_ent(struct trace_seq *s,
-		      void *data, int size, struct event *event,
-		      int cpu, int pid, const char *comm,
-		      unsigned long secs, unsigned long usecs)
-{
-	struct format_field *field;
-	struct record *rec;
-	void *copy_data;
-	unsigned long val;
-
-	trace_seq_printf(s, "%5lu.%06lu |  ", secs, usecs);
-
-	print_graph_cpu(s, cpu);
-	print_graph_proc(s, pid, comm);
-
-	trace_seq_puts(s, " | ");
-
-	if (latency_format) {
-		print_lat_fmt(s, data, size);
-		trace_seq_puts(s, " | ");
-	}
-
-	field = pevent_find_field(event, "func");
-	if (!field)
-		die("function entry does not have func field");
-
-	val = pevent_read_number(data + field->offset, field->size);
-
-	/*
-	 * peek_data may unmap the data pointer. Copy it first.
-	 */
-	copy_data = malloc_or_die(size);
-	memcpy(copy_data, data, size);
-	data = copy_data;
-
-	rec = trace_peek_data(cpu);
-	if (rec) {
-		rec = get_return_for_leaf(cpu, pid, val, rec);
-		if (rec) {
-			print_graph_entry_leaf(s, event, data, rec);
-			goto out_free;
-		}
-	}
-	print_graph_nested(s, event, data);
-out_free:
-	free(data);
-}
-
-static void
-pretty_print_func_ret(struct trace_seq *s,
-		      void *data, int size __unused, struct event *event,
-		      int cpu, int pid, const char *comm,
-		      unsigned long secs, unsigned long usecs)
-{
-	unsigned long long rettime, calltime;
-	unsigned long long duration, depth;
-	struct format_field *field;
-	int i;
-
-	trace_seq_printf(s, "%5lu.%06lu |  ", secs, usecs);
-
-	print_graph_cpu(s, cpu);
-	print_graph_proc(s, pid, comm);
-
-	trace_seq_puts(s, " | ");
-
-	if (latency_format) {
-		print_lat_fmt(s, data, size);
-		trace_seq_puts(s, " | ");
-	}
-
-	field = pevent_find_field(event, "rettime");
-	if (!field)
-		die("can't find rettime in return graph");
-	rettime = pevent_read_number(data + field->offset, field->size);
-
-	field = pevent_find_field(event, "calltime");
-	if (!field)
-		die("can't find calltime in return graph");
-	calltime = pevent_read_number(data + field->offset, field->size);
-
-	duration = rettime - calltime;
-
-	/* Overhead */
-	print_graph_overhead(s, duration);
-
-	/* Duration */
-	print_graph_duration(s, duration);
-
-	field = pevent_find_field(event, "depth");
-	if (!field)
-		die("can't find depth in entry graph");
-	depth = pevent_read_number(data + field->offset, field->size);
-
-	/* Function */
-	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
-		trace_seq_putc(s, ' ');
-
-	trace_seq_putc(s, '}');
-}
-
-static void
-pretty_print_func_graph(struct trace_seq *s,
-			void *data, int size, struct event *event,
-			int cpu, int pid, const char *comm,
-			unsigned long secs, unsigned long usecs)
-{
-	if (event->flags & EVENT_FL_ISFUNCENT)
-		pretty_print_func_ent(s, data, size, event,
-				      cpu, pid, comm, secs, usecs);
-	else if (event->flags & EVENT_FL_ISFUNCRET)
-		pretty_print_func_ret(s, data, size, event,
-				      cpu, pid, comm, secs, usecs);
-}
-
 void pevent_print_event(struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs)
 {
@@ -3253,7 +2896,7 @@ void pevent_print_event(struct trace_seq *s,
 
 	type = trace_parse_common_type(data);
 
-	event = trace_find_event(type);
+	event = pevent_find_event(type);
 	if (!event) {
 		warning("ug! no event found for type %d", type);
 		return;
@@ -3261,10 +2904,6 @@ void pevent_print_event(struct trace_seq *s,
 
 	pid = parse_common_pid(data);
 	comm = find_cmdline(pid);
-
-	if (event->flags & (EVENT_FL_ISFUNCENT | EVENT_FL_ISFUNCRET))
-		return pretty_print_func_graph(s, data, size, event, cpu,
-					       pid, comm, secs, usecs);
 
 	if (latency_format) {
 		trace_seq_printf(s, "%8.8s-%-5d %3d",
@@ -3464,13 +3103,7 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
 
 		event->flags |= EVENT_FL_ISFTRACE;
 
-		if (strcmp(event->name, "funcgraph_entry") == 0)
-			event->flags |= EVENT_FL_ISFUNCENT;
-
-		else if (strcmp(event->name, "funcgraph_exit") == 0)
-			event->flags |= EVENT_FL_ISFUNCRET;
-
-		else if (strcmp(event->name, "bprint") == 0)
+		if (strcmp(event->name, "bprint") == 0)
 			event->flags |= EVENT_FL_ISBPRINT;
 	}
 		
@@ -3533,7 +3166,7 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 
 	if (id >= 0) {
 		/* search by id */
-		event = trace_find_event(id);
+		event = pevent_find_event(id);
 		if (!event)
 			return -1;
 		if (event_name && (strcmp(event_name, event->name) != 0))
@@ -3541,7 +3174,7 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 		if (sys_name && (strcmp(sys_name, event->system) != 0))
 			return -1;
 	} else {
-		event = trace_find_event_by_name(sys_name, event_name);
+		event = pevent_find_event_by_name(sys_name, event_name);
 		if (!event)
 			return -1;
 	}

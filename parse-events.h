@@ -301,11 +301,19 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys);
 int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func);
 
+struct format_field *pevent_find_common_field(struct event *event, const char *name);
 struct format_field *pevent_find_field(struct event *event, const char *name);
+struct format_field *pevent_find_any_field(struct event *event, const char *name);
+
 const char *pevent_find_function(unsigned long long addr);
 unsigned long long pevent_read_number(const void *ptr, int size);
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value);
+
+struct event *pevent_find_event(int id);
+
+struct event *
+pevent_find_event_by_name(const char *sys, const char *name);
 
 
 /* for debugging */
