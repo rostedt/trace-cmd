@@ -23,7 +23,22 @@ struct tracecmd_handle {
 	int		long_size;
 	int		page_size;
 	int		print_events;
+	int		read_page;
+	int		cpus;
 };
+
+struct cpu_data {
+	unsigned long long	offset;
+	unsigned long long	size;
+	unsigned long long	timestamp;
+	struct record		*next;
+	char			*page;
+	int			cpu;
+	int			index;
+	int			page_size;
+};
+
+static struct cpu_data *cpu_data;
 
 static int do_read(struct tracecmd_handle *handle, void *data, int size)
 {
@@ -390,6 +405,373 @@ int tracecmd_read_headers(struct tracecmd_handle *handle)
 	return 0;
 }
 
+static unsigned int type4host(unsigned int type_len_ts)
+{
+	if (file_bigendian)
+		return (type_len_ts >> 29) & 3;
+	else
+		return type_len_ts & 3;
+}
+
+static unsigned int len4host(unsigned int type_len_ts)
+{
+	if (file_bigendian)
+		return (type_len_ts >> 27) & 7;
+	else
+		return (type_len_ts >> 2) & 7;
+}
+
+static unsigned int type_len4host(unsigned int type_len_ts)
+{
+	if (file_bigendian)
+		return (type_len_ts >> 27) & ((1 << 5) - 1);
+	else
+		return type_len_ts & ((1 << 5) - 1);
+}
+
+static unsigned int ts4host(unsigned int type_len_ts)
+{
+	if (file_bigendian)
+		return type_len_ts & ((1 << 27) - 1);
+	else
+		return type_len_ts >> 5;
+}
+
+static int calc_index(void *ptr, int cpu)
+{
+	return (unsigned long)ptr - (unsigned long)cpu_data[cpu].page;
+}
+
+static void
+update_cpu_data_index(struct tracecmd_handle *handle, int cpu)
+{
+	cpu_data[cpu].offset += handle->page_size;
+	cpu_data[cpu].size -= handle->page_size;
+	cpu_data[cpu].index = 0;
+}
+
+static void get_next_page(struct tracecmd_handle *handle, int cpu)
+{
+	off64_t save_seek;
+	off64_t ret;
+
+	if (!cpu_data[cpu].page)
+		return;
+
+	if (handle->read_page) {
+		if (cpu_data[cpu].size <= handle->page_size) {
+			free(cpu_data[cpu].page);
+			cpu_data[cpu].page = NULL;
+			return;
+		}
+
+		update_cpu_data_index(handle, cpu);
+
+		/* other parts of the code may expect the pointer to not move */
+		save_seek = lseek64(input_fd, 0, SEEK_CUR);
+
+		ret = lseek64(handle->fd, cpu_data[cpu].offset, SEEK_SET);
+		if (ret < 0)
+			die("failed to lseek");
+		ret = read(handle->fd, cpu_data[cpu].page, handle->page_size);
+		if (ret < 0)
+			die("failed to read page");
+
+		/* reset the file pointer back */
+		lseek64(input_fd, save_seek, SEEK_SET);
+
+		return;
+	}
+
+	munmap(cpu_data[cpu].page, handle->page_size);
+	cpu_data[cpu].page = NULL;
+
+	if (cpu_data[cpu].size <= handle->page_size)
+		return;
+
+	update_cpu_data_index(handle, cpu);
+	
+	cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
+				  input_fd, cpu_data[cpu].offset);
+	if (cpu_data[cpu].page == MAP_FAILED)
+		die("failed to mmap cpu %d at offset 0x%llx",
+		    cpu, cpu_data[cpu].offset);
+}
+
+enum old_ring_buffer_type {
+	OLD_RINGBUF_TYPE_PADDING,
+	OLD_RINGBUF_TYPE_TIME_EXTEND,
+	OLD_RINGBUF_TYPE_TIME_STAMP,
+	OLD_RINGBUF_TYPE_DATA,
+};
+
+static struct record *
+read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
+{
+	struct record *data;
+	unsigned long long extend;
+	unsigned int type_len_ts;
+	unsigned int type;
+	unsigned int len;
+	unsigned int delta;
+	unsigned int length;
+
+	type_len_ts = data2host4(*ptr);
+	*ptr += 4;
+
+	type = type4host(type_len_ts);
+	len = len4host(type_len_ts);
+	delta = ts4host(type_len_ts);
+
+	switch (type) {
+	case OLD_RINGBUF_TYPE_PADDING:
+		*ptr = (void *)(((unsigned long)*ptr + (handle->page_size - 1)) &
+				~(handle->page_size - 1));
+		return NULL;
+
+	case OLD_RINGBUF_TYPE_TIME_EXTEND:
+		extend = data2host4(ptr);
+		extend <<= TS_SHIFT;
+		extend += delta;
+		cpu_data[cpu].timestamp += extend;
+		*ptr += 4;
+		return NULL;
+
+	case OLD_RINGBUF_TYPE_TIME_STAMP:
+		die("should not be here");
+		break;
+	default:
+		if (len)
+			length = len * 4;
+		else {
+			length = data2host4(*ptr);
+			length -= 4;
+			*ptr += 4;
+		}
+		break;
+	}
+
+	cpu_data[cpu].timestamp += delta;
+
+	data = malloc_or_die(sizeof(*data));
+	memset(data, 0, sizeof(*data));
+
+	data->ts = cpu_data[cpu].timestamp;
+	data->size = length;
+	data->data = *ptr;
+
+	*ptr += ((length+3)/4) * 4;
+
+	cpu_data[cpu].index = calc_index(*ptr, cpu);
+	cpu_data[cpu].next = data;
+
+	return data;
+}
+
+struct record *
+tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
+{
+	struct record *data;
+	void *page = cpu_data[cpu].page;
+	int index = cpu_data[cpu].index;
+	void *ptr = page + index;
+	unsigned long long extend;
+	unsigned int type_len_ts;
+	unsigned int type_len;
+	unsigned int delta;
+	unsigned int length;
+
+	if (cpu_data[cpu].next)
+		return cpu_data[cpu].next;
+
+	if (!page)
+		return NULL;
+
+	if (!index) {
+		/* FIXME: handle header page */
+		if (header_page_ts_size != 8)
+			die("expected a long long type for timestamp");
+		cpu_data[cpu].timestamp = data2host8(ptr);
+		ptr += 8;
+		switch (header_page_size_size) {
+		case 4:
+			cpu_data[cpu].page_size = data2host4(ptr);
+			ptr += 4;
+			break;
+		case 8:
+			cpu_data[cpu].page_size = data2host8(ptr);
+			ptr += 8;
+			break;
+		default:
+			die("bad long size");
+		}
+		ptr = cpu_data[cpu].page + header_page_data_offset;
+	}
+
+read_again:
+	index = calc_index(ptr, cpu);
+
+	if (index >= cpu_data[cpu].page_size) {
+		get_next_page(handle, cpu);
+		return trace_peek_data(cpu);
+	}
+
+	if (old_format) {
+		data = read_old_format(handle, &ptr, cpu);
+		if (!data) {
+			if (!ptr)
+				return NULL;
+			goto read_again;
+		}
+			
+		return data;
+	}
+
+	type_len_ts = data2host4(ptr);
+	ptr += 4;
+
+	type_len = type_len4host(type_len_ts);
+	delta = ts4host(type_len_ts);
+
+	switch (type_len) {
+	case RINGBUF_TYPE_PADDING:
+		if (!delta)
+			die("error, hit unexpected end of page");
+		length = data2host4(ptr);
+		ptr += 4;
+		length *= 4;
+		ptr += length;
+		goto read_again;
+
+	case RINGBUF_TYPE_TIME_EXTEND:
+		extend = data2host4(ptr);
+		ptr += 4;
+		extend <<= TS_SHIFT;
+		extend += delta;
+		cpu_data[cpu].timestamp += extend;
+		goto read_again;
+
+	case RINGBUF_TYPE_TIME_STAMP:
+		ptr += 12;
+		break;
+	case 0:
+		length = data2host4(ptr) - 4;
+		length = (length + 3) & ~3;
+		ptr += 4;
+		break;
+	default:
+		length = type_len * 4;
+		break;
+	}
+
+	cpu_data[cpu].timestamp += delta;
+
+	data = malloc_or_die(sizeof(*data));
+	memset(data, 0, sizeof(*data));
+
+	data->ts = cpu_data[cpu].timestamp;
+	data->size = length;
+	data->data = ptr;
+	ptr += length;
+
+	cpu_data[cpu].index = calc_index(ptr, cpu);
+	cpu_data[cpu].next = data;
+
+	return data;
+}
+
+struct record *trace_read_data(int cpu)
+{
+	struct record *data;
+
+	data = trace_peek_data(cpu);
+	cpu_data[cpu].next = NULL;
+
+	return data;
+}
+
+static void init_read(struct tracecmd_handle *handle, int cpu)
+{
+	off64_t ret;
+	off64_t save_seek;
+
+	cpu_data[cpu].page = malloc_or_die(handle->page_size);
+
+	/* other parts of the code may expect the pointer to not move */
+	save_seek = lseek64(input_fd, 0, SEEK_CUR);
+
+	ret = lseek64(input_fd, (off64_t)cpu_data[cpu].offset, SEEK_SET);
+	if (ret < 0)
+		die("failed to lseek");
+	ret = read(input_fd, cpu_data[cpu].page, handle->page_size);
+	if (ret < 0)
+		die("failed to read page");
+
+	/* reset the file pointer back */
+	lseek64(input_fd, save_seek, SEEK_SET);
+}
+
+static void init_cpu(struct tracecmd_handle *handle, int cpu)
+{
+	if (!cpu_data[cpu].size) {
+		printf("CPU %d is empty\n", cpu);
+		return;
+	}
+
+	if (handle->read_page) {
+		init_read(handle, cpu);
+		return;
+	}
+
+	cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ,
+				  MAP_PRIVATE, input_fd, cpu_data[cpu].offset);
+	if (cpu_data[cpu].page == MAP_FAILED) {
+		/* fall back to just reading pages */
+		fprintf(stderr, "Can not mmap file, will read instead\n");
+		handle->read_page = 1;
+
+		init_read(handle, cpu);
+	}
+}
+
+int tracecmd_init_data(struct tracecmd_handle *handle)
+{
+	unsigned long long size;
+	char *cmdlines;
+	char buf[10];
+	int cpu;
+
+	size = read8(handle);
+	cmdlines = malloc_or_die(size);
+	do_read_check(handle, cmdlines, size);
+	parse_cmdlines(cmdlines, size);
+	free(cmdlines);
+
+	handle->cpus = read4(handle);
+
+	parse_set_info(handle->cpus, handle->long_size);
+
+	/*
+	 * Check if this is a latency report or not.
+	 */
+	do_read_check(handle, buf, 10);
+	if (strncmp(buf, "latency", 7) == 0)
+		return 1;
+
+	cpu_data = malloc_or_die(sizeof(*cpu_data) * handle->cpus);
+	memset(cpu_data, 0, sizeof(*cpu_data) * handle->cpus);
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		cpu_data[cpu].cpu = cpu;
+		cpu_data[cpu].offset = read8(handle);
+		cpu_data[cpu].size = read8(handle);
+
+		init_cpu(handle, cpu);
+	}
+
+	return 0;
+}
+
 struct tracecmd_handle *tracecmd_open(int fd)
 {
 	struct tracecmd_handle *handle;
@@ -400,6 +782,7 @@ struct tracecmd_handle *tracecmd_open(int fd)
 	handle = malloc(sizeof(*handle));
 	if (!handle)
 		return NULL;
+	memset(handle, 0, sizeof(*handle));
 
 	handle->fd = fd;
 
@@ -453,4 +836,9 @@ int tracecmd_long_size(struct tracecmd_handle *handle)
 int tracecmd_page_size(struct tracecmd_handle *handle)
 {
 	return handle->page_size;
+}
+
+int tracecmd_cpus(struct tracecmd_handle *handle)
+{
+	return handle->cpus;
 }

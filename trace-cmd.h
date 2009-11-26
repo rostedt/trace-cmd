@@ -32,5 +32,12 @@ struct tracecmd_handle *tracecmd_open(int fd);
 int tracecmd_read_headers(struct tracecmd_handle *handle);
 int tracecmd_long_size(struct tracecmd_handle *handle);
 int tracecmd_page_size(struct tracecmd_handle *handle);
+int tracecmd_cpus(struct tracecmd_handle *handle);
+
+int tracecmd_init_data(struct tracecmd_handle *handle);
+
+struct record *
+tracecmd_peek_data(struct tracecmd_handle *handle, int cpu);
+
 
 #endif /* _TRACE_CMD_H */
