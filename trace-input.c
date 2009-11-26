@@ -521,6 +521,9 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 	unsigned int len;
 	unsigned int delta;
 	unsigned int length;
+	int index;
+
+	index = calc_index(handle, *ptr, cpu);
 
 	type_len_ts = data2host4(*ptr);
 	*ptr += 4;
@@ -568,6 +571,8 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 	data->ts = handle->cpu_data[cpu].timestamp;
 	data->size = length;
 	data->data = *ptr;
+	data->offset = handle->cpu_data[cpu].offset + index;
+
 
 	*ptr += ((length+3)/4) * 4;
 
@@ -692,6 +697,8 @@ read_again:
 	data->ts = handle->cpu_data[cpu].timestamp;
 	data->size = length;
 	data->data = ptr;
+	data->offset = handle->cpu_data[cpu].offset + index;
+
 	ptr += length;
 
 	handle->cpu_data[cpu].index = calc_index(handle, ptr, cpu);
