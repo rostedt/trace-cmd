@@ -399,6 +399,8 @@ int tracecmd_read_headers(struct tracecmd_handle *handle)
 	if (ret < 0)
 		return -1;
 
+	/* register default ftrace functions first */
+	tracecmd_ftrace_overrides();
 
 	trace_load_plugins();
 

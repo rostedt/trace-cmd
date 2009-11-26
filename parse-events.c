@@ -2694,9 +2694,6 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 		return;
 	}
 
-	if (event->flags & EVENT_FL_ISFUNC)
-		ptr = " %pF <-- %pF";
-
 	if (event->flags & EVENT_FL_ISBPRINT) {
 		bprint_fmt = get_bprint_format(data, size, event);
 		args = make_bprint_args(bprint_fmt, data, size, event);
@@ -3467,10 +3464,7 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
 
 		event->flags |= EVENT_FL_ISFTRACE;
 
-		if (strcmp(event->name, "function") == 0)
-			event->flags |= EVENT_FL_ISFUNC;
-
-		else if (strcmp(event->name, "funcgraph_entry") == 0)
+		if (strcmp(event->name, "funcgraph_entry") == 0)
 			event->flags |= EVENT_FL_ISFUNCENT;
 
 		else if (strcmp(event->name, "funcgraph_exit") == 0)
