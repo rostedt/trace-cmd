@@ -585,6 +585,98 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 	return data;
 }
 
+static struct record *
+read_event(struct tracecmd_handle *handle, unsigned long long offset,
+	   int cpu)
+{
+	struct record *record;
+
+	/*
+	 * Since the timestamp is calculated from the beginnnig
+	 * of the page and through each event, we need to start
+	 * with the timestamp. We can't go backwards.
+	 * If the offset is behind the current offset then we
+	 * need to calculate it again.
+	 */
+	if (offset < handle->cpu_data[cpu].offset +
+	    handle->cpu_data[cpu].index)
+		handle->cpu_data[cpu].index = 0;
+
+	do {
+		/* Force to read a new record */
+		handle->cpu_data[cpu].next = NULL;
+
+		record = tracecmd_peek_data(handle, cpu);
+        } while (record && record->offset < offset);
+
+	return record;
+}
+
+static struct record *
+find_and_read_event(struct tracecmd_handle *handle, unsigned long long offset,
+		    int *pcpu)
+{
+	unsigned long long page_offset;
+	int cpu;
+
+	/* find the cpu that this offset exists in */
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		if (offset >= handle->cpu_data[cpu].file_offset &&
+		    offset < handle->cpu_data[cpu].file_offset +
+		    handle->cpu_data[cpu].file_size)
+			break;
+	}
+
+	/* Not found? */
+	if (cpu == handle->cpus)
+		return NULL;
+
+	/* Move this cpu index to point to this offest */
+	page_offset = offset & ~(handle->page_size - 1);
+
+	/*
+	 * Set the cpu_data to point to the page in front.
+	 */
+	page_offset -= handle->page_size;
+
+	handle->cpu_data[cpu].offset = page_offset;
+	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
+				      handle->cpu_data[cpu].file_size) -
+				       page_offset;
+
+	if (get_next_page(handle, cpu))
+		return NULL;
+
+	if (pcpu)
+		*pcpu = cpu;
+
+	return read_event(handle, offset, cpu);
+}
+
+
+struct record *
+tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
+		 int *pcpu)
+{
+	unsigned long long page_offset;
+	int cpu;
+
+	page_offset = offset & ~(handle->page_size - 1);
+
+	/* check to see if we have this page already */
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		if (handle->cpu_data[cpu].offset == page_offset)
+			break;
+	}
+
+	if (cpu < handle->cpus) {
+		if (pcpu)
+			*pcpu = cpu;
+		return read_event(handle, offset, cpu);
+	} else
+		return find_and_read_event(handle, offset, pcpu);
+}
+
 struct record *
 tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 {

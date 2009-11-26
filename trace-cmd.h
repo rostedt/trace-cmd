@@ -49,6 +49,10 @@ tracecmd_peek_data(struct tracecmd_handle *handle, int cpu);
 struct record *
 tracecmd_read_data(struct tracecmd_handle *handle, int cpu);
 
+struct record *
+tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
+		 int *cpu);
+
 int tracecmd_ftrace_overrides(void);
 
 /* hack for function graph work around */
