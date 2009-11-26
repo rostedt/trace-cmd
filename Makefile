@@ -21,6 +21,7 @@ trace-read.o::		$(HEADERS)
 trace-cmd.o::		$(HEADERS) $(LIB_FILE)
 trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
+trace-input.o::		$(HEADERS)
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ $(LIBS) -rdynamic -o $@
