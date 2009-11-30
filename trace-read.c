@@ -46,8 +46,6 @@ int show_events = 0;
 
 static int filter_cpu = -1;
 
-struct tracecmd_handle *trace_handle;
-
 static void show_data(struct tracecmd_handle *handle, int cpu)
 {
 	struct record *record;
@@ -200,9 +198,6 @@ void trace_report (int argc, char **argv)
 	handle = read_trace_header();
 	if (!handle)
 		die("error reading header");
-
-	/* work around for libparsevent */
-	trace_handle = handle;
 
 	page_size = tracecmd_page_size(handle);
 
