@@ -45,6 +45,8 @@ struct tracecmd_handle {
 
 __thread struct tracecmd_handle *tracecmd_curr_thread_handle;
 
+static int init_cpu(struct tracecmd_handle *handle, int cpu);
+
 static int do_read(struct tracecmd_handle *handle, void *data, int size)
 {
 	int tot = 0;
@@ -476,7 +478,7 @@ static int get_next_page(struct tracecmd_handle *handle, int cpu)
 		update_cpu_data_index(handle, cpu);
 
 		/* other parts of the code may expect the pointer to not move */
-		save_seek = lseek64(input_fd, 0, SEEK_CUR);
+		save_seek = lseek64(handle->fd, 0, SEEK_CUR);
 
 		ret = lseek64(handle->fd, handle->cpu_data[cpu].offset, SEEK_SET);
 		if (ret < 0)
@@ -486,7 +488,7 @@ static int get_next_page(struct tracecmd_handle *handle, int cpu)
 			return -1;
 
 		/* reset the file pointer back */
-		lseek64(input_fd, save_seek, SEEK_SET);
+		lseek64(handle->fd, save_seek, SEEK_SET);
 
 		return 0;
 	}
@@ -500,7 +502,7 @@ static int get_next_page(struct tracecmd_handle *handle, int cpu)
 	update_cpu_data_index(handle, cpu);
 	
 	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
-				  input_fd, handle->cpu_data[cpu].offset);
+				  handle->fd, handle->cpu_data[cpu].offset);
 	if (handle->cpu_data[cpu].page == MAP_FAILED)
 		return -1;
 
@@ -605,6 +607,8 @@ read_event(struct tracecmd_handle *handle, unsigned long long offset,
 		handle->cpu_data[cpu].index = 0;
 
 	do {
+		/* Make sure peek returns new data */
+		handle->cpu_data[cpu].next = NULL;
 		record = tracecmd_read_data(handle, cpu);
         } while (record && (record->offset + record->record_size) <= offset);
 
@@ -633,18 +637,38 @@ find_and_read_event(struct tracecmd_handle *handle, unsigned long long offset,
 	/* Move this cpu index to point to this offest */
 	page_offset = offset & ~(handle->page_size - 1);
 
-	/*
-	 * Set the cpu_data to point to the page in front.
-	 */
-	page_offset -= handle->page_size;
+	if (handle->cpu_data[cpu].page) {
+		/*
+		 * If a page already exists, then we need to reset
+		 * it to point to the page with the data we want.
+		 * We update the pointers to point to the previous
+		 * page, and call get_next_page which will mmap
+		 * the next page after the pointer of the previous
+		 * page we want. Which ends up mapping the page we want.
+		 */
 
-	handle->cpu_data[cpu].offset = page_offset;
-	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
-				      handle->cpu_data[cpu].file_size) -
-				       page_offset;
+		page_offset -= handle->page_size;
 
-	if (get_next_page(handle, cpu))
-		return NULL;
+		handle->cpu_data[cpu].offset = page_offset;
+		handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
+					      handle->cpu_data[cpu].file_size) -
+						page_offset;
+
+		if (get_next_page(handle, cpu))
+			return NULL;
+	} else {
+		/*
+		 * We need to map a new page. Just set it up the cpu_data
+		 * to the position we want.
+		 */
+		handle->cpu_data[cpu].offset = page_offset;
+		handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
+					      handle->cpu_data[cpu].file_size) -
+						page_offset;
+
+		if (init_cpu(handle, cpu))
+			return NULL;
+	}
 
 	if (pcpu)
 		*pcpu = cpu;
@@ -824,17 +848,17 @@ static int init_read(struct tracecmd_handle *handle, int cpu)
 		return -1;
 
 	/* other parts of the code may expect the pointer to not move */
-	save_seek = lseek64(input_fd, 0, SEEK_CUR);
+	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
 
-	ret = lseek64(input_fd, (off64_t)handle->cpu_data[cpu].offset, SEEK_SET);
+	ret = lseek64(handle->fd, (off64_t)handle->cpu_data[cpu].offset, SEEK_SET);
 	if (ret < 0)
 		return -1;
-	ret = read(input_fd, handle->cpu_data[cpu].page, handle->page_size);
+	ret = read(handle->fd, handle->cpu_data[cpu].page, handle->page_size);
 	if (ret < 0)
 		return -1;
 
 	/* reset the file pointer back */
-	lseek64(input_fd, save_seek, SEEK_SET);
+	lseek64(handle->fd, save_seek, SEEK_SET);
 
 	return 0;
 }
@@ -850,9 +874,10 @@ static int init_cpu(struct tracecmd_handle *handle, int cpu)
 		return init_read(handle, cpu);
 
 	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ,
-				  MAP_PRIVATE, input_fd, handle->cpu_data[cpu].offset);
+				  MAP_PRIVATE, handle->fd, handle->cpu_data[cpu].offset);
 	if (handle->cpu_data[cpu].page == MAP_FAILED) {
 		/* fall back to just reading pages */
+		perror("mmap");
 		fprintf(stderr, "Can not mmap file, will read instead\n");
 		handle->read_page = 1;
 
