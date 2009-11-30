@@ -32,6 +32,15 @@ parse-events.o: parse-events.c parse-events.h
 trace-seq.o: trace-seq.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
 
+trace-util.o:: trace-util.c
+	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+
+trace-input.o:: trace-input.c
+	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+
+trace-ftrace.o:: trace-ftrace.c
+	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+
 PEVENT_LIB_OBJS = parse-events.o trace-seq.o
 
 libparsevent.so: $(PEVENT_LIB_OBJS)
@@ -41,6 +50,9 @@ libparsevent.a: $(PEVENT_LIB_OBJS)
 	$(RM) $@;  $(AR) rcs $@ $^
 
 TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o
+
+libtracecmd.so: $(TCMD_LIB_OBJS)
+	$(CC) --shared $^ -o $@
 
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(RM) $@;  $(AR) rcs $@ $^
