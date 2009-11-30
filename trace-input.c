@@ -700,6 +700,82 @@ tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
 		return find_and_read_event(handle, offset, pcpu);
 }
 
+static unsigned int
+translate_data(void **ptr, unsigned long long *delta, int *length)
+{
+	unsigned long long extend;
+	unsigned int type_len_ts;
+	unsigned int type_len;
+
+	type_len_ts = data2host4(*ptr);
+	*ptr += 4;
+
+	type_len = type_len4host(type_len_ts);
+	*delta = ts4host(type_len_ts);
+
+	switch (type_len) {
+	case RINGBUF_TYPE_PADDING:
+		*length = data2host4(*ptr);
+		*ptr += 4;
+		*length *= 4;
+		*ptr += *length;
+		break;
+
+	case RINGBUF_TYPE_TIME_EXTEND:
+		extend = data2host4(*ptr);
+		*ptr += 4;
+		extend <<= TS_SHIFT;
+		extend += *delta;
+		*delta = extend;
+		break;
+
+	case RINGBUF_TYPE_TIME_STAMP:
+		*ptr += 12;
+		break;
+	case 0:
+		*length = data2host4(*ptr) - 4;
+		*length = (*length + 3) & ~3;
+		*ptr += 4;
+		break;
+	default:
+		*length = type_len * 4;
+		break;
+	}
+
+	return type_len;
+}
+
+struct record *
+tracecmd_translate_data(struct tracecmd_handle *handle,
+			void *ptr, int size)
+{
+	struct record *data;
+	unsigned int type_len;
+
+	/* minimum record read is 8, (warn?) (TODO: make 8 into macro) */
+	if (size < 8)
+		return NULL;
+
+	data = malloc(sizeof(*data));
+	if (!data)
+		return NULL;
+	memset(data, 0, sizeof(*data));
+
+	data->data = ptr;
+	type_len = translate_data(&data->data, &data->ts, &data->size);
+	switch (type_len) {
+	case RINGBUF_TYPE_PADDING:
+	case RINGBUF_TYPE_TIME_EXTEND:
+	case RINGBUF_TYPE_TIME_STAMP:
+		data->data = NULL;
+		break;
+	default:
+		break;
+	}
+
+	return data;
+}
+
 struct record *
 tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 {
@@ -708,10 +784,8 @@ tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 	int index = handle->cpu_data[cpu].index;
 	void *ptr = page + index;
 	unsigned long long extend;
-	unsigned int type_len_ts;
 	unsigned int type_len;
-	unsigned int delta;
-	unsigned int length;
+	int length;
 
 	/* Hack to work around function graph read ahead */
 	tracecmd_curr_thread_handle = handle;
@@ -766,46 +840,25 @@ read_again:
 		return data;
 	}
 
-	type_len_ts = data2host4(ptr);
-	ptr += 4;
-
-	type_len = type_len4host(type_len_ts);
-	delta = ts4host(type_len_ts);
+	type_len = translate_data(&ptr, &extend, &length);
 
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
-		if (!delta) {
+		if (!extend) {
 			warning("error, hit unexpected end of page");
 			return NULL;
 		}
-		length = data2host4(ptr);
-		ptr += 4;
-		length *= 4;
-		ptr += length;
-		goto read_again;
-
+		/* fall through */
 	case RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(ptr);
-		ptr += 4;
-		extend <<= TS_SHIFT;
-		extend += delta;
 		handle->cpu_data[cpu].timestamp += extend;
-		goto read_again;
-
+		/* fall through */
 	case RINGBUF_TYPE_TIME_STAMP:
-		ptr += 12;
-		break;
-	case 0:
-		length = data2host4(ptr) - 4;
-		length = (length + 3) & ~3;
-		ptr += 4;
-		break;
+		goto read_again;
 	default:
-		length = type_len * 4;
 		break;
 	}
 
-	handle->cpu_data[cpu].timestamp += delta;
+	handle->cpu_data[cpu].timestamp += extend;
 
 	data = malloc(sizeof(*data));
 	if (!data)
