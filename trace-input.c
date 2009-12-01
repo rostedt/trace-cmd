@@ -593,7 +593,7 @@ static struct record *
 read_event(struct tracecmd_handle *handle, unsigned long long offset,
 	   int cpu)
 {
-	struct record *record;
+	struct record *record = NULL;
 
 	/*
 	 * Since the timestamp is calculated from the beginnnig
@@ -607,8 +607,13 @@ read_event(struct tracecmd_handle *handle, unsigned long long offset,
 		handle->cpu_data[cpu].index = 0;
 
 	do {
+		if (record)
+			free(record);
 		/* Make sure peek returns new data */
-		handle->cpu_data[cpu].next = NULL;
+		if (handle->cpu_data[cpu].next) {
+			free(handle->cpu_data[cpu].next);
+			handle->cpu_data[cpu].next = NULL;
+		}
 		record = tracecmd_read_data(handle, cpu);
         } while (record && (record->offset + record->record_size) <= offset);
 
