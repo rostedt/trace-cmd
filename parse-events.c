@@ -2845,7 +2845,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	}
 }
 
-static void print_lat_fmt(struct trace_seq *s, void *data, int size __unused)
+void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 {
 	unsigned int lat_flags;
 	unsigned int pc;
@@ -2880,6 +2880,38 @@ static void print_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 		trace_seq_printf(s, "%d", lock_depth);
 }
 
+int pevent_data_type(void *data)
+{
+	return trace_parse_common_type(data);
+}
+
+struct event *pevent_data_event_from_type(int type)
+{
+	return pevent_find_event(type);
+}
+
+int pevent_data_pid(void *data)
+{
+	return parse_common_pid(data);
+}
+
+const char *pevent_data_comm_from_pid(int pid)
+{
+	const char *comm;
+
+	comm = find_cmdline(pid);
+	return comm;
+}
+
+void pevent_event_info(struct trace_seq *s, struct event *event,
+		       int cpu, void *data, int size, unsigned long long nsecs)
+{
+	if (event->handler)
+		event->handler(s, data, size, event, cpu, nsecs);
+	else
+		pretty_print(s, data, size, event);
+}
+
 void pevent_print_event(struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs)
 {
@@ -2908,7 +2940,7 @@ void pevent_print_event(struct trace_seq *s,
 	if (latency_format) {
 		trace_seq_printf(s, "%8.8s-%-5d %3d",
 		       comm, pid, cpu);
-		print_lat_fmt(s, data, size);
+		pevent_data_lat_fmt(s, data, size);
 	} else
 		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid,  cpu);
 

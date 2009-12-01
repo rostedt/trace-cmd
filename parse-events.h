@@ -306,6 +306,14 @@ struct event *pevent_find_event(int id);
 struct event *
 pevent_find_event_by_name(const char *sys, const char *name);
 
+void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused);
+int pevent_data_type(void *data);
+struct event *pevent_data_event_from_type(int type);
+int pevent_data_pid(void *data);
+const char *pevent_data_comm_from_pid(int pid);
+void pevent_event_info(struct trace_seq *s, struct event *event,
+		       int cpu, void *data, int size, unsigned long long nsecs);
+
 
 /* for debugging */
 void pevent_print_funcs(void);
