@@ -44,114 +44,6 @@ struct tracecmd_input *trace_handle;
 
 GtkWidget *trace_tree;
 
-static void add_data_to_model(GtkTreeModel *model,
-			      struct tracecmd_input *handle,
-			      int cpu)
-{
-	struct pevent *pevent;
-	GtkTreeIter iter;
-	struct record *record;
-	struct event *event;
-	struct trace_seq s;
-	struct trace_seq l;
-	unsigned long secs;
-	unsigned long usecs;
-	unsigned long nsecs;
-	const char *comm;
-	int pid, type;
-	char *print;
-	char buf[100];
-
-	pevent = tracecmd_get_pevent(handle);
-
-	record = tracecmd_read_data(handle, cpu);
-	nsecs = record->ts;
-
-	type = pevent_data_type(pevent, record->data);
-	event = pevent_data_event_from_type(pevent, type);
-	if (!event)
-		return;
-
-	pid = pevent_data_pid(pevent, record->data);
-	comm = pevent_data_comm_from_pid(pevent, pid);
-
-	trace_seq_init(&l);
-	pevent_data_lat_fmt(pevent, &l, record->data, record->size);
-	l.buffer[l.len] = 0;
-
-	trace_seq_init(&s);
-	pevent_event_info(&s, event, cpu, record->data, record->size, nsecs);
-	if (s.full) {
-		print = malloc(s.len + 1);
-		memcpy(print, s.buffer, s.len);
-	} else
-		print = s.buffer;
-	print[s.len] = 0;
-
-	secs = nsecs / NSECS_PER_SEC;
-	usecs = nsecs - secs * NSECS_PER_SEC;
-	usecs = usecs / NSECS_PER_USEC;
-
-	sprintf(buf, "%5lu.%06lu", secs, usecs);
-
-	gtk_list_store_append(GTK_LIST_STORE(model), &iter);
-	gtk_list_store_set(GTK_LIST_STORE(model), &iter,
-			   COL_CPU, cpu,
-			   COL_TS, buf,
-			   COL_COMM, comm,
-			   COL_PID, pid,
-			   COL_LAT, l.buffer,
-			   COL_EVENT, event->name,
-			   COL_INFO, print,
-			   -1);
-	if (s.full)
-		free(print);
-
-	free(record);
-}
-
-static void trace_load_tree(struct tracecmd_input *handle, GtkWidget *trace_tree)
-{
-	GtkTreeModel *model;
-	unsigned long long ts;
-	struct record *data;
-	int cpus;
-	int next;
-	int cpu;
-	int filter_cpu = -1; /* TODO */
-
-	cpus = tracecmd_cpus(handle);
-
-	model = gtk_tree_view_get_model(GTK_TREE_VIEW(trace_tree));
-	g_object_ref(model);
-	gtk_tree_view_set_model(GTK_TREE_VIEW(trace_tree), NULL);
-
-	do {
-		next = -1;
-		ts = 0;
-		if (filter_cpu >= 0) {
-			cpu = filter_cpu;
-			data = tracecmd_peek_data(handle, cpu);
-			if (data)
-				next = cpu;
-		} else {
-			for (cpu = 0; cpu < cpus; cpu++) {
-				data = tracecmd_peek_data(handle, cpu);
-				if (data && (!ts || data->ts < ts)) {
-					ts = data->ts;
-					next = cpu;
-				}
-			}
-		}
-		if (next >= 0)
-			add_data_to_model(model, handle, next);
-
-	} while (next >= 0);
-
-	gtk_tree_view_set_model(GTK_TREE_VIEW(trace_tree), model);
-	g_object_unref(model);
-}
-
 /* Callback for the clicked signal of the Exit button */
 static void
 exit_clicked (GtkWidget *widget, gpointer data)
@@ -343,7 +235,6 @@ void trace_view(int argc, char **argv)
 					      trace_tree);
 	gtk_widget_show(trace_tree);
 
-//	trace_load_tree(handle, trace_tree);
 
 	/**********************************************
 	 *   Main Window
