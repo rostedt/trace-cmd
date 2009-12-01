@@ -239,6 +239,33 @@ trace_view_store_get_n_columns (GtkTreeModel *tree_model)
 	return TRACE_VIEW_STORE(tree_model)->n_columns;
 }
 
+/*****************************************************************************
+ *
+ *	get_visible_column: Return the index of the visible columns
+ *
+ *****************************************************************************/
+
+static gint get_visible_column(TraceViewStore *trace_view, gint column)
+{
+	guint i;
+
+	/* If all columns are visible just use what was passed in */
+	if (trace_view->visible_column_mask == ((1 << TRACE_VIEW_STORE_N_COLUMNS) - 1))
+		return column;
+
+	column++; /* make 0 drop out */
+
+	for (i = 0; column && i < TRACE_VIEW_STORE_N_COLUMNS; i++) {
+		if (!trace_view->visible_column_mask & (1 << i))
+			continue;
+
+		column--;
+	}
+	g_assert(column == 0);
+
+	/* We upped column, so me must dec the return */
+	return i - 1;
+}
 
 /*****************************************************************************
  *
@@ -254,6 +281,7 @@ trace_view_store_get_column_type (GtkTreeModel *tree_model,
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), G_TYPE_INVALID);
 	g_return_val_if_fail (index < TRACE_VIEW_STORE(tree_model)->n_columns && index >= 0, G_TYPE_INVALID);
 
+	index = get_visible_column(TRACE_VIEW_STORE(tree_model), index);
 	return TRACE_VIEW_STORE(tree_model)->column_types[index];
 }
 
@@ -380,24 +408,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	if(record->pos >= trace_view_store->num_rows)
 		g_return_if_reached();
 
-	/* If all columns are visible just use what was passed in */
-	if (trace_view_store->visible_column_mask !=
-	    ((1 << TRACE_VIEW_STORE_N_COLUMNS) - 1)) {
-		guint i;
-
-		column++; /* make 0 drop out */
-
-		for (i = 0; column && i < TRACE_VIEW_STORE_N_COLUMNS; i++) {
-			if (!trace_view_store->visible_column_mask & (1 << i))
-				continue;
-
-			column--;
-		}
-
-		g_return_if_fail(column);
-
-		column = i;
-	}
+	column = get_visible_column(TRACE_VIEW_STORE(tree_model), column);
 
 	switch(column)
 	{
