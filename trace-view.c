@@ -25,6 +25,7 @@
 
 #include "trace-cmd.h"
 #include "trace-local.h"
+#include "trace-view-store.h"
 
 #define version "0.1.1"
 
@@ -169,24 +170,17 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 }
 
 static GtkTreeModel *
-create_trace_view_model(void)
+create_trace_view_model(struct tracecmd_input *handle)
 {
-	GtkListStore *store;
+	TraceViewStore *store;
 
-	store = gtk_list_store_new(NUM_COLS,
-				   G_TYPE_UINT,
-				   G_TYPE_STRING,
-				   G_TYPE_STRING,
-				   G_TYPE_UINT,
-				   G_TYPE_STRING,
-				   G_TYPE_STRING,
-				   G_TYPE_STRING);
+	store = trace_view_store_new(handle);
 
 	return GTK_TREE_MODEL(store);
 }
 
 static GtkWidget *
-create_trace_view(void)
+create_trace_view(struct tracecmd_input *handle)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
@@ -250,7 +244,7 @@ create_trace_view(void)
 					     "text", COL_INFO,
 					     NULL);
 
-	model = create_trace_view_model();
+	model = create_trace_view_model(handle);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
@@ -344,12 +338,12 @@ void trace_view(int argc, char **argv)
 
 	/* --- Trace Tree --- */
 
-	trace_tree = create_trace_view();
+	trace_tree = create_trace_view(handle);
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
 					      trace_tree);
 	gtk_widget_show(trace_tree);
 
-	trace_load_tree(handle, trace_tree);
+//	trace_load_tree(handle, trace_tree);
 
 	/**********************************************
 	 *   Main Window

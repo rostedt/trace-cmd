@@ -373,7 +373,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 	pevent = tracecmd_get_pevent(trace_view_store->handle);
 
-	record = *(TraceViewRecord**)iter->user_data;
+	record = (TraceViewRecord*)iter->user_data;
 
 	g_return_if_fail ( record != NULL );
 
@@ -430,7 +430,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		switch (column) {
 		case TRACE_VIEW_STORE_COL_COMM:
 		case TRACE_VIEW_STORE_COL_PID:
-			val = pevent_data_pid(pevent, data);
+			val = pevent_data_pid(pevent, data->data);
 			if (column == TRACE_VIEW_STORE_COL_PID)
 				g_value_set_uint(value, val);
 			else {
@@ -447,7 +447,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 		case TRACE_VIEW_STORE_COL_EVENT:
 		case TRACE_VIEW_STORE_COL_INFO:
-			val = pevent_data_type(pevent, data);
+			val = pevent_data_type(pevent, data->data);
 			event = pevent_data_event_from_type(pevent, val);
 			if (column == TRACE_VIEW_STORE_COL_EVENT) {
 				g_value_set_string(value, event->name);
@@ -456,7 +456,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 			
 			trace_seq_init(&s);
-			pevent_event_info(&s, event, cpu, data, data->size,
+			pevent_event_info(&s, event, cpu, data->data, data->size,
 					  record->timestamp);
 			g_value_set_string(value, s.buffer);
 			break;
@@ -736,19 +736,20 @@ trace_view_store_new (struct tracecmd_input *handle)
 		list = NULL;
 		next = &list;
 
-		do {
+		for (;;) {
 			data = tracecmd_read_data(handle, cpu);
-			if (data) {
-				*next = rec = g_malloc(sizeof(*rec));
-				g_assert(rec != NULL);
-				rec->offset = data->offset;
-				rec->ts = data->ts;
-				rec->next = NULL;
-				next = &rec->next;
-				free(data);
-			}
+			if (!data)
+				break;
+
+			*next = rec = g_malloc(sizeof(*rec));
+			g_assert(rec != NULL);
+			rec->offset = data->offset;
+			rec->ts = data->ts;
+			rec->next = NULL;
+			next = &rec->next;
+			free(data);
 			count++;
-		} while (data);
+		}
 
 		if (count) {
 			TraceViewRecord *trec;
