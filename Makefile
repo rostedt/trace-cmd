@@ -30,7 +30,7 @@ trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
 
-trace-cmd:: trace-cmd.o trace-read.o trace-view.o
+trace-cmd:: trace-cmd.o trace-read.o trace-view.o trace-view-store.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 .PHONY: view_depends

@@ -1,0 +1,848 @@
+#include "trace-view-store.h"
+#include <stdlib.h>
+
+/* boring declarations of local functions */
+
+static void		trace_view_store_init		(TraceViewStore	*pkg_tree);
+
+static void		trace_view_store_class_init	(TraceViewStoreClass *klass);
+
+static void		trace_view_store_tree_model_init (GtkTreeModelIface *iface);
+
+static void		trace_view_store_finalize	(GObject	*object);
+
+static GtkTreeModelFlags trace_view_store_get_flags	(GtkTreeModel	*tree_model);
+
+static gint		trace_view_store_get_n_columns	(GtkTreeModel	*tree_model);
+
+static GType		trace_view_store_get_column_type (GtkTreeModel	*tree_model,
+							  gint	index);
+
+static gboolean		trace_view_store_get_iter	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter,
+							 GtkTreePath	*path);
+
+static GtkTreePath 	*trace_view_store_get_path	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter);
+
+static void		trace_view_store_get_value	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter,
+							 gint	column,
+							 GValue	*value);
+
+static gboolean		trace_view_store_iter_next	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter);
+
+static gboolean		trace_view_store_iter_children	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter,
+							 GtkTreeIter	*parent);
+
+static gboolean		trace_view_store_iter_has_child	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter);
+
+static gint		trace_view_store_iter_n_children (GtkTreeModel	*tree_model,
+							  GtkTreeIter	*iter);
+
+static gboolean		trace_view_store_iter_nth_child	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter,
+							 GtkTreeIter	*parent,
+							 gint	n);
+
+static gboolean		trace_view_store_iter_parent	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter,
+							 GtkTreeIter	*child);
+
+
+
+static GObjectClass *parent_class = NULL;	/* GObject stuff - nothing to worry about */
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_type: here we register our new type and its interfaces
+ *	with the type system. If you want to implement
+ *	additional interfaces like GtkTreeSortable, you
+ *	will need to do it here.
+ *
+ *****************************************************************************/
+
+GType
+trace_view_store_get_type (void)
+{
+	static GType trace_view_store_type = 0;
+
+	/* Some boilerplate type registration stuff */
+	if (trace_view_store_type == 0)
+	{
+		static const GTypeInfo trace_view_store_info =
+			{
+				sizeof (TraceViewStoreClass),
+				NULL,	/* base_init */
+				NULL,	/* base_finalize */
+				(GClassInitFunc) trace_view_store_class_init,
+				NULL,	/* class finalize */
+				NULL,	/* class_data */
+				sizeof (TraceViewStore),
+				0,	/* n_preallocs */
+				(GInstanceInitFunc) trace_view_store_init
+			};
+		static const GInterfaceInfo tree_model_info =
+			{
+				(GInterfaceInitFunc) trace_view_store_tree_model_init,
+				NULL,
+				NULL
+			};
+
+		/* First register the new derived type with the GObject type system */
+		trace_view_store_type = g_type_register_static (G_TYPE_OBJECT, "TraceViewStore",
+								&trace_view_store_info, (GTypeFlags)0);
+
+		/* Now register our GtkTreeModel interface with the type system */
+		g_type_add_interface_static (trace_view_store_type, GTK_TYPE_TREE_MODEL, &tree_model_info);
+	}
+
+	return trace_view_store_type;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_class_init: more boilerplate GObject/GType stuff.
+ *	Init callback for the type system,
+ *	called once when our new class is created.
+ *
+ *****************************************************************************/
+
+static void
+trace_view_store_class_init (TraceViewStoreClass *klass)
+{
+	GObjectClass *object_class;
+
+	parent_class = (GObjectClass*) g_type_class_peek_parent (klass);
+	object_class = (GObjectClass*) klass;
+
+	object_class->finalize = trace_view_store_finalize;
+}
+
+/*****************************************************************************
+ *
+ *	trace_view_store_tree_model_init: init callback for the interface registration
+ *	in trace_view_store_get_type. Here we override
+ *	the GtkTreeModel interface functions that
+ *	we implement.
+ *
+ *****************************************************************************/
+
+static void
+trace_view_store_tree_model_init (GtkTreeModelIface *iface)
+{
+	iface->get_flags	= trace_view_store_get_flags;
+	iface->get_n_columns	= trace_view_store_get_n_columns;
+	iface->get_column_type	= trace_view_store_get_column_type;
+	iface->get_iter		= trace_view_store_get_iter;
+	iface->get_path		= trace_view_store_get_path;
+	iface->get_value	= trace_view_store_get_value;
+	iface->iter_next	= trace_view_store_iter_next;
+	iface->iter_children	= trace_view_store_iter_children;
+	iface->iter_has_child	= trace_view_store_iter_has_child;
+	iface->iter_n_children	= trace_view_store_iter_n_children;
+	iface->iter_nth_child	= trace_view_store_iter_nth_child;
+	iface->iter_parent	= trace_view_store_iter_parent;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_init: this is called everytime a new trace view store object
+ *	instance is created (we do that in trace_view_store_new).
+ *	Initialise the list structure's fields here.
+ *
+ *****************************************************************************/
+
+static void
+trace_view_store_init (TraceViewStore *trace_view_store)
+{
+	trace_view_store->n_columns	= TRACE_VIEW_STORE_N_COLUMNS;
+
+	trace_view_store->column_types[0] = G_TYPE_UINT;	/* CPU	*/
+	trace_view_store->column_types[1] = G_TYPE_STRING;	/* TS	*/
+	trace_view_store->column_types[2] = G_TYPE_STRING;	/* COMM */
+	trace_view_store->column_types[3] = G_TYPE_UINT;	/* PID */
+	trace_view_store->column_types[4] = G_TYPE_STRING;	/* LAT */
+	trace_view_store->column_types[5] = G_TYPE_STRING;	/* EVENT */
+	trace_view_store->column_types[6] = G_TYPE_STRING;	/* INFO */
+
+	g_assert (TRACE_VIEW_STORE_N_COLUMNS == 7);
+
+	trace_view_store->num_rows = 0;
+	trace_view_store->rows	= NULL;
+
+	/* Set all columns visible */
+	trace_view_store->visible_column_mask = (1 << TRACE_VIEW_STORE_N_COLUMNS) - 1;
+
+	trace_view_store->stamp = g_random_int();	/* Random int to check whether an iter belongs to our model */
+
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_finalize: this is called just before a trace view store is
+ *	destroyed. Free dynamically allocated memory here.
+ *
+ *****************************************************************************/
+
+static void
+trace_view_store_finalize (GObject *object)
+{
+/*	TraceViewStore *trace_view_store = TRACE_VIEW_STORE(object); */
+
+	/* free all records and free all memory used by the list */
+#warning IMPLEMENT
+
+	/* must chain up - finalize parent */
+	(* parent_class->finalize) (object);
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_flags: tells the rest of the world whether our tree model
+ *	has any special characteristics. In our case,
+ *	we have a list model (instead of a tree), and each
+ *	tree iter is valid as long as the row in question
+ *	exists, as it only contains a pointer to our struct.
+ *
+ *****************************************************************************/
+
+static GtkTreeModelFlags
+trace_view_store_get_flags (GtkTreeModel *tree_model)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), (GtkTreeModelFlags)0);
+
+	return (GTK_TREE_MODEL_LIST_ONLY | GTK_TREE_MODEL_ITERS_PERSIST);
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_n_columns: tells the rest of the world how many data
+ *	columns we export via the tree model interface
+ *
+ *****************************************************************************/
+
+static gint
+trace_view_store_get_n_columns (GtkTreeModel *tree_model)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), 0);
+
+	return TRACE_VIEW_STORE(tree_model)->n_columns;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_column_type: tells the rest of the world which type of
+ *	data an exported model column contains
+ *
+ *****************************************************************************/
+
+static GType
+trace_view_store_get_column_type (GtkTreeModel *tree_model,
+				  gint	index)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), G_TYPE_INVALID);
+	g_return_val_if_fail (index < TRACE_VIEW_STORE(tree_model)->n_columns && index >= 0, G_TYPE_INVALID);
+
+	return TRACE_VIEW_STORE(tree_model)->column_types[index];
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_iter: converts a tree path (physical position) into a
+ *	tree iter structure (the content of the iter
+ *	fields will only be used internally by our model).
+ *	We simply store a pointer to our TraceViewRecord
+ *	structure that represents that row in the tree iter.
+ *
+ *****************************************************************************/
+
+static gboolean
+trace_view_store_get_iter (GtkTreeModel *tree_model,
+			   GtkTreeIter	*iter,
+			   GtkTreePath	*path)
+{
+	TraceViewStore	*trace_view_store;
+	TraceViewRecord	*record;
+	gint	*indices, n, depth;
+
+	g_assert(TRACE_VIEW_IS_LIST(tree_model));
+	g_assert(path!=NULL);
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	indices = gtk_tree_path_get_indices(path);
+	depth	= gtk_tree_path_get_depth(path);
+
+	/* we do not allow children */
+	g_assert(depth == 1); /* depth 1 = top level; a list only has top level nodes and no children */
+
+	n = indices[0]; /* the n-th top level row */
+
+	if ( n >= trace_view_store->num_rows || n < 0 )
+		return FALSE;
+
+	record = trace_view_store->rows[n];
+
+	g_assert(record != NULL);
+	g_assert(record->pos == n);
+
+	/* We simply store a pointer to our custom record in the iter */
+	iter->stamp	= trace_view_store->stamp;
+	iter->user_data	= record;
+	iter->user_data2 = NULL;	/* unused */
+	iter->user_data3 = NULL;	/* unused */
+
+	return TRUE;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_path: converts a tree iter into a tree path (ie. the
+ *	physical position of that row in the list).
+ *
+ *****************************************************************************/
+
+static GtkTreePath *
+trace_view_store_get_path (GtkTreeModel *tree_model,
+			   GtkTreeIter	*iter)
+{
+	GtkTreePath	*path;
+	TraceViewRecord *record;
+	TraceViewStore	*trace_view_store;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), NULL);
+	g_return_val_if_fail (iter != NULL,	NULL);
+	g_return_val_if_fail (iter->user_data != NULL,	NULL);
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	record = (TraceViewRecord*) iter->user_data;
+
+	path = gtk_tree_path_new();
+	gtk_tree_path_append_index(path, record->pos);
+
+	return path;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_get_value: Returns a row's exported data columns
+ *	(_get_value is what gtk_tree_model_get uses)
+ *
+ *****************************************************************************/
+
+static void
+trace_view_store_get_value (GtkTreeModel *tree_model,
+			    GtkTreeIter	*iter,
+			    gint	column,
+			    GValue	*value)
+{
+	TraceViewRecord	*record;
+	TraceViewStore	*trace_view_store;
+	struct trace_seq s;
+	struct pevent *pevent;
+	struct event *event;
+	struct record *data;
+	const gchar *comm;
+	gchar *str;
+	guint64 secs, usecs;
+	gint val;
+	int cpu;
+
+	g_return_if_fail (TRACE_VIEW_IS_LIST (tree_model));
+	g_return_if_fail (iter != NULL);
+	g_return_if_fail (column < TRACE_VIEW_STORE(tree_model)->n_columns);
+
+	g_value_init (value, TRACE_VIEW_STORE(tree_model)->column_types[column]);
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	pevent = tracecmd_get_pevent(trace_view_store->handle);
+
+	record = *(TraceViewRecord**)iter->user_data;
+
+	g_return_if_fail ( record != NULL );
+
+	if(record->pos >= trace_view_store->num_rows)
+		g_return_if_reached();
+
+	/* If all columns are visible just use what was passed in */
+	if (trace_view_store->visible_column_mask !=
+	    ((1 << TRACE_VIEW_STORE_N_COLUMNS) - 1)) {
+		guint i;
+
+		column++; /* make 0 drop out */
+
+		for (i = 0; column && i < TRACE_VIEW_STORE_N_COLUMNS; i++) {
+			if (!trace_view_store->visible_column_mask & (1 << i))
+				continue;
+
+			column--;
+		}
+
+		g_return_if_fail(column);
+
+		column = i;
+	}
+
+	switch(column)
+	{
+	case TRACE_VIEW_STORE_COL_CPU:
+		g_value_set_uint(value, record->cpu);
+		break;
+
+	case TRACE_VIEW_STORE_COL_TS:
+		usecs = record->timestamp;
+		usecs /= 1000;
+		secs = usecs / 1000000ULL;
+		usecs -= secs * 1000000ULL;
+		str = g_strdup_printf("%lu.%06lu", secs, usecs);
+		g_value_set_string(value, str);
+		g_free(str);
+		break;
+		
+	case TRACE_VIEW_STORE_COL_COMM:
+	case TRACE_VIEW_STORE_COL_PID:
+	case TRACE_VIEW_STORE_COL_LAT:
+	case TRACE_VIEW_STORE_COL_EVENT:
+	case TRACE_VIEW_STORE_COL_INFO:
+
+		data = tracecmd_read_at(trace_view_store->handle, record->offset, &cpu);
+		if (cpu != record->cpu) {
+			free(data);
+			return;
+		}
+
+		switch (column) {
+		case TRACE_VIEW_STORE_COL_COMM:
+		case TRACE_VIEW_STORE_COL_PID:
+			val = pevent_data_pid(pevent, data);
+			if (column == TRACE_VIEW_STORE_COL_PID)
+				g_value_set_uint(value, val);
+			else {
+				comm = pevent_data_comm_from_pid(pevent, val);
+				g_value_set_string(value, comm);
+			}
+			break;
+
+		case TRACE_VIEW_STORE_COL_LAT:
+			trace_seq_init(&s);
+			pevent_data_lat_fmt(pevent, &s, data, data->size);
+			g_value_set_string(value, s.buffer);
+			break;
+
+		case TRACE_VIEW_STORE_COL_EVENT:
+		case TRACE_VIEW_STORE_COL_INFO:
+			val = pevent_data_type(pevent, data);
+			event = pevent_data_event_from_type(pevent, val);
+			if (column == TRACE_VIEW_STORE_COL_EVENT) {
+				g_value_set_string(value, event->name);
+				break;
+			}
+
+			
+			trace_seq_init(&s);
+			pevent_event_info(&s, event, cpu, data, data->size,
+					  record->timestamp);
+			g_value_set_string(value, s.buffer);
+			break;
+		}
+		free(data);
+	}
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_iter_next: Takes an iter structure and sets it to point
+ *	to the next row.
+ *
+ *****************************************************************************/
+
+static gboolean
+trace_view_store_iter_next (GtkTreeModel	*tree_model,
+			    GtkTreeIter	*iter)
+{
+	TraceViewRecord	*record, *nextrecord;
+	TraceViewStore	*trace_view_store;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (tree_model), FALSE);
+
+	if (iter == NULL || iter->user_data == NULL)
+		return FALSE;
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	record = (TraceViewRecord *) iter->user_data;
+
+	/* Is this the last record in the list? */
+	if ((record->pos + 1) >= trace_view_store->num_rows)
+		return FALSE;
+
+	nextrecord = trace_view_store->rows[(record->pos + 1)];
+
+	g_assert ( nextrecord != NULL );
+	g_assert ( nextrecord->pos == (record->pos + 1) );
+
+	iter->stamp	= trace_view_store->stamp;
+	iter->user_data = nextrecord;
+
+	return TRUE;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_iter_children: Returns TRUE or FALSE depending on whether
+ *	the row specified by 'parent' has any children.
+ *	If it has children, then 'iter' is set to
+ *	point to the first child. Special case: if
+ *	'parent' is NULL, then the first top-level
+ *	row should be returned if it exists.
+ *
+ *****************************************************************************/
+
+static gboolean
+trace_view_store_iter_children (GtkTreeModel *tree_model,
+				GtkTreeIter	*iter,
+				GtkTreeIter	*parent)
+{
+	TraceViewStore	*trace_view_store;
+
+	g_return_val_if_fail (parent == NULL || parent->user_data != NULL, FALSE);
+
+	/* this is a list, nodes have no children */
+	if (parent)
+		return FALSE;
+
+	/* parent == NULL is a special case; we need to return the first top-level row */
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (tree_model), FALSE);
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	/* No rows => no first row */
+	if (trace_view_store->num_rows == 0)
+		return FALSE;
+
+	/* Set iter to first item in list */
+	iter->stamp	= trace_view_store->stamp;
+	iter->user_data = trace_view_store->rows[0];
+
+	return TRUE;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_iter_has_child: Returns TRUE or FALSE depending on whether
+ *	the row specified by 'iter' has any children.
+ *	We only have a list and thus no children.
+ *
+ *****************************************************************************/
+
+static gboolean
+trace_view_store_iter_has_child (GtkTreeModel *tree_model,
+				 GtkTreeIter	*iter)
+{
+	return FALSE;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_iter_n_children: Returns the number of children the row
+ *	specified by 'iter' has. This is usually 0,
+ *	as we only have a list and thus do not have
+ *	any children to any rows. A special case is
+ *	when 'iter' is NULL, in which case we need
+ *	to return the number of top-level nodes,
+ *	ie. the number of rows in our list.
+ *
+ *****************************************************************************/
+
+static gint
+trace_view_store_iter_n_children (GtkTreeModel *tree_model,
+				  GtkTreeIter	*iter)
+{
+	TraceViewStore	*trace_view_store;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (tree_model), -1);
+	g_return_val_if_fail (iter == NULL || iter->user_data != NULL, FALSE);
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	/* special case: if iter == NULL, return number of top-level rows */
+	if (!iter)
+		return trace_view_store->num_rows;
+
+	return 0; /* otherwise, this is easy again for a list */
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_iter_nth_child: If the row specified by 'parent' has any
+ *	children, set 'iter' to the n-th child and
+ *	return TRUE if it exists, otherwise FALSE.
+ *	A special case is when 'parent' is NULL, in
+ *	which case we need to set 'iter' to the n-th
+ *	row if it exists.
+ *
+ *****************************************************************************/
+
+static gboolean
+trace_view_store_iter_nth_child (GtkTreeModel *tree_model,
+				 GtkTreeIter	*iter,
+				 GtkTreeIter	*parent,
+				 gint	n)
+{
+	TraceViewRecord	*record;
+	TraceViewStore	*trace_view_store;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (tree_model), FALSE);
+
+	trace_view_store = TRACE_VIEW_STORE(tree_model);
+
+	/* a list has only top-level rows */
+	if(parent)
+		return FALSE;
+
+	/* special case: if parent == NULL, set iter to n-th top-level row */
+
+	if( n >= trace_view_store->num_rows )
+		return FALSE;
+
+	record = trace_view_store->rows[n];
+
+	g_assert( record != NULL );
+	g_assert( record->pos == n );
+
+	iter->stamp = trace_view_store->stamp;
+	iter->user_data = record;
+
+	return TRUE;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_iter_parent: Point 'iter' to the parent node of 'child'. As
+ *	we have a list and thus no children and no
+ *	parents of children, we can just return FALSE.
+ *
+ *****************************************************************************/
+
+static gboolean
+trace_view_store_iter_parent (GtkTreeModel *tree_model,
+			      GtkTreeIter	*iter,
+			      GtkTreeIter	*child)
+{
+	return FALSE;
+}
+
+
+/*****************************************************************************
+ *
+ *	merge_sort_rows_ts: Merge sort the data by time stamp.
+ *	
+ *
+ *****************************************************************************/
+
+static void merge_sort_rows_ts(TraceViewStore *store)
+{
+	guint64 ts;
+	gint next;
+	guint *indexes;
+	guint count = 0;
+	gint cpu;
+	guint i;
+
+
+	indexes = g_new0(guint, store->cpus);
+
+	/* Now sort these by timestamp */
+	do {
+		next = -1;
+		ts = 0;
+		for (cpu = 0; cpu < store->cpus; cpu++) {
+			if (indexes[cpu] == store->cpu_items[cpu])
+				continue;
+			i = indexes[cpu];
+			if (!ts || store->cpu_list[cpu][i].timestamp < ts) {
+				ts = store->cpu_list[cpu][i].timestamp;
+				next = cpu;
+			}
+		}
+		if (next >= 0) {
+			i = indexes[next]++;
+			store->rows[count] = &store->cpu_list[next][i];
+			store->cpu_list[next][i].pos = count++;
+		}
+	} while (next >= 0);
+
+	g_free(indexes);
+}
+
+/*****************************************************************************
+ *
+ *	trace_view_store_new:	This is what you use in your own code to create a
+ *	new trace view store tree model for you to use.
+ *
+ *****************************************************************************/
+
+TraceViewStore *
+trace_view_store_new (struct tracecmd_input *handle)
+{
+	TraceViewStore *newstore;
+	struct record *data;
+	gint cpu, count, total=0;
+	struct temp {
+		guint64		offset;
+		guint64		ts;
+		struct temp	*next;
+	} *list, **next, *rec;
+
+	newstore = (TraceViewStore*) g_object_new (TRACE_VIEW_STORE_TYPE, NULL);
+
+	g_assert( newstore != NULL );
+
+	newstore->handle = handle;
+	newstore->cpus = tracecmd_cpus(handle);
+
+	newstore->cpu_list = g_new(TraceViewRecord *, newstore->cpus);
+	g_assert(newstore->cpu_list != NULL);
+
+	newstore->cpu_items = g_new(gint, newstore->cpus);
+	g_assert(newstore->cpu_items != NULL);
+
+	for (cpu = 0; cpu < newstore->cpus; cpu++) {
+
+		count = 0;
+		list = NULL;
+		next = &list;
+
+		do {
+			data = tracecmd_read_data(handle, cpu);
+			if (data) {
+				*next = rec = g_malloc(sizeof(*rec));
+				g_assert(rec != NULL);
+				rec->offset = data->offset;
+				rec->ts = data->ts;
+				rec->next = NULL;
+				next = &rec->next;
+				free(data);
+			}
+			count++;
+		} while (data);
+
+		if (count) {
+			TraceViewRecord *trec;
+			struct temp *t;
+			gint i;
+
+			rec = list;
+
+			trec = g_new(TraceViewRecord, count);
+			for (i = 0; i < count; i++) {
+				g_assert(rec != NULL);
+				trec[i].cpu = cpu;
+				trec[i].timestamp = rec->ts;
+				trec[i].offset = rec->offset;
+				trec[i].visible = 1;
+				trec[i].pos = i;
+				t = rec;
+				rec = rec->next;
+				g_free(t);
+			}
+			g_assert(rec == NULL);
+
+			newstore->cpu_list[cpu] = trec;
+		} else
+			newstore->cpu_list[cpu] = NULL;
+
+		newstore->cpu_items[cpu] = count;
+
+		total += count;
+	}
+
+	newstore->num_rows = total;
+	newstore->rows = g_malloc(sizeof(*newstore->rows) * total);
+
+	merge_sort_rows_ts(newstore);
+
+	return newstore;
+}
+
+
+/*****************************************************************************
+ *
+ *	trace_view_store_append_record:	Empty lists are boring. This function can
+ *	be used in your own code to add rows to the
+ *	list. Note how we emit the "row-inserted"
+ *	signal after we have appended the row
+ *	internally, so the tree view and other
+ *	interested objects know about the new row.
+ *
+ *****************************************************************************/
+
+#if 0
+void
+trace_view_store_append_record (TraceViewStore	*trace_view_store,
+				const gchar	*name,
+				guint	year_born)
+{
+	GtkTreeIter	iter;
+	GtkTreePath	*path;
+	TraceViewRecord *newrecord;
+	gulong	newsize;
+	guint	pos;
+
+	g_return_if_fail (TRACE_VIEW_IS_LIST(trace_view_store));
+	g_return_if_fail (name != NULL);
+
+	pos = trace_view_store->num_rows;
+
+	trace_view_store->num_rows++;
+
+	newsize = trace_view_store->num_rows * sizeof(TraceViewRecord*);
+
+	trace_view_store->rows = g_realloc(trace_view_store->rows, newsize);
+
+	newrecord = g_new0(TraceViewRecord, 1);
+
+	newrecord->name = g_strdup(name);
+	newrecord->name_collate_key = g_utf8_collate_key(name,-1); /* for fast sorting, used later */
+	newrecord->year_born = year_born;
+
+	trace_view_store->rows[pos] = newrecord;
+	newrecord->pos = pos;
+
+	/* inform the tree view and other interested objects
+	 *	(e.g. tree row references) that we have inserted
+	 *	a new row, and where it was inserted */
+
+	path = gtk_tree_path_new();
+	gtk_tree_path_append_index(path, newrecord->pos);
+
+	trace_view_store_get_iter(GTK_TREE_MODEL(trace_view_store), &iter, path);
+
+	gtk_tree_model_row_inserted(GTK_TREE_MODEL(trace_view_store), path, &iter);
+
+	gtk_tree_path_free(path);
+}
+#endif
