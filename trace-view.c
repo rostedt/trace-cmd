@@ -29,6 +29,9 @@
 
 #define version "0.1.1"
 
+#define TRACE_WIDTH	800
+#define TRACE_HEIGHT	600
+
 enum {
 	COL_CPU,
 	COL_TS,
@@ -245,6 +248,8 @@ void trace_view(int argc, char **argv)
 	gtk_signal_connect (GTK_OBJECT (window), "delete_event",
 			    (GtkSignalFunc) delete_event,
 			    NULL);
+
+	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
 
 	gtk_widget_show (window);
 	gtk_main ();
