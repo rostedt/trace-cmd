@@ -13,4 +13,10 @@ int read_trace_files(void);
 void trace_report(int argc, char **argv);
 void trace_view(int argc, char **argv);
 
+
+/* GUI */
+
+/* We use void because this can be used by non gtk files */
+void trace_filter_event_dialog(void *traceview);
+
 #endif /* __TRACE_LOCAL_H */

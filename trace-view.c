@@ -43,8 +43,6 @@ enum {
 	NUM_COLS
 };
 
-struct tracecmd_input *trace_handle;
-
 GtkWidget *trace_tree;
 
 /* Callback for the clicked signal of the Exit button */
@@ -64,6 +62,15 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 	return TRUE;
 }
 
+/* Callback for the clicked signal of the Events filter button */
+static void
+events_clicked (gpointer data)
+{
+	GtkWidget *trace_tree = data;
+
+	trace_filter_event_dialog(trace_tree);
+}
+
 static GtkTreeModel *
 create_trace_view_model(struct tracecmd_input *handle)
 {
@@ -74,15 +81,13 @@ create_trace_view_model(struct tracecmd_input *handle)
 	return GTK_TREE_MODEL(store);
 }
 
-static GtkWidget *
-create_trace_view(struct tracecmd_input *handle)
+static void
+load_trace_view(GtkWidget *view, struct tracecmd_input *handle)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
-	GtkWidget *view;
 	GtkTreeModel *model;
 
-	view = gtk_tree_view_new();
 
 	/* --- CPU column --- */
 
@@ -144,8 +149,6 @@ create_trace_view(struct tracecmd_input *handle)
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
 	g_object_unref(model); /* destroy model automatically with view */
-
-	return view;
 }
 
 void trace_view(int argc, char **argv)
@@ -157,7 +160,7 @@ void trace_view(int argc, char **argv)
 	GtkWidget *menu_bar;
 	GtkWidget *menu;
 	GtkWidget *menu_item;
-	GtkWidget *quit_item;
+	GtkWidget *sub_item;
 	GtkWidget *scrollwin;
 
 	handle = read_trace_header();
@@ -170,13 +173,15 @@ void trace_view(int argc, char **argv)
 	if (tracecmd_init_data(handle) < 0)
 		die("failed to init data");
 
-	trace_handle = handle;
-
 	gnome_init("trace-cmd", version, argc, argv);
 
 	/* --- Main window --- */
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+	/* --- Get handle for trace view first --- */
+
+	trace_tree = gtk_tree_view_new();
 
 	/* --- Top Level Vbox --- */
 
@@ -200,23 +205,53 @@ void trace_view(int argc, char **argv)
 	menu = gtk_menu_new();    /* Don't need to show menus */
 
 
-	/* --- Quit Option --- */
+	/* --- File - Quit Option --- */
 
-	quit_item = gtk_menu_item_new_with_label("Quit");
+	sub_item = gtk_menu_item_new_with_label("Quit");
 
 	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), quit_item);
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
 
 	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (quit_item), "activate",
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (exit_clicked),
 				  (gpointer) window);
 
 	/* We do need to show menu items */
-	gtk_widget_show(quit_item);
-
+	gtk_widget_show(sub_item);
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
+	/* --- end File options --- */
+
+
+	/* --- Filter Option --- */
+
+	menu_item = gtk_menu_item_new_with_label("Filter");
+	gtk_widget_show(menu_item);
+
+	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
+
+	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- Filter - Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("events");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (events_clicked),
+				  (gpointer) trace_tree);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
 	/* --- Top Level Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -231,9 +266,9 @@ void trace_view(int argc, char **argv)
 	gtk_box_pack_start(GTK_BOX (hbox), scrollwin, TRUE, TRUE, 0);
 	gtk_widget_show(scrollwin);
 
-	/* --- Trace Tree --- */
+	/* --- Set up Trace Tree --- */
 
-	trace_tree = create_trace_view(handle);
+	load_trace_view(trace_tree, handle);
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
 					      trace_tree);
 	gtk_widget_show(trace_tree);

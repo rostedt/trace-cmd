@@ -22,15 +22,19 @@ all: $(TARGETS)
 
 LIB_FILE = libtracecmd.a
 
-HEADERS = parse-events.h trace-cmd.h
+HEADERS = parse-events.h trace-cmd.h trace-local.h
 
 trace-read.o::		$(HEADERS) 
 trace-cmd.o::		$(HEADERS) $(LIB_FILE)
 trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
+trace-view.o::		$(HEADERS)
+trace-view-store.o::	$(HEADERS)
+trace-filter.o::	$(HEADERS)
 
-trace-cmd:: trace-cmd.o trace-read.o trace-view.o trace-view-store.o
+trace-cmd:: trace-cmd.o trace-read.o trace-view.o trace-view-store.o \
+	trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 .PHONY: view_depends
