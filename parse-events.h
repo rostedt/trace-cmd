@@ -196,6 +196,12 @@ enum {
 	EVENT_FL_FAILED		= 0x80000000
 };
 
+enum event_sort_type {
+	EVENT_SORT_ID,
+	EVENT_SORT_NAME,
+	EVENT_SORT_SYSTEM,
+};
+
 extern int old_format;
 
 void parse_set_info(int nr_cpus, int long_sz);
@@ -314,6 +320,7 @@ const char *pevent_data_comm_from_pid(int pid);
 void pevent_event_info(struct trace_seq *s, struct event *event,
 		       int cpu, void *data, int size, unsigned long long nsecs);
 
+struct event **pevent_list_events(enum event_sort_type);
 
 /* for debugging */
 void pevent_print_funcs(void);

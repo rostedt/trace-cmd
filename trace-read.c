@@ -227,8 +227,20 @@ void trace_report (int argc, char **argv)
 		return;
 	}
 
-	if (show_events)
+	if (show_events) {
+		struct event **events;
+		struct event *event;
+		int i;
+
+		events = pevent_list_events(EVENT_SORT_SYSTEM);
+		for (i = 0; events[i]; i++) {
+			event = events[i];
+			if (event->system)
+				printf("%s:", event->system);
+			printf("%s\n", event->name);
+		}
 		return;
+	}
 
 	read_data_info(handle);
 

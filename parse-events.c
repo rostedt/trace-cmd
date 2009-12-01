@@ -399,11 +399,13 @@ enum event_type {
 };
 
 static struct event *event_list;
+static int nr_events;
 
 static void add_event(struct event *event)
 {
 	event->next = event_list;
 	event_list = event;
+	nr_events++;
 }
 
 static int event_item_type(enum event_type type)
@@ -2960,6 +2962,101 @@ void pevent_print_event(struct trace_seq *s,
 	if (!s->full)
 		trace_seq_putc(s, 0);
 
+}
+
+static int events_id_cmp(const void *a, const void *b)
+{
+	struct event * const * ea = a;
+	struct event * const * eb = b;
+
+	if ((*ea)->id < (*eb)->id)
+		return -1;
+
+	if ((*ea)->id > (*eb)->id)
+		return 1;
+
+	return 0;
+}
+
+static int events_name_cmp(const void *a, const void *b)
+{
+	struct event * const * ea = a;
+	struct event * const * eb = b;
+	int res;
+
+	res = strcmp((*ea)->name, (*eb)->name);
+	if (res)
+		return res;
+
+	res = strcmp((*ea)->system, (*eb)->system);
+	if (res)
+		return res;
+
+	return events_id_cmp(a, b);
+}
+
+static int events_system_cmp(const void *a, const void *b)
+{
+	struct event * const * ea = a;
+	struct event * const * eb = b;
+	int res;
+
+	res = strcmp((*ea)->system, (*eb)->system);
+	if (res)
+		return res;
+
+	res = strcmp((*ea)->name, (*eb)->name);
+	if (res)
+		return res;
+
+	return events_id_cmp(a, b);
+}
+
+struct event **pevent_list_events(enum event_sort_type sort_type)
+{
+	static struct event **events;
+	static enum event_sort_type last_type;
+	struct event *event;
+	int (*sort)(const void *a, const void *b);
+	int i = 0;
+
+	if (events && last_type == sort_type)
+		return events;
+
+	if (!events) {
+		events = malloc(sizeof(*events) * (nr_events + 1));
+		if (!events)
+			return NULL;
+
+		for (event = event_list; event; event = event->next) {
+			if (i == nr_events) {
+				warning("Wrong event count");
+				free(events);
+				return NULL;
+			}
+			events[i++] = event;
+		}
+		events[i] = NULL;
+	}
+
+	switch (sort_type) {
+	case EVENT_SORT_ID:
+		sort = events_id_cmp;
+		break;
+	case EVENT_SORT_NAME:
+		sort = events_name_cmp;
+		break;
+	case EVENT_SORT_SYSTEM:
+		sort = events_system_cmp;
+		break;
+	default:
+		return events;
+	}
+
+	qsort(events, nr_events, sizeof(*events), sort);
+	last_type = sort_type;
+
+	return events;
 }
 
 static void print_fields(struct trace_seq *s, struct print_flag_sym *field)
