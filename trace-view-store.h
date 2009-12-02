@@ -78,9 +78,41 @@ struct _TraceViewStore
 	TraceViewRecord		**cpu_list;
 	gint			*cpu_items;
 
+	/* filters */
+	gint			all_events; /* set 1 when all events are enabled */
+						/* else */
+	gchar			**systems;  /* sorted list of systems that are enabled */
+	gint			**event_types; /* sorted list of events that are enabled */
+
+	gint			all_cpus;   /* set 1 when all cpus are enabled */
+						/* else */
+	guint64			*cpu_mask;  /* cpus that are enabled */
+
 	gint		stamp;	/* Random integer to check whether an iter belongs to our model */
 };
 
+/* helper functions */
+
+static inline gint trace_view_store_get_cpus(TraceViewStore *store)
+{
+	return store->cpus;
+}
+
+static inline guint64 *trace_view_store_get_cpu_mask(TraceViewStore *store)
+{
+	return store->cpu_mask;
+}
+
+static inline gint trace_view_store_get_all_cpus(TraceViewStore *store)
+{
+	return store->all_cpus;
+}
+
+gboolean trace_view_store_cpu_isset(TraceViewStore *store, gint cpu);
+
+void trace_view_store_set_all_cpus(TraceViewStore *store);
+void trace_view_store_set_cpu(TraceViewStore *store, gint cpu);
+void trace_view_store_clear_cpu(TraceViewStore *store, gint cpu);
 
 
 /* TraceViewStoreClass: more boilerplate GObject stuff */

@@ -71,6 +71,15 @@ events_clicked (gpointer data)
 	trace_filter_event_dialog(trace_tree);
 }
 
+/* Callback for the clicked signal of the CPUs filter button */
+static void
+cpus_clicked (gpointer data)
+{
+	GtkWidget *trace_tree = data;
+
+	trace_filter_cpu_dialog(trace_tree);
+}
+
 static GtkTreeModel *
 create_trace_view_model(struct tracecmd_input *handle)
 {
@@ -250,6 +259,24 @@ void trace_view(int argc, char **argv)
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
 
+
+	/* --- Filter - CPUs Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("CPUs");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (cpus_clicked),
+				  (gpointer) trace_tree);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- End Filter Options --- */
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
 
 	/* --- Top Level Hbox --- */

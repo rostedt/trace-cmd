@@ -666,6 +666,41 @@ trace_view_store_iter_parent (GtkTreeModel *tree_model,
 	return FALSE;
 }
 
+static int mask_cpu_isset(TraceViewStore *store, gint cpu)
+{
+	guint64 mask;
+
+	mask = *(store->cpu_mask + (cpu >> 6));
+
+	return mask & (1ULL << (cpu & ((1ULL << 6) - 1)));
+}
+
+static void mask_cpu_set(TraceViewStore *store, gint cpu)
+{
+	guint64 *mask;
+
+	mask = store->cpu_mask + (cpu >> 6);
+	*mask |= (1ULL << (cpu & ((1ULL << 6) - 1)));
+}
+
+static void mask_cpu_clear(TraceViewStore *store, gint cpu)
+{
+	guint64 *mask;
+
+	mask = store->cpu_mask + (cpu >> 6);
+	*mask &= ~(1ULL << (cpu & ((1ULL << 6) - 1)));
+}
+
+static void mask_set_cpus(TraceViewStore *store, gint cpus)
+{
+	gint idx;
+
+	for (idx = 0; idx < (cpus >> 6); idx++) {
+		*(store->cpu_mask + idx) = -1ULL;
+	}
+
+	*(store->cpu_mask) = (1ULL << (cpus & ((1ULL << 6) - 1))) - 1;
+}
 
 /*****************************************************************************
  *
@@ -691,9 +726,20 @@ static void merge_sort_rows_ts(TraceViewStore *store)
 		next = -1;
 		ts = 0;
 		for (cpu = 0; cpu < store->cpus; cpu++) {
+			if (!store->all_cpus && !mask_cpu_isset(store, cpu))
+				continue;
+
+ try_again:
 			if (indexes[cpu] == store->cpu_items[cpu])
 				continue;
+
 			i = indexes[cpu];
+
+			if (!store->cpu_list[cpu][i].visible) {
+				indexes[cpu]++;
+				goto try_again;
+			}
+
 			if (!ts || store->cpu_list[cpu][i].timestamp < ts) {
 				ts = store->cpu_list[cpu][i].timestamp;
 				next = cpu;
@@ -705,6 +751,8 @@ static void merge_sort_rows_ts(TraceViewStore *store)
 			store->cpu_list[next][i].pos = count++;
 		}
 	} while (next >= 0);
+
+	store->num_rows = count;
 
 	g_free(indexes);
 }
@@ -740,6 +788,14 @@ trace_view_store_new (struct tracecmd_input *handle)
 
 	newstore->cpu_items = g_new(gint, newstore->cpus);
 	g_assert(newstore->cpu_items != NULL);
+
+	newstore->all_cpus = 1;
+	newstore->all_events = 1;
+
+	newstore->cpu_mask = g_new0(guint64, (newstore->cpus >> 6) + 1);
+	g_assert(newstore->cpu_mask != NULL);
+
+	mask_set_cpus(newstore, newstore->cpus);
 
 	for (cpu = 0; cpu < newstore->cpus; cpu++) {
 
@@ -792,12 +848,63 @@ trace_view_store_new (struct tracecmd_input *handle)
 		total += count;
 	}
 
-	newstore->num_rows = total;
 	newstore->rows = g_malloc(sizeof(*newstore->rows) * total);
 
 	merge_sort_rows_ts(newstore);
 
 	return newstore;
+}
+
+/* --- helper functions --- */
+
+gboolean trace_view_store_cpu_isset(TraceViewStore *store, gint cpu)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);
+	g_return_val_if_fail (cpu >= 0 || cpu < store->cpus, FALSE);
+
+	if (mask_cpu_isset(store, cpu))
+		return TRUE;
+	return FALSE;
+}
+
+void trace_view_store_set_all_cpus(TraceViewStore *store)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	if (store->all_cpus)
+		return;
+
+	mask_set_cpus(store, store->cpus);
+	store->all_cpus = 1;
+
+	merge_sort_rows_ts(store);
+}
+
+void trace_view_store_set_cpu(TraceViewStore *store, gint cpu)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+	g_return_if_fail (cpu >= 0 || cpu < store->cpus);
+
+	if (store->all_cpus || mask_cpu_isset(store, cpu))
+		return;
+
+	mask_cpu_set(store, cpu);
+
+	merge_sort_rows_ts(store);
+}
+
+void trace_view_store_clear_cpu(TraceViewStore *store, gint cpu)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+	g_return_if_fail (cpu >= 0 || cpu < store->cpus);
+
+	if (!mask_cpu_isset(store, cpu))
+		return;
+
+	store->all_cpus = 0;
+	mask_cpu_clear(store, cpu);
+
+	merge_sort_rows_ts(store);
 }
 
 

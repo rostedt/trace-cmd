@@ -18,5 +18,6 @@ void trace_view(int argc, char **argv);
 
 /* We use void because this can be used by non gtk files */
 void trace_filter_event_dialog(void *traceview);
+void trace_filter_cpu_dialog(void *trace_tree);
 
 #endif /* __TRACE_LOCAL_H */
