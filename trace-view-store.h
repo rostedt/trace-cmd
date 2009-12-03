@@ -121,7 +121,7 @@ GType		trace_view_store_get_type (void);
 
 TraceViewStore	*trace_view_store_new (struct tracecmd_input *handle);
 
-#define TRACE_VIEW_DEFAULT_MAX_ROWS 10000
+#define TRACE_VIEW_DEFAULT_MAX_ROWS 1000
 
 #if 0
 void		trace_view_store_append_record (TraceViewStore   *trace_view_store,
