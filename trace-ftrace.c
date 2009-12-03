@@ -262,9 +262,6 @@ fgraph_ret_handler(struct trace_seq *s, void *data, int size,
 	unsigned long long duration, depth;
 	int i;
 
-	/* Compensate that exit is one char less than entry */
-	trace_seq_putc(s, ' ');
-
 	if (get_field_val(s, data, event, "rettime", &rettime))
 		return trace_seq_putc(s, '!');
 

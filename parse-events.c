@@ -2921,12 +2921,14 @@ void pevent_event_info(struct trace_seq *s, struct event *event,
 void pevent_print_event(struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs)
 {
+	static char *spaces = "                    "; /* 20 spaces */
 	struct event *event;
 	unsigned long secs;
 	unsigned long usecs;
 	const char *comm;
 	int type;
 	int pid;
+	int len;
 
 	secs = nsecs / NSECS_PER_SEC;
 	usecs = nsecs - secs * NSECS_PER_SEC;
@@ -2952,6 +2954,11 @@ void pevent_print_event(struct trace_seq *s,
 
 	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
 
+	/* Space out the event names evenly. */
+	len = strlen(event->name);
+	if (len < 20)
+		trace_seq_printf(s, "%.*s", 20 - len, spaces);
+	
 	if (event->handler)
 		event->handler(s, data, size, event, cpu, nsecs);
 	else
