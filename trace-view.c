@@ -134,6 +134,7 @@ load_trace_view(GtkWidget *view, struct tracecmd_input *handle,
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
+	GtkCellRenderer *fix_renderer;
 	GtkTreeModel *model;
 
 
@@ -142,6 +143,12 @@ load_trace_view(GtkWidget *view, struct tracecmd_input *handle,
 	col = gtk_tree_view_column_new();
 
 	renderer = gtk_cell_renderer_text_new();
+	fix_renderer = gtk_cell_renderer_text_new();
+
+	g_object_set(fix_renderer,
+		     "family", "Monospace",
+		     "family-set", TRUE,
+		     NULL);
 
 	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 					     -1,
@@ -174,7 +181,7 @@ load_trace_view(GtkWidget *view, struct tracecmd_input *handle,
 	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 					     -1,
 					     "Latency",
-					     renderer,
+					     fix_renderer,
 					     "text", COL_LAT,
 					     NULL);
 
@@ -185,10 +192,11 @@ load_trace_view(GtkWidget *view, struct tracecmd_input *handle,
 					     "text", COL_EVENT,
 					     NULL);
 
+	
 	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 					     -1,
 					     "Info",
-					     renderer,
+					     fix_renderer,
 					     "text", COL_INFO,
 					     NULL);
 
