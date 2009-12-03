@@ -472,6 +472,7 @@ static int get_next_page(struct tracecmd_handle *handle, int cpu)
 		if (handle->cpu_data[cpu].size <= handle->page_size) {
 			free(handle->cpu_data[cpu].page);
 			handle->cpu_data[cpu].page = NULL;
+			handle->cpu_data[cpu].offset = 0;
 			return 0;
 		}
 
@@ -496,8 +497,10 @@ static int get_next_page(struct tracecmd_handle *handle, int cpu)
 	munmap(handle->cpu_data[cpu].page, handle->page_size);
 	handle->cpu_data[cpu].page = NULL;
 
-	if (handle->cpu_data[cpu].size <= handle->page_size)
+	if (handle->cpu_data[cpu].size <= handle->page_size) {
+		handle->cpu_data[cpu].offset = 0;
 		return 0;
+	}
 
 	update_cpu_data_index(handle, cpu);
 	
