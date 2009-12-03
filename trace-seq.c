@@ -126,6 +126,12 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 	return 1;
 }
 
+void trace_seq_terminate(struct trace_seq *s)
+{
+	if (!s->full)
+		s->buffer[s->len] = 0;
+}
+
 int trace_seq_do_printf(struct trace_seq *s)
 {
 	return printf("%.*s%s", s->len, s->buffer,

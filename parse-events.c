@@ -2881,8 +2881,7 @@ void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 	else
 		trace_seq_printf(s, "%d", lock_depth);
 
-	if (!s->full)
-		trace_seq_putc(s, 0);
+	trace_seq_terminate(s);
 }
 
 int pevent_data_type(void *data)
@@ -2916,8 +2915,7 @@ void pevent_event_info(struct trace_seq *s, struct event *event,
 	else
 		pretty_print(s, data, size, event);
 
-	if (!s->full)
-		trace_seq_putc(s, 0);
+	trace_seq_terminate(s);
 }
 
 void pevent_print_event(struct trace_seq *s,
@@ -2959,9 +2957,7 @@ void pevent_print_event(struct trace_seq *s,
 	else
 		pretty_print(s, data, size, event);
 
-	if (!s->full)
-		trace_seq_putc(s, 0);
-
+	trace_seq_terminate(s);
 }
 
 static int events_id_cmp(const void *a, const void *b)
