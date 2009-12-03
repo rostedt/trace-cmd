@@ -177,6 +177,15 @@ trace_view_store_init (TraceViewStore *trace_view_store)
 	trace_view_store->num_rows = 0;
 	trace_view_store->rows	= NULL;
 
+	trace_view_store->spin = NULL;
+	trace_view_store->page = 1;
+	trace_view_store->pages = 1;
+	trace_view_store->rows_per_page = TRACE_VIEW_DEFAULT_MAX_ROWS;
+	trace_view_store->num_rows = 0;
+	trace_view_store->start_row = 0;
+	trace_view_store->visible_rows = 0;
+	trace_view_store->actual_rows = 0;
+
 	/* Set all columns visible */
 	trace_view_store->visible_column_mask = (1 << TRACE_VIEW_STORE_N_COLUMNS) - 1;
 
@@ -195,10 +204,13 @@ trace_view_store_init (TraceViewStore *trace_view_store)
 static void
 trace_view_store_finalize (GObject *object)
 {
-/*	TraceViewStore *trace_view_store = TRACE_VIEW_STORE(object); */
+	TraceViewStore *store = TRACE_VIEW_STORE(object);
 
 	/* free all records and free all memory used by the list */
 #warning IMPLEMENT
+
+	if (store->spin)
+		g_object_unref(store->spin);
 
 	/* must chain up - finalize parent */
 	(* parent_class->finalize) (object);
@@ -303,7 +315,7 @@ trace_view_store_get_iter (GtkTreeModel *tree_model,
 {
 	TraceViewStore	*trace_view_store;
 	TraceViewRecord	*record;
-	gint	*indices, n, depth;
+	gint	*indices, n, depth, pos;
 
 	g_assert(TRACE_VIEW_IS_LIST(tree_model));
 	g_assert(path!=NULL);
@@ -321,10 +333,13 @@ trace_view_store_get_iter (GtkTreeModel *tree_model,
 	if ( n >= trace_view_store->num_rows || n < 0 )
 		return FALSE;
 
-	record = trace_view_store->rows[n];
+	record = trace_view_store->rows[trace_view_store->start_row + n];
 
 	g_assert(record != NULL);
-	g_assert(record->pos == n);
+
+	pos = record->pos - trace_view_store->start_row;
+
+	g_assert(pos == n);
 
 	/* We simply store a pointer to our custom record in the iter */
 	iter->stamp	= trace_view_store->stamp;
@@ -388,7 +403,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	const gchar *comm;
 	gchar *str;
 	guint64 secs, usecs;
-	gint val;
+	gint val, pos;
 	int cpu;
 
 	g_return_if_fail (TRACE_VIEW_IS_LIST (tree_model));
@@ -405,7 +420,9 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 	g_return_if_fail ( record != NULL );
 
-	if(record->pos >= trace_view_store->num_rows)
+	pos = record->pos - trace_view_store->start_row;
+
+	if(pos >= trace_view_store->num_rows)
 		g_return_if_reached();
 
 	column = get_visible_column(TRACE_VIEW_STORE(tree_model), column);
@@ -433,6 +450,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	case TRACE_VIEW_STORE_COL_INFO:
 
 		data = tracecmd_read_at(trace_view_store->handle, record->offset, &cpu);
+		g_assert(data != NULL);
 		if (cpu != record->cpu) {
 			free(data);
 			return;
@@ -490,6 +508,7 @@ trace_view_store_iter_next (GtkTreeModel	*tree_model,
 {
 	TraceViewRecord	*record, *nextrecord;
 	TraceViewStore	*trace_view_store;
+	gint pos;
 
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (tree_model), FALSE);
 
@@ -500,8 +519,10 @@ trace_view_store_iter_next (GtkTreeModel	*tree_model,
 
 	record = (TraceViewRecord *) iter->user_data;
 
+	pos = record->pos - trace_view_store->start_row;
+
 	/* Is this the last record in the list? */
-	if ((record->pos + 1) >= trace_view_store->num_rows)
+	if ((pos + 1) >= trace_view_store->num_rows)
 		return FALSE;
 
 	nextrecord = trace_view_store->rows[(record->pos + 1)];
@@ -638,10 +659,10 @@ trace_view_store_iter_nth_child (GtkTreeModel *tree_model,
 	if( n >= trace_view_store->num_rows )
 		return FALSE;
 
-	record = trace_view_store->rows[n];
+	record = trace_view_store->rows[trace_view_store->start_row + n];
 
 	g_assert( record != NULL );
-	g_assert( record->pos == n );
+	g_assert( record->pos - trace_view_store->start_row == n );
 
 	iter->stamp = trace_view_store->stamp;
 	iter->user_data = record;
@@ -702,6 +723,15 @@ static void mask_set_cpus(TraceViewStore *store, gint cpus)
 	*(store->cpu_mask) = (1ULL << (cpus & ((1ULL << 6) - 1))) - 1;
 }
 
+static void update_page(TraceViewStore *store)
+{
+	if (!store->spin)
+		return;
+
+	gtk_spin_button_set_range(GTK_SPIN_BUTTON(store->spin),
+				  1, store->pages);
+}
+
 /*****************************************************************************
  *
  *	merge_sort_rows_ts: Merge sort the data by time stamp.
@@ -752,7 +782,27 @@ static void merge_sort_rows_ts(TraceViewStore *store)
 		}
 	} while (next >= 0);
 
-	store->num_rows = count;
+	store->visible_rows = count;
+	store->start_row = 0;
+	store->pages = (count / store->rows_per_page) + 1;
+
+	if (store->page > 1) {
+		if (count < store->page * store->rows_per_page)
+			store->page = store->pages;
+
+		/* still greater? */
+		if (store->page > 1) {
+			store->start_row =
+				(store->page - 1) * store->rows_per_page;
+			g_assert(store->start_row < count);
+		}
+	}
+
+	store->num_rows = count > (store->start_row + store->rows_per_page) ?
+		store->rows_per_page :
+		count - store->start_row;
+
+	update_page(store);
 
 	g_free(indexes);
 }
@@ -826,6 +876,8 @@ trace_view_store_new (struct tracecmd_input *handle)
 			rec = list;
 
 			trec = g_new(TraceViewRecord, count);
+			g_assert(trec != NULL);
+
 			for (i = 0; i < count; i++) {
 				g_assert(rec != NULL);
 				trec[i].cpu = cpu;
@@ -848,11 +900,27 @@ trace_view_store_new (struct tracecmd_input *handle)
 		total += count;
 	}
 
-	newstore->rows = g_malloc(sizeof(*newstore->rows) * total);
+	newstore->actual_rows = total;
+	newstore->rows = g_malloc(sizeof(*newstore->rows) * total + 1);
 
 	merge_sort_rows_ts(newstore);
 
 	return newstore;
+}
+
+void trace_view_store_set_spin_button(TraceViewStore *store, GtkWidget *spin)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+	g_return_if_fail (GTK_IS_SPIN_BUTTON (spin));
+
+	store->spin = spin;
+
+	gtk_spin_button_set_increments(GTK_SPIN_BUTTON(store->spin),
+				       1.0, 5.0);
+
+	update_page(store);
+
+	g_object_ref(spin);
 }
 
 /* --- helper functions --- */
@@ -905,6 +973,19 @@ void trace_view_store_clear_cpu(TraceViewStore *store, gint cpu)
 	mask_cpu_clear(store, cpu);
 
 	merge_sort_rows_ts(store);
+}
+
+void trace_view_store_set_page(TraceViewStore *store, gint page)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+	g_return_if_fail (page >= 0 || page < store->pages);
+
+	store->page = page;
+	store->start_row = (page - 1) * store->rows_per_page;
+	g_assert(store->start_row < store->visible_rows);
+	store->num_rows = store->start_row + store->rows_per_page <
+		store->visible_rows ? store->rows_per_page :
+		store->visible_rows - store->start_row;
 }
 
 

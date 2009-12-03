@@ -80,6 +80,44 @@ cpus_clicked (gpointer data)
 	trace_filter_cpu_dialog(trace_tree);
 }
 
+#if 0
+static GtkTreeModel *
+create_combo_box_model(void)
+{
+	GtkListStore *store;
+	GtkTreeIter iter;
+
+	store = gtk_list_store_new(1, G_TYPE_STRING);
+	gtk_list_store_append(store, &iter);
+	gtk_list_store_set(store, &iter, 0, "1", -1);
+
+	return GTK_TREE_MODEL(store);
+}
+#endif
+
+static void
+spin_changed(gpointer data, GtkWidget *spin)
+{
+	GtkTreeView *tree = data;
+	GtkTreeModel *model;
+	gint val, page;
+
+	val = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin));
+
+	model = gtk_tree_view_get_model(tree);
+	page = trace_view_store_get_page(TRACE_VIEW_STORE(model));
+	if (page == val)
+		return;
+
+	g_object_ref(model);
+	gtk_tree_view_set_model(tree, NULL);
+
+	trace_view_store_set_page(TRACE_VIEW_STORE(model), val);
+
+	gtk_tree_view_set_model(tree, model);
+	g_object_unref(model);
+}
+
 static GtkTreeModel *
 create_trace_view_model(struct tracecmd_input *handle)
 {
@@ -91,7 +129,8 @@ create_trace_view_model(struct tracecmd_input *handle)
 }
 
 static void
-load_trace_view(GtkWidget *view, struct tracecmd_input *handle)
+load_trace_view(GtkWidget *view, struct tracecmd_input *handle,
+		GtkWidget *spin)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
@@ -155,6 +194,9 @@ load_trace_view(GtkWidget *view, struct tracecmd_input *handle)
 
 	model = create_trace_view_model(handle);
 
+	trace_view_store_set_spin_button(TRACE_VIEW_STORE(model), spin);
+	g_object_unref(spin);
+
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
 	g_object_unref(model); /* destroy model automatically with view */
@@ -171,6 +213,8 @@ void trace_view(int argc, char **argv)
 	GtkWidget *menu_item;
 	GtkWidget *sub_item;
 	GtkWidget *scrollwin;
+	GtkWidget *label;
+	GtkWidget *spin;
 
 	handle = read_trace_header();
 	if (!handle)
@@ -279,6 +323,29 @@ void trace_view(int argc, char **argv)
 	/* --- End Filter Options --- */
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
 
+
+	/* --- Paging Hbox --- */
+
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+	gtk_widget_show(hbox);
+
+	/* --- Page Spin Button --- */
+
+	label = gtk_label_new("Page");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	spin = gtk_spin_button_new(NULL, 1.0, 0);
+	gtk_spin_button_set_range(GTK_SPIN_BUTTON(spin), 1, 1);
+	gtk_box_pack_start(GTK_BOX(hbox), spin, FALSE, FALSE, 0);
+	gtk_widget_show(spin);
+
+	g_signal_connect_swapped (G_OBJECT (spin), "value-changed",
+				  G_CALLBACK (spin_changed),
+				  (gpointer) trace_tree);
+
+
 	/* --- Top Level Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -295,7 +362,8 @@ void trace_view(int argc, char **argv)
 
 	/* --- Set up Trace Tree --- */
 
-	load_trace_view(trace_tree, handle);
+	load_trace_view(trace_tree, handle, spin);
+
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
 					      trace_tree);
 	gtk_widget_show(trace_tree);

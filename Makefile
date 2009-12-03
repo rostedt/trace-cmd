@@ -22,7 +22,7 @@ all: $(TARGETS)
 
 LIB_FILE = libtracecmd.a
 
-HEADERS = parse-events.h trace-cmd.h trace-local.h
+HEADERS = parse-events.h trace-cmd.h trace-local.h trace-view-store.h
 
 trace-read.o::		$(HEADERS) 
 trace-cmd.o::		$(HEADERS) $(LIB_FILE)

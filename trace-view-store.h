@@ -62,7 +62,10 @@ struct _TraceViewStore
 {
 	GObject			parent;	/* this MUST be the first member */
 
-	guint			num_rows; /* number of rows that we have   */
+	guint			start_row; /* row to start at */
+	guint			num_rows; /* number of rows that we have showing   */
+	guint			visible_rows; /* number of rows defined */
+	guint			actual_rows; /* size of rows array */
 	TraceViewRecord		**rows;	/* a dynamically allocated array of pointers to
 					 *   the TraceViewRecord structure for each row    */
 
@@ -78,6 +81,11 @@ struct _TraceViewStore
 	TraceViewRecord		**cpu_list;
 	gint			*cpu_items;
 
+	gint			page;
+	gint			pages;
+	gint			rows_per_page;
+	GtkWidget		*spin;
+
 	/* filters */
 	gint			all_events; /* set 1 when all events are enabled */
 						/* else */
@@ -91,29 +99,15 @@ struct _TraceViewStore
 	gint		stamp;	/* Random integer to check whether an iter belongs to our model */
 };
 
-/* helper functions */
-
-static inline gint trace_view_store_get_cpus(TraceViewStore *store)
-{
-	return store->cpus;
-}
-
-static inline guint64 *trace_view_store_get_cpu_mask(TraceViewStore *store)
-{
-	return store->cpu_mask;
-}
-
-static inline gint trace_view_store_get_all_cpus(TraceViewStore *store)
-{
-	return store->all_cpus;
-}
-
 gboolean trace_view_store_cpu_isset(TraceViewStore *store, gint cpu);
 
 void trace_view_store_set_all_cpus(TraceViewStore *store);
 void trace_view_store_set_cpu(TraceViewStore *store, gint cpu);
 void trace_view_store_clear_cpu(TraceViewStore *store, gint cpu);
 
+void trace_view_store_set_spin_button(TraceViewStore *store, GtkWidget *spin);
+
+void trace_view_store_set_page(TraceViewStore *store, gint page);
 
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 
@@ -127,10 +121,39 @@ GType		trace_view_store_get_type (void);
 
 TraceViewStore	*trace_view_store_new (struct tracecmd_input *handle);
 
+#define TRACE_VIEW_DEFAULT_MAX_ROWS 10000
+
 #if 0
 void		trace_view_store_append_record (TraceViewStore   *trace_view_store,
 						const gchar  *name,
 						guint         year_born);
 #endif
+
+
+/* helper functions */
+
+static inline gint trace_view_store_get_cpus(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), -1);
+	return store->cpus;
+}
+
+static inline guint64 *trace_view_store_get_cpu_mask(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
+	return store->cpu_mask;
+}
+
+static inline gint trace_view_store_get_all_cpus(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), -1);
+	return store->all_cpus;
+}
+
+static inline gint trace_view_store_get_page(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), -1);
+	return store->page;
+}
 
 #endif /* _trace_view_store_h_included_ */

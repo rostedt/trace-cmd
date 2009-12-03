@@ -347,6 +347,7 @@ void trace_filter_cpu_dialog(void *trace_tree)
 
 	cpu_helper->allcpus = allset;
 	cpu_helper->cpu_mask = g_new0(guint64, (cpus >> 6) + 1);
+	g_assert(cpu_helper->cpu_mask != NULL);
 
 	gtk_widget_show(check);
 
