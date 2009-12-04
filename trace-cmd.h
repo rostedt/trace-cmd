@@ -34,33 +34,33 @@ struct record {
 	void *data;
 };
 
-struct tracecmd_handle;
+struct tracecmd_input;
 
-struct tracecmd_handle *tracecmd_open(int fd);
-int tracecmd_read_headers(struct tracecmd_handle *handle);
-int tracecmd_long_size(struct tracecmd_handle *handle);
-int tracecmd_page_size(struct tracecmd_handle *handle);
-int tracecmd_cpus(struct tracecmd_handle *handle);
+struct tracecmd_input *tracecmd_open(int fd);
+int tracecmd_read_headers(struct tracecmd_input *handle);
+int tracecmd_long_size(struct tracecmd_input *handle);
+int tracecmd_page_size(struct tracecmd_input *handle);
+int tracecmd_cpus(struct tracecmd_input *handle);
 
-int tracecmd_init_data(struct tracecmd_handle *handle);
-
-struct record *
-tracecmd_peek_data(struct tracecmd_handle *handle, int cpu);
+int tracecmd_init_data(struct tracecmd_input *handle);
 
 struct record *
-tracecmd_read_data(struct tracecmd_handle *handle, int cpu);
+tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
 
 struct record *
-tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
+tracecmd_read_data(struct tracecmd_input *handle, int cpu);
+
+struct record *
+tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *cpu);
 struct record *
-tracecmd_translate_data(struct tracecmd_handle *handle,
+tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size);
 
-int tracecmd_ftrace_overrides(struct tracecmd_handle *handle);
-struct pevent *tracecmd_get_pevent(struct tracecmd_handle *handle);
+int tracecmd_ftrace_overrides(struct tracecmd_input *handle);
+struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 
 /* hack for function graph work around */
-extern __thread struct tracecmd_handle *tracecmd_curr_thread_handle;
+extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;
 
 #endif /* _TRACE_CMD_H */

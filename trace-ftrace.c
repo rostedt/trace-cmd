@@ -289,7 +289,7 @@ fgraph_ret_handler(struct trace_seq *s, void *data, int size,
 	return trace_seq_putc(s, '}');
 }
 
-int tracecmd_ftrace_overrides(struct tracecmd_handle *handle)
+int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
 	struct event *event;

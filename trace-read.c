@@ -46,7 +46,7 @@ int show_events = 0;
 
 static int filter_cpu = -1;
 
-static void show_data(struct tracecmd_handle *handle, int cpu)
+static void show_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent;
 	struct record *record;
@@ -78,7 +78,7 @@ static void read_rest(void)
 	} while (r > 0);
 }
 
-static void read_data_info(struct tracecmd_handle *handle)
+static void read_data_info(struct tracecmd_input *handle)
 {
 	unsigned long long ts;
 	struct record *data;
@@ -123,7 +123,7 @@ static void read_data_info(struct tracecmd_handle *handle)
 	} while (next >= 0);
 }
 
-struct tracecmd_handle *read_trace_header(void)
+struct tracecmd_input *read_trace_header(void)
 {
 	input_fd = open(input_file, O_RDONLY);
 	if (input_fd < 0)
@@ -134,7 +134,7 @@ struct tracecmd_handle *read_trace_header(void)
 
 void trace_report (int argc, char **argv)
 {
-	struct tracecmd_handle *handle;
+	struct tracecmd_input *handle;
 	struct pevent *pevent;
 	int show_funcs = 0;
 	int show_endian = 0;

@@ -33,7 +33,7 @@ struct cpu_data {
 	int			page_size;
 };
 
-struct tracecmd_handle {
+struct tracecmd_input {
 	struct pevent	*pevent;
 	int		fd;
 	int		long_size;
@@ -44,11 +44,11 @@ struct tracecmd_handle {
 	struct cpu_data *cpu_data;
 };
 
-__thread struct tracecmd_handle *tracecmd_curr_thread_handle;
+__thread struct tracecmd_input *tracecmd_curr_thread_handle;
 
-static int init_cpu(struct tracecmd_handle *handle, int cpu);
+static int init_cpu(struct tracecmd_input *handle, int cpu);
 
-static int do_read(struct tracecmd_handle *handle, void *data, int size)
+static int do_read(struct tracecmd_input *handle, void *data, int size)
 {
 	int tot = 0;
 	int r;
@@ -67,7 +67,7 @@ static int do_read(struct tracecmd_handle *handle, void *data, int size)
 }
 
 static int
-do_read_check(struct tracecmd_handle *handle, void *data, int size)
+do_read_check(struct tracecmd_input *handle, void *data, int size)
 {
 	int ret;
 
@@ -80,7 +80,7 @@ do_read_check(struct tracecmd_handle *handle, void *data, int size)
 	return 0;
 }
 
-static char *read_string(struct tracecmd_handle *handle)
+static char *read_string(struct tracecmd_input *handle)
 {
 	char buf[BUFSIZ];
 	char *str = NULL;
@@ -146,7 +146,7 @@ static char *read_string(struct tracecmd_handle *handle)
 	return NULL;
 }
 
-static unsigned int read4(struct tracecmd_handle *handle)
+static unsigned int read4(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
 	unsigned int data;
@@ -157,7 +157,7 @@ static unsigned int read4(struct tracecmd_handle *handle)
 	return __data2host4(pevent, data);
 }
 
-static unsigned long long read8(struct tracecmd_handle *handle)
+static unsigned long long read8(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
 	unsigned long long data;
@@ -168,7 +168,7 @@ static unsigned long long read8(struct tracecmd_handle *handle)
 	return __data2host8(pevent, data);
 }
 
-static int read_header_files(struct tracecmd_handle *handle)
+static int read_header_files(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
 	long long size;
@@ -227,7 +227,7 @@ static int read_header_files(struct tracecmd_handle *handle)
 	return -1;
 }
 
-static int read_ftrace_file(struct tracecmd_handle *handle,
+static int read_ftrace_file(struct tracecmd_input *handle,
 			    unsigned long long size)
 {
 	struct pevent *pevent = handle->pevent;
@@ -247,7 +247,7 @@ static int read_ftrace_file(struct tracecmd_handle *handle,
 	return 0;
 }
 
-static int read_event_file(struct tracecmd_handle *handle,
+static int read_event_file(struct tracecmd_input *handle,
 			   char *system, unsigned long long size)
 {
 	struct pevent *pevent = handle->pevent;
@@ -271,7 +271,7 @@ static int read_event_file(struct tracecmd_handle *handle,
 	return 0;
 }
 
-static int read_ftrace_files(struct tracecmd_handle *handle)
+static int read_ftrace_files(struct tracecmd_input *handle)
 {
 	unsigned long long size;
 	int count;
@@ -294,7 +294,7 @@ static int read_ftrace_files(struct tracecmd_handle *handle)
 	return 0;
 }
 
-static int read_event_files(struct tracecmd_handle *handle)
+static int read_event_files(struct tracecmd_input *handle)
 {
 	unsigned long long size;
 	char *system;
@@ -335,7 +335,7 @@ static int read_event_files(struct tracecmd_handle *handle)
 	return -1;
 }
 
-static int read_proc_kallsyms(struct tracecmd_handle *handle)
+static int read_proc_kallsyms(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
 	int size;
@@ -362,7 +362,7 @@ static int read_proc_kallsyms(struct tracecmd_handle *handle)
 	return 0;
 }
 
-static int read_ftrace_printk(struct tracecmd_handle *handle)
+static int read_ftrace_printk(struct tracecmd_input *handle)
 {
 	int size;
 	char *buf;
@@ -389,7 +389,7 @@ static int read_ftrace_printk(struct tracecmd_handle *handle)
 	return 0;
 }
 
-int tracecmd_read_headers(struct tracecmd_handle *handle)
+int tracecmd_read_headers(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
 	int ret;
@@ -422,7 +422,7 @@ int tracecmd_read_headers(struct tracecmd_handle *handle)
 	return 0;
 }
 
-static unsigned int type4host(struct tracecmd_handle *handle,
+static unsigned int type4host(struct tracecmd_input *handle,
 			      unsigned int type_len_ts)
 {
 	struct pevent *pevent = handle->pevent;
@@ -433,7 +433,7 @@ static unsigned int type4host(struct tracecmd_handle *handle,
 		return type_len_ts & 3;
 }
 
-static unsigned int len4host(struct tracecmd_handle *handle,
+static unsigned int len4host(struct tracecmd_input *handle,
 			     unsigned int type_len_ts)
 {
 	struct pevent *pevent = handle->pevent;
@@ -444,7 +444,7 @@ static unsigned int len4host(struct tracecmd_handle *handle,
 		return (type_len_ts >> 2) & 7;
 }
 
-static unsigned int type_len4host(struct tracecmd_handle *handle,
+static unsigned int type_len4host(struct tracecmd_input *handle,
 				  unsigned int type_len_ts)
 {
 	struct pevent *pevent = handle->pevent;
@@ -455,7 +455,7 @@ static unsigned int type_len4host(struct tracecmd_handle *handle,
 		return type_len_ts & ((1 << 5) - 1);
 }
 
-static unsigned int ts4host(struct tracecmd_handle *handle,
+static unsigned int ts4host(struct tracecmd_input *handle,
 			    unsigned int type_len_ts)
 {
 	struct pevent *pevent = handle->pevent;
@@ -466,21 +466,21 @@ static unsigned int ts4host(struct tracecmd_handle *handle,
 		return type_len_ts >> 5;
 }
 
-static int calc_index(struct tracecmd_handle *handle,
+static int calc_index(struct tracecmd_input *handle,
 		      void *ptr, int cpu)
 {
 	return (unsigned long)ptr - (unsigned long)handle->cpu_data[cpu].page;
 }
 
 static void
-update_cpu_data_index(struct tracecmd_handle *handle, int cpu)
+update_cpu_data_index(struct tracecmd_input *handle, int cpu)
 {
 	handle->cpu_data[cpu].offset += handle->page_size;
 	handle->cpu_data[cpu].size -= handle->page_size;
 	handle->cpu_data[cpu].index = 0;
 }
 
-static int get_next_page(struct tracecmd_handle *handle, int cpu)
+static int get_next_page(struct tracecmd_input *handle, int cpu)
 {
 	off64_t save_seek;
 	off64_t ret;
@@ -540,7 +540,7 @@ enum old_ring_buffer_type {
 };
 
 static struct record *
-read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
+read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
 	struct record *data;
@@ -614,7 +614,7 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 }
 
 static struct record *
-read_event(struct tracecmd_handle *handle, unsigned long long offset,
+read_event(struct tracecmd_input *handle, unsigned long long offset,
 	   int cpu)
 {
 	struct record *record = NULL;
@@ -645,7 +645,7 @@ read_event(struct tracecmd_handle *handle, unsigned long long offset,
 }
 
 static struct record *
-find_and_read_event(struct tracecmd_handle *handle, unsigned long long offset,
+find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 		    int *pcpu)
 {
 	unsigned long long page_offset;
@@ -707,7 +707,7 @@ find_and_read_event(struct tracecmd_handle *handle, unsigned long long offset,
 
 
 struct record *
-tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
+tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *pcpu)
 {
 	unsigned long long page_offset;
@@ -730,7 +730,7 @@ tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
 }
 
 static unsigned int
-translate_data(struct tracecmd_handle *handle,
+translate_data(struct tracecmd_input *handle,
 	       void **ptr, unsigned long long *delta, int *length)
 {
 	struct pevent *pevent = handle->pevent;
@@ -777,7 +777,7 @@ translate_data(struct tracecmd_handle *handle,
 }
 
 struct record *
-tracecmd_translate_data(struct tracecmd_handle *handle,
+tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size)
 {
 	struct record *data;
@@ -808,7 +808,7 @@ tracecmd_translate_data(struct tracecmd_handle *handle,
 }
 
 struct record *
-tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
+tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
 	struct record *data;
@@ -913,7 +913,7 @@ read_again:
 }
 
 struct record *
-tracecmd_read_data(struct tracecmd_handle *handle, int cpu)
+tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 {
 	struct record *data;
 
@@ -923,7 +923,7 @@ tracecmd_read_data(struct tracecmd_handle *handle, int cpu)
 	return data;
 }
 
-static int init_read(struct tracecmd_handle *handle, int cpu)
+static int init_read(struct tracecmd_input *handle, int cpu)
 {
 	off64_t ret;
 	off64_t save_seek;
@@ -948,7 +948,7 @@ static int init_read(struct tracecmd_handle *handle, int cpu)
 	return 0;
 }
 
-static int init_cpu(struct tracecmd_handle *handle, int cpu)
+static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	if (!handle->cpu_data[cpu].size) {
 		printf("CPU %d is empty\n", cpu);
@@ -971,7 +971,7 @@ static int init_cpu(struct tracecmd_handle *handle, int cpu)
 	return 0;
 }
 
-int tracecmd_init_data(struct tracecmd_handle *handle)
+int tracecmd_init_data(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
 	unsigned long long size;
@@ -1032,9 +1032,9 @@ int tracecmd_init_data(struct tracecmd_handle *handle)
 	return 0;
 }
 
-struct tracecmd_handle *tracecmd_open(int fd)
+struct tracecmd_input *tracecmd_open(int fd)
 {
-	struct tracecmd_handle *handle;
+	struct tracecmd_input *handle;
 	char test[] = { 23, 8, 68 };
 	char *version;
 	char buf[BUFSIZ];
@@ -1086,22 +1086,22 @@ struct tracecmd_handle *tracecmd_open(int fd)
 	return NULL;
 }
 
-int tracecmd_long_size(struct tracecmd_handle *handle)
+int tracecmd_long_size(struct tracecmd_input *handle)
 {
 	return handle->long_size;
 }
 
-int tracecmd_page_size(struct tracecmd_handle *handle)
+int tracecmd_page_size(struct tracecmd_input *handle)
 {
 	return handle->page_size;
 }
 
-int tracecmd_cpus(struct tracecmd_handle *handle)
+int tracecmd_cpus(struct tracecmd_input *handle)
 {
 	return handle->cpus;
 }
 
-struct pevent *tracecmd_get_pevent(struct tracecmd_handle *handle)
+struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle)
 {
 	return handle->pevent;
 }
