@@ -69,7 +69,8 @@ int __weak bigendian(void)
 	return *ptr == 0x01020304;
 }
 
-void parse_cmdlines(char *file, int size __unused)
+void parse_cmdlines(struct pevent *pevent,
+		    char *file, int size __unused)
 {
 	char *comm;
 	char *line;
@@ -80,12 +81,13 @@ void parse_cmdlines(char *file, int size __unused)
 	while (line) {
 		sscanf(line, "%d %as", &pid,
 		       (float *)(void *)&comm); /* workaround gcc warning */
-		pevent_register_comm(comm, pid);
+		pevent_register_comm(pevent, comm, pid);
 		line = strtok_r(NULL, "\n", &next);
 	}
 }
 
-void parse_proc_kallsyms(char *file, unsigned int size __unused)
+void parse_proc_kallsyms(struct pevent *pevent,
+			 char *file, unsigned int size __unused)
 {
 	unsigned long long addr;
 	char *func;
@@ -111,7 +113,7 @@ void parse_proc_kallsyms(char *file, unsigned int size __unused)
 		if (mod)
 			mod[strlen(mod) - 1] = 0;
 
-		pevent_register_function(func, addr, mod);
+		pevent_register_function(pevent, func, addr, mod);
 
 		line = strtok_r(NULL, "\n", &next);
 	}
@@ -136,7 +138,8 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 	}
 }
 
-static int load_plugin(const char *path, const char *file)
+static int load_plugin(struct pevent *pevent,
+		       const char *path, const char *file)
 {
 	char *plugin;
 	void *handle;
@@ -164,13 +167,13 @@ static int load_plugin(const char *path, const char *file)
 	}
 
 	printf("registering plugin: %s\n", plugin);
-	ret = func();
+	ret = func(pevent);
 
 	/* dlclose ?? */
 	return ret;
 }
 
-int trace_load_plugins(void)
+int trace_load_plugins(struct pevent *pevent)
 {
 	struct dirent *dent;
 	struct stat st;
@@ -209,7 +212,7 @@ int trace_load_plugins(void)
 		    strcmp(name, "..") == 0)
 			continue;
 
-		load_plugin(path, name);
+		load_plugin(pevent, path, name);
 	}
 
  fail:

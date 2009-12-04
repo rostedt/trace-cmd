@@ -194,11 +194,11 @@ static int drv_config(struct trace_seq *s, void *data,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(void)
+int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
-	pevent_register_event_handler(-1, "mac80211", "drv_bss_info_changed",
+	pevent_register_event_handler(pevent, -1, "mac80211", "drv_bss_info_changed",
 				      drv_bss_info_changed);
-	pevent_register_event_handler(-1, "mac80211", "drv_config",
+	pevent_register_event_handler(pevent, -1, "mac80211", "drv_config",
 				      drv_config);
 
 	return 0;

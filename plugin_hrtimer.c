@@ -50,6 +50,7 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 			       struct event *event, int cpu,
 			       unsigned long long nsecs)
 {
+	struct pevent *pevent = event->pevent;
 	struct format_field *fn = pevent_find_field(event, "function");
 
 	trace_seq_printf(s, "hrtimer=");
@@ -66,7 +67,7 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 		if (pevent_read_number_field(fn, data, &function))
 			trace_seq_printf(s, " function=INVALID");
 
-		func = pevent_find_function(function);
+		func = pevent_find_function(pevent, function);
 
 		trace_seq_printf(s, " function=%s", func);
 	}
@@ -80,12 +81,12 @@ static int timer_start_handler(struct trace_seq *s, void *data, int size,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(void)
+int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
-	pevent_register_event_handler(-1, "timer", "hrtimer_expire_entry",
+	pevent_register_event_handler(pevent, -1, "timer", "hrtimer_expire_entry",
 				      timer_expire_handler);
 
-	pevent_register_event_handler(-1, "timer", "hrtimer_start",
+	pevent_register_event_handler(pevent, -1, "timer", "hrtimer_start",
 				      timer_start_handler);
 
 	return 0;

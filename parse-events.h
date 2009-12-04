@@ -49,6 +49,7 @@ extern int trace_seq_do_printf(struct trace_seq *s);
 
 /* ----------------------- pevent ----------------------- */
 
+struct pevent;
 struct event;
 
 typedef int (*pevent_event_handler_func)(struct trace_seq *s,
@@ -56,7 +57,7 @@ typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 struct event *event, int cpu,
 					 unsigned long long nsecs);
 
-typedef int (*pevent_plugin_load_func)(void);
+typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
 
 #define PEVENT_PLUGIN_LOADER pevent_plugin_loader
 #define MAKE_STR(x) #x
@@ -75,6 +76,7 @@ enum format_flags {
 
 struct format_field {
 	struct format_field	*next;
+	struct event		*event;
 	char			*type;
 	char			*name;
 	int			offset;
@@ -179,6 +181,7 @@ struct print_fmt {
 
 struct event {
 	struct event		*next;
+	struct pevent		*pevent;
 	char			*name;
 	int			id;
 	int			flags;
@@ -204,24 +207,80 @@ enum event_sort_type {
 	EVENT_SORT_SYSTEM,
 };
 
-extern int old_format;
+struct cmdline;
+struct cmdline_list;
+struct func_map;
+struct func_list;
 
-void parse_set_info(int nr_cpus, int long_sz);
+struct pevent {
+	int header_page_ts_offset;
+	int header_page_ts_size;
+	int header_page_size_offset;
+	int header_page_size_size;
+	int header_page_data_offset;
+	int header_page_data_size;
+
+	int file_bigendian;
+	int host_bigendian;
+
+	int latency_format;
+
+	int old_format;
+
+	int cpus;
+	int long_size;
+
+	struct cmdline *cmdlines;
+	struct cmdline_list *cmdlist;
+	int cmdline_count;
+
+	struct func_map *func_map;
+	struct func_list *funclist;
+	unsigned int func_count;
+
+	struct printk_map *printk_map;
+	struct printk_list *printklist;
+	unsigned int printk_count;
+
+	struct event *event_list;
+	int nr_events;
+	struct event **events;
+	enum event_sort_type last_type;
+
+	int type_offset;
+	int type_size;
+
+	int pid_offset;
+	int pid_size;
+
+ 	int pc_offset;
+	int pc_size;
+
+	int flags_offset;
+	int flags_size;
+
+	int ld_offset;
+	int ld_size;
+
+	struct format_field *bprint_ip_field;
+	struct format_field *bprint_fmt_field;
+	struct format_field *bprint_buf_field;
+};
+
+void parse_set_info(struct pevent *pevent, int nr_cpus, int long_sz);
 
 void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
 void warning(char *fmt, ...);
 
-extern int file_bigendian;
-extern int host_bigendian;
-
 int bigendian(void);
 
-static inline unsigned short __data2host2(unsigned short data)
+static inline unsigned short
+__data2host2(struct pevent *pevent, unsigned short data)
 {
 	unsigned short swap;
 
-	if (host_bigendian == file_bigendian)
+	if (pevent->host_bigendian == pevent->file_bigendian)
 		return data;
 
 	swap = ((data & 0xffULL) << 8) |
@@ -230,11 +289,12 @@ static inline unsigned short __data2host2(unsigned short data)
 	return swap;
 }
 
-static inline unsigned int __data2host4(unsigned int data)
+static inline unsigned int
+__data2host4(struct pevent *pevent, unsigned int data)
 {
 	unsigned int swap;
 
-	if (host_bigendian == file_bigendian)
+	if (pevent->host_bigendian == pevent->file_bigendian)
 		return data;
 
 	swap = ((data & 0xffULL) << 24) |
@@ -245,11 +305,12 @@ static inline unsigned int __data2host4(unsigned int data)
 	return swap;
 }
 
-static inline unsigned long long __data2host8(unsigned long long data)
+static inline unsigned long long
+__data2host8(struct pevent *pevent, unsigned long long data)
 {
 	unsigned long long swap;
 
-	if (host_bigendian == file_bigendian)
+	if (pevent->host_bigendian == pevent->file_bigendian)
 		return data;
 
 	swap = ((data & 0xffULL) << 56) |
@@ -264,18 +325,9 @@ static inline unsigned long long __data2host8(unsigned long long data)
 	return swap;
 }
 
-#define data2host2(ptr)		__data2host2(*(unsigned short *)ptr)
-#define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
-#define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
-
-extern int header_page_ts_offset;
-extern int header_page_ts_size;
-extern int header_page_size_offset;
-extern int header_page_size_size;
-extern int header_page_data_offset;
-extern int header_page_data_size;
-
-extern int latency_format;
+#define data2host2(pevent, ptr)		__data2host2(pevent, *(unsigned short *)ptr)
+#define data2host4(pevent, ptr)		__data2host4(pevent, *(unsigned int *)ptr)
+#define data2host8(pevent, ptr)		__data2host8(pevent, *(unsigned long long *)ptr)
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {
@@ -286,47 +338,103 @@ enum trace_flag_type {
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 };
 
-int pevent_register_comm(char *comm, int pid);
-int pevent_register_function(char *name, unsigned long long addr, char *mod);
-int pevent_register_print_string(char *fmt, unsigned long long addr);
+int pevent_register_comm(struct pevent *pevent, char *comm, int pid);
+int pevent_register_function(struct pevent *pevetn, char *name,
+			     unsigned long long addr, char *mod);
+int pevent_register_print_string(struct pevent *pevent, char *fmt,
+				 unsigned long long addr);
 
-void pevent_print_event(struct trace_seq *s,
+void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs);
 
-int pevent_parse_header_page(char *buf, unsigned long size);
+int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size);
 
-int pevent_parse_event(char *buf, unsigned long size, char *sys);
+int pevent_parse_event(struct pevent *pevent, char *buf, unsigned long size, char *sys);
 
-int pevent_register_event_handler(int id, char *sys_name, char *event_name,
+int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func);
 
 struct format_field *pevent_find_common_field(struct event *event, const char *name);
 struct format_field *pevent_find_field(struct event *event, const char *name);
 struct format_field *pevent_find_any_field(struct event *event, const char *name);
 
-const char *pevent_find_function(unsigned long long addr);
-unsigned long long pevent_read_number(const void *ptr, int size);
+const char *pevent_find_function(struct pevent *pevent, unsigned long long addr);
+unsigned long long pevent_read_number(struct pevent *pevent, const void *ptr, int size);
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value);
 
-struct event *pevent_find_event(int id);
+struct event *pevent_find_event(struct pevent *pevent, int id);
 
 struct event *
-pevent_find_event_by_name(const char *sys, const char *name);
+pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *name);
 
-void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused);
-int pevent_data_type(void *data);
-struct event *pevent_data_event_from_type(int type);
-int pevent_data_pid(void *data);
-const char *pevent_data_comm_from_pid(int pid);
+void pevent_data_lat_fmt(struct pevent *pevent,
+			 struct trace_seq *s, void *data, int size __unused);
+int pevent_data_type(struct pevent *pevent, void *data);
+struct event *pevent_data_event_from_type(struct pevent *pevent, int type);
+int pevent_data_pid(struct pevent *pevent, void *data);
+const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 void pevent_event_info(struct trace_seq *s, struct event *event,
 		       int cpu, void *data, int size, unsigned long long nsecs);
 
-struct event **pevent_list_events(enum event_sort_type);
+struct event **pevent_list_events(struct pevent *pevent, enum event_sort_type);
+
+static inline int pevent_get_cpus(struct pevent *pevent)
+{
+	return pevent->cpus;
+}
+
+static inline void pevent_set_cpus(struct pevent *pevent, int cpus)
+{
+	pevent->cpus = cpus;
+}
+
+static inline int pevent_get_long_size(struct pevent *pevent)
+{
+	return pevent->long_size;
+}
+
+static inline void pevent_set_long_size(struct pevent *pevent, int long_size)
+{
+	pevent->long_size = long_size;
+}
+
+static inline int pevent_is_file_bigendian(struct pevent *pevent)
+{
+	return pevent->file_bigendian;
+}
+
+static inline void pevent_set_file_bigendian(struct pevent *pevent, int endian)
+{
+	pevent->file_bigendian = endian;
+}
+
+static inline int pevent_is_host_bigendian(struct pevent *pevent)
+{
+	return pevent->host_bigendian;
+}
+
+static inline void pevent_set_host_bigendian(struct pevent *pevent, int endian)
+{
+	pevent->host_bigendian = endian;
+}
+
+static inline int pevent_is_latency_format(struct pevent *pevent)
+{
+	return pevent->latency_format;
+}
+
+static inline void pevent_set_latency_format(struct pevent *pevent, int lat)
+{
+	pevent->latency_format = lat;
+}
+
+struct pevent *pevent_alloc(void);
+void pevent_free(struct pevent *pevent);
 
 /* for debugging */
-void pevent_print_funcs(void);
-void pevent_print_printk(void);
+void pevent_print_funcs(struct pevent *pevent);
+void pevent_print_printk(struct pevent *pevent);
 
 
 #endif /* _PARSE_EVENTS_H */

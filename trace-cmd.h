@@ -10,11 +10,11 @@ extern const char *input_file;
 #define PAGE_MASK (page_size - 1)
 #endif
 
-void parse_cmdlines(char *file, int size);
-void parse_proc_kallsyms(char *file, unsigned int size);
+void parse_cmdlines(struct pevent *pevent, char *file, int size);
+void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(char *file, unsigned int size);
 
-int trace_load_plugins(void);
+int trace_load_plugins(struct pevent *pevent);
 
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
@@ -57,7 +57,8 @@ struct record *
 tracecmd_translate_data(struct tracecmd_handle *handle,
 			void *ptr, int size);
 
-int tracecmd_ftrace_overrides(void);
+int tracecmd_ftrace_overrides(struct tracecmd_handle *handle);
+struct pevent *tracecmd_get_pevent(struct tracecmd_handle *handle);
 
 /* hack for function graph work around */
 extern __thread struct tracecmd_handle *tracecmd_curr_thread_handle;

@@ -48,13 +48,16 @@ static int filter_cpu = -1;
 
 static void show_data(struct tracecmd_handle *handle, int cpu)
 {
+	struct pevent *pevent;
 	struct record *record;
 	struct trace_seq s;
+
+	pevent = tracecmd_get_pevent(handle);
 
 	record = tracecmd_read_data(handle, cpu);
 
 	trace_seq_init(&s);
-	pevent_print_event(&s, cpu, record->data, record->size, record->ts);
+	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
 	printf("\n");
 
@@ -132,10 +135,12 @@ struct tracecmd_handle *read_trace_header(void)
 void trace_report (int argc, char **argv)
 {
 	struct tracecmd_handle *handle;
+	struct pevent *pevent;
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
 	int show_printk = 0;
+	int latency_format;
 	int c;
 
 	if (argc < 2)
@@ -208,10 +213,12 @@ void trace_report (int argc, char **argv)
 		return;
 	}
 
+	pevent = tracecmd_get_pevent(handle);
+
 	if (show_endian) {
 		printf("file is %s endian and host is %s endian\n",
-		       file_bigendian ? "big" : "little",
-		       host_bigendian ? "big" : "little");
+		       pevent_is_file_bigendian(pevent) ? "big" : "little",
+		       pevent_is_host_bigendian(pevent) ? "big" : "little");
 		return;
 	}
 
@@ -219,11 +226,11 @@ void trace_report (int argc, char **argv)
 		return;
 
 	if (show_funcs) {
-		pevent_print_funcs();
+		pevent_print_funcs(pevent);
 		return;
 	}
 	if (show_printk) {
-		pevent_print_printk();
+		pevent_print_printk(pevent);
 		return;
 	}
 
@@ -232,7 +239,7 @@ void trace_report (int argc, char **argv)
 		struct event *event;
 		int i;
 
-		events = pevent_list_events(EVENT_SORT_SYSTEM);
+		events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
 		for (i = 0; events[i]; i++) {
 			event = events[i];
 			if (event->system)
@@ -241,6 +248,9 @@ void trace_report (int argc, char **argv)
 		}
 		return;
 	}
+
+	if (latency_format)
+		pevent_set_latency_format(pevent, latency_format);
 
 	read_data_info(handle);
 

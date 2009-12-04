@@ -30,26 +30,9 @@
 
 #include "parse-events.h"
 
-int header_page_ts_offset;
-int header_page_ts_size;
-int header_page_size_offset;
-int header_page_size_size;
-int header_page_data_offset;
-int header_page_data_size;
-
-int file_bigendian;
-int host_bigendian;
-
-int latency_format;
-
-int old_format;
-
 static char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
-
-static int cpus;
-static int long_size;
 
 static void init_input_buf(char *buf, unsigned long long size)
 {
@@ -69,9 +52,6 @@ struct cmdline {
 	int pid;
 };
 
-static struct cmdline *cmdlines;
-static int cmdline_count;
-
 static int cmdline_cmp(const void *a, const void *b)
 {
 	const struct cmdline *ca = a;
@@ -85,18 +65,20 @@ static int cmdline_cmp(const void *a, const void *b)
 	return 0;
 }
 
-static struct cmdline_list {
+struct cmdline_list {
 	struct cmdline_list	*next;
 	char			*comm;
 	int			pid;
-} *cmdlist;
+};
 
-static int cmdline_init(void)
+static int cmdline_init(struct pevent *pevent)
 {
+	struct cmdline_list *cmdlist = pevent->cmdlist;
 	struct cmdline_list *item;
+	struct cmdline *cmdlines;
 	int i;
 
-	cmdlines = malloc_or_die(sizeof(*cmdlines) * cmdline_count);
+	cmdlines = malloc_or_die(sizeof(*cmdlines) * pevent->cmdline_count);
 
 	i = 0;
 	while (cmdlist) {
@@ -108,12 +90,15 @@ static int cmdline_init(void)
 		free(item);
 	}
 
-	qsort(cmdlines, cmdline_count, sizeof(*cmdlines), cmdline_cmp);
+	qsort(cmdlines, pevent->cmdline_count, sizeof(*cmdlines), cmdline_cmp);
+
+	pevent->cmdlines = cmdlines;
+	pevent->cmdlist = NULL;
 
 	return 0;
 }
 
-static char *find_cmdline(int pid)
+static char *find_cmdline(struct pevent *pevent, int pid)
 {
 	const struct cmdline *comm;
 	struct cmdline key;
@@ -121,47 +106,46 @@ static char *find_cmdline(int pid)
 	if (!pid)
 		return "<idle>";
 
-	if (!cmdlines)
-		cmdline_init();
+	if (!pevent->cmdlines)
+		cmdline_init(pevent);
 
 	key.pid = pid;
 
-	comm = bsearch(&key, cmdlines, cmdline_count, sizeof(*cmdlines),
-		       cmdline_cmp);
+	comm = bsearch(&key, pevent->cmdlines, pevent->cmdline_count,
+		       sizeof(*pevent->cmdlines), cmdline_cmp);
 
 	if (comm)
 		return comm->comm;
 	return "<...>";
 }
 
-int pevent_register_comm(char *comm, int pid)
+int pevent_register_comm(struct pevent *pevent, char *comm, int pid)
 {
 	struct cmdline_list *item;
 
 	item = malloc_or_die(sizeof(*item));
 	item->comm = comm;
 	item->pid = pid;
-	item->next = cmdlist;
+	item->next = pevent->cmdlist;
 
-	cmdlist = item;
-	cmdline_count++;
+	pevent->cmdlist = item;
+	pevent->cmdline_count++;
 
 	return 0;
 }
 
-static struct func_map {
+struct func_map {
 	unsigned long long		addr;
 	char				*func;
 	char				*mod;
-} *func_map;
-static unsigned int func_count;
+};
 
-static struct func_list {
+struct func_list {
 	struct func_list	*next;
 	unsigned long long	addr;
 	char			*func;
 	char			*mod;
-} *funclist;
+};
 
 static int func_cmp(const void *a, const void *b)
 {
@@ -197,12 +181,15 @@ static int func_bcmp(const void *a, const void *b)
 	return 1;
 }
 
-static int func_map_init(void)
+static int func_map_init(struct pevent *pevent)
 {
+	struct func_list *funclist;
 	struct func_list *item;
+	struct func_map *func_map;
 	int i;
 
-	func_map = malloc_or_die(sizeof(*func_map) * func_count + 1);
+	func_map = malloc_or_die(sizeof(*func_map) * pevent->func_count + 1);
+	funclist = pevent->funclist;
 
 	i = 0;
 	while (funclist) {
@@ -215,90 +202,96 @@ static int func_map_init(void)
 		free(item);
 	}
 
-	qsort(func_map, func_count, sizeof(*func_map), func_cmp);
+	qsort(func_map, pevent->func_count, sizeof(*func_map), func_cmp);
 
 	/*
 	 * Add a special record at the end.
 	 */
-	func_map[func_count].func = NULL;
-	func_map[func_count].addr = 0;
-	func_map[func_count].mod = NULL;
+	func_map[pevent->func_count].func = NULL;
+	func_map[pevent->func_count].addr = 0;
+	func_map[pevent->func_count].mod = NULL;
+
+	pevent->func_map = func_map;
+	pevent->funclist = NULL;
 
 	return 0;
 }
 
-static struct func_map *find_func(unsigned long long addr)
+static struct func_map *
+find_func(struct pevent *pevent, unsigned long long addr)
 {
 	struct func_map *func;
 	struct func_map key;
 
-	if (!func_map)
-		func_map_init();
+	if (!pevent->func_map)
+		func_map_init(pevent);
 
 	key.addr = addr;
 
-	func = bsearch(&key, func_map, func_count, sizeof(*func_map),
-		       func_bcmp);
+	func = bsearch(&key, pevent->func_map, pevent->func_count,
+		       sizeof(*pevent->func_map), func_bcmp);
 
 	return func;
 }
 
-const char *pevent_find_function(unsigned long long addr)
+const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
 {
 	struct func_map *map;
 
-	map = find_func(addr);
+	map = find_func(pevent, addr);
 	if (!map)
 		return NULL;
 
 	return map->func;
 }
 
-int pevent_register_function(char *func, unsigned long long addr,
-			     char *mod)
+int pevent_register_function(struct pevent *pevent, char *func,
+			     unsigned long long addr, char *mod)
 {
 	struct func_list *item;
 
 	item = malloc_or_die(sizeof(*item));
 
-	item->next = funclist;
+	item->next = pevent->funclist;
 	item->func = func;
 	item->mod = mod;
 	item->addr = addr;
 
-	funclist = item;
+	pevent->funclist = item;
 
-	func_count++;
+	pevent->func_count++;
 
 	return 0;
 }
 
-void pevent_print_funcs(void)
+void pevent_print_funcs(struct pevent *pevent)
 {
 	int i;
 
-	for (i = 0; i < (int)func_count; i++) {
+	if (!pevent->func_map)
+		func_map_init(pevent);
+
+	for (i = 0; i < (int)pevent->func_count; i++) {
 		printf("%016llx %s",
-		       func_map[i].addr,
-		       func_map[i].func);
-		if (func_map[i].mod)
-			printf(" [%s]\n", func_map[i].mod);
+		       pevent->func_map[i].addr,
+		       pevent->func_map[i].func);
+		if (pevent->func_map[i].mod)
+			printf(" [%s]\n", pevent->func_map[i].mod);
 		else
 			printf("\n");
 	}
 }
 
-static struct printk_map {
+struct printk_map {
 	unsigned long long		addr;
 	char				*printk;
-} *printk_map;
-static unsigned int printk_count;
+};
 
-static struct printk_list {
+struct printk_list {
 	struct printk_list	*next;
 	unsigned long long	addr;
 	char			*printk;
-} *printklist;
+};
 
 static int printk_cmp(const void *a, const void *b)
 {
@@ -313,12 +306,16 @@ static int printk_cmp(const void *a, const void *b)
 	return 0;
 }
 
-static void printk_map_init(void)
+static void printk_map_init(struct pevent *pevent)
 {
+	struct printk_list *printklist;
 	struct printk_list *item;
+	struct printk_map *printk_map;
 	int i;
 
-	printk_map = malloc_or_die(sizeof(*printk_map) * printk_count + 1);
+	printk_map = malloc_or_die(sizeof(*printk_map) * pevent->printk_count + 1);
+
+	printklist = pevent->printklist;
 
 	i = 0;
 	while (printklist) {
@@ -330,49 +327,57 @@ static void printk_map_init(void)
 		free(item);
 	}
 
-	qsort(printk_map, printk_count, sizeof(*printk_map), printk_cmp);
+	qsort(printk_map, pevent->printk_count, sizeof(*printk_map), printk_cmp);
+
+	pevent->printk_map = printk_map;
+	pevent->printklist = NULL;
 }
 
-static struct printk_map *find_printk(unsigned long long addr)
+static struct printk_map *
+find_printk(struct pevent *pevent, unsigned long long addr)
 {
 	struct printk_map *printk;
 	struct printk_map key;
 
-	if (!printk_map)
-		printk_map_init();
+	if (!pevent->printk_map)
+		printk_map_init(pevent);
 
 	key.addr = addr;
 
-	printk = bsearch(&key, printk_map, printk_count, sizeof(*printk_map),
-			 printk_cmp);
+	printk = bsearch(&key, pevent->printk_map, pevent->printk_count,
+			 sizeof(*pevent->printk_map), printk_cmp);
 
 	return printk;
 }
 
-int pevent_register_print_string(char *fmt, unsigned long long addr)
+int pevent_register_print_string(struct pevent *pevent, char *fmt,
+				 unsigned long long addr)
 {
 	struct printk_list *item;
 
 	item = malloc_or_die(sizeof(*item));
 
-	item->next = printklist;
-	printklist = item;
+	item->next = pevent->printklist;
+	pevent->printklist = item;
 	item->printk = fmt;
 	item->addr = addr;
 
-	printk_count++;
+	pevent->printk_count++;
 
 	return 0;
 }
 
-void pevent_print_printk(void)
+void pevent_print_printk(struct pevent *pevent)
 {
 	int i;
 
-	for (i = 0; i < (int)printk_count; i++) {
+	if (!pevent->printk_map)
+		printk_map_init(pevent);
+
+	for (i = 0; i < (int)pevent->printk_count; i++) {
 		printf("%016llx %s\n",
-		       printk_map[i].addr,
-		       printk_map[i].printk);
+		       pevent->printk_map[i].addr,
+		       pevent->printk_map[i].printk);
 	}
 }
 
@@ -398,14 +403,13 @@ enum event_type {
 	EVENT_SQUOTE,
 };
 
-static struct event *event_list;
-static int nr_events;
-
-static void add_event(struct event *event)
+static void add_event(struct pevent *pevent, struct event *event)
 {
-	event->next = event_list;
-	event_list = event;
-	nr_events++;
+	event->next = pevent->event_list;
+	pevent->event_list = event;
+	pevent->nr_events++;
+
+	event->pevent = pevent;
 }
 
 static int event_item_type(enum event_type type)
@@ -835,6 +839,7 @@ static int event_read_fields(struct event *event, struct format_field **fields)
 
 		field = malloc_or_die(sizeof(*field));
 		memset(field, 0, sizeof(*field));
+		field->event = event;
 
 		/* read the rest of the type */
 		for (;;) {
@@ -2080,17 +2085,18 @@ pevent_find_any_field(struct event *event, const char *name)
 	return pevent_find_field(event, name);
 }
 
-unsigned long long pevent_read_number(const void *ptr, int size)
+unsigned long long pevent_read_number(struct pevent *pevent,
+				      const void *ptr, int size)
 {
 	switch (size) {
 	case 1:
 		return *(unsigned char *)ptr;
 	case 2:
-		return data2host2(ptr);
+		return data2host2(pevent, ptr);
 	case 4:
-		return data2host4(ptr);
+		return data2host4(pevent, ptr);
 	case 8:
-		return data2host8(ptr);
+		return data2host8(pevent, ptr);
 	default:
 		/* BUG! */
 		return 0;
@@ -2105,14 +2111,16 @@ int pevent_read_number_field(struct format_field *field, const void *data,
 	case 2:
 	case 4:
 	case 8:
-		*value = pevent_read_number(data + field->offset, field->size);
+		*value = pevent_read_number(field->event->pevent,
+					    data + field->offset, field->size);
 		return 0;
 	default:
 		return -1;
 	}
 }
 
-static int get_common_info(const char *type, int *offset, int *size)
+static int get_common_info(struct pevent *pevent,
+			   const char *type, int *offset, int *size)
 {
 	struct event *event;
 	struct format_field *field;
@@ -2121,10 +2129,10 @@ static int get_common_info(const char *type, int *offset, int *size)
 	 * All events should have the same common elements.
 	 * Pick any event to find where the type is;
 	 */
-	if (!event_list)
+	if (!pevent->event_list)
 		die("no event_list!");
 
-	event = event_list;
+	event = pevent->event_list;
 	field = pevent_find_common_field(event, type);
 	if (!field)
 		die("field '%s' not found", type);
@@ -2135,62 +2143,53 @@ static int get_common_info(const char *type, int *offset, int *size)
 	return 0;
 }
 
-static int __parse_common(void *data, int *size, int *offset,
-			  const char *name)
+static int __parse_common(struct pevent *pevent, void *data,
+			  int *size, int *offset, const char *name)
 {
 	int ret;
 
 	if (!*size) {
-		ret = get_common_info(name, offset, size);
+		ret = get_common_info(pevent, name, offset, size);
 		if (ret < 0)
 			return ret;
 	}
-	return pevent_read_number(data + *offset, *size);
+	return pevent_read_number(pevent, data + *offset, *size);
 }
 
-static int trace_parse_common_type(void *data)
+static int trace_parse_common_type(struct pevent *pevent, void *data)
 {
-	static int type_offset;
-	static int type_size;
-
-	return __parse_common(data, &type_size, &type_offset,
+	return __parse_common(pevent, data,
+			      &pevent->type_size, &pevent->type_offset,
 			      "common_type");
 }
 
-static int parse_common_pid(void *data)
+static int parse_common_pid(struct pevent *pevent, void *data)
 {
-	static int pid_offset;
-	static int pid_size;
-
-	return __parse_common(data, &pid_size, &pid_offset,
+	return __parse_common(pevent, data,
+			      &pevent->pid_size, &pevent->pid_offset,
 			      "common_pid");
 }
 
-static int parse_common_pc(void *data)
+static int parse_common_pc(struct pevent *pevent, void *data)
 {
-	static int pc_offset;
-	static int pc_size;
-
-	return __parse_common(data, &pc_size, &pc_offset,
+	return __parse_common(pevent, data,
+			      &pevent->pc_size, &pevent->pc_offset,
 			      "common_preempt_count");
 }
 
-static int parse_common_flags(void *data)
+static int parse_common_flags(struct pevent *pevent, void *data)
 {
-	static int flags_offset;
-	static int flags_size;
-
-	return __parse_common(data, &flags_size, &flags_offset,
+	return __parse_common(pevent, data,
+			      &pevent->flags_size, &pevent->flags_offset,
 			      "common_flags");
 }
 
-static int parse_common_lock_depth(void *data)
+static int parse_common_lock_depth(struct pevent *pevent, void *data)
 {
-	static int ld_offset;
-	static int ld_size;
 	int ret;
 
-	ret = __parse_common(data, &ld_size, &ld_offset,
+	ret = __parse_common(pevent, data,
+			     &pevent->ld_size, &pevent->ld_offset,
 			     "common_lock_depth");
 	if (ret < 0)
 		return -1;
@@ -2198,11 +2197,11 @@ static int parse_common_lock_depth(void *data)
 	return ret;
 }
 
-struct event *pevent_find_event(int id)
+struct event *pevent_find_event(struct pevent *pevent, int id)
 {
 	struct event *event;
 
-	for (event = event_list; event; event = event->next) {
+	for (event = pevent->event_list; event; event = event->next) {
 		if (event->id == id)
 			break;
 	}
@@ -2210,11 +2209,12 @@ struct event *pevent_find_event(int id)
 }
 
 struct event *
-pevent_find_event_by_name(const char *sys, const char *name)
+pevent_find_event_by_name(struct pevent *pevent,
+			  const char *sys, const char *name)
 {
 	struct event *event;
 
-	for (event = event_list; event; event = event->next) {
+	for (event = pevent->event_list; event; event = event->next) {
 		if (strcmp(event->name, name) == 0) {
 			if (!sys)
 				break;
@@ -2225,9 +2225,10 @@ pevent_find_event_by_name(const char *sys, const char *name)
 	return event;
 }
 
-static unsigned long long eval_num_arg(void *data, int size,
-				   struct event *event, struct print_arg *arg)
+static unsigned long long
+eval_num_arg(void *data, int size, struct event *event, struct print_arg *arg)
 {
+	struct pevent *pevent = event->pevent;
 	unsigned long long val = 0;
 	unsigned long long left, right;
 	struct print_arg *typearg = NULL;
@@ -2247,7 +2248,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 				die("field %s not found", arg->field.name);
 		}
 		/* must be a number */
-		val = pevent_read_number(data + arg->field.field->offset,
+		val = pevent_read_number(pevent, data + arg->field.field->offset,
 				arg->field.field->size);
 		break;
 	case PRINT_FLAGS:
@@ -2277,7 +2278,8 @@ static unsigned long long eval_num_arg(void *data, int size,
 
 			switch (larg->type) {
 			case PRINT_DYNAMIC_ARRAY:
-				offset = pevent_read_number(data + larg->dynarray.field->offset,
+				offset = pevent_read_number(pevent,
+						   data + larg->dynarray.field->offset,
 						   larg->dynarray.field->size);
 				/*
 				 * The actual length of the dynamic array is stored
@@ -2295,12 +2297,13 @@ static unsigned long long eval_num_arg(void *data, int size,
 						die("field %s not found", larg->field.name);
 				}
 				offset = larg->field.field->offset +
-					right * long_size;
+					right * pevent->long_size;
 				break;
 			default:
 				goto default_op; /* oops, all bets off */
 			}
-			val = pevent_read_number(data + offset, long_size);
+			val = pevent_read_number(pevent,
+						 data + offset, pevent->long_size);
 			if (typearg)
 				val = eval_type(val, typearg, 1);
 			break;
@@ -2415,6 +2418,7 @@ static unsigned long long eval_flag(const char *flag)
 static void print_str_arg(struct trace_seq *s, void *data, int size,
 			  struct event *event, struct print_arg *arg)
 {
+	struct pevent *pevent = event->pevent;
 	struct print_flag_sym *flag;
 	unsigned long long val, fval;
 	unsigned long addr;
@@ -2444,7 +2448,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		 * is a pointer.
 		 */
 		if (!(arg->field.field->flags & FIELD_IS_ARRAY) &&
-		    len == long_size) {
+		    len == pevent->long_size) {
 			addr = *(unsigned long *)(data + arg->field.field->offset);
 			trace_seq_printf(s, "%lx", addr);
 			break;
@@ -2520,11 +2524,15 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 
 static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct event *event)
 {
-	static struct format_field *field, *ip_field;
+	struct pevent *pevent = event->pevent;
+	struct format_field *field, *ip_field;
 	struct print_arg *args, *arg, **next;
 	unsigned long long ip, val;
 	char *ptr;
 	void *bptr;
+
+	field = pevent->bprint_buf_field;
+	ip_field = pevent->bprint_ip_field;
 
 	if (!field) {
 		field = pevent_find_field(event, "buf");
@@ -2533,9 +2541,11 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 		ip_field = pevent_find_field(event, "ip");
 		if (!ip_field)
 			die("can't find ip field for binary printk");
+		pevent->bprint_buf_field = field;
+		pevent->bprint_ip_field = ip_field;
 	}
 
-	ip = pevent_read_number(data + ip_field->offset, ip_field->size);
+	ip = pevent_read_number(pevent, data + ip_field->offset, ip_field->size);
 
 	/*
 	 * The first arg is the IP pointer.
@@ -2581,14 +2591,14 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				switch (ls) {
 				case 0:
 				case 1:
-					ls = long_size;
+					ls = pevent->long_size;
 					break;
 				case 2:
 					ls = 8;
 				default:
 					break;
 				}
-				val = pevent_read_number(bptr, ls);
+				val = pevent_read_number(pevent, bptr, ls);
 				bptr += ls;
 				arg = malloc_or_die(sizeof(*arg));
 				arg->next = NULL;
@@ -2634,22 +2644,26 @@ static void free_args(struct print_arg *args)
 static char *
 get_bprint_format(void *data, int size __unused, struct event *event)
 {
+	struct pevent *pevent = event->pevent;
 	unsigned long long addr;
-	static struct format_field *field;
+	struct format_field *field;
 	struct printk_map *printk;
 	char *format;
 	char *p;
+
+	field = pevent->bprint_fmt_field;
 
 	if (!field) {
 		field = pevent_find_field(event, "fmt");
 		if (!field)
 			die("can't find format field for binary printk");
 		printf("field->offset = %d size=%d\n", field->offset, field->size);
+		pevent->bprint_fmt_field = field;
 	}
 
-	addr = pevent_read_number(data + field->offset, field->size);
+	addr = pevent_read_number(pevent, data + field->offset, field->size);
 
-	printk = find_printk(addr);
+	printk = find_printk(pevent, addr);
 	if (!printk) {
 		format = malloc_or_die(45);
 		sprintf(format, "%%pf : (NO FORMAT FOUND at %llx)\n",
@@ -2677,6 +2691,7 @@ get_bprint_format(void *data, int size __unused, struct event *event)
 
 static void pretty_print(struct trace_seq *s, void *data, int size, struct event *event)
 {
+	struct pevent *pevent = event->pevent;
 	struct print_fmt *print_fmt = &event->print_fmt;
 	struct print_arg *arg = print_fmt->args;
 	struct print_arg *args = NULL;
@@ -2749,7 +2764,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case '0' ... '9':
 				goto cont_process;
 			case 'p':
-				if (long_size == 4)
+				if (pevent->long_size == 4)
 					ls = 1;
 				else
 					ls = 2;
@@ -2802,7 +2817,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				arg = arg->next;
 
 				if (show_func) {
-					func = find_func(val);
+					func = find_func(pevent, val);
 					if (func) {
 						trace_seq_puts(s, func->func);
 						if (show_func == 'F')
@@ -2847,7 +2862,8 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	}
 }
 
-void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused)
+void pevent_data_lat_fmt(struct pevent *pevent,
+			 struct trace_seq *s, void *data, int size __unused)
 {
 	unsigned int lat_flags;
 	unsigned int pc;
@@ -2855,9 +2871,9 @@ void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 	int hardirq;
 	int softirq;
 
-	lat_flags = parse_common_flags(data);
-	pc = parse_common_pc(data);
-	lock_depth = parse_common_lock_depth(data);
+	lat_flags = parse_common_flags(pevent, data);
+	pc = parse_common_pc(pevent, data);
+	lock_depth = parse_common_lock_depth(pevent, data);
 
 	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
 	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
@@ -2884,26 +2900,26 @@ void pevent_data_lat_fmt(struct trace_seq *s, void *data, int size __unused)
 	trace_seq_terminate(s);
 }
 
-int pevent_data_type(void *data)
+int pevent_data_type(struct pevent *pevent, void *data)
 {
-	return trace_parse_common_type(data);
+	return trace_parse_common_type(pevent, data);
 }
 
-struct event *pevent_data_event_from_type(int type)
+struct event *pevent_data_event_from_type(struct pevent *pevent, int type)
 {
-	return pevent_find_event(type);
+	return pevent_find_event(pevent, type);
 }
 
-int pevent_data_pid(void *data)
+int pevent_data_pid(struct pevent *pevent, void *data)
 {
-	return parse_common_pid(data);
+	return parse_common_pid(pevent, data);
 }
 
-const char *pevent_data_comm_from_pid(int pid)
+const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 {
 	const char *comm;
 
-	comm = find_cmdline(pid);
+	comm = find_cmdline(pevent, pid);
 	return comm;
 }
 
@@ -2918,7 +2934,7 @@ void pevent_event_info(struct trace_seq *s, struct event *event,
 	trace_seq_terminate(s);
 }
 
-void pevent_print_event(struct trace_seq *s,
+void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs)
 {
 	static char *spaces = "                    "; /* 20 spaces */
@@ -2934,21 +2950,21 @@ void pevent_print_event(struct trace_seq *s,
 	usecs = nsecs - secs * NSECS_PER_SEC;
 	usecs = usecs / NSECS_PER_USEC;
 
-	type = trace_parse_common_type(data);
+	type = trace_parse_common_type(pevent, data);
 
-	event = pevent_find_event(type);
+	event = pevent_find_event(pevent, type);
 	if (!event) {
 		warning("ug! no event found for type %d", type);
 		return;
 	}
 
-	pid = parse_common_pid(data);
-	comm = find_cmdline(pid);
+	pid = parse_common_pid(pevent, data);
+	comm = find_cmdline(pevent, pid);
 
-	if (latency_format) {
+	if (pevent->latency_format) {
 		trace_seq_printf(s, "%8.8s-%-5d %3d",
 		       comm, pid, cpu);
-		pevent_data_lat_fmt(s, data, size);
+		pevent_data_lat_fmt(pevent, s, data, size);
 	} else
 		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid,  cpu);
 
@@ -3015,24 +3031,25 @@ static int events_system_cmp(const void *a, const void *b)
 	return events_id_cmp(a, b);
 }
 
-struct event **pevent_list_events(enum event_sort_type sort_type)
+struct event **pevent_list_events(struct pevent *pevent, enum event_sort_type sort_type)
 {
-	static struct event **events;
-	static enum event_sort_type last_type;
+	struct event **events;
 	struct event *event;
 	int (*sort)(const void *a, const void *b);
 	int i = 0;
 
-	if (events && last_type == sort_type)
+	events = pevent->events;
+
+	if (events && pevent->last_type == sort_type)
 		return events;
 
 	if (!events) {
-		events = malloc(sizeof(*events) * (nr_events + 1));
+		events = malloc(sizeof(*events) * (pevent->nr_events + 1));
 		if (!events)
 			return NULL;
 
-		for (event = event_list; event; event = event->next) {
-			if (i == nr_events) {
+		for (event = pevent->event_list; event; event = event->next) {
+			if (i == pevent->nr_events) {
 				warning("Wrong event count");
 				free(events);
 				return NULL;
@@ -3040,6 +3057,8 @@ struct event **pevent_list_events(enum event_sort_type sort_type)
 			events[i++] = event;
 		}
 		events[i] = NULL;
+
+		pevent->events = events;
 	}
 
 	switch (sort_type) {
@@ -3056,8 +3075,8 @@ struct event **pevent_list_events(enum event_sort_type sort_type)
 		return events;
 	}
 
-	qsort(events, nr_events, sizeof(*events), sort);
-	last_type = sort_type;
+	qsort(events, pevent->nr_events, sizeof(*events), sort);
+	pevent->last_type = sort_type;
 
 	return events;
 }
@@ -3201,32 +3220,33 @@ static void parse_header_field(const char *field,
 	free_token(token);
 }
 
-int pevent_parse_header_page(char *buf, unsigned long size)
+int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size)
 {
 	if (!size) {
 		/*
 		 * Old kernels did not have header page info.
 		 * Sorry but we just use what we find here in user space.
 		 */
-		header_page_ts_size = sizeof(long long);
-		header_page_size_size = sizeof(long);
-		header_page_data_offset = sizeof(long long) + sizeof(long);
-		old_format = 1;
+		pevent->header_page_ts_size = sizeof(long long);
+		pevent->header_page_size_size = sizeof(long);
+		pevent->header_page_data_offset = sizeof(long long) + sizeof(long);
+		pevent->old_format = 1;
 		return 0;
 	}
 	init_input_buf(buf, size);
 
-	parse_header_field("timestamp", &header_page_ts_offset,
-			   &header_page_ts_size);
-	parse_header_field("commit", &header_page_size_offset,
-			   &header_page_size_size);
-	parse_header_field("data", &header_page_data_offset,
-			   &header_page_data_size);
+	parse_header_field("timestamp", &pevent->header_page_ts_offset,
+			   &pevent->header_page_ts_size);
+	parse_header_field("commit", &pevent->header_page_size_offset,
+			   &pevent->header_page_size_size);
+	parse_header_field("data", &pevent->header_page_data_offset,
+			   &pevent->header_page_data_size);
 
 	return 0;
 }
 
-int pevent_parse_event(char *buf, unsigned long size, char *sys)
+int pevent_parse_event(struct pevent *pevent,
+		       char *buf, unsigned long size, char *sys)
 {
 	struct event *event;
 	int ret;
@@ -3267,7 +3287,7 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
 		goto event_failed;
 	}
 
-	add_event(event);
+	add_event(pevent, event);
 
 	if (!ret && (event->flags & EVENT_FL_ISFTRACE)) {
 		struct format_field *field;
@@ -3297,18 +3317,19 @@ int pevent_parse_event(char *buf, unsigned long size, char *sys)
  event_failed:
 	event->flags |= EVENT_FL_FAILED;
 	/* still add it even if it failed */
-	add_event(event);
+	add_event(pevent, event);
 	return -1;
 }
 
-int pevent_register_event_handler(int id, char *sys_name, char *event_name,
+int pevent_register_event_handler(struct pevent *pevent,
+				  int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func)
 {
 	struct event *event;
 
 	if (id >= 0) {
 		/* search by id */
-		event = pevent_find_event(id);
+		event = pevent_find_event(pevent, id);
 		if (!event)
 			return -1;
 		if (event_name && (strcmp(event_name, event->name) != 0))
@@ -3316,7 +3337,7 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 		if (sys_name && (strcmp(sys_name, event->system) != 0))
 			return -1;
 	} else {
-		event = pevent_find_event_by_name(sys_name, event_name);
+		event = pevent_find_event_by_name(pevent, sys_name, event_name);
 		if (!event)
 			return -1;
 	}
@@ -3328,8 +3349,50 @@ int pevent_register_event_handler(int id, char *sys_name, char *event_name,
 	return 0;
 }
 
-void parse_set_info(int nr_cpus, int long_sz)
+struct pevent *pevent_alloc(void)
 {
-	cpus = nr_cpus;
-	long_size = long_sz;
+	struct pevent *pevent;
+
+	pevent = malloc(sizeof(*pevent));
+	if (!pevent)
+		return NULL;
+	memset(pevent, 0, sizeof(*pevent));
+
+	return pevent;
+}
+
+static void free_formats(struct format *format)
+{
+	/* IMPLEMENT ME */
+}
+
+static void free_event(struct event *event)
+{
+	free(event->name);
+	free(event->system);
+
+	free_formats(&event->format);
+
+	free(event->print_fmt.format);
+	free_args(event->print_fmt.args);
+}
+
+void pevent_free(struct pevent *pevent)
+{
+	struct event *event, *next_event;
+
+	free(pevent->cmdlines);
+	free(pevent->cmdlist);
+	free(pevent->func_map);
+	free(pevent->funclist);
+	free(pevent->printk_map);
+	free(pevent->printklist);
+
+	free(pevent->events);
+
+	for (event = pevent->event_list; event; event = next_event) {
+		next_event = event->next;
+
+		free_event(event);
+	}
 }

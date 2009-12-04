@@ -31,13 +31,14 @@ static int function_handler(struct trace_seq *s, void *data, int size,
 			    struct event *event, int cpu,
 			    unsigned long long nsecs)
 {
+	struct pevent *pevent = event->pevent;
 	unsigned long long function;
 	const char *func;
 
 	if (get_field_val(s, data, event, "ip", &function))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(function);
+	func = pevent_find_function(pevent, function);
 	if (func)
 		trace_seq_printf(s, "%s <-- ", func);
 	else
@@ -46,7 +47,7 @@ static int function_handler(struct trace_seq *s, void *data, int size,
 	if (get_field_val(s, data, event, "parent_ip", &function))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(function);
+	func = pevent_find_function(pevent, function);
 	if (func)
 		trace_seq_printf(s, "%s", func);
 	else
@@ -145,6 +146,7 @@ static int
 print_graph_entry_leaf(struct trace_seq *s,
 		       struct event *event, void *data, struct record *ret_rec)
 {
+	struct pevent *pevent = event->pevent;
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
 	unsigned long long val;
@@ -175,7 +177,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 
 	if (get_field_val(s, data, event, "func", &val))
 		return trace_seq_putc(s, '!');
-	func = pevent_find_function(val);
+	func = pevent_find_function(pevent, val);
 
 	if (func)
 		return trace_seq_printf(s, "%s();", func);
@@ -186,6 +188,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 static int print_graph_nested(struct trace_seq *s,
 			      struct event *event, void *data)
 {
+	struct pevent *pevent = event->pevent;
 	unsigned long long depth;
 	unsigned long long val;
 	const char *func;
@@ -207,7 +210,7 @@ static int print_graph_nested(struct trace_seq *s,
 	if (get_field_val(s, data, event, "func", &val))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(val);
+	func = pevent_find_function(pevent, val);
 
 	if (func)
 		return trace_seq_printf(s, "%s() {", func);
@@ -286,21 +289,24 @@ fgraph_ret_handler(struct trace_seq *s, void *data, int size,
 	return trace_seq_putc(s, '}');
 }
 
-int tracecmd_ftrace_overrides(void)
+int tracecmd_ftrace_overrides(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent;
 	struct event *event;
 
-	pevent_register_event_handler(-1, "ftrace", "function",
+	pevent = tracecmd_get_pevent(handle);
+
+	pevent_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler);
 
-	pevent_register_event_handler(-1, "ftrace", "funcgraph_entry",
+	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_entry",
 				      fgraph_ent_handler);
 
-	pevent_register_event_handler(-1, "ftrace", "funcgraph_exit",
+	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
 				      fgraph_ret_handler);
 
 	/* Store the func ret id and event for later use */
-	event = pevent_find_event_by_name("ftrace", "funcgraph_exit");
+	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
 	if (!event)
 		return 0;
 

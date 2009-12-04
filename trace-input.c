@@ -34,6 +34,7 @@ struct cpu_data {
 };
 
 struct tracecmd_handle {
+	struct pevent	*pevent;
 	int		fd;
 	int		long_size;
 	int		page_size;
@@ -147,26 +148,29 @@ static char *read_string(struct tracecmd_handle *handle)
 
 static unsigned int read4(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	unsigned int data;
 
 	if (do_read_check(handle, &data, 4))
 		return -1;
 
-	return __data2host4(data);
+	return __data2host4(pevent, data);
 }
 
 static unsigned long long read8(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	unsigned long long data;
 
 	if (do_read_check(handle, &data, 8))
 		return -1;
 
-	return __data2host8(data);
+	return __data2host8(pevent, data);
 }
 
 static int read_header_files(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	long long size;
 	char *header;
 	char buf[BUFSIZ];
@@ -188,14 +192,14 @@ static int read_header_files(struct tracecmd_handle *handle)
 	if (do_read_check(handle, header, size))
 		goto failed_read;
 
-	pevent_parse_header_page(header, size);
+	pevent_parse_header_page(pevent, header, size);
 	free(header);
 
 	/*
 	 * The size field in the page is of type long,
 	 * use that instead, since it represents the kernel.
 	 */
-	handle->long_size = header_page_size_size;
+	handle->long_size = pevent->header_page_size_size;
 
 	if (do_read_check(handle, buf, 13))
 		return -1;
@@ -226,6 +230,7 @@ static int read_header_files(struct tracecmd_handle *handle)
 static int read_ftrace_file(struct tracecmd_handle *handle,
 			    unsigned long long size)
 {
+	struct pevent *pevent = handle->pevent;
 	char *buf;
 
 	buf = malloc(size);
@@ -236,7 +241,7 @@ static int read_ftrace_file(struct tracecmd_handle *handle,
 		return -1;
 	}
 
-	pevent_parse_event(buf, size, "ftrace");
+	pevent_parse_event(pevent, buf, size, "ftrace");
 	free(buf);
 
 	return 0;
@@ -245,6 +250,7 @@ static int read_ftrace_file(struct tracecmd_handle *handle,
 static int read_event_file(struct tracecmd_handle *handle,
 			   char *system, unsigned long long size)
 {
+	struct pevent *pevent = handle->pevent;
 	char *buf;
 
 	buf = malloc(size+1);
@@ -259,7 +265,7 @@ static int read_event_file(struct tracecmd_handle *handle,
 	buf[size] = 0;
 	if (handle->print_events)
 		printf("%s\n", buf);
-	pevent_parse_event(buf, size, system);
+	pevent_parse_event(pevent, buf, size, system);
 	free(buf);
 
 	return 0;
@@ -331,6 +337,7 @@ static int read_event_files(struct tracecmd_handle *handle)
 
 static int read_proc_kallsyms(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	int size;
 	char *buf;
 
@@ -349,7 +356,7 @@ static int read_proc_kallsyms(struct tracecmd_handle *handle)
 		return -1;
 	}
 
-	parse_proc_kallsyms(buf, size);
+	parse_proc_kallsyms(pevent, buf, size);
 
 	free(buf);
 	return 0;
@@ -384,6 +391,7 @@ static int read_ftrace_printk(struct tracecmd_handle *handle)
 
 int tracecmd_read_headers(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	int ret;
 
 	ret = read_header_files(handle);
@@ -407,40 +415,52 @@ int tracecmd_read_headers(struct tracecmd_handle *handle)
 		return -1;
 
 	/* register default ftrace functions first */
-	tracecmd_ftrace_overrides();
+	tracecmd_ftrace_overrides(handle);
 
-	trace_load_plugins();
+	trace_load_plugins(pevent);
 
 	return 0;
 }
 
-static unsigned int type4host(unsigned int type_len_ts)
+static unsigned int type4host(struct tracecmd_handle *handle,
+			      unsigned int type_len_ts)
 {
-	if (file_bigendian)
+	struct pevent *pevent = handle->pevent;
+
+	if (pevent->file_bigendian)
 		return (type_len_ts >> 29) & 3;
 	else
 		return type_len_ts & 3;
 }
 
-static unsigned int len4host(unsigned int type_len_ts)
+static unsigned int len4host(struct tracecmd_handle *handle,
+			     unsigned int type_len_ts)
 {
-	if (file_bigendian)
+	struct pevent *pevent = handle->pevent;
+
+	if (pevent->file_bigendian)
 		return (type_len_ts >> 27) & 7;
 	else
 		return (type_len_ts >> 2) & 7;
 }
 
-static unsigned int type_len4host(unsigned int type_len_ts)
+static unsigned int type_len4host(struct tracecmd_handle *handle,
+				  unsigned int type_len_ts)
 {
-	if (file_bigendian)
+	struct pevent *pevent = handle->pevent;
+
+	if (pevent->file_bigendian)
 		return (type_len_ts >> 27) & ((1 << 5) - 1);
 	else
 		return type_len_ts & ((1 << 5) - 1);
 }
 
-static unsigned int ts4host(unsigned int type_len_ts)
+static unsigned int ts4host(struct tracecmd_handle *handle,
+			    unsigned int type_len_ts)
 {
-	if (file_bigendian)
+	struct pevent *pevent = handle->pevent;
+
+	if (pevent->file_bigendian)
 		return type_len_ts & ((1 << 27) - 1);
 	else
 		return type_len_ts >> 5;
@@ -522,6 +542,7 @@ enum old_ring_buffer_type {
 static struct record *
 read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 {
+	struct pevent *pevent = handle->pevent;
 	struct record *data;
 	unsigned long long extend;
 	unsigned int type_len_ts;
@@ -533,12 +554,12 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 
 	index = calc_index(handle, *ptr, cpu);
 
-	type_len_ts = data2host4(*ptr);
+	type_len_ts = data2host4(pevent, *ptr);
 	*ptr += 4;
 
-	type = type4host(type_len_ts);
-	len = len4host(type_len_ts);
-	delta = ts4host(type_len_ts);
+	type = type4host(handle, type_len_ts);
+	len = len4host(handle, type_len_ts);
+	delta = ts4host(handle, type_len_ts);
 
 	switch (type) {
 	case OLD_RINGBUF_TYPE_PADDING:
@@ -547,7 +568,7 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 		return NULL;
 
 	case OLD_RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(ptr);
+		extend = data2host4(pevent, ptr);
 		extend <<= TS_SHIFT;
 		extend += delta;
 		handle->cpu_data[cpu].timestamp += extend;
@@ -562,7 +583,7 @@ read_old_format(struct tracecmd_handle *handle, void **ptr, int cpu)
 		if (len)
 			length = len * 4;
 		else {
-			length = data2host4(*ptr);
+			length = data2host4(pevent, *ptr);
 			length -= 4;
 			*ptr += 4;
 		}
@@ -709,28 +730,30 @@ tracecmd_read_at(struct tracecmd_handle *handle, unsigned long long offset,
 }
 
 static unsigned int
-translate_data(void **ptr, unsigned long long *delta, int *length)
+translate_data(struct tracecmd_handle *handle,
+	       void **ptr, unsigned long long *delta, int *length)
 {
+	struct pevent *pevent = handle->pevent;
 	unsigned long long extend;
 	unsigned int type_len_ts;
 	unsigned int type_len;
 
-	type_len_ts = data2host4(*ptr);
+	type_len_ts = data2host4(pevent, *ptr);
 	*ptr += 4;
 
-	type_len = type_len4host(type_len_ts);
-	*delta = ts4host(type_len_ts);
+	type_len = type_len4host(handle, type_len_ts);
+	*delta = ts4host(handle, type_len_ts);
 
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
-		*length = data2host4(*ptr);
+		*length = data2host4(pevent, *ptr);
 		*ptr += 4;
 		*length *= 4;
 		*ptr += *length;
 		break;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(*ptr);
+		extend = data2host4(pevent, *ptr);
 		*ptr += 4;
 		extend <<= TS_SHIFT;
 		extend += *delta;
@@ -741,7 +764,7 @@ translate_data(void **ptr, unsigned long long *delta, int *length)
 		*ptr += 12;
 		break;
 	case 0:
-		*length = data2host4(*ptr) - 4;
+		*length = data2host4(pevent, *ptr) - 4;
 		*length = (*length + 3) & ~3;
 		*ptr += 4;
 		break;
@@ -770,7 +793,7 @@ tracecmd_translate_data(struct tracecmd_handle *handle,
 	memset(data, 0, sizeof(*data));
 
 	data->data = ptr;
-	type_len = translate_data(&data->data, &data->ts, &data->size);
+	type_len = translate_data(handle, &data->data, &data->ts, &data->size);
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
 	case RINGBUF_TYPE_TIME_EXTEND:
@@ -787,6 +810,7 @@ tracecmd_translate_data(struct tracecmd_handle *handle,
 struct record *
 tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 {
+	struct pevent *pevent = handle->pevent;
 	struct record *data;
 	void *page = handle->cpu_data[cpu].page;
 	int index = handle->cpu_data[cpu].index;
@@ -806,26 +830,26 @@ tracecmd_peek_data(struct tracecmd_handle *handle, int cpu)
 
 	if (!index) {
 		/* FIXME: handle header page */
-		if (header_page_ts_size != 8) {
+		if (pevent->header_page_ts_size != 8) {
 			warning("expected a long long type for timestamp");
 			return NULL;
 		}
-		handle->cpu_data[cpu].timestamp = data2host8(ptr);
+		handle->cpu_data[cpu].timestamp = data2host8(pevent, ptr);
 		ptr += 8;
-		switch (header_page_size_size) {
+		switch (pevent->header_page_size_size) {
 		case 4:
-			handle->cpu_data[cpu].page_size = data2host4(ptr);
+			handle->cpu_data[cpu].page_size = data2host4(pevent,ptr);
 			ptr += 4;
 			break;
 		case 8:
-			handle->cpu_data[cpu].page_size = data2host8(ptr);
+			handle->cpu_data[cpu].page_size = data2host8(pevent, ptr);
 			ptr += 8;
 			break;
 		default:
 			warning("bad long size");
 			return NULL;
 		}
-		ptr = handle->cpu_data[cpu].page + header_page_data_offset;
+		ptr = handle->cpu_data[cpu].page + pevent->header_page_data_offset;
 	}
 
 read_again:
@@ -837,7 +861,7 @@ read_again:
 		return tracecmd_peek_data(handle, cpu);
 	}
 
-	if (old_format) {
+	if (pevent->old_format) {
 		data = read_old_format(handle, &ptr, cpu);
 		if (!data) {
 			if (!ptr)
@@ -848,7 +872,7 @@ read_again:
 		return data;
 	}
 
-	type_len = translate_data(&ptr, &extend, &length);
+	type_len = translate_data(handle, &ptr, &extend, &length);
 
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
@@ -949,6 +973,7 @@ static int init_cpu(struct tracecmd_handle *handle, int cpu)
 
 int tracecmd_init_data(struct tracecmd_handle *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	unsigned long long size;
 	char *cmdlines;
 	char buf[10];
@@ -964,14 +989,15 @@ int tracecmd_init_data(struct tracecmd_handle *handle)
 		free(cmdlines);
 		return -1;
 	}
-	parse_cmdlines(cmdlines, size);
+	parse_cmdlines(pevent, cmdlines, size);
 	free(cmdlines);
 
 	handle->cpus = read4(handle);
 	if (handle->cpus < 0)
 		return -1;
 
-	parse_set_info(handle->cpus, handle->long_size);
+	pevent_set_cpus(pevent, handle->cpus);
+	pevent_set_long_size(pevent, handle->long_size);
 
 	/*
 	 * Check if this is a latency report or not.
@@ -1040,14 +1066,12 @@ struct tracecmd_handle *tracecmd_open(int fd)
 	if (do_read_check(handle, buf, 1))
 		goto failed_read;
 
-	/*
-	 * TODO:
-	 *  Need to make these part of the handle.
-	 *  But they are currently used by parsevent.
-	 *  That may need a handler too.
-	 */ 
-	file_bigendian = buf[0];
-	host_bigendian = bigendian();
+	handle->pevent = pevent_alloc();
+	if (!handle->pevent)
+		goto failed_read;
+
+	handle->pevent->file_bigendian = buf[0];
+	handle->pevent->host_bigendian = bigendian();
 
 	do_read_check(handle, buf, 1);
 	handle->long_size = buf[0];
@@ -1075,4 +1099,9 @@ int tracecmd_page_size(struct tracecmd_handle *handle)
 int tracecmd_cpus(struct tracecmd_handle *handle)
 {
 	return handle->cpus;
+}
+
+struct pevent *tracecmd_get_pevent(struct tracecmd_handle *handle)
+{
+	return handle->pevent;
 }
