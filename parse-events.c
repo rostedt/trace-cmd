@@ -463,6 +463,26 @@ static enum event_type get_type(int ch)
 	return EVENT_OP;
 }
 
+static void __push_char(char c)
+{
+	if (input_buf_ptr <= 0)
+		die("too much pushback");
+	input_buf[--input_buf_ptr] = c;
+}
+
+static void __push_str(char *s)
+{
+	char *e = s;
+
+	while (*e++)
+		/* nothing */;
+	e--;
+	while (s != e) {
+		e--;
+		__push_char(*e);
+	}
+}
+
 static int __read_char(void)
 {
 	if (input_buf_ptr >= input_buf_siz)
@@ -621,6 +641,33 @@ static enum event_type __read_token(char **tok)
 		*tok = strdup(buf);
 	if (!*tok)
 		return EVENT_NONE;
+
+	if (type == EVENT_ITEM) {
+		/*
+		 * Older versions of the kernel has a bug that
+		 * creates invalid symbols and will break the mac80211
+		 * parsing. This is a work around to that bug.
+		 *
+		 * See Linux kernel commit:
+		 *  811cb50baf63461ce0bdb234927046131fc7fa8b
+		 */
+		if (strcmp(*tok, "LOCAL_PR_FMT") == 0) {
+			free(*tok);
+			*tok = NULL;
+			__push_str("\"\%s\" ");
+			return __read_token(tok);
+		} else if (strcmp(*tok, "STA_PR_FMT") == 0) {
+			free(*tok);
+			*tok = NULL;
+			__push_str("\" sta:%pM\" ");
+			return __read_token(tok);
+		} else if (strcmp(*tok, "VIF_PR_FMT") == 0) {
+			free(*tok);
+			*tok = NULL;
+			__push_str("\" vif:%p(%d)\" ");
+			return __read_token(tok);
+		}
+	}
 
 	return type;
 }
@@ -2015,7 +2062,7 @@ static int event_read_print(struct event *event)
 	if (type == EVENT_NONE)
 		return 0;
 
-	/* Handle concatination of print lines */
+	/* Handle concatenation of print lines */
 	if (type == EVENT_DQUOTE) {
 		char *cat;
 
