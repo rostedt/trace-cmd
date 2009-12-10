@@ -1105,12 +1105,25 @@ void usage(char **argv)
 
 	printf("\n"
 	       "%s version %s\n\n"
-	       "usage: %s record [-e event][-p plugin] [-d] [-o file] [-O option ] command ...\n"
+	       "usage:\n"
+	       " %s record [-e event][-p plugin] [-d] [-o file] [-O option ] command ...\n"
 	       "          -e run command with event enabled\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -d disable function tracer when running\n"
 	       "          -o data output file [default trace.dat]\n"
 	       "          -O option to enable (or disable)\n"
+	       "\n"
+	       " %s start [-e event][-p plugin] [-d] [-O option ]\n"
+	       "          Uses same options as record, but does not run a command.\n"
+	       "          It only enables the tracing and exits\n"
+	       "\n"
+	       " %s stop\n"
+	       "          Stops the tracer from recording more data.\n"
+	       "          Used in conjunction with start\n"
+	       "\n"
+	       " %s reset\n"
+	       "          Disables the tracer (may reset trace file)\n"
+	       "          Used in conjunction with start\n"
 	       "\n"
 	       " %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-E]\n"
 	       "          -i input file [default trace.dat]\n"
@@ -1124,7 +1137,7 @@ void usage(char **argv)
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
 	       "          -o list available options\n"
-	       "\n", p, VERSION, p, p, p);
+	       "\n", p, VERSION, p, p, p, p, p, p);
 	exit(-1);
 }
 
@@ -1138,6 +1151,7 @@ int main (int argc, char **argv)
 	int plug = 0;
 	int events = 0;
 	int options = 0;
+	int record = 0;
 	int fset;
 
 	int c;
@@ -1150,7 +1164,8 @@ int main (int argc, char **argv)
 	if (strcmp(argv[1], "report") == 0) {
 		trace_report(argc, argv);
 		exit(0);
-	} else if (strcmp(argv[1], "record") == 0) {
+	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
+		   (strcmp(argv[1], "start") == 0)) {
 
 		while ((c = getopt(argc-1, argv+1, "+he:p:do:O:")) >= 0) {
 			switch (c) {
@@ -1174,6 +1189,9 @@ int main (int argc, char **argv)
 				disable = 1;
 				break;
 			case 'o':
+				if (!record)
+					die("start does not take output\n"
+					    "Did you mean 'record'?\n");
 				if (output)
 					die("only one output file allowed");
 				output = optarg;
@@ -1184,6 +1202,14 @@ int main (int argc, char **argv)
 				break;
 			}
 		}
+
+	} else if (strcmp(argv[1], "stop") == 0) {
+		disable_tracing();
+		exit(0);
+
+	} else if (strcmp(argv[1], "reset") == 0) {
+		disable_all();
+		exit(0);
 
 	} else if (strcmp(argv[1], "list") == 0) {
 
@@ -1231,21 +1257,26 @@ int main (int argc, char **argv)
 		usage(argv);
 	}
 
-	if ((argc - optind) < 2)
-		usage(argv);
+	if ((argc - optind) < 2) {
+		if (record)
+			usage(argv);
+	} else if (!record)
+		die("Command start does not take any commands\n"
+		    "Did you mean 'record'?");
 
-	if (output)
-		output_file = output;
+	if (record) {
+		if (output)
+			output_file = output;
 
-	read_tracing_data();
+		read_tracing_data();
 
-	fset = set_ftrace(!disable);
+		fset = set_ftrace(!disable);
+
+		start_threads();
+		signal(SIGINT, finish);
+	}
 
 	disable_all();
-
-	start_threads();
-
-	signal(SIGINT, finish);
 
 	if (events)
 		enable_events();
@@ -1260,7 +1291,8 @@ int main (int argc, char **argv)
 		    strcmp(plugin, "wakeup") == 0 ||
 		    strcmp(plugin, "wakeup_rt") == 0) {
 			latency = 1;
-			stop_threads();
+			if (record)
+				stop_threads();
 			reset_max_latency();
 		}
 		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
@@ -1270,6 +1302,9 @@ int main (int argc, char **argv)
 	}
 
 	enable_tracing();
+
+	if (!record)
+		exit(0);
 
 	run_cmd((argc - optind) - 1, &argv[optind + 1]);
 
