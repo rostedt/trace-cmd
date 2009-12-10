@@ -1273,12 +1273,11 @@ int main (int argc, char **argv)
 
 		read_tracing_data();
 
-		fset = set_ftrace(!disable);
-
 		start_threads();
 		signal(SIGINT, finish);
 	}
 
+	fset = set_ftrace(!disable);
 	disable_all();
 
 	if (events)
