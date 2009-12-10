@@ -1191,7 +1191,7 @@ int main (int argc, char **argv)
 			case 'o':
 				if (!record)
 					die("start does not take output\n"
-					    "Did you mean 'record'?\n");
+					    "Did you mean 'record'?");
 				if (output)
 					die("only one output file allowed");
 				output = optarg;
@@ -1263,6 +1263,9 @@ int main (int argc, char **argv)
 	} else if (!record)
 		die("Command start does not take any commands\n"
 		    "Did you mean 'record'?");
+
+	if (!events && !plugin)
+		die("no event or plugin was specified... aborting");
 
 	if (record) {
 		if (output)
