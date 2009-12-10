@@ -1597,6 +1597,15 @@ static long long arg_num_eval(struct print_arg *arg)
 				die("unknown op '%s'", arg->op.op);
 			}
 			break;
+		case '-':
+			/* check for negative */
+			if (arg->op.left->type == PRINT_NULL)
+				left = 0;
+			else
+				left = arg_num_eval(arg->op.left);
+			right = arg_num_eval(arg->op.right);
+			val = left - right;
+			break;
 		default:
 			die("unknown op '%s'", arg->op.op);
 		}
