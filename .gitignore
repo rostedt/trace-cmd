@@ -3,3 +3,4 @@ trace-cmd
 *.so
 *.a
 trace.dat
+*~
