@@ -6,6 +6,7 @@
 
 static struct event *fgraph_ret_event;
 static int fgraph_ret_id;
+static int long_size;
 
 static int get_field_val(struct trace_seq *s, void *data,
 			 struct event *event, const char *name,
@@ -289,6 +290,43 @@ fgraph_ret_handler(struct trace_seq *s, void *data, int size,
 	return trace_seq_putc(s, '}');
 }
 
+static int
+trace_stack_handler(struct trace_seq *s, void *data, int size,
+		    struct event *event, int cpu,
+		    unsigned long long nsecs)
+{
+	struct format_field *field;
+	unsigned long long addr;
+	const char *func;
+	int ret;
+	int i;
+
+	field = pevent_find_any_field(event, "caller");
+	if (!field) {
+		trace_seq_printf(s, "<CANT FIND FIELD %s>", "caller");
+		return -1;
+	}
+
+	ret = trace_seq_puts(s, "<stack trace>\n");
+
+	for (i = 0; i < field->size; i += long_size) {
+		addr = pevent_read_number(event->pevent,
+					  data + field->offset + i, long_size);
+
+		if ((long_size == 8 && addr == (unsigned long long)-1) ||
+		    ((int)addr == -1))
+			break;
+
+		func = pevent_find_function(event->pevent, addr);
+		if (func)
+			ret = trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
+		else
+			ret = trace_seq_printf(s, "=> %llx\n", addr);
+	}
+
+	return ret;
+}
+
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
@@ -305,10 +343,15 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
 	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
 				      fgraph_ret_handler);
 
+	pevent_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
+				      trace_stack_handler);
+
 	/* Store the func ret id and event for later use */
 	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
 	if (!event)
 		return 0;
+
+	long_size = tracecmd_long_size(handle);
 
 	fgraph_ret_id = event->id;
 	fgraph_ret_event = event;
