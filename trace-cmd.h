@@ -42,6 +42,8 @@ int tracecmd_long_size(struct tracecmd_input *handle);
 int tracecmd_page_size(struct tracecmd_input *handle);
 int tracecmd_cpus(struct tracecmd_input *handle);
 
+void tracecmd_print_events(struct tracecmd_input *handle);
+
 int tracecmd_init_data(struct tracecmd_input *handle);
 
 struct record *

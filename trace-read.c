@@ -42,8 +42,6 @@ unsigned int page_size;
 int input_fd;
 const char *input_file = "trace.dat";
 
-int show_events = 0;
-
 static int filter_cpu = -1;
 
 static void show_data(struct tracecmd_input *handle, int cpu)
@@ -141,6 +139,8 @@ void trace_report (int argc, char **argv)
 	int show_page_size = 0;
 	int show_printk = 0;
 	int latency_format;
+	int show_events = 0;
+	int print_events = 0;
 	int c;
 
 	if (argc < 2)
@@ -153,6 +153,7 @@ void trace_report (int argc, char **argv)
 		int option_index = 0;
 		static struct option long_options[] = {
 			{"cpu", required_argument, NULL, 0},
+			{"events", no_argument, NULL, 0},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -191,6 +192,9 @@ void trace_report (int argc, char **argv)
 			case 0:
 				filter_cpu = atoi(optarg);
 				break;
+			case 1:
+				print_events = 1;
+				break;
 			default:
 				usage(argv);
 			}
@@ -219,6 +223,11 @@ void trace_report (int argc, char **argv)
 		printf("file is %s endian and host is %s endian\n",
 		       pevent_is_file_bigendian(pevent) ? "big" : "little",
 		       pevent_is_host_bigendian(pevent) ? "big" : "little");
+		return;
+	}
+
+	if (print_events) {
+		tracecmd_print_events(handle);
 		return;
 	}
 

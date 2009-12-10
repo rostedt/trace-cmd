@@ -38,10 +38,15 @@ struct tracecmd_input {
 	int		fd;
 	int		long_size;
 	int		page_size;
-	int		print_events;
 	int		read_page;
 	int		cpus;
 	struct cpu_data *cpu_data;
+
+	/* file information */
+	size_t		header_files_start;
+	size_t		ftrace_files_start;
+	size_t		event_files_start;
+	
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
@@ -220,6 +225,9 @@ static int read_header_files(struct tracecmd_input *handle)
 
 	free(header);
 
+	handle->ftrace_files_start =
+		lseek64(handle->fd, 0, SEEK_CUR);
+
 	return 0;
 
  failed_read:
@@ -228,7 +236,7 @@ static int read_header_files(struct tracecmd_input *handle)
 }
 
 static int read_ftrace_file(struct tracecmd_input *handle,
-			    unsigned long long size)
+			    unsigned long long size, int print)
 {
 	struct pevent *pevent = handle->pevent;
 	char *buf;
@@ -241,37 +249,41 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	pevent_parse_event(pevent, buf, size, "ftrace");
+	if (print)
+		printf("%.*s\n", (int)size, buf);
+	else
+		pevent_parse_event(pevent, buf, size, "ftrace");
 	free(buf);
 
 	return 0;
 }
 
 static int read_event_file(struct tracecmd_input *handle,
-			   char *system, unsigned long long size)
+			   char *system, unsigned long long size,
+			   int print)
 {
 	struct pevent *pevent = handle->pevent;
 	char *buf;
 
-	buf = malloc(size+1);
+	buf = malloc(size);
 	if (!buf)
 		return -1;
 
-	if (do_read_check(handle,buf, size)) {
+	if (do_read_check(handle, buf, size)) {
 		free(buf);
 		return -1;
 	}
 
-	buf[size] = 0;
-	if (handle->print_events)
-		printf("%s\n", buf);
-	pevent_parse_event(pevent, buf, size, system);
+	if (print)
+		printf("%.*s\n", (int)size, buf);
+	else
+		pevent_parse_event(pevent, buf, size, system);
 	free(buf);
 
 	return 0;
 }
 
-static int read_ftrace_files(struct tracecmd_input *handle)
+static int read_ftrace_files(struct tracecmd_input *handle, int print)
 {
 	unsigned long long size;
 	int count;
@@ -286,15 +298,18 @@ static int read_ftrace_files(struct tracecmd_input *handle)
 		size = read8(handle);
 		if (size < 0)
 			return -1;
-		ret = read_ftrace_file(handle, size);
+		ret = read_ftrace_file(handle, size, print);
 		if (ret < 0)
 			return -1;
 	}
 
+	handle->event_files_start =
+		lseek64(handle->fd, 0, SEEK_CUR);
+
 	return 0;
 }
 
-static int read_event_files(struct tracecmd_input *handle)
+static int read_event_files(struct tracecmd_input *handle, int print)
 {
 	unsigned long long size;
 	char *system;
@@ -312,6 +327,9 @@ static int read_event_files(struct tracecmd_input *handle)
 		if (!system)
 			return -1;
 
+		if (print)
+			printf("\nsystem: %s\n", system);
+
 		count = read4(handle);
 		if (count < 0)
 			goto failed;
@@ -321,7 +339,7 @@ static int read_event_files(struct tracecmd_input *handle)
 			if (size < 0)
 				goto failed;
 
-			ret = read_event_file(handle, system, size);
+			ret = read_event_file(handle, system, size, print);
 			if (ret < 0)
 				goto failed;
 		}
@@ -398,11 +416,11 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	if (ret < 0)
 		return -1;
 
-	ret = read_ftrace_files(handle);
+	ret = read_ftrace_files(handle, 0);
 	if (ret < 0)
 		return -1;
 
-	ret = read_event_files(handle);
+	ret = read_event_files(handle, 0);
 	if (ret < 0)
 		return -1;
 
@@ -1032,6 +1050,22 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	return 0;
 }
 
+void tracecmd_print_events(struct tracecmd_input *handle)
+{
+	int ret;
+
+	if (!handle->ftrace_files_start) {
+		lseek64(handle->fd, handle->header_files_start, SEEK_SET);
+		read_header_files(handle);
+	}
+	ret = read_ftrace_files(handle, 1);
+	if (ret < 0)
+		return;
+
+	read_event_files(handle, 1);
+	return;
+}
+
 struct tracecmd_input *tracecmd_open(int fd)
 {
 	struct tracecmd_input *handle;
@@ -1077,6 +1111,9 @@ struct tracecmd_input *tracecmd_open(int fd)
 	handle->long_size = buf[0];
 
 	handle->page_size = read4(handle);
+
+	handle->header_files_start =
+		lseek64(handle->fd, 0, SEEK_CUR);
 
 	return handle;
 
