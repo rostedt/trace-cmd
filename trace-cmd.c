@@ -1106,7 +1106,7 @@ void usage(char **argv)
 	printf("\n"
 	       "%s version %s\n\n"
 	       "usage:\n"
-	       " %s record [-e event][-p plugin] [-d] [-o file] [-O option ] command ...\n"
+	       " %s record [-e event][-p plugin] [-d] [-o file] [-O option ] [command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -d disable function tracer when running\n"
@@ -1152,6 +1152,7 @@ int main (int argc, char **argv)
 	int events = 0;
 	int options = 0;
 	int record = 0;
+	int run_command = 0;
 	int fset;
 
 	int c;
@@ -1257,12 +1258,12 @@ int main (int argc, char **argv)
 		usage(argv);
 	}
 
-	if ((argc - optind) < 2) {
-		if (record)
-			usage(argv);
-	} else if (!record)
-		die("Command start does not take any commands\n"
-		    "Did you mean 'record'?");
+	if ((argc - optind) >= 2) {
+		if (!record)
+			die("Command start does not take any commands\n"
+			    "Did you mean 'record'?");
+		run_command = 1;
+	}
 
 	if (!events && !plugin)
 		die("no event or plugin was specified... aborting");
@@ -1308,7 +1309,15 @@ int main (int argc, char **argv)
 	if (!record)
 		exit(0);
 
-	run_cmd((argc - optind) - 1, &argv[optind + 1]);
+	if (run_command)
+		run_cmd((argc - optind) - 1, &argv[optind + 1]);
+	else {
+		/* sleep till we are woken with Ctrl^C */
+		printf("Hit Ctrl^C to stop recording\n");
+		while (!finished)
+			sleep(10);
+		
+	}
 
 	disable_tracing();
 
