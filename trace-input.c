@@ -18,6 +18,8 @@
 
 #include "trace-cmd.h"
 
+/* for debugging read instead of mmap */
+static int force_read = 0;
 
 struct cpu_data {
 	/* the first two never change */
@@ -28,6 +30,7 @@ struct cpu_data {
 	unsigned long long	timestamp;
 	struct record		*next;
 	char			*page;
+	void			*read_page;
 	int			cpu;
 	int			index;
 	int			page_size;
@@ -493,47 +496,83 @@ static int calc_index(struct tracecmd_input *handle,
 static void
 update_cpu_data_index(struct tracecmd_input *handle, int cpu)
 {
-	handle->cpu_data[cpu].offset += handle->page_size;
 	handle->cpu_data[cpu].size -= handle->page_size;
 	handle->cpu_data[cpu].index = 0;
 }
 
-static int get_next_page(struct tracecmd_input *handle, int cpu)
+static void free_page(struct tracecmd_input *handle, int cpu)
+{
+	if (!handle->cpu_data[cpu].page)
+		return;
+
+	if (handle->read_page) {
+		handle->cpu_data[cpu].page = NULL;
+		return;
+	}
+		
+	munmap(handle->cpu_data[cpu].page, handle->page_size);
+	handle->cpu_data[cpu].page = NULL;
+}
+
+static int get_read_page(struct tracecmd_input *handle, int cpu,
+			 off64_t offset)
 {
 	off64_t save_seek;
 	off64_t ret;
 
+	free_page(handle, cpu);
+
+	handle->cpu_data[cpu].page = handle->cpu_data[cpu].read_page;
+
+	/* other parts of the code may expect the pointer to not move */
+	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
+
+	ret = lseek64(handle->fd, offset, SEEK_SET);
+	if (ret < 0)
+		return -1;
+	ret = read(handle->fd, handle->cpu_data[cpu].page, handle->page_size);
+	if (ret < 0)
+		return -1;
+
+	/* reset the file pointer back */
+	lseek64(handle->fd, save_seek, SEEK_SET);
+
+	return 0;
+
+}
+
+static int get_page(struct tracecmd_input *handle, int cpu,
+		    off64_t offset)
+{
+	if (offset & (handle->page_size - 1)) {
+		errno = -EINVAL;
+		die("bad page offset %llx", offset);
+		return -1;
+	}
+
+	if (handle->read_page)
+		return get_read_page(handle, cpu, offset);
+
+	if (handle->cpu_data[cpu].page)
+		free_page(handle, cpu);
+
+	handle->cpu_data[cpu].offset = offset;
+	
+	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
+					  handle->fd, offset);
+	if (handle->cpu_data[cpu].page == MAP_FAILED)
+		return -1;
+
+	return 0;
+}
+static int get_next_page(struct tracecmd_input *handle, int cpu)
+{
+	off64_t offset;
+
 	if (!handle->cpu_data[cpu].page)
 		return 0;
 
-	if (handle->read_page) {
-		if (handle->cpu_data[cpu].size <= handle->page_size) {
-			free(handle->cpu_data[cpu].page);
-			handle->cpu_data[cpu].page = NULL;
-			handle->cpu_data[cpu].offset = 0;
-			return 0;
-		}
-
-		update_cpu_data_index(handle, cpu);
-
-		/* other parts of the code may expect the pointer to not move */
-		save_seek = lseek64(handle->fd, 0, SEEK_CUR);
-
-		ret = lseek64(handle->fd, handle->cpu_data[cpu].offset, SEEK_SET);
-		if (ret < 0)
-			return -1;
-		ret = read(handle->fd, handle->cpu_data[cpu].page, handle->page_size);
-		if (ret < 0)
-			return -1;
-
-		/* reset the file pointer back */
-		lseek64(handle->fd, save_seek, SEEK_SET);
-
-		return 0;
-	}
-
-	munmap(handle->cpu_data[cpu].page, handle->page_size);
-	handle->cpu_data[cpu].page = NULL;
+	free_page(handle, cpu);
 
 	if (handle->cpu_data[cpu].size <= handle->page_size) {
 		handle->cpu_data[cpu].offset = 0;
@@ -542,12 +581,9 @@ static int get_next_page(struct tracecmd_input *handle, int cpu)
 
 	update_cpu_data_index(handle, cpu);
 	
-	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
-				  handle->fd, handle->cpu_data[cpu].offset);
-	if (handle->cpu_data[cpu].page == MAP_FAILED)
-		return -1;
+	offset = handle->cpu_data[cpu].offset + handle->page_size;
 
-	return 0;
+	return get_page(handle, cpu, offset);
 }
 
 enum old_ring_buffer_type {
@@ -946,9 +982,11 @@ static int init_read(struct tracecmd_input *handle, int cpu)
 	off64_t ret;
 	off64_t save_seek;
 
-	handle->cpu_data[cpu].page = malloc(handle->page_size);
-	if (!handle->cpu_data[cpu].page)
+	handle->cpu_data[cpu].read_page = malloc(handle->page_size);
+	if (!handle->cpu_data[cpu].read_page)
 		return -1;
+
+	handle->cpu_data[cpu].page = handle->cpu_data[cpu].read_page;
 
 	/* other parts of the code may expect the pointer to not move */
 	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
@@ -976,9 +1014,11 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	if (handle->read_page)
 		return init_read(handle, cpu);
 
-	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ,
+	if (!force_read) {
+		handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ,
 				  MAP_PRIVATE, handle->fd, handle->cpu_data[cpu].offset);
-	if (handle->cpu_data[cpu].page == MAP_FAILED) {
+	}
+	if (force_read || handle->cpu_data[cpu].page == MAP_FAILED) {
 		/* fall back to just reading pages */
 		perror("mmap");
 		fprintf(stderr, "Can not mmap file, will read instead\n");
