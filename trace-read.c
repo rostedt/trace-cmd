@@ -44,6 +44,52 @@ const char *input_file = "trace.dat";
 
 static int filter_cpu = -1;
 
+/* Debug variables for testing tracecmd_read_at */
+#define TEST_READ_AT 0
+#if TEST_READ_AT
+static off64_t test_read_at_offset;
+static int test_read_at_copy = 100;
+static int test_read_at_index;
+static void test_read_at(struct tracecmd_input *handle)
+{
+	struct pevent *pevent;
+	struct record *record;
+	struct trace_seq s;
+	int cpu;
+
+	if (!test_read_at_offset) {
+		printf("\nNO RECORD COPIED\n");
+		return;
+	}
+
+	pevent = tracecmd_get_pevent(handle);
+
+	record = tracecmd_read_at(handle, test_read_at_offset, &cpu);
+	printf("\nHERE'S THE COPY RECORD\n");
+	trace_seq_init(&s);
+	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	trace_seq_do_printf(&s);
+	printf("\n");
+
+	free(record);
+}
+
+static void test_read_at_save(struct record *record)
+{
+	if (test_read_at_index++ == test_read_at_copy) {
+		test_read_at_offset = record->offset;
+		printf("\nUSING THIS RECORD\n");
+	}
+}
+#else
+static void test_read_at(struct tracecmd_input *handle)
+{
+}
+static void test_read_at_save(struct record *record)
+{
+}
+#endif /* TEST_READ_AT */
+
 static void show_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent;
@@ -53,6 +99,8 @@ static void show_data(struct tracecmd_input *handle, int cpu)
 	pevent = tracecmd_get_pevent(handle);
 
 	record = tracecmd_read_data(handle, cpu);
+
+	test_read_at_save(record);
 
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
@@ -119,6 +167,8 @@ static void read_data_info(struct tracecmd_input *handle)
 			show_data(handle, next);
 
 	} while (next >= 0);
+
+	test_read_at(handle);
 }
 
 struct tracecmd_input *read_trace_header(void)
