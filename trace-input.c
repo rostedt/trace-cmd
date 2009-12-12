@@ -724,20 +724,14 @@ find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 		/*
 		 * If a page already exists, then we need to reset
 		 * it to point to the page with the data we want.
-		 * We update the pointers to point to the previous
-		 * page, and call get_next_page which will mmap
-		 * the next page after the pointer of the previous
-		 * page we want. Which ends up mapping the page we want.
 		 */
-
-		page_offset -= handle->page_size;
 
 		handle->cpu_data[cpu].offset = page_offset;
 		handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
 					      handle->cpu_data[cpu].file_size) -
 						page_offset;
 
-		if (get_next_page(handle, cpu))
+		if (get_page(handle, cpu, page_offset))
 			return NULL;
 	} else {
 		/*
