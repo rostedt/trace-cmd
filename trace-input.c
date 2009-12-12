@@ -981,6 +981,9 @@ static int init_read(struct tracecmd_input *handle, int cpu)
 
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
+	handle->cpu_data[cpu].offset = handle->cpu_data[cpu].file_offset;
+	handle->cpu_data[cpu].size = handle->cpu_data[cpu].file_size;
+
 	if (!handle->cpu_data[cpu].size) {
 		printf("CPU %d is empty\n", cpu);
 		return 0;
@@ -1053,8 +1056,6 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		offset = read8(handle);
 		size = read8(handle);
 
-		handle->cpu_data[cpu].offset = offset;
-		handle->cpu_data[cpu].size = size;
 		handle->cpu_data[cpu].file_offset = offset;
 		handle->cpu_data[cpu].file_size = size;
 
