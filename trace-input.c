@@ -550,6 +550,11 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 		return -1;
 	}
 
+	handle->cpu_data[cpu].offset = offset;
+	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
+				      handle->cpu_data[cpu].file_size) -
+					offset;
+
 	if (handle->read_page)
 		return get_read_page(handle, cpu, offset);
 
@@ -720,32 +725,8 @@ find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 	/* Move this cpu index to point to this offest */
 	page_offset = offset & ~(handle->page_size - 1);
 
-	if (handle->cpu_data[cpu].page) {
-		/*
-		 * If a page already exists, then we need to reset
-		 * it to point to the page with the data we want.
-		 */
-
-		handle->cpu_data[cpu].offset = page_offset;
-		handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
-					      handle->cpu_data[cpu].file_size) -
-						page_offset;
-
-		if (get_page(handle, cpu, page_offset))
-			return NULL;
-	} else {
-		/*
-		 * We need to map a new page. Just set it up the cpu_data
-		 * to the position we want.
-		 */
-		handle->cpu_data[cpu].offset = page_offset;
-		handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
-					      handle->cpu_data[cpu].file_size) -
-						page_offset;
-
-		if (init_cpu(handle, cpu))
-			return NULL;
-	}
+	if (get_page(handle, cpu, page_offset))
+		return NULL;
 
 	if (pcpu)
 		*pcpu = cpu;
