@@ -47,10 +47,11 @@ static int filter_cpu = -1;
 /* Debug variables for testing tracecmd_read_at */
 #define TEST_READ_AT 0
 #if TEST_READ_AT
+#define DO_TEST
 static off64_t test_read_at_offset;
 static int test_read_at_copy = 100;
 static int test_read_at_index;
-static void test_read_at(struct tracecmd_input *handle)
+static void show_test(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
 	struct record *record;
@@ -74,21 +75,72 @@ static void test_read_at(struct tracecmd_input *handle)
 	free(record);
 }
 
-static void test_read_at_save(struct record *record)
+static void test_save(struct record *record, int cpu)
 {
 	if (test_read_at_index++ == test_read_at_copy) {
 		test_read_at_offset = record->offset;
 		printf("\nUSING THIS RECORD\n");
 	}
 }
-#else
-static void test_read_at(struct tracecmd_input *handle)
-{
-}
-static void test_read_at_save(struct record *record)
-{
-}
 #endif /* TEST_READ_AT */
+
+/* Debug variables for testing tracecmd_set_cpu_at_timestamp */
+#define TEST_AT_TIMESTAMP 0
+#if TEST_AT_TIMESTAMP
+#define DO_TEST
+static unsigned long long test_at_timestamp_ts;
+static int test_at_timestamp_copy = 100;
+static int test_at_timestamp_cpu = -1;
+static int test_at_timestamp_index;
+static void show_test(struct tracecmd_input *handle)
+{
+	struct pevent *pevent;
+	struct record *record;
+	struct trace_seq s;
+	int cpu = test_at_timestamp_cpu;
+
+	if (!test_at_timestamp_ts) {
+		printf("\nNO RECORD COPIED\n");
+		return;
+	}
+
+	pevent = tracecmd_get_pevent(handle);
+
+	if (tracecmd_set_cpu_to_timestamp(handle, cpu, test_at_timestamp_ts))
+		return;
+
+	record = tracecmd_read_data(handle, cpu);
+	printf("\nHERE'S THE COPY RECORD with page %p offset=%p\n",
+	       (void *)(record->offset & ~(page_size - 1)),
+	       (void *)record->offset);
+	trace_seq_init(&s);
+	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	trace_seq_do_printf(&s);
+	printf("\n");
+
+	free(record);
+}
+
+static void test_save(struct record *record, int cpu)
+{
+	if (test_at_timestamp_index++ == test_at_timestamp_copy) {
+		test_at_timestamp_ts = record->ts;
+		test_at_timestamp_cpu = cpu;
+		printf("\nUSING THIS RECORD page=%p offset=%p\n",
+		       (void *)(record->offset & ~(page_size - 1)),
+		       (void *)record->offset);
+	}
+}
+#endif /* TEST_AT_TIMESTAMP */
+
+#ifndef DO_TEST
+static void show_test(struct tracecmd_input *handle)
+{
+}
+static void test_save(struct record *record, int cpu)
+{
+}
+#endif
 
 static void show_data(struct tracecmd_input *handle, int cpu)
 {
@@ -100,7 +152,7 @@ static void show_data(struct tracecmd_input *handle, int cpu)
 
 	record = tracecmd_read_data(handle, cpu);
 
-	test_read_at_save(record);
+	test_save(record, cpu);
 
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
@@ -168,7 +220,7 @@ static void read_data_info(struct tracecmd_input *handle)
 
 	} while (next >= 0);
 
-	test_read_at(handle);
+	show_test(handle);
 }
 
 struct tracecmd_input *read_trace_header(void)

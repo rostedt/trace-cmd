@@ -59,6 +59,9 @@ struct record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size);
 
+int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
+				  int cpu, unsigned long long ts);
+
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 

@@ -537,8 +537,10 @@ static int get_read_page(struct tracecmd_input *handle, int cpu,
 	/* reset the file pointer back */
 	lseek64(handle->fd, save_seek, SEEK_SET);
 
-	return 0;
+	handle->cpu_data[cpu].timestamp =
+		data2host8(handle->pevent, handle->cpu_data[cpu].page);
 
+	return 0;
 }
 
 static int get_page(struct tracecmd_input *handle, int cpu,
@@ -567,6 +569,9 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 					  handle->fd, offset);
 	if (handle->cpu_data[cpu].page == MAP_FAILED)
 		return -1;
+
+	handle->cpu_data[cpu].timestamp =
+		data2host8(handle->pevent, handle->cpu_data[cpu].page);
 
 	return 0;
 }
@@ -756,6 +761,72 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		return read_event(handle, offset, cpu);
 	} else
 		return find_and_read_event(handle, offset, pcpu);
+}
+
+int
+tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
+			      unsigned long long ts)
+{
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	off64_t start, end, next;
+
+	if (cpu < 0 || cpu >= handle->cpus) {
+		errno = -EINVAL;
+		return -1;
+	}
+
+	if (!cpu_data->page) {
+		if (init_cpu(handle, cpu))
+		    return -1;
+	}
+
+	if (cpu_data->timestamp == ts)
+		return 0;
+
+	if (cpu_data->timestamp < ts) {
+		start = cpu_data->offset;
+		end = cpu_data->file_offset + cpu_data->file_size;
+		if (end & (handle->page_size - 1))
+			end &= ~(handle->page_size - 1);
+		else
+			end -= handle->page_size;
+		next = end;
+	} else {
+		end = cpu_data->offset;
+		start = cpu_data->file_offset;
+		next = start;
+	}
+
+	while (start < end) {
+		if (get_page(handle, cpu, next))
+			return -1;
+
+		if (cpu_data->timestamp == ts)
+			break;
+
+		if (cpu_data->timestamp < ts)
+			start = next;
+		else
+			end = next;
+
+		next = start + (end - start) / 2;
+		next &= ~(handle->page_size - 1);
+	}
+
+	/*
+	 * We need to end up on a page before the time stamp.
+	 * We go back even if the timestamp is the same. This is because
+	 * we want the event with the timestamp, not the page. The page
+	 * can start with the timestamp we are looking for, but the event
+	 * may be on the previous page.
+	 */
+	if (cpu_data->timestamp >= ts &&
+	    cpu_data->offset > cpu_data->file_offset)
+		get_page(handle, cpu, cpu_data->offset - handle->page_size);
+
+	cpu_data->index = 0;
+
+	return 0;
 }
 
 static unsigned int
@@ -976,6 +1047,9 @@ static int init_read(struct tracecmd_input *handle, int cpu)
 	/* reset the file pointer back */
 	lseek64(handle->fd, save_seek, SEEK_SET);
 
+	handle->cpu_data[cpu].timestamp =
+		data2host8(handle->pevent, handle->cpu_data[cpu].page);
+
 	return 0;
 }
 
@@ -1004,6 +1078,8 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 
 		return init_read(handle, cpu);
 	}
+	handle->cpu_data[cpu].timestamp =
+		data2host8(handle->pevent, handle->cpu_data[cpu].page);
 	return 0;
 }
 
