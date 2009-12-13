@@ -62,7 +62,7 @@ static int do_read(struct tracecmd_input *handle, void *data, int size)
 	int r;
 
 	do {
-		r = read(handle->fd, data, size);
+		r = read(handle->fd, data, size - tot);
 		tot += r;
 
 		if (!r)
