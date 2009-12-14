@@ -15,6 +15,13 @@
 
 #define __weak __attribute__((weak))
 
+#define _STR(x) #x
+#define STR(x) _STR(x)
+
+#ifndef MAX_PATH
+# define MAX_PATH 1024
+#endif
+
 void __weak die(char *fmt, ...)
 {
 	va_list ap;
@@ -171,6 +178,41 @@ static int load_plugin(struct pevent *pevent,
 
 	/* dlclose ?? */
 	return ret;
+}
+
+char *tracecmd_find_tracing_dir(void)
+{
+	char debugfs[MAX_PATH+1];
+	char *tracing_dir;
+	char type[100];
+	FILE *fp;
+	
+	if ((fp = fopen("/proc/mounts","r")) == NULL) {
+		warning("Can't open /proc/mounts for read");
+		return NULL;
+	}
+
+	while (fscanf(fp, "%*s %"
+		      STR(MAX_PATH)
+		      "s %99s %*s %*d %*d\n",
+		      debugfs, type) == 2) {
+		if (strcmp(type, "debugfs") == 0)
+			break;
+	}
+	fclose(fp);
+
+	if (strcmp(type, "debugfs") != 0) {
+		warning("debugfs not mounted, please mount");
+		return NULL;
+	}
+
+	tracing_dir = malloc_or_die(strlen(debugfs) + 9);
+	if (!tracing_dir)
+		return NULL;
+
+	sprintf(tracing_dir, "%s/tracing", debugfs);
+
+	return tracing_dir;
 }
 
 int trace_load_plugins(struct pevent *pevent)

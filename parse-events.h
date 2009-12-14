@@ -273,8 +273,6 @@ void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
 void warning(char *fmt, ...);
 
-int bigendian(void);
-
 static inline unsigned short
 __data2host2(struct pevent *pevent, unsigned short data)
 {

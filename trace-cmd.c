@@ -35,8 +35,6 @@
 
 #include "trace-local.h"
 
-#define VERSION "0.5"
-
 #define _STR(x) #x
 #define STR(x) _STR(x)
 #define MAX_PATH 256
@@ -51,7 +49,6 @@
 unsigned int page_size;
 
 static const char *output_file = "trace.dat";
-static int output_fd;
 
 static int latency;
 
@@ -71,6 +68,25 @@ struct events {
 	struct events *next;
 	char *name;
 };
+
+static struct tracecmd_recorder *recorder;
+
+static char *get_temp_file(int cpu)
+{
+	char *file = NULL;
+	int size;
+
+	size = snprintf(file, 0, "%s.cpu%d", output_file, cpu);
+	file = malloc_or_die(size + 1);
+	sprintf(file, "%s.cpu%d", output_file, cpu);
+
+	return file;
+}
+
+static void put_temp_file(char *file)
+{
+	free(file);
+}
 
 static void delete_temp_file(int cpu)
 {
@@ -174,79 +190,6 @@ void *malloc_or_die(unsigned int size)
 	return data;
 }
 
-static const char *find_debugfs(void)
-{
-	static char debugfs[MAX_PATH+1];
-	static int debugfs_found;
-	char type[100];
-	FILE *fp;
-
-	if (debugfs_found)
-		return debugfs;
-
-	if ((fp = fopen("/proc/mounts","r")) == NULL)
-		die("Can't open /proc/mounts for read");
-
-	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
-		      "s %99s %*s %*d %*d\n",
-		      debugfs, type) == 2) {
-		if (strcmp(type, "debugfs") == 0)
-			break;
-	}
-	fclose(fp);
-
-	if (strcmp(type, "debugfs") != 0)
-		die("debugfs not mounted, please mount");
-
-	debugfs_found = 1;
-
-	return debugfs;
-}
-
-/*
- * Finds the path to the debugfs/tracing
- * Allocates the string and stores it.
- */
-static const char *find_tracing_dir(void)
-{
-	static char *tracing;
-	static int tracing_found;
-	const char *debugfs;
-
-	if (tracing_found)
-		return tracing;
-
-	debugfs = find_debugfs();
-
-	tracing = malloc_or_die(strlen(debugfs) + 9);
-
-	sprintf(tracing, "%s/tracing", debugfs);
-
-	tracing_found = 1;
-	return tracing;
-}
-
-static char *get_tracing_file(const char *name)
-{
-	const char *tracing;
-	char *file;
-
-	tracing = find_tracing_dir();
-	if (!tracing)
-		return NULL;
-
-	file = malloc_or_die(strlen(tracing) + strlen(name) + 2);
-
-	sprintf(file, "%s/%s", tracing, name);
-	return file;
-}
-
-static void put_tracing_file(char *file)
-{
-	free(file);
-}
-
 static int set_ftrace(int set)
 {
 	struct stat buf;
@@ -282,6 +225,30 @@ void run_cmd(int argc, char **argv)
 			exit(-1);
 	}
 	waitpid(pid, &status, 0);
+}
+
+static char *get_tracing_file(const char *name)
+{
+	static const char *tracing;
+	char *file;
+
+	if (!tracing) {
+		tracing = tracecmd_find_tracing_dir();
+		if (!tracing)
+			die("Can't find tracing dir");
+	}
+
+	file = malloc_or_die(strlen(tracing) + strlen(name) + 2);
+	if (!file)
+		return NULL;
+
+	sprintf(file, "%s/%s", tracing, name);
+	return file;
+}
+
+static void put_tracing_file(char *file)
+{
+	free(file);
 }
 
 static void show_events(void)
@@ -572,20 +539,15 @@ static int finished;
 static void finish(int sig)
 {
 	/* all done */
+	if (recorder)
+		tracecmd_stop_recording(recorder);
 	finished = 1;
 }
 
 static int create_recorder(int cpu)
 {
-	char file[MAX_PATH];
-	const char *tracing;
-	char *path;
-	int out_fd;
-	int in_fd;
-	int brass[2];
+	char *file;
 	int pid;
-	int ret;
-	char buf[page_size];
 
 	pid = fork();
 	if (pid < 0)
@@ -599,40 +561,15 @@ static int create_recorder(int cpu)
 	/* do not kill tasks on error */
 	cpu_count = 0;
 
-	snprintf(file, MAX_PATH, "%s.cpu%d", output_file, cpu);
+	file = get_temp_file(cpu);
 
-	out_fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (out_fd < 0)
-		die("can't create file '%s'", file);
+	recorder = tracecmd_create_recorder(file, cpu);
+	put_temp_file(file);
 
-	tracing = find_tracing_dir();
-
-	path = malloc_or_die(strlen(tracing) + 40);
-
-	sprintf(path, "%s/per_cpu/cpu%d/trace_pipe_raw", tracing, cpu);
-	in_fd = open(path, O_RDONLY);
-	if (in_fd < 0)
-		die("can not read '%s'", path);
-
-	ret = pipe(brass);
-	if (ret < 0)
-		die("can not create pipe");
-
-	do {
-		ret = splice(in_fd, NULL, brass[1], NULL, page_size, 1 /* SPLICE_F_MOVE */);
-		if (ret < 0)
-			die("splice in");
-		ret = splice(brass[0], NULL, out_fd, NULL, page_size, 3 /* and NON_BLOCK */);
-		if (ret < 0 && errno != EAGAIN)
-			die("splice out");
-	} while (!finished);
-
-	/* splice only reads full pages */
-	do {
-		ret = read(in_fd, buf, page_size);
-		if (ret > 0)
-			write(out_fd, buf, ret);
-	} while (ret > 0);
+	if (!recorder)
+		die ("can't create recorder");
+	tracecmd_start_recording(recorder);
+	tracecmd_free_recorder(recorder);
 
 	exit(0);
 }
@@ -656,442 +593,32 @@ static void start_threads(void)
 	}
 }
 
-static ssize_t write_or_die(const void *buf, size_t len)
+static void record_data(void)
 {
-	int ret;
-
-	ret = write(output_fd, buf, len);
-	if (ret < 0)
-		die("writing to '%s'", output_file);
-
-	return ret;
-}
-
-int bigendian(void)
-{
-	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
-	unsigned int *ptr;
-
-	ptr = (unsigned int *)str;
-	return *ptr == 0x01020304;
-}
-
-static unsigned long long copy_file_fd(int fd)
-{
-	unsigned long long size = 0;
-	char buf[BUFSIZ];
-	int r;
-
-	do {
-		r = read(fd, buf, BUFSIZ);
-		if (r > 0) {
-			size += r;
-			write_or_die(buf, r);
-		}
-	} while (r > 0);
-
-	return size;
-}
-
-static unsigned long long copy_file(const char *file)
-{
-	unsigned long long size = 0;
-	int fd;
-
-	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		die("Can't read '%s'", file);
-	size = copy_file_fd(fd);
-	close(fd);
-
-	return size;
-}
-
-static unsigned long get_size_fd(int fd)
-{
-	unsigned long long size = 0;
-	char buf[BUFSIZ];
-	int r;
-
-	do {
-		r = read(fd, buf, BUFSIZ);
-		if (r > 0)
-			size += r;
-	} while (r > 0);
-
-	lseek(fd, 0, SEEK_SET);
-
-	return size;
-}
-
-static unsigned long get_size(const char *file)
-{
-	unsigned long long size = 0;
-	int fd;
-
-	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		die("Can't read '%s'", file);
-	size = get_size_fd(fd);
-	close(fd);
-
-	return size;
-}
-
-static void read_header_files(void)
-{
-	unsigned long long size, check_size;
-	struct stat st;
-	char *path;
-	int fd;
-	int ret;
-
-	path = get_tracing_file("events/header_page");
-
-	ret = stat(path, &st);
-	if (ret < 0) {
-		/* old style did not show this info, just add zero */
-		put_tracing_file(path);
-		write_or_die("header_page", 12);
-		size = 0;
-		write_or_die(&size, 8);
-		write_or_die("header_event", 13);
-		write_or_die(&size, 8);
-		return;
-	}
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		die("can't read '%s'", path);
-
-	/* unfortunately, you can not stat debugfs files for size */
-	size = get_size_fd(fd);
-
-	write_or_die("header_page", 12);
-	write_or_die(&size, 8);
-	check_size = copy_file_fd(fd);
-	if (size != check_size)
-		die("wrong size for '%s' size=%lld read=%lld",
-		    path, size, check_size);
-	put_tracing_file(path);
-
-	path = get_tracing_file("events/header_event");
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		die("can't read '%s'", path);
-
-	size = get_size_fd(fd);
-
-	write_or_die("header_event", 13);
-	write_or_die(&size, 8);
-	check_size = copy_file_fd(fd);
-	if (size != check_size)
-		die("wrong size for '%s'", path);
-	put_tracing_file(path);
-}
-
-static void copy_event_system(const char *sys)
-{
-	unsigned long long size, check_size;
-	struct dirent *dent;
-	struct stat st;
-	char *format;
-	DIR *dir;
-	int count = 0;
-	int ret;
-
-	dir = opendir(sys);
-	if (!dir)
-		die("can't read directory '%s'", sys);
-
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
-			continue;
-		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
-		sprintf(format, "%s/%s/format", sys, dent->d_name);
-		ret = stat(format, &st);
-		free(format);
-		if (ret < 0)
-			continue;
-		count++;
-	}
-
-	write_or_die(&count, 4);
-	
-	rewinddir(dir);
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
-			continue;
-		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
-		sprintf(format, "%s/%s/format", sys, dent->d_name);
-		ret = stat(format, &st);
-
-		if (ret >= 0) {
-			/* unfortunately, you can not stat debugfs files for size */
-			size = get_size(format);
-			write_or_die(&size, 8);
-			check_size = copy_file(format);
-			if (size != check_size)
-				die("error in size of file '%s'", format);
-		}
-
-		free(format);
-	}
-}
-
-static void read_ftrace_files(void)
-{
-	char *path;
-
-	path = get_tracing_file("events/ftrace");
-
-	copy_event_system(path);
-
-	put_tracing_file(path);
-}
-
-static void read_event_files(void)
-{
-	struct dirent *dent;
-	struct stat st;
-	char *path;
-	char *sys;
-	DIR *dir;
-	int count = 0;
-	int ret;
-
-	path = get_tracing_file("events");
-
-	dir = opendir(path);
-	if (!dir)
-		die("can't read directory '%s'", path);
-
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0)
-			continue;
-		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
-		sprintf(sys, "%s/%s", path, dent->d_name);
-		ret = stat(sys, &st);
-		free(sys);
-		if (ret < 0)
-			continue;
-		if (S_ISDIR(st.st_mode))
-			count++;
-	}
-
-	write_or_die(&count, 4);
-
-	rewinddir(dir);
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0)
-			continue;
-		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
-		sprintf(sys, "%s/%s", path, dent->d_name);
-		ret = stat(sys, &st);
-		if (ret >= 0) {
-			if (S_ISDIR(st.st_mode)) {
-				write_or_die(dent->d_name, strlen(dent->d_name) + 1);
-				copy_event_system(sys);
-			}
-		}
-		free(sys);
-	}
-
-	put_tracing_file(path);
-}
-
-static void read_proc_kallsyms(void)
-{
-	unsigned int size, check_size;
-	const char *path = "/proc/kallsyms";
-	struct stat st;
-	int ret;
-
-	ret = stat(path, &st);
-	if (ret < 0) {
-		/* not found */
-		size = 0;
-		write_or_die(&size, 4);
-		return;
-	}
-	size = get_size(path);
-	write_or_die(&size, 4);
-	check_size = copy_file(path);
-	if (size != check_size)
-		die("error in size of file '%s'", path);
-
-}
-
-static void read_ftrace_printk(void)
-{
-	unsigned int size, check_size;
-	const char *path;
-	struct stat st;
-	int ret;
-
-	path = get_tracing_file("printk_formats");
-	ret = stat(path, &st);
-	if (ret < 0) {
-		/* not found */
-		size = 0;
-		write_or_die(&size, 4);
-		return;
-	}
-	size = get_size(path);
-	write_or_die(&size, 4);
-	check_size = copy_file(path);
-	if (size != check_size)
-		die("error in size of file '%s'", path);
-
-}
-
-static void read_tracing_data(void)
-{
-	char buf[BUFSIZ];
-
-	output_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (output_fd < 0)
-		die("creating file '%s'", output_file);
-
-	buf[0] = 23;
-	buf[1] = 8;
-	buf[2] = 68;
-	memcpy(buf + 3, "tracing", 7);
-
-	write_or_die(buf, 10);
-
-	write_or_die(VERSION, strlen(VERSION) + 1);
-
-	/* save endian */
-	if (bigendian())
-		buf[0] = 1;
-	else
-		buf[0] = 0;
-
-	write_or_die(buf, 1);
-
-	/* save size of long */
-	buf[0] = sizeof(long);
-	write_or_die(buf, 1);
-
-	/* save page_size */
-	page_size = getpagesize();
-	write_or_die(&page_size, 4);
-
-	read_header_files();
-	read_ftrace_files();
-	read_event_files();
-	read_proc_kallsyms();
-	read_ftrace_printk();
-}
-
-static unsigned long long read_thread_file(int cpu)
-{
-	unsigned long long size;
-	char *file;
-
-	file = malloc_or_die(strlen(output_file) + 20);
-	snprintf(file, MAX_PATH, "%s.cpu%d", output_file, cpu);
-
-	size = copy_file(file);
-	free(file);
-	return size;
-}
-
-static void read_trace_data(void)
-{
-	char *path;
-
-	write_or_die("latency  ", 10);
-
-	path = get_tracing_file("trace");
-
-	copy_file(path);
-
-	put_tracing_file(path);
-}
-
-static void read_thread_data(void)
-{
-	unsigned long long offset, check_size;
-	unsigned long long *offsets;
-	unsigned long long *sizes;
-	unsigned long long size;
-	long long ret;
-	struct stat st;
-	char *file;
+	struct tracecmd_output *handle;
+	char **temp_files;
 	int i;
-		
-	if (!cpu_count)
-		return;
 
-	/*
-	 * Save the command lines;
-	 */
-	file = get_tracing_file("saved_cmdlines");
-	ret = stat(file, &st);
-	if (ret >= 0) {
-		size = get_size(file);
-		write_or_die(&size, 8);
-		check_size = copy_file(file);
-		if (size != check_size)
-			die("error in size of file '%s'", file);
-	} else {
-		size = 0;
-		write_or_die(&size, 8);
+	if (latency)
+		handle = tracecmd_create_file_latency(output_file, cpu_count);
+	else {
+		if (!cpu_count)
+			return;
+
+		temp_files = malloc_or_die(sizeof(*temp_files) * cpu_count);
+
+		for (i = 0; i < cpu_count; i++)
+			temp_files[i] = get_temp_file(i);
+
+		handle = tracecmd_create_file(output_file, cpu_count, temp_files);
+
+		for (i = 0; i < cpu_count; i++)
+			put_temp_file(temp_files[i]);
+		free(temp_files);
 	}
-	put_tracing_file(file);
-
-	write_or_die(&cpu_count, 4);
-
-	if (latency) {
-		read_trace_data();
-		return;
-	}
-
-	write_or_die("flyrecord", 10);
-
-	offsets = malloc_or_die(sizeof(*offsets) * cpu_count);
-	sizes = malloc_or_die(sizeof(*sizes) * cpu_count);
-
-	offset = lseek(output_fd, 0, SEEK_CUR);
-
-	/* hold any extra data for data */
-	offset += cpu_count * (16);
-	offset = (offset + (page_size - 1)) & ~(PAGE_MASK);
-
-	for (i = 0; i < cpu_count; i++) {
-		file = malloc_or_die(strlen(output_file) + 20);
-		sprintf(file, "%s.cpu%d", output_file, i);
-		ret = stat(file, &st);
-		if (ret < 0)
-			die("can not stat '%s'", file);
-		free(file);
-		offsets[i] = offset;
-		sizes[i] = st.st_size;
-		offset += st.st_size;
-		offset = (offset + (page_size - 1)) & ~(PAGE_MASK);
-
-		write_or_die(&offsets[i], 8);
-		write_or_die(&sizes[i], 8);
-	}
-
-	for (i = 0; i < cpu_count; i++) {
-		fprintf(stderr, "offset=%llx\n", offsets[i]);
-		ret = lseek64(output_fd, offsets[i], SEEK_SET);
-		if (ret < 0)
-			die("could not seek to %lld\n", offsets[i]);
-		check_size = read_thread_file(i);
-		if (check_size != sizes[i])
-			die("did not match size of %lld to %lld",
-			    check_size, sizes[i]);
-	}
+	if (!handle)
+		die("could not write to file");
+	tracecmd_output_close(handle);
 }
 
 void usage(char **argv)
@@ -1137,7 +664,7 @@ void usage(char **argv)
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
 	       "          -o list available options\n"
-	       "\n", p, VERSION, p, p, p, p, p, p);
+	       "\n", p, TRACECMD_VERSION, p, p, p, p, p, p);
 	exit(-1);
 }
 
@@ -1268,15 +795,8 @@ int main (int argc, char **argv)
 	if (!events && !plugin)
 		die("no event or plugin was specified... aborting");
 
-	if (record) {
-		if (output)
-			output_file = output;
-
-		read_tracing_data();
-
-		start_threads();
-		signal(SIGINT, finish);
-	}
+	if (output)
+		output_file = output;
 
 	fset = set_ftrace(!disable);
 	disable_all();
@@ -1294,9 +814,6 @@ int main (int argc, char **argv)
 		    strcmp(plugin, "wakeup") == 0 ||
 		    strcmp(plugin, "wakeup_rt") == 0) {
 			latency = 1;
-			if (record)
-				stop_threads();
-			reset_max_latency();
 		}
 		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
 				 strcmp(plugin, "function_graph") == 0))
@@ -1304,7 +821,15 @@ int main (int argc, char **argv)
 		set_plugin(plugin);
 	}
 
+	if (record) {
+		if (!latency)
+			start_threads();
+		signal(SIGINT, finish);
+	}
+
 	enable_tracing();
+	if (latency)
+		reset_max_latency();
 
 	if (!record)
 		exit(0);
@@ -1316,14 +841,13 @@ int main (int argc, char **argv)
 		printf("Hit Ctrl^C to stop recording\n");
 		while (!finished)
 			sleep(10);
-		
 	}
 
 	disable_tracing();
 
 	stop_threads();
 
-	read_thread_data();
+	record_data();
 	delete_thread_data();
 
 	exit(0);

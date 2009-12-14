@@ -10,6 +10,8 @@ extern const char *input_file;
 #define PAGE_MASK (page_size - 1)
 #endif
 
+#define TRACECMD_VERSION "0.5"
+
 void parse_cmdlines(struct pevent *pevent, char *file, int size);
 void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(char *file, unsigned int size);
@@ -35,6 +37,21 @@ struct record {
 };
 
 struct tracecmd_input;
+struct tracecmd_output;
+struct tracecmd_recorder;
+
+static inline int tracecmd_host_bigendian(void)
+{
+	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
+	unsigned int *ptr;
+
+	ptr = (unsigned int *)str;
+	return *ptr == 0x01020304;
+}
+
+char *tracecmd_find_tracing_dir(void);
+
+/* --- Opening and Reading the trace.dat file --- */
 
 struct tracecmd_input *tracecmd_open(int fd);
 int tracecmd_read_headers(struct tracecmd_input *handle);
@@ -67,5 +84,21 @@ struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 
 /* hack for function graph work around */
 extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;
+
+
+/* --- Creating and Writing the trace.dat file --- */
+
+struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus);
+struct tracecmd_output *tracecmd_create_file(const char *output_file,
+					     int cpus, char * const *cpu_data_files);
+void tracecmd_output_close(struct tracecmd_output *handle);
+
+/* --- Reading the Fly Recorder Trace --- */
+
+void tracecmd_free_recorder(struct tracecmd_recorder *recorder);
+struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu);
+int tracecmd_start_recording(struct tracecmd_recorder *recorder);
+void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
+
 
 #endif /* _TRACE_CMD_H */

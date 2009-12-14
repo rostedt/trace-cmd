@@ -1197,7 +1197,7 @@ struct tracecmd_input *tracecmd_open(int fd)
 		goto failed_read;
 
 	handle->pevent->file_bigendian = buf[0];
-	handle->pevent->host_bigendian = bigendian();
+	handle->pevent->host_bigendian = tracecmd_host_bigendian();
 
 	do_read_check(handle, buf, 1);
 	handle->long_size = buf[0];
