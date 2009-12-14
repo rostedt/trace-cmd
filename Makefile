@@ -16,7 +16,7 @@ CFLAGS = -g -Wall $(CONFIG_FLAGS)
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
 TARGETS = libparsevent.a libtracecmd.a trace-cmd plugin_hrtimer.so plugin_mac80211.so \
-	plugin_sched_switch.so
+	plugin_sched_switch.so trace-graph
 
 all: $(TARGETS)
 
@@ -32,16 +32,21 @@ trace-input.o::		$(HEADERS)
 trace-view.o::		$(HEADERS)
 trace-view-store.o::	$(HEADERS)
 trace-filter.o::	$(HEADERS)
+trace-graph.o::		$(HEADERS)
 
 trace-cmd:: trace-cmd.o trace-read.o trace-view.o trace-view-store.o \
 	trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
-.PHONY: view_depends
+trace-graph:: trace-graph.o
+	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+
+.PHONY: gtk_depends
 view_depends:
 	@pkg-config --cflags $(PACKAGES)
 
-trace-view.o::		parse-events.h view_depends
+trace-view.o::		parse-events.h gtk_depends
+trace-graph.o::		parse-events.h gtk_depends
 
 parse-events.o: parse-events.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
