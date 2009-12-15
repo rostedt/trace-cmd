@@ -75,6 +75,10 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 struct record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size);
+struct record *
+tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu);
+struct record *
+tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu);
 
 int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 				  int cpu, unsigned long long ts);

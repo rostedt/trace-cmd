@@ -585,6 +585,14 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 		return -1;
 	}
 
+	if (offset < handle->cpu_data[cpu].file_offset ||
+	    offset > handle->cpu_data[cpu].file_offset +
+	    handle->cpu_data[cpu].file_size) {
+		errno = -EINVAL;
+		die("bad page offset %llx", offset);
+		return -1;
+	}
+
 	handle->cpu_data[cpu].offset = offset;
 	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
 				      handle->cpu_data[cpu].file_size) -
@@ -794,6 +802,39 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		return read_event(handle, offset, cpu);
 	} else
 		return find_and_read_event(handle, offset, pcpu);
+}
+
+struct record *
+tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
+{
+	get_page(handle, cpu, handle->cpu_data[cpu].file_offset);
+
+	return tracecmd_read_data(handle, cpu);
+}
+
+struct record *
+tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
+{
+	struct record *record;
+	off64_t offset;
+
+	offset = handle->cpu_data[cpu].file_offset +
+		handle->cpu_data[cpu].file_size;
+
+	if (offset & (handle->page_size - 1))
+		offset &= ~(handle->page_size - 1);
+	else
+		offset -= handle->page_size;
+
+	get_page(handle, cpu, offset);
+
+	do {
+		record = tracecmd_read_data(handle, cpu);
+		if (record)
+			offset = record->offset;
+	} while (record);
+
+	return tracecmd_read_at(handle, offset, NULL);
 }
 
 int

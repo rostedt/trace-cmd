@@ -133,6 +133,53 @@ static void test_save(struct record *record, int cpu)
 }
 #endif /* TEST_AT_TIMESTAMP */
 
+#define TEST_FIRST_LAST 1
+#if TEST_FIRST_LAST
+#define DO_TEST
+static void show_test(struct tracecmd_input *handle)
+{
+	struct pevent *pevent;
+	struct record *record;
+	struct trace_seq s;
+	int cpu = 0;
+
+	pevent = tracecmd_get_pevent(handle);
+
+	record = tracecmd_read_cpu_first(handle, cpu);
+	if (!record) {
+		printf("No first record?\n");
+		return;
+	}
+
+	printf("\nHERE'S THE FIRST RECORD with offset %p\n",
+	       (void *)record->offset);
+	trace_seq_init(&s);
+	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	trace_seq_do_printf(&s);
+	printf("\n");
+
+	free(record);
+
+	record = tracecmd_read_cpu_last(handle, cpu);
+	if (!record) {
+		printf("No last record?\n");
+		return;
+	}
+
+	printf("\nHERE'S THE LAST RECORD with offset %p\n",
+	       (void *)record->offset);
+	trace_seq_init(&s);
+	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	trace_seq_do_printf(&s);
+	printf("\n");
+
+	free(record);
+}
+static void test_save(struct record *record, int cpu)
+{
+}
+#endif /* TEST_FIRST_LAST */
+
 #ifndef DO_TEST
 static void show_test(struct tracecmd_input *handle)
 {
