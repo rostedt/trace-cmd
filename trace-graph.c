@@ -41,6 +41,9 @@
 #define CPU_TOP(cpu) (CPU_MIDDLE(cpu) - 10)
 #define CPU_BOTTOM(cpu) (CPU_MIDDLE(cpu) + 10)
 
+static gint ftrace_sched_switch_id = -1;
+static gint event_sched_switch_id = -1;
+
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
 {
@@ -196,6 +199,58 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 
 #define CPU_BOARDER 5
 
+static int check_sched_switch(struct graph_info *ginfo,
+			      struct record *record,
+			      gint *pid, const char **comm)
+{
+	static struct format_field *event_pid_field;
+	static struct format_field *event_comm_field;
+	static struct format_field *ftrace_pid_field;
+	static struct format_field *ftrace_comm_field;
+	unsigned long long val;
+	struct event *event;
+	gint id;
+
+	if (event_sched_switch_id < 0) {
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  "ftrace", "context_switch");
+		if (event) {
+			ftrace_sched_switch_id = event->id;
+			ftrace_pid_field = pevent_find_field(event, "next_pid");
+			ftrace_comm_field = pevent_find_field(event, "next_comm");
+		}
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  "sched", "sched_switch");
+		if (!event)
+			die("can't find event sched_switch!");
+		event_sched_switch_id = event->id;
+		event_pid_field = pevent_find_field(event, "next_pid");
+		event_comm_field = pevent_find_field(event, "next_comm");
+	}
+
+	id = pevent_data_type(ginfo->pevent, record);
+	if (id == event_sched_switch_id) {
+		pevent_read_number_field(event_pid_field, record->data, &val);
+		if (comm)
+			*comm = record->data + event_comm_field->offset;
+		if (pid)
+			*pid = val;
+		return 1;
+	}
+
+	if (id == ftrace_sched_switch_id) {
+		pevent_read_number_field(ftrace_pid_field, record->data, &val);
+		if (comm)
+			*comm = record->data + ftrace_comm_field->offset;
+		if (pid)
+			*pid = val;
+		return 1;
+	}
+
+	return 0;
+}
+
 static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 {
 	PangoLayout *layout;
@@ -211,6 +266,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	gint width, height;
 	GdkPixmap *pix;
 	static GdkGC *pix_bg;
+	guint64 offset = 0;
 
 	if (!pix_bg) {
 		GdkColor color;
@@ -234,21 +290,32 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	printf("start=%zu end=%zu time=%lu\n", ginfo->start_time, ginfo->end_time, time);
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 	do {
-		if (record)
-			free(record);
+		if (record) {
+			offset = record->offset;
+			free_record(record);
+		}
 		record = tracecmd_read_data(ginfo->handle, cpu);
 	} while (record && record->ts <= (time - 1 / ginfo->resolution));
 
 	if (record) {
-		
-		pid = pevent_data_pid(ginfo->pevent, record);
-		comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+
+		if (record->ts > (time + 1 / ginfo->resolution) && offset) {
+			printf("old ts = %llu!\n", record->ts);
+			free_record(record);
+			record = tracecmd_read_at(ginfo->handle, offset, NULL);
+		}
+
+		if (!check_sched_switch(ginfo, record, &pid, &comm)) {
+			pid = pevent_data_pid(ginfo->pevent, record);
+			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+		}
 
 		printf("record->ts=%llu time=%zu-%zu\n",
-		       record->ts, time, time+(gint)(5/ginfo->resolution));
+		       record->ts, time, time-(gint)(1/ginfo->resolution));
 		print_rec_info(record, pevent, cpu);
 
-		if (record->ts < time + 1/ginfo->resolution) {
+		if (record->ts > time - 2/ginfo->resolution &&
+		    record->ts < time + 2/ginfo->resolution) {
 			convert_nano(record->ts, &sec, &usec);
 
 			type = pevent_data_type(pevent, record);
@@ -402,6 +469,8 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	struct record *record;
 	static GdkGC *gc;
 	guint64 ts;
+	gint last_pid = 0;
+	gint last_x = 0;
 	gint pid;
 	gint x;
 
@@ -416,6 +485,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, ts);
 
 	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+
 		if (record->ts > ginfo->view_end_time)
 			break;
 
@@ -423,7 +493,23 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		x = (gint)((gdouble)ts * ginfo->resolution);
 
-		pid = pevent_data_pid(ginfo->pevent, record);
+
+		if (!check_sched_switch(ginfo, record, &pid, NULL))
+			pid = pevent_data_pid(ginfo->pevent, record);
+
+		if (last_pid != pid) {
+			if (last_pid) {
+				gdk_draw_line(ginfo->curr_pixmap, gc,
+					      last_x, CPU_TOP(cpu),
+					      x, CPU_TOP(cpu));
+				gdk_draw_line(ginfo->curr_pixmap, gc,
+					      last_x, CPU_BOTTOM(cpu),
+					      x, CPU_BOTTOM(cpu));
+			}
+
+			last_x = x;
+			last_pid = pid;
+		}
 
 		set_color_by_pid(ginfo->draw, gc, pid);
 
