@@ -846,6 +846,9 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 	if (cpu_data->timestamp == ts)
 		return 0;
 
+	/* Set to the first record on current page */
+	update_page_info(handle, cpu);
+
 	if (cpu_data->timestamp < ts) {
 		start = cpu_data->offset;
 		end = cpu_data->file_offset + cpu_data->file_size;
