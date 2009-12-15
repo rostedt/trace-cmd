@@ -36,6 +36,11 @@ struct record {
 	void *data;
 };
 
+static inline void free_record(struct record *record)
+{
+	free(record);
+}
+
 struct tracecmd_input;
 struct tracecmd_output;
 struct tracecmd_recorder;

@@ -72,7 +72,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_do_printf(&s);
 	printf("\n");
 
-	free(record);
+	free_record(record);
 }
 
 static void test_save(struct record *record, int cpu)
@@ -118,7 +118,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_do_printf(&s);
 	printf("\n");
 
-	free(record);
+	free_record(record);
 }
 
 static void test_save(struct record *record, int cpu)
@@ -158,7 +158,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_do_printf(&s);
 	printf("\n");
 
-	free(record);
+	free_record(record);
 
 	record = tracecmd_read_cpu_last(handle, cpu);
 	if (!record) {
@@ -173,7 +173,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_do_printf(&s);
 	printf("\n");
 
-	free(record);
+	free_record(record);
 }
 static void test_save(struct record *record, int cpu)
 {
@@ -206,7 +206,7 @@ static void show_data(struct tracecmd_input *handle, int cpu)
 	trace_seq_do_printf(&s);
 	printf("\n");
 
-	free(record);
+	free_record(record);
 }
 
 static void read_rest(void)

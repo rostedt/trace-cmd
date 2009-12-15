@@ -734,10 +734,10 @@ read_event(struct tracecmd_input *handle, unsigned long long offset,
 
 	do {
 		if (record)
-			free(record);
+			free_record(record);
 		/* Make sure peek returns new data */
 		if (handle->cpu_data[cpu].next) {
-			free(handle->cpu_data[cpu].next);
+			free_record(handle->cpu_data[cpu].next);
 			handle->cpu_data[cpu].next = NULL;
 		}
 		record = tracecmd_read_data(handle, cpu);
@@ -1054,7 +1054,7 @@ tracecmd_translate_data(struct tracecmd_input *handle,
  * This returns the record at the current location of the CPU
  * iterator. It does not increment the CPU iterator.
  *
- * The record returned must be freed.
+ * NOTE: Do not free the record returned, it is stored in the @handle.
  */
 struct record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
