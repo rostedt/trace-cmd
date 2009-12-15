@@ -514,6 +514,39 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 	handle->cpu_data[cpu].page = NULL;
 }
 
+/*
+ * Page is mapped, now read in the page header info.
+ */
+static int update_page_info(struct tracecmd_input *handle, int cpu)
+{
+	struct pevent *pevent = handle->pevent;
+	void *ptr = handle->cpu_data[cpu].page;
+
+	/* FIXME: handle header page */
+	if (pevent->header_page_ts_size != 8) {
+		warning("expected a long long type for timestamp");
+		return -1;
+	}
+
+	handle->cpu_data[cpu].timestamp = data2host8(pevent, ptr);
+	ptr += 8;
+	switch (pevent->header_page_size_size) {
+	case 4:
+		handle->cpu_data[cpu].page_size = data2host4(pevent, ptr);
+		break;
+	case 8:
+		handle->cpu_data[cpu].page_size = data2host8(pevent, ptr);
+		break;
+	default:
+		warning("bad long size");
+		return -1;
+	}
+
+	handle->cpu_data[cpu].index = 0;
+
+	return 0;
+}
+
 static int get_read_page(struct tracecmd_input *handle, int cpu,
 			 off64_t offset)
 {
@@ -537,8 +570,8 @@ static int get_read_page(struct tracecmd_input *handle, int cpu,
 	/* reset the file pointer back */
 	lseek64(handle->fd, save_seek, SEEK_SET);
 
-	handle->cpu_data[cpu].timestamp =
-		data2host8(handle->pevent, handle->cpu_data[cpu].page);
+	if (update_page_info(handle, cpu))
+		return -1;
 
 	return 0;
 }
@@ -570,8 +603,8 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	if (handle->cpu_data[cpu].page == MAP_FAILED)
 		return -1;
 
-	handle->cpu_data[cpu].timestamp =
-		data2host8(handle->pevent, handle->cpu_data[cpu].page);
+	if (update_page_info(handle, cpu))
+		return -1;
 
 	return 0;
 }
@@ -928,29 +961,8 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	if (!page)
 		return NULL;
 
-	if (!index) {
-		/* FIXME: handle header page */
-		if (pevent->header_page_ts_size != 8) {
-			warning("expected a long long type for timestamp");
-			return NULL;
-		}
-		handle->cpu_data[cpu].timestamp = data2host8(pevent, ptr);
-		ptr += 8;
-		switch (pevent->header_page_size_size) {
-		case 4:
-			handle->cpu_data[cpu].page_size = data2host4(pevent,ptr);
-			ptr += 4;
-			break;
-		case 8:
-			handle->cpu_data[cpu].page_size = data2host8(pevent, ptr);
-			ptr += 8;
-			break;
-		default:
-			warning("bad long size");
-			return NULL;
-		}
+	if (!index)
 		ptr = handle->cpu_data[cpu].page + pevent->header_page_data_offset;
-	}
 
 read_again:
 	index = calc_index(handle, ptr, cpu);
@@ -1078,8 +1090,11 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 
 		return init_read(handle, cpu);
 	}
-	handle->cpu_data[cpu].timestamp =
-		data2host8(handle->pevent, handle->cpu_data[cpu].page);
+
+
+	if (update_page_info(handle, cpu))
+		return -1;
+
 	return 0;
 }
 
