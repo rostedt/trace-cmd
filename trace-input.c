@@ -604,8 +604,6 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	if (handle->cpu_data[cpu].page)
 		free_page(handle, cpu);
 
-	handle->cpu_data[cpu].offset = offset;
-	
 	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
 					  handle->fd, offset);
 	if (handle->cpu_data[cpu].page == MAP_FAILED)
