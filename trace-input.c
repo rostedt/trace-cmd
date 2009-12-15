@@ -493,13 +493,6 @@ static int calc_index(struct tracecmd_input *handle,
 	return (unsigned long)ptr - (unsigned long)handle->cpu_data[cpu].page;
 }
 
-static void
-update_cpu_data_index(struct tracecmd_input *handle, int cpu)
-{
-	handle->cpu_data[cpu].size -= handle->page_size;
-	handle->cpu_data[cpu].index = 0;
-}
-
 static void free_page(struct tracecmd_input *handle, int cpu)
 {
 	if (!handle->cpu_data[cpu].page)
@@ -595,6 +588,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 
 	handle->cpu_data[cpu].offset = offset;
 	handle->cpu_data[cpu].timestamp = 0;
+	handle->cpu_data[cpu].index = 0;
 	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
 				      handle->cpu_data[cpu].file_size) -
 					offset;
@@ -630,8 +624,6 @@ static int get_next_page(struct tracecmd_input *handle, int cpu)
 		return 0;
 	}
 
-	update_cpu_data_index(handle, cpu);
-	
 	offset = handle->cpu_data[cpu].offset + handle->page_size;
 
 	return get_page(handle, cpu, offset);
