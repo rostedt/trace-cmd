@@ -119,6 +119,16 @@ static char *find_cmdline(struct pevent *pevent, int pid)
 	return "<...>";
 }
 
+/**
+ * pevent_register_comm - register a pid / comm mapping
+ * @pevent: handle for the pevent
+ * @comm: the command line to register
+ * @pid: the pid to map the command line to
+ *
+ * This adds a mapping to search for command line names with
+ * a given pid. Note, the comm that is given is stored and
+ * a duplicate is not made.
+ */
 int pevent_register_comm(struct pevent *pevent, char *comm, int pid)
 {
 	struct cmdline_list *item;
@@ -234,6 +244,15 @@ find_func(struct pevent *pevent, unsigned long long addr)
 	return func;
 }
 
+/**
+ * pevent_find_function - find a function by a given address
+ * @pevent: handle for the pevent
+ * @addr: the address to find the function with
+ *
+ * Returns a pointer to the function stored that has the given
+ * address. Note, the address does not have to be exact, it
+ * will select the function that would contain the address.
+ */
 const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
 {
 	struct func_map *map;
@@ -245,6 +264,16 @@ const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
 	return map->func;
 }
 
+/**
+ * pevent_register_function - register a function with a given address
+ * @pevent: handle for the pevent
+ * @function: the function name to register
+ * @addr: the address the function starts at
+ * @mod: the kernel module the function may be in (NULL for none)
+ *
+ * This registers a function name with an address and module.
+ * The @func passed in is stored and a copy is not made.
+ */
 int pevent_register_function(struct pevent *pevent, char *func,
 			     unsigned long long addr, char *mod)
 {
@@ -264,6 +293,12 @@ int pevent_register_function(struct pevent *pevent, char *func,
 	return 0;
 }
 
+/**
+ * pevent_print_funcs - print out the stored functions
+ * @pevent: handle for the pevent
+ *
+ * This prints out the stored functions.
+ */
 void pevent_print_funcs(struct pevent *pevent)
 {
 	int i;
@@ -350,6 +385,15 @@ find_printk(struct pevent *pevent, unsigned long long addr)
 	return printk;
 }
 
+/**
+ * pevent_register_print_string - register a string by its address
+ * @pevent: handle for the pevent
+ * @fmt: the string format to register
+ * @addr: the address the string was located at
+ *
+ * This registers a string by the address it was stored in the kernel.
+ * The @fmt is used in storage and a duplicate is not made.
+ */
 int pevent_register_print_string(struct pevent *pevent, char *fmt,
 				 unsigned long long addr)
 {
@@ -367,6 +411,12 @@ int pevent_register_print_string(struct pevent *pevent, char *fmt,
 	return 0;
 }
 
+/**
+ * pevent_print_printk - print out the stored strings
+ * @pevent: handle for the pevent
+ *
+ * This prints the string formats that were stored.
+ */
 void pevent_print_printk(struct pevent *pevent)
 {
 	int i;
@@ -2102,6 +2152,14 @@ static int event_read_print(struct event *event)
 	return -1;
 }
 
+/**
+ * pevent_find_common_field - return a common field by event
+ * @event: handle for the event
+ * @name: the name of the common field to return
+ *
+ * Returns a common field from the event by the given @name.
+ * This only searchs the common fields and not all field.
+ */
 struct format_field *
 pevent_find_common_field(struct event *event, const char *name)
 {
@@ -2116,6 +2174,14 @@ pevent_find_common_field(struct event *event, const char *name)
 	return format;
 }
 
+/**
+ * pevent_find_field - find a non-common field
+ * @event: handle for the event
+ * @name: the name of the non-common field
+ *
+ * Returns a non-common field by the given @name.
+ * This does not search common fields.
+ */
 struct format_field *
 pevent_find_field(struct event *event, const char *name)
 {
@@ -2130,6 +2196,15 @@ pevent_find_field(struct event *event, const char *name)
 	return format;
 }
 
+/**
+ * pevent_find_any_field - find any field by name
+ * @event: handle for the event
+ * @name: the name of the field
+ *
+ * Returns a field by the given @name.
+ * This searchs the common field names first, then
+ * the non-common ones if a common one was not found.
+ */
 struct format_field *
 pevent_find_any_field(struct event *event, const char *name)
 {
@@ -2141,6 +2216,15 @@ pevent_find_any_field(struct event *event, const char *name)
 	return pevent_find_field(event, name);
 }
 
+/**
+ * pevent_read_number - read a number from data
+ * @pevent: handle for the pevent
+ * @ptr: the raw data
+ * @size: the size of the data that holds the number
+ *
+ * Returns the number (converted to host) from the
+ * raw data.
+ */
 unsigned long long pevent_read_number(struct pevent *pevent,
 				      const void *ptr, int size)
 {
@@ -2159,6 +2243,17 @@ unsigned long long pevent_read_number(struct pevent *pevent,
 	}
 }
 
+/**
+ * pevent_read_number_field - read a number from data
+ * @field: a handle to the field
+ * @data: the raw data to read
+ * @value: the value to place the number in
+ *
+ * Reads raw data according to a field offset and size,
+ * and translates it into @value.
+ *
+ * Returns 0 on success, -1 otherwise.
+ */
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value)
 {
@@ -2253,6 +2348,13 @@ static int parse_common_lock_depth(struct pevent *pevent, void *data)
 	return ret;
 }
 
+/**
+ * pevent_find_event - find an event by given id
+ * @pevent: a handle to the pevent
+ * @id: the id of the event
+ *
+ * Returns an event that has a given @id.
+ */
 struct event *pevent_find_event(struct pevent *pevent, int id)
 {
 	struct event *event;
@@ -2264,6 +2366,15 @@ struct event *pevent_find_event(struct pevent *pevent, int id)
 	return event;
 }
 
+/**
+ * pevent_find_event_by_name - find an event by given name
+ * @pevent: a handle to the pevent
+ * @sys: the system name to search for
+ * @name: the name of the event to search for
+ *
+ * This returns an event with a given @name and under the system
+ * @sys. If @sys is NULL the first event with @name is returned.
+ */
 struct event *
 pevent_find_event_by_name(struct pevent *pevent,
 			  const char *sys, const char *name)
@@ -2918,6 +3029,17 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	}
 }
 
+/**
+ * pevent_data_lat_fmt - parse the data for the latency format
+ * @pevent: a handle to the pevent
+ * @s: the trace_seq to write to
+ * @data: the raw data to read from
+ * @size: currently unused.
+ *
+ * This parses out the Latency format (interrupts disabled,
+ * need rescheduling, in hard/soft interrupt, preempt count
+ * and lock depth) and places it into the trace_seq.
+ */
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, void *data, int size __unused)
 {
@@ -2956,21 +3078,50 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 	trace_seq_terminate(s);
 }
 
+/**
+ * pevent_data_type - parse out the given event type
+ * @pevent: a handle to the pevent
+ * @data: the raw data to read from
+ *
+ * This returns the event id from the raw @data.
+ */
 int pevent_data_type(struct pevent *pevent, void *data)
 {
 	return trace_parse_common_type(pevent, data);
 }
 
+/**
+ * pevent_data_event_from_type - find the event by a given type
+ * @pevent: a handle to the pevent
+ * @type: the type of the event.
+ *
+ * This returns the event form a given @type;
+ */
 struct event *pevent_data_event_from_type(struct pevent *pevent, int type)
 {
 	return pevent_find_event(pevent, type);
 }
 
+/**
+ * pevent_data_pid - parse the PID from raw data
+ * @pevent: a handle to the pevent
+ * @data: the raw data to parse
+ *
+ * This returns the PID from a raw data.
+ */
 int pevent_data_pid(struct pevent *pevent, void *data)
 {
 	return parse_common_pid(pevent, data);
 }
 
+/**
+ * pevent_data_comm_from_pid - return the command line from PID
+ * @pevent: a handle to the pevent
+ * @pid: the PID of the task to search for
+ *
+ * This returns a pointer to the command line that has the given
+ * @pid.
+ */
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 {
 	const char *comm;
@@ -2979,6 +3130,18 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 	return comm;
 }
 
+/**
+ * pevent_data_comm_from_pid - parse the data into the print format
+ * @s: the trace_seq to write to
+ * @event: the handle to the event
+ * @cpu: the cpu the event was recorded on
+ * @data: the raw data
+ * @size: the size of the raw data
+ * @nsecs: the timestamp of the event
+ *
+ * This parses the raw @data using the given @event information and
+ * writes the print format into the trace_seq.
+ */
 void pevent_event_info(struct trace_seq *s, struct event *event,
 		       int cpu, void *data, int size, unsigned long long nsecs)
 {
@@ -3276,6 +3439,17 @@ static void parse_header_field(const char *field,
 	free_token(token);
 }
 
+/**
+ * pevent_parse_header_page - parse the data stored in the header page
+ * @pevent: the handle to the pevent
+ * @buf: the buffer storing the header page format string
+ * @size: the size of @buf
+ *
+ * This parses the header page format for information on the
+ * ring buffer used. The @buf should be copied from
+ *
+ * /sys/kernel/debug/tracing/events/header_page
+ */
 int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size)
 {
 	if (!size) {
@@ -3301,6 +3475,20 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 	return 0;
 }
 
+/**
+ * pevent_parse_event - parse the event format
+ * @pevent: the handle to the pevent
+ * @buf: the buffer storing the event format string
+ * @size: the size of @buf
+ * @sys: the system the event belongs to
+ *
+ * This parses the event format and creates an event structure
+ * to quickly parse raw data for a given event.
+ *
+ * These files currently come from:
+ *
+ * /sys/kernel/debug/tracing/events/.../.../format
+ */
 int pevent_parse_event(struct pevent *pevent,
 		       char *buf, unsigned long size, char *sys)
 {
@@ -3377,6 +3565,22 @@ int pevent_parse_event(struct pevent *pevent,
 	return -1;
 }
 
+/**
+ * pevent_register_event_handle - register a way to parse an event
+ * @pevent: the handle to the pevent
+ * @id: the id of the event to register
+ * @sys_name: the system name the event belongs to
+ * @event_name: the name of the event
+ * @func: the function to call to parse the event information
+ *
+ * This function allows a developer to override the parsing of
+ * a given event. If for some reason the default print format
+ * is not sufficient, this function will register a function
+ * for an event to be used to parse the data instead.
+ *
+ * If @id is >= 0, then it is used to find the event.
+ * else @sys_name and @event_name are used.
+ */
 int pevent_register_event_handler(struct pevent *pevent,
 				  int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func)
@@ -3405,6 +3609,9 @@ int pevent_register_event_handler(struct pevent *pevent,
 	return 0;
 }
 
+/**
+ * pevent_alloc - create a pevent handle
+ */
 struct pevent *pevent_alloc(void)
 {
 	struct pevent *pevent;
@@ -3433,6 +3640,10 @@ static void free_event(struct event *event)
 	free_args(event->print_fmt.args);
 }
 
+/**
+ * pevent_free - free a pevent handle
+ * @pevent: the pevent handle to free
+ */
 void pevent_free(struct pevent *pevent)
 {
 	struct event *event, *next_event;
