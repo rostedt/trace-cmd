@@ -594,6 +594,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	}
 
 	handle->cpu_data[cpu].offset = offset;
+	handle->cpu_data[cpu].timestamp = 0;
 	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
 				      handle->cpu_data[cpu].file_size) -
 					offset;
@@ -625,6 +626,7 @@ static int get_next_page(struct tracecmd_input *handle, int cpu)
 
 	if (handle->cpu_data[cpu].size <= handle->page_size) {
 		handle->cpu_data[cpu].offset = 0;
+		handle->cpu_data[cpu].timestamp = 0;
 		return 0;
 	}
 
@@ -1112,6 +1114,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	handle->cpu_data[cpu].offset = handle->cpu_data[cpu].file_offset;
 	handle->cpu_data[cpu].size = handle->cpu_data[cpu].file_size;
+	handle->cpu_data[cpu].timestamp = 0;
 
 	if (!handle->cpu_data[cpu].size) {
 		printf("CPU %d is empty\n", cpu);
