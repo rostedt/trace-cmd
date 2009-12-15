@@ -576,19 +576,17 @@ static int create_recorder(int cpu)
 
 static void start_threads(void)
 {
-	int cpus;
 	int i;
 
-	cpus = count_cpus();
+	cpu_count = count_cpus();
 
 	/* make a thread for every CPU we have */
 	pids = malloc_or_die(sizeof(*pids) * cpu_count);
 
 	memset(pids, 0, sizeof(*pids) * cpu_count);
 
-	cpu_count = cpus;
 
-	for (i = 0; i < cpus; i++) {
+	for (i = 0; i < cpu_count; i++) {
 		pids[i] = create_recorder(i);
 	}
 }
