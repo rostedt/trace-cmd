@@ -498,12 +498,9 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 	if (!handle->cpu_data[cpu].page)
 		return;
 
-	if (handle->read_page) {
-		handle->cpu_data[cpu].page = NULL;
-		return;
-	}
-		
-	munmap(handle->cpu_data[cpu].page, handle->page_size);
+	if (!handle->read_page)
+		munmap(handle->cpu_data[cpu].page, handle->page_size);
+
 	handle->cpu_data[cpu].page = NULL;
 }
 
