@@ -885,6 +885,10 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 
 		next = start + (end - start) / 2;
 		next &= ~(handle->page_size - 1);
+
+		/* Prevent an infinite loop if start and end are a page off */
+		if (next == start)
+			start = next += handle->page_size;
 	}
 
 	/*
