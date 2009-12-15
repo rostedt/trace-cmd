@@ -1,6 +1,7 @@
 #ifndef _TRACE_CMD_H
 #define _TRACE_CMD_H
 
+#include <stdlib.h>
 #include "parse-events.h"
 
 extern int input_fd;
