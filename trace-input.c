@@ -410,6 +410,14 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 	return 0;
 }
 
+/**
+ * tracecmd_read_headers - read the header information from trace.dat
+ * @handle: input handle for the trace.dat file
+ *
+ * This reads the trace.dat file for various information. Like the
+ * format of the ring buffer, event formats, ftrace formats, kallsyms
+ * and printk.
+ */
 int tracecmd_read_headers(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
@@ -769,7 +777,19 @@ find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 	return read_event(handle, offset, cpu);
 }
 
-
+/**
+ * tracecmd_read_at - read a record from a specific offset
+ * @handle: input handle for the trace.dat file
+ * @offset: the offset into the file to find the record
+ * @pcpu: pointer to a variable to store the CPU id the record was found in
+ *
+ * This function is useful when looking for a previous record.
+ * You can store the offset of the record "record->offset" and use that
+ * offset to retreive the record again without needing to store any
+ * other information about the record.
+ *
+ * The record returned must be freed.
+ */
 struct record *
 tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *pcpu)
@@ -793,6 +813,15 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		return find_and_read_event(handle, offset, pcpu);
 }
 
+/**
+ * tracecmd_read_cpu_first - get the first record in a CPU
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU to search
+ *
+ * This returns the first (by time) record entry in a given CPU.
+ *
+ * The record returned must be freed.
+ */
 struct record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 {
@@ -801,6 +830,15 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 	return tracecmd_read_data(handle, cpu);
 }
 
+/**
+ * tracecmd_read_cpu_last - get the last record in a CPU
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU to search
+ *
+ * This returns the last (by time) record entry in a given CPU.
+ *
+ * The record returned must be freed.
+ */
 struct record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 {
@@ -826,6 +864,21 @@ tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 	return tracecmd_read_at(handle, offset, NULL);
 }
 
+/**
+ * tracecmd_set_cpu_to_timestamp - set the CPU iterator to a given time
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU pointer to set
+ * @ts: the timestamp to set the CPU at.
+ *
+ * This sets the CPU iterator used by tracecmd_read_data and
+ * tracecmd_peek_data to a location in the CPU storage near
+ * a given timestamp. It will try to set the iterator to a time before
+ * the time stamp and not actually at a given time.
+ *
+ * To use this to find a record in a time field, call this function
+ * first, than iterate with tracecmd_read_data to find the records
+ * you need.
+ */
 int
 tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 			      unsigned long long ts)
@@ -946,6 +999,22 @@ translate_data(struct tracecmd_input *handle,
 	return type_len;
 }
 
+/**
+ * tracecmd_translate_data - create a record from raw data
+ * @handle: input handle for the trace.dat file
+ * @ptr: raw data to read
+ * @size: the size of the data
+ *
+ * This function tries to create a record from some given
+ * raw data. The data does not need to be from the trace.dat file.
+ * It can be stored from another location.
+ *
+ * Note, since the timestamp is calculated from within the trace
+ * buffer, the timestamp for the record will be zero, since it
+ * can't calculate it.
+ *
+ * The record returned must be freed.
+ */
 struct record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size)
@@ -977,6 +1046,16 @@ tracecmd_translate_data(struct tracecmd_input *handle,
 	return data;
 }
 
+/**
+ * tracecmd_peek_data - return the record at the current location.
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU to pull from
+ *
+ * This returns the record at the current location of the CPU
+ * iterator. It does not increment the CPU iterator.
+ *
+ * The record returned must be freed.
+ */
 struct record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
@@ -1061,6 +1140,16 @@ read_again:
 	return data;
 }
 
+/**
+ * tracecmd_read_data - read the next record and increment
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU to pull from
+ *
+ * This returns the record at the current location of the CPU
+ * iterator and increments the CPU iterator.
+ *
+ * The record returned must be freed.
+ */
 struct record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 {
@@ -1136,6 +1225,13 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	return 0;
 }
 
+/**
+ * tracecmd_init_data - prepare reading the data from trace.dat
+ * @handle: input handle for the trace.dat file
+ *
+ * This prepares reading the data from trace.dat. This is called
+ * after tracecmd_read_headers() and before tracecmd_read_data().
+ */
 int tracecmd_init_data(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
@@ -1195,6 +1291,13 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	return 0;
 }
 
+/**
+ * tracecmd_print_events - print the events that are stored in trace.dat
+ * @handle: input handle for the trace.dat file
+ *
+ * This is a debugging routine to print out the events that
+ * are stored in a given trace.dat file.
+ */
 void tracecmd_print_events(struct tracecmd_input *handle)
 {
 	int ret;
@@ -1211,6 +1314,10 @@ void tracecmd_print_events(struct tracecmd_input *handle)
 	return;
 }
 
+/**
+ * tracecmd_open - create a tracecmd_handle from the trace.dat file descriptor
+ * @fd: the file descriptor for the trace.dat file
+ */
 struct tracecmd_input *tracecmd_open(int fd)
 {
 	struct tracecmd_input *handle;
@@ -1268,21 +1375,37 @@ struct tracecmd_input *tracecmd_open(int fd)
 	return NULL;
 }
 
+/**
+ * tracecmd_long_size - return the size of "long" for the arch
+ * @handle: input handle for the trace.dat file
+ */
 int tracecmd_long_size(struct tracecmd_input *handle)
 {
 	return handle->long_size;
 }
 
+/**
+ * tracecmd_page_size - return the PAGE_SIZE for the arch
+ * @handle: input handle for the trace.dat file
+ */
 int tracecmd_page_size(struct tracecmd_input *handle)
 {
 	return handle->page_size;
 }
 
+/**
+ * tracecmd_page_size - return the number of CPUs recorded
+ * @handle: input handle for the trace.dat file
+ */
 int tracecmd_cpus(struct tracecmd_input *handle)
 {
 	return handle->cpus;
 }
 
+/**
+ * tracecmd_get_pevent - return the pevent handle
+ * @handle: input handle for the trace.dat file
+ */
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle)
 {
 	return handle->pevent;
