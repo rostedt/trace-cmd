@@ -133,7 +133,7 @@ static void test_save(struct record *record, int cpu)
 }
 #endif /* TEST_AT_TIMESTAMP */
 
-#define TEST_FIRST_LAST 1
+#define TEST_FIRST_LAST 0
 #if TEST_FIRST_LAST
 #define DO_TEST
 static void show_test(struct tracecmd_input *handle)
