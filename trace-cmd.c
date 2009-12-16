@@ -673,6 +673,7 @@ int main (int argc, char **argv)
 	const char *output = NULL;
 	const char *option;
 	struct event_list *event;
+	struct trace_seq s;
 	int disable = 0;
 	int plug = 0;
 	int events = 0;
@@ -680,6 +681,7 @@ int main (int argc, char **argv)
 	int record = 0;
 	int run_command = 0;
 	int fset;
+	int cpu;
 
 	int c;
 
@@ -851,6 +853,15 @@ int main (int argc, char **argv)
 
 	record_data();
 	delete_thread_data();
+
+	printf("Buffer statistics:\n\n");
+	for (cpu = 0; cpu < cpu_count; cpu++) {
+		trace_seq_init(&s);
+		trace_seq_printf(&s, "CPU: %d\n", cpu);
+		tracecmd_stat_cpu(&s, cpu);
+		trace_seq_do_printf(&s);
+		printf("\n");
+	}
 
 	exit(0);
 
