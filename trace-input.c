@@ -723,14 +723,15 @@ read_event(struct tracecmd_input *handle, unsigned long long offset,
 
 	/*
 	 * Since the timestamp is calculated from the beginnnig
-	 * of the page and through each event, we need to start
-	 * with the timestamp. We can't go backwards.
-	 * If the offset is behind the current offset then we
-	 * need to calculate it again.
+	 * of the page and through each event, we reset the
+	 * page to the beginning. This is just used by
+	 * tracecmd_read_at.
 	 */
-	if (offset < handle->cpu_data[cpu].offset +
-	    handle->cpu_data[cpu].index)
-		handle->cpu_data[cpu].index = 0;
+	update_page_info(handle, cpu);
+	if (handle->cpu_data[cpu].next) {
+		free_record(handle->cpu_data[cpu].next);
+		handle->cpu_data[cpu].next = NULL;
+	}
 
 	do {
 		if (record)
