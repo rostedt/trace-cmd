@@ -58,6 +58,7 @@ static int *pids;
 struct event_list {
 	struct event_list *next;
 	const char *event;
+	int neg;
 };
 
 static struct event_list *event_selection;
@@ -424,7 +425,24 @@ static void disable_event(const char *name)
 		put_tracing_file(path);
 		fwrite("0", 1, 1, fp);
 		fclose(fp);
+		return;
 	}
+
+	path = get_tracing_file("set_event");
+	fp = fopen(path, "a");
+	if (!fp)
+		die("writing to '%s'", path);
+	put_tracing_file(path);
+	ret = fwrite("!", 1, 1, fp);
+	if (ret < 0)
+		die("can't write negative");
+	ret = fwrite(name, 1, strlen(name), fp);
+	if (ret < 0)
+		die("bad event '%s'", name);
+	ret = fwrite("\n", 1, 1, fp);
+	if (ret < 0)
+		die("bad event '%s'", name);
+	fclose(fp);
 }
 
 static void enable_tracing(void)
@@ -497,7 +515,14 @@ static void enable_events(void)
 	struct event_list *event;
 
 	for (event = event_selection; event; event = event->next) {
-		enable_event(event->event);
+		if (!event->neg)
+			enable_event(event->event);
+	}
+
+	/* Now disable any events */
+	for (event = event_selection; event; event = event->next) {
+		if (event->neg)
+			disable_event(event->event);
 	}
 }
 
@@ -631,9 +656,10 @@ void usage(char **argv)
 	printf("\n"
 	       "%s version %s\n\n"
 	       "usage:\n"
-	       " %s record [-e event][-p plugin][-d][-o file][-s usecs][-O option ] [command ...]\n"
+	       " %s record [-v][-e event][-p plugin][-d][-o file][-s usecs][-O option ] [command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -p run command with plugin enabled\n"
+	       "          -v will negate all -e after it (disable those events)\n"
 	       "          -d disable function tracer when running\n"
 	       "          -o data output file [default trace.dat]\n"
 	       "          -O option to enable (or disable)\n"
@@ -680,6 +706,7 @@ int main (int argc, char **argv)
 	int options = 0;
 	int record = 0;
 	int run_command = 0;
+	int neg_event = 0;
 	int fset;
 	int cpu;
 
@@ -696,7 +723,7 @@ int main (int argc, char **argv)
 	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
 		   (strcmp(argv[1], "start") == 0)) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:p:do:O:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:p:do:O:s:v")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -706,7 +733,11 @@ int main (int argc, char **argv)
 				event = malloc_or_die(sizeof(*event));
 				event->event = optarg;
 				event->next = event_selection;
+				event->neg = neg_event;
 				event_selection = event;
+				break;
+			case 'v':
+				neg_event = 1;
 				break;
 			case 'p':
 				if (plugin)
