@@ -275,8 +275,6 @@ struct pevent {
 	struct format_field *bprint_buf_field;
 };
 
-void parse_set_info(struct pevent *pevent, int nr_cpus, int long_sz);
-
 void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
 void warning(char *fmt, ...);

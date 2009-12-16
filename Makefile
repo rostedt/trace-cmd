@@ -83,6 +83,14 @@ plugin_mac80211.o: plugin_mac80211.c parse-events.h
 plugin_mac80211.so: plugin_mac80211.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
+
+.PHONY: python
+python:	$(TCMD_LIB_OBJS) trace-cmd.o trace-read.o
+	swig -Wall -python -noproxy ctracecmd.i
+	gcc -fpic -c  -I/usr/include/python2.6/ -I/usr/lib/python2.6/config ctracecmd_wrap.c
+	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
+
+
 .PHONY: force
 force:
 
@@ -90,4 +98,4 @@ TAGS:	force
 	find . -name '*.[ch]' | xargs etags
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so
+	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c

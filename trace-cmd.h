@@ -79,8 +79,10 @@ int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 
+#ifndef SWIG
 /* hack for function graph work around */
 extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;
+#endif
 
 
 /* --- Creating and Writing the trace.dat file --- */
