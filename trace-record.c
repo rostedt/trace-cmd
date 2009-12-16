@@ -92,14 +92,21 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
 	return NULL;
 }
 
-int tracecmd_start_recording(struct tracecmd_recorder *recorder)
+int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep)
 {
+	struct timespec req;
 	char *buf[recorder->page_size];
 	int ret;
 
 	recorder->stop = 0;
 
 	do {
+		if (sleep) {
+			req.tv_sec = sleep / 1000000;
+			req.tv_nsec = (sleep % 1000000) * 1000;
+			nanosleep(&req, NULL);
+		}
+
 		ret = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
 			     recorder->page_size, 1 /* SPLICE_F_MOVE */);
 		if (ret < 0) {

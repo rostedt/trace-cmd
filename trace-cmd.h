@@ -107,7 +107,7 @@ void tracecmd_output_close(struct tracecmd_output *handle);
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder);
 struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu);
-int tracecmd_start_recording(struct tracecmd_recorder *recorder);
+int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
 
 

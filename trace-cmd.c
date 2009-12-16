@@ -51,7 +51,7 @@ unsigned int page_size;
 static const char *output_file = "trace.dat";
 
 static int latency;
-
+static int sleep_time = 1000;
 static int cpu_count;
 static int *pids;
 
@@ -568,7 +568,7 @@ static int create_recorder(int cpu)
 
 	if (!recorder)
 		die ("can't create recorder");
-	tracecmd_start_recording(recorder);
+	tracecmd_start_recording(recorder, sleep_time);
 	tracecmd_free_recorder(recorder);
 
 	exit(0);
@@ -631,12 +631,13 @@ void usage(char **argv)
 	printf("\n"
 	       "%s version %s\n\n"
 	       "usage:\n"
-	       " %s record [-e event][-p plugin] [-d] [-o file] [-O option ] [command ...]\n"
+	       " %s record [-e event][-p plugin][-d][-o file][-s usecs][-O option ] [command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -d disable function tracer when running\n"
 	       "          -o data output file [default trace.dat]\n"
 	       "          -O option to enable (or disable)\n"
+	       "          -s sleep interval between recording (in usecs) [default: 1000]\n"
 	       "\n"
 	       " %s start [-e event][-p plugin] [-d] [-O option ]\n"
 	       "          Uses same options as record, but does not run a command.\n"
@@ -725,6 +726,9 @@ int main (int argc, char **argv)
 			case 'O':
 				option = optarg;
 				set_option(option);
+				break;
+			case 's':
+				sleep_time = atoi(optarg);
 				break;
 			}
 		}
