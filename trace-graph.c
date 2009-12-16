@@ -40,6 +40,7 @@
 #define CPU_MIDDLE(cpu) (80 * (cpu) + 80)
 #define CPU_TOP(cpu) (CPU_MIDDLE(cpu) - 10)
 #define CPU_BOTTOM(cpu) (CPU_MIDDLE(cpu) + 10)
+#define CPU_SPACE(cpus) (80 * (cpus) + 80)
 
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
@@ -633,6 +634,10 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 	old_w = ginfo->max_width;
 	old_h = ginfo->max_height;
+
+	
+	gtk_widget_set_size_request(widget, 0, CPU_SPACE(ginfo->cpus));
+
 
 	if (widget->allocation.width > ginfo->max_width)
 		ginfo->max_width = widget->allocation.width;
