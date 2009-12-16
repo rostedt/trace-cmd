@@ -29,14 +29,6 @@ enum {
 #define TS_SHIFT		27
 #endif
 
-struct record {
-	unsigned long long ts;
-	unsigned long long offset;
-	int record_size;		/* size of binary record */
-	int size;			/* size of data */
-	void *data;
-};
-
 static inline void free_record(struct record *record)
 {
 	free(record);

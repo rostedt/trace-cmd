@@ -3081,13 +3081,13 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 /**
  * pevent_data_type - parse out the given event type
  * @pevent: a handle to the pevent
- * @data: the raw data to read from
+ * @rec: the record to read from
  *
- * This returns the event id from the raw @data.
+ * This returns the event id from the @rec.
  */
-int pevent_data_type(struct pevent *pevent, void *data)
+int pevent_data_type(struct pevent *pevent, struct record *rec)
 {
-	return trace_parse_common_type(pevent, data);
+	return trace_parse_common_type(pevent, rec->data);
 }
 
 /**
@@ -3105,13 +3105,13 @@ struct event *pevent_data_event_from_type(struct pevent *pevent, int type)
 /**
  * pevent_data_pid - parse the PID from raw data
  * @pevent: a handle to the pevent
- * @data: the raw data to parse
+ * @rec: the record to parse
  *
  * This returns the PID from a raw data.
  */
-int pevent_data_pid(struct pevent *pevent, void *data)
+int pevent_data_pid(struct pevent *pevent, struct record *rec)
 {
-	return parse_common_pid(pevent, data);
+	return parse_common_pid(pevent, rec->data);
 }
 
 /**

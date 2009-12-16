@@ -14,6 +14,14 @@
 #define TRACE_SEQ_SIZE 4096
 #endif
 
+struct record {
+	unsigned long long ts;
+	unsigned long long offset;
+	int record_size;		/* size of binary record */
+	int size;			/* size of data */
+	void *data;
+};
+
 /*
  * Trace sequences are used to allow a function to call several other functions
  * to create a string of data to use (up to a max of PAGE_SIZE).
@@ -368,9 +376,9 @@ pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *na
 
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, void *data, int size __unused);
-int pevent_data_type(struct pevent *pevent, void *data);
+int pevent_data_type(struct pevent *pevent, struct record *rec);
 struct event *pevent_data_event_from_type(struct pevent *pevent, int type);
-int pevent_data_pid(struct pevent *pevent, void *data);
+int pevent_data_pid(struct pevent *pevent, struct record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 void pevent_event_info(struct trace_seq *s, struct event *event,
 		       int cpu, void *data, int size, unsigned long long nsecs);
