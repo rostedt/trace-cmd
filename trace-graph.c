@@ -35,6 +35,7 @@
 #define TRACE_WIDTH	800
 #define TRACE_HEIGHT	600
 
+#define MAX_WIDTH	10000
 #define input_file "trace.dat"
 
 #define CPU_MIDDLE(cpu) (80 * (cpu) + 80)
@@ -75,17 +76,11 @@ expose_event(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 	return FALSE;
 }
 
-static void start_line(GtkWidget *widget, gint x, gint y, gpointer data)
+static void
+draw_line(GtkWidget *widget, gdouble x, struct graph_info *ginfo)
 {
-	struct graph_info *ginfo = data;
-
-	ginfo->last_x = x;
-	ginfo->last_y = y;
-
-	ginfo->mov_w = 0;
-	ginfo->mov_h = 0;
-
-	printf("x=%d y=%d\n", x, y);
+	gdk_draw_line(widget->window, widget->style->black_gc,
+		      x, 0, x, widget->allocation.width);
 }
 
 static gboolean
@@ -95,64 +90,28 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	printf("button = %d\n", event->button);
 
-	if ((event->button == 1 || event->button == 3) &&
-	    ginfo->curr_pixmap != NULL) {
-		if (event->button == 3)
-			ginfo->save = TRUE;
-		else
-			ginfo->save = FALSE;
+	if (event->button != 1)
+		return TRUE;
 
-		ginfo->draw_line = TRUE;
-		start_line(widget, event->x, event->y, data);
-	}
+	ginfo->start_x = event->x;
+	ginfo->last_x = 0;
+
+	draw_line(widget, event->x, ginfo);
+
+	ginfo->line_active = TRUE;
 
 	return TRUE;
 }
 
-static void normalize_xywh(gint *x, gint *y, gint *w, gint *h)
-{
-	if (*w < 0) {
-		*x = *x + *w;
-		*w *= -1;
-	}
-
-	if (*h < 0) {
-		*y = *y + *h;
-		*h *= -1;
-	}
-}
-
 static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
 {
-	gint x, y, w, h;
+	gint x;
 
 	x = ginfo->last_x;
-	y = ginfo->last_y;
+	if (x)
+		x--;
 
-	w = ginfo->mov_w;
-	h = ginfo->mov_h;
-
-	normalize_xywh(&x, &y, &w, &h);
-
-	w++;
-	h++;
-
-	update_with_backend(ginfo, x, y, w, h);
-}
-
-static void
-draw_line(GtkWidget *widget, gdouble x, gdouble y, struct graph_info *ginfo)
-{
-	clear_last_line(widget, ginfo);
-
-	ginfo->mov_w = x - ginfo->last_x;
-	ginfo->mov_h = y - ginfo->last_y;
-
-	printf("draw %f %f\n", x, y);
-
-	gdk_draw_line(widget->window, widget->style->black_gc,
-		      ginfo->last_x, ginfo->last_y,
-		      x, y);
+	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
 }
 
 static void
@@ -409,8 +368,18 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	if (!ginfo->curr_pixmap)
 		return TRUE;
 
+	if (ginfo->line_active) {
+		if (ginfo->last_x)
+			clear_last_line(widget, ginfo);
+		ginfo->last_x = x;
+		draw_line(widget, ginfo->start_x, ginfo);
+		draw_line(widget, x, ginfo);
+		return TRUE;
+	}
+
 	if (ginfo->draw_line) {
-		draw_line(widget, x, y, ginfo);
+		ginfo->last_x = x;
+//		draw_line(widget, x, y, ginfo);
 		return TRUE;
 	}
 
@@ -423,13 +392,115 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	return TRUE;
 }
 
+static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
+{
+	gdouble view_width;
+	gdouble new_width;
+	gdouble curr_width;
+//	unsigned long long start_time;
+//	unsigned long long end_time;
+
+	g_assert(start < end);
+	g_assert(ginfo->vadj);
+
+	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+
+	new_width = end - start;
+
+	curr_width = ginfo->draw->allocation.width;
+
+	ginfo->vadj_value = (gdouble)start * view_width / new_width;
+
+	new_width = curr_width * (view_width / new_width);
+
+	printf("width=%d\n", ginfo->draw->allocation.width);
+	if (ginfo->vadj) {
+		printf("adj:%f-%f\n", gtk_adjustment_get_upper(ginfo->vadj),
+		       gtk_adjustment_get_lower(ginfo->vadj));
+	} else
+		printf("no adjustment\n");
+
+	ginfo->draw_width = new_width;
+
+	if (ginfo->draw_width > MAX_WIDTH)
+		ginfo->draw_width = MAX_WIDTH;
+
+	if (ginfo->vadj_value > (ginfo->draw_width - view_width))
+		ginfo->vadj_value = ginfo->draw_width - view_width;
+
+	printf("new width=%d\n", ginfo->draw_width);
+	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
+
+	printf("set val %f\n", ginfo->vadj_value);
+}
+
+static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
+{
+	gdouble view_width;
+	gdouble new_width;
+	gdouble curr_width;
+	gdouble value;
+//	unsigned long long start_time;
+//	unsigned long long end_time;
+
+	g_assert(start > end);
+	g_assert(ginfo->vadj);
+
+	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+
+	new_width = start - end;
+
+	curr_width = ginfo->draw->allocation.width;
+
+	new_width = curr_width / (view_width / new_width);
+
+	printf("width=%d\n", ginfo->draw->allocation.width);
+	if (ginfo->vadj) {
+		printf("adj:%f-%f\n", gtk_adjustment_get_upper(ginfo->vadj),
+		       gtk_adjustment_get_lower(ginfo->vadj));
+	} else
+		printf("no adjustment\n");
+
+	ginfo->draw_width = new_width;
+
+	if (ginfo->draw_width < view_width)
+		ginfo->draw_width = 0;
+
+	printf("new width=%d\n", ginfo->draw_width);
+	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
+
+	value = gtk_adjustment_get_value(ginfo->vadj);
+	if (value > new_width - view_width)
+		ginfo->vadj_value = new_width - view_width;
+}
+
 static gboolean
 button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
+	if (ginfo->line_active) {
+		ginfo->line_active = FALSE;
+		clear_last_line(widget, ginfo);
+		ginfo->last_x = ginfo->start_x;
+		clear_last_line(widget, ginfo);
+
+		if (event->x > ginfo->start_x) {
+			/* make a decent zoom */
+			if (event->x - ginfo->start_x < 10)
+				return TRUE;
+			zoom_in_window(ginfo, ginfo->start_x, event->x);
+			return TRUE;
+		} else {
+			/* make a decent zoom */
+			if (ginfo->start_x - event->x < 10)
+				return TRUE;
+			zoom_out_window(ginfo, ginfo->start_x, event->x);
+			return TRUE;
+		}
+	}
+
 	printf("RELEASE %s\n", ginfo->save ? "save" : "");
-	clear_last_line(widget, ginfo);
 
 	ginfo->draw_line = FALSE;
 
@@ -532,8 +603,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	unsigned long long time;
 	gint mid;
 	gint w, h, height;
-
-	mid = width / 2;
+	gint view_width;
 
 	/* --- draw timeline text --- */
 
@@ -542,6 +612,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 
 	height = 10 + h;
 
+	mid = width / 2;
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			mid - w / 2, 5, layout);
 	g_object_unref(layout);
@@ -560,11 +631,6 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 		      width-1, height, width-1, height + 5);
 
-	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-		      mid, height, mid, height + 5);
-
-	height += 10;
-
 	/* --- draw starting time --- */
 	convert_nano(ginfo->start_time, &sec, &usec);
 	trace_seq_init(&s);
@@ -574,7 +640,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	pango_layout_get_pixel_size(layout, &w, &h);
 
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-			1, height, layout);
+			1, height+10, layout);
 	g_object_unref(layout);
 
 
@@ -587,22 +653,31 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	pango_layout_get_pixel_size(layout, &w, &h);
 
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-			width - (w + 2), height, layout);
+			width - (w + 2), height+10, layout);
 	g_object_unref(layout);
 
-	/* --- draw middle time --- */
-	time = mid / ginfo->resolution + ginfo->view_start_time;
 
-	convert_nano(time, &sec, &usec);
-	trace_seq_init(&s);
-	trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+	/* --- draw time at intervals --- */
+	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
 
-	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
-	pango_layout_get_pixel_size(layout, &w, &h);
+	for (mid = view_width / 2; mid < (width - view_width / 2 + 10);
+	     mid += view_width / 2) {
+		time = mid / ginfo->resolution + ginfo->view_start_time;
 
-	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-			mid - (w / 2), height, layout);
-	g_object_unref(layout);
+		convert_nano(time, &sec, &usec);
+		trace_seq_init(&s);
+		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+
+		gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
+			      mid, height, mid, height + 5);
+
+		layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
+		pango_layout_get_pixel_size(layout, &w, &h);
+
+		gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
+				mid - (w / 2), height+10, layout);
+		g_object_unref(layout);
+	}
 }
 
 static void draw_info(struct graph_info *ginfo, gint old_width, gint old_height,
@@ -635,8 +710,7 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	old_w = ginfo->max_width;
 	old_h = ginfo->max_height;
 
-	
-	gtk_widget_set_size_request(widget, 0, CPU_SPACE(ginfo->cpus));
+//	gtk_widget_set_size_request(widget, 0, ginfo->draw_height);
 
 
 	if (widget->allocation.width > ginfo->max_width)
@@ -675,6 +749,13 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 		g_object_unref(old_pix);
 	}
 
+	if (!ginfo->vadj_value)
+		return TRUE;
+
+	gtk_adjustment_set_value(ginfo->vadj, ginfo->vadj_value);
+	ginfo->vadj_value = gtk_adjustment_get_value(ginfo->vadj);
+	printf("get val %f\n", ginfo->vadj_value);
+	ginfo->vadj_value = 0.0;
 	
 	return TRUE;
 }
@@ -692,7 +773,7 @@ destroy_event(GtkWidget *widget, gpointer data)
 
 
 static GtkWidget *
-create_drawing_area(struct tracecmd_input *handle)
+create_drawing_area(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
 {
 	struct graph_info *ginfo;
 	unsigned long sec, usec;
@@ -708,6 +789,9 @@ create_drawing_area(struct tracecmd_input *handle)
 
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
+
+	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
+	ginfo->vadj = gtk_scrolled_window_get_hadjustment(scrollwin);
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 		struct record *record;
@@ -865,7 +949,7 @@ void trace_graph(int argc, char **argv)
 
 	/* --- Set up Drawing --- */
 
-	draw = create_drawing_area(handle);
+	draw = create_drawing_area(handle, GTK_SCROLLED_WINDOW(scrollwin));
 
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
 					      draw);

@@ -10,6 +10,7 @@ struct graph_info {
 	GtkWidget		*draw;
 	GdkPixmap		*main_pixmap;
 	GdkPixmap		*curr_pixmap;
+	GtkAdjustment		*vadj;
 	guint64			start_time;
 	guint64			end_time;
 	guint64			view_start_time;
@@ -17,7 +18,21 @@ struct graph_info {
 
 	gdouble			resolution;
 
+	gint			start_x;
 	gint			last_x;
+	gboolean		line_active;
+	gdouble			vadj_value;
+
+	gint			draw_width;
+	gint			draw_height;
+
+	gint			cpu_data_x;
+	gint			cpu_data_y;
+	gint			cpu_data_w;
+	gint			cpu_data_h;
+
+	/* not needed in future */
+
 	gint			last_y;
 	gint			mov_w;
 	gint			mov_h;
@@ -28,11 +43,6 @@ struct graph_info {
 	gboolean		save;
 	gboolean		draw_line;
 	gchar			*test;
-
-	gint			cpu_data_x;
-	gint			cpu_data_y;
-	gint			cpu_data_w;
-	gint			cpu_data_h;
 };
 
 #endif /* _TRACE_GRAPH_H */
