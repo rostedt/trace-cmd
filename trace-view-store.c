@@ -459,7 +459,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		switch (column) {
 		case TRACE_VIEW_STORE_COL_COMM:
 		case TRACE_VIEW_STORE_COL_PID:
-			val = pevent_data_pid(pevent, data->data);
+			val = pevent_data_pid(pevent, data);
 			if (column == TRACE_VIEW_STORE_COL_PID)
 				g_value_set_uint(value, val);
 			else {
@@ -476,7 +476,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 		case TRACE_VIEW_STORE_COL_EVENT:
 		case TRACE_VIEW_STORE_COL_INFO:
-			val = pevent_data_type(pevent, data->data);
+			val = pevent_data_type(pevent, data);
 			event = pevent_data_event_from_type(pevent, val);
 			if (column == TRACE_VIEW_STORE_COL_EVENT) {
 				g_value_set_string(value, event->name);
