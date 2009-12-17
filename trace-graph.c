@@ -438,8 +438,9 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 {
 	gdouble view_width;
-	gdouble new_width;
+	gdouble divider;
 	gdouble curr_width;
+	gdouble new_width;
 	gdouble value;
 //	unsigned long long start_time;
 //	unsigned long long end_time;
@@ -449,11 +450,11 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 
 	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
 
-	new_width = start - end;
+	divider = start - end;
 
 	curr_width = ginfo->draw->allocation.width;
 
-	new_width = curr_width / (view_width / new_width);
+	new_width = curr_width / divider;
 
 	printf("width=%d\n", ginfo->draw->allocation.width);
 	if (ginfo->vadj) {
@@ -492,13 +493,11 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 				return TRUE;
 			zoom_in_window(ginfo, ginfo->start_x, event->x);
 			return TRUE;
-		} else {
-			/* make a decent zoom */
-			if (ginfo->start_x - event->x < 10)
-				return TRUE;
+		} else if (event->x < ginfo->start_x) {
 			zoom_out_window(ginfo, ginfo->start_x, event->x);
 			return TRUE;
-		}
+		} else
+			return TRUE;
 	}
 
 	printf("RELEASE %s\n", ginfo->save ? "save" : "");
