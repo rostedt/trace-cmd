@@ -17,4 +17,4 @@ gdouble gtk_adjustment_get_lower(GtkAdjustment *adj)
 	return adj->lower;
 }
 
-#endif
+#endif /* version < 2.14.0 */

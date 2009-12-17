@@ -54,6 +54,14 @@ static void convert_nano(unsigned long long time, unsigned long *sec,
 	*usec = (time / 1000) % 1000000;
 }
 
+static void print_time(unsigned long long time)
+{
+	unsigned long sec, usec;
+
+	convert_nano(time, &sec, &usec);
+	printf("%lu.%06lu", sec, usec);
+}
+
 static void update_with_backend(struct graph_info *ginfo,
 				gint x, gint y,
 				gint width, gint height)
@@ -94,7 +102,7 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (event->button != 1)
 		return TRUE;
 
-	ginfo->start_x = event->x;
+	ginfo->press_x = event->x;
 	ginfo->last_x = 0;
 
 	draw_line(widget, event->x, ginfo);
@@ -113,27 +121,6 @@ static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
 		x--;
 
 	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
-}
-
-static void
-save_line(GtkWidget *widget, struct graph_info *ginfo)
-{
-	gint x, y;
-
-	x = ginfo->last_x + ginfo->mov_w;
-	y = ginfo->last_y + ginfo->mov_h;
-
-	printf("save %d,%d to %d,%d, width=%d height=%d\n",
-	       x,y, ginfo->last_x, ginfo->last_y,
-	       ginfo->mov_w, ginfo->mov_h);
-	       
-	gdk_draw_line(widget->window, widget->style->black_gc,
-		      ginfo->last_x, ginfo->last_y,
-		      x, y);
-
-	gdk_draw_line(ginfo->curr_pixmap, widget->style->black_gc,
-		      ginfo->last_x, ginfo->last_y,
-		      x, y);
 }
 
 static void print_rec_info(struct record *record, struct pevent *pevent, int cpu)
@@ -373,14 +360,8 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 		if (ginfo->last_x)
 			clear_last_line(widget, ginfo);
 		ginfo->last_x = x;
-		draw_line(widget, ginfo->start_x, ginfo);
+		draw_line(widget, ginfo->press_x, ginfo);
 		draw_line(widget, x, ginfo);
-		return TRUE;
-	}
-
-	if (ginfo->draw_line) {
-		ginfo->last_x = x;
-//		draw_line(widget, x, y, ginfo);
 		return TRUE;
 	}
 
@@ -393,26 +374,58 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	return TRUE;
 }
 
+static void update_graph(struct graph_info *ginfo, gdouble percent)
+{
+	ginfo->full_width *= percent;
+	ginfo->resolution =
+		(gdouble)ginfo->full_width / (gdouble)(ginfo->end_time -
+						       ginfo->start_time);
+	ginfo->start_x *= percent;
+}
+
+static void update_graph_to_start_x(struct graph_info *ginfo)
+{
+	ginfo->view_start_time = ginfo->start_x / ginfo->resolution +
+		ginfo->start_time;
+
+	ginfo->view_end_time = ginfo->draw_width / ginfo->resolution +
+		ginfo->view_start_time;
+}
+
+static void reset_graph(struct graph_info *ginfo, gdouble view_width)
+{
+	ginfo->full_width = view_width;
+	ginfo->draw_width = 0;
+	ginfo->view_start_time = ginfo->start_time;
+	ginfo->view_end_time = ginfo->end_time;
+	ginfo->start_x = 0;
+}
+
 static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 {
 	gdouble view_width;
 	gdouble new_width;
+	gdouble select_width;
 	gdouble curr_width;
-//	unsigned long long start_time;
-//	unsigned long long end_time;
+	gdouble mid;
+	gdouble percent;
+	gint old_width = ginfo->draw_width;
 
 	g_assert(start < end);
 	g_assert(ginfo->vadj);
 
-	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	printf("*** started with ");
+	print_time(start / ginfo->resolution + ginfo->view_start_time);
+	printf("\n");
 
-	new_width = end - start;
+	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	select_width = end - start;
+	percent = view_width / select_width;
+
+	update_graph(ginfo, percent);
 
 	curr_width = ginfo->draw->allocation.width;
-
-	ginfo->vadj_value = (gdouble)start * view_width / new_width;
-
-	new_width = curr_width * (view_width / new_width);
+	new_width = curr_width * percent;
 
 	printf("width=%d\n", ginfo->draw->allocation.width);
 	if (ginfo->vadj) {
@@ -423,16 +436,103 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 
 	ginfo->draw_width = new_width;
 
-	if (ginfo->draw_width > MAX_WIDTH)
+	if (ginfo->draw_width > MAX_WIDTH) {
+		gint new_start;
+		gint new_end;
+
+		/*
+		 * The drawing is now greater than our max. We must
+		 * limit the maximum size of the drawing area or
+		 * we risk running out of X resources.
+		 *
+		 * We will now shorten the trace to that of what will
+		 * fit in this zoomed area.
+		 */
 		ginfo->draw_width = MAX_WIDTH;
 
+		mid = start + (end - start) / 2;
+		mid *= percent;
+
+		/*
+		 * mid now points to the center of the viewable area
+		 * if the draw area was of new_width.
+		 *
+		 *       new_start           new_end
+		 * +------------------------------------------------+
+		 * |        |                 |                     |
+		 * |        |                 |                     |
+		 * +------------------------------------------------+
+		 * ^                ^
+		 * |               mid
+		 * old view start
+		 *
+		 */
+
+		new_start = mid - MAX_WIDTH / 2;
+		new_end = new_start + MAX_WIDTH;
+		if (new_start < 0) {
+			/* First check if there's a start available in full */
+			if (ginfo->start_x) {
+				ginfo->start_x += new_start;
+				if (ginfo->start_x < 0) {
+					new_start = ginfo->start_x;
+					ginfo->start_x = 0;
+				} else
+					new_start = 0;
+			}
+			new_end += -new_start;
+			new_start = 0;
+		} else if (new_end > ginfo->full_width) {
+			new_start -= new_end - ginfo->full_width;
+			new_end = ginfo->full_width;
+			g_assert(new_start >= 0);
+		}
+
+		ginfo->start_x += new_start;
+
+		update_graph_to_start_x(ginfo);
+
+		printf("new start/end =%d/%d full:%d  start_time:",
+		       new_start, new_end, ginfo->full_width);
+		print_time(ginfo->view_start_time);
+		printf("\n");
+
+		/* Adjust start to be the location for the vadj */
+		start = (mid - new_start) / percent - (end - start) / 2;
+	}
+
+	ginfo->vadj_value = (gdouble)start * view_width / select_width;
 	if (ginfo->vadj_value > (ginfo->draw_width - view_width))
 		ginfo->vadj_value = ginfo->draw_width - view_width;
 
 	printf("new width=%d\n", ginfo->draw_width);
+
+	/* make sure the width is sent */
+	if (ginfo->draw_width == old_width)
+		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width - 1,
+					    ginfo->draw_height);
 	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
 	printf("set val %f\n", ginfo->vadj_value);
+
+
+	printf("*** ended with with ");
+	print_time(ginfo->vadj_value / ginfo->resolution + ginfo->view_start_time);
+	printf("\n");
+
+}
+
+static gboolean
+value_changed(GtkWidget *widget, gpointer data)
+{
+	struct graph_info *ginfo = data;
+	GtkAdjustment *adj = GTK_ADJUSTMENT(widget);
+
+	printf("value = %f\n",
+	       gtk_adjustment_get_value(adj));
+
+	return TRUE;
+
 }
 
 static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
@@ -441,39 +541,70 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	gdouble divider;
 	gdouble curr_width;
 	gdouble new_width;
-	gdouble value;
-//	unsigned long long start_time;
-//	unsigned long long end_time;
+	gdouble mid;
+	gdouble start_x;
+	unsigned long long time;
+	gint old_width = ginfo->draw_width;
 
 	g_assert(start > end);
 	g_assert(ginfo->vadj);
 
 	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	start_x = gtk_adjustment_get_value(ginfo->vadj);
+	mid = start_x + view_width / 2;
+
+	time = mid / ginfo->resolution + ginfo->view_start_time;
 
 	divider = start - end;
 
 	curr_width = ginfo->draw->allocation.width;
-
 	new_width = curr_width / divider;
 
+	update_graph(ginfo, 1 / divider);
+
 	printf("width=%d\n", ginfo->draw->allocation.width);
-	if (ginfo->vadj) {
-		printf("adj:%f-%f\n", gtk_adjustment_get_upper(ginfo->vadj),
-		       gtk_adjustment_get_lower(ginfo->vadj));
-	} else
-		printf("no adjustment\n");
 
 	ginfo->draw_width = new_width;
 
-	if (ginfo->draw_width < view_width)
-		ginfo->draw_width = 0;
+	printf("draw_width=%d full_width=%d\n", ginfo->draw_width, ginfo->full_width);
+	if (ginfo->full_width < view_width) {
+		reset_graph(ginfo, view_width);
+		time = ginfo->view_start_time;
+
+	} else if (ginfo->draw_width < ginfo->full_width) {
+		if (ginfo->full_width < MAX_WIDTH) {
+			ginfo->draw_width = ginfo->full_width;
+			ginfo->view_start_time = ginfo->start_time;
+			ginfo->view_end_time = ginfo->end_time;
+			ginfo->start_x = 0;
+		} else {
+			ginfo->draw_width = MAX_WIDTH;
+			mid /= divider;
+			mid += ginfo->start_x;
+
+			/* mid now is the current mid with full_width */
+			ginfo->start_x = mid - MAX_WIDTH / 2;
+			if (ginfo->start_x < 0)
+				ginfo->start_x = 0;
+
+			update_graph_to_start_x(ginfo);
+		}
+	}
 
 	printf("new width=%d\n", ginfo->draw_width);
+
+	/* make sure the width is sent */
+	if (ginfo->draw_width == old_width)
+		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width - 1,
+					    ginfo->draw_height);
 	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
-	value = gtk_adjustment_get_value(ginfo->vadj);
-	if (value > new_width - view_width)
-		ginfo->vadj_value = new_width - view_width;
+	mid = (time - ginfo->view_start_time) * ginfo->resolution;
+	start_x = mid - view_width / 2;
+	if (start_x < 0)
+		start_x = 0;
+
+	ginfo->vadj_value = start_x;
 }
 
 static gboolean
@@ -484,28 +615,17 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	if (ginfo->line_active) {
 		ginfo->line_active = FALSE;
 		clear_last_line(widget, ginfo);
-		ginfo->last_x = ginfo->start_x;
+		ginfo->last_x = ginfo->press_x;
 		clear_last_line(widget, ginfo);
 
-		if (event->x > ginfo->start_x) {
+		if (event->x > ginfo->press_x) {
 			/* make a decent zoom */
-			if (event->x - ginfo->start_x < 10)
+			if (event->x - ginfo->press_x < 10)
 				return TRUE;
-			zoom_in_window(ginfo, ginfo->start_x, event->x);
-			return TRUE;
-		} else if (event->x < ginfo->start_x) {
-			zoom_out_window(ginfo, ginfo->start_x, event->x);
-			return TRUE;
-		} else
-			return TRUE;
+			zoom_in_window(ginfo, ginfo->press_x, event->x);
+		} else if (event->x < ginfo->press_x)
+			zoom_out_window(ginfo, ginfo->press_x, event->x);
 	}
-
-	printf("RELEASE %s\n", ginfo->save ? "save" : "");
-
-	ginfo->draw_line = FALSE;
-
-	if (ginfo->save)
-		save_line(widget, ginfo);
 
 	return TRUE;
 }
@@ -535,7 +655,7 @@ static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
 }
 
 static void draw_cpu(struct graph_info *ginfo, gint cpu,
-		     gint old_width, gint new_width)
+		     gint new_width)
 {
 	gint height = CPU_MIDDLE(cpu);
 	struct record *record;
@@ -632,7 +752,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 		      width-1, height, width-1, height + 5);
 
 	/* --- draw starting time --- */
-	convert_nano(ginfo->start_time, &sec, &usec);
+	convert_nano(ginfo->view_start_time, &sec, &usec);
 	trace_seq_init(&s);
 	trace_seq_printf(&s, "%lu.%06lu", sec, usec);
 
@@ -645,7 +765,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 
 
 	/* --- draw ending time --- */
-	convert_nano(ginfo->end_time, &sec, &usec);
+	convert_nano(ginfo->view_end_time, &sec, &usec);
 	trace_seq_init(&s);
 	trace_seq_printf(&s, "%lu.%06lu", sec, usec);
 
@@ -680,8 +800,8 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	}
 }
 
-static void draw_info(struct graph_info *ginfo, gint old_width, gint old_height,
-		 gint new_width, gint new_height)
+static void draw_info(struct graph_info *ginfo,
+		      gint new_width)
 {
 	gint cpu;
 
@@ -692,7 +812,7 @@ static void draw_info(struct graph_info *ginfo, gint old_width, gint old_height,
 
 	
 	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		draw_cpu(ginfo, cpu, old_width, new_width);
+		draw_cpu(ginfo, cpu, new_width);
 
 }
 
@@ -701,29 +821,19 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 	GdkPixmap *old_pix;
-	gint old_w, old_h;
-
-	if (0 && widget->allocation.width < ginfo->max_width &&
-	    widget->allocation.height < ginfo->max_height)
-		return TRUE;
-
-	old_w = ginfo->max_width;
-	old_h = ginfo->max_height;
 
 //	gtk_widget_set_size_request(widget, 0, ginfo->draw_height);
 
 
-	if (widget->allocation.width > ginfo->max_width)
-		ginfo->max_width = widget->allocation.width;
-
-	if (widget->allocation.height > ginfo->max_height)
-		ginfo->max_height = widget->allocation.height;
-
 	old_pix = ginfo->curr_pixmap;
 
+	/* initialize full width if needed */
+	if (!ginfo->full_width)
+		ginfo->full_width = widget->allocation.width;
+
 	ginfo->curr_pixmap = gdk_pixmap_new(widget->window,
-					    ginfo->max_width,
-					    ginfo->max_height,
+					    widget->allocation.width,
+					    widget->allocation.height,
 					    -1);
 
 	gdk_draw_rectangle(ginfo->curr_pixmap,
@@ -733,9 +843,7 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 			   widget->allocation.width,
 			   widget->allocation.height);
 
-	draw_info(ginfo, old_w, old_h,
-		  widget->allocation.width,
-		  widget->allocation.height);
+	draw_info(ginfo, widget->allocation.width);
 
 	if (old_pix) {
 #if 0
@@ -752,7 +860,11 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	if (!ginfo->vadj_value)
 		return TRUE;
 
+//	gtk_adjustment_set_lower(ginfo->vadj, -100.0);
 	gtk_adjustment_set_value(ginfo->vadj, ginfo->vadj_value);
+
+
+	/* debug */
 	ginfo->vadj_value = gtk_adjustment_get_value(ginfo->vadj);
 	printf("get val %f\n", ginfo->vadj_value);
 	ginfo->vadj_value = 0.0;
@@ -792,6 +904,9 @@ create_drawing_area(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
 
 	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
 	ginfo->vadj = gtk_scrolled_window_get_hadjustment(scrollwin);
+
+	gtk_signal_connect(GTK_OBJECT(ginfo->vadj), "value_changed",
+			   (GtkSignalFunc) value_changed, ginfo);
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 		struct record *record;
