@@ -44,7 +44,9 @@ char *tracecmd_find_tracing_dir(void);
 
 /* --- Opening and Reading the trace.dat file --- */
 
-struct tracecmd_input *tracecmd_open(int fd);
+struct tracecmd_input *tracecmd_open(const char *file);
+struct tracecmd_input *tracecmd_open_fd(int fd);
+void tracecmd_close(struct tracecmd_input *handle);
 int tracecmd_read_headers(struct tracecmd_input *handle);
 int tracecmd_long_size(struct tracecmd_input *handle);
 int tracecmd_page_size(struct tracecmd_input *handle);

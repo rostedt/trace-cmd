@@ -1316,10 +1316,10 @@ void tracecmd_print_events(struct tracecmd_input *handle)
 }
 
 /**
- * tracecmd_open - create a tracecmd_handle from the trace.dat file descriptor
+ * tracecmd_open_fd - create a tracecmd_handle from the trace.dat file descriptor
  * @fd: the file descriptor for the trace.dat file
  */
-struct tracecmd_input *tracecmd_open(int fd)
+struct tracecmd_input *tracecmd_open_fd(int fd)
 {
 	struct tracecmd_input *handle;
 	char test[] = { 23, 8, 68 };
@@ -1374,6 +1374,28 @@ struct tracecmd_input *tracecmd_open(int fd)
 	free(handle);
 
 	return NULL;
+}
+
+/**
+ * tracecmd_open - create a tracecmd_handle from a given file
+ * @file: the file name of the file that is of tracecmd data type.
+ */
+struct tracecmd_input *tracecmd_open(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	return tracecmd_open_fd(fd);
+}
+
+void tracecmd_close(struct tracecmd_input *handle)
+{
+	/* TODO FREE EVERYTHING!!! %%%% MEMORY LEAK!!! %%%% */
+	close(handle->fd);
+	free(handle);
 }
 
 /**

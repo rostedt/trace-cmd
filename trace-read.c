@@ -38,8 +38,8 @@
 
 #include "trace-local.h"
 
-unsigned int page_size;
-int input_fd;
+static unsigned int page_size;
+static int input_fd;
 const char *input_file = "trace.dat";
 
 static int filter_cpu = -1;
@@ -276,7 +276,7 @@ struct tracecmd_input *read_trace_header(void)
 	if (input_fd < 0)
 		die("opening '%s'\n", input_file);
 
-	return tracecmd_open(input_fd);
+	return tracecmd_open_fd(input_fd);
 }
 
 void trace_report (int argc, char **argv)
