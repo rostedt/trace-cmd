@@ -87,7 +87,7 @@ plugin_mac80211.so: plugin_mac80211.o
 .PHONY: python
 python:	$(TCMD_LIB_OBJS) trace-cmd.o trace-read.o
 	swig -Wall -python -noproxy ctracecmd.i
-	gcc -fpic -c  -I/usr/include/python2.6/ -I/usr/lib/python2.6/config ctracecmd_wrap.c
+	gcc -fpic -c  `python-config --includes` ctracecmd_wrap.c
 	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
 
 
