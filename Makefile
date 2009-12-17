@@ -7,7 +7,10 @@ LIBS = -L. -ltracecmd -ldl
 
 PACKAGES= gtk+-2.0 libgnome-2.0 libgnomecanvas-2.0 libgnomeui-2.0 libxml-2.0
 
-CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES))
+CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES)) \
+	-DGTK_VERSION=$(shell pkg-config --modversion gtk+-2.0 | \
+	awk 'BEGIN{FS="."}{ a = ($$1 * (2^16)) + $$2 * (2^8) + $$3; printf ("%d", a);}')
+
 CONFIG_LIBS = $(shell pkg-config --libs $(PACKAGES))
 
 CFLAGS = -g -Wall $(CONFIG_FLAGS)
@@ -38,7 +41,7 @@ trace-cmd:: trace-cmd.o trace-read.o trace-view.o trace-view-store.o \
 	trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
-trace-graph:: trace-graph.o
+trace-graph:: trace-graph.o trace-compat.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 .PHONY: gtk_depends

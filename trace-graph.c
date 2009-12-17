@@ -26,6 +26,7 @@
 #include <gnome.h>
 #include <gtk/gtk.h>
 
+#include "trace-compat.h"
 #include "trace-cmd.h"
 #include "trace-local.h"
 #include "trace-graph.h"
