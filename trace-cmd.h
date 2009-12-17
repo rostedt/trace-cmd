@@ -4,13 +4,6 @@
 #include <stdlib.h>
 #include "parse-events.h"
 
-extern int input_fd;
-extern const char *input_file;
-
-#ifndef PAGE_MASK
-#define PAGE_MASK (page_size - 1)
-#endif
-
 #define TRACECMD_VERSION "0.5"
 
 void parse_cmdlines(struct pevent *pevent, char *file, int size);
