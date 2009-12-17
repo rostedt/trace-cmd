@@ -654,17 +654,88 @@ static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
 	gdk_gc_set_foreground(gc, &color);
 }
 
+static void draw_event_label(struct graph_info *ginfo, gint cpu,
+			    gint event_id, gint pid,
+			    gint p1, gint p2, gint p3,
+			    gint width_16, PangoFontDescription *font)
+{
+	struct event *event;
+	PangoLayout *layout;
+	struct trace_seq s;
+	gint text_width;
+	gint text_height;
+	gint x, y;
+
+
+	/* No room to print */
+	if (((p3 - p2) < width_16 / 2 ||
+	     (p2 - p1) < width_16 / 2))
+		return;
+
+	/* Check if we can show some data */
+
+	event = pevent_data_event_from_type(ginfo->pevent, event_id);
+
+	trace_seq_init(&s);
+	trace_seq_printf(&s, "%s-%d\n%s\n",
+			 pevent_data_comm_from_pid(ginfo->pevent, pid),
+			 pid, event->name);
+
+	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
+	pango_layout_set_font_description(layout, font);
+
+	pango_layout_get_pixel_size(layout, &text_width, &text_height);
+
+	if ((p3 - p2) < text_width / 2 ||
+	    (p2 - p1) < text_width / 2) {
+		g_object_unref(layout);
+		return;
+	}
+
+	x = p2 - text_width / 2;
+	y = (CPU_TOP(cpu) - text_height + 5);
+	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
+			x, y, layout);
+
+
+	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
+		      p2, CPU_TOP(cpu) - 5, p2, CPU_TOP(cpu) - 1);
+
+	g_object_unref(layout);
+}
+
 static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		     gint new_width)
 {
+	static PangoFontDescription *font;
+	PangoLayout *layout;
 	gint height = CPU_MIDDLE(cpu);
 	struct record *record;
 	static GdkGC *gc;
+	static gint width_16;
 	guint64 ts;
 	gint last_pid = -1;
 	gint last_x = 0;
 	gint pid;
 	gint x;
+	gint p1 = 0, p2 = 0, p3 = 0;
+	gint last_event_id = 0;
+	gint event_id;
+
+	/* Calculate the size of 16 characters */
+	if (!width_16) {
+		gchar buf[17];
+		gint text_height;
+
+		memset(buf, 'a', 16);
+		buf[16] = 0;
+
+		font = pango_font_description_from_string("Sans 8");
+		layout = gtk_widget_create_pango_layout(ginfo->draw, buf);
+		pango_layout_set_font_description(layout, font);
+		pango_layout_get_pixel_size(layout, &width_16, &text_height);
+		g_object_unref(layout);
+	}
 
 	if (!gc)
 		gc = gdk_gc_new(ginfo->draw->window);
@@ -689,6 +760,8 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		if (!check_sched_switch(ginfo, record, &pid, NULL))
 			pid = pevent_data_pid(ginfo->pevent, record);
 
+		event_id = pevent_data_type(ginfo->pevent, record);
+
 		if (last_pid != pid) {
 
 			if (last_pid < 0)
@@ -711,8 +784,28 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
 			      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
+
+		/* Figure out if we can show the text for the previous record */
+
+		p3 = x;
+
+		/* Make sure p2 will be non-zero the next iteration */
+		if (!p3)
+			p3 = 1;
+
+		/* first record, continue */
+		if (p2)
+			draw_event_label(ginfo, cpu, last_event_id, last_pid,
+					 p1, p2, p3, width_16, font);
+
+		p1 = p2;
+		p2 = p3;
+		last_event_id = event_id;
 		free(record);
 	}
+
+	draw_event_label(ginfo, cpu, last_event_id, last_pid,
+			 p1, p2, ginfo->draw_width, width_16, font);
 
 
 	if (last_pid > 0) {
