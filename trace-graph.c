@@ -661,7 +661,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	struct record *record;
 	static GdkGC *gc;
 	guint64 ts;
-	gint last_pid = 0;
+	gint last_pid = -1;
 	gint last_x = 0;
 	gint pid;
 	gint x;
@@ -690,6 +690,10 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			pid = pevent_data_pid(ginfo->pevent, record);
 
 		if (last_pid != pid) {
+
+			if (last_pid < 0)
+				last_pid = pid;
+
 			if (last_pid) {
 				gdk_draw_line(ginfo->curr_pixmap, gc,
 					      last_x, CPU_TOP(cpu),
@@ -708,6 +712,18 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
 			      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
 		free(record);
+	}
+
+
+	if (last_pid > 0) {
+		x = ginfo->draw_width;
+
+		gdk_draw_line(ginfo->curr_pixmap, gc,
+			      last_x, CPU_TOP(cpu),
+			      x, CPU_TOP(cpu));
+		gdk_draw_line(ginfo->curr_pixmap, gc,
+			      last_x, CPU_BOTTOM(cpu),
+			      x, CPU_BOTTOM(cpu));
 	}
 
 	if (record)
