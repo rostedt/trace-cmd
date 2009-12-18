@@ -5,7 +5,7 @@ INCLUDES = -I. -I/usr/local/include
 
 LIBS = -L. -ltracecmd -ldl
 
-PACKAGES= gtk+-2.0 libgnome-2.0 libgnomecanvas-2.0 libgnomeui-2.0 libxml-2.0
+PACKAGES= gtk+-2.0
 
 CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES)) \
 	-DGTK_VERSION=$(shell pkg-config --modversion gtk+-2.0 | \

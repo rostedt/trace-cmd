@@ -23,7 +23,6 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <gnome.h>
 #include <gtk/gtk.h>
 
 #include "trace-compat.h"
@@ -1133,7 +1132,7 @@ void trace_graph(int argc, char **argv)
 	if (tracecmd_init_data(handle) < 0)
 		die("failed to init data");
 
-	gnome_init("trace-cmd", version, argc, argv);
+	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */
 

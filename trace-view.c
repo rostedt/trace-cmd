@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include <gnome.h>
+#include <gtk/gtk.h>
 
 #include "trace-cmd.h"
 #include "trace-local.h"
@@ -234,7 +234,7 @@ void trace_view(int argc, char **argv)
 	if (tracecmd_init_data(handle) < 0)
 		die("failed to init data");
 
-	gnome_init("trace-cmd", version, argc, argv);
+	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */
 
