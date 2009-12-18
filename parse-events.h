@@ -347,6 +347,7 @@ int pevent_register_function(struct pevent *pevetn, char *name,
 			     unsigned long long addr, char *mod);
 int pevent_register_print_string(struct pevent *pevent, char *fmt,
 				 unsigned long long addr);
+int pevent_pid_is_registered(struct pevent *pevent, int pid);
 
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			int cpu, void *data, int size, unsigned long long nsecs);

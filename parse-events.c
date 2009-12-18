@@ -120,6 +120,36 @@ static char *find_cmdline(struct pevent *pevent, int pid)
 }
 
 /**
+ * pevent_pid_is_registered - return if a pid has a cmdline registered
+ * @pevent: handle for the pevent
+ * @pid: The pid to check if it has a cmdline registered with.
+ *
+ * Returns 1 if the pid has a cmdline mapped to it
+ * 0 otherwise.
+ */
+int pevent_pid_is_registered(struct pevent *pevent, int pid)
+{
+	const struct cmdline *comm;
+	struct cmdline key;
+
+	if (!pid)
+		return 1;
+
+
+	if (!pevent->cmdlines)
+		cmdline_init(pevent);
+
+	key.pid = pid;
+
+	comm = bsearch(&key, pevent->cmdlines, pevent->cmdline_count,
+		       sizeof(*pevent->cmdlines), cmdline_cmp);
+
+	if (comm)
+		return 1;
+	return 0;
+}
+
+/**
  * pevent_register_comm - register a pid / comm mapping
  * @pevent: handle for the pevent
  * @comm: the command line to register
