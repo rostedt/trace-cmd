@@ -1020,31 +1020,31 @@ struct record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size)
 {
-	struct record *data;
+	struct record *record;
 	unsigned int type_len;
 
 	/* minimum record read is 8, (warn?) (TODO: make 8 into macro) */
 	if (size < 8)
 		return NULL;
 
-	data = malloc(sizeof(*data));
-	if (!data)
+	record = malloc(sizeof(*record));
+	if (!record)
 		return NULL;
-	memset(data, 0, sizeof(*data));
+	memset(record, 0, sizeof(*record));
 
-	data->data = ptr;
-	type_len = translate_data(handle, &data->data, &data->ts, &data->size);
+	record->data = ptr;
+	type_len = translate_data(handle, &record->data, &record->ts, &record->size);
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
 	case RINGBUF_TYPE_TIME_EXTEND:
 	case RINGBUF_TYPE_TIME_STAMP:
-		data->data = NULL;
+		record->data = NULL;
 		break;
 	default:
 		break;
 	}
 
-	return data;
+	return record;
 }
 
 /**
@@ -1061,7 +1061,7 @@ struct record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
-	struct record *data;
+	struct record *record;
 	void *page = handle->cpu_data[cpu].page;
 	int index = handle->cpu_data[cpu].index;
 	void *ptr = page + index;
@@ -1091,14 +1091,14 @@ read_again:
 	}
 
 	if (pevent->old_format) {
-		data = read_old_format(handle, &ptr, cpu);
-		if (!data) {
+		record = read_old_format(handle, &ptr, cpu);
+		if (!record) {
 			if (!ptr)
 				return NULL;
 			goto read_again;
 		}
-			
-		return data;
+		record->cpu = cpu;
+		return record;
 	}
 
 	type_len = translate_data(handle, &ptr, &extend, &length);
@@ -1121,24 +1121,25 @@ read_again:
 
 	handle->cpu_data[cpu].timestamp += extend;
 
-	data = malloc(sizeof(*data));
-	if (!data)
+	record = malloc(sizeof(*record));
+	if (!record)
 		return NULL;
-	memset(data, 0, sizeof(*data));
+	memset(record, 0, sizeof(*record));
 
-	data->ts = handle->cpu_data[cpu].timestamp;
-	data->size = length;
-	data->data = ptr;
-	data->offset = handle->cpu_data[cpu].offset + index;
+	record->ts = handle->cpu_data[cpu].timestamp;
+	record->size = length;
+	record->cpu = cpu;
+	record->data = ptr;
+	record->offset = handle->cpu_data[cpu].offset + index;
 
 	ptr += length;
 
 	handle->cpu_data[cpu].index = calc_index(handle, ptr, cpu);
-	handle->cpu_data[cpu].next = data;
+	handle->cpu_data[cpu].next = record;
 
-	data->record_size = handle->cpu_data[cpu].index - index;
+	record->record_size = handle->cpu_data[cpu].index - index;
 
-	return data;
+	return record;
 }
 
 /**
@@ -1154,12 +1155,12 @@ read_again:
 struct record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 {
-	struct record *data;
+	struct record *record;
 
-	data = tracecmd_peek_data(handle, cpu);
+	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
 
-	return data;
+	return record;
 }
 
 static int init_read(struct tracecmd_input *handle, int cpu)

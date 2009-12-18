@@ -20,6 +20,7 @@ struct record {
 	int record_size;		/* size of binary record */
 	int size;			/* size of data */
 	void *data;
+	int cpu;
 };
 
 /*
