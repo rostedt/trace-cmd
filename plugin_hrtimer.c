@@ -30,10 +30,11 @@ static void print_field(struct trace_seq *s, const char *fmt,
 		trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
 }
 
-static int timer_expire_handler(struct trace_seq *s, void *data, int size,
-				struct event_format *event, int cpu,
-				unsigned long long nsecs)
+static int timer_expire_handler(struct trace_seq *s, struct record *record,
+				struct event_format *event)
 {
+	void *data = record->data;
+
 	trace_seq_printf(s, "hrtimer=");
 
 	if (_print_field(s, "0x%llx", event, "timer", data) == -1)
@@ -46,12 +47,12 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 	return 0;
 }
 
-static int timer_start_handler(struct trace_seq *s, void *data, int size,
-			       struct event_format *event, int cpu,
-			       unsigned long long nsecs)
+static int timer_start_handler(struct trace_seq *s, struct record *record,
+			       struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
 	struct format_field *fn = pevent_find_field(event, "function");
+	void *data = record->data;
 
 	trace_seq_printf(s, "hrtimer=");
 

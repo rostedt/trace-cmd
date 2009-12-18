@@ -145,6 +145,19 @@ static void stop_threads(void)
 	}
 }
 
+static void flush_threads(void)
+{
+	int i;
+
+	if (!cpu_count)
+		return;
+
+	for (i = 0; i < cpu_count; i++) {
+		if (pids[i] > 0)
+			kill(pids[i], SIGUSR1);
+	}
+}
+
 void die(char *fmt, ...)
 {
 	va_list ap;
@@ -569,6 +582,12 @@ static void finish(int sig)
 	finished = 1;
 }
 
+static void flush(int sig)
+{
+	if (recorder)
+		tracecmd_stop_recording(recorder);
+}
+
 static int create_recorder(int cpu)
 {
 	char *file;
@@ -582,6 +601,7 @@ static int create_recorder(int cpu)
 		return pid;
 
 	signal(SIGINT, finish);
+	signal(SIGUSR1, flush);
 
 	/* do not kill tasks on error */
 	cpu_count = 0;
@@ -593,7 +613,8 @@ static int create_recorder(int cpu)
 
 	if (!recorder)
 		die ("can't create recorder");
-	tracecmd_start_recording(recorder, sleep_time);
+	while (!finished)
+		tracecmd_start_recording(recorder, sleep_time);
 	tracecmd_free_recorder(recorder);
 
 	exit(0);
@@ -644,6 +665,46 @@ static void record_data(void)
 	tracecmd_output_close(handle);
 }
 
+static int trace_empty(void)
+{
+	char *path;
+	FILE *fp;
+	char *line = NULL;
+	size_t size;
+	ssize_t n;
+	int ret;
+	
+	/*
+	 * Test if the trace file is empty.
+	 *
+	 * Yes, this is a heck of a hack. What is done here
+	 * is to read the trace file and ignore the
+	 * lines starting with '#', and if we get a line
+	 * that is without a '#' the trace is not empty.
+	 * Otherwise it is.
+	 */
+	path = get_tracing_file("trace");
+	fp = fopen(path, "r");
+	if (!fp)
+		die("reading '%s'", path);
+
+	do {
+		n = getline(&line, &size, fp);
+		if (!line)
+			ret = 1;
+		else if (line[0] != '#')
+			ret = 0;
+		if (n < 0)
+			ret = 1;
+	} while (line && n > 0);
+
+	put_tracing_file(path);
+
+	fclose(fp);
+
+	return ret;
+}
+
 void usage(char **argv)
 {
 	char *arg = argv[0];
@@ -669,6 +730,9 @@ void usage(char **argv)
 	       "          Uses same options as record, but does not run a command.\n"
 	       "          It only enables the tracing and exits\n"
 	       "\n"
+	       " %s extract [-p plugin][-O option][-o file]\n"
+	       "          Uses same options as record, but only reads an existing trace.\n"
+	       "\n"
 	       " %s stop\n"
 	       "          Stops the tracer from recording more data.\n"
 	       "          Used in conjunction with start\n"
@@ -689,7 +753,7 @@ void usage(char **argv)
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
 	       "          -o list available options\n"
-	       "\n", p, TRACECMD_VERSION, p, p, p, p, p, p);
+	       "\n", p, TRACECMD_VERSION, p, p, p, p, p, p, p);
 	exit(-1);
 }
 
@@ -705,6 +769,7 @@ int main (int argc, char **argv)
 	int events = 0;
 	int options = 0;
 	int record = 0;
+	int extract = 0;
 	int run_command = 0;
 	int neg_event = 0;
 	int fset;
@@ -724,7 +789,8 @@ int main (int argc, char **argv)
 		trace_view(argc, argv);
 		exit(0);
 	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
-		   (strcmp(argv[1], "start") == 0)) {
+		   (strcmp(argv[1], "start") == 0) ||
+		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
 		while ((c = getopt(argc-1, argv+1, "+he:p:do:O:s:v")) >= 0) {
 			switch (c) {
@@ -732,6 +798,8 @@ int main (int argc, char **argv)
 				usage(argv);
 				break;
 			case 'e':
+				if (extract)
+					usage(argv);
 				events = 1;
 				event = malloc_or_die(sizeof(*event));
 				event->event = optarg;
@@ -740,6 +808,8 @@ int main (int argc, char **argv)
 				event_selection = event;
 				break;
 			case 'v':
+				if (extract)
+					usage(argv);
 				neg_event = 1;
 				break;
 			case 'p':
@@ -749,10 +819,12 @@ int main (int argc, char **argv)
 				fprintf(stderr, "  plugin %s\n", plugin);
 				break;
 			case 'd':
+				if (extract)
+					usage(argv);
 				disable = 1;
 				break;
 			case 'o':
-				if (!record)
+				if (!record && !extract)
 					die("start does not take output\n"
 					    "Did you mean 'record'?");
 				if (output)
@@ -764,6 +836,8 @@ int main (int argc, char **argv)
 				set_option(option);
 				break;
 			case 's':
+				if (extract)
+					usage(argv);
 				sleep_time = atoi(optarg);
 				break;
 			}
@@ -827,20 +901,26 @@ int main (int argc, char **argv)
 		if (!record)
 			die("Command start does not take any commands\n"
 			    "Did you mean 'record'?");
+		if (extract)
+			die("Command extract does not take any commands\n"
+			    "Did you mean 'record'?");
 		run_command = 1;
 	}
 
-	if (!events && !plugin)
+	if (!events && !plugin && !extract)
 		die("no event or plugin was specified... aborting");
 
 	if (output)
 		output_file = output;
 
-	fset = set_ftrace(!disable);
-	disable_all();
+	if (!extract) {
+		fset = set_ftrace(!disable);
+		disable_all();
 
-	if (events)
-		enable_events();
+		if (events)
+			enable_events();
+	}
+
 	if (plugin) {
 		/*
 		 * Latency tracers just save the trace and kill
@@ -856,32 +936,40 @@ int main (int argc, char **argv)
 		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
 				 strcmp(plugin, "function_graph") == 0))
 			die("function tracing not configured on this kernel");
-		set_plugin(plugin);
+		if (!extract)
+			set_plugin(plugin);
 	}
 
-	if (record) {
+	if (record || extract) {
 		if (!latency)
 			start_threads();
 		signal(SIGINT, finish);
 	}
 
-	enable_tracing();
-	if (latency)
-		reset_max_latency();
+	if (extract) {
+		while (!finished && !trace_empty()) {
+			flush_threads();
+			sleep(1);
+		}
+	} else {
+		enable_tracing();
+		if (latency)
+			reset_max_latency();
 
-	if (!record)
-		exit(0);
+		if (!record)
+			exit(0);
 
-	if (run_command)
-		run_cmd((argc - optind) - 1, &argv[optind + 1]);
-	else {
-		/* sleep till we are woken with Ctrl^C */
-		printf("Hit Ctrl^C to stop recording\n");
-		while (!finished)
-			sleep(10);
+		if (run_command)
+			run_cmd((argc - optind) - 1, &argv[optind + 1]);
+		else {
+			/* sleep till we are woken with Ctrl^C */
+			printf("Hit Ctrl^C to stop recording\n");
+			while (!finished)
+				sleep(10);
+		}
+
+		disable_tracing();
 	}
-
-	disable_tracing();
 
 	stop_threads();
 

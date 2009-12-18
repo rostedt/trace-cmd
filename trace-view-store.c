@@ -470,7 +470,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 		case TRACE_VIEW_STORE_COL_LAT:
 			trace_seq_init(&s);
-			pevent_data_lat_fmt(pevent, &s, data->data, data->size);
+			pevent_data_lat_fmt(pevent, &s, data);
 			g_value_set_string(value, s.buffer);
 			break;
 
@@ -485,8 +485,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 			
 			trace_seq_init(&s);
-			pevent_event_info(&s, event, cpu, data->data, data->size,
-					  record->timestamp);
+			pevent_event_info(&s, event, data);
 			g_value_set_string(value, s.buffer);
 			break;
 		}

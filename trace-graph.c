@@ -142,8 +142,7 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 	}
 	trace_seq_puts(&s, event->name);
 	trace_seq_putc(&s, ':');
-	pevent_event_info(&s, event, cpu, record->data, record->size,
-			  record->ts);
+	pevent_event_info(&s, event, record);
 	trace_seq_putc(&s, '\n');
 	trace_seq_do_printf(&s);
 }
@@ -285,10 +284,9 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 			if (event) {
 				trace_seq_puts(&s, event->name);
 				trace_seq_putc(&s, '\n');
-				pevent_data_lat_fmt(pevent, &s, record->data, record->size);
+				pevent_data_lat_fmt(pevent, &s, record);
 				trace_seq_putc(&s, '\n');
-				pevent_event_info(&s, event, cpu, record->data, record->size,
-						  record->ts);
+				pevent_event_info(&s, event, record);
 				trace_seq_putc(&s, '\n');
 			} else
 				trace_seq_printf(&s, "UNKNOW EVENT %d\n", type);

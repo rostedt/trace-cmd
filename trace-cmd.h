@@ -72,6 +72,8 @@ struct record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu);
 struct record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu);
+int tracecmd_refresh_record(struct tracecmd_input *handle,
+			    struct record *record);
 
 int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 				  int cpu, unsigned long long ts);

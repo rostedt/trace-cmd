@@ -28,13 +28,13 @@ static int get_field_val(struct trace_seq *s, void *data,
 	return 0;
 }
 
-static int function_handler(struct trace_seq *s, void *data, int size,
-			    struct event_format *event, int cpu,
-			    unsigned long long nsecs)
+static int function_handler(struct trace_seq *s, struct record *record,
+			    struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long function;
 	const char *func;
+	void *data = record->data;
 
 	if (get_field_val(s, data, event, "ip", &function))
 		return trace_seq_putc(s, '!');
@@ -220,13 +220,15 @@ static int print_graph_nested(struct trace_seq *s,
 }
 
 static int
-fgraph_ent_handler(struct trace_seq *s, void *data, int size,
-		   struct event_format *event, int cpu,
-		   unsigned long long nsecs)
+fgraph_ent_handler(struct trace_seq *s, struct record *record,
+		   struct event_format *event)
 {
 	struct record *rec;
 	void *copy_data;
 	unsigned long long val, pid;
+	void *data = record->data;
+	int size = record->size;
+	int cpu = record->cpu;
 	int ret;
 
 	if (get_field_val(s, data, event, "common_pid", &pid))
@@ -248,22 +250,47 @@ fgraph_ent_handler(struct trace_seq *s, void *data, int size,
 	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
 	if (rec)
 		rec = get_return_for_leaf(s, cpu, pid, val, rec);
-	if (rec)
+			
+	if (rec) {
+		/*
+		 * The record returned needs to be freed.
+		 * We also do a new peek on this CPU to update the
+		 * record cache. (peek caches the record, but the
+		 * refresh below will update the CPU iterator.
+		 * If peek has a record in cache, it will update the
+		 * iterator to that)
+		 */
 		ret = print_graph_entry_leaf(s, event, data, rec);
-	else
+		free_record(rec);
+		tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
+	} else
 		ret = print_graph_nested(s, event, data);
 
 	free(data);
+
+	/*
+	 * The above peek may unmap the record given to us.
+	 * But callers may still have a reference to that record.
+	 * We need to make sure it is still mapped.
+	 *
+	 * Note, this causes a known bug. If the last item in the trace
+	 * was a leaf function, we can't remove it. The peek cache
+	 * above will be NULL (no records after the leaf) so a new peek
+	 * will simply read the return entry of the leaf and print it
+	 * again.
+	 */
+	tracecmd_refresh_record(tracecmd_curr_thread_handle,
+				record);
 	return ret;
 }
 
 static int
-fgraph_ret_handler(struct trace_seq *s, void *data, int size,
-		   struct event_format *event, int cpu,
-		   unsigned long long nsecs)
+fgraph_ret_handler(struct trace_seq *s, struct record *record,
+		   struct event_format *event)
 {
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
+	void *data = record->data;
 	int i;
 
 	if (get_field_val(s, data, event, "rettime", &rettime))
@@ -291,13 +318,13 @@ fgraph_ret_handler(struct trace_seq *s, void *data, int size,
 }
 
 static int
-trace_stack_handler(struct trace_seq *s, void *data, int size,
-		    struct event_format *event, int cpu,
-		    unsigned long long nsecs)
+trace_stack_handler(struct trace_seq *s, struct record *record,
+		    struct event_format *event)
 {
 	struct format_field *field;
 	unsigned long long addr;
 	const char *func;
+	void *data = record->data;
 	int ret;
 	int i;
 

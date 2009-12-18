@@ -47,12 +47,12 @@ static void write_state(struct trace_seq *s, int val)
 		trace_seq_putc(s, 'R');
 }
 
-static int sched_wakeup_handler(struct trace_seq *s, void *data, int size,
-				struct event_format *event, int cpu,
-				unsigned long long nsecs)
+static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
+				struct event_format *event)
 {
 	struct format_field *field;
 	unsigned long long val;
+	void *data = record->data;
 
 	if (get_field_val(s, data, event, "common_pid", &val, 1))
 		return trace_seq_putc(s, '!');
@@ -102,12 +102,12 @@ static int sched_wakeup_handler(struct trace_seq *s, void *data, int size,
 	return 0;
 }
 
-static int sched_switch_handler(struct trace_seq *s, void *data, int size,
-				struct event_format *event, int cpu,
-				unsigned long long nsecs)
+static int sched_switch_handler(struct trace_seq *s, struct record *record,
+				struct event_format *event)
 {
 	struct format_field *field;
 	unsigned long long val;
+	void *data = record->data;
 
 	if (get_field_val(s, data, event, "prev_pid", &val, 1))
 		return trace_seq_putc(s, '!');
