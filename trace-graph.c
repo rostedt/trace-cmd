@@ -668,8 +668,9 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 
 
 	/* No room to print */
-	if (((p3 - p2) < width_16 / 2 ||
-	     (p2 - p1) < width_16 / 2))
+	if ((p2 > width_16 && ((p3 - p2) < width_16 / 2 ||
+			       (p2 - p1) < width_16 / 2)) ||
+	    (p2 <= width_16 && (p1 || (p3 - p2) < width_16)))
 		return;
 
 	/* Check if we can show some data */
@@ -686,13 +687,18 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 
 	pango_layout_get_pixel_size(layout, &text_width, &text_height);
 
-	if ((p3 - p2) < text_width / 2 ||
-	    (p2 - p1) < text_width / 2) {
+	if ((p2 > text_width && ((p3 - p2) < text_width ||
+				 (p2 - p1) < text_width)) ||
+	    (p2 < text_width && (p1 || (p3 - p2 < (text_width +
+						   text_width / 2))))) {
 		g_object_unref(layout);
 		return;
 	}
 
 	x = p2 - text_width / 2;
+	if (x < 0)
+		x = 1;
+
 	y = (CPU_TOP(cpu) - text_height + 5);
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			x, y, layout);
@@ -750,6 +756,10 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
 
+		if (record->ts < ginfo->view_start_time) {
+			free_record(record);
+			continue;
+		}
 		if (record->ts > ginfo->view_end_time)
 			break;
 
@@ -815,8 +825,9 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		free(record);
 	}
 
-	draw_event_label(ginfo, cpu, last_event_id, last_pid,
-			 p1, p2, ginfo->draw_width, width_16, font);
+	if (p2)
+		draw_event_label(ginfo, cpu, last_event_id, last_pid,
+				 p1, p2, ginfo->draw_width, width_16, font);
 
 
 	if (last_pid > 0) {
