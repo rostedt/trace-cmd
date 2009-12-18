@@ -495,6 +495,11 @@ static unsigned int ts4host(struct tracecmd_input *handle,
 		return type_len_ts >> 5;
 }
 
+static unsigned int read_type_len_ts(struct tracecmd_input *handle, void *ptr)
+{
+	return data2host4(handle->pevent, ptr);
+}
+
 static int calc_index(struct tracecmd_input *handle,
 		      void *ptr, int cpu)
 {
@@ -574,9 +579,21 @@ static int get_read_page(struct tracecmd_input *handle, int cpu,
 	return 0;
 }
 
+/*
+ * get_page maps a page for a given cpu.
+ *
+ * Returns 1 if the page was already mapped,
+ *         0 if it mapped successfully
+ *        -1 on error
+ */
 static int get_page(struct tracecmd_input *handle, int cpu,
 		    off64_t offset)
 {
+	/* Don't map if the page is already where we want */
+	if (handle->cpu_data[cpu].offset == offset &&
+	    handle->cpu_data[cpu].page)
+		return 1;
+
 	if (offset & (handle->page_size - 1)) {
 		errno = -EINVAL;
 		die("bad page offset %llx", offset);
@@ -656,7 +673,7 @@ read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 
 	index = calc_index(handle, *ptr, cpu);
 
-	type_len_ts = data2host4(pevent, *ptr);
+	type_len_ts = read_type_len_ts(handle, *ptr);
 	*ptr += 4;
 
 	type = type4host(handle, type_len_ts);
@@ -769,7 +786,7 @@ find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 	/* Move this cpu index to point to this offest */
 	page_offset = offset & ~(handle->page_size - 1);
 
-	if (get_page(handle, cpu, page_offset))
+	if (get_page(handle, cpu, page_offset) < 0)
 		return NULL;
 
 	if (pcpu)
@@ -822,14 +839,46 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
  * A record data points to a mmap section of memory.
  * by reading new records the mmap section may be unmapped.
  * This will refresh the record's data mapping.
+ *
+ * Returns 1 if page is still mapped (does not modify CPU iterator)
+ *         0 on successful mapping (was not mapped before,
+ *                      This will update CPU iterator to point to
+ *                      the next record)
+ *        -1 on error.
  */
 int tracecmd_refresh_record(struct tracecmd_input *handle,
 			    struct record *record)
 {
 	unsigned long long page_offset;
+	int cpu = record->cpu;
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	unsigned int type_len_ts;
+	unsigned int len;
+	int index;
+	int ret;
 
 	page_offset = record->offset & ~(handle->page_size - 1);
-	get_page(handle, record->cpu, page_offset);
+	index = record->offset & (handle->page_size - 1);
+
+	ret = get_page(handle, record->cpu, page_offset) < 0;
+	if (ret < 0)
+		return -1;
+
+	/* If the page is still mapped, there's nothing to do */
+	if (ret)
+		return 1;
+
+	record->data = cpu_data->page + index;
+
+	type_len_ts = read_type_len_ts(handle, record->data);
+	len = len4host(handle, type_len_ts);
+
+	/* The data starts either 4 or 8 bytes from offset */
+	record->data += len ? 4 : 8;
+
+	/* The get_page resets the index, set the index after this record */
+	cpu_data->index = index + record->record_size;
+	cpu_data->timestamp = record->ts;
 
 	return 0;
 }
@@ -938,7 +987,7 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 	}
 
 	while (start < end) {
-		if (get_page(handle, cpu, next))
+		if (get_page(handle, cpu, next) < 0)
 			return -1;
 
 		if (cpu_data->timestamp == ts)
@@ -982,7 +1031,7 @@ translate_data(struct tracecmd_input *handle,
 	unsigned int type_len_ts;
 	unsigned int type_len;
 
-	type_len_ts = data2host4(pevent, *ptr);
+	type_len_ts = read_type_len_ts(handle, *ptr);
 	*ptr += 4;
 
 	type_len = type_len4host(handle, type_len_ts);
@@ -1092,8 +1141,11 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	/* Hack to work around function graph read ahead */
 	tracecmd_curr_thread_handle = handle;
 
-	if (handle->cpu_data[cpu].next)
+	if (handle->cpu_data[cpu].next) {
+		/* Make sure it's still mapped */
+		tracecmd_refresh_record(handle, handle->cpu_data[cpu].next);
 		return handle->cpu_data[cpu].next;
+	}
 
 	if (!page)
 		return NULL;
