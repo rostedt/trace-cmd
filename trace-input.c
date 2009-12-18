@@ -1137,13 +1137,29 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	unsigned long long extend;
 	unsigned int type_len;
 	int length;
+	int ret;
 
 	/* Hack to work around function graph read ahead */
 	tracecmd_curr_thread_handle = handle;
 
 	if (handle->cpu_data[cpu].next) {
 		/* Make sure it's still mapped */
-		tracecmd_refresh_record(handle, handle->cpu_data[cpu].next);
+		ret = tracecmd_refresh_record(handle, handle->cpu_data[cpu].next);
+		if (ret < 0) {
+			free_record(handle->cpu_data[cpu].next);
+			handle->cpu_data[cpu].next = NULL;
+			return NULL;
+		}
+		/*
+		 * Make sure the index and timestamp are where
+		 * we want them, because the refresh did not update it.
+		 */
+		if (ret && handle->cpu_data[cpu].timestamp != record->ts) {
+			handle->cpu_data[cpu].index =
+				(record->offset & (handle->page_size - 1)) +
+				record->record_size;
+			handle->cpu_data[cpu].timestamp = record->ts;
+		}
 		return handle->cpu_data[cpu].next;
 	}
 
