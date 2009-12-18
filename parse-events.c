@@ -3216,10 +3216,10 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
  * writes the print format into the trace_seq.
  */
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
-		       int cpu, struct record *record)
+		       struct record *record)
 {
 	if (event->handler)
-		event->handler(s, record, event, cpu);
+		event->handler(s, record, event);
 	else
 		pretty_print(s, record->data, record->size, event);
 
@@ -3227,7 +3227,7 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 }
 
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
-			int cpu, struct record *record)
+			struct record *record)
 {
 	static char *spaces = "                    "; /* 20 spaces */
 	struct event_format *event;
@@ -3257,10 +3257,10 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 
 	if (pevent->latency_format) {
 		trace_seq_printf(s, "%8.8s-%-5d %3d",
-		       comm, pid, cpu);
+		       comm, pid, record->cpu);
 		pevent_data_lat_fmt(pevent, s, record);
 	} else
-		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid,  cpu);
+		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid, record->cpu);
 
 	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
 
@@ -3270,7 +3270,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 	
 	if (event->handler)
-		event->handler(s, record, event, cpu);
+		event->handler(s, record, event);
 	else
 		pretty_print(s, data, size, event);
 

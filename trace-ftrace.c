@@ -29,7 +29,7 @@ static int get_field_val(struct trace_seq *s, void *data,
 }
 
 static int function_handler(struct trace_seq *s, struct record *record,
-			    struct event_format *event, int cpu)
+			    struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long function;
@@ -221,13 +221,14 @@ static int print_graph_nested(struct trace_seq *s,
 
 static int
 fgraph_ent_handler(struct trace_seq *s, struct record *record,
-		   struct event_format *event, int cpu)
+		   struct event_format *event)
 {
 	struct record *rec;
 	void *copy_data;
 	unsigned long long val, pid;
 	void *data = record->data;
 	int size = record->size;
+	int cpu = record->cpu;
 	int ret;
 
 	if (get_field_val(s, data, event, "common_pid", &pid))
@@ -260,7 +261,7 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 
 static int
 fgraph_ret_handler(struct trace_seq *s, struct record *record,
-		   struct event_format *event, int cpu)
+		   struct event_format *event)
 {
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
@@ -293,7 +294,7 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 
 static int
 trace_stack_handler(struct trace_seq *s, struct record *record,
-		    struct event_format *event, int cpu)
+		    struct event_format *event)
 {
 	struct format_field *field;
 	unsigned long long addr;

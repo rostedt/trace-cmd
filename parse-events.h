@@ -63,7 +63,7 @@ struct event_format;
 
 typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 struct record *record,
-					 struct event_format *event, int cpu);
+					 struct event_format *event);
 
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
 
@@ -350,7 +350,7 @@ int pevent_register_print_string(struct pevent *pevent, char *fmt,
 int pevent_pid_is_registered(struct pevent *pevent, int pid);
 
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
-			int cpu, struct record *record);
+			struct record *record);
 
 int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size);
 
@@ -380,7 +380,7 @@ struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type
 int pevent_data_pid(struct pevent *pevent, struct record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
-		       int cpu, struct record *record);
+		       struct record *record);
 
 struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type);
 

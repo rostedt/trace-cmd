@@ -31,7 +31,7 @@ static void print_field(struct trace_seq *s, const char *fmt,
 }
 
 static int timer_expire_handler(struct trace_seq *s, struct record *record,
-				struct event_format *event, int cpu)
+				struct event_format *event)
 {
 	void *data = record->data;
 
@@ -48,7 +48,7 @@ static int timer_expire_handler(struct trace_seq *s, struct record *record,
 }
 
 static int timer_start_handler(struct trace_seq *s, struct record *record,
-			       struct event_format *event, int cpu)
+			       struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
 	struct format_field *fn = pevent_find_field(event, "function");

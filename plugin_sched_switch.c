@@ -48,7 +48,7 @@ static void write_state(struct trace_seq *s, int val)
 }
 
 static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
-				struct event_format *event, int cpu)
+				struct event_format *event)
 {
 	struct format_field *field;
 	unsigned long long val;
@@ -103,7 +103,7 @@ static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
 }
 
 static int sched_switch_handler(struct trace_seq *s, struct record *record,
-				struct event_format *event, int cpu)
+				struct event_format *event)
 {
 	struct format_field *field;
 	unsigned long long val;
