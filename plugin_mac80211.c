@@ -145,10 +145,11 @@ static void _print_flag(struct trace_seq *s, struct event_format *event,
 #define SFX(fn)	_print_field(s, fn ":%#x", event, fn, data)
 #define SP()	trace_seq_putc(s, ' ')
 
-static int drv_bss_info_changed(struct trace_seq *s, void *data, int size,
-				struct event_format *event, int cpu,
-				unsigned long long nsecs)
+static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
+				struct event_format *event, int cpu)
 {
+	void *data = record->data;
+
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_printf(s, " vif:");
 	print_string(s, event, "vif_name", data);
@@ -172,10 +173,11 @@ static int drv_bss_info_changed(struct trace_seq *s, void *data, int size,
 	return 0;
 }
 
-static int drv_config(struct trace_seq *s, void *data,
-		      int size, struct event_format *event, int cpu,
-		      unsigned long long nsecs)
+static int drv_config(struct trace_seq *s, struct record *record,
+		      struct event_format *event, int cpu)
 {
+	void *data = record->data;
+
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_putc(s, ' ');
 	print_flag(s, event, "flags", data,

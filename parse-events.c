@@ -3113,13 +3113,14 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
  * and lock depth) and places it into the trace_seq.
  */
 void pevent_data_lat_fmt(struct pevent *pevent,
-			 struct trace_seq *s, void *data, int size __unused)
+			 struct trace_seq *s, struct record *record)
 {
 	unsigned int lat_flags;
 	unsigned int pc;
 	int lock_depth;
 	int hardirq;
 	int softirq;
+	void *data = record->data;
 
 	lat_flags = parse_common_flags(pevent, data);
 	pc = parse_common_pc(pevent, data);
@@ -3215,30 +3216,32 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
  * writes the print format into the trace_seq.
  */
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
-		       int cpu, void *data, int size, unsigned long long nsecs)
+		       int cpu, struct record *record)
 {
 	if (event->handler)
-		event->handler(s, data, size, event, cpu, nsecs);
+		event->handler(s, record, event, cpu);
 	else
-		pretty_print(s, data, size, event);
+		pretty_print(s, record->data, record->size, event);
 
 	trace_seq_terminate(s);
 }
 
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
-			int cpu, void *data, int size, unsigned long long nsecs)
+			int cpu, struct record *record)
 {
 	static char *spaces = "                    "; /* 20 spaces */
 	struct event_format *event;
 	unsigned long secs;
 	unsigned long usecs;
 	const char *comm;
+	void *data = record->data;
+	int size = record->size;
 	int type;
 	int pid;
 	int len;
 
-	secs = nsecs / NSECS_PER_SEC;
-	usecs = nsecs - secs * NSECS_PER_SEC;
+	secs = record->ts / NSECS_PER_SEC;
+	usecs = record->ts - secs * NSECS_PER_SEC;
 	usecs = usecs / NSECS_PER_USEC;
 
 	type = trace_parse_common_type(pevent, data);
@@ -3255,7 +3258,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	if (pevent->latency_format) {
 		trace_seq_printf(s, "%8.8s-%-5d %3d",
 		       comm, pid, cpu);
-		pevent_data_lat_fmt(pevent, s, data, size);
+		pevent_data_lat_fmt(pevent, s, record);
 	} else
 		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid,  cpu);
 
@@ -3267,7 +3270,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 	
 	if (event->handler)
-		event->handler(s, data, size, event, cpu, nsecs);
+		event->handler(s, record, event, cpu);
 	else
 		pretty_print(s, data, size, event);
 

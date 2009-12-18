@@ -202,7 +202,7 @@ static void show_data(struct tracecmd_input *handle, int cpu)
 	test_save(record, cpu);
 
 	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	pevent_print_event(pevent, &s, cpu, record);
 	trace_seq_do_printf(&s);
 	printf("\n");
 
