@@ -4,12 +4,12 @@
 
 #include "trace-cmd.h"
 
-static struct event *fgraph_ret_event;
+static struct event_format *fgraph_ret_event;
 static int fgraph_ret_id;
 static int long_size;
 
 static int get_field_val(struct trace_seq *s, void *data,
-			 struct event *event, const char *name,
+			 struct event_format *event, const char *name,
 			 unsigned long long *val)
 {
 	struct format_field *field;
@@ -29,7 +29,7 @@ static int get_field_val(struct trace_seq *s, void *data,
 }
 
 static int function_handler(struct trace_seq *s, void *data, int size,
-			    struct event *event, int cpu,
+			    struct event_format *event, int cpu,
 			    unsigned long long nsecs)
 {
 	struct pevent *pevent = event->pevent;
@@ -145,7 +145,7 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 
 static int
 print_graph_entry_leaf(struct trace_seq *s,
-		       struct event *event, void *data, struct record *ret_rec)
+		       struct event_format *event, void *data, struct record *ret_rec)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long rettime, calltime;
@@ -187,7 +187,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 }
 
 static int print_graph_nested(struct trace_seq *s,
-			      struct event *event, void *data)
+			      struct event_format *event, void *data)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long depth;
@@ -221,7 +221,7 @@ static int print_graph_nested(struct trace_seq *s,
 
 static int
 fgraph_ent_handler(struct trace_seq *s, void *data, int size,
-		   struct event *event, int cpu,
+		   struct event_format *event, int cpu,
 		   unsigned long long nsecs)
 {
 	struct record *rec;
@@ -259,7 +259,7 @@ fgraph_ent_handler(struct trace_seq *s, void *data, int size,
 
 static int
 fgraph_ret_handler(struct trace_seq *s, void *data, int size,
-		   struct event *event, int cpu,
+		   struct event_format *event, int cpu,
 		   unsigned long long nsecs)
 {
 	unsigned long long rettime, calltime;
@@ -292,7 +292,7 @@ fgraph_ret_handler(struct trace_seq *s, void *data, int size,
 
 static int
 trace_stack_handler(struct trace_seq *s, void *data, int size,
-		    struct event *event, int cpu,
+		    struct event_format *event, int cpu,
 		    unsigned long long nsecs)
 {
 	struct format_field *field;
@@ -330,7 +330,7 @@ trace_stack_handler(struct trace_seq *s, void *data, int size,
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
-	struct event *event;
+	struct event_format *event;
 
 	pevent = tracecmd_get_pevent(handle);
 

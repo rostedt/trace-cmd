@@ -8,7 +8,7 @@
 
 /* return -1 (field not found/not valid number), 0 (ok), 1 (buffer full) */
 static int _print_field(struct trace_seq *s, const char *fmt,
-			struct event *event, const char *name, const void *data)
+			struct event_format *event, const char *name, const void *data)
 {
 	struct format_field *f = pevent_find_field(event, name);
 	unsigned long long val;
@@ -24,7 +24,7 @@ static int _print_field(struct trace_seq *s, const char *fmt,
 
 /* return 0 (ok), 1 (buffer full) */
 static void print_field(struct trace_seq *s, const char *fmt,
-			struct event *event, const char *name, const void *data)
+			struct event_format *event, const char *name, const void *data)
 {
 	int ret = _print_field(s, fmt, event, name, data);
 
@@ -32,7 +32,7 @@ static void print_field(struct trace_seq *s, const char *fmt,
 		trace_seq_printf(s, "NOTFOUND:%s", name);
 }
 
-static void print_string(struct trace_seq *s, struct event *event,
+static void print_string(struct trace_seq *s, struct event_format *event,
 			 const char *name, const void *data)
 {
 	struct format_field *f = pevent_find_field(event, name);
@@ -65,7 +65,7 @@ struct value_name {
 	const char *name;
 };
 
-static void _print_enum(struct trace_seq *s, struct event *event,
+static void _print_enum(struct trace_seq *s, struct event_format *event,
 			const char *name, const void *data,
 			const struct value_name *names, int n_names)
 {
@@ -98,7 +98,7 @@ static void _print_enum(struct trace_seq *s, struct event *event,
 	_print_enum(s, ev, name, data, __n, sizeof(__n)/sizeof(__n[0]));	\
 	})
 
-static void _print_flag(struct trace_seq *s, struct event *event,
+static void _print_flag(struct trace_seq *s, struct event_format *event,
 			const char *name, const void *data,
 			const struct value_name *names, int n_names)
 {
@@ -146,7 +146,7 @@ static void _print_flag(struct trace_seq *s, struct event *event,
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s, void *data, int size,
-				struct event *event, int cpu,
+				struct event_format *event, int cpu,
 				unsigned long long nsecs)
 {
 	print_string(s, event, "wiphy_name", data);
@@ -173,7 +173,7 @@ static int drv_bss_info_changed(struct trace_seq *s, void *data, int size,
 }
 
 static int drv_config(struct trace_seq *s, void *data,
-		      int size, struct event *event, int cpu,
+		      int size, struct event_format *event, int cpu,
 		      unsigned long long nsecs)
 {
 	print_string(s, event, "wiphy_name", data);

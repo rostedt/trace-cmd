@@ -58,11 +58,11 @@ extern int trace_seq_do_printf(struct trace_seq *s);
 /* ----------------------- pevent ----------------------- */
 
 struct pevent;
-struct event;
+struct event_format;
 
 typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 void *data, int size,
-					 struct event *event, int cpu,
+					 struct event_format *event, int cpu,
 					 unsigned long long nsecs);
 
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
@@ -84,7 +84,7 @@ enum format_flags {
 
 struct format_field {
 	struct format_field	*next;
-	struct event		*event;
+	struct event_format		*event;
 	char			*type;
 	char			*name;
 	int			offset;
@@ -187,8 +187,8 @@ struct print_fmt {
 	struct print_arg	*args;
 };
 
-struct event {
-	struct event		*next;
+struct event_format {
+	struct event_format		*next;
 	struct pevent		*pevent;
 	char			*name;
 	int			id;
@@ -250,9 +250,9 @@ struct pevent {
 	struct printk_list *printklist;
 	unsigned int printk_count;
 
-	struct event *event_list;
+	struct event_format *event_list;
 	int nr_events;
-	struct event **events;
+	struct event_format **events;
 	enum event_sort_type last_type;
 
 	int type_offset;
@@ -359,30 +359,30 @@ int pevent_parse_event(struct pevent *pevent, char *buf, unsigned long size, cha
 int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func);
 
-struct format_field *pevent_find_common_field(struct event *event, const char *name);
-struct format_field *pevent_find_field(struct event *event, const char *name);
-struct format_field *pevent_find_any_field(struct event *event, const char *name);
+struct format_field *pevent_find_common_field(struct event_format *event, const char *name);
+struct format_field *pevent_find_field(struct event_format *event, const char *name);
+struct format_field *pevent_find_any_field(struct event_format *event, const char *name);
 
 const char *pevent_find_function(struct pevent *pevent, unsigned long long addr);
 unsigned long long pevent_read_number(struct pevent *pevent, const void *ptr, int size);
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value);
 
-struct event *pevent_find_event(struct pevent *pevent, int id);
+struct event_format *pevent_find_event(struct pevent *pevent, int id);
 
-struct event *
+struct event_format *
 pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *name);
 
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, void *data, int size __unused);
 int pevent_data_type(struct pevent *pevent, struct record *rec);
-struct event *pevent_data_event_from_type(struct pevent *pevent, int type);
+struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type);
 int pevent_data_pid(struct pevent *pevent, struct record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
-void pevent_event_info(struct trace_seq *s, struct event *event,
+void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       int cpu, void *data, int size, unsigned long long nsecs);
 
-struct event **pevent_list_events(struct pevent *pevent, enum event_sort_type);
+struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type);
 
 static inline int pevent_get_cpus(struct pevent *pevent)
 {
