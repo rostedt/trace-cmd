@@ -135,7 +135,6 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid)
 	if (!pid)
 		return 1;
 
-
 	if (!pevent->cmdlines)
 		cmdline_init(pevent);
 
@@ -146,6 +145,46 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid)
 
 	if (comm)
 		return 1;
+	return 0;
+}
+
+/*
+ * If the command lines have been converted to an array, then
+ * we must add this pid. This is much slower than when cmdlines
+ * are added before the array is initialized.
+ */
+static int add_new_comm(struct pevent *pevent, char *comm, int pid)
+{
+	struct cmdline *cmdlines = pevent->cmdlines;
+	const struct cmdline *cmdline;
+	struct cmdline key;
+
+	if (!pid)
+		return 0;
+
+	/* avoid duplicates */
+	key.pid = pid;
+
+	cmdline = bsearch(&key, pevent->cmdlines, pevent->cmdline_count,
+		       sizeof(*pevent->cmdlines), cmdline_cmp);
+	if (cmdline) {
+		errno = EEXIST;
+		return -1;
+	}
+
+	cmdlines = realloc(cmdlines, sizeof(*cmdlines) * (pevent->cmdline_count + 1));
+	if (!cmdlines) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	cmdlines[pevent->cmdline_count].pid = pid;
+	cmdlines[pevent->cmdline_count].comm = comm;
+	pevent->cmdline_count++;
+
+	qsort(cmdlines, pevent->cmdline_count, sizeof(*cmdlines), cmdline_cmp);
+	pevent->cmdlines = cmdlines;
+
 	return 0;
 }
 
@@ -162,6 +201,9 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid)
 int pevent_register_comm(struct pevent *pevent, char *comm, int pid)
 {
 	struct cmdline_list *item;
+
+	if (pevent->cmdlines)
+		return add_new_comm(pevent, comm, pid);
 
 	item = malloc_or_die(sizeof(*item));
 	item->comm = comm;
