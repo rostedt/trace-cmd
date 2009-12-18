@@ -705,7 +705,7 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 }
 
 static void draw_cpu(struct graph_info *ginfo, gint cpu,
-		     gint new_width)
+		     gint new_width, int read_comms)
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
@@ -721,6 +721,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	gint p1 = 0, p2 = 0, p3 = 0;
 	gint last_event_id = 0;
 	gint event_id;
+	const char *comm;
 
 	/* Calculate the size of 16 characters */
 	if (!width_16) {
@@ -757,7 +758,17 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		x = (gint)((gdouble)ts * ginfo->resolution);
 
 
-		if (!check_sched_switch(ginfo, record, &pid, NULL))
+		if (check_sched_switch(ginfo, record, &pid, &comm)) {
+			if (read_comms) {
+				/*
+				 * First time through, register any missing
+				 *  comm / pid mappings.
+				 */
+				if (!pevent_pid_is_registered(ginfo->pevent, pid))
+					pevent_register_comm(ginfo->pevent,
+							     strdup(comm), pid);
+			}
+		} else
 			pid = pevent_data_pid(ginfo->pevent, record);
 
 		event_id = pevent_data_type(ginfo->pevent, record);
@@ -912,6 +923,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 static void draw_info(struct graph_info *ginfo,
 		      gint new_width)
 {
+	static int read_comms = 1;
 	gint cpu;
 
 	ginfo->resolution = (gdouble)new_width / (gdouble)(ginfo->view_end_time -
@@ -921,8 +933,9 @@ static void draw_info(struct graph_info *ginfo,
 
 	
 	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		draw_cpu(ginfo, cpu, new_width);
+		draw_cpu(ginfo, cpu, new_width, read_comms);
 
+	read_comms = 0;
 }
 
 static gboolean
