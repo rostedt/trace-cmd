@@ -136,6 +136,10 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 
 	type = pevent_data_type(pevent, record);
 	event = pevent_data_event_from_type(pevent, type);
+	if (!event) {
+		printf("No event found for id %d!\n", type);
+		return;
+	}
 	trace_seq_puts(&s, event->name);
 	trace_seq_putc(&s, ':');
 	pevent_event_info(&s, event, cpu, record->data, record->size,
@@ -263,19 +267,31 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 		       record->ts, time, time-(gint)(1/ginfo->resolution));
 		print_rec_info(record, pevent, cpu);
 
+		/*
+		 * The function graph trace reads the next record, which may
+		 * unmap the record data. We need to reread the record to
+		 * make sure it still exists.
+		 */
+		offset = record->offset;
+		free_record(record);
+		record = tracecmd_read_at(ginfo->handle, offset, NULL);		
+
 		if (record->ts > time - 2/ginfo->resolution &&
 		    record->ts < time + 2/ginfo->resolution) {
 			convert_nano(record->ts, &sec, &usec);
 
 			type = pevent_data_type(pevent, record);
 			event = pevent_data_event_from_type(pevent, type);
-			trace_seq_puts(&s, event->name);
-			trace_seq_putc(&s, '\n');
-			pevent_data_lat_fmt(pevent, &s, record->data, record->size);
-			trace_seq_putc(&s, '\n');
-			pevent_event_info(&s, event, cpu, record->data, record->size,
-					  record->ts);
-			trace_seq_putc(&s, '\n');
+			if (event) {
+				trace_seq_puts(&s, event->name);
+				trace_seq_putc(&s, '\n');
+				pevent_data_lat_fmt(pevent, &s, record->data, record->size);
+				trace_seq_putc(&s, '\n');
+				pevent_event_info(&s, event, cpu, record->data, record->size,
+						  record->ts);
+				trace_seq_putc(&s, '\n');
+			} else
+				trace_seq_printf(&s, "UNKNOW EVENT %d\n", type);
 		}
 
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
