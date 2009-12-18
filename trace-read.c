@@ -393,8 +393,8 @@ void trace_report (int argc, char **argv)
 	}
 
 	if (show_events) {
-		struct event **events;
-		struct event *event;
+		struct event_format **events;
+		struct event_format *event;
 		int i;
 
 		events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);

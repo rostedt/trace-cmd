@@ -46,8 +46,8 @@ create_tree_event_model(GtkWidget *tree_view)
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_all, iter_sys, iter_events;
 	struct pevent *pevent;
-	struct event **events;
-	struct event *event;
+	struct event_format **events;
+	struct event_format *event;
 	char *last_system = NULL;
 	gint i;
 

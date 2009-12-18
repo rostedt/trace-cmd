@@ -6,7 +6,7 @@
 
 /* return -1 (field not found/not valid number), 0 (ok), 1 (buffer full) */
 static int _print_field(struct trace_seq *s, const char *fmt,
-			struct event *event, const char *name, const void *data)
+			struct event_format *event, const char *name, const void *data)
 {
 	struct format_field *f = pevent_find_field(event, name);
 	unsigned long long val;
@@ -22,7 +22,7 @@ static int _print_field(struct trace_seq *s, const char *fmt,
 
 /* return 0 (ok), 1 (buffer full) */
 static void print_field(struct trace_seq *s, const char *fmt,
-			struct event *event, const char *name, const void *data)
+			struct event_format *event, const char *name, const void *data)
 {
 	int ret = _print_field(s, fmt, event, name, data);
 
@@ -31,7 +31,7 @@ static void print_field(struct trace_seq *s, const char *fmt,
 }
 
 static int timer_expire_handler(struct trace_seq *s, void *data, int size,
-				struct event *event, int cpu,
+				struct event_format *event, int cpu,
 				unsigned long long nsecs)
 {
 	trace_seq_printf(s, "hrtimer=");
@@ -47,7 +47,7 @@ static int timer_expire_handler(struct trace_seq *s, void *data, int size,
 }
 
 static int timer_start_handler(struct trace_seq *s, void *data, int size,
-			       struct event *event, int cpu,
+			       struct event_format *event, int cpu,
 			       unsigned long long nsecs)
 {
 	struct pevent *pevent = event->pevent;

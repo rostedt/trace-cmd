@@ -5,7 +5,7 @@
 #include "trace-cmd.h"
 
 static int get_field_val(struct trace_seq *s, void *data,
-			 struct event *event, const char *name,
+			 struct event_format *event, const char *name,
 			 unsigned long long *val, int fail)
 {
 	struct format_field *field;
@@ -48,7 +48,7 @@ static void write_state(struct trace_seq *s, int val)
 }
 
 static int sched_wakeup_handler(struct trace_seq *s, void *data, int size,
-				struct event *event, int cpu,
+				struct event_format *event, int cpu,
 				unsigned long long nsecs)
 {
 	struct format_field *field;
@@ -103,7 +103,7 @@ static int sched_wakeup_handler(struct trace_seq *s, void *data, int size,
 }
 
 static int sched_switch_handler(struct trace_seq *s, void *data, int size,
-				struct event *event, int cpu,
+				struct event_format *event, int cpu,
 				unsigned long long nsecs)
 {
 	struct format_field *field;

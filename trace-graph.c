@@ -126,7 +126,7 @@ static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
 static void print_rec_info(struct record *record, struct pevent *pevent, int cpu)
 {
 	struct trace_seq s;
-	struct event *event;
+	struct event_format *event;
 	unsigned long sec, usec;
 	gint type;
 
@@ -156,7 +156,7 @@ static int check_sched_switch(struct graph_info *ginfo,
 	static struct format_field *ftrace_pid_field;
 	static struct format_field *ftrace_comm_field;
 	unsigned long long val;
-	struct event *event;
+	struct event_format *event;
 	gint id;
 
 	if (event_sched_switch_id < 0) {
@@ -204,7 +204,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	PangoLayout *layout;
 	struct record *record = NULL;
 	struct pevent *pevent;
-	struct event *event;
+	struct event_format *event;
 	guint64 time;
 	const char *comm;
 	gint pid = -1;
@@ -659,7 +659,7 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 			    gint p1, gint p2, gint p3,
 			    gint width_16, PangoFontDescription *font)
 {
-	struct event *event;
+	struct event_format *event;
 	PangoLayout *layout;
 	struct trace_seq s;
 	gint text_width;

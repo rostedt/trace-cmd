@@ -398,7 +398,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	TraceViewStore	*trace_view_store;
 	struct trace_seq s;
 	struct pevent *pevent;
-	struct event *event;
+	struct event_format *event;
 	struct record *data;
 	const gchar *comm;
 	gchar *str;
