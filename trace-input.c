@@ -815,6 +815,26 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 }
 
 /**
+ * tracecmd_refresh_record - remaps the records data
+ * @handle: input handle for the trace.dat file
+ * @record: the record to be refreshed
+ *
+ * A record data points to a mmap section of memory.
+ * by reading new records the mmap section may be unmapped.
+ * This will refresh the record's data mapping.
+ */
+int tracecmd_refresh_record(struct tracecmd_input *handle,
+			    struct record *record)
+{
+	unsigned long long page_offset;
+
+	page_offset = record->offset & ~(handle->page_size - 1);
+	get_page(handle, record->cpu, page_offset);
+
+	return 0;
+}
+
+/**
  * tracecmd_read_cpu_first - get the first record in a CPU
  * @handle: input handle for the trace.dat file
  * @cpu: the CPU to search
