@@ -214,6 +214,8 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	GdkPixmap *pix;
 	static GdkGC *pix_bg;
 	guint64 offset = 0;
+	gint view_width;
+	gint view_start;
 
 	if (!pix_bg) {
 		GdkColor color;
@@ -298,9 +300,11 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	if (y > height)
 		y -= height;
 
+	view_start = gtk_adjustment_get_value(ginfo->vadj);
+	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
 
-	if (x + width > ginfo->draw->allocation.width)
-		x -= ((x + width) - ginfo->draw->allocation.width);
+	if (x + width > view_start + view_width)
+		x -= (x + width) - (view_start + view_width);
 
 	ginfo->cpu_data_x = x;
 	ginfo->cpu_data_y = y;
