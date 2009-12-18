@@ -33,7 +33,7 @@
 #define version "0.1.1"
 
 #define TRACE_WIDTH	800
-#define TRACE_HEIGHT	600
+#define TRACE_HEIGHT	300
 
 #define MAX_WIDTH	10000
 #define input_file "trace.dat"
@@ -972,7 +972,7 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	struct graph_info *ginfo = data;
 	GdkPixmap *old_pix;
 
-//	gtk_widget_set_size_request(widget, 0, ginfo->draw_height);
+	gtk_widget_set_size_request(widget, ginfo->draw_width, ginfo->draw_height);
 
 
 	old_pix = ginfo->curr_pixmap;
