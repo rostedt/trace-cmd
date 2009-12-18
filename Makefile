@@ -48,8 +48,8 @@ trace-graph:: trace-graph.o trace-compat.o
 view_depends:
 	@pkg-config --cflags $(PACKAGES)
 
-trace-view.o::		parse-events.h gtk_depends
-trace-graph.o::		parse-events.h gtk_depends
+trace-view.o::		parse-events.h
+trace-graph.o::		parse-events.h
 
 parse-events.o: parse-events.c parse-events.h
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
