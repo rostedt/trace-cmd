@@ -1998,6 +1998,7 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 			die("previous needed to be PRINT_ATOM");
 
 		item_arg = malloc_or_die(sizeof(*item_arg));
+		memset(item_arg, 0, sizeof(*item_arg));
 
 		arg->type = PRINT_TYPE;
 		arg->typecast.type = arg->atom.atom;
