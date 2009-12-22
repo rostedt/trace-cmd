@@ -32,15 +32,16 @@ trace-cmd.o::		$(HEADERS) $(LIB_FILE)
 trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
-trace-view.o::		$(HEADERS) trace-view-store.h
-trace-view-store.o::	$(HEADERS) trace-view-store.h
+trace-view.o::		$(HEADERS) trace-view-store.h trace-view.h
+trace-view-store.o::	$(HEADERS) trace-view-store.h trace-view.h
+trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h
 trace-filter.o::	$(HEADERS)
 trace-graph.o::		$(HEADERS)
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ -rdynamic -o $@ $(LIBS)
 
-trace-view:: trace-view.o trace-view-store.o trace-filter.o
+trace-view:: trace-view-main.o trace-view.o trace-view-store.o trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 trace-graph:: trace-graph.o trace-compat.o
