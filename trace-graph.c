@@ -127,6 +127,21 @@ static void draw_cpu_labels(struct graph_info *ginfo)
 		__draw_cpu_label(ginfo, cpu);
 }
 
+static void draw_cursor(struct graph_info *ginfo)
+{
+	gint x;
+
+	if (ginfo->cursor < ginfo->view_start_time ||
+	    ginfo->cursor > ginfo->view_end_time)
+		return;
+
+	x = (ginfo->cursor - ginfo->view_start_time)
+		* ginfo->resolution;
+
+	gdk_draw_line(ginfo->draw->window, ginfo->draw->style->mid_gc[3],
+		      x, 0, x, ginfo->draw->allocation.width);
+}
+
 static void update_with_backend(struct graph_info *ginfo,
 				gint x, gint y,
 				gint width, gint height)
@@ -134,6 +149,10 @@ static void update_with_backend(struct graph_info *ginfo,
 	gint cpu;
 
 	__update_with_backend(ginfo, x, y, width, height);
+
+	if (ginfo->cursor)
+		draw_cursor(ginfo);
+
 	for (cpu = 0; cpu < ginfo->cpus; cpu++ ) {
 		if (y <= CPU_BOTTOM(cpu) &&
 		    y + height > CPU_TOP(cpu) &&
@@ -162,6 +181,17 @@ draw_line(GtkWidget *widget, gdouble x, struct graph_info *ginfo)
 		      x, 0, x, widget->allocation.width);
 }
 
+static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
+{
+	gint x;
+
+	x = ginfo->last_x;
+	if (x)
+		x--;
+
+	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
+}
+
 static gboolean
 button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
@@ -172,6 +202,29 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (event->button != 1)
 		return TRUE;
 
+	/* check for double click */
+	if (event->type==GDK_2BUTTON_PRESS) {
+		if (ginfo->line_active) {
+			ginfo->line_active = FALSE;
+			clear_last_line(widget, ginfo);
+			ginfo->last_x = ginfo->press_x;
+			clear_last_line(widget, ginfo);
+		}
+		if (ginfo->cursor >= ginfo->view_start_time &&
+		    ginfo->cursor <= ginfo->view_end_time) {
+			ginfo->last_x = (ginfo->cursor - ginfo->view_start_time)
+				* ginfo->resolution;
+			ginfo->cursor = 0;
+			clear_last_line(widget, ginfo);
+		}
+
+		ginfo->cursor = event->x / ginfo->resolution +
+			ginfo->view_start_time;
+		draw_cursor(ginfo);
+		return TRUE;
+	}
+
+
 	ginfo->press_x = event->x;
 	ginfo->last_x = 0;
 
@@ -180,17 +233,6 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	ginfo->line_active = TRUE;
 
 	return TRUE;
-}
-
-static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
-{
-	gint x;
-
-	x = ginfo->last_x;
-	if (x)
-		x--;
-
-	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
 }
 
 static void print_rec_info(struct record *record, struct pevent *pevent, int cpu)

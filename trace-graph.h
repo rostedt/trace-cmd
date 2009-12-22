@@ -16,6 +16,8 @@ struct graph_info {
 	guint64			view_end_time;	/* visible end time */
 	gint			start_x;	/* virutal start of visible area */
 
+	guint64			cursor;		/* time of cursor (double clicked) */
+
 	gdouble			resolution;	/* pixels / time */
 
 	gint			press_x;	/* x where button is pressed */
