@@ -43,4 +43,13 @@ struct graph_info {
 	gchar			*test;
 };
 
+
+struct graph_info *
+trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin);
+
+static inline GtkWidget *trace_graph_get_draw(struct graph_info *ginfo)
+{
+	return ginfo->draw;
+}
+
 #endif /* _TRACE_GRAPH_H */

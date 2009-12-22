@@ -36,7 +36,8 @@ trace-view.o::		$(HEADERS) trace-view-store.h trace-view.h
 trace-view-store.o::	$(HEADERS) trace-view-store.h trace-view.h
 trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h
 trace-filter.o::	$(HEADERS)
-trace-graph.o::		$(HEADERS)
+trace-graph.o::		$(HEADERS) trace-graph.h
+trace-graph-main.o::	$(HEADERS) trace-graph.h
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ -rdynamic -o $@ $(LIBS)
@@ -44,7 +45,7 @@ trace-cmd:: trace-cmd.o trace-read.o
 trace-view:: trace-view-main.o trace-view.o trace-view-store.o trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
-trace-graph:: trace-graph.o trace-compat.o
+trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 .PHONY: gtk_depends
