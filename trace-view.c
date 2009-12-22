@@ -106,6 +106,9 @@ spin_changed(gpointer data, GtkWidget *spin)
 	val = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin));
 
 	model = gtk_tree_view_get_model(tree);
+	/* This can be called when we NULL out the model */
+	if (!model)
+		return;
 	page = trace_view_store_get_page(TRACE_VIEW_STORE(model));
 	if (page == val)
 		return;
@@ -204,7 +207,6 @@ load_trace_view(GtkWidget *view, struct tracecmd_input *handle,
 	model = create_trace_view_model(handle);
 
 	trace_view_store_set_spin_button(TRACE_VIEW_STORE(model), spin);
-	g_object_unref(spin);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 

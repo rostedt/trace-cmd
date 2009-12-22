@@ -209,8 +209,10 @@ trace_view_store_finalize (GObject *object)
 	/* free all records and free all memory used by the list */
 #warning IMPLEMENT
 
-	if (store->spin)
-		g_object_unref(store->spin);
+	if (store->spin) {
+		gtk_widget_destroy(store->spin);
+		store->spin = NULL;
+	}
 
 	/* must chain up - finalize parent */
 	(* parent_class->finalize) (object);
@@ -438,7 +440,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		usecs /= 1000;
 		secs = usecs / 1000000ULL;
 		usecs -= secs * 1000000ULL;
-		str = g_strdup_printf("%lu.%06lu", secs, usecs);
+		str = g_strdup_printf("%llu.%06llu", secs, usecs);
 		g_value_set_string(value, str);
 		g_free(str);
 		break;
@@ -914,12 +916,10 @@ void trace_view_store_set_spin_button(TraceViewStore *store, GtkWidget *spin)
 
 	store->spin = spin;
 
+	g_object_ref(spin);
 	gtk_spin_button_set_increments(GTK_SPIN_BUTTON(store->spin),
 				       1.0, 5.0);
-
 	update_page(store);
-
-	g_object_ref(spin);
 }
 
 /* --- helper functions --- */
