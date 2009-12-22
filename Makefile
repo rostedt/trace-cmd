@@ -19,7 +19,7 @@ CFLAGS = -g -Wall $(CONFIG_FLAGS)
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
 TARGETS = libparsevent.a libtracecmd.a trace-cmd plugin_hrtimer.so plugin_mac80211.so \
-	plugin_sched_switch.so trace-graph trace-view
+	plugin_sched_switch.so trace-graph trace-view kernelshark
 
 all: $(TARGETS)
 
@@ -38,14 +38,20 @@ trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h
 trace-filter.o::	$(HEADERS)
 trace-graph.o::		$(HEADERS) trace-graph.h
 trace-graph-main.o::	$(HEADERS) trace-graph.h
+kernel-shark.o::	$(HEADERS)
+
+TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ -rdynamic -o $@ $(LIBS)
 
-trace-view:: trace-view-main.o trace-view.o trace-view-store.o trace-filter.o
+trace-view:: trace-view-main.o $(TRACE_VIEW_OBJS)
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o
+	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+
+kernelshark:: kernel-shark.o trace-compat.o $(TRACE_VIEW_OBJS) trace-graph.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 .PHONY: gtk_depends

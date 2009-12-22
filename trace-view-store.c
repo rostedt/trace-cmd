@@ -854,11 +854,8 @@ trace_view_store_new (struct tracecmd_input *handle)
 		list = NULL;
 		next = &list;
 
-		for (;;) {
-			data = tracecmd_read_data(handle, cpu);
-			if (!data)
-				break;
-
+		data = tracecmd_read_cpu_first(handle, cpu);
+		while (data) {
 			*next = rec = g_malloc(sizeof(*rec));
 			g_assert(rec != NULL);
 			rec->offset = data->offset;
@@ -867,6 +864,7 @@ trace_view_store_new (struct tracecmd_input *handle)
 			next = &rec->next;
 			free(data);
 			count++;
+			data = tracecmd_read_data(handle, cpu);
 		}
 
 		if (count) {
