@@ -221,6 +221,8 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		ginfo->cursor = event->x / ginfo->resolution +
 			ginfo->view_start_time;
 		draw_cursor(ginfo);
+		if (ginfo->callbacks && ginfo->callbacks->select)
+			ginfo->callbacks->select(ginfo, ginfo->cursor);
 		return TRUE;
 	}
 
@@ -1150,7 +1152,8 @@ destroy_event(GtkWidget *widget, gpointer data)
 
 
 struct graph_info *
-trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
+trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin,
+				  struct graph_callbacks *cbs)
 {
 	struct graph_info *ginfo;
 	unsigned long sec, usec;
@@ -1163,6 +1166,8 @@ trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
 	ginfo->handle = handle;
 	ginfo->pevent = tracecmd_get_pevent(handle);
 	ginfo->cpus = tracecmd_cpus(handle);
+
+	ginfo->callbacks = cbs;
 
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
@@ -1222,4 +1227,10 @@ trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
 
 
 	return ginfo;
+}
+
+struct graph_info *
+trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
+{
+	return trace_graph_create_with_callbacks(handle, scrollwin, NULL);
 }

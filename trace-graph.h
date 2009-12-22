@@ -3,6 +3,14 @@
 
 #include "trace-cmd.h"
 
+struct graph_info;
+
+typedef void (graph_select_cb)(struct graph_info *ginfo, guint64 time);
+
+struct graph_callbacks {
+	graph_select_cb		*select;
+};
+
 struct graph_info {
 	struct tracecmd_input	*handle;
 	struct pevent		*pevent;
@@ -32,6 +40,8 @@ struct graph_info {
 	gint			full_width;	/* width of full trace in pixels */
 						/* This includes non visible part of trace */
 
+	struct graph_callbacks	*callbacks;	/* call back hooks for changes to graph */
+
 	/* Box info for CPU data info window */
 	gint			cpu_data_x;
 	gint			cpu_data_y;
@@ -48,10 +58,18 @@ struct graph_info {
 
 struct graph_info *
 trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin);
+struct graph_info *
+trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin,
+				  struct graph_callbacks *cbs);
 
 static inline GtkWidget *trace_graph_get_draw(struct graph_info *ginfo)
 {
 	return ginfo->draw;
+}
+
+static inline struct graph_callbacks *trace_graph_get_callbacks(struct graph_info *ginfo)
+{
+	return ginfo->callbacks;
 }
 
 #endif /* _TRACE_GRAPH_H */

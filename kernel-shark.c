@@ -36,6 +36,33 @@
 
 #define input_file "trace.dat"
 
+/* graph callbacks */
+
+/* convert_nano() and print_time() are copied from trace-graph.c for debugging
+   purposes, and should be deleted when this is complete (or merged with
+   trace-graph.c */
+
+static void convert_nano(unsigned long long time, unsigned long *sec,
+			 unsigned long *usec)
+{
+	*sec = time / 1000000000ULL;
+	*usec = (time / 1000) % 1000000;
+}
+
+static void print_time(unsigned long long time)
+{
+	unsigned long sec, usec;
+
+	convert_nano(time, &sec, &usec);
+	printf("%lu.%06lu", sec, usec);
+}
+
+static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
+{
+	printf("Cursor: ");
+	print_time(cursor);
+	printf(" selected\n");
+}
 
 /* Callback for the clicked signal of the Exit button */
 static void
@@ -211,7 +238,10 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Set up Drawing --- */
 
-	info->ginfo = trace_graph_create(handle, GTK_SCROLLED_WINDOW(scrollwin));
+	info->graph_cbs.select = ks_graph_select;
+
+	info->ginfo = trace_graph_create_with_callbacks(handle, GTK_SCROLLED_WINDOW(scrollwin),
+							&info->graph_cbs);
 	draw = trace_graph_get_draw(info->ginfo);
 
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
