@@ -46,6 +46,8 @@
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
 
+static gint largest_cpu_label = 0;
+
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
 {
@@ -61,7 +63,7 @@ static void print_time(unsigned long long time)
 	printf("%lu.%06lu", sec, usec);
 }
 
-static void update_with_backend(struct graph_info *ginfo,
+static void __update_with_backend(struct graph_info *ginfo,
 				gint x, gint y,
 				gint width, gint height)
 {
@@ -70,6 +72,81 @@ static void update_with_backend(struct graph_info *ginfo,
 			  ginfo->curr_pixmap,
 			  x, y, x, y,
 			  width, height);
+}
+
+static void clear_old_cpu_label(struct graph_info *ginfo, gint cpu)
+{
+	__update_with_backend(ginfo,
+			      ginfo->cpu_x, CPU_TOP(cpu),
+			      largest_cpu_label+1, 20);
+}
+
+static void clear_old_cpu_labels(struct graph_info *ginfo)
+{
+	gint cpu;
+
+	for (cpu = 0; cpu < ginfo->cpus; cpu++)
+		clear_old_cpu_label(ginfo, cpu);
+}
+
+static void __draw_cpu_label(struct graph_info *ginfo, gint cpu)
+{
+	PangoLayout *layout;
+	gchar buf[BUFSIZ];
+	gint width, height;
+
+	snprintf(buf, BUFSIZ, "CPU %d", cpu);
+
+	layout = gtk_widget_create_pango_layout(ginfo->draw, buf);
+	pango_layout_get_pixel_size(layout, &width, &height);
+	width += 4;
+
+	if (width > largest_cpu_label)
+		largest_cpu_label = width;
+	gdk_draw_rectangle(ginfo->draw->window,
+			   ginfo->draw->style->white_gc,
+			   TRUE,
+			   ginfo->cpu_x, CPU_TOP(cpu)+4,
+			   width, height);
+	gdk_draw_layout(ginfo->draw->window,
+			ginfo->draw->style->black_gc,
+			ginfo->cpu_x + 2, CPU_TOP(cpu) + 4,
+			layout);
+	g_object_unref(layout);
+}
+
+static void draw_cpu_label(struct graph_info *ginfo, gint cpu)
+{
+	clear_old_cpu_label(ginfo, cpu);
+	__draw_cpu_label(ginfo, cpu);
+}
+
+
+static void draw_cpu_labels(struct graph_info *ginfo)
+{
+	gint cpu;
+
+	clear_old_cpu_labels(ginfo);
+	ginfo->cpu_x = gtk_adjustment_get_value(ginfo->vadj) + 5;
+
+	for (cpu = 0; cpu < ginfo->cpus; cpu++)
+		__draw_cpu_label(ginfo, cpu);
+}
+
+static void update_with_backend(struct graph_info *ginfo,
+				gint x, gint y,
+				gint width, gint height)
+{
+	gint cpu;
+
+	__update_with_backend(ginfo, x, y, width, height);
+	for (cpu = 0; cpu < ginfo->cpus; cpu++ ) {
+		if (y <= CPU_BOTTOM(cpu) &&
+		    y + height > CPU_TOP(cpu) &&
+		    x + width > ginfo->cpu_x &&
+		    x <= ginfo->cpu_x + largest_cpu_label)
+			draw_cpu_label(ginfo, cpu);
+	}
 }
 
 static gboolean
@@ -545,6 +622,7 @@ value_changed(GtkWidget *widget, gpointer data)
 	struct graph_info *ginfo = data;
 	GtkAdjustment *adj = GTK_ADJUSTMENT(widget);
 
+	draw_cpu_labels(ginfo);
 	printf("value = %f\n",
 	       gtk_adjustment_get_value(adj));
 
@@ -964,6 +1042,8 @@ static void draw_info(struct graph_info *ginfo,
 		draw_cpu(ginfo, cpu, new_width, read_comms);
 
 	read_comms = 0;
+
+	draw_cpu_labels(ginfo);
 }
 
 static gboolean
@@ -973,7 +1053,6 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	GdkPixmap *old_pix;
 
 	gtk_widget_set_size_request(widget, ginfo->draw_width, ginfo->draw_height);
-
 
 	old_pix = ginfo->curr_pixmap;
 
@@ -1018,7 +1097,7 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	ginfo->vadj_value = gtk_adjustment_get_value(ginfo->vadj);
 	printf("get val %f\n", ginfo->vadj_value);
 	ginfo->vadj_value = 0.0;
-	
+
 	return TRUE;
 }
 
