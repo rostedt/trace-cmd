@@ -19,26 +19,28 @@ CFLAGS = -g -Wall $(CONFIG_FLAGS)
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
 TARGETS = libparsevent.a libtracecmd.a trace-cmd plugin_hrtimer.so plugin_mac80211.so \
-	plugin_sched_switch.so trace-graph
+	plugin_sched_switch.so trace-graph trace-view
 
 all: $(TARGETS)
 
 LIB_FILE = libtracecmd.a
 
-HEADERS = parse-events.h trace-cmd.h trace-local.h trace-view-store.h
+HEADERS = parse-events.h trace-cmd.h trace-local.h
 
 trace-read.o::		$(HEADERS) 
 trace-cmd.o::		$(HEADERS) $(LIB_FILE)
 trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
-trace-view.o::		$(HEADERS)
-trace-view-store.o::	$(HEADERS)
+trace-view.o::		$(HEADERS) trace-view-store.h
+trace-view-store.o::	$(HEADERS) trace-view-store.h
 trace-filter.o::	$(HEADERS)
 trace-graph.o::		$(HEADERS)
 
-trace-cmd:: trace-cmd.o trace-read.o trace-view.o trace-view-store.o \
-	trace-filter.o
+trace-cmd:: trace-cmd.o trace-read.o
+	$(CC) $^ -rdynamic -o $@ $(LIBS)
+
+trace-view:: trace-view.o trace-view-store.o trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 trace-graph:: trace-graph.o trace-compat.o

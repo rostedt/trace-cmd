@@ -31,6 +31,7 @@
 
 #define TRACE_WIDTH	800
 #define TRACE_HEIGHT	600
+#define input_file "trace.dat"
 
 enum {
 	COL_CPU,
@@ -224,7 +225,8 @@ void trace_view(int argc, char **argv)
 	GtkWidget *label;
 	GtkWidget *spin;
 
-	handle = read_trace_header();
+	handle = tracecmd_open(input_file);
+
 	if (!handle)
 		die("error reading header");
 
@@ -391,4 +393,10 @@ void trace_view(int argc, char **argv)
 
 	gtk_widget_show (window);
 	gtk_main ();
+}
+
+int main(int argc, char **argv)
+{
+	trace_view(argc, argv);
+	return 0;
 }

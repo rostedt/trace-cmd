@@ -785,9 +785,6 @@ int main (int argc, char **argv)
 	if (strcmp(argv[1], "report") == 0) {
 		trace_report(argc, argv);
 		exit(0);
-	} else if (strcmp(argv[1], "view") == 0) {
-		trace_view(argc, argv);
-		exit(0);
 	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
