@@ -64,7 +64,7 @@ create_tree_event_model(GtkWidget *tree_view)
 			   -1);
 
 	events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
-	if (!event)
+	if (!events)
 		return GTK_TREE_MODEL(treestore);
 
 	for (i = 0; events[i]; i++) {
