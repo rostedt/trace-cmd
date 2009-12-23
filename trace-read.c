@@ -287,7 +287,7 @@ void trace_report (int argc, char **argv)
 	int show_endian = 0;
 	int show_page_size = 0;
 	int show_printk = 0;
-	int latency_format;
+	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
 	int c;

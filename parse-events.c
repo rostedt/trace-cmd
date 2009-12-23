@@ -47,6 +47,18 @@ void breakpoint(void)
 	x++;
 }
 
+struct print_arg *alloc_arg(void)
+{
+	struct print_arg *arg;
+
+	arg = malloc_or_die(sizeof(*arg));
+	if (!arg)
+		return NULL;
+	memset(arg, 0, sizeof(*arg));
+
+	return arg;
+}
+
 struct cmdline {
 	char *comm;
 	int pid;
@@ -1245,12 +1257,9 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 	enum event_type type;
 	char *token = NULL;
 
-	arg = malloc_or_die(sizeof(*arg));
-	memset(arg, 0, sizeof(*arg));
-
-	left = malloc_or_die(sizeof(*left));
-
-	right = malloc_or_die(sizeof(*right));
+	arg = alloc_arg();
+	left = alloc_arg();
+	right = alloc_arg();
 
 	arg->type = PRINT_OP;
 	arg->op.left = left;
@@ -1285,8 +1294,7 @@ process_array(struct event_format *event, struct print_arg *top, char **tok)
 	enum event_type type;
 	char *token = NULL;
 
-	arg = malloc_or_die(sizeof(*arg));
-	memset(arg, 0, sizeof(*arg));
+	arg = alloc_arg();
 
 	*tok = NULL;
 	type = process_arg(event, arg, &token);
@@ -1398,18 +1406,18 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		}
 
 		/* make an empty left */
-		left = malloc_or_die(sizeof(*left));
+		left = alloc_arg();
 		left->type = PRINT_NULL;
 		arg->op.left = left;
 
-		right = malloc_or_die(sizeof(*right));
+		right = alloc_arg();
 		arg->op.right = right;
 
 		type = process_arg(event, right, tok);
 
 	} else if (strcmp(token, "?") == 0) {
 
-		left = malloc_or_die(sizeof(*left));
+		left = alloc_arg();
 		/* copy the top arg to the left */
 		*left = *arg;
 
@@ -1436,7 +1444,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		   strcmp(token, "==") == 0 ||
 		   strcmp(token, "!=") == 0) {
 
-		left = malloc_or_die(sizeof(*left));
+		left = alloc_arg();
 
 		/* copy the top arg to the left */
 		*left = *arg;
@@ -1447,7 +1455,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 		set_op_prio(arg);
 
-		right = malloc_or_die(sizeof(*right));
+		right = alloc_arg();
 
 		type = read_token_item(&token);
 		*tok = token;
@@ -1458,7 +1466,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			if (left->type != PRINT_ATOM)
 				die("bad pointer type");
 			left->atom.atom = realloc(left->atom.atom,
-					    sizeof(left->atom.atom) + 3);
+					    strlen(left->atom.atom) + 3);
 			strcat(left->atom.atom, " *");
 			*arg = *left;
 			free(left);
@@ -1472,7 +1480,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 	} else if (strcmp(token, "[") == 0) {
 
-		left = malloc_or_die(sizeof(*left));
+		left = alloc_arg();
 		*left = *arg;
 
 		arg->type = PRINT_OP;
@@ -1784,7 +1792,7 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 		if (test_type_token(type, token, EVENT_OP, "{"))
 			break;
 
-		arg = malloc_or_die(sizeof(*arg));
+		arg = alloc_arg();
 
 		free_token(token);
 		type = process_arg(event, arg, &token);
@@ -1837,7 +1845,7 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	if (read_expected_item(EVENT_DELIM, "(") < 0)
 		return EVENT_ERROR;
 
-	field = malloc_or_die(sizeof(*field));
+	field = alloc_arg();
 
 	type = process_arg(event, field, &token);
 	if (test_type_token(type, token, EVENT_DELIM, ","))
@@ -1880,7 +1888,7 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 	if (read_expected_item(EVENT_DELIM, "(") < 0)
 		return EVENT_ERROR;
 
-	field = malloc_or_die(sizeof(*field));
+	field = alloc_arg();
 
 	type = process_arg(event, field, &token);
 	if (test_type_token(type, token, EVENT_DELIM, ","))
@@ -1941,7 +1949,7 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 		return type;
 
 	free_token(token);
-	arg = malloc_or_die(sizeof(*arg));
+	arg = alloc_arg();
 	type = process_arg(event, arg, &token);
 	if (type == EVENT_ERROR)
 		goto out_free;
@@ -1997,8 +2005,7 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 		if (arg->type != PRINT_ATOM)
 			die("previous needed to be PRINT_ATOM");
 
-		item_arg = malloc_or_die(sizeof(*item_arg));
-		memset(item_arg, 0, sizeof(*item_arg));
+		item_arg = alloc_arg();
 
 		arg->type = PRINT_TYPE;
 		arg->typecast.type = arg->atom.atom;
@@ -2132,8 +2139,7 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 			continue;
 		}
 
-		arg = malloc_or_die(sizeof(*arg));
-		memset(arg, 0, sizeof(*arg));
+		arg = alloc_arg();
 
 		type = process_arg(event, arg, &token);
 
@@ -2790,7 +2796,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	/*
 	 * The first arg is the IP pointer.
 	 */
-	args = malloc_or_die(sizeof(*args));
+	args = alloc_arg();
 	arg = args;
 	arg->next = NULL;
 	next = &arg->next;
@@ -2840,7 +2846,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				}
 				val = pevent_read_number(pevent, bptr, ls);
 				bptr += ls;
-				arg = malloc_or_die(sizeof(*arg));
+				arg = alloc_arg();
 				arg->next = NULL;
 				arg->type = PRINT_ATOM;
 				arg->atom.atom = malloc_or_die(32);
@@ -2849,7 +2855,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				next = &arg->next;
 				break;
 			case 's':
-				arg = malloc_or_die(sizeof(*arg));
+				arg = alloc_arg();
 				arg->next = NULL;
 				arg->type = PRINT_STRING;
 				arg->string.string = strdup(bptr);
@@ -3646,8 +3652,7 @@ int pevent_parse_event(struct pevent *pevent,
 
 		list = &event->print_fmt.args;
 		for (field = event->format.fields; field; field = field->next) {
-			arg = malloc_or_die(sizeof(*arg));
-			memset(arg, 0, sizeof(*arg));
+			arg = alloc_arg();
 			*list = arg;
 			list = &arg->next;
 			arg->type = PRINT_FIELD;
