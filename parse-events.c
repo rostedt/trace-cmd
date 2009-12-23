@@ -207,8 +207,7 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
  * @pid: the pid to map the command line to
  *
  * This adds a mapping to search for command line names with
- * a given pid. Note, the comm that is given is stored and
- * a duplicate is not made.
+ * a given pid. The comm is duplicated.
  */
 int pevent_register_comm(struct pevent *pevent, char *comm, int pid)
 {
@@ -218,7 +217,7 @@ int pevent_register_comm(struct pevent *pevent, char *comm, int pid)
 		return add_new_comm(pevent, comm, pid);
 
 	item = malloc_or_die(sizeof(*item));
-	item->comm = comm;
+	item->comm = strdup(comm);
 	item->pid = pid;
 	item->next = pevent->cmdlist;
 
@@ -356,7 +355,7 @@ const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
  * @mod: the kernel module the function may be in (NULL for none)
  *
  * This registers a function name with an address and module.
- * The @func passed in is stored and a copy is not made.
+ * The @func passed in is duplicated.
  */
 int pevent_register_function(struct pevent *pevent, char *func,
 			     unsigned long long addr, char *mod)
@@ -366,8 +365,11 @@ int pevent_register_function(struct pevent *pevent, char *func,
 	item = malloc_or_die(sizeof(*item));
 
 	item->next = pevent->funclist;
-	item->func = func;
-	item->mod = mod;
+	item->func = strdup(func);
+	if (mod)
+		item->mod = strdup(mod);
+	else
+		item->mod = NULL;
 	item->addr = addr;
 
 	pevent->funclist = item;
@@ -476,7 +478,7 @@ find_printk(struct pevent *pevent, unsigned long long addr)
  * @addr: the address the string was located at
  *
  * This registers a string by the address it was stored in the kernel.
- * The @fmt is used in storage and a duplicate is not made.
+ * The @fmt passed in is duplicated.
  */
 int pevent_register_print_string(struct pevent *pevent, char *fmt,
 				 unsigned long long addr)
@@ -487,7 +489,7 @@ int pevent_register_print_string(struct pevent *pevent, char *fmt,
 
 	item->next = pevent->printklist;
 	pevent->printklist = item;
-	item->printk = fmt;
+	item->printk = strdup(fmt);
 	item->addr = addr;
 
 	pevent->printk_count++;
@@ -3799,9 +3801,23 @@ struct pevent *pevent_alloc(void)
 	return pevent;
 }
 
+static void free_format_fields(struct format_field *field)
+{
+	struct format_field *next;
+
+	while (field) {
+		next = field->next;
+		free(field->type);
+		free(field->name);
+		free(field);
+		field = next;
+	}
+}
+
 static void free_formats(struct format *format)
 {
-	/* IMPLEMENT ME */
+	free_format_fields(format->common_fields);
+	free_format_fields(format->fields);
 }
 
 static void free_event(struct event_format *event)
@@ -3813,6 +3829,8 @@ static void free_event(struct event_format *event)
 
 	free(event->print_fmt.format);
 	free_args(event->print_fmt.args);
+
+	free(event);
 }
 
 /**
@@ -3876,4 +3894,6 @@ void pevent_free(struct pevent *pevent)
 
 		free_event(event);
 	}
+
+	free(pevent);
 }

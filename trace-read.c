@@ -412,7 +412,7 @@ void trace_report (int argc, char **argv)
 
 	read_data_info(handle);
 
-	pevent_free(pevent);
+	tracecmd_close(handle);
 
 	return;
 }

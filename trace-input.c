@@ -518,6 +518,13 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 	handle->cpu_data[cpu].page = NULL;
 }
 
+static void free_read_page(struct tracecmd_input *handle, int cpu)
+{
+	free_page(handle, cpu);
+	if (handle->read_page)
+		free(handle->cpu_data[cpu].read_page);
+}
+
 /*
  * Page is mapped, now read in the page header info.
  */
@@ -1485,8 +1492,17 @@ struct tracecmd_input *tracecmd_open(const char *file)
 
 void tracecmd_close(struct tracecmd_input *handle)
 {
-	/* TODO FREE EVERYTHING!!! %%%% MEMORY LEAK!!! %%%% */
+	int cpu;
+
+	if (!handle)
+		return;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++)
+		free_read_page(handle, cpu);
+	free(handle->cpu_data);
+
 	close(handle->fd);
+	pevent_free(handle->pevent);
 	free(handle);
 }
 
