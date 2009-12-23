@@ -270,7 +270,7 @@ static int func_map_init(struct pevent *pevent)
 	struct func_map *func_map;
 	int i;
 
-	func_map = malloc_or_die(sizeof(*func_map) * pevent->func_count + 1);
+	func_map = malloc_or_die(sizeof(*func_map) * (pevent->func_count + 1));
 	funclist = pevent->funclist;
 
 	i = 0;
@@ -420,7 +420,7 @@ static void printk_map_init(struct pevent *pevent)
 	struct printk_map *printk_map;
 	int i;
 
-	printk_map = malloc_or_die(sizeof(*printk_map) * pevent->printk_count + 1);
+	printk_map = malloc_or_die(sizeof(*printk_map) * (pevent->printk_count + 1));
 
 	printklist = pevent->printklist;
 
