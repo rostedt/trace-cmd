@@ -203,7 +203,7 @@ cpu_dialog_response (gpointer data, gint response_id)
 	TraceViewStore *store;
 	gint cpus, cpu;
 
-	store = TRACE_VIEW_STORE(gtk_tree_view_get_model(view));;
+	store = TRACE_VIEW_STORE(gtk_tree_view_get_model(view));
 
 	switch (response_id) {
 	case GTK_RESPONSE_ACCEPT:

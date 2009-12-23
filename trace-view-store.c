@@ -985,6 +985,75 @@ void trace_view_store_set_page(TraceViewStore *store, gint page)
 		store->visible_rows - store->start_row;
 }
 
+static int rows_ts_cmp(const void *a, const void *b)
+{
+	/* a is just a key, but b is a pointer to a record pointer */
+	const TraceViewRecord *ta = a;
+	const TraceViewRecord *tb = *(TraceViewRecord **)b;
+
+	/* match inbetween too */
+	if ((ta->timestamp == tb->timestamp) ||
+
+	    (ta->timestamp > tb->timestamp &&
+	     ta->timestamp < (tb+1)->timestamp))
+		return 0;
+
+	if (ta->timestamp < tb->timestamp)
+		return -1;
+
+	return 1;
+}
+
+static TraceViewRecord *
+search_for_record_by_timestamp(TraceViewStore *store, guint64 ts)
+{
+	TraceViewRecord key;
+	TraceViewRecord **rec;
+
+	if (!store->actual_rows)
+		return NULL;
+
+	if (ts < store->rows[0]->timestamp)
+		return NULL;
+
+	if (ts >= store->rows[store->actual_rows-1]->timestamp)
+		return store->rows[store->actual_rows-1];
+
+	key.timestamp = ts;
+	rec = bsearch(&key, store->rows, store->actual_rows - 1,
+		      sizeof(store->rows[0]), rows_ts_cmp);
+
+	g_assert(rec != NULL);
+
+	return *rec;
+}
+
+gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 ts)
+{
+	TraceViewRecord *rec;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
+
+	rec = search_for_record_by_timestamp(store, ts);
+	if (!rec)
+		return 0;
+
+	return rec->pos - (store->page - 1) * store->rows_per_page;
+}
+
+gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts)
+{
+	TraceViewRecord *rec;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
+
+	rec = search_for_record_by_timestamp(store, ts);
+	if (!rec)
+		return 1;
+
+	return rec->pos / store->rows_per_page + 1;
+}
+
 
 /*****************************************************************************
  *

@@ -159,3 +159,54 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 
 	g_object_unref(model); /* destroy model automatically with view */
 }
+
+void trace_view_select(GtkWidget *treeview, guint64 time)
+{
+	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
+	GtkTreeSelection *selection;
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	gint select_page, page;
+	GtkWidget *spin;
+	gchar buf[100];
+	gint row;
+
+	model = gtk_tree_view_get_model(tree);
+	/* This can be called when we NULL out the model */
+	if (!model)
+		return;
+	page = trace_view_store_get_page(TRACE_VIEW_STORE(model));
+	select_page = trace_view_store_get_timestamp_page(TRACE_VIEW_STORE(model),
+							  time);
+
+	/* Make sure the page contains the selected event */
+	if (page != select_page) {
+		spin = trace_view_store_get_spin(TRACE_VIEW_STORE(model));
+		/* If a spin button exists, it should update when changed */
+		if (spin)
+			gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin), select_page);
+		else {
+			g_object_ref(model);
+			gtk_tree_view_set_model(tree, NULL);
+
+			trace_view_store_set_page(TRACE_VIEW_STORE(model), select_page);
+
+			gtk_tree_view_set_model(tree, model);
+			g_object_unref(model);
+		}
+	}
+
+	/* Select the event */
+	row = trace_view_store_get_timestamp_visible_row(TRACE_VIEW_STORE(model), time);
+	snprintf(buf, 100, "%d", row);
+	printf("row = %s\n", buf);
+	path = gtk_tree_path_new_from_string(buf);
+
+	selection = gtk_tree_view_get_selection(tree);
+	gtk_tree_selection_select_path(selection, path);
+
+	/* finally, make it visible */
+	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
+
+	gtk_tree_path_free(path);
+}

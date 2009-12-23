@@ -109,6 +109,10 @@ void trace_view_store_set_spin_button(TraceViewStore *store, GtkWidget *spin);
 
 void trace_view_store_set_page(TraceViewStore *store, gint page);
 
+gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts);
+
+gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 ts);
+
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 
 struct _TraceViewStoreClass
@@ -154,6 +158,12 @@ static inline gint trace_view_store_get_page(TraceViewStore *store)
 {
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), -1);
 	return store->page;
+}
+
+static inline GtkWidget *trace_view_store_get_spin(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
+	return store->spin;
 }
 
 #endif /* _trace_view_store_h_included_ */

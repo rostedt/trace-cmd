@@ -59,9 +59,17 @@ static void print_time(unsigned long long time)
 
 static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
 {
+	struct graph_callbacks *cbs;
+	struct shark_info *info;
+
 	printf("Cursor: ");
 	print_time(cursor);
 	printf(" selected\n");
+
+	cbs = trace_graph_get_callbacks(ginfo);
+	info = container_of(cbs, struct shark_info, graph_cbs);
+
+	trace_view_select(info->treeview, cursor);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -287,8 +295,8 @@ void kernel_shark(int argc, char **argv)
 
 	trace_view_load(info->treeview, handle, spin);
 
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
-					      info->treeview);
+	gtk_container_add(GTK_CONTAINER(scrollwin), info->treeview);
+
 	gtk_widget_show(info->treeview);
 
 
