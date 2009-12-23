@@ -28,6 +28,7 @@
 #include "trace-view.h"
 
 enum {
+	COL_INDEX,
 	COL_CPU,
 	COL_TS,
 	COL_COMM,
@@ -95,6 +96,13 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 		     "family", "Monospace",
 		     "family-set", TRUE,
 		     NULL);
+
+	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
+					     -1,
+					     "#",
+					     renderer,
+					     "text", COL_INDEX,
+					     NULL);
 
 	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 					     -1,

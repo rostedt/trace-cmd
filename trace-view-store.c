@@ -164,15 +164,16 @@ trace_view_store_init (TraceViewStore *trace_view_store)
 {
 	trace_view_store->n_columns	= TRACE_VIEW_STORE_N_COLUMNS;
 
-	trace_view_store->column_types[0] = G_TYPE_UINT;	/* CPU	*/
-	trace_view_store->column_types[1] = G_TYPE_STRING;	/* TS	*/
-	trace_view_store->column_types[2] = G_TYPE_STRING;	/* COMM */
-	trace_view_store->column_types[3] = G_TYPE_UINT;	/* PID */
-	trace_view_store->column_types[4] = G_TYPE_STRING;	/* LAT */
-	trace_view_store->column_types[5] = G_TYPE_STRING;	/* EVENT */
-	trace_view_store->column_types[6] = G_TYPE_STRING;	/* INFO */
+	trace_view_store->column_types[0] = G_TYPE_UINT;	/* INDEX */
+	trace_view_store->column_types[1] = G_TYPE_UINT;	/* CPU	*/
+	trace_view_store->column_types[2] = G_TYPE_STRING;	/* TS	*/
+	trace_view_store->column_types[3] = G_TYPE_STRING;	/* COMM */
+	trace_view_store->column_types[4] = G_TYPE_UINT;	/* PID */
+	trace_view_store->column_types[5] = G_TYPE_STRING;	/* LAT */
+	trace_view_store->column_types[6] = G_TYPE_STRING;	/* EVENT */
+	trace_view_store->column_types[7] = G_TYPE_STRING;	/* INFO */
 
-	g_assert (TRACE_VIEW_STORE_N_COLUMNS == 7);
+	g_assert (TRACE_VIEW_STORE_N_COLUMNS == 8);
 
 	trace_view_store->num_rows = 0;
 	trace_view_store->rows	= NULL;
@@ -431,6 +432,10 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 
 	switch(column)
 	{
+	case TRACE_VIEW_STORE_COL_INDEX:
+		g_value_set_uint(value, record->pos);
+		break;
+
 	case TRACE_VIEW_STORE_COL_CPU:
 		g_value_set_uint(value, record->cpu);
 		break;
