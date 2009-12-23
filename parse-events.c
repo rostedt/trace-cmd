@@ -3116,6 +3116,8 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, struct record *record)
 {
+	static int check_lock_depth = 1;
+	static int lock_depth_exists;
 	unsigned int lat_flags;
 	unsigned int pc;
 	int lock_depth;
@@ -3125,7 +3127,19 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 
 	lat_flags = parse_common_flags(pevent, data);
 	pc = parse_common_pc(pevent, data);
-	lock_depth = parse_common_lock_depth(pevent, data);
+	/* lock_depth may not always exist */
+	if (check_lock_depth) {
+		struct format_field *field;
+		struct event_format *event;
+
+		check_lock_depth = 0;
+		event = pevent->event_list;
+		field = pevent_find_common_field(event, "common_lock_depth");
+		if (field)
+			lock_depth_exists = 1;
+	}
+	if (lock_depth_exists)
+		lock_depth = parse_common_lock_depth(pevent, data);
 
 	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
 	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
@@ -3144,10 +3158,12 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 	else
 		trace_seq_putc(s, '.');
 
-	if (lock_depth < 0)
-		trace_seq_putc(s, '.');
-	else
-		trace_seq_printf(s, "%d", lock_depth);
+	if (lock_depth_exists) {
+		if (lock_depth < 0)
+			trace_seq_putc(s, '.');
+		else
+			trace_seq_printf(s, "%d", lock_depth);
+	}
 
 	trace_seq_terminate(s);
 }
