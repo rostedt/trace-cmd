@@ -3116,6 +3116,8 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, struct record *record)
 {
+	static int check_lock_depth = 1;
+	static int lock_depth_exists;
 	unsigned int lat_flags;
 	unsigned int pc;
 	int lock_depth;
@@ -3125,7 +3127,19 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 
 	lat_flags = parse_common_flags(pevent, data);
 	pc = parse_common_pc(pevent, data);
-	lock_depth = parse_common_lock_depth(pevent, data);
+	/* lock_depth may not always exist */
+	if (check_lock_depth) {
+		struct format_field *field;
+		struct event_format *event;
+
+		check_lock_depth = 0;
+		event = pevent->event_list;
+		field = pevent_find_common_field(event, "common_lock_depth");
+		if (field)
+			lock_depth_exists = 1;
+	}
+	if (lock_depth_exists)
+		lock_depth = parse_common_lock_depth(pevent, data);
 
 	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
 	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
@@ -3144,10 +3158,12 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 	else
 		trace_seq_putc(s, '.');
 
-	if (lock_depth < 0)
-		trace_seq_putc(s, '.');
-	else
-		trace_seq_printf(s, "%d", lock_depth);
+	if (lock_depth_exists) {
+		if (lock_depth < 0)
+			trace_seq_putc(s, '.');
+		else
+			trace_seq_printf(s, "%d", lock_depth);
+	}
 
 	trace_seq_terminate(s);
 }
@@ -3520,13 +3536,15 @@ static void parse_header_field(const char *field,
  * @pevent: the handle to the pevent
  * @buf: the buffer storing the header page format string
  * @size: the size of @buf
+ * @long_size: the long size to use if there is no header
  *
  * This parses the header page format for information on the
  * ring buffer used. The @buf should be copied from
  *
  * /sys/kernel/debug/tracing/events/header_page
  */
-int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size)
+int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
+			     int long_size)
 {
 	if (!size) {
 		/*
@@ -3534,10 +3552,10 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 		 * Sorry but we just use what we find here in user space.
 		 */
 		pevent->header_page_ts_size = sizeof(long long);
-		pevent->header_page_size_size = sizeof(long);
-		pevent->header_page_data_offset = sizeof(long long) + sizeof(long);
+		pevent->header_page_size_size = long_size;
+		pevent->header_page_data_offset = sizeof(long long) + long_size;
 		pevent->old_format = 1;
-		return 0;
+		return -1;
 	}
 	init_input_buf(buf, size);
 

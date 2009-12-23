@@ -200,7 +200,7 @@ static int read_header_files(struct tracecmd_input *handle)
 	if (do_read_check(handle, header, size))
 		goto failed_read;
 
-	pevent_parse_header_page(pevent, header, size);
+	pevent_parse_header_page(pevent, header, size, handle->long_size);
 	free(header);
 
 	/*
@@ -1144,9 +1144,10 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 
 	if (handle->cpu_data[cpu].next) {
 		/* Make sure it's still mapped */
-		ret = tracecmd_refresh_record(handle, handle->cpu_data[cpu].next);
+		record = handle->cpu_data[cpu].next;
+		ret = tracecmd_refresh_record(handle, record);
 		if (ret < 0) {
-			free_record(handle->cpu_data[cpu].next);
+			free_record(record);
 			handle->cpu_data[cpu].next = NULL;
 			return NULL;
 		}
@@ -1160,7 +1161,7 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 				record->record_size;
 			handle->cpu_data[cpu].timestamp = record->ts;
 		}
-		return handle->cpu_data[cpu].next;
+		return record;
 	}
 
 	if (!page)
