@@ -74,9 +74,12 @@ static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
 
 /* Callback for the clicked signal of the Exit button */
 static void
-exit_clicked (GtkWidget *widget, gpointer data)
+exit_clicked (gpointer data)
 {
-	gtk_widget_destroy (GTK_WIDGET (data)); /* the user data points to the main window */
+	struct shark_info *info = data;
+
+	gtk_widget_destroy (info->window); /* the user data points to the main window */
+	tracecmd_close(info->handle);
 	gtk_main_quit ();
 }
 
@@ -84,7 +87,10 @@ exit_clicked (GtkWidget *widget, gpointer data)
 static gint
 delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 {
+	struct shark_info *info = data;
+
 	gtk_widget_destroy (widget); /* destroy the main window */
+	tracecmd_close(info->handle);
 	gtk_main_quit ();
 	return TRUE;
 }
@@ -128,9 +134,9 @@ void kernel_shark(int argc, char **argv)
 		die("Unable to allocate info");
 
 	handle = tracecmd_open(input_file);
-
 	if (!handle)
 		die("error reading header");
+	info->handle = handle;
 
 	if (tracecmd_read_headers(handle) < 0)
 		return;
@@ -143,6 +149,7 @@ void kernel_shark(int argc, char **argv)
 	/* --- Main window --- */
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	info->window = window;
 
 	/* --- Top Level Vbox --- */
 
@@ -176,7 +183,7 @@ void kernel_shark(int argc, char **argv)
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (exit_clicked),
-				  (gpointer) window);
+				  (gpointer) info);
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
@@ -308,7 +315,7 @@ void kernel_shark(int argc, char **argv)
 
 	gtk_signal_connect (GTK_OBJECT (window), "delete_event",
 			    (GtkSignalFunc) delete_event,
-			    NULL);
+			    (gpointer) info);
 
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
 

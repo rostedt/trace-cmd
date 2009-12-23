@@ -206,9 +206,17 @@ static void
 trace_view_store_finalize (GObject *object)
 {
 	TraceViewStore *store = TRACE_VIEW_STORE(object);
+	gint cpu;
 
 	/* free all records and free all memory used by the list */
-#warning IMPLEMENT
+
+	for (cpu = 0; cpu < store->cpus; cpu++)
+		g_free(store->cpu_list[cpu]);
+
+	g_free(store->cpu_list);
+	g_free(store->cpu_mask);
+	g_free(store->rows);
+	g_free(store->cpu_items);
 
 	if (store->spin) {
 		gtk_widget_destroy(store->spin);

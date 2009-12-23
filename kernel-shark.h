@@ -5,9 +5,11 @@
 #include "trace-view.h"
 
 struct shark_info {
-	struct graph_info	*ginfo;
-	GtkWidget		*treeview;
-	struct graph_callbacks	graph_cbs;
+	GtkWidget			*window;
+	struct graph_info		*ginfo;
+	struct tracecmd_input  		*handle;
+	GtkWidget			*treeview;
+	struct graph_callbacks		graph_cbs;
 };
 
 #define offset_of(type, field)		(long)(&((type *)0)->field)

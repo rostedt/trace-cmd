@@ -38,7 +38,7 @@ trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h
 trace-filter.o::	$(HEADERS)
 trace-graph.o::		$(HEADERS) trace-graph.h
 trace-graph-main.o::	$(HEADERS) trace-graph.h
-kernel-shark.o::	$(HEADERS)
+kernel-shark.o::	$(HEADERS) kernel-shark.h
 
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o
 

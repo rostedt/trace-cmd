@@ -9,12 +9,14 @@
 #define TRACE_HEIGHT	600
 #define input_file "trace.dat"
 
+static struct graph_info *ginfo;
 
 /* Callback for the clicked signal of the Exit button */
 static void
 exit_clicked (GtkWidget *widget, gpointer data)
 {
 	gtk_widget_destroy (GTK_WIDGET (data)); /* the user data points to the main window */
+	tracecmd_close(ginfo->handle);
 	gtk_main_quit ();
 }
 
@@ -23,6 +25,7 @@ static gint
 delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 {
 	gtk_widget_destroy (widget); /* destroy the main window */
+	tracecmd_close(ginfo->handle);
 	gtk_main_quit ();
 	return TRUE;
 }
@@ -30,7 +33,6 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 void trace_graph(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
-	struct graph_info *ginfo;
 	GtkWidget *window;
 	GtkWidget *vbox;
 	GtkWidget *hbox;

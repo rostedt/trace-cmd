@@ -10,12 +10,14 @@
 #define input_file "trace.dat"
 
 GtkWidget *trace_tree;
+static struct tracecmd_input *handle;
 
 /* Callback for the clicked signal of the Exit button */
 static void
 exit_clicked (GtkWidget *widget, gpointer data)
 {
 	gtk_widget_destroy (GTK_WIDGET (data)); /* the user data points to the main window */
+	tracecmd_close(handle);
 	gtk_main_quit ();
 }
 
@@ -24,6 +26,7 @@ static gint
 delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 {
 	gtk_widget_destroy (widget); /* destroy the main window */
+	tracecmd_close(handle);
 	gtk_main_quit ();
 	return TRUE;
 }
@@ -63,7 +66,6 @@ create_combo_box_model(void)
 
 void trace_view(int argc, char **argv)
 {
-	struct tracecmd_input *handle;
 	GtkWidget *window;
 	GtkWidget *vbox;
 	GtkWidget *hbox;
