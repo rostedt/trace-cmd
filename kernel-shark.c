@@ -113,6 +113,30 @@ cpus_clicked (gpointer data)
 	trace_filter_cpu_dialog(info->treeview);
 }
 
+static void row_double_clicked(GtkTreeView        *treeview,
+			       GtkTreePath        *path,
+			       GtkTreeViewColumn  *col,
+			       gpointer            data)
+{
+	struct shark_info *info = data;
+	GtkTreeModel *model;
+	gchar *spath;
+	guint64 time;
+	gint row;
+
+	model = gtk_tree_view_get_model(treeview);
+	/* This can be called when we NULL out the model */
+	if (!model)
+		return;
+
+	spath = gtk_tree_path_to_string(path);
+	row = atoi(spath);
+	g_free(spath);
+
+	time = trace_view_store_get_time_from_row(TRACE_VIEW_STORE(model), row);
+	trace_graph_select_by_time(info->ginfo, time);
+}
+
 void kernel_shark(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
@@ -299,6 +323,9 @@ void kernel_shark(int argc, char **argv)
 	/* --- Set up Trace Tree --- */
 
 	info->treeview = gtk_tree_view_new();
+
+	g_signal_connect(info->treeview, "row-activated",
+			 (GCallback)row_double_clicked, info);
 
 	trace_view_load(info->treeview, handle, spin);
 

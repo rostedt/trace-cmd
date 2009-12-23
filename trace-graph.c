@@ -42,6 +42,8 @@ static gint event_sched_switch_id = -1;
 
 static gint largest_cpu_label = 0;
 
+static void redraw_pixmap_backend(struct graph_info *ginfo);
+
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
 {
@@ -517,11 +519,21 @@ static void update_graph(struct graph_info *ginfo, gdouble percent)
 
 static void update_graph_to_start_x(struct graph_info *ginfo)
 {
+	gint width = ginfo->draw_width;;
+
+	if (!width) {
+		ginfo->view_start_time = ginfo->start_time;
+		ginfo->view_end_time = ginfo->end_time;
+		return;
+	}
+
 	ginfo->view_start_time = ginfo->start_x / ginfo->resolution +
 		ginfo->start_time;
 
-	ginfo->view_end_time = ginfo->draw_width / ginfo->resolution +
+	ginfo->view_end_time = width / ginfo->resolution +
 		ginfo->view_start_time;
+
+	g_assert (ginfo->view_start_time < ginfo->end_time);
 }
 
 static void reset_graph(struct graph_info *ginfo, gdouble view_width)
@@ -1084,33 +1096,84 @@ static void draw_info(struct graph_info *ginfo,
 	draw_cpu_labels(ginfo);
 }
 
-static gboolean
-configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 {
-	struct graph_info *ginfo = data;
-	GdkPixmap *old_pix;
+	gint view_width;
+	gint width;
+	gint mid;
+	gint start;
+	gint end;
+	guint64 old_start_time = ginfo->view_start_time;
 
-	gtk_widget_set_size_request(widget, ginfo->draw_width, ginfo->draw_height);
+	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	width = ginfo->draw_width ? : view_width;
+
+	mid = (time - ginfo->start_time) * ginfo->resolution;
+	start = mid - width / 2;
+	if (start < 0)
+		start = 0;
+	end = start + width;
+
+	/*
+	 * Readjust the drawing to be centered on the selection.
+	 */
+
+	if (end > ginfo->full_width) {
+		start -= end - ginfo->full_width;
+		end = ginfo->full_width;
+		g_assert(start >= 0);
+	}
+
+	ginfo->start_x = start;
+
+	update_graph_to_start_x(ginfo);
+
+	/* force redraw if we changed the time*/
+	if (old_start_time != ginfo->view_start_time)
+		redraw_pixmap_backend(ginfo);
+
+	/* Adjust start to be the location for the vadj */
+	mid = (time - ginfo->view_start_time) * ginfo->resolution;
+	start = mid - view_width / 2;
+	if (start < 0)
+		start = 0;
+
+	if (start > (width - view_width))
+		start = width - view_width;
+	gtk_adjustment_set_value(ginfo->vadj, start);
+
+	ginfo->last_x = (ginfo->cursor - ginfo->view_start_time)
+		* ginfo->resolution;
+	ginfo->cursor = 0;
+	clear_last_line(ginfo->draw, ginfo);
+	ginfo->cursor = time;
+
+	update_with_backend(ginfo, 0, 0, width, ginfo->draw_height);
+}
+
+static void redraw_pixmap_backend(struct graph_info *ginfo)
+{
+	GdkPixmap *old_pix;
 
 	old_pix = ginfo->curr_pixmap;
 
 	/* initialize full width if needed */
 	if (!ginfo->full_width)
-		ginfo->full_width = widget->allocation.width;
+		ginfo->full_width = ginfo->draw->allocation.width;
 
-	ginfo->curr_pixmap = gdk_pixmap_new(widget->window,
-					    widget->allocation.width,
-					    widget->allocation.height,
+	ginfo->curr_pixmap = gdk_pixmap_new(ginfo->draw->window,
+					    ginfo->draw->allocation.width,
+					    ginfo->draw->allocation.height,
 					    -1);
 
 	gdk_draw_rectangle(ginfo->curr_pixmap,
-			   widget->style->white_gc,
+			   ginfo->draw->style->white_gc,
 			   TRUE,
 			   0, 0,
-			   widget->allocation.width,
-			   widget->allocation.height);
+			   ginfo->draw->allocation.width,
+			   ginfo->draw->allocation.height);
 
-	draw_info(ginfo, widget->allocation.width);
+	draw_info(ginfo, ginfo->draw->allocation.width);
 
 	if (old_pix) {
 #if 0
@@ -1124,12 +1187,20 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 		g_object_unref(old_pix);
 	}
 
-	if (!ginfo->vadj_value)
-		return TRUE;
+	if (ginfo->vadj_value) {
+//		gtk_adjustment_set_lower(ginfo->vadj, -100.0);
+		gtk_adjustment_set_value(ginfo->vadj, ginfo->vadj_value);
+	}
+}
 
-//	gtk_adjustment_set_lower(ginfo->vadj, -100.0);
-	gtk_adjustment_set_value(ginfo->vadj, ginfo->vadj_value);
+static gboolean
+configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
 
+	gtk_widget_set_size_request(widget, ginfo->draw_width, ginfo->draw_height);
+
+	redraw_pixmap_backend(ginfo);
 
 	/* debug */
 	ginfo->vadj_value = gtk_adjustment_get_value(ginfo->vadj);

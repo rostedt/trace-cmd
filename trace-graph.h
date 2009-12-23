@@ -61,6 +61,7 @@ trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin);
 struct graph_info *
 trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin,
 				  struct graph_callbacks *cbs);
+void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time);
 
 static inline GtkWidget *trace_graph_get_draw(struct graph_info *ginfo)
 {

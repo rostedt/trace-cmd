@@ -114,6 +114,8 @@ gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts);
 
 gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 ts);
 
+guint64 trace_view_store_get_time_from_row(TraceViewStore *store, gint row);
+
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 
 struct _TraceViewStoreClass
