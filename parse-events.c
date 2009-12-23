@@ -3067,6 +3067,17 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						break;
 					}
 				}
+				if (pevent->long_size == 8 && ls) {
+					char *p;
+
+					ls = 2;
+					/* make %l into %ll */
+					p = strchr(format, 'l');
+					if (p)
+						memmove(p+1, p, strlen(p)+1);
+					else if (strcmp(format, "%p") == 0)
+						strcpy(format, "0x%llx");
+				}
 				switch (ls) {
 				case 0:
 					trace_seq_printf(s, format, (int)val);
