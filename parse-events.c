@@ -3536,13 +3536,15 @@ static void parse_header_field(const char *field,
  * @pevent: the handle to the pevent
  * @buf: the buffer storing the header page format string
  * @size: the size of @buf
+ * @long_size: the long size to use if there is no header
  *
  * This parses the header page format for information on the
  * ring buffer used. The @buf should be copied from
  *
  * /sys/kernel/debug/tracing/events/header_page
  */
-int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size)
+int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
+			     int long_size)
 {
 	if (!size) {
 		/*
@@ -3550,10 +3552,10 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 		 * Sorry but we just use what we find here in user space.
 		 */
 		pevent->header_page_ts_size = sizeof(long long);
-		pevent->header_page_size_size = sizeof(long);
-		pevent->header_page_data_offset = sizeof(long long) + sizeof(long);
+		pevent->header_page_size_size = long_size;
+		pevent->header_page_data_offset = sizeof(long long) + long_size;
 		pevent->old_format = 1;
-		return 0;
+		return -1;
 	}
 	init_input_buf(buf, size);
 

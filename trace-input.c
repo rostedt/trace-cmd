@@ -200,7 +200,7 @@ static int read_header_files(struct tracecmd_input *handle)
 	if (do_read_check(handle, header, size))
 		goto failed_read;
 
-	pevent_parse_header_page(pevent, header, size);
+	pevent_parse_header_page(pevent, header, size, handle->long_size);
 	free(header);
 
 	/*

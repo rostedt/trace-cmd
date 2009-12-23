@@ -352,7 +352,8 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid);
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct record *record);
 
-int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size);
+int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
+			     int long_size);
 
 int pevent_parse_event(struct pevent *pevent, char *buf, unsigned long size, char *sys);
 
