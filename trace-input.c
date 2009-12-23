@@ -139,7 +139,7 @@ static char *read_string(struct tracecmd_input *handle)
 		str[size] = 0;
 	} else {
 		size = i + 1;
-		str = malloc(i);
+		str = malloc(size);
 		if (!str)
 			return NULL;
 		memcpy(str, buf, i);
@@ -369,13 +369,14 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 	if (size < 0)
 		return -1;
 
-	buf = malloc(size);
+	buf = malloc(size+1);
 	if (!buf)
 		return -1;
 	if (do_read_check(handle, buf, size)){
 		free(buf);
 		return -1;
 	}
+	buf[size] = 0;
 
 	parse_proc_kallsyms(pevent, buf, size);
 
@@ -515,6 +516,13 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 		munmap(handle->cpu_data[cpu].page, handle->page_size);
 
 	handle->cpu_data[cpu].page = NULL;
+}
+
+static void free_read_page(struct tracecmd_input *handle, int cpu)
+{
+	free_page(handle, cpu);
+	if (handle->read_page)
+		free(handle->cpu_data[cpu].read_page);
 }
 
 /*
@@ -1334,13 +1342,14 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	size = read8(handle);
 	if (size < 0)
 		return -1;
-	cmdlines = malloc(size);
+	cmdlines = malloc(size + 1);
 	if (!cmdlines)
 		return -1;
 	if (do_read_check(handle, cmdlines, size)) {
 		free(cmdlines);
 		return -1;
 	}
+	cmdlines[size] = 0;
 	parse_cmdlines(pevent, cmdlines, size);
 	free(cmdlines);
 
@@ -1483,8 +1492,17 @@ struct tracecmd_input *tracecmd_open(const char *file)
 
 void tracecmd_close(struct tracecmd_input *handle)
 {
-	/* TODO FREE EVERYTHING!!! %%%% MEMORY LEAK!!! %%%% */
+	int cpu;
+
+	if (!handle)
+		return;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++)
+		free_read_page(handle, cpu);
+	free(handle->cpu_data);
+
 	close(handle->fd);
+	pevent_free(handle->pevent);
 	free(handle);
 }
 

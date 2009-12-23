@@ -89,6 +89,7 @@ void parse_cmdlines(struct pevent *pevent,
 		sscanf(line, "%d %as", &pid,
 		       (float *)(void *)&comm); /* workaround gcc warning */
 		pevent_register_comm(pevent, comm, pid);
+		free(comm);
 		line = strtok_r(NULL, "\n", &next);
 	}
 }
@@ -121,6 +122,8 @@ void parse_proc_kallsyms(struct pevent *pevent,
 			mod[strlen(mod) - 1] = 0;
 
 		pevent_register_function(pevent, func, addr, mod);
+		free(func);
+		free(mod);
 
 		line = strtok_r(NULL, "\n", &next);
 	}
