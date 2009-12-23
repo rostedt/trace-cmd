@@ -270,7 +270,7 @@ static gint get_visible_column(TraceViewStore *trace_view, gint column)
 	column++; /* make 0 drop out */
 
 	for (i = 0; column && i < TRACE_VIEW_STORE_N_COLUMNS; i++) {
-		if (!trace_view->visible_column_mask & (1 << i))
+		if (!(trace_view->visible_column_mask & (1 << i)))
 			continue;
 
 		column--;
