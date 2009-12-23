@@ -557,6 +557,19 @@ static int event_item_type(enum event_type type)
 	}
 }
 
+static void free_flag_sym(struct print_flag_sym *fsym)
+{
+	struct print_flag_sym *next;
+
+	while (fsym) {
+		next = fsym->next;
+		free(fsym->value);
+		free(fsym->str);
+		free(fsym);
+		fsym = next;
+	}
+}
+
 static void free_arg(struct print_arg *arg)
 {
 	if (!arg)
@@ -564,13 +577,37 @@ static void free_arg(struct print_arg *arg)
 
 	switch (arg->type) {
 	case PRINT_ATOM:
-		if (arg->atom.atom)
-			free(arg->atom.atom);
+		free(arg->atom.atom);
 		break;
+	case PRINT_FIELD:
+		free(arg->field.name);
+		break;
+	case PRINT_FLAGS:
+		free_arg(arg->flags.field);
+		free(arg->flags.delim);
+		free_flag_sym(arg->flags.flags);
+		break;
+	case PRINT_SYMBOL:
+		free_arg(arg->symbol.field);
+		free_flag_sym(arg->symbol.symbols);
+		break;
+	case PRINT_TYPE:
+		free(arg->typecast.type);
+		free_arg(arg->typecast.item);
+		break;
+	case PRINT_STRING:
+		free(arg->string.string);
+		break;
+	case PRINT_DYNAMIC_ARRAY:
+		free(arg->dynarray.index);
+		break;
+	case PRINT_OP:
+		free(arg->op.op);
+		free_arg(arg->op.left);
+		free_arg(arg->op.right);
+
 	case PRINT_NULL:
-	case PRINT_FIELD ... PRINT_OP:
 	default:
-		/* todo */
 		break;
 	}
 
@@ -825,6 +862,7 @@ static enum event_type read_token(char **tok)
 	}
 
 	/* not reached */
+	*tok = NULL;
 	return EVENT_NONE;
 }
 
@@ -837,11 +875,12 @@ static enum event_type read_token_item(char **tok)
 		type = __read_token(tok);
 		if (type != EVENT_SPACE && type != EVENT_NEWLINE)
 			return type;
-
 		free_token(*tok);
+		*tok = NULL;
 	}
 
 	/* not reached */
+	*tok = NULL;
 	return EVENT_NONE;
 }
 
@@ -1011,8 +1050,9 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		}
 
 		if (test_type_token(type, token, EVENT_OP, ":") < 0)
-			return -1;
+			goto fail;
 
+		free_token(token);
 		if (read_expect_type(EVENT_ITEM, &token) < 0)
 			goto fail;
 
@@ -1043,6 +1083,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 							      strlen(last_token) + 2);
 					strcat(field->type, " ");
 					strcat(field->type, last_token);
+					free(last_token);
 				} else
 					field->type = last_token;
 				last_token = token;
@@ -1281,6 +1322,7 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 
 out_free:
 	free_token(*tok);
+	*tok = NULL;
 	free(right);
 	free(left);
 	free_arg(arg);
@@ -1311,6 +1353,7 @@ process_array(struct event_format *event, struct print_arg *top, char **tok)
 
 out_free:
 	free_token(*tok);
+	*tok = NULL;
 	free_arg(arg);
 	return EVENT_ERROR;
 }
@@ -1393,7 +1436,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		/* handle single op */
 		if (token[1]) {
 			die("bad op token %s", token);
-			return EVENT_ERROR;
+			goto out_free;
 		}
 		switch (token[0]) {
 		case '!':
@@ -1402,7 +1445,8 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			break;
 		default:
 			warning("bad op token %s", token);
-			return EVENT_ERROR;
+			goto out_free;
+
 		}
 
 		/* make an empty left */
@@ -1413,6 +1457,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		right = alloc_arg();
 		arg->op.right = right;
 
+		free_token(token);
 		type = process_arg(event, right, tok);
 
 	} else if (strcmp(token, "?") == 0) {
@@ -1455,8 +1500,6 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 		set_op_prio(arg);
 
-		right = alloc_arg();
-
 		type = read_token_item(&token);
 		*tok = token;
 
@@ -1468,14 +1511,15 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			left->atom.atom = realloc(left->atom.atom,
 					    strlen(left->atom.atom) + 3);
 			strcat(left->atom.atom, " *");
+			free(arg->op.op);
 			*arg = *left;
 			free(left);
 
 			return type;
 		}
 
+		right = alloc_arg();
 		type = process_arg_token(event, right, tok, type);
-
 		arg->op.right = right;
 
 	} else if (strcmp(token, "[") == 0) {
@@ -1488,13 +1532,14 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		arg->op.left = left;
 
 		arg->op.prio = 0;
+
 		type = process_array(event, arg, tok);
 
 	} else {
 		warning("unknown op '%s'", token);
 		event->flags |= EVENT_FL_FAILED;
 		/* the arg is now the left side */
-		return EVENT_NONE;
+		goto out_free;
 	}
 
 	if (type == EVENT_OP) {
@@ -1510,6 +1555,11 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 	}
 
 	return type;
+
+ out_free:
+	free_token(token);
+	*tok = NULL;
+	return EVENT_ERROR;
 }
 
 static enum event_type
@@ -1521,10 +1571,10 @@ process_entry(struct event_format *event __unused, struct print_arg *arg,
 	char *token;
 
 	if (read_expected(EVENT_OP, "->") < 0)
-		return EVENT_ERROR;
+		goto out_err;
 
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		goto fail;
+		goto out_free;
 	field = token;
 
 	arg->type = PRINT_FIELD;
@@ -1535,8 +1585,10 @@ process_entry(struct event_format *event __unused, struct print_arg *arg,
 
 	return type;
 
-fail:
+ out_free:
 	free_token(token);
+ out_err:
+	*tok = NULL;
 	return EVENT_ERROR;
 }
 
@@ -1783,7 +1835,7 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 	enum event_type type;
 	struct print_arg *arg = NULL;
 	struct print_flag_sym *field;
-	char *token = NULL;
+	char *token = *tok;
 	char *value;
 
 	do {
@@ -1804,6 +1856,9 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 
 		value = arg_eval(arg);
 		field->value = strdup(value);
+
+		free_arg(arg);
+		arg = alloc_arg();
 
 		free_token(token);
 		type = process_arg(event, arg, &token);
@@ -1828,6 +1883,7 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 out_free:
 	free_arg(arg);
 	free_token(token);
+	*tok = NULL;
 
 	return EVENT_ERROR;
 }
@@ -1843,13 +1899,14 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	arg->type = PRINT_FLAGS;
 
 	if (read_expected_item(EVENT_DELIM, "(") < 0)
-		return EVENT_ERROR;
+		goto out_err;
 
 	field = alloc_arg();
 
 	type = process_arg(event, field, &token);
 	if (test_type_token(type, token, EVENT_DELIM, ","))
 		goto out_free;
+	free_token(token);
 
 	arg->flags.field = field;
 
@@ -1870,8 +1927,10 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	type = read_token_item(tok);
 	return type;
 
-out_free:
+ out_free:
 	free_token(token);
+ out_err:
+	*tok = NULL;
 	return EVENT_ERROR;
 }
 
@@ -1886,7 +1945,7 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 	arg->type = PRINT_SYMBOL;
 
 	if (read_expected_item(EVENT_DELIM, "(") < 0)
-		return EVENT_ERROR;
+		goto out_err;
 
 	field = alloc_arg();
 
@@ -1904,8 +1963,10 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 	type = read_token_item(tok);
 	return type;
 
-out_free:
+ out_free:
 	free_token(token);
+ out_err:
+	*tok = NULL;
 	return EVENT_ERROR;
 }
 
@@ -1920,7 +1981,7 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 	arg->type = PRINT_DYNAMIC_ARRAY;
 
 	if (read_expected_item(EVENT_DELIM, "(") < 0)
-		return EVENT_ERROR;
+		goto out_err;
 
 	/*
 	 * The item within the parenthesis is another field that holds
@@ -1929,19 +1990,19 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 	type = read_token(&token);
 	*tok = token;
 	if (type != EVENT_ITEM)
-		return EVENT_ERROR;
+		goto out_free;
 
 	/* Find the field */
 
 	field = pevent_find_field(event, token);
 	if (!field)
-		return EVENT_ERROR;
+		goto out_free;
 
 	arg->dynarray.field = field;
 	arg->dynarray.index = 0;
 
 	if (read_expected(EVENT_DELIM, ")") < 0)
-		return EVENT_ERROR;
+		goto out_free;
 
 	type = read_token_item(&token);
 	*tok = token;
@@ -1961,8 +2022,11 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 	type = read_token_item(tok);
 	return type;
 
-out_free:
+ out_free:
 	free(arg);
+	free_token(token);
+ out_err:
+	*tok = NULL;
 	return EVENT_ERROR;
 }
 
@@ -1976,18 +2040,16 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 	type = process_arg(event, arg, &token);
 
 	if (type == EVENT_ERROR)
-		return EVENT_ERROR;
+		goto out_free;
 
 	if (type == EVENT_OP)
 		type = process_op(event, arg, &token);
 
 	if (type == EVENT_ERROR)
-		return EVENT_ERROR;
+		goto out_free;
 
-	if (test_type_token(type, token, EVENT_DELIM, ")")) {
-		free_token(token);
-		return EVENT_ERROR;
-	}
+	if (test_type_token(type, token, EVENT_DELIM, ")"))
+		goto out_free;
 
 	free_token(token);
 	type = read_token_item(&token);
@@ -2016,6 +2078,11 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 
 	*tok = token;
 	return type;
+
+ out_free:
+	free_token(token);
+	*tok = NULL;
+	return EVENT_ERROR;
 }
 
 
@@ -2026,24 +2093,27 @@ process_str(struct event_format *event __unused, struct print_arg *arg, char **t
 	char *token;
 
 	if (read_expected(EVENT_DELIM, "(") < 0)
-		return EVENT_ERROR;
+		goto out_err;
 
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		goto fail;
+		goto out_free;
 
 	arg->type = PRINT_STRING;
 	arg->string.string = token;
 	arg->string.offset = -1;
 
 	if (read_expected(EVENT_DELIM, ")") < 0)
-		return EVENT_ERROR;
+		goto out_err;
 
 	type = read_token(&token);
 	*tok = token;
 
 	return type;
-fail:
+
+ out_free:
 	free_token(token);
+ out_err:
+	*tok = NULL;
 	return EVENT_ERROR;
 }
 
@@ -2111,9 +2181,7 @@ process_arg_token(struct event_format *event, struct print_arg *arg,
 		arg->op.op = token;
 		arg->op.left = NULL;
 		type = process_op(event, arg, &token);
-		if (type == EVENT_ERROR)
-			return type;
-
+		/* return error type if errored */
 		break;
 
 	case EVENT_ERROR ... EVENT_NEWLINE:
@@ -2134,7 +2202,6 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 
 	do {
 		if (type == EVENT_NEWLINE) {
-			free_token(token);
 			type = read_token_item(&token);
 			continue;
 		}
@@ -2144,6 +2211,7 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 		type = process_arg(event, arg, &token);
 
 		if (type == EVENT_ERROR) {
+			free_token(token);
 			free_arg(arg);
 			return -1;
 		}
@@ -2153,6 +2221,7 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 
 		if (type == EVENT_OP) {
 			type = process_op(event, arg, &token);
+			free_token(token);
 			list = &arg->next;
 			continue;
 		}
@@ -2166,7 +2235,7 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 		break;
 	} while (type != EVENT_NONE);
 
-	if (type != EVENT_NONE)
+	if (type != EVENT_NONE && type != EVENT_ERROR)
 		free_token(token);
 
 	return args;
@@ -2878,11 +2947,7 @@ static void free_args(struct print_arg *args)
 	while (args) {
 		next = args->next;
 
-		if (args->type == PRINT_ATOM)
-			free(args->atom.atom);
-		else
-			free(args->string.string);
-		free(args);
+		free_arg(args);
 		args = next;
 	}
 }
@@ -3757,13 +3822,52 @@ static void free_event(struct event_format *event)
 void pevent_free(struct pevent *pevent)
 {
 	struct event_format *event, *next_event;
+	struct cmdline_list *cmdlist = pevent->cmdlist, *cmdnext;
+	struct func_list *funclist = pevent->funclist, *funcnext;
+	struct printk_list *printklist = pevent->printklist, *printknext;
+	int i;
 
-	free(pevent->cmdlines);
-	free(pevent->cmdlist);
-	free(pevent->func_map);
-	free(pevent->funclist);
-	free(pevent->printk_map);
-	free(pevent->printklist);
+	if (pevent->cmdlines) {
+		for (i = 0; i < pevent->cmdline_count; i++)
+			free(pevent->cmdlines[i].comm);
+		free(pevent->cmdlines);
+	}
+
+	while (cmdlist) {
+		cmdnext = cmdlist->next;
+		free(cmdlist->comm);
+		free(cmdlist);
+		cmdlist = cmdnext;
+	}
+
+	if (pevent->func_map) {
+		for (i = 0; i < pevent->func_count; i++) {
+			free(pevent->func_map[i].func);
+			free(pevent->func_map[i].mod);
+		}
+		free(pevent->func_map);
+	}
+
+	while (funclist) {
+		funcnext = funclist->next;
+		free(funclist->func);
+		free(funclist->mod);
+		free(funclist);
+		funclist = funcnext;
+	}
+
+	if (pevent->printk_map) {
+		for (i = 0; i < pevent->printk_count; i++)
+			free(pevent->printk_map[i].printk);
+		free(pevent->printk_map);
+	}
+
+	while (printklist) {
+		printknext = printklist->next;
+		free(printklist->printk);
+		free(printklist);
+		printklist = printknext;
+	}
 
 	free(pevent->events);
 
