@@ -4,3 +4,7 @@ trace-cmd
 *.a
 trace.dat
 *~
+kernelshark
+trace-graph
+trace-view
+
