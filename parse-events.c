@@ -270,7 +270,7 @@ static int func_map_init(struct pevent *pevent)
 	struct func_map *func_map;
 	int i;
 
-	func_map = malloc_or_die(sizeof(*func_map) * pevent->func_count + 1);
+	func_map = malloc_or_die(sizeof(*func_map) * (pevent->func_count + 1));
 	funclist = pevent->funclist;
 
 	i = 0;
@@ -420,7 +420,7 @@ static void printk_map_init(struct pevent *pevent)
 	struct printk_map *printk_map;
 	int i;
 
-	printk_map = malloc_or_die(sizeof(*printk_map) * pevent->printk_count + 1);
+	printk_map = malloc_or_die(sizeof(*printk_map) * (pevent->printk_count + 1));
 
 	printklist = pevent->printklist;
 
@@ -3066,6 +3066,17 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 							       val - func->addr);
 						break;
 					}
+				}
+				if (pevent->long_size == 8 && ls) {
+					char *p;
+
+					ls = 2;
+					/* make %l into %ll */
+					p = strchr(format, 'l');
+					if (p)
+						memmove(p+1, p, strlen(p)+1);
+					else if (strcmp(format, "%p") == 0)
+						strcpy(format, "0x%llx");
 				}
 				switch (ls) {
 				case 0:
