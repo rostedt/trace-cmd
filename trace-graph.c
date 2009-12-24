@@ -579,6 +579,8 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 		printf("no adjustment\n");
 
 	ginfo->draw_width = new_width;
+	printf("zoom in draw_width=%d full_width=%d\n",
+	       ginfo->draw_width, ginfo->full_width);
 
 	if (ginfo->draw_width > MAX_WIDTH) {
 		gint new_start;
@@ -1085,6 +1087,8 @@ static void draw_info(struct graph_info *ginfo,
 	ginfo->resolution = (gdouble)new_width / (gdouble)(ginfo->view_end_time -
 							   ginfo->view_start_time);
 
+	ginfo->full_width = (ginfo->end_time - ginfo->start_time) * ginfo->resolution;
+
 	draw_timeline(ginfo, new_width);
 
 	
@@ -1106,7 +1110,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	guint64 old_start_time = ginfo->view_start_time;
 
 	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
-	width = ginfo->draw_width ? : view_width;
+	width = ginfo->draw_width ? : ginfo->full_width;
 
 	mid = (time - ginfo->start_time) * ginfo->resolution;
 	start = mid - width / 2;
@@ -1120,8 +1124,8 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 
 	if (end > ginfo->full_width) {
 		start -= end - ginfo->full_width;
-		end = ginfo->full_width;
 		g_assert(start >= 0);
+		end = ginfo->full_width;
 	}
 
 	ginfo->start_x = start;
