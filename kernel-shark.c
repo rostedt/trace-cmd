@@ -72,6 +72,13 @@ static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
 	trace_view_select(info->treeview, cursor);
 }
 
+static void free_info(struct shark_info *info)
+{
+	tracecmd_close(info->handle);
+	free(info->ginfo);
+	free(info);
+}
+
 /* Callback for the clicked signal of the Exit button */
 static void
 exit_clicked (gpointer data)
@@ -79,7 +86,7 @@ exit_clicked (gpointer data)
 	struct shark_info *info = data;
 
 	gtk_widget_destroy (info->window); /* the user data points to the main window */
-	tracecmd_close(info->handle);
+	free_info(info);
 	gtk_main_quit ();
 }
 
@@ -90,7 +97,7 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 	struct shark_info *info = data;
 
 	gtk_widget_destroy (widget); /* destroy the main window */
-	tracecmd_close(info->handle);
+	free_info(info);
 	gtk_main_quit ();
 	return TRUE;
 }

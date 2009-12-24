@@ -79,15 +79,12 @@ void
 trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 		GtkWidget *spin)
 {
-	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
 	GtkCellRenderer *fix_renderer;
 	GtkTreeModel *model;
 
 
 	/* --- CPU column --- */
-
-	col = gtk_tree_view_column_new();
 
 	renderer = gtk_cell_renderer_text_new();
 	fix_renderer = gtk_cell_renderer_text_new();

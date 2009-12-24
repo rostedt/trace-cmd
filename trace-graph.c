@@ -1263,10 +1263,12 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWind
 		if (record->ts < ginfo->start_time)
 			ginfo->start_time = record->ts;
 
+		free_record(record);
 		record = tracecmd_read_cpu_last(handle, cpu);
 
 		if (record->ts > ginfo->end_time)
 			ginfo->end_time = record->ts;
+		free_record(record);
 	}
 
 	convert_nano(ginfo->start_time, &sec, &usec);
