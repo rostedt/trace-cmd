@@ -920,7 +920,7 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 struct record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 {
-	struct record *record;
+	struct record *record = NULL;
 	off64_t offset;
 
 	offset = handle->cpu_data[cpu].file_offset +
@@ -934,6 +934,7 @@ tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 	get_page(handle, cpu, offset);
 
 	do {
+		free_record(record);
 		record = tracecmd_read_data(handle, cpu);
 		if (record)
 			offset = record->offset;
