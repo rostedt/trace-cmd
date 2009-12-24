@@ -143,6 +143,8 @@ void kernel_shark(int argc, char **argv)
 	struct shark_info *info;
 	GtkWidget *window;
 	GtkWidget *vbox;
+	GtkWidget *vbox2;
+	GtkWidget *vpaned;
 	GtkWidget *hbox;
 	GtkWidget *menu_bar;
 	GtkWidget *menu;
@@ -261,18 +263,19 @@ void kernel_shark(int argc, char **argv)
 	/* --- End Filter Options --- */
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
 
-	/* --- Top Level Hbox --- */
+	/* --- Top Level Vpaned --- */
 
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-	gtk_widget_show(hbox);
+	vpaned = gtk_vpaned_new();
+	gtk_box_pack_start(GTK_BOX(vbox), vpaned, TRUE, TRUE, 0);
+	gtk_widget_show(vpaned);
+	gtk_paned_set_position(GTK_PANED(vpaned), TRACE_HEIGHT / 2);
 
 	/* --- Scroll Window --- */
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	gtk_box_pack_start(GTK_BOX (hbox), scrollwin, TRUE, TRUE, 0);
+	gtk_paned_add1(GTK_PANED(vpaned), scrollwin);
 	gtk_widget_show(scrollwin);
 
 	/* --- Set up Drawing --- */
@@ -289,10 +292,16 @@ void kernel_shark(int argc, char **argv)
 
 
 
+	/* --- Tree View Vbox --- */
+
+	vbox2 = gtk_vbox_new(FALSE, 0);
+	gtk_paned_add2(GTK_PANED(vpaned), vbox2);
+	gtk_widget_show(vbox2);
+
 	/* --- Paging Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
 	gtk_widget_show(hbox);
 
 	/* --- Page Spin Button --- */
@@ -309,7 +318,7 @@ void kernel_shark(int argc, char **argv)
 	/* --- Top Level Trace View Paging Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), hbox, TRUE, TRUE, 0);
 	gtk_widget_show(hbox);
 
 	/* --- Scroll Window --- */
