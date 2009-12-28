@@ -6,19 +6,21 @@
 #include "trace-cmd.h"
 %}
 
-/* typemaps must come before the implementation of wrapped functions */
-extern int pevent_read_number_field_32(struct format_field *f, void *data,
-                                       unsigned long *OUTPUT, unsigned long *OUTPUT);
+%typemap(out) unsigned long long {
+$result = PyLong_FromUnsignedLongLong((unsigned long long) $1);
+}
 
 %inline %{
-int pevent_read_number_field_32(struct format_field *f, void *data, unsigned long *hi, unsigned long *lo)
+PyObject *pevent_read_number_field_py(struct format_field *f, void *data)
 {
-        unsigned long long val64;
+        unsigned long long val;
         int ret;
-        ret = pevent_read_number_field(f, data, &val64);
-        *hi = (unsigned long)(val64>>32);
-        *lo = (unsigned long)((val64<<32)>>32);
-        return ret;
+
+        ret = pevent_read_number_field(f, data, &val);
+        if (ret)
+                Py_RETURN_NONE;
+        else
+                return PyLong_FromUnsignedLongLong(val);
 }
 %}
 
