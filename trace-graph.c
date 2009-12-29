@@ -1227,7 +1227,7 @@ destroy_event(GtkWidget *widget, gpointer data)
 
 
 struct graph_info *
-trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin,
+trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs)
 {
 	struct graph_info *ginfo;
@@ -1247,8 +1247,19 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWind
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
 
+	ginfo->widget = gtk_hbox_new(FALSE, 0);
+	gtk_widget_show(ginfo->widget);
+
+	ginfo->scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ginfo->scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
+	gtk_widget_show(ginfo->scrollwin);
+
+	gtk_box_pack_start(GTK_BOX (ginfo->widget), ginfo->scrollwin, TRUE, TRUE, 0);
+
 	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
-	ginfo->vadj = gtk_scrolled_window_get_hadjustment(scrollwin);
+	ginfo->vadj = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
 
 	gtk_signal_connect(GTK_OBJECT(ginfo->vadj), "value_changed",
 			   (GtkSignalFunc) value_changed, ginfo);
@@ -1303,11 +1314,15 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWind
 			      | GDK_POINTER_MOTION_HINT_MASK);
 
 
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(ginfo->scrollwin),
+					      ginfo->draw);
+	gtk_widget_show(ginfo->draw);
+
 	return ginfo;
 }
 
 struct graph_info *
-trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin)
+trace_graph_create(struct tracecmd_input *handle)
 {
-	return trace_graph_create_with_callbacks(handle, scrollwin, NULL);
+	return trace_graph_create_with_callbacks(handle, NULL);
 }

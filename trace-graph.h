@@ -15,6 +15,9 @@ struct graph_info {
 	struct tracecmd_input	*handle;
 	struct pevent		*pevent;
 	gint			cpus;
+	GtkWidget		*widget;	/* Box to hold graph */
+	GtkWidget		*scrollwin;	/* graph scroll window */
+	GtkWidget		*info;		/* info window */
 	GtkWidget		*draw;
 	GdkPixmap		*curr_pixmap;	/* pixmap backstore */
 	GtkAdjustment		*vadj;		/* scrollwindow vert adjust */
@@ -57,9 +60,9 @@ struct graph_info {
 
 
 struct graph_info *
-trace_graph_create(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin);
+trace_graph_create(struct tracecmd_input *handle);
 struct graph_info *
-trace_graph_create_with_callbacks(struct tracecmd_input *handle, GtkScrolledWindow *scrollwin,
+trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs);
 void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time);
 
@@ -71,6 +74,11 @@ static inline GtkWidget *trace_graph_get_draw(struct graph_info *ginfo)
 static inline struct graph_callbacks *trace_graph_get_callbacks(struct graph_info *ginfo)
 {
 	return ginfo->callbacks;
+}
+
+static inline GtkWidget *trace_graph_get_window(struct graph_info *ginfo)
+{
+	return ginfo->widget;
 }
 
 #endif /* _TRACE_GRAPH_H */

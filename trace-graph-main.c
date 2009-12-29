@@ -51,8 +51,7 @@ void trace_graph(int argc, char **argv)
 	GtkWidget *menu;
 	GtkWidget *menu_item;
 	GtkWidget *sub_item;
-	GtkWidget *scrollwin;
-	GtkWidget *draw;
+	GtkWidget *widget;
 	int c;
 
 	while ((c = getopt(argc, argv, "hi:")) != -1) {
@@ -134,22 +133,13 @@ void trace_graph(int argc, char **argv)
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
 	gtk_widget_show(hbox);
 
-	/* --- Scroll Window --- */
-	scrollwin = gtk_scrolled_window_new(NULL, NULL);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
-				       GTK_POLICY_AUTOMATIC,
-				       GTK_POLICY_AUTOMATIC);
-	gtk_box_pack_start(GTK_BOX (hbox), scrollwin, TRUE, TRUE, 0);
-	gtk_widget_show(scrollwin);
 
-	/* --- Set up Drawing --- */
+	/* --- Set up the Graph --- */
 
-	ginfo = trace_graph_create(handle, GTK_SCROLLED_WINDOW(scrollwin));
-	draw = trace_graph_get_draw(ginfo);
-
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
-					      draw);
-	gtk_widget_show(draw);
+	ginfo = trace_graph_create(handle);
+	widget = trace_graph_get_window(ginfo);
+	gtk_box_pack_start(GTK_BOX (hbox), widget, TRUE, TRUE, 0);
+	gtk_widget_show(widget);
 
 
 	/**********************************************
