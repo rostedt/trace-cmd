@@ -17,9 +17,18 @@
 #include <errno.h>
 
 #include "trace-cmd.h"
+#include "list.h"
 
 /* for debugging read instead of mmap */
 static int force_read = 0;
+
+struct page {
+	struct list_head	list;
+	off64_t			offset;
+	struct tracecmd_input	*handle;
+	void			*map;
+	int			ref_count;
+};
 
 struct cpu_data {
 	/* the first two never change */
@@ -28,28 +37,27 @@ struct cpu_data {
 	unsigned long long	offset;
 	unsigned long long	size;
 	unsigned long long	timestamp;
+	struct list_head	pages;
 	struct record		*next;
-	char			*page;
-	void			*read_page;
+	struct page		*page;
 	int			cpu;
 	int			index;
 	int			page_size;
 };
 
 struct tracecmd_input {
-	struct pevent	*pevent;
-	int		fd;
-	int		long_size;
-	int		page_size;
-	int		read_page;
-	int		cpus;
-	struct cpu_data *cpu_data;
+	struct pevent		*pevent;
+	int			fd;
+	int			long_size;
+	int			page_size;
+	int			read_page;
+	int			cpus;
+	struct cpu_data 	*cpu_data;
 
 	/* file information */
-	size_t		header_files_start;
-	size_t		ftrace_files_start;
-	size_t		event_files_start;
-	
+	size_t			header_files_start;
+	size_t			ftrace_files_start;
+	size_t			event_files_start;
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
@@ -109,7 +117,7 @@ static char *read_string(struct tracecmd_input *handle)
 		}
 		if (i < r)
 			break;
-			
+
 		if (str) {
 			size += BUFSIZ;
 			str = realloc(str, size);
@@ -121,7 +129,7 @@ static char *read_string(struct tracecmd_input *handle)
 			str = malloc(size);
 			if (!str)
 				return NULL;
-			memcpy(str, buf, size);	
+			memcpy(str, buf, size);
 		}
 	}
 
@@ -504,7 +512,97 @@ static unsigned int read_type_len_ts(struct tracecmd_input *handle, void *ptr)
 static int calc_index(struct tracecmd_input *handle,
 		      void *ptr, int cpu)
 {
-	return (unsigned long)ptr - (unsigned long)handle->cpu_data[cpu].page;
+	return (unsigned long)ptr - (unsigned long)handle->cpu_data[cpu].page->map;
+}
+
+
+static int read_page(struct tracecmd_input *handle, off64_t offset,
+		     void *map)
+{
+	off64_t save_seek;
+	off64_t ret;
+
+	/* other parts of the code may expect the pointer to not move */
+	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
+
+	ret = lseek64(handle->fd, offset, SEEK_SET);
+	if (ret < 0)
+		return -1;
+	ret = read(handle->fd, map, handle->page_size);
+	if (ret < 0)
+		return -1;
+
+	/* reset the file pointer back */
+	lseek64(handle->fd, save_seek, SEEK_SET);
+
+	return 0;
+}
+
+static struct page *allocate_page(struct tracecmd_input *handle,
+				  int cpu, off64_t offset)
+{
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	struct page *page;
+	int ret;
+
+	list_for_each_entry(page, &cpu_data->pages, struct page, list) {
+		if (page->offset == offset) {
+			page->ref_count++;
+			return page;
+		}
+	}
+
+	page = malloc(sizeof(*page));
+	if (!page)
+		return NULL;
+
+	memset(page, 0, sizeof(*page));
+	page->offset = offset;
+	page->handle = handle;
+
+	if (handle->read_page) {
+		page->map = malloc(handle->page_size);
+		if (page->map) {
+			ret = read_page(handle, offset, page->map);
+			if (ret < 0) {
+				free(page->map);
+				page->map = NULL;
+			}
+		}
+	} else {
+		page->map = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
+				 handle->fd, offset);
+		if (page->map == MAP_FAILED)
+			page->map = NULL;
+	}
+
+	if (!page->map) {
+		free(page);
+		return NULL;
+	}
+
+	list_add(&page->list, &cpu_data->pages);
+	page->ref_count = 1;
+
+	return page;
+}
+
+static void __free_page(struct tracecmd_input *handle, struct page *page)
+{
+	if (!page->ref_count)
+		die("Page ref count is zero!\n");
+
+	page->ref_count--;
+	if (page->ref_count)
+		return;
+
+	if (handle->read_page)
+		free(page->map);
+	else
+		munmap(page->map, handle->page_size);
+
+	list_del(&page->list);
+	free(page);
 }
 
 static void free_page(struct tracecmd_input *handle, int cpu)
@@ -512,17 +610,22 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 	if (!handle->cpu_data[cpu].page)
 		return;
 
-	if (!handle->read_page)
-		munmap(handle->cpu_data[cpu].page, handle->page_size);
+	__free_page(handle, handle->cpu_data[cpu].page);
 
 	handle->cpu_data[cpu].page = NULL;
 }
 
-static void free_read_page(struct tracecmd_input *handle, int cpu)
+void free_record(struct record *record)
 {
-	free_page(handle, cpu);
-	if (handle->read_page)
-		free(handle->cpu_data[cpu].read_page);
+	if (!record)
+		return;
+
+	if (record->private) {
+		struct page *page = record->private;
+		__free_page(page->handle, page);
+	}
+
+	free(record);
 }
 
 /*
@@ -531,7 +634,7 @@ static void free_read_page(struct tracecmd_input *handle, int cpu)
 static int update_page_info(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
-	void *ptr = handle->cpu_data[cpu].page;
+	void *ptr = handle->cpu_data[cpu].page->map;
 
 	/* FIXME: handle header page */
 	if (pevent->header_page_ts_size != 8) {
@@ -554,35 +657,6 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	}
 
 	handle->cpu_data[cpu].index = 0;
-
-	return 0;
-}
-
-static int get_read_page(struct tracecmd_input *handle, int cpu,
-			 off64_t offset)
-{
-	off64_t save_seek;
-	off64_t ret;
-
-	free_page(handle, cpu);
-
-	handle->cpu_data[cpu].page = handle->cpu_data[cpu].read_page;
-
-	/* other parts of the code may expect the pointer to not move */
-	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
-
-	ret = lseek64(handle->fd, offset, SEEK_SET);
-	if (ret < 0)
-		return -1;
-	ret = read(handle->fd, handle->cpu_data[cpu].page, handle->page_size);
-	if (ret < 0)
-		return -1;
-
-	/* reset the file pointer back */
-	lseek64(handle->fd, save_seek, SEEK_SET);
-
-	if (update_page_info(handle, cpu))
-		return -1;
 
 	return 0;
 }
@@ -623,15 +697,10 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 				      handle->cpu_data[cpu].file_size) -
 					offset;
 
-	if (handle->read_page)
-		return get_read_page(handle, cpu, offset);
+	free_page(handle, cpu);
 
-	if (handle->cpu_data[cpu].page)
-		free_page(handle, cpu);
-
-	handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
-					  handle->fd, offset);
-	if (handle->cpu_data[cpu].page == MAP_FAILED)
+	handle->cpu_data[cpu].page = allocate_page(handle, cpu, offset);
+	if (!handle->cpu_data[cpu].page)
 		return -1;
 
 	if (update_page_info(handle, cpu))
@@ -876,7 +945,7 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 	if (ret)
 		return 1;
 
-	record->data = cpu_data->page + index;
+	record->data = cpu_data->page->map + index;
 
 	type_len_ts = read_type_len_ts(handle, record->data);
 	len = len4host(handle, type_len_ts);
@@ -1140,9 +1209,9 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
 	struct record *record;
-	void *page = handle->cpu_data[cpu].page;
+	struct page *page = handle->cpu_data[cpu].page;
 	int index = handle->cpu_data[cpu].index;
-	void *ptr = page + index;
+	void *ptr;
 	unsigned long long extend;
 	unsigned int type_len;
 	int length;
@@ -1176,8 +1245,10 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	if (!page)
 		return NULL;
 
+	ptr = page->map + index;
+
 	if (!index)
-		ptr = handle->cpu_data[cpu].page + pevent->header_page_data_offset;
+		ptr = handle->cpu_data[cpu].page->map + pevent->header_page_data_offset;
 
 read_again:
 	index = calc_index(handle, ptr, cpu);
@@ -1236,6 +1307,8 @@ read_again:
 	handle->cpu_data[cpu].next = record;
 
 	record->record_size = handle->cpu_data[cpu].index - index;
+	record->private = page;
+	page->ref_count++;
 
 	return record;
 }
@@ -1261,63 +1334,37 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 	return record;
 }
 
-static int init_read(struct tracecmd_input *handle, int cpu)
-{
-	off64_t ret;
-	off64_t save_seek;
-
-	handle->cpu_data[cpu].read_page = malloc(handle->page_size);
-	if (!handle->cpu_data[cpu].read_page)
-		return -1;
-
-	handle->cpu_data[cpu].page = handle->cpu_data[cpu].read_page;
-
-	/* other parts of the code may expect the pointer to not move */
-	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
-
-	ret = lseek64(handle->fd, (off64_t)handle->cpu_data[cpu].offset, SEEK_SET);
-	if (ret < 0)
-		return -1;
-	ret = read(handle->fd, handle->cpu_data[cpu].page, handle->page_size);
-	if (ret < 0)
-		return -1;
-
-	/* reset the file pointer back */
-	lseek64(handle->fd, save_seek, SEEK_SET);
-
-	handle->cpu_data[cpu].timestamp =
-		data2host8(handle->pevent, handle->cpu_data[cpu].page);
-
-	return 0;
-}
-
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
-	handle->cpu_data[cpu].offset = handle->cpu_data[cpu].file_offset;
-	handle->cpu_data[cpu].size = handle->cpu_data[cpu].file_size;
-	handle->cpu_data[cpu].timestamp = 0;
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
 
-	if (!handle->cpu_data[cpu].size) {
+	cpu_data->offset = cpu_data->file_offset;
+	cpu_data->size = cpu_data->file_size;
+	cpu_data->timestamp = 0;
+
+	if (!cpu_data->size) {
 		printf("CPU %d is empty\n", cpu);
 		return 0;
 	}
 
-	if (handle->read_page)
-		return init_read(handle, cpu);
+	list_head_init(&cpu_data->pages);
 
-	if (!force_read) {
-		handle->cpu_data[cpu].page = mmap(NULL, handle->page_size, PROT_READ,
-				  MAP_PRIVATE, handle->fd, handle->cpu_data[cpu].offset);
-	}
-	if (force_read || handle->cpu_data[cpu].page == MAP_FAILED) {
-		/* fall back to just reading pages */
+	cpu_data->page = allocate_page(handle, cpu, cpu_data->offset);
+	if (!cpu_data->page && !handle->read_page) {
 		perror("mmap");
 		fprintf(stderr, "Can not mmap file, will read instead\n");
+
+		if (cpu)
+			/* Other CPUs worked! bail */
+			return -1;
+
+		/* try again without mmapping, just read it directly */
 		handle->read_page = 1;
-
-		return init_read(handle, cpu);
+		cpu_data->page = allocate_page(handle, cpu, cpu_data->offset);
+		if (!cpu_data->page)
+			/* Still no luck, bail! */
+			return -1;
 	}
-
 
 	if (update_page_info(handle, cpu))
 		return -1;
@@ -1373,6 +1420,9 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	if (!handle->cpu_data)
 		return -1;
 	memset(handle->cpu_data, 0, sizeof(*handle->cpu_data) * handle->cpus);
+
+	if (force_read)
+		handle->read_page = 1;
 
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		unsigned long long offset;
@@ -1498,8 +1548,20 @@ void tracecmd_close(struct tracecmd_input *handle)
 	if (!handle)
 		return;
 
-	for (cpu = 0; cpu < handle->cpus; cpu++)
-		free_read_page(handle, cpu);
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		struct record *rec;
+		/*
+		 * The tracecmd_peek_data may have cached a record
+		 * Do a read to flush it out.
+		 */
+		rec = tracecmd_read_data(handle, cpu);
+		if (rec)
+			free_record(rec);
+		free_page(handle, cpu);
+		if (!list_empty(&handle->cpu_data[cpu].pages))
+			warning("pages still allocated on cpu %d", cpu);
+	}
+
 	free(handle->cpu_data);
 
 	close(handle->fd);

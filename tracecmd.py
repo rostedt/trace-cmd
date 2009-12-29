@@ -31,13 +31,6 @@ and it is recommended applications not use it directly.
 TODO: consider a complete class hierarchy of ftrace events...
 """
 
-def _pevent_read_number_field(field, data):
-    ret,hi,lo = pevent_read_number_field_32(field, data)
-    if ret == 0:
-        return ret,long(long(hi).__lshift__(32)+lo)
-    return ret,None
-
-
 class Event(object):
     def __init__(self, trace, record):
         self.trace = trace
@@ -46,8 +39,8 @@ class Event(object):
         self.ec = pevent_data_event_from_type(trace.pe, type)
 
     def __str__(self):
-        return "%f %s: pid=%d comm=%s type=%d" % \
-               (self.ts, self.name, self.num_field("common_pid"), self.comm, self.type)
+        return "%d.%d %s: pid=%d comm=%s type=%d" % \
+               (self.ts/1000000000, self.ts%1000000000, self.name, self.num_field("common_pid"), self.comm, self.type)
 
 
     # TODO: consider caching the results of the properties
@@ -65,7 +58,6 @@ class Event(object):
 
     @property
     def ts(self):
-        # FIXME: this currently returns a float instead of a 64bit nsec value
         return record_ts_get(self.rec)
 
     @property
@@ -73,9 +65,8 @@ class Event(object):
         return pevent_data_type(self.trace.pe, self.rec)
 
     def num_field(self, name):
-        # FIXME: need to find an elegant way to handle 64bit fields
         f = pevent_find_any_field(self.ec, name)
-        ret,val = _pevent_read_number_field(f, record_data_get(self.rec))
+        val = pevent_read_number_field_py(f, record_data_get(self.rec))
         return val
 
 

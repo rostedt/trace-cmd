@@ -15,12 +15,13 @@
 #endif
 
 struct record {
-	unsigned long long ts;
-	unsigned long long offset;
-	int record_size;		/* size of binary record */
-	int size;			/* size of data */
-	void *data;
-	int cpu;
+	unsigned long long	ts;
+	unsigned long long	offset;
+	int			record_size;	/* size of binary record */
+	int			size;		/* size of data */
+	void			*data;
+	int			cpu;
+	void			*private;
 };
 
 /*
