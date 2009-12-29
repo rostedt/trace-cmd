@@ -467,7 +467,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		data = tracecmd_read_at(trace_view_store->handle, record->offset, &cpu);
 		g_assert(data != NULL);
 		if (cpu != record->cpu) {
-			free(data);
+			free_record(data);
 			return;
 		}
 
@@ -504,7 +504,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 			g_value_set_string(value, s.buffer);
 			break;
 		}
-		free(data);
+		free_record(data);
 	}
 }
 
@@ -875,7 +875,7 @@ trace_view_store_new (struct tracecmd_input *handle)
 			rec->ts = data->ts;
 			rec->next = NULL;
 			next = &rec->next;
-			free(data);
+			free_record(data);
 			count++;
 			data = tracecmd_read_data(handle, cpu);
 		}
