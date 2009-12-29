@@ -154,7 +154,7 @@ static int load_plugin(struct pevent *pevent,
 	char *plugin;
 	void *handle;
 	pevent_plugin_load_func func;
-	int ret;
+	int ret = -1;
 
 	plugin = malloc_or_die(strlen(path) + strlen(file) + 2);
 
@@ -166,18 +166,21 @@ static int load_plugin(struct pevent *pevent,
 	if (!handle) {
 		warning("cound not load plugin '%s'\n%s\n",
 			plugin, dlerror());
-		return -1;
+		goto out;
 	}
 
 	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
 	if (!func) {
 		warning("cound not find func '%s' in plugin '%s'\n%s\n",
 			PEVENT_PLUGIN_LOADER_NAME, plugin, dlerror());
-		return -1;
+		goto out;
 	}
 
 	printf("registering plugin: %s\n", plugin);
 	ret = func(pevent);
+
+ out:
+	free(plugin);
 
 	/* dlclose ?? */
 	return ret;
@@ -262,5 +265,7 @@ int trace_load_plugins(struct pevent *pevent)
 
  fail:
 	free(path);
+	closedir(dir);
+
 	return -1;
 }
