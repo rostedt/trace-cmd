@@ -917,6 +917,8 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
  * by reading new records the mmap section may be unmapped.
  * This will refresh the record's data mapping.
  *
+ * ===== OBSOLETED BY PAGE REFERENCES =====
+ *
  * Returns 1 if page is still mapped (does not modify CPU iterator)
  *         0 on successful mapping (was not mapped before,
  *                      This will update CPU iterator to point to
@@ -1215,7 +1217,6 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	unsigned long long extend;
 	unsigned int type_len;
 	int length;
-	int ret;
 
 	/* Hack to work around function graph read ahead */
 	tracecmd_curr_thread_handle = handle;
@@ -1223,17 +1224,11 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	if (handle->cpu_data[cpu].next) {
 		/* Make sure it's still mapped */
 		record = handle->cpu_data[cpu].next;
-		ret = tracecmd_refresh_record(handle, record);
-		if (ret < 0) {
-			free_record(record);
-			handle->cpu_data[cpu].next = NULL;
-			return NULL;
-		}
 		/*
 		 * Make sure the index and timestamp are where
-		 * we want them, because the refresh did not update it.
+		 * we want them.
 		 */
-		if (ret && handle->cpu_data[cpu].timestamp != record->ts) {
+		if (handle->cpu_data[cpu].timestamp != record->ts) {
 			handle->cpu_data[cpu].index =
 				(record->offset & (handle->page_size - 1)) +
 				record->record_size;
