@@ -22,10 +22,7 @@ enum {
 #define TS_SHIFT		27
 #endif
 
-static inline void free_record(struct record *record)
-{
-	free(record);
-}
+void free_record(struct record *record);
 
 struct tracecmd_input;
 struct tracecmd_output;
