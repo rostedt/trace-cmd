@@ -617,6 +617,9 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 
 void free_record(struct record *record)
 {
+	if (!record)
+		return;
+
 	if (record->private) {
 		struct page *page = record->private;
 		__free_page(page->handle, page);
