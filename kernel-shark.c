@@ -18,12 +18,15 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <gtk/gtk.h>
+#include <getopt.h>
+#include <string.h>
 
 #include "trace-compat.h"
 #include "trace-cmd.h"
@@ -34,7 +37,15 @@
 #define TRACE_WIDTH	800
 #define TRACE_HEIGHT	600
 
-#define input_file "trace.dat"
+#define default_input_file "trace.dat"
+static char *input_file = default_input_file;
+
+void usage(char *prog)
+{
+	printf("Usage: %s\n", prog);
+	printf("  -h	Display this help message\n");
+	printf("  -i	input_file, default is %s\n", default_input_file);
+}
 
 /* graph callbacks */
 
@@ -161,6 +172,21 @@ void kernel_shark(int argc, char **argv)
 	GtkWidget *draw;
 	GtkWidget *label;
 	GtkWidget *spin;
+	int c;
+
+	while ((c = getopt(argc, argv, "hi:")) != -1) {
+		switch(c) {
+		case 'h':
+			usage(basename(argv[0]));
+			return;
+		case 'i':
+			input_file = optarg;
+			break;
+		default:
+			/* assume the other options are for gtk */
+			break;
+		}
+	}
 
 	info = g_new0(typeof(*info), 1);
 	if (!info)
