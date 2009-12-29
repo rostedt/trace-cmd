@@ -263,9 +263,9 @@ int trace_load_plugins(struct pevent *pevent)
 		load_plugin(pevent, path, name);
 	}
 
+	closedir(dir);
  fail:
 	free(path);
-	closedir(dir);
 
 	return -1;
 }
