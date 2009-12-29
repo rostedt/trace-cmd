@@ -7,6 +7,14 @@ from tracecmd import *
 app = None
 data_func_cnt = 0
 
+# In a "real" app these width should be determined at runtime testing max length
+# strings in the current font.
+TS_COL_W    = 150
+CPU_COL_W   = 35
+EVENT_COL_W = 150
+PID_COL_W   = 75
+COMM_COL_W  = 250
+
 class EventStore(gtk.ListStore):
     def __init__(self, trace):
         gtk.ListStore.__init__(self, gobject.TYPE_PYOBJECT)
@@ -27,32 +35,43 @@ class EventStore(gtk.ListStore):
 class EventView(gtk.TreeView):
     def __init__(self, model):
         gtk.TreeView.__init__(self, model)
+        self.set_fixed_height_mode(True)
 
         ts_col = gtk.TreeViewColumn("Time (s)")
+        ts_col.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
+        ts_col.set_fixed_width(TS_COL_W)
         ts_cell = gtk.CellRendererText()
         ts_col.pack_start(ts_cell, False)
         ts_col.set_cell_data_func(ts_cell, self.data_func, "ts")
         self.append_column(ts_col)
 
         cpu_col = gtk.TreeViewColumn("CPU")
+        cpu_col.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
+        cpu_col.set_fixed_width(CPU_COL_W)
         cpu_cell = gtk.CellRendererText()
         cpu_col.pack_start(cpu_cell, False)
         cpu_col.set_cell_data_func(cpu_cell, self.data_func, "cpu")
         self.append_column(cpu_col)
 
         event_col = gtk.TreeViewColumn("Event")
+        event_col.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
+        event_col.set_fixed_width(EVENT_COL_W)
         event_cell = gtk.CellRendererText()
         event_col.pack_start(event_cell, False)
         event_col.set_cell_data_func(event_cell, self.data_func, "event")
         self.append_column(event_col)
 
         pid_col = gtk.TreeViewColumn("PID")
+        pid_col.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
+        pid_col.set_fixed_width(PID_COL_W)
         pid_cell = gtk.CellRendererText()
         pid_col.pack_start(pid_cell, False)
         pid_col.set_cell_data_func(pid_cell, self.data_func, "pid")
         self.append_column(pid_col)
 
         comm_col = gtk.TreeViewColumn("Comm")
+        comm_col.set_sizing(gtk.TREE_VIEW_COLUMN_FIXED)
+        comm_col.set_fixed_width(COMM_COL_W)
         comm_cell = gtk.CellRendererText()
         comm_col.pack_start(comm_cell, False)
         comm_col.set_cell_data_func(comm_cell, self.data_func, "comm")
@@ -60,9 +79,6 @@ class EventView(gtk.TreeView):
 
     def data_func(self, col, cell, model, iter, data):
         global app, data_func_cnt
-        data_func_cnt = data_func_cnt + 1
-        if app:
-            app.inc_data_func()
 
         ev = model.get_event(iter)
         if not ev:
@@ -70,6 +86,9 @@ class EventView(gtk.TreeView):
         if data == "ts":
             cell.set_property("markup", "%d.%d" % (ev.ts/1000000000,
                                                    ev.ts%1000000000))
+            data_func_cnt = data_func_cnt + 1
+            if app:
+                app.inc_data_func()
             return True
         if data == "cpu":
             cell.set_property("markup", ev.cpu)
@@ -108,7 +127,7 @@ class EventViewerApp(gtk.Window):
         # track how often the treeview data_func is called
         self.data_func_label = gtk.Label("0")
         hbox = gtk.HBox()
-        hbox.pack_start(gtk.Label("Data Func Calls:"), False, False)
+        hbox.pack_start(gtk.Label("TS Data Func Calls:"), False, False)
         hbox.pack_start(self.data_func_label, False, False)
 
         vbox = gtk.VBox()
