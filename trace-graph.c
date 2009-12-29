@@ -415,7 +415,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 		else
 			trace_seq_puts(&s, " <idle>");
 
-		free(record);
+		free_record(record);
 
 	} else
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
@@ -969,7 +969,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		p1 = p2;
 		p2 = p3;
 		last_event_id = event_id;
-		free(record);
+		free_record(record);
 	}
 
 	if (p2)
@@ -988,8 +988,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			      x, CPU_BOTTOM(cpu));
 	}
 
-	if (record)
-		free(record);
+	free_record(record);
 }
 
 
