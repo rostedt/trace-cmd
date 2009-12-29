@@ -44,6 +44,9 @@ class Event(object):
                (self.ts/1000000000, self.ts%1000000000, self.cpu, self.name,
                 self.num_field("common_pid"), self.comm, self.type)
 
+    def __del__(self):
+        free_record(self.rec);
+
 
     # TODO: consider caching the results of the properties
     @property
@@ -100,6 +103,8 @@ class Trace(object):
     def read_event(self, cpu):
         rec = tracecmd_read_data(self.handle, cpu)
         if rec:
+            #rec.acquire()
+            #rec.thisown = 1
             return Event(self, rec, cpu)
         return None
 
@@ -108,7 +113,11 @@ class Trace(object):
         # SWIG only returns the CPU if the record is None for some reason
         if isinstance(res, int):
             return None
-        return Event(self, res[0], res[1])
+        rec,cpu = res
+        #rec.acquire()
+        #rec.thisown = 1
+        ev = Event(self, rec, cpu)
+        return ev
 
     def peek_event(self, cpu):
         pass

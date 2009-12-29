@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
+import getopt
 from gobject import *
 import gtk
 from tracecmd import *
+import time
 
 app = None
 data_func_cnt = 0
@@ -15,21 +17,136 @@ EVENT_COL_W = 150
 PID_COL_W   = 75
 COMM_COL_W  = 250
 
-class EventStore(gtk.ListStore):
+
+def timing(func):
+  def wrapper(*arg):
+      start = time.time()
+      ret = func(*arg)
+      end = time.time()
+      print '@%s took %0.3f s' % (func.func_name, (end-start))
+      return ret
+  return wrapper
+
+
+class EventStore(gtk.GenericTreeModel):
+    class EventRef(object):
+        '''Inner class to build the trace event index'''
+        def __init__(self, index, timestamp, offset, cpu):
+            self.index = index
+            self.offset = offset
+            self.ts = timestamp
+            self.cpu = cpu
+
+        def __cmp__(self, other):
+            if self.ts < other.ts:
+                return -1
+            if self.ts > other.ts:
+                return 1
+            if self.offset < other.offset:
+                return -1
+            if self.offset > other.offset:
+                return 1
+            return 0
+
+    # The store only returns the record offset into the trace
+    # The view is responsible for looking up the Event with the offset
+    column_types = (long,)
+
+    @timing
     def __init__(self, trace):
-        gtk.ListStore.__init__(self, gobject.TYPE_PYOBJECT)
+        gtk.GenericTreeModel.__init__(self)
         self.trace = trace
+        self.refs = []
+        self._load_trace()
+        self._sort()
+        self._reindex()
+
+    @timing
+    def _load_trace(self):
+        print "Building trace index..."
+        index = 0
         for cpu in range(0, trace.cpus):
-            ev = trace.read_event(cpu)
-            while ev:
-                # store the record offset into the trace file
-                self.append([record_offset_get(ev.rec)])
-                ev = trace.read_event(cpu)
-        print "Loaded %d events across %d cpus" % (len(self), trace.cpus)
+            rec = tracecmd_read_data(self.trace.handle, cpu)
+            while rec:
+                offset = record_offset_get(rec)
+                ts = record_ts_get(rec)
+                self.refs.append(self.EventRef(index, ts, offset, cpu))
+                index = index + 1
+                rec = tracecmd_read_data(self.trace.handle, cpu)
+        print "Loaded %d events from trace" % (index)
+
+    @timing
+    def _sort(self):
+        self.refs.sort()
+
+    @timing
+    def _reindex(self):
+        for i in range(0, len(self.refs)):
+            self.refs[i].index = i
+
+    def on_get_flags(self):
+        return gtk.TREE_MODEL_LIST_ONLY | gtk.TREE_MODEL_ITERS_PERSIST
+
+    def on_get_n_columns(self):
+        return len(self.column_types)
+
+    def on_get_column_type(self, col):
+        return self.column_types[col]
+
+    def on_get_iter(self, path):
+        return self.refs[path[0]]
+
+    def on_get_path(self, ref):
+        return ref.index
+
+    def on_get_value(self, ref, col):
+        '''
+        The Event record was getting deleted when passed back via this
+        method, now it just returns the ref itself. Use get_event() instead.
+        '''
+        if col == 0:
+            #return self.trace.read_event_at(ref.offset)
+            return ref
+        return None
+
+    def on_iter_next(self, ref):
+        try:
+            return self.refs[ref.index+1]
+        except IndexError:
+            return None
+
+    def on_iter_children(self, ref):
+        if ref:
+            return None
+        return self.refs[0]
+
+    def on_iter_has_child(self, ref):
+        return False
+
+    def on_iter_n_children(self, ref):
+        if ref:
+            return 0
+        return len(self.refs)
+
+    def on_iter_nth_child(self, ref, n):
+        if ref:
+            return None
+        try:
+            return self.refs[n]
+        except IndexError:
+            return None
+
+    def on_iter_parent(self, child):
+        return None
 
     def get_event(self, iter):
-        offset = self.get_value(iter, 0)
-        return self.trace.read_event_at(offset)
+        '''This allocates a record which must be freed by the caller'''
+        try:
+            ref = self.refs[self.get_path(iter)[0]]
+            ev = self.trace.read_event_at(ref.offset)
+            return ev
+        except IndexError:
+            return None
 
 
 class EventView(gtk.TreeView):
@@ -81,29 +198,29 @@ class EventView(gtk.TreeView):
         global app, data_func_cnt
 
         ev = model.get_event(iter)
+        #ev = model.get_value(iter, 0)
         if not ev:
             return False
+
         if data == "ts":
             cell.set_property("markup", "%d.%d" % (ev.ts/1000000000,
                                                    ev.ts%1000000000))
             data_func_cnt = data_func_cnt + 1
             if app:
                 app.inc_data_func()
-            return True
-        if data == "cpu":
+        elif data == "cpu":
             cell.set_property("markup", ev.cpu)
-            return True
-        if data == "event":
+        elif data == "event":
             cell.set_property("markup", ev.name)
-            return True
-        if data == "pid":
+        elif data == "pid":
             cell.set_property("markup", ev.pid)
-            return True
-        if data == "comm":
+        elif data == "comm":
             cell.set_property("markup", ev.comm)
-            return True
+        else:
+            print "Unknown Column:", data
+            return False
 
-        return False
+        return True
 
 
 class EventViewerApp(gtk.Window):
@@ -116,9 +233,8 @@ class EventViewerApp(gtk.Window):
         self.connect("destroy", gtk.main_quit)
         self.set_title("Event Viewer")
 
-
-        es = EventStore(trace)
-        view = EventView(es)
+        store = EventStore(trace)
+        view = EventView(store)
 
         sw = gtk.ScrolledWindow()
         sw.set_policy(gtk.POLICY_NEVER, gtk.POLICY_ALWAYS)
@@ -143,6 +259,14 @@ class EventViewerApp(gtk.Window):
 
 
 if __name__ == "__main__":
-    trace = Trace("trace.dat")
+    if len(sys.argv) >=2:
+        filename = sys.argv[1]
+    else:
+        filename = "trace.dat"
+
+    print "Initializing trace..."
+    trace = Trace(filename)
+    print "Initializing app..."
     app = EventViewerApp(trace)
+    print "Go!"
     gtk.main()
