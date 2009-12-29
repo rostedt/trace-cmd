@@ -2183,6 +2183,11 @@ process_arg_token(struct event_format *event, struct print_arg *arg,
 		arg->op.op = token;
 		arg->op.left = NULL;
 		type = process_op(event, arg, &token);
+
+		/* On error, the op is freed */
+		if (type == EVENT_ERROR)
+			arg->op.op = NULL;
+
 		/* return error type if errored */
 		break;
 
