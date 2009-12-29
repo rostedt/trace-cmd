@@ -32,10 +32,16 @@
 
 #define MAX_WIDTH	10000
 
-#define CPU_MIDDLE(cpu) (80 * (cpu) + 80)
-#define CPU_TOP(cpu) (CPU_MIDDLE(cpu) - 10)
-#define CPU_BOTTOM(cpu) (CPU_MIDDLE(cpu) + 10)
+#define CPU_SIZE	10
+#define CPU_BOX_SIZE	CPU_SIZE
+#define CPU_GIVE	2
+#define CPU_LINE(cpu) (80 * (cpu) + 80 + CPU_SIZE)
+#define CPU_TOP(cpu) (CPU_LINE(cpu) - CPU_SIZE * 2)
+#define CPU_BOX_TOP(cpu) (CPU_LINE(cpu) - CPU_SIZE)
+#define CPU_BOTTOM(cpu) (CPU_LINE(cpu)-1)
+#define CPU_BOX_BOTTOM(cpu) (CPU_LINE(cpu))
 #define CPU_SPACE(cpus) (80 * (cpus) + 80)
+#define CPU_LABEL(cpu) (CPU_BOTTOM(cpu))
 
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
@@ -73,7 +79,7 @@ static void __update_with_backend(struct graph_info *ginfo,
 static void clear_old_cpu_label(struct graph_info *ginfo, gint cpu)
 {
 	__update_with_backend(ginfo,
-			      ginfo->cpu_x, CPU_TOP(cpu),
+			      ginfo->cpu_x, CPU_LABEL(cpu),
 			      largest_cpu_label+1, 20);
 }
 
@@ -102,11 +108,11 @@ static void __draw_cpu_label(struct graph_info *ginfo, gint cpu)
 	gdk_draw_rectangle(ginfo->draw->window,
 			   ginfo->draw->style->white_gc,
 			   TRUE,
-			   ginfo->cpu_x, CPU_TOP(cpu)+4,
+			   ginfo->cpu_x, CPU_LABEL(cpu)+4,
 			   width, height);
 	gdk_draw_layout(ginfo->draw->window,
 			ginfo->draw->style->black_gc,
-			ginfo->cpu_x + 2, CPU_TOP(cpu) + 4,
+			ginfo->cpu_x + 2, CPU_LABEL(cpu) + 4,
 			layout);
 	g_object_unref(layout);
 }
@@ -500,9 +506,9 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	}
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		if (y >= CPU_TOP(cpu) && y <= CPU_BOTTOM(cpu)) {
+		if (y >= (CPU_TOP(cpu) - CPU_GIVE) &&
+		    y <= (CPU_BOTTOM(cpu) + CPU_GIVE))
 			draw_cpu_info(ginfo, cpu, x, y);
-		}
 	}
 
 	return TRUE;
@@ -862,7 +868,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
-	gint height = CPU_MIDDLE(cpu);
+	gint height = CPU_LINE(cpu);
 	struct record *record;
 	static GdkGC *gc;
 	static gint width_16;
@@ -935,14 +941,11 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			if (last_pid < 0)
 				last_pid = pid;
 
-			if (last_pid) {
-				gdk_draw_line(ginfo->curr_pixmap, gc,
-					      last_x, CPU_TOP(cpu),
-					      x, CPU_TOP(cpu));
-				gdk_draw_line(ginfo->curr_pixmap, gc,
-					      last_x, CPU_BOTTOM(cpu),
-					      x, CPU_BOTTOM(cpu));
-			}
+			if (last_pid)
+				gdk_draw_rectangle(ginfo->curr_pixmap, gc,
+						   TRUE,
+						   last_x, CPU_BOX_TOP(cpu),
+						   x - last_x, CPU_BOX_SIZE);
 
 			last_x = x;
 			last_pid = pid;
@@ -980,12 +983,10 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	if (last_pid > 0) {
 		x = ginfo->draw_width;
 
-		gdk_draw_line(ginfo->curr_pixmap, gc,
-			      last_x, CPU_TOP(cpu),
-			      x, CPU_TOP(cpu));
-		gdk_draw_line(ginfo->curr_pixmap, gc,
-			      last_x, CPU_BOTTOM(cpu),
-			      x, CPU_BOTTOM(cpu));
+		gdk_draw_rectangle(ginfo->curr_pixmap, gc,
+				   TRUE,
+				   last_x, CPU_BOX_TOP(cpu),
+				   x - last_x, CPU_BOX_SIZE);
 	}
 
 	free_record(record);
