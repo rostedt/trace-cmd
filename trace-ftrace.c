@@ -255,10 +255,7 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 		/*
 		 * The record returned needs to be freed.
 		 * We also do a new peek on this CPU to update the
-		 * record cache. (peek caches the record, but the
-		 * refresh below will update the CPU iterator.
-		 * If peek has a record in cache, it will update the
-		 * iterator to that)
+		 * record cache.
 		 */
 		ret = print_graph_entry_leaf(s, event, data, rec);
 		free_record(rec);
@@ -268,19 +265,6 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 
 	free(data);
 
-	/*
-	 * The above peek may unmap the record given to us.
-	 * But callers may still have a reference to that record.
-	 * We need to make sure it is still mapped.
-	 *
-	 * Note, this causes a known bug. If the last item in the trace
-	 * was a leaf function, we can't remove it. The peek cache
-	 * above will be NULL (no records after the leaf) so a new peek
-	 * will simply read the return entry of the leaf and print it
-	 * again.
-	 */
-	tracecmd_refresh_record(tracecmd_curr_thread_handle,
-				record);
 	return ret;
 }
 
