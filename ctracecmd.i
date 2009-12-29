@@ -2,13 +2,22 @@
 %module ctracecmd
 %include typemaps.i
 
+/* return a (rec,cpu) tuple in python */
+extern struct record *tracecmd_read_at(struct tracecmd_input *handle, 
+                                       unsigned long long offset,
+                                       int *OUTPUT);
+
+
 %{
 #include "trace-cmd.h"
 %}
 
+
+/* return python longs from unsigned long long functions */
 %typemap(out) unsigned long long {
 $result = PyLong_FromUnsignedLongLong((unsigned long long) $1);
 }
+
 
 %inline %{
 PyObject *pevent_read_number_field_py(struct format_field *f, void *data)
