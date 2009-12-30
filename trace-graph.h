@@ -17,9 +17,11 @@ struct graph_info {
 	gint			cpus;
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
+	GtkWidget		*info_scrollwin; /* graph scroll window (for info widget) */
 	GtkWidget		*info;		/* info window */
 	GtkWidget		*draw;
 	GdkPixmap		*curr_pixmap;	/* pixmap backstore */
+	GdkPixmap		*info_pixmap;	/* pixmap backstore */
 	GtkAdjustment		*vadj;		/* scrollwindow vert adjust */
 	guint64			start_time;	/* True start time of trace */
 	guint64			end_time;	/* True end time of trace */

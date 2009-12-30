@@ -41,7 +41,8 @@
 #define CPU_BOTTOM(cpu) (CPU_LINE(cpu)-1)
 #define CPU_BOX_BOTTOM(cpu) (CPU_LINE(cpu))
 #define CPU_SPACE(cpus) (80 * (cpus) + 80)
-#define CPU_LABEL(cpu) (CPU_BOTTOM(cpu))
+#define CPU_LABEL(cpu) (CPU_TOP(cpu))
+#define CPU_X		5
 
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
@@ -76,65 +77,6 @@ static void __update_with_backend(struct graph_info *ginfo,
 			  width, height);
 }
 
-static void clear_old_cpu_label(struct graph_info *ginfo, gint cpu)
-{
-	__update_with_backend(ginfo,
-			      ginfo->cpu_x, CPU_LABEL(cpu),
-			      largest_cpu_label+1, 20);
-}
-
-static void clear_old_cpu_labels(struct graph_info *ginfo)
-{
-	gint cpu;
-
-	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		clear_old_cpu_label(ginfo, cpu);
-}
-
-static void __draw_cpu_label(struct graph_info *ginfo, gint cpu)
-{
-	PangoLayout *layout;
-	gchar buf[BUFSIZ];
-	gint width, height;
-
-	snprintf(buf, BUFSIZ, "CPU %d", cpu);
-
-	layout = gtk_widget_create_pango_layout(ginfo->draw, buf);
-	pango_layout_get_pixel_size(layout, &width, &height);
-	width += 4;
-
-	if (width > largest_cpu_label)
-		largest_cpu_label = width;
-	gdk_draw_rectangle(ginfo->draw->window,
-			   ginfo->draw->style->white_gc,
-			   TRUE,
-			   ginfo->cpu_x, CPU_LABEL(cpu)+4,
-			   width, height);
-	gdk_draw_layout(ginfo->draw->window,
-			ginfo->draw->style->black_gc,
-			ginfo->cpu_x + 2, CPU_LABEL(cpu) + 4,
-			layout);
-	g_object_unref(layout);
-}
-
-static void draw_cpu_label(struct graph_info *ginfo, gint cpu)
-{
-	clear_old_cpu_label(ginfo, cpu);
-	__draw_cpu_label(ginfo, cpu);
-}
-
-
-static void draw_cpu_labels(struct graph_info *ginfo)
-{
-	gint cpu;
-
-	clear_old_cpu_labels(ginfo);
-	ginfo->cpu_x = gtk_adjustment_get_value(ginfo->vadj) + 5;
-
-	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		__draw_cpu_label(ginfo, cpu);
-}
-
 static void draw_cursor(struct graph_info *ginfo)
 {
 	gint x;
@@ -154,20 +96,10 @@ static void update_with_backend(struct graph_info *ginfo,
 				gint x, gint y,
 				gint width, gint height)
 {
-	gint cpu;
-
 	__update_with_backend(ginfo, x, y, width, height);
 
 	if (ginfo->cursor)
 		draw_cursor(ginfo);
-
-	for (cpu = 0; cpu < ginfo->cpus; cpu++ ) {
-		if (y <= CPU_BOTTOM(cpu) &&
-		    y + height > CPU_TOP(cpu) &&
-		    x + width > ginfo->cpu_x &&
-		    x <= ginfo->cpu_x + largest_cpu_label)
-			draw_cpu_label(ginfo, cpu);
-	}
 }
 
 static gboolean
@@ -677,12 +609,13 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 static gboolean
 value_changed(GtkWidget *widget, gpointer data)
 {
+#if 0
 	struct graph_info *ginfo = data;
 	GtkAdjustment *adj = GTK_ADJUSTMENT(widget);
 
-	draw_cpu_labels(ginfo);
 	printf("value = %f\n",
 	       gtk_adjustment_get_value(adj));
+#endif
 
 	return TRUE;
 
@@ -1096,8 +1029,6 @@ static void draw_info(struct graph_info *ginfo,
 		draw_cpu(ginfo, cpu, new_width, read_comms);
 
 	read_comms = 0;
-
-	draw_cpu_labels(ginfo);
 }
 
 void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
@@ -1225,6 +1156,103 @@ destroy_event(GtkWidget *widget, gpointer data)
 	return TRUE;
 }
 
+static gboolean
+info_expose_event(GtkWidget *widget, GdkEventExpose *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	gdk_draw_drawable(ginfo->info->window,
+			  ginfo->info->style->fg_gc[GTK_WIDGET_STATE(ginfo->info)],
+			  ginfo->info_pixmap,
+			  event->area.x, event->area.y,
+			  event->area.x, event->area.y,
+			  event->area.width, event->area.height);
+
+	return FALSE;
+}
+
+static void info_draw_cpu_label(struct graph_info *ginfo, gint cpu)
+{
+	PangoLayout *layout;
+	gchar buf[BUFSIZ];
+	gint width, height;
+
+	snprintf(buf, BUFSIZ, "CPU %d", cpu);
+
+	layout = gtk_widget_create_pango_layout(ginfo->info, buf);
+	pango_layout_get_pixel_size(layout, &width, &height);
+	width += 4;
+
+	if (width > largest_cpu_label)
+		largest_cpu_label = width;
+	gdk_draw_rectangle(ginfo->info_pixmap,
+			   ginfo->info->style->white_gc,
+			   TRUE,
+			   CPU_X, CPU_LABEL(cpu)+4,
+			   width, height);
+	gdk_draw_layout(ginfo->info_pixmap,
+			ginfo->info->style->black_gc,
+			CPU_X+ 2, CPU_LABEL(cpu) + 4,
+			layout);
+	g_object_unref(layout);
+}
+
+static void info_draw_cpu_labels(struct graph_info *ginfo)
+{
+	gint cpu;
+#if 0
+	clear_old_cpu_labels(ginfo);
+	ginfo->cpu_x = gtk_adjustment_get_value(ginfo->vadj) + 5;
+#endif
+
+	for (cpu = 0; cpu < ginfo->cpus; cpu++)
+		info_draw_cpu_label(ginfo, cpu);
+}
+
+static gboolean
+info_configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	if (ginfo->info_pixmap)
+		g_object_unref(ginfo->info_pixmap);
+
+	ginfo->info_pixmap = gdk_pixmap_new(ginfo->info->window,
+					    ginfo->info->allocation.width,
+					    ginfo->info->allocation.height,
+					    -1);
+
+	gdk_draw_rectangle(ginfo->info_pixmap,
+			   ginfo->info->style->white_gc,
+			   TRUE,
+			   0, 0,
+			   ginfo->info->allocation.width,
+			   ginfo->info->allocation.height);
+
+	info_draw_cpu_labels(ginfo);
+
+	gtk_widget_set_size_request(ginfo->info, largest_cpu_label + 10,
+				    ginfo->draw_height);
+	
+	return TRUE;
+}
+
+static GtkWidget *
+create_graph_info(struct graph_info *ginfo)
+{
+	GtkWidget *info;
+
+	info = gtk_drawing_area_new();
+
+	gtk_signal_connect(GTK_OBJECT(info), "expose_event",
+			   (GtkSignalFunc) info_expose_event, ginfo);
+	gtk_signal_connect(GTK_OBJECT(info), "configure_event",
+			   (GtkSignalFunc) info_configure_event, ginfo);
+
+	gtk_widget_set_events(info, GDK_EXPOSURE_MASK);
+
+	return info;
+}
 
 struct graph_info *
 trace_graph_create_with_callbacks(struct tracecmd_input *handle,
@@ -1255,6 +1283,22 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	gtk_widget_show(ginfo->scrollwin);
+
+
+	ginfo->info_scrollwin = gtk_scrolled_window_new(NULL,
+		gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin)));
+
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ginfo->info_scrollwin),
+				       GTK_POLICY_NEVER,
+				       GTK_POLICY_NEVER);
+	gtk_widget_show(ginfo->info_scrollwin);
+	gtk_box_pack_start(GTK_BOX(ginfo->widget), ginfo->info_scrollwin, FALSE, FALSE, 0);
+
+	ginfo->info = create_graph_info(ginfo);
+	gtk_widget_show(ginfo->info);
+
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(ginfo->info_scrollwin),
+					      ginfo->info);
 
 	gtk_box_pack_start(GTK_BOX (ginfo->widget), ginfo->scrollwin, TRUE, TRUE, 0);
 
