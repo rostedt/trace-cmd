@@ -119,10 +119,12 @@ plugin_mac80211.so: plugin_mac80211.o
 
 
 .PHONY: python
-python:	$(TCMD_LIB_OBJS) trace-cmd.o trace-read.o
+python:	$(TCMD_LIB_OBJS)
 	swig -Wall -python -noproxy ctracecmd.i
+	#swig -Wall -python ctracecmd.i
 	gcc -fpic -c  `python-config --includes` ctracecmd_wrap.c
 	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
+	#$(CC) --shared $^ ctracecmd_wrap.o -o _ctracecmd.so
 
 
 .PHONY: force

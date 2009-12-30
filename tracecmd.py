@@ -32,15 +32,20 @@ TODO: consider a complete class hierarchy of ftrace events...
 """
 
 class Event(object):
-    def __init__(self, trace, record):
+    def __init__(self, trace, record, cpu):
         self.trace = trace
         self.rec = record
+        self.cpu = cpu
         type = pevent_data_type(trace.pe, record)
-        self.ec = pevent_data_event_from_type(trace.pe, type)
+        self.format = pevent_data_event_from_type(trace.pe, type)
 
     def __str__(self):
-        return "%d.%d %s: pid=%d comm=%s type=%d" % \
-               (self.ts/1000000000, self.ts%1000000000, self.name, self.num_field("common_pid"), self.comm, self.type)
+        return "%d.%d CPU%d %s: pid=%d comm=%s type=%d" % \
+               (self.ts/1000000000, self.ts%1000000000, self.cpu, self.name,
+                self.num_field("common_pid"), self.comm, self.type)
+
+    def __del__(self):
+        free_record(self.rec);
 
 
     # TODO: consider caching the results of the properties
@@ -50,7 +55,7 @@ class Event(object):
 
     @property
     def name(self):
-        return event_name_get(self.ec)
+        return event_format_name_get(self.format)
 
     @property
     def pid(self):
@@ -65,7 +70,7 @@ class Event(object):
         return pevent_data_type(self.trace.pe, self.rec)
 
     def num_field(self, name):
-        f = pevent_find_any_field(self.ec, name)
+        f = pevent_find_any_field(self.format, name)
         val = pevent_read_number_field_py(f, record_data_get(self.rec))
         return val
 
@@ -82,9 +87,7 @@ class Trace(object):
         self.pe = None
 
         try:
-            file = open(filename)
-            self.handle = tracecmd_open(file.fileno())
-            print "self.handle: ", self.handle
+            self.handle = tracecmd_open(filename)
             #FIXME: check if these throw exceptions automatically or if we have
             #       to check return codes manually
             tracecmd_read_headers(self.handle)
@@ -100,8 +103,21 @@ class Trace(object):
     def read_event(self, cpu):
         rec = tracecmd_read_data(self.handle, cpu)
         if rec:
-            return Event(self, rec)
+            #rec.acquire()
+            #rec.thisown = 1
+            return Event(self, rec, cpu)
         return None
+
+    def read_event_at(self, offset):
+        res = tracecmd_read_at(self.handle, offset)
+        # SWIG only returns the CPU if the record is None for some reason
+        if isinstance(res, int):
+            return None
+        rec,cpu = res
+        #rec.acquire()
+        #rec.thisown = 1
+        ev = Event(self, rec, cpu)
+        return ev
 
     def peek_event(self, cpu):
         pass
