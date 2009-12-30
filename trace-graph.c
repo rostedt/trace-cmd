@@ -30,6 +30,17 @@
 #include "trace-local.h"
 #include "trace-graph.h"
 
+#define DEBUG_LEVEL	1
+#if DEBUG_LEVEL > 0
+# define dprintf(l, x...)			\
+	do {					\
+		if (l <= DEBUG_LEVEL)		\
+			printf(x);		\
+	} while (0)
+#else
+# define dprintf(x...)	do { } while (0)
+#endif
+
 #define MAX_WIDTH	10000
 
 #define CPU_SIZE	10
@@ -61,6 +72,9 @@ static void convert_nano(unsigned long long time, unsigned long *sec,
 static void print_time(unsigned long long time)
 {
 	unsigned long sec, usec;
+
+	if (!DEBUG_LEVEL)
+		return;
 
 	convert_nano(time, &sec, &usec);
 	printf("%lu.%06lu", sec, usec);
@@ -137,8 +151,6 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
-	printf("button = %d\n", event->button);
-
 	if (event->button != 1)
 		return TRUE;
 
@@ -183,6 +195,9 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 	struct event_format *event;
 	unsigned long sec, usec;
 	gint type;
+
+	if (DEBUG_LEVEL < 3)
+		return;
 
 	trace_seq_init(&s);
 
@@ -286,7 +301,6 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 		gdk_gc_set_foreground(pix_bg, &color);
 	}
 
-	printf("res=%f\n", ginfo->resolution);
 	time =  (x / ginfo->resolution) + ginfo->view_start_time;
 	convert_nano(time, &sec, &usec);
 
@@ -294,7 +308,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 
 	trace_seq_init(&s);
 
-	printf("start=%zu end=%zu time=%lu\n", ginfo->start_time, ginfo->end_time, time);
+	dprintf(3, "start=%zu end=%zu time=%lu\n", ginfo->start_time, ginfo->end_time, time);
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 	do {
 		if (record) {
@@ -307,7 +321,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	if (record) {
 
 		if (record->ts > (time + 1 / ginfo->resolution) && offset) {
-			printf("old ts = %llu!\n", record->ts);
+			dprintf(3, "old ts = %llu!\n", record->ts);
 			free_record(record);
 			record = tracecmd_read_at(ginfo->handle, offset, NULL);
 		}
@@ -317,8 +331,8 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 		}
 
-		printf("record->ts=%llu time=%zu-%zu\n",
-		       record->ts, time, time-(gint)(1/ginfo->resolution));
+		dprintf(3, "record->ts=%llu time=%zu-%zu\n",
+			record->ts, time, time-(gint)(1/ginfo->resolution));
 		print_rec_info(record, pevent, cpu);
 
 		/*
@@ -496,9 +510,9 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	g_assert(start < end);
 	g_assert(ginfo->vadj);
 
-	printf("*** started with ");
+	dprintf(1, "*** started with ");
 	print_time(start / ginfo->resolution + ginfo->view_start_time);
-	printf("\n");
+	dprintf(1, "\n");
 
 	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
 	select_width = end - start;
@@ -509,15 +523,15 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	curr_width = ginfo->draw->allocation.width;
 	new_width = curr_width * percent;
 
-	printf("width=%d\n", ginfo->draw->allocation.width);
+	dprintf(1, "width=%d\n", ginfo->draw->allocation.width);
 	if (ginfo->vadj) {
-		printf("adj:%f-%f\n", gtk_adjustment_get_upper(ginfo->vadj),
+		dprintf(1, "adj:%f-%f\n", gtk_adjustment_get_upper(ginfo->vadj),
 		       gtk_adjustment_get_lower(ginfo->vadj));
 	} else
-		printf("no adjustment\n");
+		dprintf(1, "no adjustment\n");
 
 	ginfo->draw_width = new_width;
-	printf("zoom in draw_width=%d full_width=%d\n",
+	dprintf(1, "zoom in draw_width=%d full_width=%d\n",
 	       ginfo->draw_width, ginfo->full_width);
 
 	if (ginfo->draw_width > MAX_WIDTH) {
@@ -576,10 +590,10 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 
 		update_graph_to_start_x(ginfo);
 
-		printf("new start/end =%d/%d full:%d  start_time:",
+		dprintf(1, "new start/end =%d/%d full:%d  start_time:",
 		       new_start, new_end, ginfo->full_width);
 		print_time(ginfo->view_start_time);
-		printf("\n");
+		dprintf(1, "\n");
 
 		/* Adjust start to be the location for the vadj */
 		start = (mid - new_start) / percent - (end - start) / 2;
@@ -589,7 +603,7 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	if (ginfo->vadj_value > (ginfo->draw_width - view_width))
 		ginfo->vadj_value = ginfo->draw_width - view_width;
 
-	printf("new width=%d\n", ginfo->draw_width);
+	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
 	/* make sure the width is sent */
 	if (ginfo->draw_width == old_width)
@@ -597,12 +611,12 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 					    ginfo->draw_height);
 	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
-	printf("set val %f\n", ginfo->vadj_value);
+	dprintf(1, "set val %f\n", ginfo->vadj_value);
 
 
-	printf("*** ended with with ");
+	dprintf(1, "*** ended with with ");
 	print_time(ginfo->vadj_value / ginfo->resolution + ginfo->view_start_time);
-	printf("\n");
+	dprintf(1, "\n");
 
 }
 
@@ -648,11 +662,11 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 
 	update_graph(ginfo, 1 / divider);
 
-	printf("width=%d\n", ginfo->draw->allocation.width);
+	dprintf(1, "width=%d\n", ginfo->draw->allocation.width);
 
 	ginfo->draw_width = new_width;
 
-	printf("draw_width=%d full_width=%d\n", ginfo->draw_width, ginfo->full_width);
+	dprintf(1, "draw_width=%d full_width=%d\n", ginfo->draw_width, ginfo->full_width);
 	if (ginfo->full_width < view_width) {
 		reset_graph(ginfo, view_width);
 		time = ginfo->view_start_time;
@@ -677,7 +691,7 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 		}
 	}
 
-	printf("new width=%d\n", ginfo->draw_width);
+	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
 	/* make sure the width is sent */
 	if (ginfo->draw_width == old_width)
@@ -731,7 +745,7 @@ static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
 
 	if (!(hash & 0xffffff) && last_pid != pid) {
 		last_pid = pid;
-		printf("pid=%d is black\n", pid);
+		dprintf(2, "pid=%d is black\n", pid);
 	}
 	color.red = (hash & 0xff)*(65535/255);
 	color.blue = ((hash >> 8) & 0xff)*(65535/255);
@@ -1139,7 +1153,7 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 	/* debug */
 	ginfo->vadj_value = gtk_adjustment_get_value(ginfo->vadj);
-	printf("get val %f\n", ginfo->vadj_value);
+	dprintf(2, "get val %f\n", ginfo->vadj_value);
 	ginfo->vadj_value = 0.0;
 
 	return TRUE;
@@ -1151,7 +1165,7 @@ destroy_event(GtkWidget *widget, gpointer data)
 	struct graph_info *ginfo = data;
 
 	if (ginfo->test)
-		printf("test = %s\n", ginfo->test);
+		dprintf(1, "test = %s\n", ginfo->test);
 
 	return TRUE;
 }
@@ -1327,10 +1341,10 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	}
 
 	convert_nano(ginfo->start_time, &sec, &usec);
-	printf("start=%lu.%06lu ", sec, usec);
+	dprintf(1,"start=%lu.%06lu ", sec, usec);
 
 	convert_nano(ginfo->end_time, &sec, &usec);
-	printf("end=%lu.%06lu\n", sec, usec);
+	dprintf(1, "end=%lu.%06lu\n", sec, usec);
 
 	ginfo->view_start_time = ginfo->start_time;
 	ginfo->view_end_time = ginfo->end_time;
