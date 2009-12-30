@@ -1,6 +1,8 @@
 #include "trace-view-store.h"
 #include <stdlib.h>
 
+#include "cpu.h"
+
 /* boring declarations of local functions */
 
 static void		trace_view_store_init		(TraceViewStore	*pkg_tree);
@@ -703,38 +705,22 @@ trace_view_store_iter_parent (GtkTreeModel *tree_model,
 
 static int mask_cpu_isset(TraceViewStore *store, gint cpu)
 {
-	guint64 mask;
-
-	mask = *(store->cpu_mask + (cpu >> 6));
-
-	return mask & (1ULL << (cpu & ((1ULL << 6) - 1)));
+	return cpu_isset(store->cpu_mask, cpu);
 }
 
 static void mask_cpu_set(TraceViewStore *store, gint cpu)
 {
-	guint64 *mask;
-
-	mask = store->cpu_mask + (cpu >> 6);
-	*mask |= (1ULL << (cpu & ((1ULL << 6) - 1)));
+	cpu_set(store->cpu_mask, cpu);
 }
 
 static void mask_cpu_clear(TraceViewStore *store, gint cpu)
 {
-	guint64 *mask;
-
-	mask = store->cpu_mask + (cpu >> 6);
-	*mask &= ~(1ULL << (cpu & ((1ULL << 6) - 1)));
+	cpu_clear(store->cpu_mask, cpu);
 }
 
 static void mask_set_cpus(TraceViewStore *store, gint cpus)
 {
-	gint idx;
-
-	for (idx = 0; idx < (cpus >> 6); idx++) {
-		*(store->cpu_mask + idx) = -1ULL;
-	}
-
-	*(store->cpu_mask) = (1ULL << (cpus & ((1ULL << 6) - 1))) - 1;
+	set_cpus(store->cpu_mask, cpus);
 }
 
 static void update_page(TraceViewStore *store)
