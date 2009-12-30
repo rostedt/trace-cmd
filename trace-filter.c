@@ -191,7 +191,16 @@ void trace_filter_event_dialog(void *trace_tree)
 struct cpu_filter_helper {
 	gboolean allcpus;
 	guint64 *cpu_mask;
+	GtkWidget **buttons;
+	int cpus;
 };
+
+static void destroy_cpu_helper(struct cpu_filter_helper *cpu_helper)
+{
+	g_free(cpu_helper->cpu_mask);
+	g_free(cpu_helper->buttons);
+	g_free(cpu_helper);
+}
 
 /* Callback for the clicked signal of the CPUS filter button */
 static void
@@ -201,7 +210,7 @@ cpu_dialog_response (gpointer data, gint response_id)
 	struct cpu_filter_helper *cpu_helper = helper->data;
 	GtkTreeView *view = GTK_TREE_VIEW(helper->trace_tree);
 	TraceViewStore *store;
-	gint cpus, cpu;
+	gint cpu;
 
 	store = TRACE_VIEW_STORE(gtk_tree_view_get_model(view));
 
@@ -216,9 +225,8 @@ cpu_dialog_response (gpointer data, gint response_id)
 			g_object_unref(store);
 			break;
 		}
-		cpus = trace_view_store_get_cpus(store);
 
-		for (cpu = 0; cpu < cpus; cpu++) {
+		for (cpu = 0; cpu < cpu_helper->cpus; cpu++) {
 			if (cpu_mask_isset(cpu_helper->cpu_mask, cpu))
 				trace_view_store_set_cpu(store, cpu);
 			else
@@ -236,8 +244,7 @@ cpu_dialog_response (gpointer data, gint response_id)
 
 	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
 
-	g_free(cpu_helper->cpu_mask);
-	g_free(cpu_helper);
+	destroy_cpu_helper(helper->data);
 	g_free(helper);
 }
 
@@ -255,16 +262,29 @@ void cpu_toggle(gpointer data, GtkWidget *widget)
 
 	if (strcmp(label, CPU_ALL_CPUS_STR) == 0) {
 		cpu_helper->allcpus = active;
+		if (active) {
+			/* enable all toggles */
+			for (cpu = 0; cpu < cpu_helper->cpus; cpu++)
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu]),
+							     TRUE);
+		}
 		return;
 	}
 
 	/* Get the CPU # from the label. Pass "CPU " */
 	cpu = atoi(label + 4);
-	if (active)
+	if (active) {
 		cpu_mask_set(cpu_helper->cpu_mask, cpu);
-	else
-		cpu_mask_clear(cpu_helper->cpu_mask, cpu);
+		return;
+	}
 
+	cpu_mask_clear(cpu_helper->cpu_mask, cpu);
+
+	if (!cpu_helper->allcpus)
+		return;
+
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu_helper->cpus]),
+				     FALSE);
 }
 
 void trace_filter_cpu_dialog(void *trace_tree)
@@ -312,6 +332,10 @@ void trace_filter_cpu_dialog(void *trace_tree)
 	helper->dialog = dialog;
 	helper->trace_tree = tree_view;
 
+	cpu_helper->cpus = cpus;
+	cpu_helper->buttons = g_new0(GtkWidget *, cpus + 1);
+	g_assert(cpu_helper->buttons);
+
 	g_signal_connect_swapped (dialog, "response",
 				  G_CALLBACK (cpu_dialog_response),
 				  (gpointer) helper);
@@ -334,8 +358,11 @@ void trace_filter_cpu_dialog(void *trace_tree)
 	gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, FALSE, 0);
 	gtk_widget_show(vbox);
 
-	check = gtk_check_button_new_with_label("All CPUs");
+	check = gtk_check_button_new_with_label(CPU_ALL_CPUS_STR);
 	gtk_box_pack_start(GTK_BOX(vbox), check, TRUE, TRUE, 0);
+
+	/* The last button will be the all CPUs button */
+	cpu_helper->buttons[cpus] = check;
 
 	allset = trace_view_store_get_all_cpus(store);
 	if (allset)
@@ -354,6 +381,7 @@ void trace_filter_cpu_dialog(void *trace_tree)
 	for (cpu = 0; cpu < cpus; cpu++) {
 		g_snprintf(counter, 100, "CPU %d", cpu);
 		check = gtk_check_button_new_with_label(counter);
+		cpu_helper->buttons[cpu] = check;
 		gtk_box_pack_start(GTK_BOX(vbox), check, TRUE, FALSE, 0);
 		if (allset || trace_view_store_cpu_isset(store, cpu)) {
 			cpu_mask_set(cpu_helper->cpu_mask, cpu);
