@@ -735,9 +735,27 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 static gint do_hash(gint val)
 {
-	return (val + (val << 4) + (val << 8) + (val << 12) + 
-		(val << 16) + (val << 20) + (val << 24) +
-		(val << 28)) * 3;
+	int i, x, y;
+	int total = 0;
+
+	if (!val)
+		return 0;
+
+	for (i = 0; i < 32; i++) {
+		y = 0;
+		if (val & (1 << i)) {
+			for (x = 0; x < ((i+1) * 13); x++) {
+				y |= 1 << ((x * 23) & 31);
+			}
+		} else {
+			for (x = 0; x < ((i+1) * 7); x++) {
+				y |= 1 << ((x * 17) & 31);
+			}
+		}
+		total += y;
+	}
+
+	return total;
 }
 
 static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
@@ -901,9 +919,9 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 			last_x = x;
 			last_pid = pid;
-		}
 
-		set_color_by_pid(ginfo->draw, gc, pid);
+			set_color_by_pid(ginfo->draw, gc, pid);
+		}
 
 		gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
 			      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
