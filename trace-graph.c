@@ -888,8 +888,10 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		if (last_pid != pid) {
 
-			if (last_pid < 0)
+			if (last_pid < 0) {
 				last_pid = pid;
+				set_color_by_pid(ginfo->draw, gc, pid);
+			}
 
 			if (last_pid)
 				gdk_draw_rectangle(ginfo->curr_pixmap, gc,
