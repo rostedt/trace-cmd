@@ -3324,9 +3324,12 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct record *record)
 {
+	int print_pretty = 1;
+
 	if (event->handler)
-		event->handler(s, record, event);
-	else
+		print_pretty = event->handler(s, record, event);
+
+	if (print_pretty)
 		pretty_print(s, record->data, record->size, event);
 
 	trace_seq_terminate(s);
@@ -3342,6 +3345,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	const char *comm;
 	void *data = record->data;
 	int size = record->size;
+	int print_pretty = 1;
 	int type;
 	int pid;
 	int len;
@@ -3376,8 +3380,9 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 	
 	if (event->handler)
-		event->handler(s, record, event);
-	else
+		print_pretty = event->handler(s, record, event);
+
+	if (print_pretty)
 		pretty_print(s, data, size, event);
 
 	trace_seq_terminate(s);
