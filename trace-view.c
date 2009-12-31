@@ -27,6 +27,7 @@
 #include "trace-cmd.h"
 #include "trace-local.h"
 #include "trace-view.h"
+#include "trace-compat.h"
 
 enum {
 	COL_INDEX,

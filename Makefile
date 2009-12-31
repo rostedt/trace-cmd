@@ -40,7 +40,7 @@ trace-graph.o::		$(HEADERS) trace-graph.h
 trace-graph-main.o::	$(HEADERS) trace-graph.h
 kernel-shark.o::	$(HEADERS) kernel-shark.h
 
-TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o
+TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o
 
 trace-cmd:: trace-cmd.o trace-read.o
 	$(CC) $^ -rdynamic -o $@ $(LIBS)
