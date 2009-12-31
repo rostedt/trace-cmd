@@ -366,6 +366,8 @@ struct format_field *pevent_find_field(struct event_format *event, const char *n
 struct format_field *pevent_find_any_field(struct event_format *event, const char *name);
 
 const char *pevent_find_function(struct pevent *pevent, unsigned long long addr);
+unsigned long long
+pevent_find_function_address(struct pevent *pevent, unsigned long long addr);
 unsigned long long pevent_read_number(struct pevent *pevent, const void *ptr, int size);
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value);

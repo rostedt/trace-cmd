@@ -348,6 +348,27 @@ const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
 }
 
 /**
+ * pevent_find_function_address - find a function address by a given address
+ * @pevent: handle for the pevent
+ * @addr: the address to find the function with
+ *
+ * Returns the address the function starts at. This can be used in
+ * conjunction with pevent_find_function to print both the function
+ * name and the function offset.
+ */
+unsigned long long
+pevent_find_function_address(struct pevent *pevent, unsigned long long addr)
+{
+	struct func_map *map;
+
+	map = find_func(pevent, addr);
+	if (!map)
+		return 0;
+
+	return map->addr;
+}
+
+/**
  * pevent_register_function - register a function with a given address
  * @pevent: handle for the pevent
  * @function: the function name to register
@@ -3324,9 +3345,12 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct record *record)
 {
+	int print_pretty = 1;
+
 	if (event->handler)
-		event->handler(s, record, event);
-	else
+		print_pretty = event->handler(s, record, event);
+
+	if (print_pretty)
 		pretty_print(s, record->data, record->size, event);
 
 	trace_seq_terminate(s);
@@ -3342,6 +3366,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	const char *comm;
 	void *data = record->data;
 	int size = record->size;
+	int print_pretty = 1;
 	int type;
 	int pid;
 	int len;
@@ -3376,8 +3401,9 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 	
 	if (event->handler)
-		event->handler(s, record, event);
-	else
+		print_pretty = event->handler(s, record, event);
+
+	if (print_pretty)
 		pretty_print(s, data, size, event);
 
 	trace_seq_terminate(s);

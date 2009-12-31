@@ -229,7 +229,6 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 	void *data = record->data;
 	int size = record->size;
 	int cpu = record->cpu;
-	int ret;
 
 	if (get_field_val(s, data, event, "common_pid", &pid))
 		return trace_seq_putc(s, '!');
@@ -257,15 +256,15 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 		 * We also do a new peek on this CPU to update the
 		 * record cache.
 		 */
-		ret = print_graph_entry_leaf(s, event, data, rec);
+		print_graph_entry_leaf(s, event, data, rec);
 		free_record(rec);
 		tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
 	} else
-		ret = print_graph_nested(s, event, data);
+		print_graph_nested(s, event, data);
 
 	free(data);
 
-	return ret;
+	return 0;
 }
 
 static int
@@ -298,7 +297,9 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
 		trace_seq_putc(s, ' ');
 
-	return trace_seq_putc(s, '}');
+	trace_seq_putc(s, '}');
+
+	return 0;
 }
 
 static int
@@ -309,16 +310,15 @@ trace_stack_handler(struct trace_seq *s, struct record *record,
 	unsigned long long addr;
 	const char *func;
 	void *data = record->data;
-	int ret;
 	int i;
 
 	field = pevent_find_any_field(event, "caller");
 	if (!field) {
 		trace_seq_printf(s, "<CANT FIND FIELD %s>", "caller");
-		return -1;
+		return 0;
 	}
 
-	ret = trace_seq_puts(s, "<stack trace>\n");
+	trace_seq_puts(s, "<stack trace>\n");
 
 	for (i = 0; i < field->size; i += long_size) {
 		addr = pevent_read_number(event->pevent,
@@ -330,12 +330,12 @@ trace_stack_handler(struct trace_seq *s, struct record *record,
 
 		func = pevent_find_function(event->pevent, addr);
 		if (func)
-			ret = trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
+			trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
 		else
-			ret = trace_seq_printf(s, "=> %llx\n", addr);
+			trace_seq_printf(s, "=> %llx\n", addr);
 	}
 
-	return ret;
+	return 0;
 }
 
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
