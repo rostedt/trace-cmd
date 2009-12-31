@@ -68,7 +68,7 @@ static gint event_sched_switch_id = -1;
 static gint largest_cpu_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
-static gint do_hash(gint val);
+static guint do_hash(gint val);
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
@@ -167,6 +167,21 @@ static void filter_task_clear(struct graph_info *ginfo)
 
 	ginfo->filter_task_count = 0;
 	ginfo->filter_available = 0;
+	ginfo->filter_enabled = 0;
+}
+
+gboolean filter_on_task(struct graph_info *ginfo, gint pid)
+{
+	gboolean filter;
+
+	filter = FALSE;
+	
+	if (ginfo->filter_enabled &&
+	    ginfo->filter_task_count &&
+	    !filter_task_find_pid(ginfo, pid))
+		filter = TRUE;
+
+	return filter;
 }
 
 static void __update_with_backend(struct graph_info *ginfo,
@@ -235,6 +250,17 @@ static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
 	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
 }
 
+static void redraw_graph(struct graph_info *ginfo)
+{
+	gdouble height;
+	gdouble width;
+
+	redraw_pixmap_backend(ginfo);
+	width = ginfo->draw->allocation.width;
+	height = ginfo->draw->allocation.height;
+	update_with_backend(ginfo, 0, 0, width, height);
+}
+
 static struct record *
 find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
 {
@@ -268,6 +294,8 @@ filter_enable_clicked (gpointer data)
 	struct graph_info *ginfo = data;
 
 	ginfo->filter_enabled ^= 1;
+
+	redraw_graph(ginfo);
 }
 
 static void
@@ -282,14 +310,21 @@ filter_add_task_clicked (gpointer data)
 		filter_task_remove_pid(ginfo, task->pid);
 	else
 		filter_task_add_pid(ginfo, ginfo->filter_task_selected);
+
+	if (ginfo->filter_enabled)
+		redraw_graph(ginfo);
 }
 
 static void
 filter_clear_tasks_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
+	gint filter_enabled = ginfo->filter_enabled;
 
 	filter_task_clear(ginfo);
+
+	if (filter_enabled)
+		redraw_graph(ginfo);
 }
 
 static gboolean
@@ -763,7 +798,6 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	gdouble new_width;
 	gdouble select_width;
 	gdouble curr_width;
-	gdouble height;
 	gdouble mid;
 	gdouble percent;
 	gint old_width = ginfo->draw_width;
@@ -860,11 +894,9 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
 	/* make sure the width is sent */
-	if (ginfo->draw_width == old_width) {
-		redraw_pixmap_backend(ginfo);
-		height = ginfo->draw->allocation.height;
-		update_with_backend(ginfo, 0, 0, ginfo->draw_width, height);
-	} else
+	if (ginfo->draw_width == old_width)
+		redraw_graph(ginfo);
+	else
 		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
 	dprintf(1, "set val %f\n", ginfo->vadj_value);
@@ -895,7 +927,6 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	gdouble divider;
 	gdouble curr_width;
 	gdouble new_width;
-	gdouble height;
 	gdouble mid;
 	gdouble start_x;
 	unsigned long long time;
@@ -950,11 +981,9 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
 	/* make sure the width is sent */
-	if (ginfo->draw_width == old_width) {
-		redraw_pixmap_backend(ginfo);
-		height = ginfo->draw->allocation.height;
-		update_with_backend(ginfo, 0, 0, ginfo->draw_width, height);
-	} else
+	if (ginfo->draw_width == old_width)
+		redraw_graph(ginfo);
+	else
 		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
 	mid = (time - ginfo->view_start_time) * ginfo->resolution;
@@ -988,7 +1017,7 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	return TRUE;
 }
 
-static gint do_hash(gint val)
+static guint do_hash(gint val)
 {
 	int hash, tmp;
 
@@ -1117,6 +1146,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	gint p1 = 0, p2 = 0, p3 = 0;
 	gint last_event_id = 0;
 	gint event_id;
+	gboolean filter;
 	const char *comm;
 
 	/* Calculate the size of 16 characters */
@@ -1179,8 +1209,11 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 				last_pid = pid;
 				set_color_by_pid(ginfo->draw, gc, pid);
 			}
+				
+			filter = filter_on_task(ginfo, last_pid);
 
-			if (last_pid)
+			if (!filter && last_pid)
+					
 				gdk_draw_rectangle(ginfo->curr_pixmap, gc,
 						   TRUE,
 						   last_x, CPU_BOX_TOP(cpu),
@@ -1192,25 +1225,32 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			set_color_by_pid(ginfo->draw, gc, pid);
 		}
 
-		gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
-			      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
+		filter = filter_on_task(ginfo, pid);
 
-		/* Figure out if we can show the text for the previous record */
+		if (!filter)
+			gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
+				      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
 
-		p3 = x;
+		if (!filter) {
+			/* Figure out if we can show the text for the previous record */
 
-		/* Make sure p2 will be non-zero the next iteration */
-		if (!p3)
-			p3 = 1;
+			p3 = x;
 
-		/* first record, continue */
-		if (p2)
-			draw_event_label(ginfo, cpu, last_event_id, last_pid,
-					 p1, p2, p3, width_16, font);
+			/* Make sure p2 will be non-zero the next iteration */
+			if (!p3)
+				p3 = 1;
 
-		p1 = p2;
-		p2 = p3;
-		last_event_id = event_id;
+			/* first record, continue */
+			if (p2)
+				draw_event_label(ginfo, cpu, last_event_id, last_pid,
+						 p1, p2, p3, width_16, font);
+
+			p1 = p2;
+			p2 = p3;
+
+			last_event_id = event_id;
+		}
+
 		free_record(record);
 	}
 
@@ -1218,8 +1258,9 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		draw_event_label(ginfo, cpu, last_event_id, last_pid,
 				 p1, p2, ginfo->draw_width, width_16, font);
 
+	if (last_pid > 0 &&
+	    !filter_on_task(ginfo, last_pid)) {
 
-	if (last_pid > 0) {
 		x = ginfo->draw_width;
 
 		gdk_draw_rectangle(ginfo->curr_pixmap, gc,
