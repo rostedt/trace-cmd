@@ -348,6 +348,27 @@ const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
 }
 
 /**
+ * pevent_find_function_address - find a function address by a given address
+ * @pevent: handle for the pevent
+ * @addr: the address to find the function with
+ *
+ * Returns the address the function starts at. This can be used in
+ * conjunction with pevent_find_function to print both the function
+ * name and the function offset.
+ */
+unsigned long long
+pevent_find_function_address(struct pevent *pevent, unsigned long long addr)
+{
+	struct func_map *map;
+
+	map = find_func(pevent, addr);
+	if (!map)
+		return 0;
+
+	return map->addr;
+}
+
+/**
  * pevent_register_function - register a function with a given address
  * @pevent: handle for the pevent
  * @function: the function name to register

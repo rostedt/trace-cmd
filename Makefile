@@ -9,8 +9,10 @@ LIBS = -L. -ltracecmd -ldl
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
-TARGETS = libparsevent.a libtracecmd.a trace-cmd plugin_hrtimer.so plugin_mac80211.so \
-	plugin_sched_switch.so
+PLUGINS =  plugin_hrtimer.so plugin_mac80211.so plugin_sched_switch.so \
+	plugin_kmem.so
+
+TARGETS = libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS)
 
 all: $(TARGETS)
 
@@ -65,19 +67,25 @@ libtracecmd.so: $(TCMD_LIB_OBJS)
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(RM) $@;  $(AR) rcs $@ $^
 
-plugin_hrtimer.o: plugin_hrtimer.c parse-events.h
+plugin_hrtimer.o: plugin_hrtimer.c parse-events.h trace-cmd.h
 	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
 
 plugin_hrtimer.so: plugin_hrtimer.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
-plugin_sched_switch.o: plugin_sched_switch.c parse-events.h
+plugin_kmem.o: plugin_kmem.c parse-events.h trace-cmd.h
+	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+
+plugin_kmem.so: plugin_kmem.o
+	$(CC) -shared -nostartfiles -o $@ $<
+
+plugin_sched_switch.o: plugin_sched_switch.c parse-events.h trace-cmd.h
 	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
 
 plugin_sched_switch.so: plugin_sched_switch.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
-plugin_mac80211.o: plugin_mac80211.c parse-events.h
+plugin_mac80211.o: plugin_mac80211.c parse-events.h trace-cmd.h
 	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
 
 plugin_mac80211.so: plugin_mac80211.o
