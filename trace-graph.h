@@ -11,6 +11,8 @@ struct graph_callbacks {
 	graph_select_cb		*select;
 };
 
+struct filter_task;
+
 struct graph_info {
 	struct tracecmd_input	*handle;
 	struct pevent		*pevent;
@@ -46,6 +48,14 @@ struct graph_info {
 						/* This includes non visible part of trace */
 
 	struct graph_callbacks	*callbacks;	/* call back hooks for changes to graph */
+
+	int			filter_enabled;
+	int			filter_available;
+
+	struct filter_task	**filter_task_hash;
+	gint			filter_task_count;
+	gint			filter_task_selected;
+
 
 	/* Box info for CPU data info window */
 	gint			cpu_data_x;

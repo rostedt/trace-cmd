@@ -12,6 +12,12 @@ void gtk_cell_renderer_get_padding(GtkCellRenderer *cell,
 
 #endif /* version < 2.18.0 */
 
+#if GTK_VERSION < CALC_GTK_VERSION(2,16,0)
+
+void gtk_menu_item_set_label(GtkMenuItem *menu_item, const gchar *label);
+
+#endif /* version < 2.18.0 */
+
 #if GTK_VERSION < CALC_GTK_VERSION(2,14,0)
 
 gdouble gtk_adjustment_get_page_size(GtkAdjustment *adj);

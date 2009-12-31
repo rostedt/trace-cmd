@@ -55,12 +55,20 @@
 #define CPU_LABEL(cpu) (CPU_TOP(cpu))
 #define CPU_X		5
 
+#define FILTER_TASK_HASH_SIZE	256
+
+struct filter_task {
+	struct filter_task	*next;
+	gint			pid;
+};
+
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
 
 static gint largest_cpu_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
+static gint do_hash(gint val);
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
@@ -78,6 +86,87 @@ static void print_time(unsigned long long time)
 
 	convert_nano(time, &sec, &usec);
 	printf("%lu.%06lu", sec, usec);
+}
+
+static struct filter_task *
+filter_task_find_pid(struct graph_info *ginfo, gint pid)
+{
+	gint key = do_hash(pid) % FILTER_TASK_HASH_SIZE;
+	struct filter_task *task = ginfo->filter_task_hash[key];
+
+	while (task) {
+		if (task->pid == pid)
+			break;
+		task = task->next;
+	}
+	return task;
+}
+
+static void filter_task_add_pid(struct graph_info *ginfo, gint pid)
+{
+	gint key = do_hash(pid) % FILTER_TASK_HASH_SIZE;
+	struct filter_task *task;
+
+	task = g_new0(typeof(*task), 1);
+	g_assert(task);
+
+	task->pid = pid;
+	task->next = ginfo->filter_task_hash[key];
+	ginfo->filter_task_hash[key] = task;
+
+	ginfo->filter_task_count++;
+	ginfo->filter_available = 1;
+}
+
+static void filter_task_remove_pid(struct graph_info *ginfo, gint pid)
+{
+	gint key = do_hash(pid) % FILTER_TASK_HASH_SIZE;
+	struct filter_task **next = &ginfo->filter_task_hash[key];
+	struct filter_task *task;
+
+	while (*next) {
+		if ((*next)->pid == pid)
+			break;
+		next = &(*next)->next;
+	}
+	if (!*next)
+		return;
+
+	task = *next;
+
+	*next = task->next;
+
+	g_free(task);
+
+	if (--ginfo->filter_task_count)
+		return;
+
+	ginfo->filter_available = 0;
+}
+
+static void filter_task_clear(struct graph_info *ginfo)
+{
+	struct filter_task *task, *next;;
+	gint i;
+
+	if (!ginfo->filter_task_count)
+		return;
+
+	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
+		next = ginfo->filter_task_hash[i];
+		if (!next)
+			continue;
+
+		ginfo->filter_task_hash[i] = NULL;
+		while (next) {
+			task = next;
+			next = task->next;
+			g_free(task);
+		}
+	}
+
+	ginfo->filter_task_count = 0;
+	ginfo->filter_available = 0;
 }
 
 static void __update_with_backend(struct graph_info *ginfo,
@@ -146,16 +235,188 @@ static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
 	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
 }
 
+static struct record *
+find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
+{
+	struct record *record = NULL;
+	guint64 offset = 0;
+
+	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+	do {
+		if (record) {
+			offset = record->offset;
+			free_record(record);
+		}
+		record = tracecmd_read_data(ginfo->handle, cpu);
+	} while (record && record->ts <= (time - 1 / ginfo->resolution));
+
+	if (record) {
+
+		if (record->ts > (time + 1 / ginfo->resolution) && offset) {
+			dprintf(3, "old ts = %llu!\n", record->ts);
+			free_record(record);
+			record = tracecmd_read_at(ginfo->handle, offset, NULL);
+		}
+	}
+
+	return record;
+}
+
+static void
+filter_enable_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	ginfo->filter_enabled ^= 1;
+}
+
+static void
+filter_add_task_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct filter_task *task;
+
+	task = filter_task_find_pid(ginfo, ginfo->filter_task_selected);
+
+	if (task)
+		filter_task_remove_pid(ginfo, task->pid);
+	else
+		filter_task_add_pid(ginfo, ginfo->filter_task_selected);
+}
+
+static void
+filter_clear_tasks_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	filter_task_clear(ginfo);
+}
+
+static gboolean
+do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+	static GtkWidget *menu;
+	static GtkWidget *menu_filter_enable;
+	static GtkWidget *menu_filter_add_task;
+	static GtkWidget *menu_filter_clear_tasks;
+	struct record *record = NULL;
+	const char *comm;
+	guint64 time;
+	gchar *text;
+	gint pid;
+	gint len;
+	gint x, y;
+	gint cpu;
+
+	x = event->x;
+	y = event->y;
+
+	if (!menu) {
+		menu = gtk_menu_new();
+		menu_filter_enable = gtk_menu_item_new_with_label("Enable Filter");
+		gtk_widget_show(menu_filter_enable);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_enable);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_enable), "activate",
+					  G_CALLBACK (filter_enable_clicked),
+					  data);
+
+		menu_filter_add_task = gtk_menu_item_new_with_label("Add Task");
+		gtk_widget_show(menu_filter_add_task);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_add_task);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_add_task), "activate",
+					  G_CALLBACK (filter_add_task_clicked),
+					  data);
+
+		menu_filter_clear_tasks = gtk_menu_item_new_with_label("Clear Task Filter");
+		gtk_widget_show(menu_filter_clear_tasks);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_clear_tasks);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_clear_tasks), "activate",
+					  G_CALLBACK (filter_clear_tasks_clicked),
+					  data);
+
+	}
+
+	if (ginfo->filter_enabled)
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
+					"Disable Filter");
+	else
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
+					"Enable Filter");
+
+	if (ginfo->filter_available)
+		gtk_widget_set_sensitive(menu_filter_enable, TRUE);
+	else
+		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
+
+	if (ginfo->filter_task_count)
+		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
+	else
+		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
+
+	time =  (x / ginfo->resolution) + ginfo->view_start_time;
+
+	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+		if (y >= (CPU_TOP(cpu) - CPU_GIVE) &&
+		    y <= (CPU_BOTTOM(cpu) + CPU_GIVE)) {
+			record = find_record_on_cpu(ginfo, cpu, time);
+			break;
+		}
+	}
+
+	if (record) {
+		pid = pevent_data_pid(ginfo->pevent, record);
+		comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+
+		len = strlen(comm) + 50;
+
+		text = g_malloc(len);
+		g_assert(text);
+
+		if (filter_task_find_pid(ginfo, pid))
+			snprintf(text, len, "Remove %s-%d to filter", comm, pid);
+		else
+			snprintf(text, len, "Add %s-%d to filter", comm, pid);
+
+		ginfo->filter_task_selected = pid;
+
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_add_task),
+					text);
+		g_free(text);
+
+		gtk_widget_set_sensitive(menu_filter_add_task, TRUE);
+
+		free_record(record);
+	} else {
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_add_task),
+					"Add task to filter");
+		gtk_widget_set_sensitive(menu_filter_add_task, FALSE);
+	}
+
+		
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL, 3,
+		       gtk_get_current_event_time());
+
+
+	return TRUE;
+}
+
 static gboolean
 button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
+	if (event->button == 3)
+		return do_pop_up(widget, event, data);
+
 	if (event->button != 1)
 		return TRUE;
 
 	/* check for double click */
-	if (event->type==GDK_2BUTTON_PRESS) {
+	if (event->type == GDK_2BUTTON_PRESS) {
 		if (ginfo->line_active) {
 			ginfo->line_active = FALSE;
 			clear_last_line(widget, ginfo);
@@ -309,22 +570,10 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	trace_seq_init(&s);
 
 	dprintf(3, "start=%zu end=%zu time=%lu\n", ginfo->start_time, ginfo->end_time, time);
-	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-	do {
-		if (record) {
-			offset = record->offset;
-			free_record(record);
-		}
-		record = tracecmd_read_data(ginfo->handle, cpu);
-	} while (record && record->ts <= (time - 1 / ginfo->resolution));
+
+	record = find_record_on_cpu(ginfo, cpu, time);
 
 	if (record) {
-
-		if (record->ts > (time + 1 / ginfo->resolution) && offset) {
-			dprintf(3, "old ts = %llu!\n", record->ts);
-			free_record(record);
-			record = tracecmd_read_at(ginfo->handle, offset, NULL);
-		}
 
 		if (!check_sched_switch(ginfo, record, &pid, &comm)) {
 			pid = pevent_data_pid(ginfo->pevent, record);
@@ -763,10 +1012,19 @@ static gint do_hash(gint val)
 	return hash;
 }
 
+static gint hash_pid(gint val)
+{
+	/* idle always gets black */
+	if (!val)
+		return 0;
+
+	return do_hash(val);
+}
+
 static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
 {
 	GdkColor color;
-	gint hash = do_hash(pid);
+	gint hash = hash_pid(pid);
 	static gint last_pid = -1;
 
 	if (!(hash & 0xffffff) && last_pid != pid) {
@@ -1316,6 +1574,9 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
+
+	ginfo->filter_task_hash = g_new0(typeof(*ginfo->filter_task_hash),
+					 FILTER_TASK_HASH_SIZE);
 
 	ginfo->widget = gtk_hbox_new(FALSE, 0);
 	gtk_widget_show(ginfo->widget);
