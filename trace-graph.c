@@ -763,6 +763,7 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	gdouble new_width;
 	gdouble select_width;
 	gdouble curr_width;
+	gdouble height;
 	gdouble mid;
 	gdouble percent;
 	gint old_width = ginfo->draw_width;
@@ -859,10 +860,12 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
 	/* make sure the width is sent */
-	if (ginfo->draw_width == old_width)
-		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width - 1,
-					    ginfo->draw_height);
-	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
+	if (ginfo->draw_width == old_width) {
+		redraw_pixmap_backend(ginfo);
+		height = ginfo->draw->allocation.height;
+		update_with_backend(ginfo, 0, 0, ginfo->draw_width, height);
+	} else
+		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
 	dprintf(1, "set val %f\n", ginfo->vadj_value);
 
@@ -892,6 +895,7 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	gdouble divider;
 	gdouble curr_width;
 	gdouble new_width;
+	gdouble height;
 	gdouble mid;
 	gdouble start_x;
 	unsigned long long time;
@@ -946,10 +950,12 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
 	/* make sure the width is sent */
-	if (ginfo->draw_width == old_width)
-		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width - 1,
-					    ginfo->draw_height);
-	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
+	if (ginfo->draw_width == old_width) {
+		redraw_pixmap_backend(ginfo);
+		height = ginfo->draw->allocation.height;
+		update_with_backend(ginfo, 0, 0, ginfo->draw_width, height);
+	} else
+		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
 	mid = (time - ginfo->view_start_time) * ginfo->resolution;
 	start_x = mid - view_width / 2;
