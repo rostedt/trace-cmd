@@ -30,7 +30,7 @@
 #include "trace-local.h"
 #include "trace-graph.h"
 
-#define DEBUG_LEVEL	1
+#define DEBUG_LEVEL	2
 #if DEBUG_LEVEL > 0
 # define dprintf(l, x...)			\
 	do {					\
@@ -460,13 +460,23 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	return TRUE;
 }
 
-static void update_graph(struct graph_info *ginfo, gdouble percent)
+static int update_graph(struct graph_info *ginfo, gdouble percent)
 {
-	ginfo->full_width *= percent;
-	ginfo->resolution =
-		(gdouble)ginfo->full_width / (gdouble)(ginfo->end_time -
-						       ginfo->start_time);
-	ginfo->start_x *= percent;
+	gint full_width = ginfo->full_width * percent;
+	gdouble resolution = (gdouble)full_width / (gdouble)(ginfo->end_time -
+							     ginfo->start_time);
+
+	/* Check if we are too big */
+	if (!resolution || full_width <= 0)
+		return -1;
+
+	ginfo->full_width = full_width;
+	ginfo->resolution = resolution;
+	ginfo->start_x = (ginfo->view_start_time - ginfo->start_time) *
+		ginfo->resolution;
+
+	dprintf(1, "new resolution = %f\n", resolution);
+	return 0;
 }
 
 static void update_graph_to_start_x(struct graph_info *ginfo)
@@ -479,10 +489,10 @@ static void update_graph_to_start_x(struct graph_info *ginfo)
 		return;
 	}
 
-	ginfo->view_start_time = ginfo->start_x / ginfo->resolution +
+	ginfo->view_start_time = (gdouble)ginfo->start_x / ginfo->resolution +
 		ginfo->start_time;
 
-	ginfo->view_end_time = width / ginfo->resolution +
+	ginfo->view_end_time = (gdouble)width / ginfo->resolution +
 		ginfo->view_start_time;
 
 	g_assert (ginfo->view_start_time < ginfo->end_time);
@@ -499,6 +509,7 @@ static void reset_graph(struct graph_info *ginfo, gdouble view_width)
 
 static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 {
+	guint64 start_time;
 	gdouble view_width;
 	gdouble new_width;
 	gdouble select_width;
@@ -510,25 +521,21 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	g_assert(start < end);
 	g_assert(ginfo->vadj);
 
-	dprintf(1, "*** started with ");
-	print_time(start / ginfo->resolution + ginfo->view_start_time);
-	dprintf(1, "\n");
+	start_time = ginfo->start_time +
+		(ginfo->start_x + start) / ginfo->resolution;
 
 	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
 	select_width = end - start;
 	percent = view_width / select_width;
 
-	update_graph(ginfo, percent);
+	dprintf(1, "view width=%f select width=%f percent=%f\n",
+		view_width, select_width, percent);
+
+	if (update_graph(ginfo, percent) < 0)
+		return;
 
 	curr_width = ginfo->draw->allocation.width;
 	new_width = curr_width * percent;
-
-	dprintf(1, "width=%d\n", ginfo->draw->allocation.width);
-	if (ginfo->vadj) {
-		dprintf(1, "adj:%f-%f\n", gtk_adjustment_get_upper(ginfo->vadj),
-		       gtk_adjustment_get_lower(ginfo->vadj));
-	} else
-		dprintf(1, "no adjustment\n");
 
 	ginfo->draw_width = new_width;
 	dprintf(1, "zoom in draw_width=%d full_width=%d\n",
@@ -550,6 +557,7 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 
 		mid = start + (end - start) / 2;
 		mid *= percent;
+		mid += ginfo->start_x;
 
 		/*
 		 * mid now points to the center of the viewable area
@@ -568,27 +576,18 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 
 		new_start = mid - MAX_WIDTH / 2;
 		new_end = new_start + MAX_WIDTH;
+
 		if (new_start < 0) {
-			/* First check if there's a start available in full */
-			if (ginfo->start_x) {
-				ginfo->start_x += new_start;
-				if (ginfo->start_x < 0) {
-					new_start = ginfo->start_x;
-					ginfo->start_x = 0;
-				} else
-					new_start = 0;
-			}
-			new_end += -new_start;
+			mid += new_start;
 			new_start = 0;
 		} else if (new_end > ginfo->full_width) {
 			new_start -= new_end - ginfo->full_width;
+			mid += new_end - ginfo->full_width;
 			new_end = ginfo->full_width;
 			g_assert(new_start >= 0);
 		}
 
-		ginfo->start_x += new_start;
-
-		update_graph_to_start_x(ginfo);
+		ginfo->start_x = new_start;
 
 		dprintf(1, "new start/end =%d/%d full:%d  start_time:",
 		       new_start, new_end, ginfo->full_width);
@@ -596,10 +595,15 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 		dprintf(1, "\n");
 
 		/* Adjust start to be the location for the vadj */
-		start = (mid - new_start) / percent - (end - start) / 2;
-	}
+		start = (mid - new_start) - view_width / 2;
+	} else
+		start *= percent;
 
-	ginfo->vadj_value = (gdouble)start * view_width / select_width;
+	update_graph_to_start_x(ginfo);
+
+	ginfo->vadj_value = start;
+	ginfo->vadj_value = (start_time - ginfo->view_start_time) * ginfo->resolution;
+
 	if (ginfo->vadj_value > (ginfo->draw_width - view_width))
 		ginfo->vadj_value = ginfo->draw_width - view_width;
 
@@ -623,13 +627,11 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 static gboolean
 value_changed(GtkWidget *widget, gpointer data)
 {
-#if 0
-	struct graph_info *ginfo = data;
+//	struct graph_info *ginfo = data;
 	GtkAdjustment *adj = GTK_ADJUSTMENT(widget);
 
-	printf("value = %f\n",
+	dprintf(2, "value = %f\n",
 	       gtk_adjustment_get_value(adj));
-#endif
 
 	return TRUE;
 
@@ -660,7 +662,8 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	curr_width = ginfo->draw->allocation.width;
 	new_width = curr_width / divider;
 
-	update_graph(ginfo, 1 / divider);
+	if (update_graph(ginfo, 1 / divider) < 0)
+		return;
 
 	dprintf(1, "width=%d\n", ginfo->draw->allocation.width);
 
