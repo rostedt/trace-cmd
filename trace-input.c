@@ -1341,12 +1341,12 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	cpu_data->size = cpu_data->file_size;
 	cpu_data->timestamp = 0;
 
+	list_head_init(&cpu_data->pages);
+
 	if (!cpu_data->size) {
 		printf("CPU %d is empty\n", cpu);
 		return 0;
 	}
-
-	list_head_init(&cpu_data->pages);
 
 	cpu_data->page = allocate_page(handle, cpu, cpu_data->offset);
 	if (!cpu_data->page && !handle->read_page) {
