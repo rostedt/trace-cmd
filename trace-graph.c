@@ -735,27 +735,32 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 static gint do_hash(gint val)
 {
-	int i, x, y;
-	int total = 0;
+	int hash, tmp;
 
+	/* idle always gets black */
 	if (!val)
 		return 0;
 
-	for (i = 0; i < 32; i++) {
-		y = 0;
-		if (val & (1 << i)) {
-			for (x = 0; x < ((i+1) * 13); x++) {
-				y |= 1 << ((x * 23) & 31);
-			}
-		} else {
-			for (x = 0; x < ((i+1) * 7); x++) {
-				y |= 1 << ((x * 17) & 31);
-			}
-		}
-		total += y;
-	}
+	hash = 12546869;	/* random prime */
 
-	return total;
+	/*
+	 * The following hash is based off of Paul Hsieh's super fast hash:
+	 *  http://www.azillionmonkeys.com/qed/hash.html
+	 */
+
+	hash +=	(val & 0xffff);
+	tmp = (val >> 16) ^ hash;
+	hash = (hash << 16) ^ tmp;
+	hash += hash >> 11;
+
+	hash ^= hash << 3;
+	hash += hash >> 5;
+	hash ^= hash << 4;
+	hash += hash >> 17;
+	hash ^= hash << 25;
+	hash += hash >> 6;
+
+	return hash;
 }
 
 static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
