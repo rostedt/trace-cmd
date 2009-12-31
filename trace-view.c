@@ -123,6 +123,9 @@ void trace_view_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer,
 			"font-desc", &pfd, /* apparently don't have to free this */
 			NULL);
 
+	if (!text)
+		goto out;
+
 	/* Make sure there is enough room to render the column label. */
 	str = text;
 	str_len = strlen(str);
@@ -148,8 +151,9 @@ void trace_view_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer,
 			gtk_tree_view_column_set_fixed_width(column, new_w);
 	}
 
-	g_value_unset(&val);
 	g_free(text);
+ out:
+	g_value_unset(&val);
 }
 
 void
