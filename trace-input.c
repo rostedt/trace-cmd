@@ -1218,23 +1218,24 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	unsigned int type_len;
 	int length;
 
+	if (index < 0)
+		die("negative index on cpu iterator %d", cpu);
+
 	/* Hack to work around function graph read ahead */
 	tracecmd_curr_thread_handle = handle;
 
 	if (handle->cpu_data[cpu].next) {
-		/* Make sure it's still mapped */
+
 		record = handle->cpu_data[cpu].next;
+
+		if (handle->cpu_data[cpu].timestamp == record->ts)
+			return record;
+
 		/*
-		 * Make sure the index and timestamp are where
-		 * we want them.
+		 * The timestamp changed, which means the cached
+		 * record is no longer valid. Reread a new record.
 		 */
-		if (handle->cpu_data[cpu].timestamp != record->ts) {
-			handle->cpu_data[cpu].index =
-				(record->offset & (handle->page_size - 1)) +
-				record->record_size;
-			handle->cpu_data[cpu].timestamp = record->ts;
-		}
-		return record;
+		free_record(record);
 	}
 
 	if (!page)
@@ -1247,6 +1248,9 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 
 read_again:
 	index = calc_index(handle, ptr, cpu);
+
+	if (index < 0)
+		die("negative index on cpu record %d", cpu);
 
 	if (index >= handle->cpu_data[cpu].page_size) {
 		if (get_next_page(handle, cpu))
