@@ -137,6 +137,7 @@ static void filter_task_remove_pid(struct graph_info *ginfo, gint pid)
 		return;
 
 	ginfo->filter_available = 0;
+	ginfo->filter_enabled = 0;
 }
 
 static void filter_task_clear(struct graph_info *ginfo)
@@ -301,6 +302,7 @@ filter_enable_clicked (gpointer data)
 void trace_graph_filter_add_remove_task(struct graph_info *ginfo,
 					gint pid)
 {
+	gint filter_enabled = ginfo->filter_enabled;
 	struct filter_task *task;
 
 	task = trace_graph_filter_task_find_pid(ginfo, pid);
@@ -310,7 +312,7 @@ void trace_graph_filter_add_remove_task(struct graph_info *ginfo,
 	else
 		filter_task_add_pid(ginfo, pid);
 
-	if (ginfo->filter_enabled)
+	if (filter_enabled)
 		redraw_graph(ginfo);
 }
 
