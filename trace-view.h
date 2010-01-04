@@ -9,6 +9,8 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 
 void trace_view(int argc, char **argv);
 
+void trace_view_update_task_filter(GtkWidget *treeview, struct filter_task *filter);
+void trace_view_make_selection_visible(GtkWidget *treeview);
 
 /* We use void because this can be used by non gtk files */
 void trace_filter_event_dialog(void *traceview);

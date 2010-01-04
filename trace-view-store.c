@@ -1075,6 +1075,43 @@ guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row)
 	return store->rows[row]->offset;
 }
 
+void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter)
+{
+	struct tracecmd_input *handle;
+	struct pevent *pevent;
+	struct record *record;
+	gint pid;
+	gint cpu;
+	gint i;
+
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	handle = store->handle;
+	pevent = tracecmd_get_pevent(store->handle);
+
+	for (cpu = 0; cpu < store->cpus; cpu++) {
+		record = tracecmd_read_cpu_first(handle, cpu);
+
+		for (i = 0; i < store->cpu_items[cpu]; i++) {
+
+			g_assert(record->offset == store->cpu_list[cpu][i].offset);
+
+			/* TODO: put event filter check here */
+			pid = pevent_data_pid(pevent, record);
+			if (!filter || filter_task_find_pid(filter, pid))
+				store->cpu_list[cpu][i].visible = 1;
+			else
+				store->cpu_list[cpu][i].visible = 0;
+
+			free_record(record);
+			record = tracecmd_read_data(handle, cpu);
+		}
+		g_assert(record == NULL);
+	}
+
+	merge_sort_rows_ts(store);
+}
+
 /*****************************************************************************
  *
  *	trace_view_store_append_record:	Empty lists are boring. This function can

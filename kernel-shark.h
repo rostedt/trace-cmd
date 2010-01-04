@@ -11,6 +11,7 @@ struct shark_info {
 	GtkWidget			*treeview;
 	struct graph_callbacks		graph_cbs;
 	gint				selected_task;
+	gboolean			list_filter_enabled;
 };
 
 #define offset_of(type, field)		(long)(&((type *)0)->field)

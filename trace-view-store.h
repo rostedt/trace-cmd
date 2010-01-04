@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 #include "trace-cmd.h"
+#include "trace-hash.h"
 
 /* Some boilerplate GObject defines. 'klass' is used
  *   instead of 'class', because 'class' is a C++ keyword */
@@ -117,6 +118,8 @@ gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 t
 guint64 trace_view_store_get_time_from_row(TraceViewStore *store, gint row);
 
 guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row);
+
+void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter);
 
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 

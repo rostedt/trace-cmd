@@ -156,11 +156,25 @@ static void row_double_clicked(GtkTreeView        *treeview,
 }
 
 static void
-filter_enable_clicked (gpointer data)
+filter_graph_enable_clicked (gpointer data)
 {
 	struct shark_info *info = data;
 
 	trace_graph_filter_toggle(info->ginfo);
+}
+
+static void
+filter_list_enable_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	info->list_filter_enabled ^= 1;
+
+	if (info->list_filter_enabled)
+		trace_view_update_task_filter(info->treeview,
+					      info->ginfo->task_filter);
+	else
+		trace_view_update_task_filter(info->treeview, NULL);
 }
 
 static void
@@ -169,6 +183,17 @@ filter_add_task_clicked (gpointer data)
 	struct shark_info *info = data;
 
 	trace_graph_filter_add_remove_task(info->ginfo, info->selected_task);
+
+	if (info->list_filter_enabled) {
+		if (filter_task_count(info->ginfo->task_filter))
+			trace_view_update_task_filter(info->treeview,
+						      info->ginfo->task_filter);
+		else
+			trace_view_update_task_filter(info->treeview, NULL);
+	}
+
+	if (!filter_task_count(info->ginfo->task_filter))
+		info->list_filter_enabled = 0;
 }
 
 static void
@@ -177,6 +202,11 @@ filter_clear_tasks_clicked (gpointer data)
 	struct shark_info *info = data;
 
 	trace_graph_clear_tasks(info->ginfo);
+
+	if (info->list_filter_enabled)
+		trace_view_update_task_filter(info->treeview, NULL);
+
+	info->list_filter_enabled = 0;
 }
 
 static gboolean
@@ -185,7 +215,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	struct shark_info *info = data;
 	struct graph_info *ginfo = info->ginfo;
 	static GtkWidget *menu;
-	static GtkWidget *menu_filter_enable;
+	static GtkWidget *menu_filter_graph_enable;
+	static GtkWidget *menu_filter_list_enable;
 	static GtkWidget *menu_filter_add_task;
 	static GtkWidget *menu_filter_clear_tasks;
 	struct record *record;
@@ -205,12 +236,20 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	if (!menu) {
 		menu = gtk_menu_new();
-		menu_filter_enable = gtk_menu_item_new_with_label("Enable Filter");
-		gtk_widget_show(menu_filter_enable);
-		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_enable);
+		menu_filter_graph_enable = gtk_menu_item_new_with_label("Enable Graph Filter");
+		gtk_widget_show(menu_filter_graph_enable);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_graph_enable);
 
-		g_signal_connect_swapped (G_OBJECT (menu_filter_enable), "activate",
-					  G_CALLBACK (filter_enable_clicked),
+		g_signal_connect_swapped (G_OBJECT (menu_filter_graph_enable), "activate",
+					  G_CALLBACK (filter_graph_enable_clicked),
+					  data);
+
+		menu_filter_list_enable = gtk_menu_item_new_with_label("Enable List Filter");
+		gtk_widget_show(menu_filter_list_enable);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_list_enable);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_list_enable), "activate",
+					  G_CALLBACK (filter_list_enable_clicked),
 					  data);
 
 		menu_filter_add_task = gtk_menu_item_new_with_label("Add Task");
@@ -276,16 +315,26 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_widget_hide(menu_filter_add_task);
 
 	if (ginfo->filter_enabled)
-		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
-					"Disable Filter");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_graph_enable),
+					"Disable Graph Filter");
 	else
-		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
-					"Enable Filter");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_graph_enable),
+					"Enable Graph Filter");
 
-	if (ginfo->filter_available)
-		gtk_widget_set_sensitive(menu_filter_enable, TRUE);
+	if (info->list_filter_enabled)
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_list_enable),
+					"Disable List Filter");
 	else
-		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_list_enable),
+					"Enable List Filter");
+
+	if (ginfo->filter_available) {
+		gtk_widget_set_sensitive(menu_filter_graph_enable, TRUE);
+		gtk_widget_set_sensitive(menu_filter_list_enable, TRUE);
+	} else {
+		gtk_widget_set_sensitive(menu_filter_graph_enable, FALSE);
+		gtk_widget_set_sensitive(menu_filter_list_enable, FALSE);
+	}
 
 	if (filter_task_count(ginfo->task_filter))
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);

@@ -207,6 +207,96 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 	g_object_unref(model); /* destroy model automatically with view */
 }
 
+/**
+ * trace_view_get_selected_row - return the selected row
+ * @treeview: The tree view
+ *
+ * Returns the selected row number (or -1 if none is selected)
+ */
+gint trace_view_get_selected_row(GtkWidget *treeview)
+{
+	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
+	GtkTreeSelection *selection;
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	gchar *spath;
+	GList *glist;
+	gint row;
+
+	model = gtk_tree_view_get_model(tree);
+	if (!model)
+		return -1;
+
+	selection = gtk_tree_view_get_selection(tree);
+	glist = gtk_tree_selection_get_selected_rows(selection, &model);
+	if (!glist)
+		return -1;
+
+	/* Only one row may be selected */
+	path = glist->data;
+	spath = gtk_tree_path_to_string(path);
+	row = atoi(spath);
+	g_free(spath);
+
+	gtk_tree_path_free(path);
+	g_list_free(glist);
+
+	return row;
+}
+
+void trace_view_make_selection_visible(GtkWidget *treeview)
+{
+	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
+	GtkTreePath *path;
+	gchar *spath;
+	GString *gstr;
+	gint row;
+
+	row = trace_view_get_selected_row(treeview);
+	if (row < 0)
+		return;
+
+	gstr = g_string_new("");
+	g_string_printf(gstr, "%d", row);
+	spath = g_string_free(gstr, FALSE);
+
+	path = gtk_tree_path_new_from_string(spath);
+	g_free(spath);
+
+	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
+
+	gtk_tree_path_free(path);
+}
+
+void trace_view_update_task_filter(GtkWidget *treeview, struct filter_task *filter)
+{
+	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
+	GtkTreeModel *model;
+	guint64 time;
+	gint row;
+
+	model = gtk_tree_view_get_model(tree);
+	if (!model)
+		return;
+
+	/* Keep track of the currently selected row */
+	row = trace_view_get_selected_row(treeview);
+	if (row >= 0)
+		time = trace_view_store_get_time_from_row(TRACE_VIEW_STORE(model), row);
+
+	g_object_ref(model);
+	gtk_tree_view_set_model(tree, NULL);
+
+	trace_view_store_filter_tasks(TRACE_VIEW_STORE(model), filter);
+
+	gtk_tree_view_set_model(tree, model);
+	g_object_unref(model);
+
+	/* Keep selection near previous selection */
+	if (row >= 0)
+		trace_view_select(treeview, time);
+}
+
 void trace_view_select(GtkWidget *treeview, guint64 time)
 {
 	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
@@ -251,9 +341,8 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 
 	selection = gtk_tree_view_get_selection(tree);
 	gtk_tree_selection_select_path(selection, path);
+	gtk_tree_path_free(path);
 
 	/* finally, make it visible */
-	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
-
-	gtk_tree_path_free(path);
+	trace_view_make_selection_visible(treeview);	
 }
