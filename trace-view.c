@@ -341,8 +341,8 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 
 	selection = gtk_tree_view_get_selection(tree);
 	gtk_tree_selection_select_path(selection, path);
-	gtk_tree_path_free(path);
 
 	/* finally, make it visible */
-	trace_view_make_selection_visible(treeview);	
+	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
+	gtk_tree_path_free(path);
 }
