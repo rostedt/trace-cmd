@@ -56,8 +56,6 @@
 #define CPU_LABEL(cpu) (CPU_TOP(cpu))
 #define CPU_X		5
 
-#define FILTER_TASK_HASH_SIZE	256
-
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
 
@@ -83,97 +81,45 @@ static void print_time(unsigned long long time)
 	printf("%lu.%06lu", sec, usec);
 }
 
-struct filter_task *
+struct filter_task_item *
 trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid)
 {
-	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
-	struct filter_task *task = ginfo->filter_task_hash[key];
-
-	while (task) {
-		if (task->pid == pid)
-			break;
-		task = task->next;
-	}
-	return task;
+	return filter_task_find_pid(ginfo->task_filter, pid);
 }
 
-static void filter_task_add_pid(struct graph_info *ginfo, gint pid)
+static void graph_filter_task_add_pid(struct graph_info *ginfo, gint pid)
 {
-	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
-	struct filter_task *task;
+	filter_task_add_pid(ginfo->task_filter, pid);
 
-	task = g_new0(typeof(*task), 1);
-	g_assert(task);
-
-	task->pid = pid;
-	task->next = ginfo->filter_task_hash[key];
-	ginfo->filter_task_hash[key] = task;
-
-	ginfo->filter_task_count++;
 	ginfo->filter_available = 1;
 }
 
-static void filter_task_remove_pid(struct graph_info *ginfo, gint pid)
+static void graph_filter_task_remove_pid(struct graph_info *ginfo, gint pid)
 {
-	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
-	struct filter_task **next = &ginfo->filter_task_hash[key];
-	struct filter_task *task;
+	filter_task_remove_pid(ginfo->task_filter, pid);
 
-	while (*next) {
-		if ((*next)->pid == pid)
-			break;
-		next = &(*next)->next;
+	if (!filter_task_count(ginfo->task_filter)) {
+		ginfo->filter_available = 0;
+		ginfo->filter_enabled = 0;
 	}
-	if (!*next)
-		return;
+}
 
-	task = *next;
-
-	*next = task->next;
-
-	g_free(task);
-
-	if (--ginfo->filter_task_count)
-		return;
+static void graph_filter_task_clear(struct graph_info *ginfo)
+{
+	filter_task_clear(ginfo->task_filter);
 
 	ginfo->filter_available = 0;
 	ginfo->filter_enabled = 0;
 }
 
-static void filter_task_clear(struct graph_info *ginfo)
-{
-	struct filter_task *task, *next;;
-	gint i;
-
-	if (!ginfo->filter_task_count)
-		return;
-
-	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
-		next = ginfo->filter_task_hash[i];
-		if (!next)
-			continue;
-
-		ginfo->filter_task_hash[i] = NULL;
-		while (next) {
-			task = next;
-			next = task->next;
-			g_free(task);
-		}
-	}
-
-	ginfo->filter_task_count = 0;
-	ginfo->filter_available = 0;
-	ginfo->filter_enabled = 0;
-}
-
-gboolean filter_on_task(struct graph_info *ginfo, gint pid)
+gboolean graph_filter_on_task(struct graph_info *ginfo, gint pid)
 {
 	gboolean filter;
 
 	filter = FALSE;
 	
 	if (ginfo->filter_enabled &&
-	    ginfo->filter_task_count &&
+	    filter_task_count(ginfo->task_filter) &&
 	    !trace_graph_filter_task_find_pid(ginfo, pid))
 		filter = TRUE;
 
@@ -303,14 +249,14 @@ void trace_graph_filter_add_remove_task(struct graph_info *ginfo,
 					gint pid)
 {
 	gint filter_enabled = ginfo->filter_enabled;
-	struct filter_task *task;
+	struct filter_task_item *task;
 
 	task = trace_graph_filter_task_find_pid(ginfo, pid);
 
 	if (task)
-		filter_task_remove_pid(ginfo, task->pid);
+		graph_filter_task_remove_pid(ginfo, task->pid);
 	else
-		filter_task_add_pid(ginfo, pid);
+		graph_filter_task_add_pid(ginfo, pid);
 
 	if (filter_enabled)
 		redraw_graph(ginfo);
@@ -328,7 +274,7 @@ void trace_graph_clear_tasks(struct graph_info *ginfo)
 {
 	gint filter_enabled = ginfo->filter_enabled;
 
-	filter_task_clear(ginfo);
+	graph_filter_task_clear(ginfo);
 
 	if (filter_enabled)
 		redraw_graph(ginfo);
@@ -402,7 +348,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	else
 		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
 
-	if (ginfo->filter_task_count)
+	if (filter_task_count(ginfo->task_filter))
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
 	else
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
@@ -1195,7 +1141,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 				set_color_by_pid(ginfo->draw, gc, pid);
 			}
 				
-			filter = filter_on_task(ginfo, last_pid);
+			filter = graph_filter_on_task(ginfo, last_pid);
 
 			if (!filter && last_pid)
 					
@@ -1210,7 +1156,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			set_color_by_pid(ginfo->draw, gc, pid);
 		}
 
-		filter = filter_on_task(ginfo, pid);
+		filter = graph_filter_on_task(ginfo, pid);
 
 		if (!filter)
 			gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
@@ -1244,7 +1190,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 				 p1, p2, ginfo->draw_width, width_16, font);
 
 	if (last_pid > 0 &&
-	    !filter_on_task(ginfo, last_pid)) {
+	    !graph_filter_on_task(ginfo, last_pid)) {
 
 		x = ginfo->draw_width;
 
@@ -1607,8 +1553,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
 
-	ginfo->filter_task_hash = g_new0(typeof(*ginfo->filter_task_hash),
-					 FILTER_TASK_HASH_SIZE);
+	ginfo->task_filter = filter_task_hash_alloc();
 
 	ginfo->widget = gtk_hbox_new(FALSE, 0);
 	gtk_widget_show(ginfo->widget);

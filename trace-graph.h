@@ -2,6 +2,7 @@
 #define _TRACE_GRAPH_H
 
 #include "trace-cmd.h"
+#include "trace-hash.h"
 
 struct graph_info;
 
@@ -9,11 +10,6 @@ typedef void (graph_select_cb)(struct graph_info *ginfo, guint64 time);
 
 struct graph_callbacks {
 	graph_select_cb		*select;
-};
-
-struct filter_task {
-	struct filter_task	*next;
-	gint			pid;
 };
 
 struct graph_info {
@@ -55,8 +51,7 @@ struct graph_info {
 	int			filter_enabled;
 	int			filter_available;
 
-	struct filter_task	**filter_task_hash;
-	gint			filter_task_count;
+	struct filter_task	*task_filter;
 	gint			filter_task_selected;
 
 
@@ -96,7 +91,7 @@ static inline GtkWidget *trace_graph_get_window(struct graph_info *ginfo)
 	return ginfo->widget;
 }
 
-struct filter_task *
+struct filter_task_item *
 trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid);
 void trace_graph_filter_toggle(struct graph_info *ginfo);
 void trace_graph_filter_add_remove_task(struct graph_info *info,

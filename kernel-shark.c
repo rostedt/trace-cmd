@@ -287,7 +287,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	else
 		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
 
-	if (ginfo->filter_task_count)
+	if (filter_task_count(ginfo->task_filter))
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
 	else
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
