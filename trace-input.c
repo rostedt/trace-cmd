@@ -975,6 +975,11 @@ struct record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 {
 	get_page(handle, cpu, handle->cpu_data[cpu].file_offset);
+	handle->cpu_data[cpu].index = 0;
+	if (handle->cpu_data[cpu].next) {
+		free_record(handle->cpu_data[cpu].next);
+		handle->cpu_data[cpu].next = NULL;
+	}
 
 	return tracecmd_read_data(handle, cpu);
 }
