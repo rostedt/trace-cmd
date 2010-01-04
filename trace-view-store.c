@@ -1037,6 +1037,13 @@ gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 t
 	if (!rec)
 		return 0;
 
+	/* Make sure the record is visible */
+	while (rec && !rec->visible)
+		rec++;
+
+	if (!rec)
+		return 0;
+
 	return rec->pos - (store->page - 1) * store->rows_per_page;
 }
 
