@@ -51,10 +51,11 @@ trace-cmd:: trace-cmd.o trace-read.o
 trace-view:: trace-view-main.o $(TRACE_VIEW_OBJS)
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
-trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o
+trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o trace-hash.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
-kernelshark:: kernel-shark.o trace-compat.o $(TRACE_VIEW_OBJS) trace-graph.o
+kernelshark:: kernel-shark.o trace-compat.o $(TRACE_VIEW_OBJS) trace-graph.o \
+		trace-hash.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
 .PHONY: gtk_depends

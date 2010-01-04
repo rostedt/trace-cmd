@@ -1064,6 +1064,17 @@ guint64 trace_view_store_get_time_from_row(TraceViewStore *store, gint row)
 	return store->rows[row]->timestamp;
 }
 
+guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
+
+	row += store->start_row;
+
+	g_return_val_if_fail (row >= 0 && row < store->actual_rows, 0);
+
+	return store->rows[row]->offset;
+}
+
 /*****************************************************************************
  *
  *	trace_view_store_append_record:	Empty lists are boring. This function can

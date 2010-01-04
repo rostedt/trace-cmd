@@ -11,7 +11,10 @@ struct graph_callbacks {
 	graph_select_cb		*select;
 };
 
-struct filter_task;
+struct filter_task {
+	struct filter_task	*next;
+	gint			pid;
+};
 
 struct graph_info {
 	struct tracecmd_input	*handle;
@@ -92,5 +95,12 @@ static inline GtkWidget *trace_graph_get_window(struct graph_info *ginfo)
 {
 	return ginfo->widget;
 }
+
+struct filter_task *
+trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid);
+void trace_graph_filter_toggle(struct graph_info *ginfo);
+void trace_graph_filter_add_remove_task(struct graph_info *info,
+					gint pid);
+void trace_graph_clear_tasks(struct graph_info *ginfo);
 
 #endif /* _TRACE_GRAPH_H */

@@ -29,6 +29,7 @@
 #include "trace-cmd.h"
 #include "trace-local.h"
 #include "trace-graph.h"
+#include "trace-hash.h"
 
 #define DEBUG_LEVEL	2
 #if DEBUG_LEVEL > 0
@@ -57,18 +58,12 @@
 
 #define FILTER_TASK_HASH_SIZE	256
 
-struct filter_task {
-	struct filter_task	*next;
-	gint			pid;
-};
-
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
 
 static gint largest_cpu_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
-static guint do_hash(gint val);
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
@@ -88,10 +83,10 @@ static void print_time(unsigned long long time)
 	printf("%lu.%06lu", sec, usec);
 }
 
-static struct filter_task *
-filter_task_find_pid(struct graph_info *ginfo, gint pid)
+struct filter_task *
+trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid)
 {
-	gint key = do_hash(pid) % FILTER_TASK_HASH_SIZE;
+	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
 	struct filter_task *task = ginfo->filter_task_hash[key];
 
 	while (task) {
@@ -104,7 +99,7 @@ filter_task_find_pid(struct graph_info *ginfo, gint pid)
 
 static void filter_task_add_pid(struct graph_info *ginfo, gint pid)
 {
-	gint key = do_hash(pid) % FILTER_TASK_HASH_SIZE;
+	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
 	struct filter_task *task;
 
 	task = g_new0(typeof(*task), 1);
@@ -120,7 +115,7 @@ static void filter_task_add_pid(struct graph_info *ginfo, gint pid)
 
 static void filter_task_remove_pid(struct graph_info *ginfo, gint pid)
 {
-	gint key = do_hash(pid) % FILTER_TASK_HASH_SIZE;
+	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
 	struct filter_task **next = &ginfo->filter_task_hash[key];
 	struct filter_task *task;
 
@@ -178,7 +173,7 @@ gboolean filter_on_task(struct graph_info *ginfo, gint pid)
 	
 	if (ginfo->filter_enabled &&
 	    ginfo->filter_task_count &&
-	    !filter_task_find_pid(ginfo, pid))
+	    !trace_graph_filter_task_find_pid(ginfo, pid))
 		filter = TRUE;
 
 	return filter;
@@ -288,30 +283,52 @@ find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
 	return record;
 }
 
-static void
-filter_enable_clicked (gpointer data)
+void trace_graph_filter_toggle(struct graph_info *ginfo)
 {
-	struct graph_info *ginfo = data;
-
 	ginfo->filter_enabled ^= 1;
 
 	redraw_graph(ginfo);
 }
 
 static void
-filter_add_task_clicked (gpointer data)
+filter_enable_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
+
+	trace_graph_filter_toggle(ginfo);
+}
+
+void trace_graph_filter_add_remove_task(struct graph_info *ginfo,
+					gint pid)
+{
 	struct filter_task *task;
 
-	task = filter_task_find_pid(ginfo, ginfo->filter_task_selected);
+	task = trace_graph_filter_task_find_pid(ginfo, pid);
 
 	if (task)
 		filter_task_remove_pid(ginfo, task->pid);
 	else
-		filter_task_add_pid(ginfo, ginfo->filter_task_selected);
+		filter_task_add_pid(ginfo, pid);
 
 	if (ginfo->filter_enabled)
+		redraw_graph(ginfo);
+}
+
+static void
+filter_add_task_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	trace_graph_filter_add_remove_task(ginfo, ginfo->filter_task_selected);
+}
+
+void trace_graph_clear_tasks(struct graph_info *ginfo)
+{
+	gint filter_enabled = ginfo->filter_enabled;
+
+	filter_task_clear(ginfo);
+
+	if (filter_enabled)
 		redraw_graph(ginfo);
 }
 
@@ -319,12 +336,8 @@ static void
 filter_clear_tasks_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
-	gint filter_enabled = ginfo->filter_enabled;
 
-	filter_task_clear(ginfo);
-
-	if (filter_enabled)
-		redraw_graph(ginfo);
+	trace_graph_clear_tasks(ginfo);
 }
 
 static gboolean
@@ -411,7 +424,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		text = g_malloc(len);
 		g_assert(text);
 
-		if (filter_task_find_pid(ginfo, pid))
+		if (trace_graph_filter_task_find_pid(ginfo, pid))
 			snprintf(text, len, "Remove %s-%d to filter", comm, pid);
 		else
 			snprintf(text, len, "Add %s-%d to filter", comm, pid);
@@ -1017,43 +1030,13 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	return TRUE;
 }
 
-static guint do_hash(gint val)
-{
-	int hash, tmp;
-
-	/* idle always gets black */
-	if (!val)
-		return 0;
-
-	hash = 12546869;	/* random prime */
-
-	/*
-	 * The following hash is based off of Paul Hsieh's super fast hash:
-	 *  http://www.azillionmonkeys.com/qed/hash.html
-	 */
-
-	hash +=	(val & 0xffff);
-	tmp = (val >> 16) ^ hash;
-	hash = (hash << 16) ^ tmp;
-	hash += hash >> 11;
-
-	hash ^= hash << 3;
-	hash += hash >> 5;
-	hash ^= hash << 4;
-	hash += hash >> 17;
-	hash ^= hash << 25;
-	hash += hash >> 6;
-
-	return hash;
-}
-
 static gint hash_pid(gint val)
 {
 	/* idle always gets black */
 	if (!val)
 		return 0;
 
-	return do_hash(val);
+	return trace_hash(val);
 }
 
 static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)

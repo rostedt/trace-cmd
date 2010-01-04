@@ -155,6 +155,158 @@ static void row_double_clicked(GtkTreeView        *treeview,
 	trace_graph_select_by_time(info->ginfo, time);
 }
 
+static void
+filter_enable_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_graph_filter_toggle(info->ginfo);
+}
+
+static void
+filter_add_task_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_graph_filter_add_remove_task(info->ginfo, info->selected_task);
+}
+
+static void
+filter_clear_tasks_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_graph_clear_tasks(info->ginfo);
+}
+
+static gboolean
+do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	static GtkWidget *menu;
+	static GtkWidget *menu_filter_enable;
+	static GtkWidget *menu_filter_add_task;
+	static GtkWidget *menu_filter_clear_tasks;
+	struct record *record;
+	TraceViewStore *store;
+	GtkTreeSelection *selection;
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	const char *comm;
+	gchar *text;
+	gint pid;
+	gint len;
+	GList *glist;
+	gchar *spath;
+	guint64 offset;
+	gint row;
+	gint cpu;
+
+	if (!menu) {
+		menu = gtk_menu_new();
+		menu_filter_enable = gtk_menu_item_new_with_label("Enable Filter");
+		gtk_widget_show(menu_filter_enable);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_enable);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_enable), "activate",
+					  G_CALLBACK (filter_enable_clicked),
+					  data);
+
+		menu_filter_add_task = gtk_menu_item_new_with_label("Add Task");
+		gtk_widget_show(menu_filter_add_task);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_add_task);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_add_task), "activate",
+					  G_CALLBACK (filter_add_task_clicked),
+					  data);
+
+		menu_filter_clear_tasks = gtk_menu_item_new_with_label("Clear Task Filter");
+		gtk_widget_show(menu_filter_clear_tasks);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_clear_tasks);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_clear_tasks), "activate",
+					  G_CALLBACK (filter_clear_tasks_clicked),
+					  data);
+
+	}
+
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(info->treeview));
+	glist = gtk_tree_selection_get_selected_rows(GTK_TREE_SELECTION(selection), NULL);
+	if (glist) {
+		path = glist->data;
+		g_list_free(glist);
+		spath = gtk_tree_path_to_string(path);
+		gtk_tree_path_free(path);
+		row = atoi(spath);
+		g_free(spath);
+
+		model = gtk_tree_view_get_model(GTK_TREE_VIEW(info->treeview));
+		store = TRACE_VIEW_STORE(model);
+		offset = trace_view_store_get_offset_from_row(store, row);
+
+		record = tracecmd_read_at(info->handle, offset, &cpu);
+
+		if (record) {
+			pid = pevent_data_pid(ginfo->pevent, record);
+			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+
+			len = strlen(comm) + 50;
+
+			text = g_malloc(len);
+			g_assert(text);
+
+			if (trace_graph_filter_task_find_pid(ginfo, pid))
+				snprintf(text, len, "Remove %s-%d to filter", comm, pid);
+			else
+				snprintf(text, len, "Add %s-%d to filter", comm, pid);
+
+			ginfo->filter_task_selected = pid;
+
+			gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_add_task),
+						text);
+			g_free(text);
+
+			info->selected_task = pid;
+
+			gtk_widget_show(menu_filter_add_task);
+			free_record(record);
+		}
+	} else
+		gtk_widget_hide(menu_filter_add_task);
+
+	if (ginfo->filter_enabled)
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
+					"Disable Filter");
+	else
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
+					"Enable Filter");
+
+	if (ginfo->filter_available)
+		gtk_widget_set_sensitive(menu_filter_enable, TRUE);
+	else
+		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
+
+	if (ginfo->filter_task_count)
+		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
+	else
+		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
+		
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL, 3,
+		       gtk_get_current_event_time());
+
+	return TRUE;
+}
+
+static gboolean
+button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	if (event->button == 3)
+		return do_tree_popup(widget, event, data);
+
+	return FALSE;
+}
+
 void kernel_shark(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
@@ -361,6 +513,9 @@ void kernel_shark(int argc, char **argv)
 	trace_view_load(info->treeview, handle, spin);
 
 	gtk_container_add(GTK_CONTAINER(scrollwin), info->treeview);
+
+	gtk_signal_connect(GTK_OBJECT(info->treeview), "button_press_event",
+			   (GtkSignalFunc) button_press_event, info);
 
 	gtk_widget_show(info->treeview);
 

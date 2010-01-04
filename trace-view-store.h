@@ -116,6 +116,8 @@ gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 t
 
 guint64 trace_view_store_get_time_from_row(TraceViewStore *store, gint row);
 
+guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row);
+
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 
 struct _TraceViewStoreClass
