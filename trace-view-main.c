@@ -248,8 +248,7 @@ void trace_view(int argc, char **argv)
 
 	trace_view_load(trace_tree, handle, spin);
 
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollwin),
-					      trace_tree);
+	gtk_container_add(GTK_CONTAINER(scrollwin), trace_tree);
 	gtk_widget_show(trace_tree);
 
 
