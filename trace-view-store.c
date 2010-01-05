@@ -1008,24 +1008,29 @@ static TraceViewRecord *
 search_for_record_by_timestamp(TraceViewStore *store, guint64 ts)
 {
 	TraceViewRecord key;
-	TraceViewRecord **rec;
+	TraceViewRecord *rec, **prec;
 
-	if (!store->actual_rows)
+	if (!store->visible_rows)
 		return NULL;
 
 	if (ts < store->rows[0]->timestamp)
 		return NULL;
 
-	if (ts >= store->rows[store->actual_rows-1]->timestamp)
-		return store->rows[store->actual_rows-1];
+	if (ts >= store->rows[store->visible_rows-1]->timestamp)
+		return store->rows[store->visible_rows-1];
 
 	key.timestamp = ts;
-	rec = bsearch(&key, store->rows, store->actual_rows - 1,
-		      sizeof(store->rows[0]), rows_ts_cmp);
+	prec = bsearch(&key, store->rows, store->visible_rows - 2,
+		       sizeof(store->rows[0]), rows_ts_cmp);
 
-	g_assert(rec != NULL);
+	g_assert(prec != NULL);
 
-	return *rec;
+	rec = *prec;
+
+	if (rec)
+		printf("found row rec for %ld at %ld\n",
+		       ts, rec->timestamp);
+	return rec;
 }
 
 gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 ts)
@@ -1035,13 +1040,6 @@ gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 t
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
 
 	rec = search_for_record_by_timestamp(store, ts);
-	if (!rec)
-		return 0;
-
-	/* Make sure the record is visible */
-	while (rec && !rec->visible)
-		rec++;
-
 	if (!rec)
 		return 0;
 
@@ -1067,7 +1065,7 @@ guint64 trace_view_store_get_time_from_row(TraceViewStore *store, gint row)
 
 	row += store->start_row;
 
-	g_return_val_if_fail (row >= 0 && row < store->actual_rows, 0);
+	g_return_val_if_fail (row >= 0 && row < store->visible_rows, 0);
 
 	return store->rows[row]->timestamp;
 }
@@ -1078,7 +1076,7 @@ guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row)
 
 	row += store->start_row;
 
-	g_return_val_if_fail (row >= 0 && row < store->actual_rows, 0);
+	g_return_val_if_fail (row >= 0 && row < store->visible_rows, 0);
 
 	return store->rows[row]->offset;
 }
