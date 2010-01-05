@@ -35,6 +35,8 @@ struct dialog_helper {
 
 enum {
 	COL_EVENT,
+	COL_ACTIVE,
+	COL_ACTIVE_START,
 	NUM_EVENT_COLS,
 };
 
@@ -56,11 +58,14 @@ create_tree_event_model(GtkWidget *tree_view)
 
 	pevent = tracecmd_get_pevent(trace_view->handle);
 
-	treestore = gtk_tree_store_new(NUM_EVENT_COLS, G_TYPE_STRING);
+	treestore = gtk_tree_store_new(NUM_EVENT_COLS, G_TYPE_STRING,
+				       G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);
 
 	gtk_tree_store_append(treestore, &iter_all, NULL);
 	gtk_tree_store_set(treestore, &iter_all,
 			   COL_EVENT,	"All",
+			   COL_ACTIVE, TRUE,
+			   COL_ACTIVE_START, FALSE,
 			   -1);
 
 	events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
@@ -73,6 +78,7 @@ create_tree_event_model(GtkWidget *tree_view)
 			gtk_tree_store_append(treestore, &iter_sys, &iter_all);
 			gtk_tree_store_set(treestore, &iter_sys,
 					   COL_EVENT, event->system,
+					   COL_ACTIVE, TRUE,
 					   -1);
 			last_system = event->system;
 		}
@@ -80,6 +86,7 @@ create_tree_event_model(GtkWidget *tree_view)
 		gtk_tree_store_append(treestore, &iter_events, &iter_sys);
 		gtk_tree_store_set(treestore, &iter_events,
 				   COL_EVENT, event->name,
+				   COL_ACTIVE, FALSE,
 				   -1);
 
 	}
@@ -87,10 +94,134 @@ create_tree_event_model(GtkWidget *tree_view)
 	return GTK_TREE_MODEL(treestore);
 }
 
+static void update_active_events(GtkTreeModel *model, GtkTreeIter *parent,
+				 gboolean active)
+{
+	GtkTreeIter event;
+
+	if (!gtk_tree_model_iter_children(model, &event, parent))
+		return;
+
+	for (;;) {
+		gtk_tree_store_set(GTK_TREE_STORE(model), &event,
+				   COL_ACTIVE, active,
+				   -1);
+
+		if (!gtk_tree_model_iter_next(model, &event))
+			break;
+	}
+}
+
+static void update_active_systems(GtkTreeModel *model, GtkTreeIter *parent,
+				  gboolean active)
+{
+	GtkTreeIter sys;
+
+	if (!gtk_tree_model_iter_children(model, &sys, parent))
+		return;
+
+	for (;;) {
+		gtk_tree_store_set(GTK_TREE_STORE(model), &sys,
+				   COL_ACTIVE, active,
+				   -1);
+
+		update_active_events(model, &sys, active);
+
+		if (!gtk_tree_model_iter_next(model, &sys))
+			break;
+	}
+}
+
+static void event_cursor_changed(GtkTreeView *treeview, gpointer data)
+{
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	GtkTreeIter iter, parent, grandparent;
+	gboolean active, start;
+	gint depth;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
+	if (!model)
+		return;
+
+	gtk_tree_view_get_cursor(treeview, &path, NULL);
+	if (!path)
+		return;
+
+	if (!gtk_tree_model_get_iter(model, &iter, path))
+		goto free;
+
+	depth = gtk_tree_path_get_depth(path);
+
+	if (depth == 1) {
+		/*
+		 * The first time we start up, the cursor will
+		 * select the "All Events" row, and call
+		 * this routine. But we don't want to do anything.
+		 * Check and activate.
+		 */
+		gtk_tree_model_get(model, &iter,
+				   COL_ACTIVE_START, &start,
+				   -1);
+		if (!start) {
+			gtk_tree_store_set(GTK_TREE_STORE(model), &iter,
+					   COL_ACTIVE_START, TRUE,
+					   -1);
+			goto free;
+		}
+	}
+
+	gtk_tree_model_get(model, &iter,
+			   COL_ACTIVE, &active,
+			   -1);
+
+	active = active ? FALSE : TRUE;
+
+	gtk_tree_store_set(GTK_TREE_STORE(model), &iter,
+			   COL_ACTIVE, active,
+			   -1);
+
+	if (depth == 1) {
+
+		if (active)
+			/* Set all rows */
+			update_active_systems(model, &iter, TRUE);
+			
+	} else if (depth == 2) {
+		if (active) {
+			/* set this system */
+			update_active_events(model, &iter, TRUE);
+		} else {
+			/* disable the all events toggle */
+			gtk_tree_model_iter_parent(model, &parent, &iter);
+			gtk_tree_store_set(GTK_TREE_STORE(model), &parent,
+					   COL_ACTIVE, FALSE,
+					   -1);
+		}
+			
+	} else {
+		if (!active) {
+			/* disable system and all events toggles */
+			gtk_tree_model_iter_parent(model, &parent, &iter);
+			gtk_tree_store_set(GTK_TREE_STORE(model), &parent,
+					   COL_ACTIVE, FALSE,
+					   -1);
+			gtk_tree_model_iter_parent(model, &grandparent, &parent);
+			gtk_tree_store_set(GTK_TREE_STORE(model), &grandparent,
+					   COL_ACTIVE, FALSE,
+					   -1);
+		}
+	}
+
+ free:
+	gtk_tree_path_free(path);
+}
+
 static GtkWidget *create_event_list_view(GtkWidget *tree_view)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
+	GtkCellRenderer *togrend;
 	GtkWidget *view;
 	GtkTreeModel *model;
 
@@ -106,7 +237,11 @@ static GtkWidget *create_event_list_view(GtkWidget *tree_view)
 
 	renderer  = gtk_cell_renderer_text_new();
 
-	gtk_tree_view_column_pack_start(col, renderer, TRUE);
+	togrend  = gtk_cell_renderer_toggle_new();
+
+	gtk_tree_view_column_pack_start(col, togrend, FALSE);
+	gtk_tree_view_column_pack_start(col, renderer, FALSE);
+	gtk_tree_view_column_add_attribute(col, togrend, "active", COL_ACTIVE);
 
 	gtk_tree_view_column_add_attribute(col, renderer, "text", COL_EVENT);
 
@@ -117,13 +252,16 @@ static GtkWidget *create_event_list_view(GtkWidget *tree_view)
 	g_object_unref(model);
 
 	gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)),
-				    GTK_SELECTION_MULTIPLE);
-
+				    GTK_SELECTION_NONE);
+	
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(view));
+
+	g_signal_connect_swapped (view, "cursor-changed",
+				  G_CALLBACK (event_cursor_changed),
+				  (gpointer) view);
 
 	return view;
 }
-
 
 /* Callback for the clicked signal of the Events filter button */
 static void
