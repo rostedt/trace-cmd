@@ -129,21 +129,24 @@ plugin_mac80211.so: plugin_mac80211.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
 
-.PHONY: python
-python:	$(TCMD_LIB_OBJS)
-	swig -Wall -python -noproxy ctracecmd.i
-	#swig -Wall -python ctracecmd.i
-	gcc -fpic -c  `python-config --includes` ctracecmd_wrap.c
-	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
-	#$(CC) --shared $^ ctracecmd_wrap.o -o _ctracecmd.so
+PYTHON_INCLUDES = `python-config --includes`
+PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
-.PHONY: python-gui
-python-gui: $(TRACE_VIEW_OBJS)
+ctracecmd.so: $(TCMD_LIB_OBJS)
+	swig -Wall -python -noproxy ctracecmd.i
+	gcc -fpic -c $(PYTHON_INCLUDES)  ctracecmd_wrap.c
+	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
+
+ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	swig -Wall -python -noproxy ctracecmdgui.i
-	# FIXME: where do we get the pygtk include from?
-	gcc -fpic -c  `python-config --includes` $(CFLAGS) $(INCLUDES) -I/usr/include/pygtk-2.0/ ctracecmdgui_wrap.c
+	gcc -fpic -c  $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
 	$(CC) --shared $^ $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
 
+.PHONY: python
+python: ctracecmd.so
+
+.PHONY: python-gui
+python-gui: ctracecmd.so ctracecmdgui.so 
 
 .PHONY: force
 force:
