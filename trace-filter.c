@@ -177,6 +177,9 @@ void trace_filter_event_dialog(void *trace_tree)
 				  (gpointer) helper);
 
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
 	view = create_event_list_view(tree_view);
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
@@ -341,6 +344,9 @@ void trace_filter_cpu_dialog(void *trace_tree)
 				  (gpointer) helper);
 
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
 
 	viewport = gtk_viewport_new(NULL, NULL);
 	gtk_widget_show(viewport);
