@@ -1039,37 +1039,16 @@ gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts)
 	return rec->pos / store->rows_per_page + 1;
 }
 
-guint64 trace_view_store_get_time_from_row(TraceViewStore *store, gint row)
-{
-	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
-
-	row += store->start_row;
-
-	g_return_val_if_fail (row >= 0 && row < store->visible_rows, 0);
-
-	return store->rows[row]->timestamp;
-}
-
-guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row)
-{
-	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
-
-	row += store->start_row;
-
-	g_return_val_if_fail (row >= 0 && row < store->visible_rows, 0);
-
-	return store->rows[row]->offset;
-}
-
 TraceViewRecord *
 trace_view_store_get_row(TraceViewStore *store, gint row)
 {
 	TraceViewRecord *record;
+	g_return_val_if_fail(TRACE_VIEW_IS_LIST(store), NULL);
 
-	if (row >= store->num_rows || row < 0)
-		return NULL;
+	row += store->start_row;
+	g_return_val_if_fail(row >= store->start_row && row < store->visible_rows, NULL);
 
-	record = store->rows[store->start_row + row];
+	record = store->rows[row];
 	g_assert(record != NULL);
 	g_assert((record->pos - store->start_row) == row);
 	return record;

@@ -137,6 +137,7 @@ static void row_double_clicked(GtkTreeView        *treeview,
 			       gpointer            data)
 {
 	struct shark_info *info = data;
+	TraceViewRecord *rec;
 	GtkTreeModel *model;
 	gchar *spath;
 	guint64 time;
@@ -151,7 +152,8 @@ static void row_double_clicked(GtkTreeView        *treeview,
 	row = atoi(spath);
 	g_free(spath);
 
-	time = trace_view_store_get_time_from_row(TRACE_VIEW_STORE(model), row);
+	rec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);
+	time = rec->timestamp;
 	trace_graph_select_by_time(info->ginfo, time);
 }
 
@@ -220,7 +222,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_add_task;
 	static GtkWidget *menu_filter_clear_tasks;
 	struct record *record;
-	TraceViewStore *store;
+	TraceViewRecord *vrec;
 	GtkTreeSelection *selection;
 	GtkTreeModel *model;
 	GtkTreePath *path;
@@ -281,8 +283,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		g_free(spath);
 
 		model = gtk_tree_view_get_model(GTK_TREE_VIEW(info->treeview));
-		store = TRACE_VIEW_STORE(model);
-		offset = trace_view_store_get_offset_from_row(store, row);
+		vrec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);
+		offset = vrec->offset;
 
 		record = tracecmd_read_at(info->handle, offset, &cpu);
 
