@@ -11,3 +11,4 @@ trace-view
 *.swp
 ctracecmd_wrap.c
 
+ctracecmdgui_wrap.c
