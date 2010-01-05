@@ -989,12 +989,13 @@ static int rows_ts_cmp(const void *a, const void *b)
 	/* a is just a key, but b is a pointer to a record pointer */
 	const TraceViewRecord *ta = a;
 	const TraceViewRecord *tb = *(TraceViewRecord **)b;
+	const TraceViewRecord *tb1 = *((TraceViewRecord **)b+1);
 
 	/* match inbetween too */
 	if ((ta->timestamp == tb->timestamp) ||
 
 	    (ta->timestamp > tb->timestamp &&
-	     ta->timestamp < (tb+1)->timestamp))
+	     ta->timestamp < tb1->timestamp))
 		return 0;
 
 	if (ta->timestamp < tb->timestamp)
