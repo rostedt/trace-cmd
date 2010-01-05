@@ -328,7 +328,7 @@ trace_view_store_get_iter (GtkTreeModel *tree_model,
 {
 	TraceViewStore	*trace_view_store;
 	TraceViewRecord	*record;
-	gint	*indices, n, depth, pos;
+	gint	*indices, n, depth;
 
 	g_assert(TRACE_VIEW_IS_LIST(tree_model));
 	g_assert(path!=NULL);
@@ -343,16 +343,9 @@ trace_view_store_get_iter (GtkTreeModel *tree_model,
 
 	n = indices[0]; /* the n-th top level row */
 
-	if ( n >= trace_view_store->num_rows || n < 0 )
+	record = trace_view_store_get_row(trace_view_store, n);
+	if (!record)
 		return FALSE;
-
-	record = trace_view_store->rows[trace_view_store->start_row + n];
-
-	g_assert(record != NULL);
-
-	pos = record->pos - trace_view_store->start_row;
-
-	g_assert(pos == n);
 
 	/* We simply store a pointer to our custom record in the iter */
 	iter->stamp	= trace_view_store->stamp;
@@ -1079,6 +1072,20 @@ guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row)
 	g_return_val_if_fail (row >= 0 && row < store->visible_rows, 0);
 
 	return store->rows[row]->offset;
+}
+
+TraceViewRecord *
+trace_view_store_get_row(TraceViewStore *store, gint row)
+{
+	TraceViewRecord *record;
+
+	if (row >= store->num_rows || row < 0)
+		return NULL;
+
+	record = store->rows[store->start_row + row];
+	g_assert(record != NULL);
+	g_assert((record->pos - store->start_row) == row);
+	return record;
 }
 
 gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *record)

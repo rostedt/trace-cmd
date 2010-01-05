@@ -123,6 +123,8 @@ guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row);
 
 void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter);
 
+TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
+
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 
 struct _TraceViewStoreClass
