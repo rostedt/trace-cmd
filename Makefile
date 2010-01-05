@@ -37,11 +37,11 @@ trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
 trace-view.o::		$(HEADERS) trace-view-store.h trace-view.h
 trace-view-store.o::	$(HEADERS) trace-view-store.h trace-view.h
-trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h
+trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h libtracecmd.a
 trace-filter.o::	$(HEADERS)
 trace-graph.o::		$(HEADERS) trace-graph.h
-trace-graph-main.o::	$(HEADERS) trace-graph.h
-kernel-shark.o::	$(HEADERS) kernel-shark.h
+trace-graph-main.o::	$(HEADERS) trace-graph.h libtracecmd.a
+kernel-shark.o::	$(HEADERS) kernel-shark.h libtracecmd.a
 
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
 	trace-hash.o
