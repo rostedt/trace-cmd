@@ -31,15 +31,15 @@ enum
 } ;
 
 
-typedef struct _TraceViewRecord	TraceViewRecord;
-typedef struct _TraceViewStore	TraceViewStore;
-typedef struct _TraceViewStoreClass	TraceViewStoreClass;
+typedef struct trace_view_record	TraceViewRecord;
+typedef struct trace_view_store	TraceViewStore;
+typedef struct trace_view_store_class	TraceViewStoreClass;
 
 
 
 /* TraceViewRecord: this structure represents a row */
 
-struct _TraceViewRecord
+struct trace_view_record
 {
 	/* What we need from the record */
 	guint64		timestamp;
@@ -60,7 +60,7 @@ struct _TraceViewRecord
  *             crucial that 'parent' is the first member of the
  *             structure.                                          */
 
-struct _TraceViewStore
+struct trace_view_store
 {
 	GObject			parent;	/* this MUST be the first member */
 
@@ -125,9 +125,22 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 
 TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 
+/* TraceViewStore methos */
+GtkTreeModelFlags trace_view_store_get_flags	(GtkTreeModel	*tree_model);
+
+gint trace_view_store_get_n_columns	(GtkTreeModel	*tree_model);
+
+GType trace_view_store_get_column_type (GtkTreeModel	*tree_model,
+							  gint	index);
+
+void trace_view_store_get_value	(GtkTreeModel	*tree_model,
+							 GtkTreeIter	*iter,
+							 gint	column,
+							 GValue	*value);
+
 /* TraceViewStoreClass: more boilerplate GObject stuff */
 
-struct _TraceViewStoreClass
+struct trace_view_store_class
 {
 	GObjectClass		parent_class;
 };

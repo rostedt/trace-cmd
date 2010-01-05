@@ -137,6 +137,13 @@ python:	$(TCMD_LIB_OBJS)
 	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
 	#$(CC) --shared $^ ctracecmd_wrap.o -o _ctracecmd.so
 
+.PHONY: python-gui
+python-gui: $(TRACE_VIEW_OBJS)
+	swig -Wall -python -noproxy ctracecmdgui.i
+	# FIXME: where do we get the pygtk include from?
+	gcc -fpic -c  `python-config --includes` $(CFLAGS) $(INCLUDES) -I/usr/include/pygtk-2.0/ ctracecmdgui_wrap.c
+	$(CC) --shared $^ $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
+
 
 .PHONY: force
 force:

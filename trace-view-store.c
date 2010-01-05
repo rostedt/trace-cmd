@@ -13,24 +13,12 @@ static void		trace_view_store_tree_model_init (GtkTreeModelIface *iface);
 
 static void		trace_view_store_finalize	(GObject	*object);
 
-static GtkTreeModelFlags trace_view_store_get_flags	(GtkTreeModel	*tree_model);
-
-static gint		trace_view_store_get_n_columns	(GtkTreeModel	*tree_model);
-
-static GType		trace_view_store_get_column_type (GtkTreeModel	*tree_model,
-							  gint	index);
-
 static gboolean		trace_view_store_get_iter	(GtkTreeModel	*tree_model,
 							 GtkTreeIter	*iter,
 							 GtkTreePath	*path);
 
-static GtkTreePath 	*trace_view_store_get_path	(GtkTreeModel	*tree_model,
+static GtkTreePath	*trace_view_store_get_path	(GtkTreeModel	*tree_model,
 							 GtkTreeIter	*iter);
-
-static void		trace_view_store_get_value	(GtkTreeModel	*tree_model,
-							 GtkTreeIter	*iter,
-							 gint	column,
-							 GValue	*value);
 
 static gboolean		trace_view_store_iter_next	(GtkTreeModel	*tree_model,
 							 GtkTreeIter	*iter);
@@ -53,7 +41,6 @@ static gboolean		trace_view_store_iter_nth_child	(GtkTreeModel	*tree_model,
 static gboolean		trace_view_store_iter_parent	(GtkTreeModel	*tree_model,
 							 GtkTreeIter	*iter,
 							 GtkTreeIter	*child);
-
 
 
 static GObjectClass *parent_class = NULL;	/* GObject stuff - nothing to worry about */
@@ -240,7 +227,7 @@ trace_view_store_finalize (GObject *object)
  *
  *****************************************************************************/
 
-static GtkTreeModelFlags
+GtkTreeModelFlags
 trace_view_store_get_flags (GtkTreeModel *tree_model)
 {
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), (GtkTreeModelFlags)0);
@@ -256,7 +243,7 @@ trace_view_store_get_flags (GtkTreeModel *tree_model)
  *
  *****************************************************************************/
 
-static gint
+gint
 trace_view_store_get_n_columns (GtkTreeModel *tree_model)
 {
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), 0);
@@ -299,7 +286,7 @@ static gint get_visible_column(TraceViewStore *trace_view, gint column)
  *
  *****************************************************************************/
 
-static GType
+GType
 trace_view_store_get_column_type (GtkTreeModel *tree_model,
 				  gint	index)
 {
@@ -394,7 +381,7 @@ trace_view_store_get_path (GtkTreeModel *tree_model,
  *
  *****************************************************************************/
 
-static void
+void
 trace_view_store_get_value (GtkTreeModel *tree_model,
 			    GtkTreeIter	*iter,
 			    gint	column,
