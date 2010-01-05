@@ -1081,6 +1081,16 @@ guint64 trace_view_store_get_offset_from_row(TraceViewStore *store, gint row)
 	return store->rows[row]->offset;
 }
 
+gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *record)
+{
+	unsigned long long val;
+	int ret;
+
+	ret = pevent_read_number_field(store->sched_switch_next_field, record, &val);
+
+	return val;
+}
+
 void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter)
 {
 	struct tracecmd_input *handle;
@@ -1095,6 +1105,15 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 	handle = store->handle;
 	pevent = tracecmd_get_pevent(store->handle);
 
+	if (!store->sched_switch_event) {
+		store->sched_switch_event =
+			pevent_find_event_by_name(pevent, "sched", "sched_switch");
+		if (store->sched_switch_event)
+			store->sched_switch_next_field =
+				pevent_find_any_field(store->sched_switch_event,
+						      "next_pid");
+	}
+
 	for (cpu = 0; cpu < store->cpus; cpu++) {
 		record = tracecmd_read_cpu_first(handle, cpu);
 
@@ -1106,8 +1125,19 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 			pid = pevent_data_pid(pevent, record);
 			if (!filter || filter_task_find_pid(filter, pid))
 				store->cpu_list[cpu][i].visible = 1;
-			else
+			else {
+				if (store->sched_switch_next_field &&
+				    pevent_data_type(pevent, record) ==
+				    store->sched_switch_event->id) {
+					/* show sched switch to task */
+					pid = get_next_pid(store, pevent, record);
+					if (filter_task_find_pid(filter, pid))
+						store->cpu_list[cpu][i].visible = 1;
+					else
+						store->cpu_list[cpu][i].visible = 0;
+				}
 				store->cpu_list[cpu][i].visible = 0;
+			}
 
 			free_record(record);
 			record = tracecmd_read_data(handle, cpu);
