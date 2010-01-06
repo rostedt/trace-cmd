@@ -116,3 +116,47 @@ struct filter_task *filter_task_hash_alloc(void)
 
 	return hash;
 }
+
+void filter_task_hash_free(struct filter_task *hash)
+{
+	if (!hash)
+		return;
+
+	filter_task_clear(hash);
+	g_free(hash->hash);
+	g_free(hash);
+}
+
+struct filter_task *filter_task_hash_copy(struct filter_task *hash)
+{
+	struct filter_task *new_hash;
+	struct filter_task_item *task, **ptask;
+	gint i;
+
+	if (!hash)
+		return NULL;
+
+	new_hash = filter_task_hash_alloc();
+	g_assert(new_hash);
+
+	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
+		task = hash->hash[i];
+		if (!task)
+			continue;
+
+		ptask = &new_hash->hash[i];
+
+		while (task) {
+
+			*ptask = g_new0(typeof(*task), 1);
+			g_assert(*ptask);
+			**ptask = *task;
+
+			ptask = &(*ptask)->next;
+			task = task->next;
+		}
+	}
+
+	return new_hash;
+}
+

@@ -94,7 +94,10 @@ struct trace_view_store
 	gint			all_events; /* set 1 when all events are enabled */
 						/* else */
 	gchar			**systems;  /* sorted list of systems that are enabled */
-	gint			**event_types; /* sorted list of events that are enabled */
+	gint			*event_types; /* sorted list of events that are enabled */
+	gint			systems_size; /* size of systems array */
+	gint			event_types_size; /* size of event_types array */
+	struct filter_task	*task_filter;	/* hash of tasks to filter on */
 
 	gint			all_cpus;   /* set 1 when all cpus are enabled */
 						/* else */
@@ -125,7 +128,19 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 
 TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 
-/* TraceViewStore methos */
+gboolean trace_view_store_system_enabled(TraceViewStore *store, const gchar *system);
+
+gboolean trace_view_store_event_enabled(TraceViewStore *store, gint event_id);
+
+void trace_view_store_set_all_events_enabled(TraceViewStore *store);
+
+void trace_view_store_set_system_enabled(TraceViewStore *store, const gchar *system);
+
+void trace_view_store_set_event_enabled(TraceViewStore *store, gint event_id);
+
+void trace_view_store_update_filter(TraceViewStore *store);
+
+/* TraceViewStore methods */
 GtkTreeModelFlags trace_view_store_get_flags	(GtkTreeModel	*tree_model);
 
 gint trace_view_store_get_n_columns	(GtkTreeModel	*tree_model);
@@ -190,5 +205,24 @@ static inline GtkWidget *trace_view_store_get_spin(TraceViewStore *store)
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
 	return store->spin;
 }
+
+static inline gboolean trace_view_store_get_all_events_enabled(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);
+	return store->all_events;
+}
+
+static inline gchar **trace_view_store_get_systems_enabled(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
+	return store->systems;
+}
+
+static inline gint *trace_view_store_get_events_enabled(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
+	return store->event_types;
+}
+
 
 #endif /* _trace_view_store_h_included_ */

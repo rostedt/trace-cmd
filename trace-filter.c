@@ -37,6 +37,7 @@ enum {
 	COL_EVENT,
 	COL_ACTIVE,
 	COL_ACTIVE_START,
+	COL_EVENT_ID,
 	NUM_EVENT_COLS,
 };
 
@@ -51,20 +52,26 @@ create_tree_event_model(GtkWidget *tree_view)
 	struct event_format **events;
 	struct event_format *event;
 	char *last_system = NULL;
+	gboolean all_events;
+	gboolean sysactive;
+	gboolean active;
 	gint i;
 
 	model = gtk_tree_view_get_model(GTK_TREE_VIEW(tree_view));
 	trace_view = TRACE_VIEW_STORE(model);
 
+	all_events = trace_view_store_get_all_events_enabled(trace_view);
+
 	pevent = tracecmd_get_pevent(trace_view->handle);
 
 	treestore = gtk_tree_store_new(NUM_EVENT_COLS, G_TYPE_STRING,
-				       G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);
+				       G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+				       G_TYPE_INT);
 
 	gtk_tree_store_append(treestore, &iter_all, NULL);
 	gtk_tree_store_set(treestore, &iter_all,
 			   COL_EVENT,	"All",
-			   COL_ACTIVE, TRUE,
+			   COL_ACTIVE, all_events,
 			   COL_ACTIVE_START, FALSE,
 			   -1);
 
@@ -76,17 +83,22 @@ create_tree_event_model(GtkWidget *tree_view)
 		event = events[i];
 		if (!last_system || strcmp(last_system, event->system) != 0) {
 			gtk_tree_store_append(treestore, &iter_sys, &iter_all);
+			sysactive = all_events ||
+				trace_view_store_system_enabled(trace_view, event->system);
 			gtk_tree_store_set(treestore, &iter_sys,
 					   COL_EVENT, event->system,
-					   COL_ACTIVE, TRUE,
+					   COL_ACTIVE, sysactive,
 					   -1);
 			last_system = event->system;
 		}
 
+		active = all_events || sysactive ||
+			trace_view_store_event_enabled(trace_view, event->id);
 		gtk_tree_store_append(treestore, &iter_events, &iter_sys);
 		gtk_tree_store_set(treestore, &iter_events,
 				   COL_EVENT, event->name,
-				   COL_ACTIVE, FALSE,
+				   COL_ACTIVE, active,
+				   COL_EVENT_ID, event->id,
 				   -1);
 
 	}
@@ -263,15 +275,114 @@ static GtkWidget *create_event_list_view(GtkWidget *tree_view)
 	return view;
 }
 
+static void update_events(TraceViewStore *store,
+			  GtkTreeModel *model,
+			  GtkTreeIter *parent)
+{
+	GtkTreeIter event;
+	gboolean active;
+	gint id;
+
+	if (!gtk_tree_model_iter_children(model, &event, parent))
+		return;
+
+	for (;;) {
+
+		gtk_tree_model_get(model, &event,
+				   COL_ACTIVE, &active,
+				   COL_EVENT_ID, &id,
+				   -1);
+
+		if (active)
+			trace_view_store_set_event_enabled(store, id);
+
+		if (!gtk_tree_model_iter_next(model, &event))
+			break;
+	}
+}
+
+static void update_system_events(TraceViewStore *store,
+				 GtkTreeModel *model,
+				 GtkTreeIter *parent)
+{
+	GtkTreeIter sys;
+	gboolean active;
+	gchar *system;
+
+	if (!gtk_tree_model_iter_children(model, &sys, parent))
+		return;
+
+	for (;;) {
+
+		gtk_tree_model_get(model, &sys,
+				   COL_ACTIVE, &active,
+				   COL_EVENT, &system,
+				   -1);
+
+		if (active)
+			trace_view_store_set_system_enabled(store, system);
+		else
+			update_events(store, model, &sys);
+
+		g_free(system);
+
+		if (!gtk_tree_model_iter_next(model, &sys))
+			break;
+	}
+}
+
+static void accept_events(GtkWidget *trace_tree_view, GtkTreeView *view)
+{
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	GtkTreeIter iter;
+	gboolean active;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(trace_tree_view));
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	model = gtk_tree_view_get_model(view);
+	if (!model)
+		return;
+
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return;
+
+	gtk_tree_model_get(model, &iter,
+			   COL_ACTIVE, &active,
+			   -1);
+
+	if (active) {
+		if (trace_view_store_get_all_events_enabled(store))
+			return;
+
+		trace_view_store_set_all_events_enabled(store);
+	} else
+		update_system_events(store, model, &iter);
+
+	/* Force an update */
+	g_object_ref(store);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(trace_tree_view), NULL);
+	trace_view_store_update_filter(store);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(trace_tree_view), GTK_TREE_MODEL(store));
+	g_object_unref(store);
+
+}
+
 /* Callback for the clicked signal of the Events filter button */
 static void
 event_dialog_response (gpointer data, gint response_id)
 {
 	struct dialog_helper *helper = data;
+	GtkTreeView *view = helper->data;
 
 	switch (response_id) {
 	case GTK_RESPONSE_ACCEPT:
 		printf("accept!\n");
+		accept_events(helper->trace_tree, view);
 		break;
 	case GTK_RESPONSE_REJECT:
 		printf("reject!\n");
@@ -319,6 +430,7 @@ void trace_filter_event_dialog(void *trace_tree)
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	view = create_event_list_view(tree_view);
+	helper->data = view;
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);

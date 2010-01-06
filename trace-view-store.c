@@ -1,5 +1,6 @@
 #include "trace-view-store.h"
 #include <stdlib.h>
+#include <string.h>
 
 #include "cpu.h"
 
@@ -206,6 +207,8 @@ trace_view_store_finalize (GObject *object)
 	g_free(store->cpu_mask);
 	g_free(store->rows);
 	g_free(store->cpu_items);
+
+	filter_task_hash_free(store->task_filter);
 
 	if (store->spin) {
 		gtk_widget_destroy(store->spin);
@@ -488,6 +491,183 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		}
 		free_record(data);
 	}
+}
+
+int str_cmp(const void *a, const void *b)
+{
+	char * const * sa = a;
+	char * const * sb = b;
+
+	return strcmp(*sa, *sb);
+}
+
+int id_cmp(const void *a, const void *b)
+{
+	const gint *ia = a;
+	const gint *ib = b;
+
+	if (*ia > *ib)
+		return 1;
+	if (*ia < *ib)
+		return -1;
+	return 0;
+}
+
+gboolean trace_view_store_system_enabled(TraceViewStore *store, const gchar *system)
+{
+	const gchar **sys = &system;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);
+
+	if (store->all_events)
+		return TRUE;
+
+	if (!store->systems)
+		return FALSE;
+
+	sys = bsearch(sys, store->systems, store->systems_size,
+		      sizeof(system), str_cmp);
+
+	return sys != NULL;
+}
+
+gboolean trace_view_store_event_enabled(TraceViewStore *store, gint event_id)
+{
+	gint key = event_id;
+	gint *ret;
+
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);
+
+	if (store->all_events)
+		return TRUE;
+
+	/* TODO: search for the system of the event? */
+
+	if (!store->event_types)
+		return FALSE;
+
+	ret = bsearch(&key, store->event_types, store->event_types_size,
+		      sizeof(gint), id_cmp);
+
+	return ret != NULL;
+}
+
+void trace_view_store_set_all_events_enabled(TraceViewStore *store)
+{
+	gint i;
+
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	if (store->all_events)
+		return;
+
+	if (store->systems_size) {
+		for (i = 0; i < store->systems_size; i++)
+			g_free(store->systems[i]);
+
+		g_free(store->systems);
+		store->systems = NULL;
+		store->systems_size = 0;
+	}
+
+	g_free(store->event_types);
+	store->event_types = NULL;
+	store->event_types_size = 0;
+
+	store->all_events = 1;
+}
+
+static void remove_system(TraceViewStore *store, const gchar *system)
+{
+	const gchar **sys = &system;
+
+	if (!store->systems)
+		return;
+
+	sys = bsearch(sys, store->systems, store->systems_size,
+		      sizeof(system), str_cmp);
+
+	if (!sys)
+		return;
+
+	g_free(*((gchar **)sys));
+
+	g_memmove(sys, sys+1, sizeof(*sys) * (store->systems_size -
+					      ((gchar **)sys - store->systems)));
+	store->systems_size--;
+	store->systems[store->systems_size] = NULL;
+}
+
+void trace_view_store_set_system_enabled(TraceViewStore *store, const gchar *system)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	if (store->all_events)
+		/*
+		 * We are adding a new filter, so this is the
+		 * only system enabled.
+		 */
+		store->all_events = 0;
+
+	if (trace_view_store_system_enabled(store, system))
+		return;
+
+	if (!store->systems) {
+		store->systems = g_new0(gchar *, 2);
+		store->systems[0] = g_strdup(system);
+		store->systems_size++;
+		return;
+	}
+
+	store->systems_size++;
+	store->systems = g_realloc(store->systems,
+				   sizeof(*store->systems) * (store->systems_size+1));
+	store->systems[store->systems_size - 1] = g_strdup(system);
+	store->systems[store->systems_size] = NULL;
+
+	qsort(store->systems, store->systems_size, sizeof(gchar *), str_cmp);
+}
+
+
+void trace_view_store_set_event_enabled(TraceViewStore *store, gint event_id)
+{
+	struct pevent *pevent;
+	struct event_format *event;
+
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	pevent = tracecmd_get_pevent(store->handle);
+	event = pevent_find_event(pevent, event_id);
+	if (!event)
+		return;
+
+	if (store->all_events)
+		/*
+		 * We are adding a new filter, so this is the
+		 * only system enabled.
+		 */
+		store->all_events = 0;
+
+	remove_system(store, event->system);
+
+	if (trace_view_store_event_enabled(store, event_id))
+		return;
+
+	if (!store->event_types) {
+		store->event_types = g_new0(gint, 2);
+		store->event_types[0] = event_id;
+		store->event_types[1] = -1;
+		store->event_types_size++;
+		return;
+	}
+
+	store->event_types_size++;
+	store->event_types = g_realloc(store->event_types,
+				       sizeof(*store->event_types) * (store->event_types_size+1));
+	store->event_types[store->event_types_size - 1] = event_id;
+	store->event_types[store->event_types_size] = -1;
+
+	qsort(store->event_types, store->event_types_size, sizeof(gint), id_cmp);
 }
 
 
@@ -1088,13 +1268,22 @@ gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *r
 void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter)
 {
 	struct tracecmd_input *handle;
+	struct event_format *event;
 	struct pevent *pevent;
 	struct record *record;
+	gint last_event_id = -1;
+	gint event_id;
 	gint pid;
 	gint cpu;
 	gint i;
 
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	/* We may pass in the store->task_filter. Don't free it if we do */
+	if (store->task_filter && store->task_filter != filter)
+		filter_task_hash_free(store->task_filter);
+
+	store->task_filter = filter_task_hash_copy(filter);
 
 	handle = store->handle;
 	pevent = tracecmd_get_pevent(store->handle);
@@ -1115,7 +1304,22 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 
 			g_assert(record->offset == store->cpu_list[cpu][i].offset);
 
-			/* TODO: put event filter check here */
+			/* The record may be filtered by the events */
+			if (!store->all_events) {
+				event_id = pevent_data_type(pevent, record);
+				if (last_event_id != event_id) {
+					/* optimize: only search event when new */
+					event = pevent_find_event(pevent, event_id);
+					g_assert(event);
+				}
+				last_event_id = event_id;
+				if (!trace_view_store_system_enabled(store, event->system) &&
+				    !trace_view_store_event_enabled(store, event_id)) {
+					store->cpu_list[cpu][i].visible = 0;
+					goto skip;
+				}
+			}
+
 			pid = pevent_data_pid(pevent, record);
 			if (!filter || filter_task_find_pid(filter, pid))
 				store->cpu_list[cpu][i].visible = 1;
@@ -1133,6 +1337,7 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 				store->cpu_list[cpu][i].visible = 0;
 			}
 
+ skip:
 			free_record(record);
 			record = tracecmd_read_data(handle, cpu);
 		}
@@ -1141,6 +1346,14 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 
 	merge_sort_rows_ts(store);
 }
+
+void trace_view_store_update_filter(TraceViewStore *store)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	trace_view_store_filter_tasks(store, store->task_filter);
+}
+
 
 /*****************************************************************************
  *
