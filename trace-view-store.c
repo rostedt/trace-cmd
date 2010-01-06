@@ -1254,7 +1254,7 @@ trace_view_store_get_row(TraceViewStore *store, gint row)
 
 	record = store->rows[row];
 	g_assert(record != NULL);
-	g_assert((record->pos - store->start_row) == row);
+	g_assert(record->pos == row);
 	return record;
 }
 
