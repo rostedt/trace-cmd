@@ -1260,7 +1260,7 @@ gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *r
 	unsigned long long val;
 	int ret;
 
-	ret = pevent_read_number_field(store->sched_switch_next_field, record, &val);
+	ret = pevent_read_number_field(store->sched_switch_next_field, record->data, &val);
 
 	return val;
 }
@@ -1333,8 +1333,8 @@ void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *fi
 						store->cpu_list[cpu][i].visible = 1;
 					else
 						store->cpu_list[cpu][i].visible = 0;
-				}
-				store->cpu_list[cpu][i].visible = 0;
+				} else
+					store->cpu_list[cpu][i].visible = 0;
 			}
 
  skip:
