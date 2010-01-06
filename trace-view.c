@@ -271,6 +271,7 @@ void trace_view_make_selection_visible(GtkWidget *treeview)
 void trace_view_update_task_filter(GtkWidget *treeview, struct filter_task *filter)
 {
 	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
+	TraceViewRecord *vrec;
 	GtkTreeModel *model;
 	guint64 time;
 	gint row;
@@ -281,8 +282,10 @@ void trace_view_update_task_filter(GtkWidget *treeview, struct filter_task *filt
 
 	/* Keep track of the currently selected row */
 	row = trace_view_get_selected_row(treeview);
-	if (row >= 0)
-		time = trace_view_store_get_time_from_row(TRACE_VIEW_STORE(model), row);
+	if (row >= 0) {
+		vrec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);
+		time = vrec->timestamp;
+	}
 
 	g_object_ref(model);
 	gtk_tree_view_set_model(tree, NULL);
