@@ -134,6 +134,8 @@ void trace_view_store_set_system_enabled(TraceViewStore *store, const gchar *sys
 
 void trace_view_store_set_event_enabled(TraceViewStore *store, gint event_id);
 
+void trace_view_store_clear_all_events_enabled(TraceViewStore *store);
+
 void trace_view_store_update_filter(TraceViewStore *store);
 
 /* TraceViewStore methods */

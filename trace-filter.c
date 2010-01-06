@@ -195,22 +195,18 @@ static void event_cursor_changed(GtkTreeView *treeview, gpointer data)
 
 	if (depth == 1) {
 
-		if (active)
-			/* Set all rows */
-			update_active_systems(model, &iter, TRUE);
+		/* Set all rows */
+		update_active_systems(model, &iter, active);
 			
 	} else if (depth == 2) {
-		if (active) {
-			/* set this system */
-			update_active_events(model, &iter, TRUE);
-		} else {
+
+		/* set this system */
+		update_active_events(model, &iter, active);
+
+		if (!active)
 			/* disable the all events toggle */
 			gtk_tree_model_iter_parent(model, &parent, &iter);
-			gtk_tree_store_set(GTK_TREE_STORE(model), &parent,
-					   COL_ACTIVE, FALSE,
-					   -1);
-		}
-			
+
 	} else {
 		if (!active) {
 			/* disable system and all events toggles */
@@ -311,6 +307,8 @@ static void update_system_events(TraceViewStore *store,
 
 	if (!gtk_tree_model_iter_children(model, &sys, parent))
 		return;
+
+	trace_view_store_clear_all_events_enabled(store);
 
 	for (;;) {
 

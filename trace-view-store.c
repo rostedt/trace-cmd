@@ -552,14 +552,9 @@ gboolean trace_view_store_event_enabled(TraceViewStore *store, gint event_id)
 	return ret != NULL;
 }
 
-void trace_view_store_set_all_events_enabled(TraceViewStore *store)
+static void clear_all_events(TraceViewStore *store)
 {
 	gint i;
-
-	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
-
-	if (store->all_events)
-		return;
 
 	if (store->systems_size) {
 		for (i = 0; i < store->systems_size; i++)
@@ -573,6 +568,29 @@ void trace_view_store_set_all_events_enabled(TraceViewStore *store)
 	g_free(store->event_types);
 	store->event_types = NULL;
 	store->event_types_size = 0;
+}
+
+void trace_view_store_clear_all_events_enabled(TraceViewStore *store)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	clear_all_events(store);
+
+	store->all_events = 0;
+}
+
+void trace_view_store_set_all_events_enabled(TraceViewStore *store)
+{
+	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
+
+	if (store->all_events)
+		return;
+
+	/*
+	 * All enabled means that we don't need to look at 
+	 * the system events, so free those arrays.
+	 */
+	clear_all_events(store);
 
 	store->all_events = 1;
 }
@@ -1225,7 +1243,12 @@ trace_view_store_get_row(TraceViewStore *store, gint row)
 	TraceViewRecord *record;
 	g_return_val_if_fail(TRACE_VIEW_IS_LIST(store), NULL);
 
+	/* If we don't have any visible rows, return NULL */
+	if (!store->visible_rows)
+		return NULL;
+
 	row += store->start_row;
+
 	g_return_val_if_fail(row >= store->start_row && row < store->visible_rows, NULL);
 
 	record = store->rows[row];
