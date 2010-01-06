@@ -438,7 +438,8 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		usecs /= 1000;
 		secs = usecs / 1000000ULL;
 		usecs -= secs * 1000000ULL;
-		str = g_strdup_printf("%llu.%06llu", secs, usecs);
+		str = g_strdup_printf("%llu.%06llu",
+				      (long long)secs, (long long)usecs);
 		g_value_set_string(value, str);
 		g_free(str);
 		break;
