@@ -1078,6 +1078,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	gint last_event_id = 0;
 	gint event_id;
 	gboolean filter;
+	gboolean is_sched_switch;
 	const char *comm;
 
 	/* Calculate the size of 16 characters */
@@ -1118,8 +1119,10 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		x = (gint)((gdouble)ts * ginfo->resolution);
 
+		is_sched_switch = FALSE;
 
 		if (check_sched_switch(ginfo, record, &pid, &comm)) {
+			is_sched_switch = TRUE;
 			if (read_comms) {
 				/*
 				 * First time through, register any missing
@@ -1151,12 +1154,17 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 						   x - last_x, CPU_BOX_SIZE);
 
 			last_x = x;
-			last_pid = pid;
 
 			set_color_by_pid(ginfo->draw, gc, pid);
 		}
 
 		filter = graph_filter_on_task(ginfo, pid);
+
+		/* Also show the task switching out */
+		if (filter && is_sched_switch)
+			filter = graph_filter_on_task(ginfo, last_pid);
+
+		last_pid = pid;
 
 		if (!filter)
 			gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
