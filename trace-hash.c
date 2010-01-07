@@ -157,5 +157,7 @@ struct filter_task *filter_task_hash_copy(struct filter_task *hash)
 		}
 	}
 
+	new_hash->count = hash->count;
+
 	return new_hash;
 }
