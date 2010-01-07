@@ -146,6 +146,7 @@ void trace_view_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer,
 		gtk_cell_renderer_get_padding(renderer, &x_pad, NULL);
 		/* +10 to avoid another adjustment for one char */
 		new_w += 2*x_pad + 10;
+		g_object_unref(playout);
 
 		if (new_w > gtk_tree_view_column_get_width(column))
 			gtk_tree_view_column_set_fixed_width(column, new_w);
