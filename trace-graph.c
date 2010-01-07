@@ -59,6 +59,8 @@
 
 static gint ftrace_sched_switch_id = -1;
 static gint event_sched_switch_id = -1;
+static gint event_wakeup_id = -1;
+static gint event_wakeup_new_id = -1;
 
 static gint largest_cpu_label = 0;
 
@@ -623,6 +625,72 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 
 #define CPU_BOARDER 5
 
+static int check_sched_wakeup(struct graph_info *ginfo,
+			      struct record *record,
+			      gint *pid)
+{
+	static struct format_field *wakeup_pid_field;
+	static struct format_field *wakeup_success_field;
+	static struct format_field *wakeup_new_pid_field;
+	static struct format_field *wakeup_new_success_field;
+	struct event_format *event;
+	unsigned long long val;
+	gboolean found;
+	gint id;
+
+	if (event_wakeup_id < 0) {
+
+		found = FALSE;
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  "sched", "sched_wakeup");
+		if (event) {
+			found = TRUE;
+			event_wakeup_id = event->id;
+			wakeup_pid_field = pevent_find_field(event, "pid");
+			wakeup_success_field = pevent_find_field(event, "success");
+		}
+
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  "sched", "sched_wakeup_new");
+		if (event) {
+			found = TRUE;
+			event_wakeup_new_id = event->id;
+			wakeup_new_pid_field = pevent_find_field(event, "pid");
+			wakeup_new_success_field = pevent_find_field(event, "success");
+		}
+		if (!found)
+			return 0;
+	}
+
+	id = pevent_data_type(ginfo->pevent, record);
+
+	if (id == event_wakeup_id) {
+		/* We only want those that actually woke up the task */
+		pevent_read_number_field(wakeup_success_field, record->data, &val);
+		if (!val)
+			return 0;
+		pevent_read_number_field(wakeup_pid_field, record->data, &val);
+		if (pid)
+			*pid = val;
+		return 1;
+	}
+
+	if (id == event_wakeup_new_id) {
+		/* We only want those that actually woke up the task */
+		pevent_read_number_field(wakeup_new_success_field, record->data, &val);
+		if (!val)
+			return 0;
+		pevent_read_number_field(wakeup_new_pid_field, record->data, &val);
+		if (pid)
+			*pid = val;
+		return 1;
+	}
+
+	return 0;
+}
+
 static int check_sched_switch(struct graph_info *ginfo,
 			      struct record *record,
 			      gint *pid, const char **comm)
@@ -637,20 +705,21 @@ static int check_sched_switch(struct graph_info *ginfo,
 
 	if (event_sched_switch_id < 0) {
 		event = pevent_find_event_by_name(ginfo->pevent,
+						  "sched", "sched_switch");
+		if (!event)
+			return 0;
+
+		event_sched_switch_id = event->id;
+		event_pid_field = pevent_find_field(event, "next_pid");
+		event_comm_field = pevent_find_field(event, "next_comm");
+
+		event = pevent_find_event_by_name(ginfo->pevent,
 						  "ftrace", "context_switch");
 		if (event) {
 			ftrace_sched_switch_id = event->id;
 			ftrace_pid_field = pevent_find_field(event, "next_pid");
 			ftrace_comm_field = pevent_find_field(event, "next_comm");
 		}
-
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  "sched", "sched_switch");
-		if (!event)
-			die("can't find event sched_switch!");
-		event_sched_switch_id = event->id;
-		event_pid_field = pevent_find_field(event, "next_pid");
-		event_comm_field = pevent_find_field(event, "next_comm");
 	}
 
 	id = pevent_data_type(ginfo->pevent, record);
@@ -1223,9 +1292,13 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	gint x;
 	gint p1 = 0, p2 = 0, p3 = 0;
 	gint last_event_id = 0;
+	gint wake_pid;
+	gint last_wake_pid;
 	gint event_id;
 	gboolean filter;
 	gboolean is_sched_switch;
+	gboolean is_wakeup;
+	gboolean last_is_wakeup = FALSE;
 	const char *comm;
 
 	/* Calculate the size of 16 characters */
@@ -1313,6 +1386,11 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		last_pid = pid;
 
+		/* Lets see if a filtered task is waking up */
+		is_wakeup = check_sched_wakeup(ginfo, record, &wake_pid);
+		if (filter && is_wakeup)
+			filter = graph_filter_on_task(ginfo, wake_pid);
+
 		if (!filter) {
 			filter = graph_filter_on_event(ginfo, record);
 			if (!filter)
@@ -1329,15 +1407,22 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			if (!p3)
 				p3 = 1;
 
+			if (last_is_wakeup)
+				pid = last_wake_pid;
+			else
+				pid = last_pid;
+
 			/* first record, continue */
 			if (p2)
-				draw_event_label(ginfo, cpu, last_event_id, last_pid,
+				draw_event_label(ginfo, cpu, last_event_id, pid,
 						 p1, p2, p3, width_16, font);
 
 			p1 = p2;
 			p2 = p3;
 
 			last_event_id = event_id;
+			last_is_wakeup = is_wakeup;
+			last_wake_pid = wake_pid;
 		}
 
 		free_record(record);
