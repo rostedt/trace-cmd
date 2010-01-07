@@ -7,9 +7,13 @@
 struct graph_info;
 
 typedef void (graph_select_cb)(struct graph_info *ginfo, guint64 time);
+typedef void (graph_filter_cb)(struct graph_info *ginfo,
+			       struct filter_task *task_filter,
+			       struct filter_task *hide_tasks);
 
 struct graph_callbacks {
 	graph_select_cb		*select;
+	graph_filter_cb		*filter;
 };
 
 struct graph_info {

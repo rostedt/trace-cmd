@@ -83,6 +83,21 @@ static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
 	trace_view_select(info->treeview, cursor);
 }
 
+static void ks_graph_filter(struct graph_info *ginfo,
+			    struct filter_task *task_filter,
+			    struct filter_task *hide_tasks)
+{
+	struct graph_callbacks *cbs;
+	struct shark_info *info;
+
+	cbs = trace_graph_get_callbacks(ginfo);
+	info = container_of(cbs, struct shark_info, graph_cbs);
+
+	if (info->list_filter_enabled)
+		trace_view_update_filters(info->treeview,
+					  task_filter, hide_tasks);
+}
+
 static void free_info(struct shark_info *info)
 {
 	tracecmd_close(info->handle);
@@ -231,12 +246,6 @@ filter_add_task_clicked (gpointer data)
 
 	trace_graph_filter_add_remove_task(info->ginfo, info->selected_task);
 
-	if (info->list_filter_enabled) {
-		trace_view_update_filters(info->treeview,
-					  info->ginfo->task_filter,
-					  info->ginfo->hide_tasks);
-	}
-
 	if (!filter_task_count(info->ginfo->task_filter))
 		info->list_filter_enabled = 0;
 }
@@ -247,12 +256,6 @@ filter_hide_task_clicked (gpointer data)
 	struct shark_info *info = data;
 
 	trace_graph_filter_hide_show_task(info->ginfo, info->selected_task);
-
-	if (info->list_filter_enabled) {
-		trace_view_update_filters(info->treeview,
-					  info->ginfo->task_filter,
-					  info->ginfo->hide_tasks);
-	}
 
 	if (!filter_task_count(info->ginfo->task_filter) &&
 	    !filter_task_count(info->ginfo->hide_tasks))
@@ -265,9 +268,6 @@ filter_clear_tasks_clicked (gpointer data)
 	struct shark_info *info = data;
 
 	trace_graph_clear_tasks(info->ginfo);
-
-	if (info->list_filter_enabled)
-		trace_view_update_filters(info->treeview, NULL, NULL);
 
 	info->list_filter_enabled = 0;
 }
@@ -593,6 +593,7 @@ void kernel_shark(int argc, char **argv)
 	/* --- Set up Graph --- */
 
 	info->graph_cbs.select = ks_graph_select;
+	info->graph_cbs.filter = ks_graph_filter;
 
 	info->ginfo = trace_graph_create_with_callbacks(handle, &info->graph_cbs);
 	widget = trace_graph_get_window(info->ginfo);

@@ -344,6 +344,10 @@ void trace_graph_filter_add_remove_task(struct graph_info *ginfo,
 	else
 		graph_filter_task_add_pid(ginfo, pid);
 
+	if (ginfo->callbacks && ginfo->callbacks->filter)
+		ginfo->callbacks->filter(ginfo, ginfo->task_filter,
+					 ginfo->hide_tasks);
+
 	if (filter_enabled)
 		redraw_graph(ginfo);
 }
@@ -360,6 +364,10 @@ void trace_graph_filter_hide_show_task(struct graph_info *ginfo,
 		graph_hide_task_remove_pid(ginfo, task->pid);
 	else
 		graph_hide_task_add_pid(ginfo, pid);
+
+	if (ginfo->callbacks && ginfo->callbacks->filter)
+		ginfo->callbacks->filter(ginfo, ginfo->task_filter,
+					 ginfo->hide_tasks);
 
 	if (filter_enabled)
 		redraw_graph(ginfo);
@@ -386,6 +394,10 @@ void trace_graph_clear_tasks(struct graph_info *ginfo)
 	gint filter_enabled = ginfo->filter_enabled;
 
 	graph_filter_task_clear(ginfo);
+
+	if (ginfo->callbacks && ginfo->callbacks->filter)
+		ginfo->callbacks->filter(ginfo, ginfo->task_filter,
+					 ginfo->hide_tasks);
 
 	if (filter_enabled)
 		redraw_graph(ginfo);
