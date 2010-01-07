@@ -2,7 +2,8 @@
 trace-cmd
 *.so
 *.a
-trace.dat
+*.dat
+*.patch
 *~
 kernelshark
 trace-graph
