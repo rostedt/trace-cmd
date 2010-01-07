@@ -60,6 +60,7 @@ struct graph_info {
 	struct filter_task	*task_filter;
 	gint			filter_task_selected;
 
+	struct filter_task	*hide_tasks;
 
 	/* Box info for CPU data info window */
 	gint			cpu_data_x;
