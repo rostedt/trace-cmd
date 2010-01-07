@@ -120,7 +120,7 @@ void trace_view_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer,
 
 	g_object_get(G_OBJECT(renderer),
 			"text", &text,
-			"font-desc", &pfd, /* apparently don't have to free this */
+			"font-desc", &pfd,
 			NULL);
 
 	if (!text)
@@ -154,6 +154,7 @@ void trace_view_data_func(GtkTreeViewColumn *column, GtkCellRenderer *renderer,
 
 	g_free(text);
  out:
+	pango_font_description_free(pfd);
 	g_value_unset(&val);
 }
 
