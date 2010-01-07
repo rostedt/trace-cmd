@@ -118,8 +118,26 @@ static void
 events_clicked (gpointer data)
 {
 	struct shark_info *info = data;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gboolean all_events;
+	gchar **systems;
+	gint *events;
 
-	trace_filter_event_dialog(info->treeview);
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	all_events = trace_view_store_get_all_events_enabled(store);
+	systems = trace_view_store_get_systems_enabled(store);
+	events = trace_view_store_get_events_enabled(store);
+
+	trace_filter_event_dialog(store->handle, all_events,
+				  systems, events,
+				  trace_view_event_filter_callback, trace_tree);
 }
 
 /* Callback for the clicked signal of the CPUs filter button */
@@ -127,8 +145,19 @@ static void
 cpus_clicked (gpointer data)
 {
 	struct shark_info *info = data;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	TraceViewStore *store;
+	gboolean all_cpus;
+	guint64 *cpu_mask;
 
-	trace_filter_cpu_dialog(info->treeview);
+	store = TRACE_VIEW_STORE(gtk_tree_view_get_model(trace_tree));
+
+	all_cpus = trace_view_store_get_all_cpus(store);
+	cpu_mask = trace_view_store_get_cpu_mask(store);
+
+	trace_filter_cpu_dialog(all_cpus, cpu_mask,
+				trace_view_store_get_cpus(store),
+				trace_view_cpu_filter_callback, trace_tree);
 }
 
 static void row_double_clicked(GtkTreeView        *treeview,

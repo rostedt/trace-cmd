@@ -28,6 +28,7 @@
 #include "trace-local.h"
 #include "trace-view.h"
 #include "trace-compat.h"
+#include "cpu.h"
 
 enum {
 	COL_INDEX,
@@ -350,4 +351,93 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 	/* finally, make it visible */
 	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
 	gtk_tree_path_free(path);
+}
+
+void trace_view_event_filter_callback(gboolean accept,
+				      gboolean all_events,
+				      gchar **systems,
+				      gint *events,
+				      gpointer data)
+{
+	GtkTreeView *trace_tree = data;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gint i;
+
+	if (!accept)
+		return;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	if (all_events) {
+		if (trace_view_store_get_all_events_enabled(store))
+			return;
+
+		trace_view_store_set_all_events_enabled(store);
+	} else {
+		trace_view_store_clear_all_events_enabled(store);
+
+		if (systems) {
+			for (i = 0; systems[i]; i++)
+				trace_view_store_set_system_enabled(store, systems[i]);
+		}
+
+		if (events) {
+			for (i = 0; events[i] >= 0; i++)
+				trace_view_store_set_event_enabled(store, events[i]);
+		}
+	}
+
+	/* Force an update */
+	g_object_ref(store);
+	gtk_tree_view_set_model(trace_tree, NULL);
+	trace_view_store_update_filter(store);
+	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
+	g_object_unref(store);
+}
+
+void trace_view_cpu_filter_callback(gboolean accept,
+				    gboolean all_cpus,
+				    guint64 *selected_cpu_mask,
+				    gpointer data)
+{
+	GtkTreeView *trace_tree = data;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gint cpus;
+	gint cpu;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	if (!accept)
+		return;
+
+	g_object_ref(store);
+	gtk_tree_view_set_model(trace_tree, NULL);
+
+	if (all_cpus) {
+		trace_view_store_set_all_cpus(store);
+		goto set_model;
+	}
+
+	cpus = trace_view_store_get_cpus(store);
+
+	for (cpu = 0; cpu < cpus; cpu++) {
+		if (cpu_isset(selected_cpu_mask, cpu))
+			trace_view_store_set_cpu(store, cpu);
+		else
+			trace_view_store_clear_cpu(store, cpu);
+	}
+
+ set_model:
+	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
+	g_object_unref(store);
 }

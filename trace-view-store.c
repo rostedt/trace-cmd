@@ -494,26 +494,6 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	}
 }
 
-int str_cmp(const void *a, const void *b)
-{
-	char * const * sa = a;
-	char * const * sb = b;
-
-	return strcmp(*sa, *sb);
-}
-
-int id_cmp(const void *a, const void *b)
-{
-	const gint *ia = a;
-	const gint *ib = b;
-
-	if (*ia > *ib)
-		return 1;
-	if (*ia < *ib)
-		return -1;
-	return 0;
-}
-
 gboolean trace_view_store_system_enabled(TraceViewStore *store, const gchar *system)
 {
 	const gchar **sys = &system;
