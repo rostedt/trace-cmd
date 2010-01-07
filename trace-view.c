@@ -302,7 +302,7 @@ void trace_view_update_filters(GtkWidget *treeview,
 	g_object_unref(model);
 
 	/* Keep selection near previous selection */
-	if (row >= 0 && trace_view_store_visible_rows(TRACE_VIEW_STORE(model)))
+	if (row >= 0)
 		trace_view_select(treeview, time);
 }
 
@@ -321,6 +321,10 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 	/* This can be called when we NULL out the model */
 	if (!model)
 		return;
+
+	if (!trace_view_store_visible_rows(TRACE_VIEW_STORE(model)))
+		return;
+
 	page = trace_view_store_get_page(TRACE_VIEW_STORE(model));
 	select_page = trace_view_store_get_timestamp_page(TRACE_VIEW_STORE(model),
 							  time);
