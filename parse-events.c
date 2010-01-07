@@ -3173,7 +3173,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 					/* make %l into %ll */
 					p = strchr(format, 'l');
 					if (p)
-						memmove(p+1, p, strlen(p)+1);
+						memmove(p, p+1, strlen(p)+1);
 					else if (strcmp(format, "%p") == 0)
 						strcpy(format, "0x%llx");
 				}
