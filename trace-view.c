@@ -369,6 +369,9 @@ void trace_view_event_filter_callback(gboolean accept,
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
+	TraceViewRecord *vrec;
+	guint64 time;
+	gint row;
 	gint i;
 
 	if (!accept)
@@ -399,12 +402,22 @@ void trace_view_event_filter_callback(gboolean accept,
 		}
 	}
 
+	/* Keep track of the currently selected row */
+	row = trace_view_get_selected_row(GTK_WIDGET(trace_tree));
+	if (row >= 0) {
+		vrec = trace_view_store_get_row(store, row);
+		time = vrec->timestamp;
+	}
+
 	/* Force an update */
 	g_object_ref(store);
 	gtk_tree_view_set_model(trace_tree, NULL);
 	trace_view_store_update_filter(store);
 	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
 	g_object_unref(store);
+
+	if (row >= 0)
+		trace_view_select(GTK_WIDGET(trace_tree), time);
 }
 
 void trace_view_cpu_filter_callback(gboolean accept,
