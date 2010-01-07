@@ -128,24 +128,9 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 	return TRUE;
 }
 
-static void event_filter_callback(gboolean accept,
-				   gboolean all_events,
-				   gchar **systems,
-				   gint *events,
-				   gpointer data)
-{
-	struct shark_info *info = data;
-
-	trace_view_event_filter_callback(accept, all_events, systems,
-					 events, info->treeview);
-
-	trace_graph_event_filter_callback(accept, all_events, systems,
-					  events, info->ginfo);
-}
-
 /* Callback for the clicked signal of the Events filter button */
 static void
-events_clicked (gpointer data)
+list_events_clicked (gpointer data)
 {
 	struct shark_info *info = data;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
@@ -167,7 +152,68 @@ events_clicked (gpointer data)
 
 	trace_filter_event_dialog(store->handle, all_events,
 				  systems, events,
-				  event_filter_callback, info);
+				  trace_view_event_filter_callback, info->treeview);
+}
+
+static void
+graph_events_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	gboolean all_events;
+	gchar **systems;
+	gint *events;
+
+	all_events = ginfo->all_events;
+	systems = ginfo->systems;
+	events = ginfo->event_ids;
+
+	trace_filter_event_dialog(info->handle, all_events,
+				  systems, events,
+				  trace_graph_event_filter_callback, ginfo);
+}
+
+static void
+sync_graph_events_to_list_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gboolean all_events;
+	gchar **systems;
+	gint *events;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	all_events = trace_view_store_get_all_events_enabled(store);
+	systems = trace_view_store_get_systems_enabled(store);
+	events = trace_view_store_get_events_enabled(store);
+
+	trace_graph_event_filter_callback(TRUE, all_events, systems,
+					  events, info->ginfo);
+}
+
+
+static void
+sync_list_events_to_graph_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	gboolean all_events;
+	gchar **systems;
+	gint *events;
+
+	all_events = ginfo->all_events;
+	systems = ginfo->systems;
+	events = ginfo->event_ids;
+
+	trace_view_event_filter_callback(TRUE, all_events, systems,
+					 events, info->treeview);
 }
 
 /* Callback for the clicked signal of the CPUs filter button */
@@ -547,16 +593,64 @@ void kernel_shark(int argc, char **argv)
 	menu = gtk_menu_new();    /* Don't need to show menus */
 
 
-	/* --- Filter - Events Option --- */
+	/* --- Filter - List Events Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("events");
+	sub_item = gtk_menu_item_new_with_label("list events");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
 
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (events_clicked),
+				  G_CALLBACK (list_events_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("graph events");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (graph_events_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("sync graph events to list");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (sync_graph_events_to_list_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("sync list events to graph");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (sync_list_events_to_graph_clicked),
 				  (gpointer) info);
 
 	/* We do need to show menu items */
