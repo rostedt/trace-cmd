@@ -217,10 +217,11 @@ filter_list_enable_clicked (gpointer data)
 	info->list_filter_enabled ^= 1;
 
 	if (info->list_filter_enabled)
-		trace_view_update_task_filter(info->treeview,
-					      info->ginfo->task_filter);
+		trace_view_update_filters(info->treeview,
+					  info->ginfo->task_filter,
+					  info->ginfo->hide_tasks);
 	else
-		trace_view_update_task_filter(info->treeview, NULL);
+		trace_view_update_filters(info->treeview, NULL, NULL);
 }
 
 static void
@@ -231,14 +232,30 @@ filter_add_task_clicked (gpointer data)
 	trace_graph_filter_add_remove_task(info->ginfo, info->selected_task);
 
 	if (info->list_filter_enabled) {
-		if (filter_task_count(info->ginfo->task_filter))
-			trace_view_update_task_filter(info->treeview,
-						      info->ginfo->task_filter);
-		else
-			trace_view_update_task_filter(info->treeview, NULL);
+		trace_view_update_filters(info->treeview,
+					  info->ginfo->task_filter,
+					  info->ginfo->hide_tasks);
 	}
 
 	if (!filter_task_count(info->ginfo->task_filter))
+		info->list_filter_enabled = 0;
+}
+
+static void
+filter_hide_task_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_graph_filter_hide_show_task(info->ginfo, info->selected_task);
+
+	if (info->list_filter_enabled) {
+		trace_view_update_filters(info->treeview,
+					  info->ginfo->task_filter,
+					  info->ginfo->hide_tasks);
+	}
+
+	if (!filter_task_count(info->ginfo->task_filter) &&
+	    !filter_task_count(info->ginfo->hide_tasks))
 		info->list_filter_enabled = 0;
 }
 
@@ -250,7 +267,7 @@ filter_clear_tasks_clicked (gpointer data)
 	trace_graph_clear_tasks(info->ginfo);
 
 	if (info->list_filter_enabled)
-		trace_view_update_task_filter(info->treeview, NULL);
+		trace_view_update_filters(info->treeview, NULL, NULL);
 
 	info->list_filter_enabled = 0;
 }
@@ -264,6 +281,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_graph_enable;
 	static GtkWidget *menu_filter_list_enable;
 	static GtkWidget *menu_filter_add_task;
+	static GtkWidget *menu_filter_hide_task;
 	static GtkWidget *menu_filter_clear_tasks;
 	struct record *record;
 	TraceViewRecord *vrec;
@@ -304,6 +322,14 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 		g_signal_connect_swapped (G_OBJECT (menu_filter_add_task), "activate",
 					  G_CALLBACK (filter_add_task_clicked),
+					  data);
+
+		menu_filter_hide_task = gtk_menu_item_new_with_label("Hide Task");
+		gtk_widget_show(menu_filter_hide_task);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_hide_task);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_hide_task), "activate",
+					  G_CALLBACK (filter_hide_task_clicked),
 					  data);
 
 		menu_filter_clear_tasks = gtk_menu_item_new_with_label("Clear Task Filter");
@@ -350,15 +376,27 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 			gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_add_task),
 						text);
+
+			if (trace_graph_hide_task_find_pid(ginfo, pid))
+				snprintf(text, len, "Show %s-%d", comm, pid);
+			else
+				snprintf(text, len, "Hide %s-%d", comm, pid);
+
+			gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
+						text);
+
 			g_free(text);
 
 			info->selected_task = pid;
 
 			gtk_widget_show(menu_filter_add_task);
+			gtk_widget_show(menu_filter_hide_task);
 			free_record(record);
 		}
-	} else
+	} else {
 		gtk_widget_hide(menu_filter_add_task);
+		gtk_widget_hide(menu_filter_hide_task);
+	}
 
 	if (ginfo->filter_enabled)
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_graph_enable),
@@ -382,7 +420,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_widget_set_sensitive(menu_filter_list_enable, FALSE);
 	}
 
-	if (filter_task_count(ginfo->task_filter))
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
 	else
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);

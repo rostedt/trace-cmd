@@ -271,7 +271,9 @@ void trace_view_make_selection_visible(GtkWidget *treeview)
 	gtk_tree_path_free(path);
 }
 
-void trace_view_update_task_filter(GtkWidget *treeview, struct filter_task *filter)
+void trace_view_update_filters(GtkWidget *treeview,
+			       struct filter_task *task_filter,
+			       struct filter_task *hide_tasks)
 {
 	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
 	TraceViewRecord *vrec;
@@ -293,13 +295,14 @@ void trace_view_update_task_filter(GtkWidget *treeview, struct filter_task *filt
 	g_object_ref(model);
 	gtk_tree_view_set_model(tree, NULL);
 
-	trace_view_store_filter_tasks(TRACE_VIEW_STORE(model), filter);
+	trace_view_store_assign_filters(TRACE_VIEW_STORE(model), task_filter, hide_tasks);
+	trace_view_store_update_filter(TRACE_VIEW_STORE(model));
 
 	gtk_tree_view_set_model(tree, model);
 	g_object_unref(model);
 
 	/* Keep selection near previous selection */
-	if (row >= 0)
+	if (row >= 0 && trace_view_store_visible_rows(TRACE_VIEW_STORE(model)))
 		trace_view_select(treeview, time);
 }
 

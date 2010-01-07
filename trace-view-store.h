@@ -98,6 +98,7 @@ struct trace_view_store
 	gint			systems_size; /* size of systems array */
 	gint			event_types_size; /* size of event_types array */
 	struct filter_task	*task_filter;	/* hash of tasks to filter on */
+	struct filter_task	*hide_tasks;	/* hash of tasks to not display */
 
 	gint			all_cpus;   /* set 1 when all cpus are enabled */
 						/* else */
@@ -121,6 +122,12 @@ gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts);
 gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 ts);
 
 void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter);
+
+void trace_view_store_hide_tasks(TraceViewStore *store, struct filter_task *filter);
+
+void trace_view_store_assign_filters(TraceViewStore *store,
+				     struct filter_task *task_filter,
+				     struct filter_task *hide_tasks);
 
 TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 
@@ -198,6 +205,12 @@ static inline gint trace_view_store_get_page(TraceViewStore *store)
 	return store->page;
 }
 
+static inline gint trace_view_store_visible_rows(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
+	return store->visible_rows;
+}
+
 static inline GtkWidget *trace_view_store_get_spin(TraceViewStore *store)
 {
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
@@ -221,6 +234,5 @@ static inline gint *trace_view_store_get_events_enabled(TraceViewStore *store)
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
 	return store->event_types;
 }
-
 
 #endif /* _trace_view_store_h_included_ */

@@ -106,9 +106,13 @@ static inline GtkWidget *trace_graph_get_window(struct graph_info *ginfo)
 
 struct filter_task_item *
 trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid);
+struct filter_task_item *
+trace_graph_hide_task_find_pid(struct graph_info *ginfo, gint pid);
 void trace_graph_filter_toggle(struct graph_info *ginfo);
 void trace_graph_filter_add_remove_task(struct graph_info *info,
 					gint pid);
+void trace_graph_filter_hide_show_task(struct graph_info *ginfo,
+				       gint pid);
 void trace_graph_clear_tasks(struct graph_info *ginfo);
 
 #endif /* _TRACE_GRAPH_H */
