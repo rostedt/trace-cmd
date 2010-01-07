@@ -280,6 +280,74 @@ static void event_cursor_changed(GtkTreeView *treeview, gpointer data)
 	gtk_tree_path_free(path);
 }
 
+static gboolean child_set(GtkTreeModel *model, GtkTreeIter *parent)
+{
+	GtkTreeIter iter;
+	gboolean active;
+
+	if (!gtk_tree_model_iter_children(model, &iter, parent))
+		return FALSE;
+
+	for (;;) {
+
+		gtk_tree_model_get(model, &iter,
+				   COL_ACTIVE, &active,
+				   -1);
+
+		if (active)
+			return TRUE;
+
+		if (!gtk_tree_model_iter_next(model, &iter))
+			break;
+	}
+
+	return FALSE;
+}
+
+static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
+			gboolean all_events,
+			gchar **systems, gint *events)
+{
+	GtkTreePath *path;
+	GtkTreeIter all;
+	GtkTreeIter sys;
+	gboolean active;
+
+	/* Expand the "All Events" row */
+	path = gtk_tree_path_new_from_string("0");
+
+	gtk_tree_view_expand_row(tree, path, FALSE);
+
+	gtk_tree_path_free(path);
+
+	if (all_events)
+		return;
+
+	/* Expand the system rows that are not full or empty */
+
+	if (!gtk_tree_model_get_iter_first(model, &all))
+		return;
+
+	if (!gtk_tree_model_iter_children(model, &sys, &all))
+		return;
+
+	for (;;) {
+
+		gtk_tree_model_get(model, &sys,
+				   COL_ACTIVE, &active,
+				   -1);
+
+		if (!active && child_set(model, &sys)) {
+			path = gtk_tree_model_get_path(model, &sys);
+			gtk_tree_view_expand_row(tree, path, FALSE);
+			gtk_tree_path_free(path);
+		}
+
+		if (!gtk_tree_model_iter_next(model, &sys))
+			break;
+	}
+}
+
 static GtkWidget *
 create_event_list_view(struct tracecmd_input *handle,
 		       gboolean all_events, gchar **systems,
@@ -319,8 +387,8 @@ create_event_list_view(struct tracecmd_input *handle,
 
 	gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)),
 				    GTK_SELECTION_NONE);
-	
-	gtk_tree_view_expand_all(GTK_TREE_VIEW(view));
+
+	expand_rows(GTK_TREE_VIEW(view), model, all_events, systems, events);
 
 	g_signal_connect_swapped (view, "cursor-changed",
 				  G_CALLBACK (event_cursor_changed),
