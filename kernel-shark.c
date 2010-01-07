@@ -113,6 +113,21 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 	return TRUE;
 }
 
+static void event_filter_callback(gboolean accept,
+				   gboolean all_events,
+				   gchar **systems,
+				   gint *events,
+				   gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_view_event_filter_callback(accept, all_events, systems,
+					 events, info->treeview);
+
+	trace_graph_event_filter_callback(accept, all_events, systems,
+					  events, info->ginfo);
+}
+
 /* Callback for the clicked signal of the Events filter button */
 static void
 events_clicked (gpointer data)
@@ -137,7 +152,7 @@ events_clicked (gpointer data)
 
 	trace_filter_event_dialog(store->handle, all_events,
 				  systems, events,
-				  trace_view_event_filter_callback, trace_tree);
+				  event_filter_callback, info);
 }
 
 /* Callback for the clicked signal of the CPUs filter button */
