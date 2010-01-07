@@ -30,6 +30,7 @@
 #include "trace-local.h"
 #include "trace-graph.h"
 #include "trace-hash.h"
+#include "trace-filter.h"
 
 #define DEBUG_LEVEL	2
 #if DEBUG_LEVEL > 0
@@ -112,12 +113,69 @@ static void graph_filter_task_clear(struct graph_info *ginfo)
 	ginfo->filter_enabled = 0;
 }
 
+gboolean graph_filter_system(struct graph_info *ginfo, const gchar *system)
+{
+	const gchar **sys = &system;
+
+	if (ginfo->all_events)
+		return TRUE;
+
+	if (!ginfo->systems)
+		return FALSE;
+
+	sys = bsearch(sys, ginfo->systems, ginfo->systems_size,
+		      sizeof(system), str_cmp);
+
+	return sys != NULL;
+}
+
+gboolean graph_filter_event(struct graph_info *ginfo, gint event_id)
+{
+	gint *event = &event_id;
+
+	if (ginfo->all_events)
+		return TRUE;
+
+	if (!ginfo->event_ids)
+		return FALSE;
+
+	event = bsearch(event, ginfo->event_ids, ginfo->event_ids_size,
+			sizeof(event_id), id_cmp);
+
+	return event != NULL;
+}
+
+gboolean graph_filter_on_event(struct graph_info *ginfo, struct record *record)
+{
+	struct event_format *event;
+	gint event_id;
+
+	if (!record)
+		return TRUE;
+
+	if (ginfo->all_events)
+		return FALSE;
+
+	event_id = pevent_data_type(ginfo->pevent, record);
+	event = pevent_data_event_from_type(ginfo->pevent, event_id);
+	if (!event)
+		return TRUE;
+
+	if (graph_filter_system(ginfo, event->system))
+		return FALSE;
+
+	if (graph_filter_event(ginfo, event_id))
+		return FALSE;
+
+	return TRUE;
+}
+
 gboolean graph_filter_on_task(struct graph_info *ginfo, gint pid)
 {
 	gboolean filter;
 
 	filter = FALSE;
-	
+
 	if (ginfo->filter_enabled &&
 	    filter_task_count(ginfo->task_filter) &&
 	    !trace_graph_filter_task_find_pid(ginfo, pid))
@@ -1147,7 +1205,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			filter = graph_filter_on_task(ginfo, last_pid);
 
 			if (!filter && last_pid)
-					
+
 				gdk_draw_rectangle(ginfo->curr_pixmap, gc,
 						   TRUE,
 						   last_x, CPU_BOX_TOP(cpu),
@@ -1166,9 +1224,12 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		last_pid = pid;
 
-		if (!filter)
-			gdk_draw_line(ginfo->curr_pixmap, gc, // ginfo->draw->style->black_gc,
-				      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
+		if (!filter) {
+			filter = graph_filter_on_event(ginfo, record);
+			if (!filter)
+				gdk_draw_line(ginfo->curr_pixmap, gc,
+					      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
+		}
 
 		if (!filter) {
 			/* Figure out if we can show the text for the previous record */
@@ -1372,6 +1433,82 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	update_with_backend(ginfo, 0, 0, width, ginfo->draw_height);
 }
 
+static void graph_free_systems(struct graph_info *ginfo)
+{
+	gint i;
+
+	if (!ginfo->systems)
+		return;
+
+	for (i = 0; ginfo->systems[i]; i++)
+		g_free(ginfo->systems[i]);
+
+	g_free(ginfo->systems);
+	ginfo->systems = NULL;
+	ginfo->systems_size = 0;
+}
+
+static void graph_free_events(struct graph_info *ginfo)
+{
+	g_free(ginfo->event_ids);
+	ginfo->event_ids = NULL;
+	ginfo->event_ids_size = 0;
+}
+
+void trace_graph_event_filter_callback(gboolean accept,
+				       gboolean all_events,
+				       gchar **systems,
+				       gint *events,
+				       gpointer data)
+{
+	struct graph_info *ginfo = data;
+	gint i;
+
+	if (!accept)
+		return;
+
+	graph_free_systems(ginfo);
+	graph_free_events(ginfo);
+
+	if (all_events) {
+		ginfo->all_events = TRUE;
+		redraw_graph(ginfo);
+		return;
+	}
+
+	ginfo->all_events = FALSE;
+
+	if (systems) {
+		for (ginfo->systems_size = 0;
+		     systems[ginfo->systems_size];
+		     ginfo->systems_size++)
+			;
+
+		ginfo->systems = g_new(typeof(*systems), ginfo->systems_size + 1);
+		for (i = 0; i < ginfo->systems_size; i++)
+			ginfo->systems[i] = g_strdup(systems[i]);
+		ginfo->systems[i] = NULL;
+
+		qsort(ginfo->systems, ginfo->systems_size, sizeof(gchar *), str_cmp);
+	}
+
+	if (events) {
+		for (ginfo->event_ids_size = 0;
+		     events[ginfo->event_ids_size] >= 0;
+		     ginfo->event_ids_size++)
+			;
+
+		ginfo->event_ids = g_new(typeof(*events), ginfo->event_ids_size + 1);
+		for (i = 0; i < ginfo->event_ids_size; i++)
+			ginfo->event_ids[i] = events[i];
+		ginfo->event_ids[i] = -1;
+
+		qsort(ginfo->event_ids, ginfo->event_ids_size, sizeof(gint), id_cmp);
+	}
+
+	redraw_graph(ginfo);
+}
+
 static void redraw_pixmap_backend(struct graph_info *ginfo)
 {
 	GdkPixmap *old_pix;
@@ -1435,6 +1572,9 @@ static gboolean
 destroy_event(GtkWidget *widget, gpointer data)
 {
 	struct graph_info *ginfo = data;
+
+	graph_free_systems(ginfo);
+	graph_free_events(ginfo);
 
 	if (ginfo->test)
 		dprintf(1, "test = %s\n", ginfo->test);
@@ -1555,6 +1695,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	ginfo->handle = handle;
 	ginfo->pevent = tracecmd_get_pevent(handle);
 	ginfo->cpus = tracecmd_cpus(handle);
+
+	ginfo->all_events = TRUE;
 
 	ginfo->callbacks = cbs;
 

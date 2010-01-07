@@ -29,9 +29,4 @@ static inline gint filter_task_count(struct filter_task *hash)
 	return hash->count;
 }
 
-/* put here because there's no other place */
-
-int str_cmp(const void *a, const void *b);
-int id_cmp(const void *a, const void *b);
-
 #endif /* _TRACE_HASH_H */

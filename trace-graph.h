@@ -48,8 +48,14 @@ struct graph_info {
 
 	struct graph_callbacks	*callbacks;	/* call back hooks for changes to graph */
 
-	int			filter_enabled;
-	int			filter_available;
+	gboolean		filter_enabled;
+	gboolean		filter_available;
+
+	gboolean		all_events;	/* all events enabled */
+	gchar			**systems;	/* event systems to filter on */
+	gint			*event_ids;	/* events to filter on */
+	gint			systems_size;
+	gint			event_ids_size;
 
 	struct filter_task	*task_filter;
 	gint			filter_task_selected;
@@ -75,6 +81,12 @@ struct graph_info *
 trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs);
 void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time);
+
+void trace_graph_event_filter_callback(gboolean accept,
+				       gboolean all_events,
+				       gchar **systems,
+				       gint *events,
+				       gpointer data);
 
 static inline GtkWidget *trace_graph_get_draw(struct graph_info *ginfo)
 {

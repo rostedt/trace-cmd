@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "cpu.h"
+#include "trace-filter.h"
 
 /* boring declarations of local functions */
 

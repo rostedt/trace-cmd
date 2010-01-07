@@ -5,6 +5,7 @@
 
 #include "trace-cmd.h"
 #include "trace-graph.h"
+#include "trace-filter.h"
 
 #define version "0.1.1"
 
@@ -39,6 +40,24 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 	tracecmd_close(ginfo->handle);
 	gtk_main_quit ();
 	return TRUE;
+}
+
+/* Callback for the clicked signal of the Events filter button */
+static void
+events_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	gboolean all_events = TRUE;
+	gchar **systems = NULL;
+	gint *events = NULL;
+
+	all_events = ginfo->all_events;
+	systems = ginfo->systems;
+	events = ginfo->event_ids;
+
+	trace_filter_event_dialog(ginfo->handle, all_events,
+				  systems, events,
+				  trace_graph_event_filter_callback, ginfo);
 }
 
 void trace_graph(int argc, char **argv)
@@ -80,6 +99,9 @@ void trace_graph(int argc, char **argv)
 		die("failed to init data");
 
 	gtk_init(&argc, &argv);
+
+	/* graph struct is used by handlers */
+	ginfo = trace_graph_create(handle);
 
 	/* --- Main window --- */
 
@@ -127,6 +149,36 @@ void trace_graph(int argc, char **argv)
 	/* --- end File options --- */
 
 
+	/* --- Filter Option --- */
+
+	menu_item = gtk_menu_item_new_with_label("Filter");
+	gtk_widget_show(menu_item);
+
+	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
+
+	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- Filter - Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("events");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (events_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- End Filter Options --- */
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
+
 	/* --- Top Level Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -136,7 +188,6 @@ void trace_graph(int argc, char **argv)
 
 	/* --- Set up the Graph --- */
 
-	ginfo = trace_graph_create(handle);
 	widget = trace_graph_get_window(ginfo);
 	gtk_box_pack_start(GTK_BOX (hbox), widget, TRUE, TRUE, 0);
 	gtk_widget_show(widget);

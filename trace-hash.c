@@ -159,24 +159,3 @@ struct filter_task *filter_task_hash_copy(struct filter_task *hash)
 
 	return new_hash;
 }
-
-
-int str_cmp(const void *a, const void *b)
-{
-	char * const * sa = a;
-	char * const * sb = b;
-
-	return strcmp(*sa, *sb);
-}
-
-int id_cmp(const void *a, const void *b)
-{
-	const gint *ia = a;
-	const gint *ib = b;
-
-	if (*ia > *ib)
-		return 1;
-	if (*ia < *ib)
-		return -1;
-	return 0;
-}
