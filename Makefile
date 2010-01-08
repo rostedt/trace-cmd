@@ -31,11 +31,20 @@ VERSION		= $(KS_VERSION)
 PATCHLEVEL	= $(KS_PATCHLEVEL)
 EXTRAVERSION	= $(KS_EXTRAVERSION)
 
+GUI		= 'GUI '
+GOBJ		= $@
+
 else
+
+CONFIG_LIBS	=
+CONFIG_FLAGS	=
 
 VERSION		= $(TC_VERSION)
 PATCHLEVEL	= $(TC_PATCHLEVEL)
 EXTRAVERSION	= $(TC_EXTRAVERSION)
+
+GUI		=
+GOBJ		= "    "$@
 
 endif
 
@@ -44,15 +53,69 @@ KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 CFLAGS = -g -Wall $(CONFIG_FLAGS)
 
+# copy a bit from Linux kbuild
+
+ifeq ("$(origin V)", "command line")
+  VERBOSE = $(V)
+else
+  VERBOSE = 0
+endif
+
+ifeq ($(VERBOSE),1)
+  Q =
+  print_compile =
+  print_app_build =
+  print_fpic_compile =
+  print_shared_lib_compile =
+  print_plugin_obj_compile =
+  print_plugin_build =
+else
+  Q = @
+  print_compile =		@echo '  $(GUI)COMPILE            '$(GOBJ);
+  print_app_build =		@echo '  $(GUI)BUILD              '$(GOBJ);
+  print_fpic_compile =		@echo '  $(GUI)COMPILE FPIC       '$(GOBJ);
+  print_shared_lib_compile =	@echo '  $(GUI)COMPILE SHARED LIB '$(GOBJ);
+  print_plugin_obj_compile =	@echo '  $(GUI)COMPILE PLUGIN OBJ '$(GOBJ);
+  print_plugin_build =		@echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
+  print_static_lib_build =	@echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
+endif
+
+do_fpic_compile =							\
+	$(Q)$(print_fpic_compile)					\
+	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+
+do_app_build =						\
+	$(Q)$(print_app_build)				\
+	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+
+do_compile_shared_library =			\
+	$(Q)$(print_shared_lib_compile)		\
+	$(CC) --shared $^ -o $@
+
+do_compile_plugin_obj =				\
+	$(Q)$(print_plugin_obj_compile)		\
+	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+
+do_plugin_build =				\
+	$(Q)$(print_plugin_build)		\
+	$(CC) -shared -nostartfiles -o $@ $<
+
+do_build_static_lib =				\
+	$(Q)$(print_static_lib_build)		\
+	$(RM) $@;  $(AR) rcs $@ $^
+
 %.o: %.c
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
+	$(print_compile)
+	$(Q)$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
 
 PLUGINS =  plugin_hrtimer.so plugin_mac80211.so plugin_sched_switch.so \
 	plugin_kmem.so
 
-CMD_TARGETS = libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS) tc_version.h
+CMD_TARGETS = tc_version.h libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS)
 
-GUI_TARGETS = trace-graph trace-view kernelshark ks_version.h
+GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
+
+TARGETS = $(CMD_TARGETS) $(GUI_TARGETS)
 
 ###
 #    Default we just build trace-cmd
@@ -63,7 +126,7 @@ GUI_TARGETS = trace-graph trace-view kernelshark ks_version.h
 all: $(CMD_TARGETS)
 
 gui:	$(CMD_TARGETS)
-	$(MAKE) BUILDGUI=1 all_gui
+	$(Q)$(MAKE) BUILDGUI=1 all_gui
 
 all_gui: $(GUI_TARGETS)
 
@@ -88,18 +151,18 @@ TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o 
 	trace-hash.o
 
 trace-cmd:: trace-cmd.o trace-read.o
-	$(CC) $^ -rdynamic -o $@ $(LIBS)
+	$(do_app_build)
 
 trace-view:: trace-view-main.o $(TRACE_VIEW_OBJS)
-	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+	$(do_app_build)
 
 trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o trace-hash.o trace-filter.o
-	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+	$(do_app_build)
 
 ifeq ($(BUILDGUI), 1)
 kernelshark:: kernel-shark.o trace-compat.o $(TRACE_VIEW_OBJS) trace-graph.o \
 		trace-hash.o
-	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+	$(do_app_build)
 else
 kernelshark: force
 	@echo '**************************************'
@@ -115,67 +178,66 @@ trace-view.o::		parse-events.h
 trace-graph.o::		parse-events.h
 
 parse-events.o: parse-events.c parse-events.h
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 trace-seq.o: trace-seq.c parse-events.h
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 trace-util.o:: trace-util.c
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 trace-input.o:: trace-input.c
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 trace-output.o:: trace-output.c
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 trace-record.o:: trace-record.c
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 trace-ftrace.o:: trace-ftrace.c
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+	$(do_fpic_compile)
 
 PEVENT_LIB_OBJS = parse-events.o trace-seq.o
 
 libparsevent.so: $(PEVENT_LIB_OBJS)
-	$(CC) --shared $^ -o $@
+	$(do_compile_shared_library)
 
 libparsevent.a: $(PEVENT_LIB_OBJS)
-	$(RM) $@;  $(AR) rcs $@ $^
+	$(do_build_static_lib)
 
 TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
 			trace-output.o trace-record.o
 
 libtracecmd.so: $(TCMD_LIB_OBJS)
-	$(CC) --shared $^ -o $@
+	$(do_compile_shared_library)
 
 libtracecmd.a: $(TCMD_LIB_OBJS)
-	$(RM) $@;  $(AR) rcs $@ $^
+	$(do_build_static_lib)
 
 plugin_hrtimer.o: plugin_hrtimer.c parse-events.h trace-cmd.h
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+	$(do_compile_plugin_obj)
 
 plugin_hrtimer.so: plugin_hrtimer.o
-	$(CC) -shared -nostartfiles -o $@ $<
+	$(do_plugin_build)
 
 plugin_kmem.o: plugin_kmem.c parse-events.h trace-cmd.h
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+	$(do_compile_plugin_obj)
 
 plugin_kmem.so: plugin_kmem.o
-	$(CC) -shared -nostartfiles -o $@ $<
+	$(do_plugin_build)
 
 plugin_sched_switch.o: plugin_sched_switch.c parse-events.h trace-cmd.h
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+	$(do_compile_plugin_obj)
 
 plugin_sched_switch.so: plugin_sched_switch.o
-	$(CC) -shared -nostartfiles -o $@ $<
+	$(do_plugin_build)
 
 plugin_mac80211.o: plugin_mac80211.c parse-events.h trace-cmd.h
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+	$(do_compile_plugin_obj)
 
 plugin_mac80211.so: plugin_mac80211.o
-	$(CC) -shared -nostartfiles -o $@ $<
-
+	$(do_plugin_build)
 
 define make_version.h
 	@(echo \#define VERSION_CODE $(shell						\
