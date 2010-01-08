@@ -1413,6 +1413,8 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 	gint wake_pid;
 	gint last_wake_pid;
 	gint event_id;
+	gint display_pid = -1;
+	gint next_display_pid = -1;
 	gboolean filter;
 	gboolean is_sched_switch;
 	gboolean is_wakeup;
@@ -1506,8 +1508,6 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		if (filter && is_sched_switch)
 			filter = graph_filter_on_task(ginfo, last_pid);
 
-		last_pid = pid;
-
 		/* Lets see if a filtered task is waking up */
 		is_wakeup = check_sched_wakeup(ginfo, record, &wake_pid);
 		if (filter && is_wakeup)
@@ -1520,6 +1520,8 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 					      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
 		}
 
+		last_pid = pid;
+
 		if (!filter) {
 			/* Figure out if we can show the text for the previous record */
 
@@ -1529,14 +1531,11 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			if (!p3)
 				p3 = 1;
 
-			if (last_is_wakeup)
-				pid = last_wake_pid;
-			else
-				pid = last_pid;
+			display_pid = next_display_pid;
 
 			/* first record, continue */
 			if (p2)
-				draw_event_label(ginfo, cpu, last_event_id, pid,
+				draw_event_label(ginfo, cpu, last_event_id, display_pid,
 						 p1, p2, p3, width_16, font);
 
 			p1 = p2;
@@ -1545,13 +1544,18 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			last_event_id = event_id;
 			last_is_wakeup = is_wakeup;
 			last_wake_pid = wake_pid;
+
+			if (last_is_wakeup)
+				next_display_pid = last_wake_pid;
+			else
+				next_display_pid = pid;
 		}
 
 		free_record(record);
 	}
 
-	if (p2)
-		draw_event_label(ginfo, cpu, last_event_id, last_pid,
+	if (p2 && next_display_pid >= 0)
+		draw_event_label(ginfo, cpu, last_event_id, next_display_pid,
 				 p1, p2, ginfo->draw_width, width_16, font);
 
 	if (last_pid > 0 &&
