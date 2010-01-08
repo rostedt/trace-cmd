@@ -18,6 +18,7 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -306,10 +307,20 @@ void trace_view_update_filters(GtkWidget *treeview,
 		trace_view_select(treeview, time);
 }
 
+static void select_row_from_path(GtkTreeView *tree, GtkTreePath *path)
+{
+	GtkTreeSelection *selection;
+
+	selection = gtk_tree_view_get_selection(tree);
+	gtk_tree_selection_select_path(selection, path);
+
+	/* finally, make it visible */
+	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
+}
+
 void trace_view_select(GtkWidget *treeview, guint64 time)
 {
 	GtkTreeView *tree = GTK_TREE_VIEW(treeview);
-	GtkTreeSelection *selection;
 	GtkTreeModel *model;
 	GtkTreePath *path;
 	gint select_page, page;
@@ -351,12 +362,7 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 	snprintf(buf, 100, "%d", row);
 	printf("row = %s\n", buf);
 	path = gtk_tree_path_new_from_string(buf);
-
-	selection = gtk_tree_view_get_selection(tree);
-	gtk_tree_selection_select_path(selection, path);
-
-	/* finally, make it visible */
-	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
+	select_row_from_path(tree, path);
 	gtk_tree_path_free(path);
 }
 
@@ -460,4 +466,285 @@ void trace_view_cpu_filter_callback(gboolean accept,
  set_model:
 	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
 	g_object_unref(store);
+}
+
+static GtkTreeModel *create_col_model(GtkTreeView *treeview)
+{
+	GtkListStore *store;
+	GtkTreeViewColumn *col;
+	GtkTreeIter iter;
+	const gchar *title;
+	int i;
+
+	store = gtk_list_store_new(1, G_TYPE_STRING);
+
+	i = 0;
+	col = gtk_tree_view_get_column(treeview, i++);
+	while (col) {
+		title = gtk_tree_view_column_get_title(col);
+		if (!title)
+			break;
+
+		gtk_list_store_append(store, &iter);
+		gtk_list_store_set(store, &iter,
+				   0, title,
+				   -1);
+
+		col = gtk_tree_view_get_column(treeview, i++);
+	}
+
+	return GTK_TREE_MODEL(store);
+}
+
+struct search_info {
+	GtkTreeView		*treeview;
+	GtkWidget		*entry;
+	GtkWidget		*selection;
+	GtkWidget		*column;
+};
+
+#define SELECTION_NAMES					\
+	C(	contains,	CONTAINS	),	\
+	C(	full match,	FULL_MATCH	),	\
+	C(	does not have,	NOT_IN		)
+
+#undef C
+#define C(a, b)	#a
+
+static gchar *select_names[] = { SELECTION_NAMES, NULL };
+
+#undef C
+#define C(a, b) SEL_##b
+
+enum select_options { SELECTION_NAMES };
+
+static gboolean test_int(gint val, gint search_val, enum select_options sel)
+{
+	gint tens;
+	gboolean match = TRUE;
+
+	switch (sel) {
+	case SEL_NOT_IN:
+		match = FALSE;
+	case SEL_CONTAINS:
+		for (tens = 1; search_val / tens; tens *= 10)
+			;
+
+		while (val) {
+			if (val - search_val == (val / tens) * tens)
+				return match;
+			val /= 10;
+		}
+		return !match;
+
+	case SEL_FULL_MATCH:
+		return search_val == val;
+	}
+	return FALSE;
+}
+
+static gboolean test_text(const gchar *text, const gchar *search_text, enum select_options sel)
+{
+	gboolean match = TRUE;
+
+	switch (sel) {
+	case SEL_NOT_IN:
+		match = FALSE;
+	case SEL_CONTAINS:
+
+		text = strcasestr(text, search_text);
+		if (text)
+			return match;
+		return !match;
+
+	case SEL_FULL_MATCH:
+		return strcmp(text, search_text) == 0;
+	}
+	return FALSE;
+}
+
+static void search_tree(gpointer data)
+{
+	struct search_info *info = data;
+	GtkTreePath *path;
+	GtkTreeViewColumn *col;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	GtkTreeIter iter;
+	GtkEntry *entry = GTK_ENTRY(info->entry);
+	GtkComboBox *col_combo = GTK_COMBO_BOX(info->column);
+	GtkComboBox *sel_combo = GTK_COMBO_BOX(info->selection);
+	const gchar *title;
+	gint val;
+	gchar *text = NULL;
+	const gchar *search_text;
+	gint col_num;
+	gint sel;
+	gint search_val;
+	gint start_row;
+	gboolean found = FALSE;
+
+	col_num = gtk_combo_box_get_active(col_combo);
+	sel = gtk_combo_box_get_active(sel_combo);
+
+	if (col_num >= TRACE_VIEW_STORE_N_COLUMNS)
+		return;
+
+	search_text = gtk_entry_get_text(entry);
+	if (!search_text || !strlen(search_text))
+		return;
+
+	col = gtk_tree_view_get_column(info->treeview, col_num);
+	if (!col)
+		return;
+
+	title = gtk_tree_view_column_get_title(col);
+	if (!title)
+		return;
+
+	model = gtk_tree_view_get_model(info->treeview);
+	store = TRACE_VIEW_STORE(model);
+
+	if (!trace_view_store_visible_rows(store))
+		return;
+
+	start_row = trace_view_get_selected_row(GTK_WIDGET(info->treeview));
+	if (start_row < 0)
+		start_row = 0;
+
+	if (!gtk_tree_model_iter_nth_child(model, &iter, NULL, start_row))
+		return;
+
+	search_val = atoi(search_text);
+	while (gtk_tree_model_iter_next(model, &iter)) {
+		switch (col_num) {
+		case TRACE_VIEW_STORE_COL_INDEX:
+		case TRACE_VIEW_STORE_COL_CPU:
+		case TRACE_VIEW_STORE_COL_PID:
+		/* integers */
+
+			gtk_tree_model_get(model, &iter,
+					   col_num, &val,
+					   -1);
+			if (test_int(val, search_val, sel))
+				found = TRUE;
+			break;
+
+		case TRACE_VIEW_STORE_COL_TS:
+		case TRACE_VIEW_STORE_COL_COMM:
+		case TRACE_VIEW_STORE_COL_LAT:
+		case TRACE_VIEW_STORE_COL_EVENT:
+		case TRACE_VIEW_STORE_COL_INFO:
+			/* strings */
+
+			gtk_tree_model_get(model, &iter,
+					   col_num, &text,
+					   -1);
+
+			if (test_text(text, search_text, sel))
+				found = TRUE;
+			break;
+		}
+
+		if (found)
+			break;
+	}
+
+
+	if (!found) {
+		printf("NOT FOUND!\n");
+		/* show pop up */
+		return;
+	}
+
+	path = gtk_tree_model_get_path(model, &iter);
+	select_row_from_path(info->treeview, path);
+	gtk_tree_path_free(path);
+}
+
+void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
+{
+	GtkCellRenderer *renderer;
+	GtkListStore *store;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	GtkWidget *label;
+	GtkWidget *col_combo;
+	GtkWidget *sel_combo;
+	GtkWidget *entry;
+	gchar **selects = select_names;
+	int i;
+	struct search_info *info;
+
+	renderer = gtk_cell_renderer_text_new();
+
+	info = g_new0(typeof(*info), 1);
+	info->treeview = treeview;
+
+	label = gtk_label_new("Column: ");
+	gtk_box_pack_start(box, label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	/* --- Set up the column selection combo box --- */
+
+	model = create_col_model(treeview);
+
+	col_combo = gtk_combo_box_new_with_model(model);
+	gtk_box_pack_start(box, col_combo, FALSE, FALSE, 0);
+	gtk_widget_show(col_combo);
+
+	/* Free model with combobox */
+	g_object_unref(model);
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(col_combo),
+				   renderer,
+				   TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(col_combo),
+				       renderer,
+				       "text", 0,
+				       NULL);
+
+	gtk_combo_box_set_active(GTK_COMBO_BOX(col_combo), 0);
+
+	info->column = col_combo;
+
+	/* --- Set up the column selection combo box --- */
+
+	store = gtk_list_store_new(1, G_TYPE_STRING);
+	model = GTK_TREE_MODEL(store);
+
+	sel_combo = gtk_combo_box_new_with_model(model);
+	gtk_box_pack_start(box, sel_combo, FALSE, FALSE, 0);
+	gtk_widget_show(sel_combo);
+
+	info->selection = sel_combo;
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(sel_combo),
+				   renderer,
+				   TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(sel_combo),
+				       renderer,
+				       "text", 0,
+				       NULL);
+
+	for (i = 0; selects[i]; i++ ) {
+		gtk_list_store_append(store, &iter);
+		gtk_list_store_set(store, &iter,
+				   0, selects[i],
+				   -1);
+	}
+
+	gtk_combo_box_set_active(GTK_COMBO_BOX(sel_combo), 0);
+
+	/* --- The text entry --- */
+
+	entry = gtk_entry_new();
+	gtk_box_pack_start(box, entry, FALSE, FALSE, 0);
+	gtk_widget_show(entry);
+
+	info->entry = entry;
+
+	g_signal_connect_swapped (entry, "activate",
+				  G_CALLBACK (search_tree),
+				  (gpointer) info);
 }

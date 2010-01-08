@@ -257,6 +257,17 @@ void trace_view(int argc, char **argv)
 	gtk_box_pack_start(GTK_BOX(hbox), spin, FALSE, FALSE, 0);
 	gtk_widget_show(spin);
 
+	/* --- Search --- */
+
+	/* The tree needs its columns loaded now */
+	trace_view_load(trace_tree, handle, spin);
+
+	label = gtk_label_new("      Search: ");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	trace_view_search_setup(GTK_BOX(hbox), GTK_TREE_VIEW(trace_tree));
+
 	/* --- Top Level Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -272,8 +283,6 @@ void trace_view(int argc, char **argv)
 	gtk_widget_show(scrollwin);
 
 	/* --- Set up Trace Tree --- */
-
-	trace_view_load(trace_tree, handle, spin);
 
 	gtk_container_add(GTK_CONTAINER(scrollwin), trace_tree);
 	gtk_widget_show(trace_tree);

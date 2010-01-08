@@ -29,4 +29,6 @@ void trace_view_cpu_filter_callback(gboolean accept,
 				    guint64 *selected_cpu_mask,
 				    gpointer data);
 
+void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview);
+
 #endif /* _TRACE_VIEW_H */

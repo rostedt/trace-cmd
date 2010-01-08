@@ -718,6 +718,18 @@ void kernel_shark(int argc, char **argv)
 	gtk_box_pack_start(GTK_BOX(hbox), spin, FALSE, FALSE, 0);
 	gtk_widget_show(spin);
 
+	/* --- Search --- */
+
+	/* The tree needs its columns loaded now */
+	info->treeview = gtk_tree_view_new();
+	trace_view_load(info->treeview, handle, spin);
+
+	label = gtk_label_new("      Search: ");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	trace_view_search_setup(GTK_BOX(hbox), GTK_TREE_VIEW(info->treeview));
+
 	/* --- Top Level Trace View Paging Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -734,12 +746,8 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Set up Trace Tree --- */
 
-	info->treeview = gtk_tree_view_new();
-
 	g_signal_connect(info->treeview, "row-activated",
 			 (GCallback)row_double_clicked, info);
-
-	trace_view_load(info->treeview, handle, spin);
 
 	gtk_container_add(GTK_CONTAINER(scrollwin), info->treeview);
 
