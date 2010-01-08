@@ -1196,6 +1196,16 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	return TRUE;
 }
 
+static gboolean
+leave_notify_event(GtkWidget *widget, GdkEventCrossing *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
+			    ginfo->cpu_data_w, ginfo->cpu_data_h);
+	return FALSE;
+}
+
 static gint hash_pid(gint val)
 {
 	/* idle always gets black */
@@ -1957,6 +1967,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 			   (GtkSignalFunc) motion_notify_event, ginfo);
 	gtk_signal_connect(GTK_OBJECT(ginfo->draw), "button_release_event",
 			   (GtkSignalFunc) button_release_event, ginfo);
+	gtk_signal_connect(GTK_OBJECT(ginfo->draw), "leave-notify-event",
+			   (GtkSignalFunc) leave_notify_event, ginfo);
 	gtk_signal_connect(GTK_OBJECT(ginfo->draw), "destroy",
 			   (GtkSignalFunc) destroy_event, ginfo);
 
@@ -1965,7 +1977,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 			      | GDK_BUTTON_PRESS_MASK
 			      | GDK_BUTTON_RELEASE_MASK
 			      | GDK_POINTER_MOTION_MASK
-			      | GDK_POINTER_MOTION_HINT_MASK);
+			      | GDK_POINTER_MOTION_HINT_MASK
+			      | GDK_LEAVE_NOTIFY_MASK);
 
 
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(ginfo->scrollwin),
