@@ -747,6 +747,7 @@ static int check_sched_switch(struct graph_info *ginfo,
 static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 {
 	PangoLayout *layout;
+	GtkAdjustment *vadj;
 	struct record *record = NULL;
 	struct pevent *pevent;
 	struct event_format *event;
@@ -841,14 +842,15 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	width += CPU_BOARDER * 2;
 	height += CPU_BOARDER * 2;
 
-	if (y > height)
-		y -= height;
-
 	view_start = gtk_adjustment_get_value(ginfo->hadj);
 	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
-	
-	if (x + width > view_start + view_width)
-		x -= (x + width) - (view_start + view_width);
+	if (x > view_start + width)
+		x -= width;
+
+	vadj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
+	view_start = gtk_adjustment_get_value(vadj);
+	if (y > view_start + height)
+		y -= height;
 
 	ginfo->cpu_data_x = x;
 	ginfo->cpu_data_y = y;
