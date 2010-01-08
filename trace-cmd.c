@@ -34,6 +34,7 @@
 #include <errno.h>
 
 #include "trace-local.h"
+#include "version.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -753,7 +754,7 @@ void usage(char **argv)
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
 	       "          -o list available options\n"
-	       "\n", p, TRACECMD_VERSION, p, p, p, p, p, p, p);
+	       "\n", p, VERSION_STRING, p, p, p, p, p, p, p);
 	exit(-1);
 }
 

@@ -10,6 +10,7 @@ trace-graph
 trace-view
 *.pyc
 *.swp
+tc_version.h
+ks_version.h
 ctracecmd_wrap.c
-
 ctracecmdgui_wrap.c

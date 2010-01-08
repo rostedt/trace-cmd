@@ -1,3 +1,16 @@
+# trace-cmd version
+TC_VERSION = 0
+TC_PATCHLEVEL = 6
+TC_EXTRAVERSION =
+
+# Kernel Shark version
+KS_VERSION = 0
+KS_PATCHLEVEL = 1
+KS_EXTRAVERSION =
+
+# file format version
+FILE_VERSION = 0
+
 CC = gcc
 AR = ar
 EXT = -std=gnu99
@@ -8,12 +21,26 @@ LIBS = -L. -ltracecmd -ldl
 PACKAGES= gtk+-2.0
 
 ifeq ($(BUILDGUI), 1)
-CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES)) \
+CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES)) -DBUILDGUI \
 	-DGTK_VERSION=$(shell pkg-config --modversion gtk+-2.0 | \
 	awk 'BEGIN{FS="."}{ a = ($$1 * (2^16)) + $$2 * (2^8) + $$3; printf ("%d", a);}')
 
 CONFIG_LIBS = $(shell pkg-config --libs $(PACKAGES))
+
+VERSION		= $(KS_VERSION)
+PATCHLEVEL	= $(KS_PATCHLEVEL)
+EXTRAVERSION	= $(KS_EXTRAVERSION)
+
+else
+
+VERSION		= $(TC_VERSION)
+PATCHLEVEL	= $(TC_PATCHLEVEL)
+EXTRAVERSION	= $(TC_EXTRAVERSION)
+
 endif
+
+TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
+KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 CFLAGS = -g -Wall $(CONFIG_FLAGS)
 
@@ -23,9 +50,9 @@ CFLAGS = -g -Wall $(CONFIG_FLAGS)
 PLUGINS =  plugin_hrtimer.so plugin_mac80211.so plugin_sched_switch.so \
 	plugin_kmem.so
 
-CMD_TARGETS = libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS)
+CMD_TARGETS = libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS) tc_version.h
 
-GUI_TARGETS = trace-graph trace-view kernelshark
+GUI_TARGETS = trace-graph trace-view kernelshark ks_version.h
 
 ###
 #    Default we just build trace-cmd
@@ -45,7 +72,7 @@ LIB_FILE = libtracecmd.a
 HEADERS = parse-events.h trace-cmd.h trace-local.h trace-hash.h
 
 trace-read.o::		$(HEADERS) 
-trace-cmd.o::		$(HEADERS) $(LIB_FILE)
+trace-cmd.o::		$(HEADERS) $(LIB_FILE) tc_version.h
 trace-util.o::		$(HEADERS)
 trace-ftrace.o::	$(HEADERS)
 trace-input.o::		$(HEADERS)
@@ -55,7 +82,7 @@ trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h libtracecmd.a
 trace-filter.o::	$(HEADERS)
 trace-graph.o::		$(HEADERS) trace-graph.h
 trace-graph-main.o::	$(HEADERS) trace-graph.h libtracecmd.a
-kernel-shark.o::	$(HEADERS) kernel-shark.h libtracecmd.a
+kernel-shark.o::	$(HEADERS) kernel-shark.h libtracecmd.a ks_version.h
 
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
 	trace-hash.o
@@ -149,6 +176,31 @@ plugin_mac80211.o: plugin_mac80211.c parse-events.h trace-cmd.h
 plugin_mac80211.so: plugin_mac80211.o
 	$(CC) -shared -nostartfiles -o $@ $<
 
+
+define make_version.h
+	@(echo \#define VERSION_CODE $(shell						\
+	expr $(VERSION) \* 256 + $(PATCHLEVEL));					\
+	echo '#define EXTRAVERSION ' $(EXTRAVERSION);					\
+	echo '#define VERSION_STRING "'$(VERSION).$(PATCHLEVEL)$(EXTRAVERSION)'"';	\
+	echo '#define FILE_VERSION '$(FILE_VERSION);					\
+	) > $1
+endef
+
+define update_version.h
+	$(call make_version.h, $@.tmp);		\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
+		rm -f $@.tmp;			\
+	else					\
+		echo '  UPD $@';		\
+		mv -f $@.tmp $@;		\
+	fi;
+endef
+
+ks_version.h: force
+	$(call update_version.h)
+
+tc_version.h: force
+	$(call update_version.h)
 
 PYTHON_INCLUDES = `python-config --includes`
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`

@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include "trace-cmd.h"
+#include "version.h"
 
 struct tracecmd_output {
 	int		fd;
@@ -520,7 +521,7 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus)
 	if (do_write_check(handle, buf, 10))
 		goto out_free;
 
-	if (do_write_check(handle, TRACECMD_VERSION, strlen(TRACECMD_VERSION) + 1))
+	if (do_write_check(handle, FILE_VERSION_STRING, strlen(FILE_VERSION_STRING) + 1))
 		goto out_free;
 
 	/* save endian */

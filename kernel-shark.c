@@ -31,8 +31,7 @@
 #include "trace-compat.h"
 #include "trace-cmd.h"
 #include "kernel-shark.h"
-
-#define version "0.1.1"
+#include "version.h"
 
 #define DEBUG_LEVEL	0
 #if DEBUG_LEVEL > 0
@@ -55,6 +54,7 @@ void usage(char *prog)
 {
 	printf("Usage: %s\n", prog);
 	printf("  -h	Display this help message\n");
+	printf("  -v	Display version and exit\n");
 	printf("  -i	input_file, default is %s\n", default_input_file);
 }
 
@@ -520,10 +520,15 @@ void kernel_shark(int argc, char **argv)
 	GtkWidget *spin;
 	int c;
 
-	while ((c = getopt(argc, argv, "hi:")) != -1) {
+	while ((c = getopt(argc, argv, "hvi:")) != -1) {
 		switch(c) {
 		case 'h':
 			usage(basename(argv[0]));
+			return;
+		case 'v':
+			printf("%s - %s\n",
+			       basename(argv[0]),
+			       VERSION_STRING);
 			return;
 		case 'i':
 			input_file = optarg;
