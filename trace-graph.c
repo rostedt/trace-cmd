@@ -32,7 +32,7 @@
 #include "trace-hash.h"
 #include "trace-filter.h"
 
-#define DEBUG_LEVEL	2
+#define DEBUG_LEVEL	0
 #if DEBUG_LEVEL > 0
 # define dprintf(l, x...)			\
 	do {					\
@@ -40,7 +40,7 @@
 			printf(x);		\
 	} while (0)
 #else
-# define dprintf(x...)	do { } while (0)
+# define dprintf(l, x...)	do { if (0) printf(x); } while (0)
 #endif
 
 #define MAX_WIDTH	10000
@@ -1325,12 +1325,7 @@ static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
 {
 	GdkColor color;
 	gint hash = hash_pid(pid);
-	static gint last_pid = -1;
 
-	if (!(hash & 0xffffff) && last_pid != pid) {
-		last_pid = pid;
-		dprintf(2, "pid=%d is black\n", pid);
-	}
 	color.red = (hash & 0xff)*(65535/255);
 	color.blue = ((hash >> 8) & 0xff)*(65535/255);
 	color.green = ((hash >> 16) & 0xff)*(65535/255);

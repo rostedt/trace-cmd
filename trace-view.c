@@ -360,7 +360,6 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 	/* Select the event */
 	row = trace_view_store_get_timestamp_visible_row(TRACE_VIEW_STORE(model), time);
 	snprintf(buf, 100, "%d", row);
-	printf("row = %s\n", buf);
 	path = gtk_tree_path_new_from_string(buf);
 	select_row_from_path(tree, path);
 	gtk_tree_path_free(path);

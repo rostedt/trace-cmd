@@ -1187,9 +1187,6 @@ search_for_record_by_timestamp(TraceViewStore *store, guint64 ts)
 
 	rec = *prec;
 
-	if (rec)
-		printf("found row rec for %ld at %ld\n",
-		       ts, rec->timestamp);
 	return rec;
 }
 

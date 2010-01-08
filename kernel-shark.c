@@ -34,6 +34,17 @@
 
 #define version "0.1.1"
 
+#define DEBUG_LEVEL	0
+#if DEBUG_LEVEL > 0
+# define dprintf(l, x...)			\
+	do {					\
+		if (l <= DEBUG_LEVEL)		\
+			printf(x);		\
+	} while (0)
+#else
+# define dprintf(l, x...)	do { if (0) printf(x); } while (0)
+#endif
+
 #define TRACE_WIDTH	800
 #define TRACE_HEIGHT	600
 
@@ -64,6 +75,9 @@ static void print_time(unsigned long long time)
 {
 	unsigned long sec, usec;
 
+	if (!DEBUG_LEVEL)
+		return;
+
 	convert_nano(time, &sec, &usec);
 	printf("%lu.%06lu", sec, usec);
 }
@@ -73,9 +87,9 @@ static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
 	struct graph_callbacks *cbs;
 	struct shark_info *info;
 
-	printf("Cursor: ");
+	dprintf(1, "Cursor: ");
 	print_time(cursor);
-	printf(" selected\n");
+	dprintf(1, " selected\n");
 
 	cbs = trace_graph_get_callbacks(ginfo);
 	info = container_of(cbs, struct shark_info, graph_cbs);
