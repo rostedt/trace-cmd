@@ -27,7 +27,7 @@ struct graph_info {
 	GtkWidget		*draw;
 	GdkPixmap		*curr_pixmap;	/* pixmap backstore */
 	GdkPixmap		*info_pixmap;	/* pixmap backstore */
-	GtkAdjustment		*vadj;		/* scrollwindow vert adjust */
+	GtkAdjustment		*hadj;		/* scrollwindow horizontal adjust */
 	guint64			start_time;	/* True start time of trace */
 	guint64			end_time;	/* True end time of trace */
 	guint64			view_start_time; /* visible start time */
@@ -42,8 +42,8 @@ struct graph_info {
 	gint			last_x;		/* last x seen while moving mouse */
 	gboolean		line_active;	/* set when button is pressed */
 
-	gdouble			vadj_value;	/* value to set vadj width */
-	gdouble			vadj_page_size;	/* visible size to set vadj */
+	gdouble			hadj_value;	/* value to set hadj width */
+	gdouble			hadj_page_size;	/* visible size to set hadj */
 
 	gint			draw_width;	/* width of pixmap */
 	gint			draw_height;	/* height of pixmap */

@@ -844,9 +844,9 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	if (y > height)
 		y -= height;
 
-	view_start = gtk_adjustment_get_value(ginfo->vadj);
-	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
-
+	view_start = gtk_adjustment_get_value(ginfo->hadj);
+	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
+	
 	if (x + width > view_start + view_width)
 		x -= (x + width) - (view_start + view_width);
 
@@ -980,12 +980,12 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	gint old_width = ginfo->draw_width;
 
 	g_assert(start < end);
-	g_assert(ginfo->vadj);
+	g_assert(ginfo->hadj);
 
 	start_time = ginfo->start_time +
 		(ginfo->start_x + start) / ginfo->resolution;
 
-	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
 	select_width = end - start;
 	percent = view_width / select_width;
 
@@ -1055,18 +1055,18 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 		print_time(ginfo->view_start_time);
 		dprintf(1, "\n");
 
-		/* Adjust start to be the location for the vadj */
+		/* Adjust start to be the location for the hadj */
 		start = (mid - new_start) - view_width / 2;
 	} else
 		start *= percent;
 
 	update_graph_to_start_x(ginfo);
 
-	ginfo->vadj_value = start;
-	ginfo->vadj_value = (start_time - ginfo->view_start_time) * ginfo->resolution;
+	ginfo->hadj_value = start;
+	ginfo->hadj_value = (start_time - ginfo->view_start_time) * ginfo->resolution;
 
-	if (ginfo->vadj_value > (ginfo->draw_width - view_width))
-		ginfo->vadj_value = ginfo->draw_width - view_width;
+	if (ginfo->hadj_value > (ginfo->draw_width - view_width))
+		ginfo->hadj_value = ginfo->draw_width - view_width;
 
 	dprintf(1, "new width=%d\n", ginfo->draw_width);
 
@@ -1076,11 +1076,11 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	else
 		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
-	dprintf(1, "set val %f\n", ginfo->vadj_value);
+	dprintf(1, "set val %f\n", ginfo->hadj_value);
 
 
 	dprintf(1, "*** ended with with ");
-	print_time(ginfo->vadj_value / ginfo->resolution + ginfo->view_start_time);
+	print_time(ginfo->hadj_value / ginfo->resolution + ginfo->view_start_time);
 	dprintf(1, "\n");
 
 }
@@ -1110,10 +1110,10 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	gint old_width = ginfo->draw_width;
 
 	g_assert(start > end);
-	g_assert(ginfo->vadj);
+	g_assert(ginfo->hadj);
 
-	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
-	start_x = gtk_adjustment_get_value(ginfo->vadj);
+	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
+	start_x = gtk_adjustment_get_value(ginfo->hadj);
 	mid = start_x + view_width / 2;
 
 	time = mid / ginfo->resolution + ginfo->view_start_time;
@@ -1168,7 +1168,7 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	if (start_x < 0)
 		start_x = 0;
 
-	ginfo->vadj_value = start_x;
+	ginfo->hadj_value = start_x;
 }
 
 static gboolean
@@ -1510,7 +1510,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 
 
 	/* --- draw time at intervals --- */
-	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
 
 	for (mid = view_width / 2; mid < (width - view_width / 2 + 10);
 	     mid += view_width / 2) {
@@ -1561,7 +1561,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	gint end;
 	guint64 old_start_time = ginfo->view_start_time;
 
-	view_width = gtk_adjustment_get_page_size(ginfo->vadj);
+	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
 	width = ginfo->draw_width ? : ginfo->full_width;
 
 	mid = (time - ginfo->start_time) * ginfo->resolution;
@@ -1588,7 +1588,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	if (old_start_time != ginfo->view_start_time)
 		redraw_pixmap_backend(ginfo);
 
-	/* Adjust start to be the location for the vadj */
+	/* Adjust start to be the location for the hadj */
 	mid = (time - ginfo->view_start_time) * ginfo->resolution;
 	start = mid - view_width / 2;
 	if (start < 0)
@@ -1596,7 +1596,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 
 	if (start > (width - view_width))
 		start = width - view_width;
-	gtk_adjustment_set_value(ginfo->vadj, start);
+	gtk_adjustment_set_value(ginfo->hadj, start);
 
 	ginfo->last_x = (ginfo->cursor - ginfo->view_start_time)
 		* ginfo->resolution;
@@ -1719,9 +1719,9 @@ static void redraw_pixmap_backend(struct graph_info *ginfo)
 		g_object_unref(old_pix);
 	}
 
-	if (ginfo->vadj_value) {
-//		gtk_adjustment_set_lower(ginfo->vadj, -100.0);
-		gtk_adjustment_set_value(ginfo->vadj, ginfo->vadj_value);
+	if (ginfo->hadj_value) {
+//		gtk_adjustment_set_lower(ginfo->hadj, -100.0);
+		gtk_adjustment_set_value(ginfo->hadj, ginfo->hadj_value);
 	}
 }
 
@@ -1735,9 +1735,9 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	redraw_pixmap_backend(ginfo);
 
 	/* debug */
-	ginfo->vadj_value = gtk_adjustment_get_value(ginfo->vadj);
-	dprintf(2, "get val %f\n", ginfo->vadj_value);
-	ginfo->vadj_value = 0.0;
+	ginfo->hadj_value = gtk_adjustment_get_value(ginfo->hadj);
+	dprintf(2, "get val %f\n", ginfo->hadj_value);
+	ginfo->hadj_value = 0.0;
 
 	return TRUE;
 }
@@ -1805,7 +1805,7 @@ static void info_draw_cpu_labels(struct graph_info *ginfo)
 	gint cpu;
 #if 0
 	clear_old_cpu_labels(ginfo);
-	ginfo->cpu_x = gtk_adjustment_get_value(ginfo->vadj) + 5;
+	ginfo->cpu_x = gtk_adjustment_get_value(ginfo->hadj) + 5;
 #endif
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++)
@@ -1911,9 +1911,9 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_box_pack_start(GTK_BOX (ginfo->widget), ginfo->scrollwin, TRUE, TRUE, 0);
 
 	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
-	ginfo->vadj = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
+	ginfo->hadj = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
 
-	gtk_signal_connect(GTK_OBJECT(ginfo->vadj), "value_changed",
+	gtk_signal_connect(GTK_OBJECT(ginfo->hadj), "value_changed",
 			   (GtkSignalFunc) value_changed, ginfo);
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
