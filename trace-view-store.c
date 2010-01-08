@@ -1249,7 +1249,27 @@ gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *r
 	return val;
 }
 
-static gboolean show_task(TraceViewStore *store, gint pid)
+gint get_wakeup_pid(TraceViewStore *store, struct pevent *pevent, struct record *record)
+{
+	unsigned long long val;
+	int ret;
+
+	ret = pevent_read_number_field(store->sched_wakeup_pid_field, record->data, &val);
+
+	return val;
+}
+
+gint get_wakeup_new_pid(TraceViewStore *store, struct pevent *pevent, struct record *record)
+{
+	unsigned long long val;
+	int ret;
+
+	ret = pevent_read_number_field(store->sched_wakeup_new_pid_field, record->data, &val);
+
+	return val;
+}
+
+static gboolean view_task(TraceViewStore *store, gint pid)
 {
 	return (!store->task_filter ||
 		!filter_task_count(store->task_filter) ||
@@ -1257,6 +1277,43 @@ static gboolean show_task(TraceViewStore *store, gint pid)
 		(!store->hide_tasks ||
 		 !filter_task_count(store->hide_tasks) ||
 		 !filter_task_find_pid(store->hide_tasks, pid));
+}
+
+static gboolean show_task(TraceViewStore *store, struct pevent *pevent,
+			  struct record *record, gint pid)
+{
+	gint event_id;
+
+	if (view_task(store, pid))
+		return TRUE;
+
+	event_id = pevent_data_type(pevent, record);
+
+	if (store->sched_switch_next_field &&
+	    event_id == store->sched_switch_event->id) {
+		/* show sched switch to task */
+		pid = get_next_pid(store, pevent, record);
+		if (view_task(store, pid))
+			return TRUE;
+	}
+
+	if (store->sched_wakeup_pid_field &&
+	    event_id == store->sched_wakeup_event->id) {
+		/* show sched switch to task */
+		pid = get_wakeup_pid(store, pevent, record);
+		if (view_task(store, pid))
+			return TRUE;
+	}
+
+	if (store->sched_wakeup_new_pid_field &&
+	    event_id == store->sched_wakeup_new_event->id) {
+		/* show sched switch to task */
+		pid = get_wakeup_new_pid(store, pevent, record);
+		if (view_task(store, pid))
+			return TRUE;
+	}
+
+	return FALSE;
 }
 
 static void update_filter_tasks(TraceViewStore *store)
@@ -1281,6 +1338,19 @@ static void update_filter_tasks(TraceViewStore *store)
 			store->sched_switch_next_field =
 				pevent_find_any_field(store->sched_switch_event,
 						      "next_pid");
+		store->sched_wakeup_event =
+			pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
+		if (store->sched_wakeup_event)
+			store->sched_wakeup_pid_field =
+				pevent_find_any_field(store->sched_wakeup_event,
+						      "pid");
+
+		store->sched_wakeup_new_event =
+			pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
+		if (store->sched_wakeup_new_event)
+			store->sched_wakeup_new_pid_field =
+				pevent_find_any_field(store->sched_wakeup_new_event,
+						      "pid");
 	}
 
 	for (cpu = 0; cpu < store->cpus; cpu++) {
@@ -1307,21 +1377,10 @@ static void update_filter_tasks(TraceViewStore *store)
 			}
 
 			pid = pevent_data_pid(pevent, record);
-			if (show_task(store, pid))
+			if (show_task(store, pevent, record, pid))
 				store->cpu_list[cpu][i].visible = 1;
-			else {
-				if (store->sched_switch_next_field &&
-				    pevent_data_type(pevent, record) ==
-				    store->sched_switch_event->id) {
-					/* show sched switch to task */
-					pid = get_next_pid(store, pevent, record);
-					if (show_task(store, pid))
-						store->cpu_list[cpu][i].visible = 1;
-					else
-						store->cpu_list[cpu][i].visible = 0;
-				} else
-					store->cpu_list[cpu][i].visible = 0;
-			}
+			else
+				store->cpu_list[cpu][i].visible = 0;
 
  skip:
 			free_record(record);
