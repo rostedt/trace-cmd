@@ -65,6 +65,9 @@ static gint event_wakeup_new_id = -1;
 static gint largest_cpu_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
+static int check_sched_switch(struct graph_info *ginfo,
+			      struct record *record,
+			      gint *pid, const char **comm);
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
@@ -499,8 +502,11 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	}
 
 	if (record) {
-		pid = pevent_data_pid(ginfo->pevent, record);
-		comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+
+		if (!check_sched_switch(ginfo, record, &pid, &comm)) {
+			pid = pevent_data_pid(ginfo->pevent, record);
+			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+		}
 
 		len = strlen(comm) + 50;
 
@@ -863,11 +869,6 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 
 	if (record) {
 
-		if (!check_sched_switch(ginfo, record, &pid, &comm)) {
-			pid = pevent_data_pid(ginfo->pevent, record);
-			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
-		}
-
 		dprintf(3, "record->ts=%llu time=%zu-%zu\n",
 			record->ts, time, time-(gint)(1/ginfo->resolution));
 		print_rec_info(record, pevent, cpu);
@@ -881,8 +882,12 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 		free_record(record);
 		record = tracecmd_read_at(ginfo->handle, offset, NULL);		
 
+		pid = pevent_data_pid(ginfo->pevent, record);
+		comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+
 		if (record->ts > time - 2/ginfo->resolution &&
 		    record->ts < time + 2/ginfo->resolution) {
+
 			convert_nano(record->ts, &sec, &usec);
 
 			type = pevent_data_type(pevent, record);
@@ -896,7 +901,8 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 				trace_seq_putc(&s, '\n');
 			} else
 				trace_seq_printf(&s, "UNKNOW EVENT %d\n", type);
-		}
+		} else
+			check_sched_switch(ginfo, record, &pid, &comm);
 
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
 		if (pid)
