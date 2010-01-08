@@ -16,7 +16,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "trace-cmd.h"
+#include "trace-cmd-local.h"
 #include "list.h"
 
 /* for debugging read instead of mmap */
@@ -1712,6 +1712,238 @@ void tracecmd_close(struct tracecmd_input *handle)
 	close(handle->fd);
 	pevent_free(handle->pevent);
 	free(handle);
+}
+
+static long long read_copy_size8(struct tracecmd_input *handle, int fd)
+{
+	long long size;
+
+	/* read size */
+	if (do_read_check(handle, &size, 8))
+		return -1;
+
+	if (__do_write_check(fd, &size, 8))
+		return -1;
+
+	size = __data2host8(handle->pevent, size);
+
+	return size;
+}
+
+static int read_copy_size4(struct tracecmd_input *handle, int fd)
+{
+	int size;
+
+	/* read size */
+	if (do_read_check(handle, &size, 4))
+		return -1;
+
+	if (__do_write_check(fd, &size, 4))
+		return -1;
+
+	size = __data2host4(handle->pevent, size);
+
+	return size;
+}
+
+static int read_copy_data(struct tracecmd_input *handle,
+			  unsigned long long size, int fd)
+{
+	char *buf;
+
+	buf = malloc(size);
+	if (!buf)
+		return -1;
+	if (do_read_check(handle, buf, size))
+		goto failed_read;
+
+	if (__do_write_check(fd, buf, size))
+		goto failed_read;
+	
+	free(buf);
+
+	return 0;
+
+ failed_read:
+	free(buf);
+	return -1;
+}
+
+static int copy_header_files(struct tracecmd_input *handle, int fd)
+{
+	long long size;
+
+	lseek64(handle->fd, handle->header_files_start, SEEK_SET);
+
+	/* "header_page"  */
+	if (read_copy_data(handle, 12, fd) < 0)
+		return -1;
+
+	size = read_copy_size8(handle, fd);
+	if (size < 0)
+		return -1;
+
+	if (read_copy_data(handle, size, fd) < 0)
+		return -1;
+
+	/* "header_event"  */
+	if (read_copy_data(handle, 13, fd) < 0)
+		return -1;
+
+	size = read_copy_size8(handle, fd);
+	if (size < 0)
+		return -1;
+
+	if (read_copy_data(handle, size, fd) < 0)
+		return -1;
+
+	return 0;
+}
+
+static int copy_ftrace_files(struct tracecmd_input *handle, int fd)
+{
+	unsigned long long size;
+	int count;
+	int i;
+
+	count = read_copy_size4(handle, fd);
+	if (count < 0)
+		return -1;
+
+	for (i = 0; i < count; i++) {
+
+		size = read_copy_size8(handle, fd);
+		if (size < 0)
+			return -1;
+
+		if (read_copy_data(handle, size, fd) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int copy_event_files(struct tracecmd_input *handle, int fd)
+{
+	unsigned long long size;
+	char *system;
+	int systems;
+	int count;
+	int ret;
+	int i,x;
+
+	systems = read_copy_size4(handle, fd);
+	if (systems < 0)
+		return -1;
+
+	for (i = 0; i < systems; i++) {
+		system = read_string(handle);
+		if (!system)
+			return -1;
+		if (__do_write_check(fd, system, strlen(system) + 1)) {
+			free(system);
+			return -1;
+		}
+		free(system);
+
+		count = read_copy_size4(handle, fd);
+		if (count < 0)
+			return -1;
+
+		for (x=0; x < count; x++) {
+			size = read_copy_size8(handle, fd);
+			if (size < 0)
+				return -1;
+
+			ret = read_copy_data(handle, size, fd);
+			if (ret < 0)
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int copy_proc_kallsyms(struct tracecmd_input *handle, int fd)
+{
+	int size;
+
+	size = read_copy_size4(handle, fd);
+	if (!size)
+		return 0; /* OK? */
+
+	if (size < 0)
+		return -1;
+
+	if (read_copy_data(handle, size, fd) < 0)
+		return -1;
+
+	return 0;
+}
+
+static int copy_ftrace_printk(struct tracecmd_input *handle, int fd)
+{
+	int size;
+
+	size = read_copy_size4(handle, fd);
+	if (!size)
+		return 0; /* OK? */
+
+	if (size < 0)
+		return -1;
+
+	if (read_copy_data(handle, size, fd) < 0)
+		return -1;
+
+	return 0;
+}
+
+static int copy_command_lines(struct tracecmd_input *handle, int fd)
+{
+	unsigned long size;
+
+	size = read_copy_size8(handle, fd);
+	if (!size)
+		return 0; /* OK? */
+
+	if (size < 0)
+		return -1;
+
+	if (read_copy_data(handle, size, fd) < 0)
+		return -1;
+
+	return 0;
+}
+
+int tracecmd_copy_headers(struct tracecmd_input *handle, int fd)
+{
+	int ret;
+
+	ret = copy_header_files(handle, fd);
+	if (ret < 0)
+		return -1;
+
+	ret = copy_ftrace_files(handle, fd);
+	if (ret < 0)
+		return -1;
+
+	ret = copy_event_files(handle, fd);
+	if (ret < 0)
+		return -1;
+
+	ret = copy_proc_kallsyms(handle, fd);
+	if (ret < 0)
+		return -1;
+
+	ret = copy_ftrace_printk(handle, fd);
+	if (ret < 0)
+		return -1;
+
+	ret = copy_command_lines(handle, fd);
+	if (ret < 0)
+		return -1;
+
+	return 0;
 }
 
 /**

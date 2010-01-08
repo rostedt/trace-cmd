@@ -16,7 +16,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "trace-cmd.h"
+#include "trace-cmd-local.h"
 #include "version.h"
 
 struct tracecmd_output {
@@ -26,36 +26,10 @@ struct tracecmd_output {
 	char		*tracing_dir;
 };
 
-static int do_write(struct tracecmd_output *handle, void *data, int size)
-{
-	int tot = 0;
-	int w;
-
-	do {
-		w = write(handle->fd, data, size - tot);
-		tot += w;
-
-		if (!w)
-			break;
-		if (w < 0)
-			return w;
-	} while (tot != size);
-
-	return tot;
-}
-
 static int
 do_write_check(struct tracecmd_output *handle, void *data, int size)
 {
-	int ret;
-
-	ret = do_write(handle, data, size);
-	if (ret < 0)
-		return ret;
-	if (ret != size)
-		return -1;
-
-	return 0;
+	return __do_write_check(handle->fd, data, size);
 }
 
 void tracecmd_output_close(struct tracecmd_output *handle)
@@ -494,9 +468,11 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	return 0;
 }
 
-static struct tracecmd_output *create_file(const char *output_file, int cpus)
+static struct tracecmd_output *create_file(const char *output_file, int cpus,
+					   struct tracecmd_input *ihandle)
 {
 	struct tracecmd_output *handle;
+	struct pevent *pevent;
 	char buf[BUFSIZ];
 	char *file = NULL;
 	struct stat st;
@@ -524,11 +500,21 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus)
 	if (do_write_check(handle, FILE_VERSION_STRING, strlen(FILE_VERSION_STRING) + 1))
 		goto out_free;
 
-	/* save endian */
-	if (tracecmd_host_bigendian())
-		buf[0] = 1;
-	else
-		buf[0] = 0;
+	/* get endian and page size */
+	if (ihandle) {
+		pevent = tracecmd_get_pevent(ihandle);
+		if (pevent->file_bigendian)
+			buf[0] = 1;
+		else
+			buf[0] = 0;
+		handle->page_size = tracecmd_page_size(ihandle);
+	} else {
+		if (tracecmd_host_bigendian())
+			buf[0] = 1;
+		else
+			buf[0] = 0;
+		handle->page_size = getpagesize();
+	}
 
 	if (do_write_check(handle, buf, 1))
 		goto out_free;
@@ -538,10 +524,11 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus)
 	if (do_write_check(handle, buf, 1))
 		goto out_free;
 
-	/* save page_size */
-	handle->page_size = getpagesize();
 	if (do_write_check(handle, &handle->page_size, 4))
 		goto out_free;
+
+	if (ihandle)
+		return handle;
 
 	if (read_header_files(handle))
 		goto out_free;
@@ -577,9 +564,6 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus)
 	put_tracing_file(file);
 	file = NULL;
 
-	if (do_write_check(handle, &cpus, 4))
-		goto out_free;
-
 	return handle;
 
  out_free:
@@ -592,9 +576,12 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	struct tracecmd_output *handle;
 	char *path;
 
-	handle = create_file(output_file, cpus);
+	handle = create_file(output_file, cpus, NULL);
 	if (!handle)
 		return NULL;
+
+	if (do_write_check(handle, &cpus, 4))
+		goto out_free;
 
 	if (do_write_check(handle, "latency  ", 10))
 		goto out_free;
@@ -614,22 +601,20 @@ out_free:
 	return NULL;
 }
 
-struct tracecmd_output *tracecmd_create_file(const char *output_file,
-					     int cpus, char * const *cpu_data_files)
+int tracecmd_append_cpu_data(struct tracecmd_output *handle,
+			     int cpus, char * const *cpu_data_files)
 {
 	unsigned long long *offsets = NULL;
 	unsigned long long *sizes = NULL;
-	struct tracecmd_output *handle;
 	unsigned long long offset;
 	off64_t check_size;
-	char *file = NULL;
+	char *file;
 	struct stat st;
 	int ret;
 	int i;
 
-	handle = create_file(output_file, cpus);
-	if (!handle)
-		return NULL;
+	if (do_write_check(handle, &cpus, 4))
+		goto out_free;
 
 	if (do_write_check(handle, "flyrecord", 10))
 		goto out_free;
@@ -648,17 +633,12 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 	offset = (offset + (handle->page_size - 1)) & ~(handle->page_size - 1);
 
 	for (i = 0; i < cpus; i++) {
-		file = malloc_or_die(strlen(output_file) + 20);
-		if (!file)
-			goto out_free;
-		sprintf(file, "%s.cpu%d", output_file, i);
+		file = cpu_data_files[i];
 		ret = stat(file, &st);
 		if (ret < 0) {
 			warning("can not stat '%s'", file);
 			goto out_free;
 		}
-		free(file);
-		file = NULL;
 		offsets[i] = offset;
 		sizes[i] = st.st_size;
 		offset += st.st_size;
@@ -689,13 +669,58 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 	free(offsets);
 	free(sizes);
 
-	return handle;
+	return 0;
 
  out_free:
-	free(file);
 	free(offsets);
 	free(sizes);
 
+	tracecmd_output_close(handle);
+	return -1;
+}
+
+struct tracecmd_output *tracecmd_create_file(const char *output_file,
+					     int cpus, char * const *cpu_data_files)
+{
+	struct tracecmd_output *handle;
+
+	handle = create_file(output_file, cpus, NULL);
+	if (!handle)
+		return NULL;
+
+	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0) {
+		free(handle);
+		return NULL;
+	}
+
+	return handle;
+}
+
+/**
+ * tracecmd_copy - copy the headers of one trace.dat file for another
+ * @ihandle: input handle of the trace.dat file to copy
+ * @file: the trace.dat file to create
+ *
+ * Reads the header information and creates a new trace data file
+ * with the same characteristics (events and all) and returns
+ * tracecmd_output handle to this new file.
+ */
+struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
+				      const char *file)
+{
+	struct tracecmd_output *handle;
+
+	handle = create_file(file, tracecmd_cpus(ihandle), ihandle);
+	if (!handle)
+		return NULL;
+
+	if (tracecmd_copy_headers(ihandle, handle->fd) < 0)
+		goto out_free;
+
+	/* The file is all ready to have cpu data attached */
+	return handle;
+
+out_free:
 	tracecmd_output_close(handle);
 	return NULL;
 }

@@ -750,11 +750,26 @@ void usage(char **argv)
 	       "          -E show event files stored\n"
 	       "          -l show latency format (default with latency tracers)\n"
 	       "\n"
+	       " %s split [options] -o file [start [end]]\n"
+	       "          -o output file to write to (file.1, file.2, etc)\n"
+	       "          -s n  split file up by n seconds\n"
+	       "          -m n  split file up by n milliseconds\n"
+	       "          -u n  split file up by n microseconds\n"
+	       "          -e n  split file up by n events\n"
+	       "          -p n  split file up by n pages\n"
+	       "          -r    repeat from start to end\n"
+	       "          -c    per cpu, that is -p 2 will be 2 pages for each CPU\n"
+	       "          if option is specified, it will split the file\n"
+	       "           up starting at start, and ending at end\n"
+	       "          start - decimal start time in seconds (ex: 75678.923853)\n"
+	       "                  if left out, will start at beginning of file\n"
+	       "          end   - decimal end time in seconds\n"
+	       "\n"
 	       " %s list [-e][-p]\n"
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
 	       "          -o list available options\n"
-	       "\n", p, VERSION_STRING, p, p, p, p, p, p, p);
+	       "\n", p, VERSION_STRING, p, p, p, p, p, p, p, p);
 	exit(-1);
 }
 
@@ -785,6 +800,9 @@ int main (int argc, char **argv)
 
 	if (strcmp(argv[1], "report") == 0) {
 		trace_report(argc, argv);
+		exit(0);
+	} else if (strcmp(argv[1], "split") == 0) {
+		trace_split(argc, argv);
 		exit(0);
 	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
 		   (strcmp(argv[1], "start") == 0) ||

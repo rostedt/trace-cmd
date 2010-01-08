@@ -49,6 +49,7 @@ int tracecmd_read_headers(struct tracecmd_input *handle);
 int tracecmd_long_size(struct tracecmd_input *handle);
 int tracecmd_page_size(struct tracecmd_input *handle);
 int tracecmd_cpus(struct tracecmd_input *handle);
+int tracecmd_copy_headers(struct tracecmd_input *handle, int fd);
 
 void tracecmd_print_events(struct tracecmd_input *handle);
 
@@ -94,6 +95,10 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 struct tracecmd_output *tracecmd_create_file(const char *output_file,
 					     int cpus, char * const *cpu_data_files);
 void tracecmd_output_close(struct tracecmd_output *handle);
+struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
+				      const char *file);
+int tracecmd_append_cpu_data(struct tracecmd_output *handle,
+			     int cpus, char * const *cpu_data_files);
 
 /* --- Reading the Fly Recorder Trace --- */
 
