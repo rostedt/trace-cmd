@@ -1454,8 +1454,12 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 		if (last_pid != pid) {
 
 			if (last_pid < 0) {
-				last_pid = pid;
-				set_color_by_pid(ginfo->draw, gc, pid);
+				/* if we hit a sched switch, use the original pid */
+				if (is_sched_switch)
+					last_pid = pevent_data_pid(ginfo->pevent, record);
+				else
+					last_pid = pid;
+				set_color_by_pid(ginfo->draw, gc, last_pid);
 			}
 				
 			filter = graph_filter_on_task(ginfo, last_pid);
