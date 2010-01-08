@@ -1874,9 +1874,6 @@ destroy_event(GtkWidget *widget, gpointer data)
 	filter_task_hash_free(ginfo->task_filter);
 	filter_task_hash_free(ginfo->hide_tasks);
 
-	if (ginfo->test)
-		dprintf(1, "test = %s\n", ginfo->test);
-
 	return TRUE;
 }
 
@@ -1998,7 +1995,6 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo = g_new0(typeof(*ginfo), 1);
 	g_assert(ginfo != NULL);
-	ginfo->test = "hello!";
 
 	ginfo->handle = handle;
 	ginfo->pevent = tracecmd_get_pevent(handle);

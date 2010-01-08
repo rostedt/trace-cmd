@@ -73,10 +73,6 @@ struct graph_info {
 	gint			cpu_data_h;
 
 	gint			cpu_x;		/* x coord where CPU numbers are drawn */
-
-	/* not needed in future */
-
-	gchar			*test;
 };
 
 
