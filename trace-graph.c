@@ -595,6 +595,81 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return TRUE;
 }
 
+static gboolean
+info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	printf("hi\n");
+	if (event->button != 1)
+		return FALSE;
+
+	/* check for double click */
+	if (event->type == GDK_2BUTTON_PRESS)
+		return FALSE;
+
+	ginfo->press_x = 0;
+	ginfo->last_x = 0;
+
+	draw_line(ginfo->draw, 0, ginfo);
+
+	ginfo->line_active = TRUE;
+
+	return FALSE;
+}
+
+static gboolean
+info_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+	GdkModifierType state;
+	gint x, y;
+
+	if (!ginfo->line_active)
+		return FALSE;
+
+	if (!ginfo->curr_pixmap)
+		return FALSE;
+
+	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
+			    ginfo->cpu_data_w, ginfo->cpu_data_h);
+	if (event->is_hint)
+		gdk_window_get_pointer(event->window, &x, &y, &state);
+	else {
+		x = event->x;
+		y = event->y;
+	}
+
+	/* Position x relative to the location in the drawing area */
+	x -= ginfo->scrollwin->allocation.x - ginfo->info_scrollwin->allocation.x;
+
+	if (x < 0)
+		return FALSE;
+
+	if (ginfo->last_x)
+		clear_last_line(ginfo->draw, ginfo);
+	ginfo->last_x = x;
+	draw_line(ginfo->draw, ginfo->press_x, ginfo);
+	draw_line(ginfo->draw, x, ginfo);
+
+	return FALSE;
+}
+
+static void activate_zoom(struct graph_info *ginfo, gint x);
+
+static gboolean
+info_button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+	gint x;
+
+	x = event->x - ginfo->scrollwin->allocation.x - ginfo->info_scrollwin->allocation.x;
+
+	activate_zoom(ginfo, x);
+
+	return FALSE;
+}
+
 static void print_rec_info(struct record *record, struct pevent *pevent, int cpu)
 {
 	struct trace_seq s;
@@ -1172,26 +1247,32 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 
 	ginfo->hadj_value = start_x;
 }
+static void activate_zoom(struct graph_info *ginfo, gint x)
+{
+
+	if (!ginfo->line_active)
+		return;
+
+	ginfo->line_active = FALSE;
+	clear_last_line(ginfo->draw, ginfo);
+	ginfo->last_x = ginfo->press_x;
+	clear_last_line(ginfo->draw, ginfo);
+
+	if (x > ginfo->press_x) {
+		/* make a decent zoom */
+		if (x - ginfo->press_x < 10)
+			return;
+		zoom_in_window(ginfo, ginfo->press_x, x);
+	} else if (x < ginfo->press_x)
+		zoom_out_window(ginfo, ginfo->press_x, x);
+}
 
 static gboolean
 button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
-	if (ginfo->line_active) {
-		ginfo->line_active = FALSE;
-		clear_last_line(widget, ginfo);
-		ginfo->last_x = ginfo->press_x;
-		clear_last_line(widget, ginfo);
-
-		if (event->x > ginfo->press_x) {
-			/* make a decent zoom */
-			if (event->x - ginfo->press_x < 10)
-				return TRUE;
-			zoom_in_window(ginfo, ginfo->press_x, event->x);
-		} else if (event->x < ginfo->press_x)
-			zoom_out_window(ginfo, ginfo->press_x, event->x);
-	}
+	activate_zoom(ginfo, event->x);
 
 	return TRUE;
 }
@@ -1203,6 +1284,7 @@ leave_notify_event(GtkWidget *widget, GdkEventCrossing *event, gpointer data)
 
 	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
 			    ginfo->cpu_data_w, ginfo->cpu_data_h);
+
 	return FALSE;
 }
 
@@ -1863,8 +1945,18 @@ create_graph_info(struct graph_info *ginfo)
 			   (GtkSignalFunc) info_expose_event, ginfo);
 	gtk_signal_connect(GTK_OBJECT(info), "configure_event",
 			   (GtkSignalFunc) info_configure_event, ginfo);
+	gtk_signal_connect(GTK_OBJECT(info), "button_press_event",
+			   (GtkSignalFunc) info_button_press_event, ginfo);
+	gtk_signal_connect(GTK_OBJECT(info), "motion_notify_event",
+			   (GtkSignalFunc) info_motion_notify_event, ginfo);
+	gtk_signal_connect(GTK_OBJECT(info), "button_release_event",
+			   (GtkSignalFunc) info_button_release_event, ginfo);
 
-	gtk_widget_set_events(info, GDK_EXPOSURE_MASK);
+	gtk_widget_set_events(info, GDK_EXPOSURE_MASK
+			      | GDK_BUTTON_PRESS_MASK
+			      | GDK_BUTTON_RELEASE_MASK
+			      | GDK_POINTER_MOTION_MASK
+			      | GDK_POINTER_MOTION_HINT_MASK);
 
 	return info;
 }
@@ -1979,7 +2071,6 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 			      | GDK_POINTER_MOTION_MASK
 			      | GDK_POINTER_MOTION_HINT_MASK
 			      | GDK_LEAVE_NOTIFY_MASK);
-
 
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(ginfo->scrollwin),
 					      ginfo->draw);
