@@ -7,11 +7,13 @@ LIBS = -L. -ltracecmd -ldl
 
 PACKAGES= gtk+-2.0
 
+ifeq ($(BUILDGUI), 1)
 CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES)) \
 	-DGTK_VERSION=$(shell pkg-config --modversion gtk+-2.0 | \
 	awk 'BEGIN{FS="."}{ a = ($$1 * (2^16)) + $$2 * (2^8) + $$3; printf ("%d", a);}')
 
 CONFIG_LIBS = $(shell pkg-config --libs $(PACKAGES))
+endif
 
 CFLAGS = -g -Wall $(CONFIG_FLAGS)
 
@@ -21,10 +23,22 @@ CFLAGS = -g -Wall $(CONFIG_FLAGS)
 PLUGINS =  plugin_hrtimer.so plugin_mac80211.so plugin_sched_switch.so \
 	plugin_kmem.so
 
-TARGETS = libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS) \
-	trace-graph trace-view kernelshark
+CMD_TARGETS = libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS)
 
-all: $(TARGETS)
+GUI_TARGETS = trace-graph trace-view kernelshark
+
+###
+#    Default we just build trace-cmd
+#
+#    If you want kernelshark, then do:  make gui
+###
+
+all: $(CMD_TARGETS)
+
+gui:	$(CMD_TARGETS)
+	$(MAKE) BUILDGUI=1 all_gui
+
+all_gui: $(GUI_TARGETS)
 
 LIB_FILE = libtracecmd.a
 
@@ -55,9 +69,16 @@ trace-view:: trace-view-main.o $(TRACE_VIEW_OBJS)
 trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o trace-hash.o trace-filter.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
 
+ifeq ($(BUILDGUI), 1)
 kernelshark:: kernel-shark.o trace-compat.o $(TRACE_VIEW_OBJS) trace-graph.o \
 		trace-hash.o
 	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+else
+kernelshark: force
+	@echo '**************************************'
+	@echo '** To build kernel shark:  make gui **'
+	@echo '**************************************'
+endif
 
 .PHONY: gtk_depends
 view_depends:
