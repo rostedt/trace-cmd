@@ -901,8 +901,10 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 				trace_seq_putc(&s, '\n');
 			} else
 				trace_seq_printf(&s, "UNKNOW EVENT %d\n", type);
-		} else
-			check_sched_switch(ginfo, record, &pid, &comm);
+		} else {
+			if (record->ts < time)
+				check_sched_switch(ginfo, record, &pid, &comm);
+		}
 
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
 		if (pid)
@@ -912,8 +914,24 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 
 		free_record(record);
 
-	} else
-		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+	} else {
+		record = tracecmd_read_cpu_last(ginfo->handle, cpu);
+		if (record->ts < time) {
+			if (!check_sched_switch(ginfo, record, &pid, &comm)) {
+				pid = pevent_data_pid(ginfo->pevent, record);
+				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+			}
+
+			trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+			if (pid)
+				trace_seq_printf(&s, " %s-%d", comm, pid);
+			else
+				trace_seq_puts(&s, " <idle>");
+
+		} else
+			trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+		free_record(record);
+	}
 
 	trace_seq_putc(&s, 0);
 
