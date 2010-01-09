@@ -167,6 +167,7 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 	GtkCellRenderer *renderer;
 	GtkCellRenderer *fix_renderer;
 	GtkTreeModel *model;
+	long c;
 
 
 	/* --- CPU column --- */
@@ -186,7 +187,7 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 	 */
 	gtk_tree_view_set_fixed_height_mode(GTK_TREE_VIEW(view), TRUE);
 
-	for (long c = 0; c < NUM_COLS; c++)
+	for (c = 0; c < NUM_COLS; c++)
 	{
 		gtk_tree_view_insert_column_with_data_func(GTK_TREE_VIEW(view),
 				-1,
