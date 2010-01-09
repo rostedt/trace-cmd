@@ -606,7 +606,6 @@ info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
-	printf("hi\n");
 	if (event->button != 1)
 		return FALSE;
 
