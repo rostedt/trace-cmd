@@ -9,19 +9,28 @@ KS_PATCHLEVEL = 1
 KS_EXTRAVERSION =
 
 # file format version
-FILE_VERSION = 0
+FILE_VERSION = 5
 
 CC = gcc
 AR = ar
 EXT = -std=gnu99
-INCLUDES = -I. -I/usr/local/include
+
+MAKEFLAGS += --no-print-directory
 
 LIBS = -L. -ltracecmd -ldl
+LIB_FILE = libtracecmd.a
 
 PACKAGES= gtk+-2.0
 
+ifndef BUILDGUI
+ BUILDGUI = 0
+endif
+
 ifeq ($(BUILDGUI), 1)
-CONFIG_FLAGS = $(shell pkg-config --cflags $(PACKAGES)) -DBUILDGUI \
+
+CONFIG_INCLUDES = $(shell pkg-config --cflags $(PACKAGES))
+
+CONFIG_FLAGS = -DBUILDGUI \
 	-DGTK_VERSION=$(shell pkg-config --modversion gtk+-2.0 | \
 	awk 'BEGIN{FS="."}{ a = ($$1 * (2^16)) + $$2 * (2^8) + $$3; printf ("%d", a);}')
 
@@ -34,8 +43,13 @@ EXTRAVERSION	= $(KS_EXTRAVERSION)
 GUI		= 'GUI '
 GOBJ		= $@
 
+REBUILD_GUI	= /bin/true
+G		=
+N 		= @/bin/true ||
+
 else
 
+CONFIG_INCLUDES = 
 CONFIG_LIBS	=
 CONFIG_FLAGS	=
 
@@ -46,18 +60,26 @@ EXTRAVERSION	= $(TC_EXTRAVERSION)
 GUI		=
 GOBJ		= "    "$@
 
+REBUILD_GUI	= $(MAKE) BUILDGUI=1 $@
+G		= $(REBUILD_GUI); /bin/true ||
+N		=
 endif
+
+export Q VERBOSE
 
 TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
 KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
-CFLAGS = -g -Wall $(CONFIG_FLAGS)
+INCLUDES = -I. -I/usr/local/include $(CONFIG_INCLUDES)
+
+CFLAGS = -g -Wall $(CONFIG_FLAGS) $(INCLUDES)
 
 # copy a bit from Linux kbuild
 
 ifeq ("$(origin V)", "command line")
   VERBOSE = $(V)
-else
+endif
+ifndef VERBOSE
   VERBOSE = 0
 endif
 
@@ -71,51 +93,81 @@ ifeq ($(VERBOSE),1)
   print_plugin_build =
 else
   Q = @
-  print_compile =		@echo '  $(GUI)COMPILE            '$(GOBJ);
-  print_app_build =		@echo '  $(GUI)BUILD              '$(GOBJ);
-  print_fpic_compile =		@echo '  $(GUI)COMPILE FPIC       '$(GOBJ);
-  print_shared_lib_compile =	@echo '  $(GUI)COMPILE SHARED LIB '$(GOBJ);
-  print_plugin_obj_compile =	@echo '  $(GUI)COMPILE PLUGIN OBJ '$(GOBJ);
-  print_plugin_build =		@echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
-  print_static_lib_build =	@echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
+  print_compile =		echo '  $(GUI)COMPILE            '$(GOBJ);
+  print_app_build =		echo '  $(GUI)BUILD              '$(GOBJ);
+  print_fpic_compile =		echo '  $(GUI)COMPILE FPIC       '$(GOBJ);
+  print_shared_lib_compile =	echo '  $(GUI)COMPILE SHARED LIB '$(GOBJ);
+  print_plugin_obj_compile =	echo '  $(GUI)COMPILE PLUGIN OBJ '$(GOBJ);
+  print_plugin_build =		echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
+  print_static_lib_build =	echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
 endif
 
-do_fpic_compile =							\
-	$(Q)$(print_fpic_compile)					\
-	$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) -fPIC $< -o $@
+do_fpic_compile =					\
+	($(print_fpic_compile)				\
+	$(CC) -c $(CFLAGS) $(EXT) -fPIC $< -o $@)
 
 do_app_build =						\
-	$(Q)$(print_app_build)				\
-	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS)
+	($(print_app_build)				\
+	$(CC) $^ -rdynamic -o $@ $(CONFIG_LIBS) $(LIBS))
 
 do_compile_shared_library =			\
-	$(Q)$(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@
+	($(print_shared_lib_compile)		\
+	$(CC) --shared $^ -o $@)
 
 do_compile_plugin_obj =				\
-	$(Q)$(print_plugin_obj_compile)		\
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $<
+	($(print_plugin_obj_compile)		\
+	$(CC) -c $(CFLAGS) -fPIC -o $@ $<)
 
 do_plugin_build =				\
-	$(Q)$(print_plugin_build)		\
-	$(CC) -shared -nostartfiles -o $@ $<
+	($(print_plugin_build)			\
+	$(CC) -shared -nostartfiles -o $@ $<)
 
 do_build_static_lib =				\
-	$(Q)$(print_static_lib_build)		\
-	$(RM) $@;  $(AR) rcs $@ $^
+	($(print_static_lib_build)		\
+	$(RM) $@;  $(AR) rcs $@ $^)
+
+
+define check_gui
+	if [ $(BUILDGUI) -ne 1 -a ! -z "$(filter $(gui_objs),$(@))" ];	then	\
+		$(REBUILD_GUI);							\
+	else									\
+		$(print_compile)						\
+		$(CC) -c $(CFLAGS) $(EXT) $< -o $@;				\
+	fi;
+endef
 
 %.o: %.c
-	$(print_compile)
-	$(Q)$(CC) -c $(CFLAGS) $(EXT) $(INCLUDES) $< -o $@
+	$(Q)$(call check_gui)
 
-PLUGINS =  plugin_hrtimer.so plugin_mac80211.so plugin_sched_switch.so \
-	plugin_kmem.so
 
-CMD_TARGETS = tc_version.h libparsevent.a libtracecmd.a trace-cmd  $(PLUGINS)
+TRACE_CMD_OBJS = trace-cmd.o trace-read.o
+TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
+	trace-hash.o
+TRACE_GRAPH_OBJS = trace-graph.o trace-compat.o trace-hash.o trace-filter.o
+TRACE_VIEW_MAIN_OBJS = trace-view-main.o $(TRACE_VIEW_OBJS)
+TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS)
+KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) kernel-shark.o
+
+PEVENT_LIB_OBJS = parse-events.o trace-seq.o
+TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
+			trace-output.o trace-record.o
+
+PLUGIN_OBJS = plugin_hrtimer.o plugin_kmem.o plugin_sched_switch.o \
+	plugin_mac80211.o
+
+PLUGINS := $(PLUGIN_OBJS:.o=.so)
+
+ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) \
+	$(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
+
+CMD_TARGETS = tc_version.h libparsevent.a $(LIB_FILE) trace-cmd  $(PLUGINS)
 
 GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
 
 TARGETS = $(CMD_TARGETS) $(GUI_TARGETS)
+
+
+#	cpp $(INCLUDES)
 
 ###
 #    Default we just build trace-cmd
@@ -125,122 +177,54 @@ TARGETS = $(CMD_TARGETS) $(GUI_TARGETS)
 
 all: $(CMD_TARGETS)
 
-gui:	$(CMD_TARGETS)
+gui: $(CMD_TARGETS)
 	$(Q)$(MAKE) BUILDGUI=1 all_gui
 
 all_gui: $(GUI_TARGETS)
 
-LIB_FILE = libtracecmd.a
+GUI_OBJS = $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) $(TRACE_GRAPH_MAIN_OBJS)
 
-HEADERS = parse-events.h trace-cmd.h trace-local.h trace-hash.h
+gui_objs := $(sort $(GUI_OBJS))
 
-trace-read.o::		$(HEADERS) 
-trace-cmd.o::		$(HEADERS) $(LIB_FILE) tc_version.h
-trace-util.o::		$(HEADERS)
-trace-ftrace.o::	$(HEADERS)
-trace-input.o::		$(HEADERS)
-trace-view.o::		$(HEADERS) trace-view-store.h trace-view.h
-trace-view-store.o::	$(HEADERS) trace-view-store.h trace-view.h
-trace-view-main.o::	$(HEADERS) trace-view-store.h trace-view.h libtracecmd.a
-trace-filter.o::	$(HEADERS)
-trace-graph.o::		$(HEADERS) trace-graph.h
-trace-graph-main.o::	$(HEADERS) trace-graph.h libtracecmd.a
-kernel-shark.o::	$(HEADERS) kernel-shark.h libtracecmd.a ks_version.h
+trace-cmd: $(TRACE_CMD_OBJS)
+	$(Q)$(do_app_build)
 
-TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
-	trace-hash.o
+kernelshark: $(KERNEL_SHARK_OBJS)
+	$(Q)$(G)$(do_app_build)
 
-trace-cmd:: trace-cmd.o trace-read.o
-	$(do_app_build)
+trace-view: $(TRACE_VIEW_MAIN_OBJS)
+	$(Q)$(G)$(do_app_build)
 
-trace-view:: trace-view-main.o $(TRACE_VIEW_OBJS)
-	$(do_app_build)
+trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
+	$(Q)$(G)$(do_app_build)
 
-trace-graph:: trace-graph-main.o trace-graph.o trace-compat.o trace-hash.o trace-filter.o
-	$(do_app_build)
-
-ifeq ($(BUILDGUI), 1)
-kernelshark:: kernel-shark.o trace-compat.o $(TRACE_VIEW_OBJS) trace-graph.o \
-		trace-hash.o
-	$(do_app_build)
-else
-kernelshark: force
-	@echo '**************************************'
-	@echo '** To build kernel shark:  make gui **'
-	@echo '**************************************'
-endif
-
-.PHONY: gtk_depends
-view_depends:
-	@pkg-config --cflags $(PACKAGES)
-
-trace-view.o::		parse-events.h
-trace-graph.o::		parse-events.h
-
-parse-events.o: parse-events.c parse-events.h
-	$(do_fpic_compile)
-
-trace-seq.o: trace-seq.c parse-events.h
-	$(do_fpic_compile)
-
-trace-util.o:: trace-util.c
-	$(do_fpic_compile)
-
-trace-input.o:: trace-input.c
-	$(do_fpic_compile)
-
-trace-output.o:: trace-output.c
-	$(do_fpic_compile)
-
-trace-record.o:: trace-record.c
-	$(do_fpic_compile)
-
-trace-ftrace.o:: trace-ftrace.c
-	$(do_fpic_compile)
-
-PEVENT_LIB_OBJS = parse-events.o trace-seq.o
+kernelshark: libtracecmd.a
+trace-view: libtracecmd.a
+trace-graph: libtracecmd.a
 
 libparsevent.so: $(PEVENT_LIB_OBJS)
-	$(do_compile_shared_library)
+	$(Q)$(do_compile_shared_library)
 
 libparsevent.a: $(PEVENT_LIB_OBJS)
-	$(do_build_static_lib)
+	$(Q)$(do_build_static_lib)
 
-TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
-			trace-output.o trace-record.o
+$(TCMD_LIB_OBJS): %.o: %.c
+	$(Q)$(do_fpic_compile)
 
 libtracecmd.so: $(TCMD_LIB_OBJS)
-	$(do_compile_shared_library)
+	$(Q)$(do_compile_shared_library)
 
 libtracecmd.a: $(TCMD_LIB_OBJS)
-	$(do_build_static_lib)
+	$(Q)$(do_build_static_lib)
 
-plugin_hrtimer.o: plugin_hrtimer.c parse-events.h trace-cmd.h
-	$(do_compile_plugin_obj)
+$(PLUGIN_OBJS): %.o : %.c
+	$(Q)$(do_compile_plugin_obj)
 
-plugin_hrtimer.so: plugin_hrtimer.o
-	$(do_plugin_build)
-
-plugin_kmem.o: plugin_kmem.c parse-events.h trace-cmd.h
-	$(do_compile_plugin_obj)
-
-plugin_kmem.so: plugin_kmem.o
-	$(do_plugin_build)
-
-plugin_sched_switch.o: plugin_sched_switch.c parse-events.h trace-cmd.h
-	$(do_compile_plugin_obj)
-
-plugin_sched_switch.so: plugin_sched_switch.o
-	$(do_plugin_build)
-
-plugin_mac80211.o: plugin_mac80211.c parse-events.h trace-cmd.h
-	$(do_compile_plugin_obj)
-
-plugin_mac80211.so: plugin_mac80211.o
-	$(do_plugin_build)
+$(PLUGINS): %.so: %.o
+	$(Q)$(do_plugin_build)
 
 define make_version.h
-	@(echo \#define VERSION_CODE $(shell						\
+	(echo \#define VERSION_CODE $(shell						\
 	expr $(VERSION) \* 256 + $(PATCHLEVEL));					\
 	echo '#define EXTRAVERSION ' $(EXTRAVERSION);					\
 	echo '#define VERSION_STRING "'$(VERSION).$(PATCHLEVEL)$(EXTRAVERSION)'"';	\
@@ -249,20 +233,65 @@ define make_version.h
 endef
 
 define update_version.h
-	$(call make_version.h, $@.tmp);		\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
-		rm -f $@.tmp;			\
-	else					\
-		echo '  UPD $@';		\
-		mv -f $@.tmp $@;		\
-	fi;
+	($(call make_version.h, $@.tmp);		\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then		\
+		rm -f $@.tmp;				\
+	else						\
+		echo '  UPDATE                 $@';	\
+		mv -f $@.tmp $@;			\
+	fi);
 endef
 
 ks_version.h: force
-	$(call update_version.h)
+	$(Q)$(G)$(call update_version.h)
 
 tc_version.h: force
-	$(call update_version.h)
+	$(Q)$(N)$(call update_version.h)
+
+## make deps
+
+all_objs := $(sort $(ALL_OBJS))
+all_deps := $(all_objs:%.o=.%.d)
+gui_deps := $(gui_objs:%.o=.%.d)
+
+define check_gui_deps
+	if [ ! -z "$(filter $(gui_deps),$(@))" ];	then	\
+		if [ $(BUILDGUI) -ne 1 ]; then			\
+			$(REBUILD_GUI);				\
+		else						\
+			$(CC) -M $(CFLAGS) $< > $@;		\
+		fi						\
+	elif [ $(BUILDGUI) -eq 0 ]; then			\
+		$(CC) -M $(CFLAGS) $< > $@;			\
+	else							\
+		echo SKIPPING $@;				\
+	fi;
+endef
+
+$(all_deps): tc_version.h ks_version.h
+
+$(all_deps): .%.d: %.c
+	$(Q)$(call check_gui_deps)
+
+$(all_objs) : %.o : .%.d
+
+dep_includes := $(wildcard $(all_deps))
+
+ifneq ($(dep_includes),)
+ include $(dep_includes)
+endif
+
+.PHONY: force
+force:
+
+TAGS:	force
+	find . -name '*.[ch]' | xargs etags
+
+clean:
+	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
+
+
+##### PYTHON STUFF #####
 
 PYTHON_INCLUDES = `python-config --includes`
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
@@ -282,12 +311,3 @@ python: ctracecmd.so
 
 .PHONY: python-gui
 python-gui: ctracecmd.so ctracecmdgui.so 
-
-.PHONY: force
-force:
-
-TAGS:	force
-	find . -name '*.[ch]' | xargs etags
-
-clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c
