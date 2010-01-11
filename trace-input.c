@@ -1470,10 +1470,20 @@ void tracecmd_print_events(struct tracecmd_input *handle)
 }
 
 /**
- * tracecmd_open_fd - create a tracecmd_handle from the trace.dat file descriptor
+ * tracecmd_alloc_fd - create a tracecmd_input handle from a file descriptor
  * @fd: the file descriptor for the trace.dat file
+ *
+ * Allocate a tracecmd_input handle from a file descriptor and open the
+ * file. This tests if the file is of trace-cmd format and allocates
+ * a parse event descriptor.
+ *
+ * The returned pointer is not ready to be read yet. A tracecmd_read_headers()
+ * and tracecmd_init_data() still need to be called on the descriptor.
+ *
+ * Unless you know what you are doing with this, you want to use
+ * tracecmd_open_fd() instead.
  */
-struct tracecmd_input *tracecmd_open_fd(int fd)
+struct tracecmd_input *tracecmd_alloc_fd(int fd)
 {
 	struct tracecmd_input *handle;
 	char test[] = { 23, 8, 68 };
@@ -1527,6 +1537,56 @@ struct tracecmd_input *tracecmd_open_fd(int fd)
  failed_read:
 	free(handle);
 
+	return NULL;
+}
+
+/**
+ * tracecmd_alloc_fd - create a tracecmd_input handle from a file name
+ * @file: the file name of the file that is of tracecmd data type.
+ *
+ * Allocate a tracecmd_input handle from a given file name and open the
+ * file. This tests if the file is of trace-cmd format and allocates
+ * a parse event descriptor.
+ *
+ * The returned pointer is not ready to be read yet. A tracecmd_read_headers()
+ * and tracecmd_init_data() still need to be called on the descriptor.
+ *
+ * Unless you know what you are doing with this, you want to use
+ * tracecmd_open() instead.
+ */
+struct tracecmd_input *tracecmd_alloc(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	return tracecmd_open_fd(fd);
+}
+
+/**
+ * tracecmd_open_fd - create a tracecmd_handle from the trace.dat file descriptor
+ * @fd: the file descriptor for the trace.dat file
+ */
+struct tracecmd_input *tracecmd_open_fd(int fd)
+{
+	struct tracecmd_input *handle;
+
+	handle = tracecmd_alloc_fd(fd);
+	if (!handle)
+		return NULL;
+
+	if (tracecmd_read_headers(handle) < 0)
+		goto fail;
+
+	if (tracecmd_init_data(handle) < 0)
+		goto fail;
+
+	return handle;
+
+fail:
+	tracecmd_close(handle);
 	return NULL;
 }
 
