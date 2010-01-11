@@ -313,10 +313,7 @@ static void select_row_from_path(GtkTreeView *tree, GtkTreePath *path)
 	GtkTreeSelection *selection;
 
 	selection = gtk_tree_view_get_selection(tree);
-	gtk_tree_selection_select_path(selection, path);
-
-	/* finally, make it visible */
-	gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, 0.5, 0.0);
+	gtk_tree_view_set_cursor(tree, path, NULL, FALSE);
 }
 
 void trace_view_select(GtkWidget *treeview, guint64 time)
