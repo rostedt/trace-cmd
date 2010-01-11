@@ -114,5 +114,8 @@ void trace_graph_filter_add_remove_task(struct graph_info *info,
 void trace_graph_filter_hide_show_task(struct graph_info *ginfo,
 				       gint pid);
 void trace_graph_clear_tasks(struct graph_info *ginfo);
+void trace_graph_free_info(struct graph_info *ginfo);
+int trace_graph_load_handle(struct graph_info *ginfo,
+			    struct tracecmd_input *handle);
 
 #endif /* _TRACE_GRAPH_H */

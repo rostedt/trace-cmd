@@ -560,6 +560,9 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
+	if (!ginfo->handle)
+		return FALSE;
+
 	if (event->button == 3)
 		return do_pop_up(widget, event, data);
 
@@ -606,6 +609,9 @@ info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
+	if (!ginfo->handle)
+		return FALSE;
+
 	if (event->button != 1)
 		return FALSE;
 
@@ -629,6 +635,9 @@ info_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data
 	struct graph_info *ginfo = data;
 	GdkModifierType state;
 	gint x, y;
+
+	if (!ginfo->handle)
+		return FALSE;
 
 	if (!ginfo->line_active)
 		return FALSE;
@@ -667,6 +676,9 @@ info_button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer dat
 {
 	struct graph_info *ginfo = data;
 	gint x;
+
+	if (!ginfo->handle)
+		return FALSE;
 
 	x = event->x - ginfo->scrollwin->allocation.x - ginfo->info_scrollwin->allocation.x;
 
@@ -990,6 +1002,9 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	gint x, y;
 	gint cpu;
 
+	if (!ginfo->handle)
+		return FALSE;
+
 	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
 			    ginfo->cpu_data_w, ginfo->cpu_data_h);
 	if (event->is_hint)
@@ -1188,7 +1203,6 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 static gboolean
 value_changed(GtkWidget *widget, gpointer data)
 {
-//	struct graph_info *ginfo = data;
 	GtkAdjustment *adj = GTK_ADJUSTMENT(widget);
 
 	dprintf(2, "value = %f\n",
@@ -1295,6 +1309,9 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
+	if (!ginfo->handle)
+		return FALSE;
+
 	activate_zoom(ginfo, event->x);
 
 	return TRUE;
@@ -1304,6 +1321,9 @@ static gboolean
 leave_notify_event(GtkWidget *widget, GdkEventCrossing *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
+
+	if (!ginfo->handle)
+		return FALSE;
 
 	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
 			    ginfo->cpu_data_w, ginfo->cpu_data_h);
@@ -1658,6 +1678,9 @@ static void draw_info(struct graph_info *ginfo,
 	static int read_comms = 1;
 	gint cpu;
 
+	if (!ginfo->handle)
+		return;
+
 	ginfo->resolution = (gdouble)new_width / (gdouble)(ginfo->view_end_time -
 							   ginfo->view_start_time);
 
@@ -1867,6 +1890,8 @@ destroy_event(GtkWidget *widget, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
+	trace_graph_free_info(ginfo);
+
 	graph_free_systems(ginfo);
 	graph_free_events(ginfo);
 
@@ -1920,20 +1945,16 @@ static void info_draw_cpu_label(struct graph_info *ginfo, gint cpu)
 static void info_draw_cpu_labels(struct graph_info *ginfo)
 {
 	gint cpu;
-#if 0
-	clear_old_cpu_labels(ginfo);
-	ginfo->cpu_x = gtk_adjustment_get_value(ginfo->hadj) + 5;
-#endif
+
+	if (!ginfo->handle)
+		return;
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++)
 		info_draw_cpu_label(ginfo, cpu);
 }
 
-static gboolean
-info_configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+static void update_cpu_window(struct graph_info *ginfo)
 {
-	struct graph_info *ginfo = data;
-
 	if (ginfo->info_pixmap)
 		g_object_unref(ginfo->info_pixmap);
 
@@ -1953,7 +1974,15 @@ info_configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 	gtk_widget_set_size_request(ginfo->info, largest_cpu_label + 10,
 				    ginfo->draw_height);
-	
+}
+
+static gboolean
+info_configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	update_cpu_window(ginfo);
+
 	return TRUE;
 }
 
@@ -1984,27 +2013,92 @@ create_graph_info(struct graph_info *ginfo)
 	return info;
 }
 
+void trace_graph_free_info(struct graph_info *ginfo)
+{
+	tracecmd_close(ginfo->handle);
+	ginfo->handle = NULL;
+}
+
+static int load_handle(struct graph_info *ginfo,
+		       struct tracecmd_input *handle)
+{
+	struct record *record;
+	unsigned long sec, usec;
+	gint cpu;
+
+	if (!handle)
+		return -1;
+
+	if (ginfo->handle)
+		trace_graph_free_info(ginfo);
+
+	ginfo->handle = handle;
+
+	ginfo->pevent = tracecmd_get_pevent(handle);
+	ginfo->cpus = tracecmd_cpus(handle);
+	ginfo->all_events = TRUE;
+
+	ginfo->start_time = -1ULL;
+	ginfo->end_time = 0;
+
+	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
+
+	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+		record = tracecmd_read_cpu_first(handle, cpu);
+		if (!record)
+			continue;
+
+		if (record->ts < ginfo->start_time)
+			ginfo->start_time = record->ts;
+
+		free_record(record);
+		record = tracecmd_read_cpu_last(handle, cpu);
+
+		if (record->ts > ginfo->end_time)
+			ginfo->end_time = record->ts;
+		free_record(record);
+	}
+
+	convert_nano(ginfo->start_time, &sec, &usec);
+	dprintf(1, "start=%lu.%06lu ", sec, usec);
+
+	convert_nano(ginfo->end_time, &sec, &usec);
+	dprintf(1, "end=%lu.%06lu\n", sec, usec);
+
+	ginfo->view_start_time = ginfo->start_time;
+	ginfo->view_end_time = ginfo->end_time;
+
+	return 0;
+}
+
+int trace_graph_load_handle(struct graph_info *ginfo,
+			    struct tracecmd_input *handle)
+{
+
+	if (load_handle(ginfo, handle) < 0)
+		return -1;
+
+	update_cpu_window(ginfo);
+	redraw_graph(ginfo);
+
+	return 0;
+}
+
 struct graph_info *
 trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs)
 {
 	struct graph_info *ginfo;
-	unsigned long sec, usec;
-	gint cpu;
 
 	ginfo = g_new0(typeof(*ginfo), 1);
 	g_assert(ginfo != NULL);
 
-	ginfo->handle = handle;
-	ginfo->pevent = tracecmd_get_pevent(handle);
-	ginfo->cpus = tracecmd_cpus(handle);
+	if (handle)
+		load_handle(ginfo, handle);
 
-	ginfo->all_events = TRUE;
+	ginfo->handle = handle;
 
 	ginfo->callbacks = cbs;
-
-	ginfo->start_time = -1ULL;
-	ginfo->end_time = 0;
 
 	ginfo->task_filter = filter_task_hash_alloc();
 	ginfo->hide_tasks = filter_task_hash_alloc();
@@ -2017,7 +2111,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	gtk_widget_show(ginfo->scrollwin);
-
+	ginfo->hadj = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
 
 	ginfo->info_scrollwin = gtk_scrolled_window_new(NULL,
 		gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin)));
@@ -2036,38 +2130,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	gtk_box_pack_start(GTK_BOX (ginfo->widget), ginfo->scrollwin, TRUE, TRUE, 0);
 
-	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
-	ginfo->hadj = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
-
 	gtk_signal_connect(GTK_OBJECT(ginfo->hadj), "value_changed",
 			   (GtkSignalFunc) value_changed, ginfo);
-
-	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		struct record *record;
-
-		record = tracecmd_read_cpu_first(handle, cpu);
-		if (!record)
-			continue;
-
-		if (record->ts < ginfo->start_time)
-			ginfo->start_time = record->ts;
-
-		free_record(record);
-		record = tracecmd_read_cpu_last(handle, cpu);
-
-		if (record->ts > ginfo->end_time)
-			ginfo->end_time = record->ts;
-		free_record(record);
-	}
-
-	convert_nano(ginfo->start_time, &sec, &usec);
-	dprintf(1,"start=%lu.%06lu ", sec, usec);
-
-	convert_nano(ginfo->end_time, &sec, &usec);
-	dprintf(1, "end=%lu.%06lu\n", sec, usec);
-
-	ginfo->view_start_time = ginfo->start_time;
-	ginfo->view_end_time = ginfo->end_time;
 
 	ginfo->draw = gtk_drawing_area_new();
 

@@ -2,6 +2,9 @@
 #include <gtk/gtk.h>
 #include <getopt.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "trace-cmd.h"
 #include "trace-graph.h"
@@ -13,7 +16,7 @@
 #define TRACE_HEIGHT	600
 
 #define default_input_file "trace.dat"
-static char *input_file = default_input_file;
+static char *input_file;
 static struct graph_info *ginfo;
 
 void usage(char *prog)
@@ -21,6 +24,59 @@ void usage(char *prog)
 	printf("Usage: %s\n", prog);
 	printf("  -h	Display this help message\n");
 	printf("  -i	input_file, default is %s\n", default_input_file);
+}
+
+static struct tracecmd_input *read_tracecmd(gchar *filename)
+{
+	struct tracecmd_input *handle;
+
+	handle = tracecmd_open(filename);
+
+	if (!handle) {
+		warning("can not load %s", filename);
+		return NULL;
+	}
+
+	if (tracecmd_read_headers(handle) < 0) {
+		warning("can not read %s headers", filename);
+		goto failed;
+	}
+
+	if (tracecmd_init_data(handle) < 0) {
+		warning("can not init %s", filename);
+		goto failed;
+	}
+
+	return handle;
+
+ failed:
+	tracecmd_close(handle);
+	return NULL;
+}
+
+/* Callback for the clicked signal of the Load button */
+static void
+load_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct tracecmd_input *handle;
+	GtkWidget *dialog;
+	gchar *filename;
+
+	dialog = gtk_file_chooser_dialog_new("Load File",
+					     NULL,
+					     GTK_FILE_CHOOSER_ACTION_OPEN,
+					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					     NULL);
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+		handle = read_tracecmd(filename);
+		if (handle)
+			trace_graph_load_handle(ginfo, handle);
+		g_free(filename);
+	}
+	gtk_widget_destroy(dialog);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -51,6 +107,9 @@ events_clicked (gpointer data)
 	gchar **systems = NULL;
 	gint *events = NULL;
 
+	if (!ginfo->handle)
+		return;
+
 	all_events = ginfo->all_events;
 	systems = ginfo->systems;
 	events = ginfo->event_ids;
@@ -62,7 +121,8 @@ events_clicked (gpointer data)
 
 void trace_graph(int argc, char **argv)
 {
-	struct tracecmd_input *handle;
+	struct tracecmd_input *handle = NULL;
+	struct stat st;
 	GtkWidget *window;
 	GtkWidget *vbox;
 	GtkWidget *hbox;
@@ -72,6 +132,7 @@ void trace_graph(int argc, char **argv)
 	GtkWidget *sub_item;
 	GtkWidget *widget;
 	int c;
+	int ret;
 
 	while ((c = getopt(argc, argv, "hi:")) != -1) {
 		switch(c) {
@@ -87,16 +148,14 @@ void trace_graph(int argc, char **argv)
 		}
 	}
 
-	handle = tracecmd_open(input_file);
+	if (!input_file) {
+		ret = stat(default_input_file, &st);
+		if (ret >= 0)
+			input_file = default_input_file;
+	}
 
-	if (!handle)
-		die("error reading header");
-
-	if (tracecmd_read_headers(handle) < 0)
-		return;
-
-	if (tracecmd_init_data(handle) < 0)
-		die("failed to init data");
+	if (input_file)
+		handle = read_tracecmd(input_file);
 
 	gtk_init(&argc, &argv);
 
@@ -129,6 +188,22 @@ void trace_graph(int argc, char **argv)
 	menu = gtk_menu_new();    /* Don't need to show menus */
 
 
+	/* --- File - Load Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Load info");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (load_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
 	/* --- File - Quit Option --- */
 
 	sub_item = gtk_menu_item_new_with_label("Quit");
@@ -143,6 +218,7 @@ void trace_graph(int argc, char **argv)
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
+
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
 
