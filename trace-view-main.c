@@ -29,7 +29,6 @@ static void
 exit_clicked (GtkWidget *widget, gpointer data)
 {
 	gtk_widget_destroy (GTK_WIDGET (data)); /* the user data points to the main window */
-	tracecmd_close(handle);
 	gtk_main_quit ();
 }
 
@@ -38,7 +37,6 @@ static gint
 delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 {
 	gtk_widget_destroy (widget); /* destroy the main window */
-	tracecmd_close(handle);
 	gtk_main_quit ();
 	return TRUE;
 }
@@ -255,6 +253,10 @@ void trace_view(int argc, char **argv)
 
 	/* The tree needs its columns loaded now */
 	trace_view_load(trace_tree, handle, spin);
+
+	/* Let the handle be freed when the trace_view is */
+	if (handle)
+		tracecmd_close(handle);
 
 	label = gtk_label_new("      Search: ");
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);

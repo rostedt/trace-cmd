@@ -216,6 +216,8 @@ trace_view_store_finalize (GObject *object)
 		store->spin = NULL;
 	}
 
+	tracecmd_close(store->handle);
+
 	/* must chain up - finalize parent */
 	(* parent_class->finalize) (object);
 }
@@ -992,6 +994,7 @@ trace_view_store_new (struct tracecmd_input *handle)
 
 	newstore->handle = handle;
 	newstore->cpus = tracecmd_cpus(handle);
+	tracecmd_ref(handle);
 
 	newstore->cpu_list = g_new(TraceViewRecord *, newstore->cpus);
 	g_assert(newstore->cpu_list != NULL);
