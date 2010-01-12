@@ -552,6 +552,8 @@ void kernel_shark(int argc, char **argv)
 	int ret;
 	int c;
 
+	gtk_init(&argc, &argv);
+
 	while ((c = getopt(argc, argv, "hvi:")) != -1) {
 		switch(c) {
 		case 'h':
@@ -584,8 +586,6 @@ void kernel_shark(int argc, char **argv)
 		handle = tracecmd_open(input_file);
 
 	info->handle = handle;
-
-	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */
 

@@ -153,6 +153,8 @@ void trace_view(int argc, char **argv)
 	int ret;
 	int c;
 
+	gtk_init(&argc, &argv);
+
 	while ((c = getopt(argc, argv, "hi:")) != -1) {
 		switch(c) {
 		case 'h':
@@ -175,8 +177,6 @@ void trace_view(int argc, char **argv)
 
 	if (input_file)
 		handle = tracecmd_open(input_file);
-
-	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */
 
