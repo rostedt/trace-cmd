@@ -253,6 +253,7 @@ tc_version.h: force
 all_objs := $(sort $(ALL_OBJS))
 all_deps := $(all_objs:%.o=.%.d)
 gui_deps := $(gui_objs:%.o=.%.d)
+non_gui_deps = $(filter-out $(gui_deps),$(all_deps))
 
 define check_gui_deps
 	if [ ! -z "$(filter $(gui_deps),$(@))" ];	then	\
@@ -268,14 +269,19 @@ define check_gui_deps
 	fi;
 endef
 
-$(all_deps): tc_version.h ks_version.h
+$(gui_deps): ks_version.h
+$(non_gui_deps): tc_version.h
 
 $(all_deps): .%.d: %.c
 	$(Q)$(call check_gui_deps)
 
 $(all_objs) : %.o : .%.d
 
-dep_includes := $(wildcard $(all_deps))
+ifeq ($(BUILDGUI), 1)
+dep_includes := $(wildcard $(gui_deps))
+else
+dep_includes := $(wildcard $(non_gui_deps))
+endif
 
 ifneq ($(dep_includes),)
  include $(dep_includes)
