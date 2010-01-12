@@ -23,10 +23,11 @@
 #include <string.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <gtk/gtk.h>
 #include <getopt.h>
-#include <string.h>
 
 #include "trace-compat.h"
 #include "trace-cmd.h"
@@ -48,7 +49,7 @@
 #define TRACE_HEIGHT	600
 
 #define default_input_file "trace.dat"
-static char *input_file = default_input_file;
+static char *input_file;
 
 void usage(char *prog)
 {
@@ -117,6 +118,35 @@ static void free_info(struct shark_info *info)
 	tracecmd_close(info->handle);
 	free(info->ginfo);
 	free(info);
+}
+
+/* Callback for the clicked signal of the Load button */
+static void
+load_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct tracecmd_input *handle;
+	GtkWidget *dialog;
+	gchar *filename;
+
+	dialog = gtk_file_chooser_dialog_new("Load File",
+					     NULL,
+					     GTK_FILE_CHOOSER_ACTION_OPEN,
+					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					     NULL);
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+		handle = tracecmd_open(filename);
+		if (handle) {
+			tracecmd_close(info->handle);
+			info->handle = handle;
+			trace_graph_load_handle(info->ginfo, handle);
+			trace_view_reload(info->treeview, handle, info->spin);
+		}
+		g_free(filename);
+	}
+	gtk_widget_destroy(dialog);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -505,6 +535,7 @@ void kernel_shark(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
 	struct shark_info *info;
+	struct stat st;
 	GtkWidget *window;
 	GtkWidget *vbox;
 	GtkWidget *vbox2;
@@ -518,6 +549,7 @@ void kernel_shark(int argc, char **argv)
 	GtkWidget *widget;
 	GtkWidget *label;
 	GtkWidget *spin;
+	int ret;
 	int c;
 
 	while ((c = getopt(argc, argv, "hvi:")) != -1) {
@@ -543,9 +575,14 @@ void kernel_shark(int argc, char **argv)
 	if (!info)
 		die("Unable to allocate info");
 
-	handle = tracecmd_open(input_file);
-	if (!handle)
-		die("error reading header");
+	if (!input_file) {
+		ret = stat(default_input_file, &st);
+		if (ret >= 0)
+			input_file = default_input_file;
+	}
+	if (handle)
+		handle = tracecmd_open(input_file);
+
 	info->handle = handle;
 
 	gtk_init(&argc, &argv);
@@ -575,6 +612,22 @@ void kernel_shark(int argc, char **argv)
 	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
 
 	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- File - Load Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Load info");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (load_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
 
 
 	/* --- File - Quit Option --- */
@@ -730,6 +783,8 @@ void kernel_shark(int argc, char **argv)
 	gtk_spin_button_set_range(GTK_SPIN_BUTTON(spin), 1, 1);
 	gtk_box_pack_start(GTK_BOX(hbox), spin, FALSE, FALSE, 0);
 	gtk_widget_show(spin);
+
+	info->spin = spin;
 
 	/* --- Search --- */
 

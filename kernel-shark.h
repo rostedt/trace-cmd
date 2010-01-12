@@ -9,6 +9,7 @@ struct shark_info {
 	struct graph_info		*ginfo;
 	struct tracecmd_input  		*handle;
 	GtkWidget			*treeview;
+	GtkWidget			*spin;
 	struct graph_callbacks		graph_cbs;
 	gint				selected_task;
 	gboolean			list_filter_enabled;
