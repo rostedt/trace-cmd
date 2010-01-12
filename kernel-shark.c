@@ -120,8 +120,21 @@ static void free_info(struct shark_info *info)
 	free(info);
 }
 
-/* Callback for the clicked signal of the Load button */
+static void update_title(GtkWidget *window, const gchar *file)
+{
+	GString *gstr;
+	gchar *str;
+
+	gstr = g_string_new("kernelshark");
+	g_string_append_printf(gstr, "(%s)", basename(file));
+	str = g_string_free(gstr, FALSE);
+
+	gtk_window_set_title(GTK_WINDOW(window), str);
+	g_free(str);
+}
+
 static void
+/* Callback for the clicked signal of the Load button */
 load_clicked (gpointer data)
 {
 	struct shark_info *info = data;
@@ -143,6 +156,7 @@ load_clicked (gpointer data)
 			info->handle = handle;
 			trace_graph_load_handle(info->ginfo, handle);
 			trace_view_reload(info->treeview, handle, info->spin);
+			update_title(info->window, filename);
 		}
 		g_free(filename);
 	}
@@ -591,6 +605,9 @@ void kernel_shark(int argc, char **argv)
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	info->window = window;
+
+	if (input_file)
+		update_title(window, input_file);
 
 	/* --- Top Level Vbox --- */
 
