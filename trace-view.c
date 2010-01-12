@@ -198,18 +198,33 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 				NULL);
 	}
 
-	model = create_trace_view_model(handle);
-
-	trace_view_store_set_spin_button(TRACE_VIEW_STORE(model), spin);
-
 	g_signal_connect_swapped (G_OBJECT (spin), "value-changed",
 				  G_CALLBACK (spin_changed),
 				  (gpointer) view);
 
 
+	if (handle) {
+		model = create_trace_view_model(handle);
+		trace_view_store_set_spin_button(TRACE_VIEW_STORE(model), spin);
+		gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
+		g_object_unref(model); /* destroy model automatically with view */
+	}
+}
+
+void trace_view_reload(GtkWidget *view, struct tracecmd_input *handle,
+		       GtkWidget *spin)
+{
+	GtkTreeModel *model;
+
+	if (!handle)
+		return;
+
+	model = create_trace_view_model(handle);
+	if (!model)
+		return;
+	trace_view_store_set_spin_button(TRACE_VIEW_STORE(model), spin);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
-	g_object_unref(model); /* destroy model automatically with view */
 }
 
 /**
@@ -600,6 +615,9 @@ static void search_tree(gpointer data)
 		return;
 
 	model = gtk_tree_view_get_model(info->treeview);
+	if (!model)
+		return;
+
 	store = TRACE_VIEW_STORE(model);
 
 	if (!trace_view_store_visible_rows(store))

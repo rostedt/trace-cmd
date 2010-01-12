@@ -8,6 +8,9 @@ void
 trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 		GtkWidget *spin);
 
+void trace_view_reload(GtkWidget *view, struct tracecmd_input *handle,
+		       GtkWidget *spin);
+
 void trace_view(int argc, char **argv);
 
 void trace_view_update_filters(GtkWidget *treeview,

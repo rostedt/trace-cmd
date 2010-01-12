@@ -2,6 +2,9 @@
 #include <gtk/gtk.h>
 #include <getopt.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "trace-cmd.h"
 #include "trace-view.h"
@@ -12,16 +15,46 @@
 #define TRACE_HEIGHT	600
 
 #define default_input_file "trace.dat"
-static char *input_file = default_input_file;
+static char *input_file;
 
-GtkWidget *trace_tree;
-static struct tracecmd_input *handle;
+struct trace_tree_info {
+	GtkWidget *trace_tree;
+	GtkWidget *spin;
+};
 
 void usage(char *prog)
 {
 	printf("Usage: %s\n", prog);
 	printf("  -h	Display this help message\n");
 	printf("  -i	input_file, default is %s\n", default_input_file);
+}
+
+/* Callback for the clicked signal of the Load button */
+static void
+load_clicked (gpointer data)
+{
+	struct trace_tree_info *info = data;
+	struct tracecmd_input *handle;
+	GtkWidget *dialog;
+	gchar *filename;
+
+	dialog = gtk_file_chooser_dialog_new("Load File",
+					     NULL,
+					     GTK_FILE_CHOOSER_ACTION_OPEN,
+					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					     NULL);
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+		handle = tracecmd_open(filename);
+		if (handle) {
+			trace_view_reload(info->trace_tree, handle, info->spin);
+			/* Free handle when freeing the trace tree */
+			tracecmd_close(handle);
+		}
+		g_free(filename);
+	}
+	gtk_widget_destroy(dialog);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -103,6 +136,10 @@ create_combo_box_model(void)
 
 void trace_view(int argc, char **argv)
 {
+	static struct tracecmd_input *handle;
+	struct trace_tree_info tree_info;
+	struct stat st;
+	GtkWidget *trace_tree;
 	GtkWidget *window;
 	GtkWidget *vbox;
 	GtkWidget *hbox;
@@ -113,6 +150,7 @@ void trace_view(int argc, char **argv)
 	GtkWidget *scrollwin;
 	GtkWidget *label;
 	GtkWidget *spin;
+	int ret;
 	int c;
 
 	while ((c = getopt(argc, argv, "hi:")) != -1) {
@@ -129,20 +167,20 @@ void trace_view(int argc, char **argv)
 		}
 	}
 
-	handle = tracecmd_open(input_file);
+	if (!input_file) {
+		ret = stat(default_input_file, &st);
+		if (ret >= 0)
+			input_file = default_input_file;
+	}
 
-	if (!handle)
-		die("error reading header");
+	if (input_file)
+		handle = tracecmd_open(input_file);
 
 	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
-	/* --- Get handle for trace view first --- */
-
-	trace_tree = gtk_tree_view_new();
 
 	/* --- Top Level Vbox --- */
 
@@ -164,6 +202,22 @@ void trace_view(int argc, char **argv)
 	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
 
 	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- File - Load Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Load info");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (load_clicked),
+				  (gpointer) &tree_info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
 
 
 	/* --- File - Quit Option --- */
@@ -206,7 +260,7 @@ void trace_view(int argc, char **argv)
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (events_clicked),
-				  (gpointer) trace_tree);
+				  (gpointer) &tree_info);
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
@@ -222,7 +276,7 @@ void trace_view(int argc, char **argv)
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (cpus_clicked),
-				  (gpointer) trace_tree);
+				  (gpointer) &tree_info);
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
@@ -250,6 +304,10 @@ void trace_view(int argc, char **argv)
 	gtk_widget_show(spin);
 
 	/* --- Search --- */
+
+	/* --- Get handle for trace view first --- */
+
+	trace_tree = gtk_tree_view_new();
 
 	/* The tree needs its columns loaded now */
 	trace_view_load(trace_tree, handle, spin);
@@ -295,6 +353,10 @@ void trace_view(int argc, char **argv)
 			    NULL);
 
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
+
+	/* Set up info for call backs */
+	tree_info.trace_tree = trace_tree;
+	tree_info.spin = spin;
 
 	gtk_widget_show (window);
 	gtk_main ();
