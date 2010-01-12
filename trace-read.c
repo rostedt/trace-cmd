@@ -276,7 +276,7 @@ struct tracecmd_input *read_trace_header(void)
 	if (input_fd < 0)
 		die("opening '%s'\n", input_file);
 
-	return tracecmd_open_fd(input_fd);
+	return tracecmd_alloc_fd(input_fd);
 }
 
 void trace_report (int argc, char **argv)

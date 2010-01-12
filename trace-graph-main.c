@@ -26,34 +26,6 @@ void usage(char *prog)
 	printf("  -i	input_file, default is %s\n", default_input_file);
 }
 
-static struct tracecmd_input *read_tracecmd(gchar *filename)
-{
-	struct tracecmd_input *handle;
-
-	handle = tracecmd_open(filename);
-
-	if (!handle) {
-		warning("can not load %s", filename);
-		return NULL;
-	}
-
-	if (tracecmd_read_headers(handle) < 0) {
-		warning("can not read %s headers", filename);
-		goto failed;
-	}
-
-	if (tracecmd_init_data(handle) < 0) {
-		warning("can not init %s", filename);
-		goto failed;
-	}
-
-	return handle;
-
- failed:
-	tracecmd_close(handle);
-	return NULL;
-}
-
 /* Callback for the clicked signal of the Load button */
 static void
 load_clicked (gpointer data)
@@ -71,9 +43,12 @@ load_clicked (gpointer data)
 					     NULL);
 	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		handle = read_tracecmd(filename);
-		if (handle)
+		handle = tracecmd_open(filename);
+		if (handle) {
 			trace_graph_load_handle(ginfo, handle);
+			/* Free handle when freeing graph */
+			tracecmd_close(handle);
+		}
 		g_free(filename);
 	}
 	gtk_widget_destroy(dialog);
@@ -155,12 +130,16 @@ void trace_graph(int argc, char **argv)
 	}
 
 	if (input_file)
-		handle = read_tracecmd(input_file);
+		handle = tracecmd_open(input_file);
 
 	gtk_init(&argc, &argv);
 
 	/* graph struct is used by handlers */
 	ginfo = trace_graph_create(handle);
+
+	/* Free handle when freeing graph */
+	if (handle)
+		tracecmd_close(handle);
 
 	/* --- Main window --- */
 

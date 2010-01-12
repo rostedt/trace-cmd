@@ -2033,6 +2033,7 @@ static int load_handle(struct graph_info *ginfo,
 		trace_graph_free_info(ginfo);
 
 	ginfo->handle = handle;
+	tracecmd_ref(handle);
 
 	ginfo->pevent = tracecmd_get_pevent(handle);
 	ginfo->cpus = tracecmd_cpus(handle);

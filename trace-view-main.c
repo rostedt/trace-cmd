@@ -136,12 +136,6 @@ void trace_view(int argc, char **argv)
 	if (!handle)
 		die("error reading header");
 
-	if (tracecmd_read_headers(handle) < 0)
-		return;
-
-	if (tracecmd_init_data(handle) < 0)
-		die("failed to init data");
-
 	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */

@@ -548,12 +548,6 @@ void kernel_shark(int argc, char **argv)
 		die("error reading header");
 	info->handle = handle;
 
-	if (tracecmd_read_headers(handle) < 0)
-		return;
-
-	if (tracecmd_init_data(handle) < 0)
-		die("failed to init data");
-
 	gtk_init(&argc, &argv);
 
 	/* --- Main window --- */

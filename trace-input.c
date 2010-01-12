@@ -52,6 +52,7 @@ struct tracecmd_input {
 	int			page_size;
 	int			read_page;
 	int			cpus;
+	int			ref;
 	struct cpu_data 	*cpu_data;
 
 	/* file information */
@@ -1470,10 +1471,20 @@ void tracecmd_print_events(struct tracecmd_input *handle)
 }
 
 /**
- * tracecmd_open_fd - create a tracecmd_handle from the trace.dat file descriptor
+ * tracecmd_alloc_fd - create a tracecmd_input handle from a file descriptor
  * @fd: the file descriptor for the trace.dat file
+ *
+ * Allocate a tracecmd_input handle from a file descriptor and open the
+ * file. This tests if the file is of trace-cmd format and allocates
+ * a parse event descriptor.
+ *
+ * The returned pointer is not ready to be read yet. A tracecmd_read_headers()
+ * and tracecmd_init_data() still need to be called on the descriptor.
+ *
+ * Unless you know what you are doing with this, you want to use
+ * tracecmd_open_fd() instead.
  */
-struct tracecmd_input *tracecmd_open_fd(int fd)
+struct tracecmd_input *tracecmd_alloc_fd(int fd)
 {
 	struct tracecmd_input *handle;
 	char test[] = { 23, 8, 68 };
@@ -1486,6 +1497,7 @@ struct tracecmd_input *tracecmd_open_fd(int fd)
 	memset(handle, 0, sizeof(*handle));
 
 	handle->fd = fd;
+	handle->ref = 1;
 
 	if (do_read_check(handle, buf, 3))
 		goto failed_read;
@@ -1531,6 +1543,56 @@ struct tracecmd_input *tracecmd_open_fd(int fd)
 }
 
 /**
+ * tracecmd_alloc_fd - create a tracecmd_input handle from a file name
+ * @file: the file name of the file that is of tracecmd data type.
+ *
+ * Allocate a tracecmd_input handle from a given file name and open the
+ * file. This tests if the file is of trace-cmd format and allocates
+ * a parse event descriptor.
+ *
+ * The returned pointer is not ready to be read yet. A tracecmd_read_headers()
+ * and tracecmd_init_data() still need to be called on the descriptor.
+ *
+ * Unless you know what you are doing with this, you want to use
+ * tracecmd_open() instead.
+ */
+struct tracecmd_input *tracecmd_alloc(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	return tracecmd_alloc_fd(fd);
+}
+
+/**
+ * tracecmd_open_fd - create a tracecmd_handle from the trace.dat file descriptor
+ * @fd: the file descriptor for the trace.dat file
+ */
+struct tracecmd_input *tracecmd_open_fd(int fd)
+{
+	struct tracecmd_input *handle;
+
+	handle = tracecmd_alloc_fd(fd);
+	if (!handle)
+		return NULL;
+
+	if (tracecmd_read_headers(handle) < 0)
+		goto fail;
+
+	if (tracecmd_init_data(handle) < 0)
+		goto fail;
+
+	return handle;
+
+fail:
+	tracecmd_close(handle);
+	return NULL;
+}
+
+/**
  * tracecmd_open - create a tracecmd_handle from a given file
  * @file: the file name of the file that is of tracecmd data type.
  */
@@ -1545,11 +1607,42 @@ struct tracecmd_input *tracecmd_open(const char *file)
 	return tracecmd_open_fd(fd);
 }
 
+/**
+ * tracecmd_ref - add a reference to the handle
+ * @handle: input handle for the trace.dat file
+ *
+ * Some applications may share a handle between parts of
+ * the application. Let those parts add reference counters
+ * to the handle, and the last one to close it will free it.
+ */
+void tracecmd_ref(struct tracecmd_input *handle)
+{
+	if (!handle)
+		return;
+
+	handle->ref++;
+}
+
+/**
+ * tracecmd_close - close and free the trace.dat handle
+ * @handle: input handle for the trace.dat file
+ *
+ * Close the file descriptor of the handle and frees
+ * the resources allocated by the handle.
+ */
 void tracecmd_close(struct tracecmd_input *handle)
 {
 	int cpu;
 
 	if (!handle)
+		return;
+
+	if (handle->ref <= 0) {
+		warning("tracecmd: bad ref count on handle\n");
+		return;
+	}
+
+	if (--handle->ref)
 		return;
 
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
