@@ -1708,11 +1708,15 @@ static void draw_info(struct graph_info *ginfo,
 
 void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 {
+	struct record *record = NULL;
+	GtkAdjustment *vadj;
+	gint view_start;
 	gint view_width;
 	gint width;
 	gint mid;
 	gint start;
 	gint end;
+	gint cpu;
 	guint64 old_start_time = ginfo->view_start_time;
 
 	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
@@ -1759,6 +1763,41 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	ginfo->cursor = time;
 
 	update_with_backend(ginfo, 0, 0, width, ginfo->draw_height);
+
+	/*
+	 * If a record exists at this exact time value, we should
+	 * make sure that it is in view.
+	 */
+	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+		tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+		record = tracecmd_read_data(ginfo->handle, cpu);
+		while (record && record->ts < time) {
+			free_record(record);
+			record = tracecmd_read_data(ginfo->handle, cpu);
+		}
+		if (record && record->ts == time)
+			break;
+		free_record(record);
+		record = NULL;
+	}
+	free_record(record);
+	if (cpu == ginfo->cpus)
+		return;
+
+	/* Make sure CPU is visible */
+	vadj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
+	view_start = gtk_adjustment_get_value(vadj);
+	view_width = gtk_adjustment_get_page_size(vadj);
+
+	if (CPU_TOP(cpu) > view_start &&
+	    CPU_BOTTOM(cpu) < view_start + view_width)
+		return;
+
+	if (CPU_TOP(cpu) < view_start)
+		gtk_adjustment_set_value(vadj, CPU_TOP(cpu) - 5);
+
+	if (CPU_BOTTOM(cpu) > view_start + view_width)
+		gtk_adjustment_set_value(vadj, (CPU_BOTTOM(cpu) - view_width) + 10);
 }
 
 static void graph_free_systems(struct graph_info *ginfo)
