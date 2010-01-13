@@ -61,6 +61,22 @@ struct graph_info {
 	gint			systems_size;
 	gint			event_ids_size;
 
+	/* cache of event fields */
+	gint			ftrace_sched_switch_id;
+	gint			event_sched_switch_id;
+	gint			event_wakeup_id;
+	gint			event_wakeup_new_id;
+	struct format_field	*event_pid_field;
+	struct format_field	*event_comm_field;
+	struct format_field	*ftrace_pid_field;
+	struct format_field	*ftrace_comm_field;
+	struct format_field	*wakeup_pid_field;
+	struct format_field	*wakeup_success_field;
+	struct format_field	*wakeup_new_pid_field;
+	struct format_field	*wakeup_new_success_field;
+
+	gboolean		read_comms;	/* Read all comms on first load */
+
 	struct filter_task	*task_filter;
 	gint			filter_task_selected;
 

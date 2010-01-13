@@ -57,11 +57,6 @@
 #define CPU_LABEL(cpu) (CPU_TOP(cpu))
 #define CPU_X		5
 
-static gint ftrace_sched_switch_id = -1;
-static gint event_sched_switch_id = -1;
-static gint event_wakeup_id = -1;
-static gint event_wakeup_new_id = -1;
-
 static gint largest_cpu_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
@@ -85,6 +80,31 @@ static void print_time(unsigned long long time)
 
 	convert_nano(time, &sec, &usec);
 	printf("%lu.%06lu", sec, usec);
+}
+
+static void init_event_cache(struct graph_info *ginfo)
+{
+	ginfo->ftrace_sched_switch_id = -1;
+	ginfo->event_sched_switch_id = -1;
+	ginfo->event_wakeup_id = -1;
+	ginfo->event_wakeup_new_id = -1;
+
+	ginfo->event_pid_field = NULL;
+	ginfo->event_comm_field = NULL;
+	ginfo->ftrace_pid_field = NULL;
+	ginfo->ftrace_comm_field = NULL;
+
+	ginfo->wakeup_pid_field = NULL;
+	ginfo->wakeup_success_field = NULL;
+	ginfo->wakeup_new_pid_field = NULL;
+	ginfo->wakeup_new_success_field = NULL;
+
+	/*
+	 * The first time reading the through the list
+	 * test the sched_switch for comms that did not make
+	 * it into the pevent command line list.
+	 */
+	ginfo->read_comms = TRUE;
 }
 
 struct filter_task_item *
@@ -721,16 +741,12 @@ static int check_sched_wakeup(struct graph_info *ginfo,
 			      struct record *record,
 			      gint *pid)
 {
-	static struct format_field *wakeup_pid_field;
-	static struct format_field *wakeup_success_field;
-	static struct format_field *wakeup_new_pid_field;
-	static struct format_field *wakeup_new_success_field;
 	struct event_format *event;
 	unsigned long long val;
 	gboolean found;
 	gint id;
 
-	if (event_wakeup_id < 0) {
+	if (ginfo->event_wakeup_id < 0) {
 
 		found = FALSE;
 
@@ -738,9 +754,9 @@ static int check_sched_wakeup(struct graph_info *ginfo,
 						  "sched", "sched_wakeup");
 		if (event) {
 			found = TRUE;
-			event_wakeup_id = event->id;
-			wakeup_pid_field = pevent_find_field(event, "pid");
-			wakeup_success_field = pevent_find_field(event, "success");
+			ginfo->event_wakeup_id = event->id;
+			ginfo->wakeup_pid_field = pevent_find_field(event, "pid");
+			ginfo->wakeup_success_field = pevent_find_field(event, "success");
 		}
 
 
@@ -748,9 +764,9 @@ static int check_sched_wakeup(struct graph_info *ginfo,
 						  "sched", "sched_wakeup_new");
 		if (event) {
 			found = TRUE;
-			event_wakeup_new_id = event->id;
-			wakeup_new_pid_field = pevent_find_field(event, "pid");
-			wakeup_new_success_field = pevent_find_field(event, "success");
+			ginfo->event_wakeup_new_id = event->id;
+			ginfo->wakeup_new_pid_field = pevent_find_field(event, "pid");
+			ginfo->wakeup_new_success_field = pevent_find_field(event, "success");
 		}
 		if (!found)
 			return 0;
@@ -758,23 +774,23 @@ static int check_sched_wakeup(struct graph_info *ginfo,
 
 	id = pevent_data_type(ginfo->pevent, record);
 
-	if (id == event_wakeup_id) {
+	if (id == ginfo->event_wakeup_id) {
 		/* We only want those that actually woke up the task */
-		pevent_read_number_field(wakeup_success_field, record->data, &val);
+		pevent_read_number_field(ginfo->wakeup_success_field, record->data, &val);
 		if (!val)
 			return 0;
-		pevent_read_number_field(wakeup_pid_field, record->data, &val);
+		pevent_read_number_field(ginfo->wakeup_pid_field, record->data, &val);
 		if (pid)
 			*pid = val;
 		return 1;
 	}
 
-	if (id == event_wakeup_new_id) {
+	if (id == ginfo->event_wakeup_new_id) {
 		/* We only want those that actually woke up the task */
-		pevent_read_number_field(wakeup_new_success_field, record->data, &val);
+		pevent_read_number_field(ginfo->wakeup_new_success_field, record->data, &val);
 		if (!val)
 			return 0;
-		pevent_read_number_field(wakeup_new_pid_field, record->data, &val);
+		pevent_read_number_field(ginfo->wakeup_new_pid_field, record->data, &val);
 		if (pid)
 			*pid = val;
 		return 1;
@@ -787,47 +803,43 @@ static int check_sched_switch(struct graph_info *ginfo,
 			      struct record *record,
 			      gint *pid, const char **comm)
 {
-	static struct format_field *event_pid_field;
-	static struct format_field *event_comm_field;
-	static struct format_field *ftrace_pid_field;
-	static struct format_field *ftrace_comm_field;
 	unsigned long long val;
 	struct event_format *event;
 	gint id;
 
-	if (event_sched_switch_id < 0) {
+	if (ginfo->event_sched_switch_id < 0) {
 		event = pevent_find_event_by_name(ginfo->pevent,
 						  "sched", "sched_switch");
 		if (!event)
 			return 0;
 
-		event_sched_switch_id = event->id;
-		event_pid_field = pevent_find_field(event, "next_pid");
-		event_comm_field = pevent_find_field(event, "next_comm");
+		ginfo->event_sched_switch_id = event->id;
+		ginfo->event_pid_field = pevent_find_field(event, "next_pid");
+		ginfo->event_comm_field = pevent_find_field(event, "next_comm");
 
 		event = pevent_find_event_by_name(ginfo->pevent,
 						  "ftrace", "context_switch");
 		if (event) {
-			ftrace_sched_switch_id = event->id;
-			ftrace_pid_field = pevent_find_field(event, "next_pid");
-			ftrace_comm_field = pevent_find_field(event, "next_comm");
+			ginfo->ftrace_sched_switch_id = event->id;
+			ginfo->ftrace_pid_field = pevent_find_field(event, "next_pid");
+			ginfo->ftrace_comm_field = pevent_find_field(event, "next_comm");
 		}
 	}
 
 	id = pevent_data_type(ginfo->pevent, record);
-	if (id == event_sched_switch_id) {
-		pevent_read_number_field(event_pid_field, record->data, &val);
+	if (id == ginfo->event_sched_switch_id) {
+		pevent_read_number_field(ginfo->event_pid_field, record->data, &val);
 		if (comm)
-			*comm = record->data + event_comm_field->offset;
+			*comm = record->data + ginfo->event_comm_field->offset;
 		if (pid)
 			*pid = val;
 		return 1;
 	}
 
-	if (id == ftrace_sched_switch_id) {
-		pevent_read_number_field(ftrace_pid_field, record->data, &val);
+	if (id == ginfo->ftrace_sched_switch_id) {
+		pevent_read_number_field(ginfo->ftrace_pid_field, record->data, &val);
 		if (comm)
-			*comm = record->data + ftrace_comm_field->offset;
+			*comm = record->data + ginfo->ftrace_comm_field->offset;
 		if (pid)
 			*pid = val;
 		return 1;
@@ -1409,7 +1421,7 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 }
 
 static void draw_cpu(struct graph_info *ginfo, gint cpu,
-		     gint new_width, int read_comms)
+		     gint new_width, gboolean read_comms)
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
@@ -1477,7 +1489,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		if (check_sched_switch(ginfo, record, &pid, &comm)) {
 			is_sched_switch = TRUE;
-			if (read_comms) {
+			if (ginfo->read_comms) {
 				/*
 				 * First time through, register any missing
 				 *  comm / pid mappings.
@@ -1675,7 +1687,6 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 static void draw_info(struct graph_info *ginfo,
 		      gint new_width)
 {
-	static int read_comms = 1;
 	gint cpu;
 
 	if (!ginfo->handle)
@@ -1690,9 +1701,9 @@ static void draw_info(struct graph_info *ginfo,
 
 	
 	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		draw_cpu(ginfo, cpu, new_width, read_comms);
+		draw_cpu(ginfo, cpu, new_width, ginfo->read_comms);
 
-	read_comms = 0;
+	ginfo->read_comms = FALSE;
 }
 
 void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
@@ -2035,6 +2046,8 @@ static int load_handle(struct graph_info *ginfo,
 	ginfo->handle = handle;
 	tracecmd_ref(handle);
 
+	init_event_cache(ginfo);
+
 	ginfo->pevent = tracecmd_get_pevent(handle);
 	ginfo->cpus = tracecmd_cpus(handle);
 	ginfo->all_events = TRUE;
@@ -2103,7 +2116,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo->task_filter = filter_task_hash_alloc();
 	ginfo->hide_tasks = filter_task_hash_alloc();
-
+	
 	ginfo->widget = gtk_hbox_new(FALSE, 0);
 	gtk_widget_show(ginfo->widget);
 
