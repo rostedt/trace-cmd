@@ -198,6 +198,7 @@ trace-view: $(TRACE_VIEW_MAIN_OBJS)
 trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
 	$(Q)$(G)$(do_app_build)
 
+trace-cmd: libtracecmd.a
 kernelshark: libtracecmd.a
 trace-view: libtracecmd.a
 trace-graph: libtracecmd.a
