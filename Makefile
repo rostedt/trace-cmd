@@ -180,7 +180,7 @@ all: $(CMD_TARGETS) show_gui_make
 gui: $(CMD_TARGETS)
 	$(Q)$(MAKE) BUILDGUI=1 all_gui
 
-all_gui: $(GUI_TARGETS)
+all_gui: $(GUI_TARGETS) show_gui_done
 
 GUI_OBJS = $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) $(TRACE_GRAPH_MAIN_OBJS)
 
@@ -290,6 +290,9 @@ endif
 
 show_gui_make:
 	@echo "*** to build the gui, type \"make gui\" ***"
+
+show_gui_done:
+	@echo "*** gui build complete ***"
 
 .PHONY: force show_gui_make
 force:
