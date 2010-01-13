@@ -2,8 +2,8 @@
 
 #if GTK_VERSION < CALC_GTK_VERSION(2,18,0)
 
-#warning Using compat functions for older GTK library
-#warning Please upgrade your GTK to at least 2.18
+#warning Using compat functions for older GTK library. This should work fine
+#warning but when you get a chance, please upgrade your GTK to at least 2.18
 
 void gtk_cell_renderer_get_padding(GtkCellRenderer *cell,
 				   gint *xpad, gint *ypad)
