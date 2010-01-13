@@ -3373,7 +3373,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 
 	secs = record->ts / NSECS_PER_SEC;
 	usecs = record->ts - secs * NSECS_PER_SEC;
-	usecs = usecs / NSECS_PER_USEC;
+	usecs = (usecs + 500) / NSECS_PER_USEC;
 
 	type = trace_parse_common_type(pevent, data);
 
