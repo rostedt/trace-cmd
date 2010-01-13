@@ -175,7 +175,7 @@ TARGETS = $(CMD_TARGETS) $(GUI_TARGETS)
 #    If you want kernelshark, then do:  make gui
 ###
 
-all: $(CMD_TARGETS)
+all: $(CMD_TARGETS) show_gui_make
 
 gui: $(CMD_TARGETS)
 	$(Q)$(MAKE) BUILDGUI=1 all_gui
@@ -288,7 +288,10 @@ ifneq ($(dep_includes),)
  include $(dep_includes)
 endif
 
-.PHONY: force
+show_gui_make:
+	@echo "*** to build the gui, type \"make gui\" ***"
+
+.PHONY: force show_gui_make
 force:
 
 TAGS:	force
