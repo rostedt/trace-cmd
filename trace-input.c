@@ -47,6 +47,7 @@ struct cpu_data {
 
 struct tracecmd_input {
 	struct pevent		*pevent;
+	struct plugin_list	*plugin_list;
 	int			fd;
 	int			long_size;
 	int			page_size;
@@ -456,7 +457,7 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	/* register default ftrace functions first */
 	tracecmd_ftrace_overrides(handle);
 
-	trace_load_plugins(pevent);
+	handle->plugin_list = tracecmd_load_plugins(pevent);
 
 	return 0;
 }
@@ -1711,6 +1712,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 
 	close(handle->fd);
 	pevent_free(handle->pevent);
+	tracecmd_unload_plugins(handle->plugin_list);
 	free(handle);
 }
 

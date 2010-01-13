@@ -22,6 +22,11 @@
 # define MAX_PATH 1024
 #endif
 
+struct plugin_list {
+	struct plugin_list	*next;
+	void			*handle;
+};
+
 void __weak die(char *fmt, ...)
 {
 	va_list ap;
@@ -148,12 +153,14 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 	}
 }
 
-static int load_plugin(struct pevent *pevent,
-		       const char *path, const char *file)
+static struct plugin_list *
+load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
+	    const char *path, const char *file)
 {
+	pevent_plugin_load_func func;
+	struct plugin_list *list;
 	char *plugin;
 	void *handle;
-	pevent_plugin_load_func func;
 	int ret = -1;
 
 	plugin = malloc_or_die(strlen(path) + strlen(file) + 2);
@@ -169,6 +176,11 @@ static int load_plugin(struct pevent *pevent,
 		goto out;
 	}
 
+	list = malloc_or_die(sizeof(*list));
+	list->next = plugin_list;
+	list->handle = handle;
+	plugin_list = list;
+
 	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
 	if (!func) {
 		warning("cound not find func '%s' in plugin '%s'\n%s\n",
@@ -182,8 +194,7 @@ static int load_plugin(struct pevent *pevent,
  out:
 	free(plugin);
 
-	/* dlclose ?? */
-	return ret;
+	return plugin_list;
 }
 
 char *tracecmd_find_tracing_dir(void)
@@ -221,8 +232,9 @@ char *tracecmd_find_tracing_dir(void)
 	return tracing_dir;
 }
 
-int trace_load_plugins(struct pevent *pevent)
+struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
 {
+	struct plugin_list *list = NULL;
 	struct dirent *dent;
 	struct stat st;
 	DIR *dir;
@@ -230,11 +242,10 @@ int trace_load_plugins(struct pevent *pevent)
 	char *path;
 	int ret;
 
-
 	home = getenv("HOME");
 
 	if (!home)
-		return -1;
+		return NULL;
 
 	path = malloc_or_die(strlen(home) + strlen(PLUGIN_DIR) + 2);
 
@@ -260,12 +271,28 @@ int trace_load_plugins(struct pevent *pevent)
 		    strcmp(name, "..") == 0)
 			continue;
 
-		load_plugin(pevent, path, name);
+		list = load_plugin(pevent, list, path, name);
 	}
 
 	closedir(dir);
  fail:
 	free(path);
 
-	return -1;
+	return list;
+}
+
+void tracecmd_unload_plugins(struct plugin_list *plugin_list)
+{
+	pevent_plugin_unload_func func;
+	struct plugin_list *list;
+
+	while (plugin_list) {
+		list = plugin_list;
+		plugin_list = list->next;
+		func = dlsym(list->handle, PEVENT_PLUGIN_UNLOADER_NAME);
+		if (func)
+			func();
+		dlclose(list->handle);
+		free(list);
+	}
 }

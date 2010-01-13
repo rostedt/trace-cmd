@@ -67,10 +67,14 @@ typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 struct event_format *event);
 
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
+typedef int (*pevent_plugin_unload_func)(void);
 
 #define PEVENT_PLUGIN_LOADER pevent_plugin_loader
-#define MAKE_STR(x) #x
-#define PEVENT_PLUGIN_LOADER_NAME MAKE_STR(pevent_plugin_loader)
+#define PEVENT_PLUGIN_UNLOADER pevent_plugin_unloader
+#define _MAKE_STR(x)	#x
+#define MAKE_STR(x)	_MAKE_STR(x)
+#define PEVENT_PLUGIN_LOADER_NAME MAKE_STR(PEVENT_PLUGIN_LOADER)
+#define PEVENT_PLUGIN_UNLOADER_NAME MAKE_STR(PEVENT_PLUGIN_UNLOADER)
 
 #define NSECS_PER_SEC		1000000000ULL
 #define NSECS_PER_USEC		1000ULL
