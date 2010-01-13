@@ -742,7 +742,7 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Filter - CPUs Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("CPUs");
+	sub_item = gtk_menu_item_new_with_label("list CPUs");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
