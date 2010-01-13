@@ -212,7 +212,7 @@ trace_view_store_finalize (GObject *object)
 	filter_task_hash_free(store->task_filter);
 
 	if (store->spin) {
-		gtk_widget_destroy(store->spin);
+		g_object_unref(store->spin);
 		store->spin = NULL;
 	}
 
@@ -1073,6 +1073,9 @@ void trace_view_store_set_spin_button(TraceViewStore *store, GtkWidget *spin)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 	g_return_if_fail (GTK_IS_SPIN_BUTTON (spin));
+
+	if (store->spin)
+		g_object_unref(store->spin);
 
 	store->spin = spin;
 
