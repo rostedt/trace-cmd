@@ -1053,8 +1053,17 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 		    return -1;
 	}
 
-	if (cpu_data->timestamp == ts)
+	if (cpu_data->timestamp == ts) {
+		/*
+		 * If a record is cached, then that record is most
+		 * likely the matching timestamp. Otherwise we need
+		 * to start from the beginning of the index;
+		 */
+		if (!cpu_data->next ||
+		    cpu_data->next->ts != ts)
+			update_page_info(handle, cpu);
 		return 0;
+	}
 
 	/* Set to the first record on current page */
 	update_page_info(handle, cpu);
