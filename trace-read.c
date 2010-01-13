@@ -189,15 +189,13 @@ static void test_save(struct record *record, int cpu)
 }
 #endif
 
-static void show_data(struct tracecmd_input *handle, int cpu)
+static void show_data(struct tracecmd_input *handle,
+		      struct record *record, int cpu)
 {
 	struct pevent *pevent;
-	struct record *record;
 	struct trace_seq s;
 
 	pevent = tracecmd_get_pevent(handle);
-
-	record = tracecmd_read_data(handle, cpu);
 
 	test_save(record, cpu);
 
@@ -226,7 +224,7 @@ static void read_rest(void)
 static void read_data_info(struct tracecmd_input *handle)
 {
 	unsigned long long ts;
-	struct record *data;
+	struct record *record;
 	int cpus;
 	int next;
 	int cpu;
@@ -250,22 +248,14 @@ static void read_data_info(struct tracecmd_input *handle)
 		ts = 0;
 		if (filter_cpu >= 0) {
 			cpu = filter_cpu;
-			data = tracecmd_peek_data(handle, cpu);
-			if (data)
-				next = cpu;
-		} else {
-			for (cpu = 0; cpu < cpus; cpu++) {
-				data = tracecmd_peek_data(handle, cpu);
-				if (data && (!ts || data->ts < ts)) {
-					ts = data->ts;
-					next = cpu;
-				}
-			}
-		}
-		if (next >= 0)
-			show_data(handle, next);
+			record = tracecmd_peek_data(handle, cpu);
+		} else
+			record = tracecmd_read_next_data(handle, &cpu);
 
-	} while (next >= 0);
+		if (record)
+			show_data(handle, record, next);
+
+	} while (record);
 
 	show_test(handle);
 }

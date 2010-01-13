@@ -1339,6 +1339,54 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 	return record;
 }
 
+/**
+ * tracecmd_read_next_data - read the next record
+ * @handle: input handle to the trace.dat file
+ * @rec_cpu: return pointer to the CPU that the record belongs to
+ *
+ * This returns the next record by time. This is different than
+ * tracecmd_read_data in that it looks at all CPUs. It does a peek
+ * at each CPU and the record with the earliest time stame is
+ * returned. If @rec_cpu is not NULL it gets the CPU id the record was
+ * on. The CPU cursor of the returned record is moved to the
+ * next record.
+ *
+ * Multiple reads of this function will return a serialized list
+ * of all records for all CPUs in order of time stamp.
+ *
+ * The record returned must be freed.
+ */
+struct record *
+tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
+{
+	unsigned long long ts;
+	struct record *record;
+	int next;
+	int cpu;
+
+	if (rec_cpu)
+		*rec_cpu = -1;
+
+	next = -1;
+	ts = 0;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		record = tracecmd_peek_data(handle, cpu);
+		if (record && (!ts || record->ts < ts)) {
+			ts = record->ts;
+			next = cpu;
+		}
+	}
+
+	if (next >= 0) {
+		if (rec_cpu)
+			*rec_cpu = next;
+		return tracecmd_read_data(handle, next);
+	}
+
+	return NULL;
+}
+
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
