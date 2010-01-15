@@ -939,7 +939,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 
 	} else {
 		record = tracecmd_read_cpu_last(ginfo->handle, cpu);
-		if (record->ts < time) {
+		if (record && record->ts < time) {
 			if (!check_sched_switch(ginfo, record, &pid, &comm)) {
 				pid = pevent_data_pid(ginfo->pevent, record);
 				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
