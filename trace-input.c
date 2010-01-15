@@ -678,6 +678,10 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	    handle->cpu_data[cpu].page)
 		return 1;
 
+	/* Do not map no data for CPU */
+	if (!handle->cpu_data[cpu].size)
+		return -1;
+
 	if (offset & (handle->page_size - 1)) {
 		errno = -EINVAL;
 		die("bad page offset %llx", offset);
@@ -941,7 +945,7 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 	page_offset = record->offset & ~(handle->page_size - 1);
 	index = record->offset & (handle->page_size - 1);
 
-	ret = get_page(handle, record->cpu, page_offset) < 0;
+	ret =get_page(handle, record->cpu, page_offset);
 	if (ret < 0)
 		return -1;
 
@@ -976,7 +980,9 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 struct record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 {
-	get_page(handle, cpu, handle->cpu_data[cpu].file_offset);
+	if (get_page(handle, cpu, handle->cpu_data[cpu].file_offset) < 0)
+		return NULL;
+
 	handle->cpu_data[cpu].index = 0;
 	if (handle->cpu_data[cpu].next) {
 		free_record(handle->cpu_data[cpu].next);
@@ -1009,7 +1015,8 @@ tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 	else
 		offset -= handle->page_size;
 
-	get_page(handle, cpu, offset);
+	if (get_page(handle, cpu, offset) < 0)
+		return NULL;
 
 	do {
 		free_record(record);
@@ -1047,6 +1054,9 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 		errno = -EINVAL;
 		return -1;
 	}
+
+	if (!cpu_data->size)
+		return -1;
 
 	if (!cpu_data->page) {
 		if (init_cpu(handle, cpu))
