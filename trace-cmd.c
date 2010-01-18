@@ -459,34 +459,37 @@ static void disable_event(const char *name)
 	fclose(fp);
 }
 
+static void write_tracing_on(int on)
+{
+	static int fd = -1;
+	char *path;
+	int ret;
+
+	if (fd < 0) {
+		path = get_tracing_file("tracing_on");
+		fd = open(path, O_WRONLY);
+		if (fd < 0)
+			die("opening '%s'", path);
+		put_tracing_file(path);
+	}
+
+	if (on)
+		ret = write(fd, "1", 1);
+	else
+		ret = write(fd, "0", 1);
+
+	if (ret < 0)
+		die("writing 'tracing_on'");
+}
+
 static void enable_tracing(void)
 {
-	FILE *fp;
-	char *path;
-
-	/* reset the trace */
-	path = get_tracing_file("tracing_on");
-	fp = fopen(path, "w");
-	if (!fp)
-		die("writing to '%s'", path);
-	put_tracing_file(path);
-	fwrite("1", 1, 1, fp);
-	fclose(fp);
+	write_tracing_on(1);
 }
 
 static void disable_tracing(void)
 {
-	FILE *fp;
-	char *path;
-
-	/* reset the trace */
-	path = get_tracing_file("tracing_on");
-	fp = fopen(path, "w");
-	if (!fp)
-		die("writing to '%s'", path);
-	put_tracing_file(path);
-	fwrite("0", 1, 1, fp);
-	fclose(fp);
+	write_tracing_on(0);
 }
 
 static void disable_all(void)
