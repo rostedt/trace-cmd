@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <glob.h>
 
 #include "trace-local.h"
 #include "version.h"
@@ -359,31 +360,102 @@ static void set_option(const char *option)
 	fclose(fp);
 }
 
+static void old_enable_events(const char *name)
+{
+	char *path;
+	FILE *fp;
+	int ret;
+
+	if (strcmp(name, "all") == 0)
+		name = "*:*";
+
+	/* need to use old way */
+	path = get_tracing_file("set_event");
+	fp = fopen(path, "w");
+	if (!fp)
+		die("opening '%s'", path);
+	put_tracing_file(path);
+
+	ret = fwrite(name, 1, strlen(name), fp);
+	if (ret < 0)
+		die("bad event '%s'", name);
+
+	ret = fwrite("\n", 1, 1, fp);
+	if (ret < 0)
+		die("bad event '%s'", name);
+
+	fclose(fp);
+
+	return;
+}
+
+static int enable_glob(const char *name)
+{
+	glob_t globbuf;
+	FILE *fp;
+	char *path;
+	char *str;
+	int len;
+	int ret;
+	int i;
+	int count = 0;
+
+	len = strlen(name) + strlen("events//enable") + 1;
+	str = malloc_or_die(len);
+	snprintf(str, len, "events/%s/enable", name);
+	path = get_tracing_file(str);
+	free(str);
+
+	globbuf.gl_offs = 0;
+	printf("path = %s\n", path);
+	ret = glob(path, GLOB_ONLYDIR, NULL, &globbuf);
+	put_tracing_file(path);
+	if (ret < 0)
+		return 0;
+
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		path = globbuf.gl_pathv[i];
+
+		fp = fopen(path, "w");
+		if (!fp)
+			die("writing to '%s'", path);
+		ret = fwrite("1", 1, 1, fp);
+		fclose(fp);
+		if (ret < 0)
+			die("writing to '%s'", path);
+
+		count++;
+	}
+	globfree(&globbuf);
+	return count;
+}
+
 static void enable_event(const char *name)
 {
 	struct stat st;
 	FILE *fp;
 	char *path;
+	char *str;
+	char *ptr;
+	int len;
 	int ret;
+	int ret2;
+
+	/* Check if the kernel has the events/enable file */
+	path = get_tracing_file("events/enable");
+	ret = stat(path, &st);
+	if (ret < 0) {
+		put_tracing_file(path);
+		/* old kernel */
+		old_enable_events(name);
+		return;
+	}
 
 	fprintf(stderr, "enable %s\n", name);
+
+	/* We allow the user to use "all" to enable all events */
+
 	if (strcmp(name, "all") == 0) {
-		path = get_tracing_file("events/enable");
-
-		ret = stat(path, &st);
-		if (ret < 0) {
-			put_tracing_file(path);
-			/* need to use old way */
-			path = get_tracing_file("set_event");
-			fp = fopen(path, "w");
-			if (!fp)
-				die("writing to '%s'", path);
-			put_tracing_file(path);
-			fwrite("*:*\n", 4, 1, fp);
-			fclose(fp);
-			return;
-		}
-
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
@@ -395,18 +467,49 @@ static void enable_event(const char *name)
 		return;
 	}
 
-	path = get_tracing_file("set_event");
-	fp = fopen(path, "a");
-	if (!fp)
-		die("writing to '%s'", path);
-	put_tracing_file(path);
-	ret = fwrite(name, 1, strlen(name), fp);
-	if (ret < 0)
-		die("bad event '%s'", name);
-	ret = fwrite("\n", 1, 1, fp);
-	if (ret < 0)
-		die("bad event '%s'", name);
-	fclose(fp);
+	ptr = strchr(name, ':');
+
+	if (ptr) {
+		len = ptr - name;
+		str = strdup(name);
+		if (!str)
+			die("could not allocate memory");
+		str[len] = 0;
+		ptr++;
+		if (!strlen(ptr) || strcmp(ptr, "*") == 0) {
+			ret = enable_glob(str);
+			free(str);
+			put_tracing_file(path);
+			if (!ret)
+				goto fail;
+			return;
+		}
+
+		str[len] = '/';
+
+		ret = enable_glob(str);
+		free(str);
+		if (!ret)
+			die("No events enabled with %s", name);
+		return;
+	}
+
+	/* No ':' so enable all matching systems and events */
+	ret = enable_glob(name);
+
+	len = strlen(name) + strlen("*/") + 1;
+	str = malloc_or_die(len);
+	snprintf(str, len, "*/%s", name);
+	ret2 = enable_glob(str);
+	free(str);
+
+	if (!ret && !ret2)
+		goto fail;
+
+	return;
+ fail:
+	die("No events enabled with %s", name);
+
 }
 
 static void disable_event(const char *name)
