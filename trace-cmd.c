@@ -696,8 +696,10 @@ static int trace_empty(void)
 		n = getline(&line, &size, fp);
 		if (!line)
 			ret = 1;
-		else if (line[0] != '#')
+		else if (line[0] != '#') {
 			ret = 0;
+			break;
+		}
 		if (n < 0)
 			ret = 1;
 	} while (line && n > 0);
