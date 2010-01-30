@@ -779,7 +779,7 @@ static int trace_empty(void)
 	char *line = NULL;
 	size_t size;
 	ssize_t n;
-	int ret;
+	int ret = 1;
 	
 	/*
 	 * Test if the trace file is empty.
@@ -797,14 +797,10 @@ static int trace_empty(void)
 
 	do {
 		n = getline(&line, &size, fp);
-		if (!line)
-			ret = 1;
-		else if (line[0] != '#') {
+		if (n > 0 && line && line[0] != '#') {
 			ret = 0;
 			break;
 		}
-		if (n < 0)
-			ret = 1;
 	} while (line && n > 0);
 
 	put_tracing_file(path);
