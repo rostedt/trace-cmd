@@ -60,6 +60,7 @@ static int *pids;
 struct event_list {
 	struct event_list *next;
 	const char *event;
+	char *filter;
 	int neg;
 };
 
@@ -389,10 +390,35 @@ static void old_enable_events(const char *name)
 	return;
 }
 
-static int enable_glob(const char *name)
+static void write_filter(const char *file, const char *filter)
+{
+	char buf[BUFSIZ];
+	int fd;
+	int ret;
+
+	fd = open(file, O_WRONLY);
+	if (fd < 0)
+		die("opening to '%s'", file);
+	ret = write(fd, filter, strlen(filter));
+	close(fd);
+	if (ret < 0) {
+		/* filter failed */
+		fd = open(file, O_RDONLY);
+		if (fd < 0)
+			die("writing to '%s'", file);
+		/* the filter has the error */
+		while ((ret = read(fd, buf, BUFSIZ)) > 0)
+			fprintf(stderr, "%.*s", ret, buf);
+		die("Failed filter of %s\n", file);
+		close(fd);
+	}
+}
+
+static int enable_glob(const char *name, const char *filter)
 {
 	glob_t globbuf;
 	FILE *fp;
+	char *filter_file;
 	char *path;
 	char *str;
 	int len;
@@ -416,6 +442,19 @@ static int enable_glob(const char *name)
 	for (i = 0; i < globbuf.gl_pathc; i++) {
 		path = globbuf.gl_pathv[i];
 
+		filter_file = strdup(path);
+		if (!filter_file)
+			die("Allocating memory");
+
+		/* s/enable/filter/ */
+		memcpy(filter_file + strlen(filter_file) - 6,
+		       "filter", 6);
+		if (filter)
+			write_filter(filter_file, filter);
+		else
+			write_filter(filter_file, "0");
+		free(filter_file);
+
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
@@ -430,7 +469,30 @@ static int enable_glob(const char *name)
 	return count;
 }
 
-static void enable_event(const char *name)
+static void filter_all_systems(const char *filter)
+{
+	glob_t globbuf;
+	char *path;
+	int ret;
+	int i;
+
+	path = get_tracing_file("events/*/filter");
+
+	globbuf.gl_offs = 0;
+	ret = glob(path, 0, NULL, &globbuf);
+	put_tracing_file(path);
+	if (ret < 0)
+		die("No filters found");
+
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		path = globbuf.gl_pathv[i];
+
+		write_filter(path, filter);
+	}
+	globfree(&globbuf);
+}
+
+static void enable_event(const char *name, const char *filter)
 {
 	struct stat st;
 	FILE *fp;
@@ -456,6 +518,11 @@ static void enable_event(const char *name)
 	/* We allow the user to use "all" to enable all events */
 
 	if (strcmp(name, "all") == 0) {
+		if (filter)
+			filter_all_systems(filter);
+		else
+			filter_all_systems("0");
+
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
@@ -477,7 +544,7 @@ static void enable_event(const char *name)
 		str[len] = 0;
 		ptr++;
 		if (!strlen(ptr) || strcmp(ptr, "*") == 0) {
-			ret = enable_glob(str);
+			ret = enable_glob(str, filter);
 			free(str);
 			put_tracing_file(path);
 			if (!ret)
@@ -487,7 +554,7 @@ static void enable_event(const char *name)
 
 		str[len] = '/';
 
-		ret = enable_glob(str);
+		ret = enable_glob(str, filter);
 		free(str);
 		if (!ret)
 			die("No events enabled with %s", name);
@@ -495,12 +562,12 @@ static void enable_event(const char *name)
 	}
 
 	/* No ':' so enable all matching systems and events */
-	ret = enable_glob(name);
+	ret = enable_glob(name, filter);
 
 	len = strlen(name) + strlen("*/") + 1;
 	str = malloc_or_die(len);
 	snprintf(str, len, "*/%s", name);
-	ret2 = enable_glob(str);
+	ret2 = enable_glob(str, filter);
 	free(str);
 
 	if (!ret && !ret2)
@@ -636,7 +703,7 @@ static void enable_events(void)
 
 	for (event = event_selection; event; event = event->next) {
 		if (!event->neg)
-			enable_event(event->event);
+			enable_event(event->event, event->filter);
 	}
 
 	/* Now disable any events */
@@ -822,8 +889,9 @@ void usage(char **argv)
 	printf("\n"
 	       "%s version %s\n\n"
 	       "usage:\n"
-	       " %s record [-v][-e event][-p plugin][-d][-o file][-s usecs][-O option ] [command ...]\n"
+	       " %s record [-v][-e event [-f filter]][-p plugin][-d][-o file][-s usecs][-O option ] [command ...]\n"
 	       "          -e run command with event enabled\n"
+	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -v will negate all -e after it (disable those events)\n"
 	       "          -d disable function tracer when running\n"
@@ -883,6 +951,7 @@ int main (int argc, char **argv)
 	const char *output = NULL;
 	const char *option;
 	struct event_list *event;
+	struct event_list *last_event;
 	struct trace_seq s;
 	int disable = 0;
 	int plug = 0;
@@ -912,7 +981,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:p:do:O:s:v")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:p:do:O:s:v")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -926,7 +995,29 @@ int main (int argc, char **argv)
 				event->next = event_selection;
 				event->neg = neg_event;
 				event_selection = event;
+				event->filter = NULL;
+				last_event = event;
 				break;
+			case 'f':
+				if (!last_event)
+					die("filter must come after event");
+				if (last_event->filter) {
+					last_event->filter =
+						realloc(last_event->filter,
+							strlen(last_event->filter) +
+							strlen("&&()") +
+							strlen(optarg) + 1);
+					strcat(last_event->filter, "&&(");
+					strcat(last_event->filter, optarg);
+					strcat(last_event->filter, ")");
+				} else {
+					last_event->filter =
+						malloc_or_die(strlen(optarg) +
+							      strlen("()") + 1);
+					sprintf(last_event->filter, "(%s)", optarg);
+				}
+				break;
+
 			case 'v':
 				if (extract)
 					usage(argv);
