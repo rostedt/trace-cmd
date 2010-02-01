@@ -216,7 +216,7 @@ static void read_rest(void)
 		r = read(input_fd, buf, BUFSIZ);
 		if (r > 0) {
 			buf[r] = 0;
-			printf(buf);
+			printf("%s", buf);
 		}
 	} while (r > 0);
 }
