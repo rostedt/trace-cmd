@@ -283,7 +283,7 @@ static void update_ftrace_pid(const char *pid)
 	close(fd);
 }
 
-static void update_pid_event_filters(char *pid);
+static void update_pid_event_filters(const char *pid);
 static void enable_tracing(void);
 
 static void update_task_filter(void)
@@ -720,7 +720,60 @@ static void disable_all(void)
 	clear_trace();
 }
 
-static void update_pid_event_filters(char *pid)
+static void update_filter(const char *event_name, const char *field,
+			  const char *pid)
+{
+	char buf[BUFSIZ];
+	char *filter_name;
+	char *path;
+	char *filter;
+	int fd;
+	int ret;
+
+	filter_name = malloc_or_die(strlen(event_name) +
+				    strlen("events//filter") + 1);
+	sprintf(filter_name, "events/%s/filter", event_name);
+
+	path = get_tracing_file(filter_name);
+	free(filter_name);
+
+	/* Ignore if file does not exist */
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		goto out;
+
+	ret = read(fd, buf, BUFSIZ);
+	if (ret < 0)
+		die("Can't read %s", path);
+	close(fd);
+
+	/* append unless there is currently no filter */
+	if (strcmp(buf, "none") == 0) {
+		filter = malloc_or_die(strlen(pid) + strlen(field) +
+				       strlen("(==)") + 1);
+		sprintf(filter, "(%s==%s)", field, pid);
+	} else {
+		filter = malloc_or_die(strlen(pid) + strlen(field) +
+				       strlen(buf) + strlen("()||(==)") + 1);
+		sprintf(filter, "(%s)||(%s==%s)", buf, field, pid);
+	}
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		die("can't open %s", path);
+
+	ret = write(fd, filter, strlen(filter));
+	if (ret < 0)
+		die("Can't write to %s", path);
+	close(fd);
+
+	free(filter);
+
+ out:
+	put_tracing_file(path);
+}
+
+static void update_pid_event_filters(const char *pid)
 {
 	struct event_list *event;
 	char *filter;
@@ -745,6 +798,13 @@ static void update_pid_event_filters(char *pid)
 	}
 
 	free(filter);
+
+	/*
+	 * Also make sure that the sched_switch to this pid
+	 * and wakeups of this pid are also traced.
+	 */
+	update_filter("sched/sched_switch", "next_pid", pid);
+	update_filter("sched/sched_wakeup", "pid", pid);
 }
 
 static void enable_events(void)
