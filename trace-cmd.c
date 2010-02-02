@@ -273,7 +273,7 @@ static void update_ftrace_pid(const char *pid)
 	if (!path)
 		return;
 
-	fd = open(path, O_WRONLY);
+	fd = open(path, O_WRONLY | O_TRUNC);
 	if (fd < 0)
 		return;
 
@@ -716,6 +716,7 @@ static void disable_all(void)
 
 	set_plugin("nop");
 	update_event("all", "0", 0, '0');
+	update_ftrace_pid("");
 
 	clear_trace();
 }
