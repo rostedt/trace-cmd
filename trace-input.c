@@ -902,7 +902,8 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 
 	/* check to see if we have this page already */
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
-		if (handle->cpu_data[cpu].offset == page_offset)
+		if (handle->cpu_data[cpu].offset == page_offset &&
+		    handle->cpu_data[cpu].file_size)
 			break;
 	}
 
