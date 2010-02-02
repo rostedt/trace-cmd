@@ -1250,8 +1250,10 @@ int main (int argc, char **argv)
 			sleep(1);
 		}
 	} else {
-		if (!record)
+		if (!record) {
+			update_task_filter();
 			exit(0);
+		}
 
 		if (run_command)
 			run_cmd((argc - optind) - 1, &argv[optind + 1]);
