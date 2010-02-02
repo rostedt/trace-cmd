@@ -715,7 +715,7 @@ static void disable_all(void)
 	disable_tracing();
 
 	set_plugin("nop");
-	update_event("all", NULL, 0, '0');
+	update_event("all", "0", 0, '0');
 
 	clear_trace();
 }
