@@ -1006,7 +1006,7 @@ struct record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 {
 	struct record *record = NULL;
-	off64_t offset;
+	off64_t offset, page_offset;
 
 	offset = handle->cpu_data[cpu].file_offset +
 		handle->cpu_data[cpu].file_size;
@@ -1016,8 +1016,13 @@ tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 	else
 		offset -= handle->page_size;
 
-	if (get_page(handle, cpu, offset) < 0)
+	page_offset = offset;
+
+ again:
+	if (get_page(handle, cpu, page_offset) < 0)
 		return NULL;
+
+	offset = page_offset;
 
 	do {
 		free_record(record);
@@ -1026,7 +1031,20 @@ tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 			offset = record->offset;
 	} while (record);
 
-	return tracecmd_read_at(handle, offset, NULL);
+	record = tracecmd_read_at(handle, offset, NULL);
+
+	/*
+	 * It is possible that a page has just a timestamp
+	 * or just padding on it.
+	 */
+	if (!record) {
+		if (page_offset == handle->cpu_data[cpu].file_offset)
+			return NULL;
+		page_offset -= handle->page_size;
+		goto again;
+	}
+
+	return record;
 }
 
 /**
