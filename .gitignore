@@ -4,6 +4,7 @@ trace-cmd
 *.a
 *.dat
 *.patch
+.*.d
 *~
 kernelshark
 trace-graph
