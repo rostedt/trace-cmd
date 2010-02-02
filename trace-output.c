@@ -688,10 +688,8 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 	if (!handle)
 		return NULL;
 
-	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0) {
-		free(handle);
+	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0)
 		return NULL;
-	}
 
 	return handle;
 }
