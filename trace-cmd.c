@@ -748,7 +748,7 @@ static void update_filter(const char *event_name, const char *field,
 	close(fd);
 
 	/* append unless there is currently no filter */
-	if (strcmp(buf, "none") == 0) {
+	if (strncmp(buf, "none", 4) == 0) {
 		filter = malloc_or_die(strlen(pid) + strlen(field) +
 				       strlen("(==)") + 1);
 		sprintf(filter, "(%s==%s)", field, pid);
