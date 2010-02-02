@@ -249,6 +249,21 @@ static void clear_trace(void)
 	fclose(fp);
 }
 
+static void reset_max_latency(void)
+{
+	FILE *fp;
+	char *path;
+
+	/* reset the trace */
+	path = get_tracing_file("tracing_max_latency");
+	fp = fopen(path, "w");
+	if (!fp)
+		die("writing to '%s'", path);
+	put_tracing_file(path);
+	fwrite("0", 1, 1, fp);
+	fclose(fp);
+}
+
 static void update_ftrace_pid(const char *pid)
 {
 	char *path;
@@ -269,6 +284,7 @@ static void update_ftrace_pid(const char *pid)
 }
 
 static void update_pid_event_filters(char *pid);
+static void enable_tracing(void);
 
 static void update_task_filter(void)
 {
@@ -277,6 +293,7 @@ static void update_task_filter(void)
 
 	if (!filter_task) {
 		update_ftrace_pid("");
+		enable_tracing();
 		return;
 	}
 
@@ -286,8 +303,7 @@ static void update_task_filter(void)
 
 	update_pid_event_filters(spid);
 
-	/* clear the trace */
-
+	enable_tracing();
 }
 
 void run_cmd(int argc, char **argv)
@@ -717,6 +733,9 @@ static void write_tracing_on(int on)
 static void enable_tracing(void)
 {
 	write_tracing_on(1);
+
+	if (latency)
+		reset_max_latency();
 }
 
 static void disable_tracing(void)
@@ -732,21 +751,6 @@ static void disable_all(void)
 	disable_event("all");
 
 	clear_trace();
-}
-
-static void reset_max_latency(void)
-{
-	FILE *fp;
-	char *path;
-
-	/* reset the trace */
-	path = get_tracing_file("tracing_max_latency");
-	fp = fopen(path, "w");
-	if (!fp)
-		die("writing to '%s'", path);
-	put_tracing_file(path);
-	fwrite("0", 1, 1, fp);
-	fclose(fp);
 }
 
 static void update_pid_event_filters(char *pid)
@@ -1246,10 +1250,6 @@ int main (int argc, char **argv)
 			sleep(1);
 		}
 	} else {
-		enable_tracing();
-		if (latency)
-			reset_max_latency();
-
 		if (!record)
 			exit(0);
 
