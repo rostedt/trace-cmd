@@ -1147,7 +1147,6 @@ translate_data(struct tracecmd_input *handle,
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
 		*length = data2host4(pevent, *ptr);
-		*ptr += 4;
 		*length *= 4;
 		*ptr += *length;
 		break;
