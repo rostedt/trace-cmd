@@ -492,7 +492,7 @@ static void write_filter(const char *file, const char *filter)
 	}
 }
 
-static int enable_glob(const char *name, const char *filter)
+static int enable_glob(const char *name, const char *filter, int filter_only)
 {
 	glob_t globbuf;
 	FILE *fp;
@@ -532,6 +532,10 @@ static int enable_glob(const char *name, const char *filter)
 		else
 			write_filter(filter_file, "0");
 		free(filter_file);
+		count++;
+
+		if (filter_only)
+			continue;
 
 		fp = fopen(path, "w");
 		if (!fp)
@@ -540,8 +544,6 @@ static int enable_glob(const char *name, const char *filter)
 		fclose(fp);
 		if (ret < 0)
 			die("writing to '%s'", path);
-
-		count++;
 	}
 	globfree(&globbuf);
 	return count;
@@ -570,7 +572,8 @@ static void filter_all_systems(const char *filter)
 	globfree(&globbuf);
 }
 
-static void enable_event(const char *name, const char *filter)
+static void enable_event(const char *name, const char *filter,
+			 int filter_only)
 {
 	struct stat st;
 	FILE *fp;
@@ -585,13 +588,16 @@ static void enable_event(const char *name, const char *filter)
 	path = get_tracing_file("events/enable");
 	ret = stat(path, &st);
 	if (ret < 0) {
+		if (filter_only)
+			return;
 		put_tracing_file(path);
 		/* old kernel */
 		old_enable_events(name);
 		return;
 	}
 
-	fprintf(stderr, "enable %s\n", name);
+	if (!filter_only)
+		fprintf(stderr, "enable %s\n", name);
 
 	/* We allow the user to use "all" to enable all events */
 
@@ -600,6 +606,11 @@ static void enable_event(const char *name, const char *filter)
 			filter_all_systems(filter);
 		else
 			filter_all_systems("0");
+
+		if (filter_only) {
+			put_tracing_file(path);
+			return;
+		}
 
 		fp = fopen(path, "w");
 		if (!fp)
@@ -622,7 +633,7 @@ static void enable_event(const char *name, const char *filter)
 		str[len] = 0;
 		ptr++;
 		if (!strlen(ptr) || strcmp(ptr, "*") == 0) {
-			ret = enable_glob(str, filter);
+			ret = enable_glob(str, filter, filter_only);
 			free(str);
 			put_tracing_file(path);
 			if (!ret)
@@ -632,7 +643,7 @@ static void enable_event(const char *name, const char *filter)
 
 		str[len] = '/';
 
-		ret = enable_glob(str, filter);
+		ret = enable_glob(str, filter, filter_only);
 		free(str);
 		if (!ret)
 			die("No events enabled with %s", name);
@@ -640,12 +651,12 @@ static void enable_event(const char *name, const char *filter)
 	}
 
 	/* No ':' so enable all matching systems and events */
-	ret = enable_glob(name, filter);
+	ret = enable_glob(name, filter, filter_only);
 
 	len = strlen(name) + strlen("*/") + 1;
 	str = malloc_or_die(len);
 	snprintf(str, len, "*/%s", name);
-	ret2 = enable_glob(str, filter);
+	ret2 = enable_glob(str, filter, filter_only);
 	free(str);
 
 	if (!ret && !ret2)
@@ -773,7 +784,7 @@ static void update_pid_event_filters(char *pid)
 					strcat(event->filter, filter);
 			} else
 				event->filter = strdup(filter);
-			enable_event(event->event, event->filter);
+			enable_event(event->event, event->filter, 1);
 		}
 	}
 
@@ -786,7 +797,7 @@ static void enable_events(void)
 
 	for (event = event_selection; event; event = event->next) {
 		if (!event->neg)
-			enable_event(event->event, event->filter);
+			enable_event(event->event, event->filter, 0);
 	}
 
 	/* Now disable any events */
