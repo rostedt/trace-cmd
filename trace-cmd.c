@@ -57,6 +57,8 @@ static int sleep_time = 1000;
 static int cpu_count;
 static int *pids;
 
+static int filter_task;
+
 struct event_list {
 	struct event_list *next;
 	const char *event;
@@ -229,6 +231,65 @@ static int set_ftrace(int set)
 	return 0;
 }
 
+static char *get_tracing_file(const char *name);
+static void put_tracing_file(char *file);
+
+static void clear_trace(void)
+{
+	FILE *fp;
+	char *path;
+
+	/* reset the trace */
+	path = get_tracing_file("trace");
+	fp = fopen(path, "w");
+	if (!fp)
+		die("writing to '%s'", path);
+	put_tracing_file(path);
+	fwrite("0", 1, 1, fp);
+	fclose(fp);
+}
+
+static void update_ftrace_pid(const char *pid)
+{
+	char *path;
+	int fd;
+
+	path = get_tracing_file("set_ftrace_pid");
+	if (!path)
+		return;
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		return;
+
+	if (write(fd, pid, strlen(pid)) < 0)
+		die("error writing to %s", path);
+
+	close(fd);
+}
+
+static void update_pid_event_filters(char *pid);
+
+static void update_task_filter(void)
+{
+	int pid = getpid();
+	char spid[100];
+
+	if (!filter_task) {
+		update_ftrace_pid("");
+		return;
+	}
+
+	snprintf(spid, 100, "%d", pid);
+
+	update_ftrace_pid(spid);
+
+	update_pid_event_filters(spid);
+
+	/* clear the trace */
+
+}
+
 void run_cmd(int argc, char **argv)
 {
 	int status;
@@ -238,6 +299,7 @@ void run_cmd(int argc, char **argv)
 		die("failed to fork");
 	if (!pid) {
 		/* child */
+		update_task_filter();
 		if (execvp(argv[0], argv))
 			exit(-1);
 	}
@@ -664,22 +726,12 @@ static void disable_tracing(void)
 
 static void disable_all(void)
 {
-	FILE *fp;
-	char *path;
-
 	disable_tracing();
 
 	set_plugin("nop");
 	disable_event("all");
 
-	/* reset the trace */
-	path = get_tracing_file("trace");
-	fp = fopen(path, "w");
-	if (!fp)
-		die("writing to '%s'", path);
-	put_tracing_file(path);
-	fwrite("0", 1, 1, fp);
-	fclose(fp);
+	clear_trace();
 }
 
 static void reset_max_latency(void)
@@ -695,6 +747,33 @@ static void reset_max_latency(void)
 	put_tracing_file(path);
 	fwrite("0", 1, 1, fp);
 	fclose(fp);
+}
+
+static void update_pid_event_filters(char *pid)
+{
+	struct event_list *event;
+	char *filter;
+
+	filter = malloc_or_die(strlen(pid) + strlen("(common_pid==)") + 1);
+	sprintf(filter, "(common_pid==%s)", pid);
+
+	for (event = event_selection; event; event = event->next) {
+		if (!event->neg) {
+			if (event->filter) {
+				event->filter =
+					realloc(event->filter,
+						strlen(event->filter) +
+						strlen("&&") +
+						strlen(filter) + 1);
+					strcat(event->filter, "&&");
+					strcat(event->filter, filter);
+			} else
+				event->filter = strdup(filter);
+			enable_event(event->event, event->filter);
+		}
+	}
+
+	free(filter);
 }
 
 static void enable_events(void)
@@ -889,10 +968,11 @@ void usage(char **argv)
 	printf("\n"
 	       "%s version %s\n\n"
 	       "usage:\n"
-	       " %s record [-v][-e event [-f filter]][-p plugin][-d][-o file][-s usecs][-O option ] [command ...]\n"
+	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file][-s usecs][-O option ] [command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
+	       "          -F filter only on the given process\n"
 	       "          -v will negate all -e after it (disable those events)\n"
 	       "          -d disable function tracer when running\n"
 	       "          -o data output file [default trace.dat]\n"
@@ -981,7 +1061,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:p:do:O:s:v")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:v")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1018,6 +1098,9 @@ int main (int argc, char **argv)
 				}
 				break;
 
+			case 'F':
+				filter_task = 1;
+				break;
 			case 'v':
 				if (extract)
 					usage(argv);
@@ -1173,6 +1256,7 @@ int main (int argc, char **argv)
 		if (run_command)
 			run_cmd((argc - optind) - 1, &argv[optind + 1]);
 		else {
+			update_task_filter();
 			/* sleep till we are woken with Ctrl^C */
 			printf("Hit Ctrl^C to stop recording\n");
 			while (!finished)
