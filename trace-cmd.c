@@ -439,7 +439,7 @@ static void set_option(const char *option)
 	fclose(fp);
 }
 
-static void old_enable_events(const char *name)
+static void old_update_events(const char *name, char update)
 {
 	char *path;
 	FILE *fp;
@@ -454,6 +454,10 @@ static void old_enable_events(const char *name)
 	if (!fp)
 		die("opening '%s'", path);
 	put_tracing_file(path);
+
+	/* Disable the event with "!" */
+	if (update == '0')
+		fwrite("!", 1, 1, fp);
 
 	ret = fwrite(name, 1, strlen(name), fp);
 	if (ret < 0)
@@ -492,7 +496,8 @@ static void write_filter(const char *file, const char *filter)
 	}
 }
 
-static int enable_glob(const char *name, const char *filter, int filter_only)
+static int update_glob(const char *name, const char *filter,
+		       int filter_only, char update)
 {
 	glob_t globbuf;
 	FILE *fp;
@@ -529,7 +534,7 @@ static int enable_glob(const char *name, const char *filter, int filter_only)
 		       "filter", 6);
 		if (filter)
 			write_filter(filter_file, filter);
-		else
+		else if (update == '1')
 			write_filter(filter_file, "0");
 		free(filter_file);
 		count++;
@@ -540,7 +545,7 @@ static int enable_glob(const char *name, const char *filter, int filter_only)
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
-		ret = fwrite("1", 1, 1, fp);
+		ret = fwrite(&update, 1, 1, fp);
 		fclose(fp);
 		if (ret < 0)
 			die("writing to '%s'", path);
@@ -572,8 +577,8 @@ static void filter_all_systems(const char *filter)
 	globfree(&globbuf);
 }
 
-static void enable_event(const char *name, const char *filter,
-			 int filter_only)
+static void update_event(const char *name, const char *filter,
+			 int filter_only, char update)
 {
 	struct stat st;
 	FILE *fp;
@@ -592,19 +597,20 @@ static void enable_event(const char *name, const char *filter,
 			return;
 		put_tracing_file(path);
 		/* old kernel */
-		old_enable_events(name);
+		old_update_events(name, update);
 		return;
 	}
 
 	if (!filter_only)
-		fprintf(stderr, "enable %s\n", name);
+		fprintf(stderr, "%s %s\n",
+			update == '1' ? "enable" : "disable", name);
 
 	/* We allow the user to use "all" to enable all events */
 
 	if (strcmp(name, "all") == 0) {
 		if (filter)
 			filter_all_systems(filter);
-		else
+		else if (update == '1')
 			filter_all_systems("0");
 
 		if (filter_only) {
@@ -616,7 +622,7 @@ static void enable_event(const char *name, const char *filter,
 		if (!fp)
 			die("writing to '%s'", path);
 		put_tracing_file(path);
-		ret = fwrite("1", 1, 1, fp);
+		ret = fwrite(&update, 1, 1, fp);
 		fclose(fp);
 		if (ret < 0)
 			die("writing to '%s'", path);
@@ -633,7 +639,7 @@ static void enable_event(const char *name, const char *filter,
 		str[len] = 0;
 		ptr++;
 		if (!strlen(ptr) || strcmp(ptr, "*") == 0) {
-			ret = enable_glob(str, filter, filter_only);
+			ret = update_glob(str, filter, filter_only, update);
 			free(str);
 			put_tracing_file(path);
 			if (!ret)
@@ -643,7 +649,7 @@ static void enable_event(const char *name, const char *filter,
 
 		str[len] = '/';
 
-		ret = enable_glob(str, filter, filter_only);
+		ret = update_glob(str, filter, filter_only, update);
 		free(str);
 		if (!ret)
 			die("No events enabled with %s", name);
@@ -651,12 +657,12 @@ static void enable_event(const char *name, const char *filter,
 	}
 
 	/* No ':' so enable all matching systems and events */
-	ret = enable_glob(name, filter, filter_only);
+	ret = update_glob(name, filter, filter_only, update);
 
 	len = strlen(name) + strlen("*/") + 1;
 	str = malloc_or_die(len);
 	snprintf(str, len, "*/%s", name);
-	ret2 = enable_glob(str, filter, filter_only);
+	ret2 = update_glob(str, filter, filter_only, update);
 	free(str);
 
 	if (!ret && !ret2)
@@ -666,56 +672,6 @@ static void enable_event(const char *name, const char *filter,
  fail:
 	die("No events enabled with %s", name);
 
-}
-
-static void disable_event(const char *name)
-{
-	struct stat st;
-	FILE *fp;
-	char *path;
-	int ret;
-
-	if (strcmp(name, "all") == 0) {
-		path = get_tracing_file("events/enable");
-
-		ret = stat(path, &st);
-		if (ret < 0) {
-			put_tracing_file(path);
-			/* need to use old way */
-			path = get_tracing_file("set_event");
-			fp = fopen(path, "w");
-			if (!fp)
-				die("writing to '%s'", path);
-			put_tracing_file(path);
-			fwrite("\n", 1, 1, fp);
-			fclose(fp);
-			return;
-		}
-
-		fp = fopen(path, "w");
-		if (!fp)
-			die("writing to '%s'", path);
-		put_tracing_file(path);
-		fwrite("0", 1, 1, fp);
-		fclose(fp);
-		return;
-	}
-
-	path = get_tracing_file("set_event");
-	fp = fopen(path, "a");
-	if (!fp)
-		die("writing to '%s'", path);
-	put_tracing_file(path);
-	ret = fwrite("!", 1, 1, fp);
-	if (ret < 0)
-		die("can't write negative");
-	ret = fwrite(name, 1, strlen(name), fp);
-	if (ret < 0)
-		die("bad event '%s'", name);
-	ret = fwrite("\n", 1, 1, fp);
-	if (ret < 0)
-		die("bad event '%s'", name);
-	fclose(fp);
 }
 
 static void write_tracing_on(int on)
@@ -759,7 +715,7 @@ static void disable_all(void)
 	disable_tracing();
 
 	set_plugin("nop");
-	disable_event("all");
+	update_event("all", NULL, 0, '0');
 
 	clear_trace();
 }
@@ -784,7 +740,7 @@ static void update_pid_event_filters(char *pid)
 					strcat(event->filter, filter);
 			} else
 				event->filter = strdup(filter);
-			enable_event(event->event, event->filter, 1);
+			update_event(event->event, event->filter, 1, '1');
 		}
 	}
 
@@ -797,13 +753,13 @@ static void enable_events(void)
 
 	for (event = event_selection; event; event = event->next) {
 		if (!event->neg)
-			enable_event(event->event, event->filter, 0);
+			update_event(event->event, event->filter, 0, '1');
 	}
 
 	/* Now disable any events */
 	for (event = event_selection; event; event = event->next) {
 		if (event->neg)
-			disable_event(event->event);
+			update_event(event->event, NULL, 0, '0');
 	}
 }
 
