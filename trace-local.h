@@ -3,6 +3,9 @@
 
 #include "trace-cmd.h"
 
+/* fix stupid glib guint64 typecasts and printf formats */
+typedef unsigned long long u64;
+
 /* for local shared information with trace-cmd executable */
 
 void usage(char **argv);

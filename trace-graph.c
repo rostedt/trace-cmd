@@ -886,14 +886,16 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 
 	trace_seq_init(&s);
 
-	dprintf(3, "start=%zu end=%zu time=%lu\n", ginfo->start_time, ginfo->end_time, time);
+	dprintf(3, "start=%llu end=%llu time=%llu\n",
+		(u64)ginfo->start_time, (u64)ginfo->end_time, (u64)time);
 
 	record = find_record_on_cpu(ginfo, cpu, time);
 
 	if (record) {
 
-		dprintf(3, "record->ts=%llu time=%zu-%zu\n",
-			record->ts, time, time-(gint)(1/ginfo->resolution));
+		dprintf(3, "record->ts=%llu time=%llu-%llu\n",
+			record->ts, (u64)time,
+			(u64)(time-(gint)(1/ginfo->resolution)));
 		print_rec_info(record, pevent, cpu);
 
 		/*
