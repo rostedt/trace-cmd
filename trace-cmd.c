@@ -267,6 +267,7 @@ static void reset_max_latency(void)
 static void update_ftrace_pid(const char *pid)
 {
 	char *path;
+	int ret;
 	int fd;
 
 	path = get_tracing_file("set_ftrace_pid");
@@ -277,7 +278,15 @@ static void update_ftrace_pid(const char *pid)
 	if (fd < 0)
 		return;
 
-	if (write(fd, pid, strlen(pid)) < 0)
+	ret = write(fd, pid, strlen(pid));
+
+	/*
+	 * Older kernels required "-1" to disable pid
+	 */
+	if (ret < 0 && !strlen(pid))
+		ret = write(fd, "-1", 2);
+
+	if (ret < 0)
 		die("error writing to %s", path);
 
 	close(fd);
