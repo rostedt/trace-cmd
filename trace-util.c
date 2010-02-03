@@ -26,6 +26,7 @@
 
 struct plugin_list {
 	struct plugin_list	*next;
+	char			*name;
 	void			*handle;
 };
 
@@ -175,25 +176,28 @@ load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
 	if (!handle) {
 		warning("cound not load plugin '%s'\n%s\n",
 			plugin, dlerror());
-		goto out;
+		goto out_free;
 	}
-
-	list = malloc_or_die(sizeof(*list));
-	list->next = plugin_list;
-	list->handle = handle;
-	plugin_list = list;
 
 	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
 	if (!func) {
 		warning("cound not find func '%s' in plugin '%s'\n%s\n",
 			PEVENT_PLUGIN_LOADER_NAME, plugin, dlerror());
-		goto out;
+		goto out_free;
 	}
+
+	list = malloc_or_die(sizeof(*list));
+	list->next = plugin_list;
+	list->handle = handle;
+	list->name = plugin;
+	plugin_list = list;
 
 	printf("registering plugin: %s\n", plugin);
 	ret = func(pevent);
 
- out:
+	return plugin_list;
+
+ out_free:
 	free(plugin);
 
 	return plugin_list;
@@ -315,6 +319,7 @@ void tracecmd_unload_plugins(struct plugin_list *plugin_list)
 		if (func)
 			func();
 		dlclose(list->handle);
+		free(list->name);
 		free(list);
 	}
 }
