@@ -596,8 +596,11 @@ void kernel_shark(int argc, char **argv)
 		if (ret >= 0)
 			input_file = default_input_file;
 	}
-	if (handle)
+
+	if (input_file)
 		handle = tracecmd_open(input_file);
+	else
+		handle = NULL;
 
 	info->handle = handle;
 
