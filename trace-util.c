@@ -6,12 +6,14 @@
 #include <ctype.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "trace-cmd.h"
 
 #define PLUGIN_DIR ".trace-cmd/plugins"
+#define DEBUGFS_PATH "/sys/kernel/debug"
 
 #define __weak __attribute__((weak))
 
@@ -197,6 +199,22 @@ load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
 	return plugin_list;
 }
 
+static int mount_debugfs(void)
+{
+	struct stat st;
+	int ret;
+
+	/* make sure debugfs exists */
+	ret = stat(DEBUGFS_PATH, &st);
+	if (ret < 0)
+		die("debugfs is not configured on this kernel");
+
+	ret = mount("nodev", DEBUGFS_PATH,
+		    "debugfs", 0, NULL);
+
+	return ret;
+}
+
 char *tracecmd_find_tracing_dir(void)
 {
 	char debugfs[MAX_PATH+1];
@@ -219,8 +237,12 @@ char *tracecmd_find_tracing_dir(void)
 	fclose(fp);
 
 	if (strcmp(type, "debugfs") != 0) {
-		warning("debugfs not mounted, please mount");
-		return NULL;
+		/* If debugfs is not mounted, try to mount it */
+		if (mount_debugfs() < 0) {
+			warning("debugfs not mounted, please mount");
+			return NULL;
+		}
+		strcpy(debugfs, DEBUGFS_PATH);
 	}
 
 	tracing_dir = malloc_or_die(strlen(debugfs) + 9);
