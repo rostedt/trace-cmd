@@ -774,7 +774,7 @@ static void update_filter(const char *event_name, const char *field,
 
 	ret = write(fd, filter, strlen(filter));
 	if (ret < 0)
-		die("Can't write to %s", path);
+		warning("Can't write to %s", path);
 	close(fd);
 
 	free(filter);
