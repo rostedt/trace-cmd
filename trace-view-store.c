@@ -336,7 +336,7 @@ trace_view_store_get_iter (GtkTreeModel *tree_model,
 
 	n = indices[0]; /* the n-th top level row */
 
-	record = trace_view_store_get_row(trace_view_store, n);
+	record = trace_view_store_get_visible_row(trace_view_store, n);
 	if (!record)
 		return FALSE;
 
@@ -1222,10 +1222,31 @@ gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts)
 	return rec->pos / store->rows_per_page + 1;
 }
 
+static TraceViewRecord *get_row(TraceViewStore *store, gint row)
+{
+	TraceViewRecord *record;
+
+	g_return_val_if_fail(row >= store->start_row && row < store->visible_rows, NULL);
+
+	record = store->rows[row];
+	g_assert(record != NULL);
+	g_assert(record->pos == row);
+	return record;
+}
+
+
 TraceViewRecord *
 trace_view_store_get_row(TraceViewStore *store, gint row)
 {
-	TraceViewRecord *record;
+	g_return_val_if_fail(TRACE_VIEW_IS_LIST(store), NULL);
+
+	return get_row(store, row);
+}
+
+
+TraceViewRecord *
+trace_view_store_get_visible_row(TraceViewStore *store, gint row)
+{
 	g_return_val_if_fail(TRACE_VIEW_IS_LIST(store), NULL);
 
 	/* If we don't have any visible rows, return NULL */
@@ -1234,12 +1255,7 @@ trace_view_store_get_row(TraceViewStore *store, gint row)
 
 	row += store->start_row;
 
-	g_return_val_if_fail(row >= store->start_row && row < store->visible_rows, NULL);
-
-	record = store->rows[row];
-	g_assert(record != NULL);
-	g_assert(record->pos == row);
-	return record;
+	return get_row(store, row);
 }
 
 gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *record)

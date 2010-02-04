@@ -315,7 +315,7 @@ static void row_double_clicked(GtkTreeView        *treeview,
 	row = atoi(spath);
 	g_free(spath);
 
-	rec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);
+	rec = trace_view_store_get_visible_row(TRACE_VIEW_STORE(model), row);
 	time = rec->timestamp;
 	trace_graph_select_by_time(info->ginfo, time);
 }

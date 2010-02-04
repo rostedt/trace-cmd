@@ -135,6 +135,8 @@ void trace_view_store_assign_filters(TraceViewStore *store,
 
 TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 
+TraceViewRecord *trace_view_store_get_visible_row(TraceViewStore *store, gint row);
+
 gboolean trace_view_store_system_enabled(TraceViewStore *store, const gchar *system);
 
 gboolean trace_view_store_event_enabled(TraceViewStore *store, gint event_id);
