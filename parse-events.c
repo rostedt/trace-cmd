@@ -3830,8 +3830,14 @@ struct pevent *pevent_alloc(void)
 	if (!pevent)
 		return NULL;
 	memset(pevent, 0, sizeof(*pevent));
+	pevent->ref_count = 1;
 
 	return pevent;
+}
+
+void pevent_ref(struct pevent *pevent)
+{
+	pevent->ref_count++;
 }
 
 static void free_format_fields(struct format_field *field)
@@ -3877,6 +3883,10 @@ void pevent_free(struct pevent *pevent)
 	struct func_list *funclist = pevent->funclist, *funcnext;
 	struct printk_list *printklist = pevent->printklist, *printknext;
 	int i;
+
+	pevent->ref_count--;
+	if (pevent->ref_count)
+		return;
 
 	if (pevent->cmdlines) {
 		for (i = 0; i < pevent->cmdline_count; i++)
@@ -3929,4 +3939,9 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	free(pevent);
+}
+
+void pevent_unref(struct pevent *pevent)
+{
+	pevent_free(pevent);
 }

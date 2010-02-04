@@ -226,6 +226,8 @@ struct func_map;
 struct func_list;
 
 struct pevent {
+	int ref_count;
+
 	int header_page_ts_offset;
 	int header_page_ts_size;
 	int header_page_size_offset;
@@ -444,6 +446,8 @@ static inline void pevent_set_latency_format(struct pevent *pevent, int lat)
 
 struct pevent *pevent_alloc(void);
 void pevent_free(struct pevent *pevent);
+void pevent_ref(struct pevent *pevent);
+void pevent_unref(struct pevent *pevent);
 
 /* for debugging */
 void pevent_print_funcs(struct pevent *pevent);
