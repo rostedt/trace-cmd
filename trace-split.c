@@ -74,7 +74,7 @@ static int create_type_len(struct pevent *pevent, int time, int len)
 	if (bigendian < 0) {
 		test = 0x4321;
 		ptr = (char *)&test;
-		if (*ptr == 0x12)
+		if (*ptr == 0x21)
 			bigendian = 0;
 		else
 			bigendian = 1;
