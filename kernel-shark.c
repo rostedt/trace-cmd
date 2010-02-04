@@ -389,15 +389,11 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_clear_tasks;
 	struct record *record;
 	TraceViewRecord *vrec;
-	GtkTreeSelection *selection;
 	GtkTreeModel *model;
-	GtkTreePath *path;
 	const char *comm;
 	gchar *text;
 	gint pid;
 	gint len;
-	GList *glist;
-	gchar *spath;
 	guint64 offset;
 	gint row;
 	gint cpu;
@@ -446,15 +442,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	}
 
-	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(info->treeview));
-	glist = gtk_tree_selection_get_selected_rows(GTK_TREE_SELECTION(selection), NULL);
-	if (glist) {
-		path = glist->data;
-		g_list_free(glist);
-		spath = gtk_tree_path_to_string(path);
-		gtk_tree_path_free(path);
-		row = atoi(spath);
-		g_free(spath);
+	row = trace_view_get_selected_row(GTK_WIDGET(info->treeview));
+	if (row >= 0) {
 
 		model = gtk_tree_view_get_model(GTK_TREE_VIEW(info->treeview));
 		vrec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);

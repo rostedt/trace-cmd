@@ -34,4 +34,6 @@ void trace_view_cpu_filter_callback(gboolean accept,
 
 void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview);
 
+gint trace_view_get_selected_row(GtkWidget *treeview);
+
 #endif /* _TRACE_VIEW_H */
