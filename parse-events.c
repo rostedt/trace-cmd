@@ -1445,6 +1445,7 @@ static void set_op_prio(struct print_arg *arg)
 	arg->op.prio = get_op_prio(arg->op.op);
 }
 
+/* Note, *tok does not get freed, but will most likely be saved */
 static enum event_type
 process_op(struct event_format *event, struct print_arg *arg, char **tok)
 {
@@ -1480,7 +1481,8 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		right = alloc_arg();
 		arg->op.right = right;
 
-		free_token(token);
+		/* do not free the token, it belongs to an op */
+		*tok = NULL;
 		type = process_arg(event, right, tok);
 
 	} else if (strcmp(token, "?") == 0) {
