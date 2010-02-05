@@ -159,10 +159,10 @@ static void write_page(struct cpu_data *cpu_data, int long_size)
 {
 	if (long_size == 8)
 		*(unsigned long long *)cpu_data->commit =
-			(unsigned long long)cpu_data->index;
+			(unsigned long long)cpu_data->index - 16;
 	else
 		*(unsigned int *)cpu_data->commit =
-			cpu_data->index;
+			cpu_data->index - 12;
 	write(cpu_data->fd, cpu_data->page, page_size);
 }
 
