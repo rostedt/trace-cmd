@@ -45,19 +45,19 @@
 
 #define MAX_WIDTH	10000
 
-#define CPU_SIZE	10
-#define CPU_BOX_SIZE	CPU_SIZE
-#define CPU_GIVE	2
-#define CPU_LINE(cpu) (80 * (cpu) + 80 + CPU_SIZE)
-#define CPU_TOP(cpu) (CPU_LINE(cpu) - CPU_SIZE * 2)
-#define CPU_BOX_TOP(cpu) (CPU_LINE(cpu) - CPU_SIZE)
-#define CPU_BOTTOM(cpu) (CPU_LINE(cpu)-1)
-#define CPU_BOX_BOTTOM(cpu) (CPU_LINE(cpu))
-#define CPU_SPACE(cpus) (80 * (cpus) + 80)
-#define CPU_LABEL(cpu) (CPU_TOP(cpu))
-#define CPU_X		5
+#define PLOT_SIZE	10
+#define PLOT_BOX_SIZE	PLOT_SIZE
+#define PLOT_GIVE	2
+#define PLOT_LINE(cpu) (80 * (cpu) + 80 + PLOT_SIZE)
+#define PLOT_TOP(cpu) (PLOT_LINE(cpu) - PLOT_SIZE * 2)
+#define PLOT_BOX_TOP(cpu) (PLOT_LINE(cpu) - PLOT_SIZE)
+#define PLOT_BOTTOM(cpu) (PLOT_LINE(cpu)-1)
+#define PLOT_BOX_BOTTOM(cpu) (PLOT_LINE(cpu))
+#define PLOT_SPACE(cpus) (80 * (cpus) + 80)
+#define PLOT_LABEL(cpu) (PLOT_TOP(cpu))
+#define PLOT_X		5
 
-static gint largest_cpu_label = 0;
+static gint largest_plot_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
 static int check_sched_switch(struct graph_info *ginfo,
@@ -527,8 +527,8 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	time =  convert_x_to_time(ginfo, x);
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		if (y >= (CPU_TOP(cpu) - CPU_GIVE) &&
-		    y <= (CPU_BOTTOM(cpu) + CPU_GIVE)) {
+		if (y >= (PLOT_TOP(cpu) - PLOT_GIVE) &&
+		    y <= (PLOT_BOTTOM(cpu) + PLOT_GIVE)) {
 			record = find_record_on_cpu(ginfo, cpu, time);
 			break;
 		}
@@ -746,7 +746,7 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 	trace_seq_do_printf(&s);
 }
 
-#define CPU_BOARDER 5
+#define PLOT_BOARDER 5
 
 static int check_sched_wakeup(struct graph_info *ginfo,
 			      struct record *record,
@@ -974,8 +974,8 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
 	pango_layout_get_pixel_size(layout, &width, &height);
 
-	width += CPU_BOARDER * 2;
-	height += CPU_BOARDER * 2;
+	width += PLOT_BOARDER * 2;
+	height += PLOT_BOARDER * 2;
 
 	view_start = gtk_adjustment_get_value(ginfo->hadj);
 	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
@@ -1010,7 +1010,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 			   width-1, height-1);
 
 	gdk_draw_layout(pix, ginfo->draw->style->black_gc,
-			CPU_BOARDER, CPU_BOARDER, layout);
+			PLOT_BOARDER, PLOT_BOARDER, layout);
 	gdk_draw_drawable(ginfo->draw->window,
 			  ginfo->draw->style->fg_gc[GTK_WIDGET_STATE(ginfo->draw)],
 			  pix, 0, 0, x, y, width, height);
@@ -1053,8 +1053,8 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	}
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		if (y >= (CPU_TOP(cpu) - CPU_GIVE) &&
-		    y <= (CPU_BOTTOM(cpu) + CPU_GIVE))
+		if (y >= (PLOT_TOP(cpu) - PLOT_GIVE) &&
+		    y <= (PLOT_BOTTOM(cpu) + PLOT_GIVE))
 			draw_cpu_info(ginfo, cpu, x, y);
 	}
 
@@ -1422,13 +1422,13 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 	if (x < 0)
 		x = 1;
 
-	y = (CPU_TOP(cpu) - text_height + 5);
+	y = (PLOT_TOP(cpu) - text_height + 5);
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			x, y, layout);
 
 
 	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-		      p2, CPU_TOP(cpu) - 5, p2, CPU_TOP(cpu) - 1);
+		      p2, PLOT_TOP(cpu) - 5, p2, PLOT_TOP(cpu) - 1);
 
 	g_object_unref(layout);
 }
@@ -1438,7 +1438,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
-	gint height = CPU_LINE(cpu);
+	gint height = PLOT_LINE(cpu);
 	struct record *record;
 	static GdkGC *gc;
 	static gint width_16;
@@ -1533,8 +1533,8 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 				gdk_draw_rectangle(ginfo->curr_pixmap, gc,
 						   TRUE,
-						   last_x, CPU_BOX_TOP(cpu),
-						   x - last_x, CPU_BOX_SIZE);
+						   last_x, PLOT_BOX_TOP(cpu),
+						   x - last_x, PLOT_BOX_SIZE);
 
 			last_x = x;
 
@@ -1556,7 +1556,7 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			filter = graph_filter_on_event(ginfo, record);
 			if (!filter)
 				gdk_draw_line(ginfo->curr_pixmap, gc,
-					      x, CPU_TOP(cpu), x, CPU_BOTTOM(cpu));
+					      x, PLOT_TOP(cpu), x, PLOT_BOTTOM(cpu));
 		}
 
 		last_pid = pid;
@@ -1604,8 +1604,8 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 		gdk_draw_rectangle(ginfo->curr_pixmap, gc,
 				   TRUE,
-				   last_x, CPU_BOX_TOP(cpu),
-				   x - last_x, CPU_BOX_SIZE);
+				   last_x, PLOT_BOX_TOP(cpu),
+				   x - last_x, PLOT_BOX_SIZE);
 	}
 
 	free_record(record);
@@ -1796,20 +1796,20 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	if (cpu == ginfo->cpus)
 		return;
 
-	/* Make sure CPU is visible */
+	/* Make sure PLOT is visible */
 	vadj = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(ginfo->scrollwin));
 	view_start = gtk_adjustment_get_value(vadj);
 	view_width = gtk_adjustment_get_page_size(vadj);
 
-	if (CPU_TOP(cpu) > view_start &&
-	    CPU_BOTTOM(cpu) < view_start + view_width)
+	if (PLOT_TOP(cpu) > view_start &&
+	    PLOT_BOTTOM(cpu) < view_start + view_width)
 		return;
 
-	if (CPU_TOP(cpu) < view_start)
-		gtk_adjustment_set_value(vadj, CPU_TOP(cpu) - 5);
+	if (PLOT_TOP(cpu) < view_start)
+		gtk_adjustment_set_value(vadj, PLOT_TOP(cpu) - 5);
 
-	if (CPU_BOTTOM(cpu) > view_start + view_width)
-		gtk_adjustment_set_value(vadj, (CPU_BOTTOM(cpu) - view_width) + 10);
+	if (PLOT_BOTTOM(cpu) > view_start + view_width)
+		gtk_adjustment_set_value(vadj, (PLOT_BOTTOM(cpu) - view_width) + 10);
 }
 
 static void graph_free_systems(struct graph_info *ginfo)
@@ -1978,44 +1978,44 @@ info_expose_event(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 	return FALSE;
 }
 
-static void info_draw_cpu_label(struct graph_info *ginfo, gint cpu)
+static void info_draw_plot_label(struct graph_info *ginfo, gint i)
 {
 	PangoLayout *layout;
-	gchar buf[BUFSIZ];
 	gint width, height;
+	char *label;
 
-	snprintf(buf, BUFSIZ, "CPU %d", cpu);
+	label = ginfo->plot_array[i]->label;
 
-	layout = gtk_widget_create_pango_layout(ginfo->info, buf);
+	layout = gtk_widget_create_pango_layout(ginfo->info, label);
 	pango_layout_get_pixel_size(layout, &width, &height);
 	width += 4;
 
-	if (width > largest_cpu_label)
-		largest_cpu_label = width;
+	if (width > largest_plot_label)
+		largest_plot_label = width;
 	gdk_draw_rectangle(ginfo->info_pixmap,
 			   ginfo->info->style->white_gc,
 			   TRUE,
-			   CPU_X, CPU_LABEL(cpu)+4,
+			   PLOT_X, PLOT_LABEL(i)+4,
 			   width, height);
 	gdk_draw_layout(ginfo->info_pixmap,
 			ginfo->info->style->black_gc,
-			CPU_X+ 2, CPU_LABEL(cpu) + 4,
+			PLOT_X+ 2, PLOT_LABEL(i) + 4,
 			layout);
 	g_object_unref(layout);
 }
 
-static void info_draw_cpu_labels(struct graph_info *ginfo)
+static void info_draw_plot_labels(struct graph_info *ginfo)
 {
-	gint cpu;
+	gint i;
 
 	if (!ginfo->handle)
 		return;
 
-	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		info_draw_cpu_label(ginfo, cpu);
+	for (i = 0; i < ginfo->plots; i++)
+		info_draw_plot_label(ginfo, i);
 }
 
-static void update_cpu_window(struct graph_info *ginfo)
+static void update_label_window(struct graph_info *ginfo)
 {
 	if (ginfo->info_pixmap)
 		g_object_unref(ginfo->info_pixmap);
@@ -2032,9 +2032,9 @@ static void update_cpu_window(struct graph_info *ginfo)
 			   ginfo->info->allocation.width,
 			   ginfo->info->allocation.height);
 
-	info_draw_cpu_labels(ginfo);
+	info_draw_plot_labels(ginfo);
 
-	gtk_widget_set_size_request(ginfo->info, largest_cpu_label + 10,
+	gtk_widget_set_size_request(ginfo->info, largest_plot_label + 10,
 				    ginfo->draw_height);
 }
 
@@ -2043,7 +2043,7 @@ info_configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
-	update_cpu_window(ginfo);
+	update_label_window(ginfo);
 
 	return TRUE;
 }
@@ -2091,6 +2091,9 @@ static int load_handle(struct graph_info *ginfo,
 	if (!handle)
 		return -1;
 
+	trace_graph_plot_free(ginfo);
+	trace_graph_plot_init(ginfo);
+
 	if (ginfo->handle)
 		trace_graph_free_info(ginfo);
 
@@ -2106,7 +2109,9 @@ static int load_handle(struct graph_info *ginfo,
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
 
-	ginfo->draw_height = CPU_SPACE(ginfo->cpus);
+	graph_plot_init_cpus(ginfo, ginfo->cpus);
+
+	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 		record = tracecmd_read_cpu_first(handle, cpu);
@@ -2143,7 +2148,7 @@ int trace_graph_load_handle(struct graph_info *ginfo,
 	if (load_handle(ginfo, handle) < 0)
 		return -1;
 
-	update_cpu_window(ginfo);
+	update_label_window(ginfo);
 	redraw_graph(ginfo);
 
 	return 0;

@@ -1,6 +1,7 @@
 #ifndef _TRACE_GRAPH_H
 #define _TRACE_GRAPH_H
 
+#include <gtk/gtk.h>
 #include "trace-cmd.h"
 #include "trace-hash.h"
 
@@ -11,6 +12,16 @@ typedef void (graph_filter_cb)(struct graph_info *ginfo,
 			       struct filter_task *task_filter,
 			       struct filter_task *hide_tasks);
 
+struct plot_callbacks {
+	void			*private;
+};
+
+struct graph_plot {
+	struct graph_plot	*next;
+	char			*label;
+	struct plot_callbacks	*cb;
+};
+
 struct graph_callbacks {
 	graph_select_cb		*select;
 	graph_filter_cb		*filter;
@@ -20,6 +31,11 @@ struct graph_info {
 	struct tracecmd_input	*handle;
 	struct pevent		*pevent;
 	gint			cpus;
+
+	gint			plots;
+	struct graph_plot	**plot_array;
+	struct graph_plot	*plot_list;
+
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
 	GtkWidget		*info_scrollwin; /* graph scroll window (for info widget) */
@@ -133,5 +149,14 @@ void trace_graph_clear_tasks(struct graph_info *ginfo);
 void trace_graph_free_info(struct graph_info *ginfo);
 int trace_graph_load_handle(struct graph_info *ginfo,
 			    struct tracecmd_input *handle);
+
+/* plots */
+void trace_graph_plot_free(struct graph_info *ginfo);
+void trace_graph_plot_init(struct graph_info *ginfo);
+void trace_graph_plot_append(struct graph_info *ginfo,
+			     const char *label, struct plot_callbacks *cb);
+
+/* cpu plot */
+void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);
 
 #endif /* _TRACE_GRAPH_H */
