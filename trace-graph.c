@@ -71,6 +71,20 @@ static void convert_nano(unsigned long long time, unsigned long *sec,
 	*usec = (time / 1000) % 1000000;
 }
 
+static int convert_time_to_x(struct graph_info *ginfo, guint64 time)
+{
+	if (time < ginfo->view_start_time)
+		return 0;
+	return (time - ginfo->view_start_time) * ginfo->resolution;
+}
+
+static guint64 convert_x_to_time(struct graph_info *ginfo, gint x)
+{
+	double d = x;
+
+	return (guint64)(d / ginfo->resolution) + ginfo->view_start_time;
+}
+
 static void print_time(unsigned long long time)
 {
 	unsigned long sec, usec;
@@ -256,8 +270,7 @@ static void draw_cursor(struct graph_info *ginfo)
 	    ginfo->cursor > ginfo->view_end_time)
 		return;
 
-	x = (ginfo->cursor - ginfo->view_start_time)
-		* ginfo->resolution;
+	x = convert_time_to_x(ginfo, ginfo->cursor);
 
 	gdk_draw_line(ginfo->draw->window, ginfo->draw->style->mid_gc[3],
 		      x, 0, x, ginfo->draw->allocation.width);
@@ -511,7 +524,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	else
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
 
-	time =  (x / ginfo->resolution) + ginfo->view_start_time;
+	time =  convert_x_to_time(ginfo, x);
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 		if (y >= (CPU_TOP(cpu) - CPU_GIVE) &&
@@ -599,14 +612,12 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		}
 		if (ginfo->cursor >= ginfo->view_start_time &&
 		    ginfo->cursor <= ginfo->view_end_time) {
-			ginfo->last_x = (ginfo->cursor - ginfo->view_start_time)
-				* ginfo->resolution;
+			ginfo->last_x = convert_time_to_x(ginfo, ginfo->cursor);
 			ginfo->cursor = 0;
 			clear_last_line(widget, ginfo);
 		}
 
-		ginfo->cursor = event->x / ginfo->resolution +
-			ginfo->view_start_time;
+		ginfo->cursor = convert_x_to_time(ginfo, event->x);
 		draw_cursor(ginfo);
 		if (ginfo->callbacks && ginfo->callbacks->select)
 			ginfo->callbacks->select(ginfo, ginfo->cursor);
@@ -879,7 +890,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 		gdk_gc_set_foreground(pix_bg, &color);
 	}
 
-	time =  (x / ginfo->resolution) + ginfo->view_start_time;
+	time =  convert_x_to_time(ginfo, x);
 	convert_nano(time, &sec, &usec);
 
 	pevent = ginfo->pevent;
@@ -1192,7 +1203,7 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 	update_graph_to_start_x(ginfo);
 
 	ginfo->hadj_value = start;
-	ginfo->hadj_value = (start_time - ginfo->view_start_time) * ginfo->resolution;
+	ginfo->hadj_value = convert_time_to_x(ginfo, start_time);
 
 	if (ginfo->hadj_value > (ginfo->draw_width - view_width))
 		ginfo->hadj_value = ginfo->draw_width - view_width;
@@ -1209,7 +1220,7 @@ static void zoom_in_window(struct graph_info *ginfo, gint start, gint end)
 
 
 	dprintf(1, "*** ended with with ");
-	print_time(ginfo->hadj_value / ginfo->resolution + ginfo->view_start_time);
+	print_time(convert_x_to_time(ginfo, ginfo->hadj_value));
 	dprintf(1, "\n");
 
 }
@@ -1244,7 +1255,7 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	start_x = gtk_adjustment_get_value(ginfo->hadj);
 	mid = start_x + view_width / 2;
 
-	time = mid / ginfo->resolution + ginfo->view_start_time;
+	time = convert_x_to_time(ginfo, mid);
 
 	divider = start - end;
 
@@ -1291,7 +1302,7 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 	else
 		gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 
-	mid = (time - ginfo->view_start_time) * ginfo->resolution;
+	mid = convert_time_to_x(ginfo, time);
 	start_x = mid - view_width / 2;
 	if (start_x < 0)
 		start_x = 0;
@@ -1668,7 +1679,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 
 	for (mid = view_width / 2; mid < (width - view_width / 2 + 10);
 	     mid += view_width / 2) {
-		time = mid / ginfo->resolution + ginfo->view_start_time;
+		time = convert_x_to_time(ginfo, mid);
 
 		convert_nano(time, &sec, &usec);
 		trace_seq_init(&s);
@@ -1749,7 +1760,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 		redraw_pixmap_backend(ginfo);
 
 	/* Adjust start to be the location for the hadj */
-	mid = (time - ginfo->view_start_time) * ginfo->resolution;
+	mid = convert_time_to_x(ginfo, time);
 	start = mid - view_width / 2;
 	if (start < 0)
 		start = 0;
@@ -1758,8 +1769,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 		start = width - view_width;
 	gtk_adjustment_set_value(ginfo->hadj, start);
 
-	ginfo->last_x = (ginfo->cursor - ginfo->view_start_time)
-		* ginfo->resolution;
+	ginfo->last_x = convert_time_to_x(ginfo, ginfo->cursor);
 	ginfo->cursor = 0;
 	clear_last_line(ginfo->draw, ginfo);
 	ginfo->cursor = time;
