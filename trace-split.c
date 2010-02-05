@@ -155,14 +155,15 @@ static int write_record(struct tracecmd_input *handle,
 	return 1;
 }
 
-static void write_page(struct cpu_data *cpu_data, int long_size)
+static void write_page(struct pevent *pevent,
+		       struct cpu_data *cpu_data, int long_size)
 {
 	if (long_size == 8)
 		*(unsigned long long *)cpu_data->commit =
-			(unsigned long long)cpu_data->index - 16;
+			__data2host8(pevent, (unsigned long long)cpu_data->index - 16);
 	else
 		*(unsigned int *)cpu_data->commit =
-			cpu_data->index - 12;
+			__data2host4(pevent, cpu_data->index - 12);
 	write(cpu_data->fd, cpu_data->page, page_size);
 }
 
@@ -226,7 +227,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 	while (record && (!end || record->ts <= end)) {
 		if (cpu_data[cpu].index + record->record_size > page_size) {
 			if (cpu_data[cpu].page)
-				write_page(&cpu_data[cpu], long_size);
+				write_page(pevent, &cpu_data[cpu], long_size);
 			else
 				cpu_data[cpu].page = malloc_or_die(page_size);
 
@@ -304,14 +305,14 @@ static int parse_cpu(struct tracecmd_input *handle,
 
 	if (percpu) {
 		if (cpu_data[cpu].page) {
-			write_page(&cpu_data[cpu], long_size);
+			write_page(pevent, &cpu_data[cpu], long_size);
 			free(cpu_data[cpu].page);
 			cpu_data[cpu].page = NULL;
 		}
 	} else {
 		for (cpu = 0; cpu < cpus; cpu++) {
 			if (cpu_data[cpu].page) {
-				write_page(&cpu_data[cpu], long_size);
+				write_page(pevent, &cpu_data[cpu], long_size);
 				free(cpu_data[cpu].page);
 				cpu_data[cpu].page = NULL;
 			}

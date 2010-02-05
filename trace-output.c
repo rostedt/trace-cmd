@@ -23,6 +23,7 @@ struct tracecmd_output {
 	int		fd;
 	int		page_size;
 	int		cpus;
+	struct pevent	*pevent;
 	char		*tracing_dir;
 };
 
@@ -30,6 +31,23 @@ static int
 do_write_check(struct tracecmd_output *handle, void *data, int size)
 {
 	return __do_write_check(handle->fd, data, size);
+}
+
+static int convert_endian_4(struct tracecmd_output *handle, int val)
+{
+	if (!handle->pevent)
+		return val;
+
+	return __data2host4(handle->pevent, val);
+}
+
+static unsigned long long convert_endian_8(struct tracecmd_output *handle,
+					   unsigned long long val)
+{
+	if (!handle->pevent)
+		return val;
+
+	return __data2host8(handle->pevent, val);
 }
 
 void tracecmd_output_close(struct tracecmd_output *handle)
@@ -44,6 +62,9 @@ void tracecmd_output_close(struct tracecmd_output *handle)
 
 	if (handle->tracing_dir)
 		free(handle->tracing_dir);
+
+	if (handle->pevent)
+		pevent_unref(handle->pevent);
 
 	free(handle);
 }
@@ -172,7 +193,7 @@ int tracecmd_ftrace_enable(int set)
 
 static int read_header_files(struct tracecmd_output *handle)
 {
-	unsigned long long size, check_size;
+	unsigned long long size, check_size, endian8;
 	struct stat st;
 	char *path;
 	int fd;
@@ -209,7 +230,8 @@ static int read_header_files(struct tracecmd_output *handle)
 
 	if (do_write_check(handle, "header_page", 12))
 		goto out_close;
-	if (do_write_check(handle, &size, 8))
+	endian8 = convert_endian_8(handle, size);
+	if (do_write_check(handle, &endian8, 8))
 		goto out_close;
 	check_size = copy_file_fd(handle, fd);
 	close(fd);
@@ -233,7 +255,8 @@ static int read_header_files(struct tracecmd_output *handle)
 
 	if (do_write_check(handle, "header_event", 13))
 		goto out_close;
-	if (do_write_check(handle, &size, 8))
+	endian8 = convert_endian_8(handle, size);
+	if (do_write_check(handle, &endian8, 8))
 		goto out_close;
 	check_size = copy_file_fd(handle, fd);
 	close(fd);
@@ -251,11 +274,12 @@ static int read_header_files(struct tracecmd_output *handle)
 
 static int copy_event_system(struct tracecmd_output *handle, const char *sys)
 {
-	unsigned long long size, check_size;
+	unsigned long long size, check_size, endian8;
 	struct dirent *dent;
 	struct stat st;
 	char *format;
 	DIR *dir;
+	int endian4;
 	int count = 0;
 	int ret;
 
@@ -280,7 +304,8 @@ static int copy_event_system(struct tracecmd_output *handle, const char *sys)
 		count++;
 	}
 
-	if (do_write_check(handle, &count, 4))
+	endian4 = convert_endian_4(handle, count);
+	if (do_write_check(handle, &endian4, 4))
 		return -1;
 	
 	rewinddir(dir);
@@ -297,7 +322,8 @@ static int copy_event_system(struct tracecmd_output *handle, const char *sys)
 		if (ret >= 0) {
 			/* unfortunately, you can not stat debugfs files for size */
 			size = get_size(format);
-			if (do_write_check(handle, &size, 8))
+			endian8 = convert_endian_8(handle, size);
+			if (do_write_check(handle, &endian8, 8))
 				goto out_free;
 			check_size = copy_file(handle, format);
 			if (size != check_size) {
@@ -340,6 +366,7 @@ static int read_event_files(struct tracecmd_output *handle)
 	char *sys;
 	DIR *dir;
 	int count = 0;
+	int endian4;
 	int ret;
 
 	path = get_tracing_file(handle, "events");
@@ -369,7 +396,8 @@ static int read_event_files(struct tracecmd_output *handle)
 	}
 
 	ret = -1;
-	if (do_write_check(handle, &count, 4))
+	endian4 = convert_endian_4(handle, count);
+	if (do_write_check(handle, &endian4, 4))
 		goto out_close_dir;
 
 	rewinddir(dir);
@@ -410,7 +438,7 @@ static int read_event_files(struct tracecmd_output *handle)
 
 static int read_proc_kallsyms(struct tracecmd_output *handle)
 {
-	unsigned int size, check_size;
+	unsigned int size, check_size, endian4;
 	const char *path = "/proc/kallsyms";
 	struct stat st;
 	int ret;
@@ -419,12 +447,14 @@ static int read_proc_kallsyms(struct tracecmd_output *handle)
 	if (ret < 0) {
 		/* not found */
 		size = 0;
-		if (do_write_check(handle, &size, 4))
+		endian4 = convert_endian_4(handle, size);
+		if (do_write_check(handle, &endian4, 4))
 			return -1;
 		return 0;
 	}
 	size = get_size(path);
-	if (do_write_check(handle, &size, 4))
+	endian4 = convert_endian_4(handle, size);
+	if (do_write_check(handle, &endian4, 4))
 		return -1;
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
@@ -438,7 +468,7 @@ static int read_proc_kallsyms(struct tracecmd_output *handle)
 
 static int read_ftrace_printk(struct tracecmd_output *handle)
 {
-	unsigned int size, check_size;
+	unsigned int size, check_size, endian4;
 	const char *path;
 	struct stat st;
 	int ret;
@@ -451,12 +481,14 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	if (ret < 0) {
 		/* not found */
 		size = 0;
-		if (do_write_check(handle, &size, 4))
+		endian4 = convert_endian_4(handle, size);
+		if (do_write_check(handle, &endian4, 4))
 			return -1;
 		return 0;
 	}
 	size = get_size(path);
-	if (do_write_check(handle, &size, 4))
+	endian4 = convert_endian_4(handle, size);
+	if (do_write_check(handle, &endian4, 4))
 		return -1;
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
@@ -472,12 +504,14 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 					   struct tracecmd_input *ihandle)
 {
 	struct tracecmd_output *handle;
+	unsigned long long endian8;
 	struct pevent *pevent;
 	char buf[BUFSIZ];
 	char *file = NULL;
 	struct stat st;
 	off64_t check_size;
 	off64_t size;
+	int endian4;
 	int ret;
 
 	handle = malloc(sizeof(*handle));
@@ -503,6 +537,9 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 	/* get endian and page size */
 	if (ihandle) {
 		pevent = tracecmd_get_pevent(ihandle);
+		/* Use the pevent of the ihandle for later writes */
+		handle->pevent = tracecmd_get_pevent(ihandle);
+		pevent_ref(pevent);
 		if (pevent->file_bigendian)
 			buf[0] = 1;
 		else
@@ -524,7 +561,8 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 	if (do_write_check(handle, buf, 1))
 		goto out_free;
 
-	if (do_write_check(handle, &handle->page_size, 4))
+	endian4 = convert_endian_4(handle, handle->page_size);
+	if (do_write_check(handle, &endian4, 4))
 		goto out_free;
 
 	if (ihandle)
@@ -548,7 +586,8 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 	ret = stat(file, &st);
 	if (ret >= 0) {
 		size = get_size(file);
-		if (do_write_check(handle, &size, 8))
+		endian8 = convert_endian_8(handle, size);
+		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
 		check_size = copy_file(handle, file);
 		if (size != check_size) {
@@ -558,7 +597,8 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 		}
 	} else {
 		size = 0;
-		if (do_write_check(handle, &size, 8))
+		endian8 = convert_endian_8(handle, size);
+		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
 	}
 	put_tracing_file(file);
@@ -580,6 +620,7 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	if (!handle)
 		return NULL;
 
+	cpus = convert_endian_4(handle, cpus);
 	if (do_write_check(handle, &cpus, 4))
 		goto out_free;
 
@@ -607,13 +648,16 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 	unsigned long long *offsets = NULL;
 	unsigned long long *sizes = NULL;
 	unsigned long long offset;
+	unsigned long long endian8;
 	off64_t check_size;
 	char *file;
 	struct stat st;
+	int endian4;
 	int ret;
 	int i;
 
-	if (do_write_check(handle, &cpus, 4))
+	endian4 = convert_endian_4(handle, cpus);
+	if (do_write_check(handle, &endian4, 4))
 		goto out_free;
 
 	if (do_write_check(handle, "flyrecord", 10))
@@ -644,9 +688,11 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 		offset += st.st_size;
 		offset = (offset + (handle->page_size - 1)) & ~(handle->page_size - 1);
 
-		if (do_write_check(handle, &offsets[i], 8))
+		endian8 = convert_endian_8(handle, offsets[i]);
+		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
-		if (do_write_check(handle, &sizes[i], 8))
+		endian8 = convert_endian_8(handle, sizes[i]);
+		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
 	}
 
