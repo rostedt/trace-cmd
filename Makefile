@@ -157,8 +157,8 @@ PLUGIN_OBJS = plugin_hrtimer.o plugin_kmem.o plugin_sched_switch.o \
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
-ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) \
-	$(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
+ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) \
+	$(TRACE_GRAPH_MAIN_OBJS) $(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
 
 CMD_TARGETS = tc_version.h libparsevent.a $(LIB_FILE) trace-cmd  $(PLUGINS)
 
