@@ -1186,7 +1186,7 @@ search_for_record_by_timestamp(TraceViewStore *store, guint64 ts)
 		return store->rows[store->visible_rows-1];
 
 	key.timestamp = ts;
-	prec = bsearch(&key, store->rows, store->visible_rows - 2,
+	prec = bsearch(&key, store->rows, store->visible_rows - 1,
 		       sizeof(store->rows[0]), rows_ts_cmp);
 
 	g_assert(prec != NULL);
