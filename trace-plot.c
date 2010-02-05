@@ -27,7 +27,8 @@ void trace_graph_plot_init(struct graph_info *ginfo)
 }
 
 void trace_graph_plot_append(struct graph_info *ginfo,
-			     const char *label, struct plot_callbacks *cb)
+			     const char *label, const struct plot_callbacks *cb,
+			     void *data)
 {
 	struct graph_plot *plot;
 	char *name;
@@ -41,6 +42,7 @@ void trace_graph_plot_append(struct graph_info *ginfo,
 
 	plot->label = name;
 	plot->cb = cb;
+	plot->private = data;
 
 	plot->next = ginfo->plot_list;
 	ginfo->plot_list = plot;
@@ -60,4 +62,14 @@ void trace_graph_plot_append(struct graph_info *ginfo,
 	}
 
 	ginfo->plots++;
+}
+
+int trace_graph_plot_match_time(struct graph_info *ginfo,
+				struct graph_plot *plot,
+				unsigned long long time)
+{
+	if (!plot->cb->match_time)
+		return 0;
+
+	return plot->cb->match_time(ginfo, plot, time);
 }

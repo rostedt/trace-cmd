@@ -1721,7 +1721,6 @@ static void draw_info(struct graph_info *ginfo,
 
 void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 {
-	struct record *record = NULL;
 	GtkAdjustment *vadj;
 	gint view_start;
 	gint view_width;
@@ -1729,7 +1728,8 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	gint mid;
 	gint start;
 	gint end;
-	gint cpu;
+	int ret;
+	gint i;
 	guint64 old_start_time = ginfo->view_start_time;
 
 	view_width = gtk_adjustment_get_page_size(ginfo->hadj);
@@ -1780,20 +1780,13 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	 * If a record exists at this exact time value, we should
 	 * make sure that it is in view.
 	 */
-	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-		record = tracecmd_read_data(ginfo->handle, cpu);
-		while (record && record->ts < time) {
-			free_record(record);
-			record = tracecmd_read_data(ginfo->handle, cpu);
-		}
-		if (record && record->ts == time)
+	for (i = 0; i < ginfo->plots; i++) {
+		ret = trace_graph_plot_match_time(ginfo, ginfo->plot_array[i],
+						  time);
+		if (ret)
 			break;
-		free_record(record);
-		record = NULL;
 	}
-	free_record(record);
-	if (cpu == ginfo->cpus)
+	if (i == ginfo->plots)
 		return;
 
 	/* Make sure PLOT is visible */
@@ -1801,15 +1794,15 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 	view_start = gtk_adjustment_get_value(vadj);
 	view_width = gtk_adjustment_get_page_size(vadj);
 
-	if (PLOT_TOP(cpu) > view_start &&
-	    PLOT_BOTTOM(cpu) < view_start + view_width)
+	if (PLOT_TOP(i) > view_start &&
+	    PLOT_BOTTOM(i) < view_start + view_width)
 		return;
 
-	if (PLOT_TOP(cpu) < view_start)
-		gtk_adjustment_set_value(vadj, PLOT_TOP(cpu) - 5);
+	if (PLOT_TOP(i) < view_start)
+		gtk_adjustment_set_value(vadj, PLOT_TOP(i) - 5);
 
-	if (PLOT_BOTTOM(cpu) > view_start + view_width)
-		gtk_adjustment_set_value(vadj, (PLOT_BOTTOM(cpu) - view_width) + 10);
+	if (PLOT_BOTTOM(i) > view_start + view_width)
+		gtk_adjustment_set_value(vadj, (PLOT_BOTTOM(i) - view_width) + 10);
 }
 
 static void graph_free_systems(struct graph_info *ginfo)

@@ -12,14 +12,24 @@ typedef void (graph_filter_cb)(struct graph_info *ginfo,
 			       struct filter_task *task_filter,
 			       struct filter_task *hide_tasks);
 
+struct graph_plot;
+
+/*
+ * match_time:
+ *   Return true if a selected time should expose plot.
+ *   Should only return true if an event has the exact time that
+ *   is passed in.
+ */
 struct plot_callbacks {
-	void			*private;
+	int (*match_time)(struct graph_info *, struct graph_plot *,
+			  unsigned long long time);
 };
 
 struct graph_plot {
-	struct graph_plot	*next;
-	char			*label;
-	struct plot_callbacks	*cb;
+	struct graph_plot		*next;
+	char				*label;
+	const struct plot_callbacks	*cb;
+	void				*private;
 };
 
 struct graph_callbacks {
@@ -154,7 +164,13 @@ int trace_graph_load_handle(struct graph_info *ginfo,
 void trace_graph_plot_free(struct graph_info *ginfo);
 void trace_graph_plot_init(struct graph_info *ginfo);
 void trace_graph_plot_append(struct graph_info *ginfo,
-			     const char *label, struct plot_callbacks *cb);
+			     const char *label, const struct plot_callbacks *cb,
+			     void *data);
+
+int trace_graph_plot_match_time(struct graph_info *ginfo,
+				struct graph_plot *plot,
+				unsigned long long time);
+
 
 /* cpu plot */
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);
