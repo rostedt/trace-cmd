@@ -18,6 +18,13 @@ static gint hash_pid(gint val)
 	return trace_hash(val);
 }
 
+static void convert_nano(unsigned long long time, unsigned long *sec,
+			 unsigned long *usec)
+{
+	*sec = time / 1000000000ULL;
+	*usec = (time / 1000) % 1000000;
+}
+
 static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot,
 			       unsigned long long time)
 {
@@ -312,12 +319,90 @@ cpu_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
 	return find_record_on_cpu(ginfo, cpu, time);
 }
 
+int cpu_plot_display_info(struct graph_info *ginfo,
+			  struct graph_plot *plot,
+			  struct trace_seq *s,
+			  unsigned long long time)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+	struct event_format *event;
+	struct record *record;
+	struct pevent *pevent;
+	unsigned long sec, usec;
+	const char *comm;
+	int type;
+	int pid;
+	int cpu;
+	int ret = 0;
+
+	cpu = cpu_info->cpu;
+
+	record = find_record_on_cpu(ginfo, cpu, time);
+
+	if (!record) {
+		/* try last record */
+		record = tracecmd_read_cpu_last(ginfo->handle, cpu);
+		if (record && record->ts < time) {
+			if (!trace_graph_check_sched_switch(ginfo, record, &pid, &comm)) {
+				pid = pevent_data_pid(ginfo->pevent, record);
+				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+			}
+
+			trace_seq_printf(s, "%lu.%06lu", sec, usec);
+			if (pid)
+				trace_seq_printf(s, " %s-%d", comm, pid);
+			else
+				trace_seq_puts(s, " <idle>");
+			ret = 1;
+		}
+		free_record(record);
+		return ret;
+	}
+
+	pevent = ginfo->pevent;
+
+	pid = pevent_data_pid(ginfo->pevent, record);
+	comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+
+	if (record->ts > time - 2/ginfo->resolution &&
+	    record->ts < time + 2/ginfo->resolution) {
+
+		convert_nano(record->ts, &sec, &usec);
+
+		type = pevent_data_type(pevent, record);
+		event = pevent_data_event_from_type(pevent, type);
+		if (event) {
+			trace_seq_puts(s, event->name);
+			trace_seq_putc(s, '\n');
+			pevent_data_lat_fmt(pevent, s, record);
+			trace_seq_putc(s, '\n');
+			pevent_event_info(s, event, record);
+			trace_seq_putc(s, '\n');
+		} else
+			trace_seq_printf(s, "UNKNOW EVENT %d\n", type);
+	} else {
+		if (record->ts < time)
+			trace_graph_check_sched_switch(ginfo, record, &pid, &comm);
+	}
+
+	trace_seq_printf(s, "%lu.%06lu", sec, usec);
+	if (pid)
+		trace_seq_printf(s, " %s-%d", comm, pid);
+	else
+		trace_seq_puts(s, " <idle>");
+
+	free_record(record);
+
+	return 1;
+}
+
 static const struct plot_callbacks cpu_plot_cb = {
 	.match_time		= cpu_plot_match_time,
 	.plot_event		= cpu_plot_event,
 	.start			= cpu_plot_start,
 	.display_last_event	= cpu_plot_display_last_event,
 	.find_record		= cpu_plot_find_record,
+	.display_info		= cpu_plot_display_info,
 };
 
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)

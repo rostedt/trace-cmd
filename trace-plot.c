@@ -132,3 +132,15 @@ trace_graph_plot_find_record(struct graph_info *ginfo,
 
 	return plot->cb->find_record(ginfo, plot, time);
 }
+
+int trace_graph_plot_display_info(struct graph_info *ginfo,
+				  struct graph_plot *plot,
+				  struct trace_seq *s,
+				  unsigned long long time)
+{
+	if (!plot->cb->display_info)
+		return 0;
+
+	return plot->cb->display_info(ginfo, plot, s, time);
+}
+

@@ -324,33 +324,6 @@ static void redraw_graph(struct graph_info *ginfo)
 	update_with_backend(ginfo, 0, 0, width, height);
 }
 
-static struct record *
-find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
-{
-	struct record *record = NULL;
-	guint64 offset = 0;
-
-	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-	do {
-		if (record) {
-			offset = record->offset;
-			free_record(record);
-		}
-		record = tracecmd_read_data(ginfo->handle, cpu);
-	} while (record && record->ts <= (time - 1 / ginfo->resolution));
-
-	if (record) {
-
-		if (record->ts > (time + 1 / ginfo->resolution) && offset) {
-			dprintf(3, "old ts = %llu!\n", record->ts);
-			free_record(record);
-			record = tracecmd_read_at(ginfo->handle, offset, NULL);
-		}
-	}
-
-	return record;
-}
-
 void trace_graph_filter_toggle(struct graph_info *ginfo)
 {
 	ginfo->filter_enabled ^= 1;
@@ -717,34 +690,6 @@ info_button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer dat
 	return FALSE;
 }
 
-static void print_rec_info(struct record *record, struct pevent *pevent, int cpu)
-{
-	struct trace_seq s;
-	struct event_format *event;
-	unsigned long sec, usec;
-	gint type;
-
-	if (DEBUG_LEVEL < 3)
-		return;
-
-	trace_seq_init(&s);
-
-	convert_nano(record->ts, &sec, &usec);
-	trace_seq_printf(&s, "%lu.%06lu", sec, usec);
-
-	type = pevent_data_type(pevent, record);
-	event = pevent_data_event_from_type(pevent, type);
-	if (!event) {
-		printf("No event found for id %d!\n", type);
-		return;
-	}
-	trace_seq_puts(&s, event->name);
-	trace_seq_putc(&s, ':');
-	pevent_event_info(&s, event, record);
-	trace_seq_putc(&s, '\n');
-	trace_seq_do_printf(&s);
-}
-
 #define PLOT_BOARDER 5
 
 int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
@@ -858,23 +803,17 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 	return 0;
 }
 
-static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
+static void draw_plot_info(struct graph_info *ginfo, gint i, gint x, gint y)
 {
 	PangoLayout *layout;
 	GtkAdjustment *vadj;
-	struct record *record = NULL;
 	struct pevent *pevent;
-	struct event_format *event;
 	guint64 time;
-	const char *comm;
-	gint pid = -1;
-	gint type;
 	unsigned long sec, usec;
 	struct trace_seq s;
 	gint width, height;
 	GdkPixmap *pix;
 	static GdkGC *pix_bg;
-	guint64 offset = 0;
 	gint view_width;
 	gint view_start;
 
@@ -899,73 +838,10 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	dprintf(3, "start=%llu end=%llu time=%llu\n",
 		(u64)ginfo->start_time, (u64)ginfo->end_time, (u64)time);
 
-	record = find_record_on_cpu(ginfo, cpu, time);
-
-	if (record) {
-
-		dprintf(3, "record->ts=%llu time=%llu-%llu\n",
-			record->ts, (u64)time,
-			(u64)(time-(gint)(1/ginfo->resolution)));
-		print_rec_info(record, pevent, cpu);
-
-		/*
-		 * The function graph trace reads the next record, which may
-		 * unmap the record data. We need to reread the record to
-		 * make sure it still exists.
-		 */
-		offset = record->offset;
-		free_record(record);
-		record = tracecmd_read_at(ginfo->handle, offset, NULL);		
-
-		pid = pevent_data_pid(ginfo->pevent, record);
-		comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
-
-		if (record->ts > time - 2/ginfo->resolution &&
-		    record->ts < time + 2/ginfo->resolution) {
-
-			convert_nano(record->ts, &sec, &usec);
-
-			type = pevent_data_type(pevent, record);
-			event = pevent_data_event_from_type(pevent, type);
-			if (event) {
-				trace_seq_puts(&s, event->name);
-				trace_seq_putc(&s, '\n');
-				pevent_data_lat_fmt(pevent, &s, record);
-				trace_seq_putc(&s, '\n');
-				pevent_event_info(&s, event, record);
-				trace_seq_putc(&s, '\n');
-			} else
-				trace_seq_printf(&s, "UNKNOW EVENT %d\n", type);
-		} else {
-			if (record->ts < time)
-				trace_graph_check_sched_switch(ginfo, record, &pid, &comm);
-		}
-
+	if (!trace_graph_plot_display_info(ginfo, ginfo->plot_array[i], &s, time)) {
+		/* Just display the current time */
+		trace_seq_init(&s);
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
-		if (pid)
-			trace_seq_printf(&s, " %s-%d", comm, pid);
-		else
-			trace_seq_puts(&s, " <idle>");
-
-		free_record(record);
-
-	} else {
-		record = tracecmd_read_cpu_last(ginfo->handle, cpu);
-		if (record && record->ts < time) {
-			if (!trace_graph_check_sched_switch(ginfo, record, &pid, &comm)) {
-				pid = pevent_data_pid(ginfo->pevent, record);
-				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
-			}
-
-			trace_seq_printf(&s, "%lu.%06lu", sec, usec);
-			if (pid)
-				trace_seq_printf(&s, " %s-%d", comm, pid);
-			else
-				trace_seq_puts(&s, " <idle>");
-
-		} else
-			trace_seq_printf(&s, "%lu.%06lu", sec, usec);
-		free_record(record);
 	}
 
 	trace_seq_putc(&s, 0);
@@ -1024,7 +900,7 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	struct graph_info *ginfo = data;
 	GdkModifierType state;
 	gint x, y;
-	gint cpu;
+	gint i;
 
 	if (!ginfo->handle)
 		return FALSE;
@@ -1051,10 +927,10 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 		return TRUE;
 	}
 
-	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		if (y >= (PLOT_TOP(cpu) - PLOT_GIVE) &&
-		    y <= (PLOT_BOTTOM(cpu) + PLOT_GIVE))
-			draw_cpu_info(ginfo, cpu, x, y);
+	for (i = 0; i < ginfo->plots; i++) {
+		if (y >= (PLOT_TOP(i) - PLOT_GIVE) &&
+		    y <= (PLOT_BOTTOM(i) + PLOT_GIVE))
+			draw_plot_info(ginfo, i, x, y);
 	}
 
 	return TRUE;

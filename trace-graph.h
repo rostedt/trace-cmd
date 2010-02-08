@@ -49,6 +49,10 @@ struct graph_plot;
  *
  * find_record:
  *   return a tracecmd record for a given time.
+ *
+ * display_info:
+ *   display information about a given time. A resolution is
+ *   passed in to show how much time is in 1 pixel.
  */
 struct plot_callbacks {
 	int (*match_time)(struct graph_info *, struct graph_plot *,
@@ -67,6 +71,9 @@ struct plot_callbacks {
 				  struct trace_seq *s, unsigned long long time);
 	struct record *(*find_record)(struct graph_info *, struct graph_plot *,
 				      unsigned long long time);
+	int (*display_info)(struct graph_info *, struct graph_plot *,
+			    struct trace_seq *s,
+			    unsigned long long time);
 };
 
 struct graph_plot {
@@ -248,6 +255,11 @@ struct record *
 trace_graph_plot_find_record(struct graph_info *ginfo,
 			     struct graph_plot *plot,
 			     unsigned long long time);
+
+int trace_graph_plot_display_info(struct graph_info *ginfo,
+				  struct graph_plot *plot,
+				  struct trace_seq *s,
+				  unsigned long long time);
 
 /* cpu plot */
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);
