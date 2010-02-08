@@ -46,6 +46,9 @@ struct graph_plot;
  *   a event, the plot may ask to display that event.
  *   The time will be given to find the event, the time may be before
  *   the given event.
+ *
+ * find_record:
+ *   return a tracecmd record for a given time.
  */
 struct plot_callbacks {
 	int (*match_time)(struct graph_info *, struct graph_plot *,
@@ -62,6 +65,8 @@ struct plot_callbacks {
 	void (*end)(struct graph_info *, struct graph_plot *);
 	int (*display_last_event)(struct graph_info *ginfo, struct graph_plot *plot,
 				  struct trace_seq *s, unsigned long long time);
+	struct record *(*find_record)(struct graph_info *, struct graph_plot *,
+				      unsigned long long time);
 };
 
 struct graph_plot {
@@ -238,6 +243,11 @@ int trace_graph_plot_event(struct graph_info *ginfo,
 
 void trace_graph_plot_end(struct graph_info *ginfo,
 			  struct graph_plot *plot);
+
+struct record *
+trace_graph_plot_find_record(struct graph_info *ginfo,
+			     struct graph_plot *plot,
+			     unsigned long long time);
 
 /* cpu plot */
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);

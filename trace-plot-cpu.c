@@ -275,12 +275,49 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	return ret;
 }
 
+static struct record *
+find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
+{
+	struct record *record = NULL;
+	guint64 offset = 0;
+
+	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+	do {
+		if (record) {
+			offset = record->offset;
+			free_record(record);
+		}
+		record = tracecmd_read_data(ginfo->handle, cpu);
+	} while (record && record->ts <= (time - 1 / ginfo->resolution));
+
+	if (record) {
+		if (record->ts > (time + 1 / ginfo->resolution) && offset) {
+			free_record(record);
+			record = tracecmd_read_at(ginfo->handle, offset, NULL);
+		}
+	}
+
+	return record;
+}
+
+static struct record *
+cpu_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
+		     unsigned long long time)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+	int cpu;
+
+	cpu = cpu_info->cpu;
+
+	return find_record_on_cpu(ginfo, cpu, time);
+}
 
 static const struct plot_callbacks cpu_plot_cb = {
 	.match_time		= cpu_plot_match_time,
 	.plot_event		= cpu_plot_event,
 	.start			= cpu_plot_start,
-	.display_last_event	= cpu_plot_display_last_event
+	.display_last_event	= cpu_plot_display_last_event,
+	.find_record		= cpu_plot_find_record,
 };
 
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)

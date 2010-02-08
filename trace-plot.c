@@ -121,3 +121,14 @@ int trace_graph_plot_display_last_event(struct graph_info *ginfo,
 
 	return plot->cb->display_last_event(ginfo, plot, s, time);
 }
+
+struct record *
+trace_graph_plot_find_record(struct graph_info *ginfo,
+			     struct graph_plot *plot,
+			     unsigned long long time)
+{
+	if (!plot->cb->find_record)
+		return 0;
+
+	return plot->cb->find_record(ginfo, plot, time);
+}

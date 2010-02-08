@@ -456,13 +456,14 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_hide_task;
 	static GtkWidget *menu_filter_clear_tasks;
 	struct record *record = NULL;
+	struct graph_plot *plot;
 	const char *comm;
 	guint64 time;
 	gchar *text;
 	gint pid;
 	gint len;
 	gint x, y;
-	gint cpu;
+	gint i;
 
 	x = event->x;
 	y = event->y;
@@ -523,10 +524,11 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	time =  convert_x_to_time(ginfo, x);
 
-	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		if (y >= (PLOT_TOP(cpu) - PLOT_GIVE) &&
-		    y <= (PLOT_BOTTOM(cpu) + PLOT_GIVE)) {
-			record = find_record_on_cpu(ginfo, cpu, time);
+	for (i = 0; i < ginfo->plots; i++) {
+		if (y >= (PLOT_TOP(i) - PLOT_GIVE) &&
+		    y <= (PLOT_BOTTOM(i) + PLOT_GIVE)) {
+			plot = ginfo->plot_array[i];
+			record = trace_graph_plot_find_record(ginfo, plot, time);
 			break;
 		}
 	}
