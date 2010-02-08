@@ -816,13 +816,13 @@ read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 }
 
 static struct record *
-read_event(struct tracecmd_input *handle, unsigned long long offset,
+peek_event(struct tracecmd_input *handle, unsigned long long offset,
 	   int cpu)
 {
 	struct record *record = NULL;
 
 	/*
-	 * Since the timestamp is calculated from the beginnnig
+	 * Since the timestamp is calculated from the beginning
 	 * of the page and through each event, we reset the
 	 * page to the beginning. This is just used by
 	 * tracecmd_read_at.
@@ -834,21 +834,30 @@ read_event(struct tracecmd_input *handle, unsigned long long offset,
 	}
 
 	do {
-		if (record)
-			free_record(record);
-		/* Make sure peek returns new data */
-		if (handle->cpu_data[cpu].next) {
-			free_record(handle->cpu_data[cpu].next);
-			handle->cpu_data[cpu].next = NULL;
-		}
+		free_record(record);
+		record = tracecmd_peek_data(handle, cpu);
+		if (record && (record->offset + record->record_size) > offset)
+			break;
 		record = tracecmd_read_data(handle, cpu);
-        } while (record && (record->offset + record->record_size) <= offset);
+        } while (record);
 
 	return record;
 }
 
 static struct record *
-find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
+read_event(struct tracecmd_input *handle, unsigned long long offset,
+	   int cpu)
+{
+	struct record *record;
+
+	record = peek_event(handle, offset, cpu);
+	if (record)
+		record = tracecmd_read_data(handle, cpu);
+	return record;
+}
+
+static struct record *
+find_and_peek_event(struct tracecmd_input *handle, unsigned long long offset,
 		    int *pcpu)
 {
 	unsigned long long page_offset;
@@ -875,7 +884,24 @@ find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 	if (pcpu)
 		*pcpu = cpu;
 
-	return read_event(handle, offset, cpu);
+	return peek_event(handle, offset, cpu);
+}
+
+
+static struct record *
+find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
+		    int *pcpu)
+{
+	struct record *record;
+	int cpu;
+
+	record = find_and_peek_event(handle, offset, &cpu);
+	if (record) {
+		record = tracecmd_read_data(handle, cpu);
+		if (pcpu)
+			*pcpu = cpu;
+	}
+	return record;
 }
 
 /**
@@ -1146,6 +1172,50 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 
 	return 0;
 }
+
+/**
+ * tracecmd_set_cursor - set the offset for the next tracecmd_read_data
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU pointer to set
+ * @offset: the offset to place the cursor
+ *
+ * Set the pointer to the next read or peek. This is useful when
+ * needing to read sequentially and then look at another record
+ * out of sequence without breaking the iteration. This is done with:
+ *
+ *  record = tracecmd_peek_data()
+ *  offset = record->offset;
+ *  record = tracecmd_read_at();
+ *   - do what ever with record -
+ *  tracecmd_set_cursor(handle, cpu, offset);
+ *
+ *  Now the next tracecmd_peek_data or tracecmd_read_data will return
+ *  the original record.
+ */
+int tracecmd_set_cursor(struct tracecmd_input *handle,
+			int cpu, unsigned long long offset)
+{
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	unsigned long long page_offset;
+
+	if (cpu < 0 || cpu >= handle->cpus)
+		return -1;
+
+	if (offset < cpu_data->file_offset ||
+	    offset > cpu_data->file_offset + cpu_data->file_size)
+		return -1; 	/* cpu does not have this offset. */
+
+	/* Move this cpu index to point to this offest */
+	page_offset = offset & ~(handle->page_size - 1);
+
+	if (get_page(handle, cpu, page_offset) < 0)
+		return -1;
+
+	peek_event(handle, offset, cpu);
+
+	return 0;
+}
+
 
 static unsigned int
 translate_data(struct tracecmd_input *handle,

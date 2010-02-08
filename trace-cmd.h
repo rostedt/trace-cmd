@@ -82,6 +82,9 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 				  int cpu, unsigned long long ts);
 
+int tracecmd_set_cursor(struct tracecmd_input *handle,
+			int cpu, unsigned long long offset);
+
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 
