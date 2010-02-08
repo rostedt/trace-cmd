@@ -1364,7 +1364,9 @@ static void set_color(GtkWidget *widget, GdkGC *gc, gint c)
 	gdk_gc_set_foreground(gc, &color);
 }
 
-static void draw_event_label(struct graph_info *ginfo, gint i,
+#define LABEL_SPACE 3
+
+static gint draw_event_label(struct graph_info *ginfo, gint i,
 			    gint p1, gint p2, gint p3,
 			    gint width_16, PangoFontDescription *font)
 {
@@ -1373,18 +1375,22 @@ static void draw_event_label(struct graph_info *ginfo, gint i,
 	struct trace_seq s;
 	gint text_width;
 	gint text_height;
+	gint start, end;
 	gint x, y;
 	gint ret;
 
+	/*
+	 * We are testing if we can print the label at p2.
+	 * p1 has the start of the area that we can print.
+	 * p3 is the location of the next label.
+	 * We will not print any label unless we have enough
+	 * room to print a minimum of 16 characters.
+	 */
+	if (p3 - p1 < width_16 ||
+	    p3 - p2 < width_16 / 2)
+		return p2;
 
-	/* No room to print */
-	if ((p2 > width_16 && ((p3 - p2) < width_16 / 2 ||
-			       (p2 - p1) < width_16 / 2)) ||
-	    (p2 <= width_16 && (p1 || (p3 - p2) < width_16)))
-		return;
-
-	/* Check if we can show some data */
-
+	/* Now get p2's drawing size */
 	trace_seq_init(&s);
 
 	/*
@@ -1396,34 +1402,41 @@ static void draw_event_label(struct graph_info *ginfo, gint i,
 	ret = trace_graph_plot_display_last_event(ginfo, plot, &s,
 						  convert_x_to_time(ginfo, p2-1));
 	if (!ret)
-		return;
+		return p2;
 
 	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
 	pango_layout_set_font_description(layout, font);
-
 	pango_layout_get_pixel_size(layout, &text_width, &text_height);
 
-	if ((p2 > text_width && ((p3 - p2) < text_width ||
-				 (p2 - p1) < text_width)) ||
-	    (p2 < text_width && (p1 || (p3 - p2 < (text_width +
-						   text_width / 2))))) {
+	/* Lets see if we can print this info */
+	if (p2 < text_width)
+		start = 1;
+	else
+		start = p2 - text_width / 2;
+	end = start + text_width;
+
+	if (start < p1 || end > p3) {
 		g_object_unref(layout);
-		return;
+		return p2;
 	}
 
-	x = p2 - text_width / 2;
-	if (x < 0)
-		x = 1;
+	/* Display the info */
+	x = start;
 
 	y = (PLOT_TOP(i) - text_height + 5);
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			x, y, layout);
 
-
 	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 		      p2, PLOT_TOP(i) - 5, p2, PLOT_TOP(i) - 1);
 
 	g_object_unref(layout);
+
+	/*
+	 * Set the next p1 to start after the end of what was displayed
+	 * plus a little padding.
+	 */
+	return end + LABEL_SPACE;
 }
 
 static gint draw_plot_line(struct graph_info *ginfo, int i,
@@ -1539,8 +1552,8 @@ static void draw_plot(struct graph_info *ginfo, gint i,
 
 			/* first record, continue */
 			if (p2)
-				draw_event_label(ginfo, i,
-						 p1, p2, p3, width_16, font);
+				p2 = draw_event_label(ginfo, i,
+						      p1, p2, p3, width_16, font);
 
 			p1 = p2;
 			p2 = p3;
