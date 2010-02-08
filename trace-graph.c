@@ -60,9 +60,6 @@
 static gint largest_plot_label = 0;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
-static int check_sched_switch(struct graph_info *ginfo,
-			      struct record *record,
-			      gint *pid, const char **comm);
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
@@ -210,7 +207,7 @@ gboolean graph_filter_event(struct graph_info *ginfo, gint event_id)
 	return event != NULL;
 }
 
-gboolean graph_filter_on_event(struct graph_info *ginfo, struct record *record)
+gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *record)
 {
 	struct event_format *event;
 	gint event_id;
@@ -235,7 +232,7 @@ gboolean graph_filter_on_event(struct graph_info *ginfo, struct record *record)
 	return TRUE;
 }
 
-gboolean graph_filter_on_task(struct graph_info *ginfo, gint pid)
+gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid)
 {
 	gboolean filter;
 
@@ -536,7 +533,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	if (record) {
 
-		if (!check_sched_switch(ginfo, record, &pid, &comm)) {
+		if (!trace_graph_check_sched_switch(ginfo, record, &pid, &comm)) {
 			pid = pevent_data_pid(ginfo->pevent, record);
 			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 		}
@@ -748,9 +745,9 @@ static void print_rec_info(struct record *record, struct pevent *pevent, int cpu
 
 #define PLOT_BOARDER 5
 
-static int check_sched_wakeup(struct graph_info *ginfo,
-			      struct record *record,
-			      gint *pid)
+int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
+				   struct record *record,
+				   gint *pid)
 {
 	struct event_format *event;
 	unsigned long long val;
@@ -810,9 +807,9 @@ static int check_sched_wakeup(struct graph_info *ginfo,
 	return 0;
 }
 
-static int check_sched_switch(struct graph_info *ginfo,
-			      struct record *record,
-			      gint *pid, const char **comm)
+int trace_graph_check_sched_switch(struct graph_info *ginfo,
+				   struct record *record,
+				   gint *pid, const char **comm)
 {
 	unsigned long long val;
 	struct event_format *event;
@@ -939,7 +936,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 				trace_seq_printf(&s, "UNKNOW EVENT %d\n", type);
 		} else {
 			if (record->ts < time)
-				check_sched_switch(ginfo, record, &pid, &comm);
+				trace_graph_check_sched_switch(ginfo, record, &pid, &comm);
 		}
 
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
@@ -953,7 +950,7 @@ static void draw_cpu_info(struct graph_info *ginfo, gint cpu, gint x, gint y)
 	} else {
 		record = tracecmd_read_cpu_last(ginfo->handle, cpu);
 		if (record && record->ts < time) {
-			if (!check_sched_switch(ginfo, record, &pid, &comm)) {
+			if (!trace_graph_check_sched_switch(ginfo, record, &pid, &comm)) {
 				pid = pevent_data_pid(ginfo->pevent, record);
 				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 			}
@@ -1356,38 +1353,28 @@ leave_notify_event(GtkWidget *widget, GdkEventCrossing *event, gpointer data)
 	return FALSE;
 }
 
-static gint hash_pid(gint val)
-{
-	/* idle always gets black */
-	if (!val)
-		return 0;
-
-	return trace_hash(val);
-}
-
-static void set_color_by_pid(GtkWidget *widget, GdkGC *gc, gint pid)
+static void set_color(GtkWidget *widget, GdkGC *gc, gint c)
 {
 	GdkColor color;
-	gint hash = hash_pid(pid);
 
-	color.red = (hash & 0xff)*(65535/255);
-	color.blue = ((hash >> 8) & 0xff)*(65535/255);
-	color.green = ((hash >> 16) & 0xff)*(65535/255);
+	color.red = (c & 0xff)*(65535/255);
+	color.blue = ((c >> 8) & 0xff)*(65535/255);
+	color.green = ((c >> 16) & 0xff)*(65535/255);
 	gdk_color_alloc(gtk_widget_get_colormap(widget), &color);
 	gdk_gc_set_foreground(gc, &color);
 }
 
-static void draw_event_label(struct graph_info *ginfo, gint cpu,
-			    gint event_id, gint pid,
+static void draw_event_label(struct graph_info *ginfo, gint i,
 			    gint p1, gint p2, gint p3,
 			    gint width_16, PangoFontDescription *font)
 {
-	struct event_format *event;
+	struct graph_plot *plot = ginfo->plot_array[i];
 	PangoLayout *layout;
 	struct trace_seq s;
 	gint text_width;
 	gint text_height;
 	gint x, y;
+	gint ret;
 
 
 	/* No room to print */
@@ -1398,12 +1385,18 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 
 	/* Check if we can show some data */
 
-	event = pevent_data_event_from_type(ginfo->pevent, event_id);
-
 	trace_seq_init(&s);
-	trace_seq_printf(&s, "%s-%d\n%s\n",
-			 pevent_data_comm_from_pid(ginfo->pevent, pid),
-			 pid, event->name);
+
+	/*
+	 * Display the event after p2 - 1. We use "-1" because we need to
+	 * find the event at this pixel, and due to rounding, p2 time can
+	 * be after the time of the event. Since tracecmd finds the next event
+	 * after the time, we use this to find our next event.
+	 */
+	ret = trace_graph_plot_display_last_event(ginfo, plot, &s,
+						  convert_x_to_time(ginfo, p2-1));
+	if (!ret)
+		return;
 
 	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
 	pango_layout_set_font_description(layout, font);
@@ -1422,43 +1415,66 @@ static void draw_event_label(struct graph_info *ginfo, gint cpu,
 	if (x < 0)
 		x = 1;
 
-	y = (PLOT_TOP(cpu) - text_height + 5);
+	y = (PLOT_TOP(i) - text_height + 5);
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			x, y, layout);
 
 
 	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-		      p2, PLOT_TOP(cpu) - 5, p2, PLOT_TOP(cpu) - 1);
+		      p2, PLOT_TOP(i) - 5, p2, PLOT_TOP(i) - 1);
 
 	g_object_unref(layout);
 }
 
-static void draw_cpu(struct graph_info *ginfo, gint cpu,
-		     gint new_width, gboolean read_comms)
+static gint draw_plot_line(struct graph_info *ginfo, int i,
+			   unsigned long long time, GdkGC *gc)
+{
+	gint x;
+
+	x = convert_time_to_x(ginfo, time);
+
+	gdk_draw_line(ginfo->curr_pixmap, gc,
+		      x, PLOT_TOP(i), x, PLOT_BOTTOM(i));
+
+	return x;
+}
+
+static void draw_plot_box(struct graph_info *ginfo, int i,
+			  unsigned long long start,
+			  unsigned long long end, GdkGC *gc)
+{
+	gint x1;
+	gint x2;
+
+	x1 = convert_time_to_x(ginfo, start);
+	x2 = convert_time_to_x(ginfo, end);
+
+	gdk_draw_rectangle(ginfo->curr_pixmap, gc,
+			   TRUE,
+			   x1, PLOT_BOX_TOP(i),
+			   x2 - x1, PLOT_BOX_SIZE);
+}
+
+static void draw_plot(struct graph_info *ginfo, gint i,
+		      gint new_width, gboolean read_comms)
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
-	gint height = PLOT_LINE(cpu);
-	struct record *record;
+	gint height = PLOT_LINE(i);
+	struct graph_plot *plot = ginfo->plot_array[i];
 	static GdkGC *gc;
 	static gint width_16;
 	guint64 ts;
-	gint last_pid = -1;
-	gint last_x = 0;
-	gint pid;
-	gint x;
+	gint lcolor;
+	gint bcolor;
+	gint last_color = -1;
+	gboolean box;
+	gboolean line;
+	unsigned long long ltime;
+	unsigned long long bstart;
+	unsigned long long bend;
 	gint p1 = 0, p2 = 0, p3 = 0;
-	gint last_event_id = 0;
-	gint wake_pid;
-	gint last_wake_pid;
-	gint event_id;
-	gint display_pid = -1;
-	gint next_display_pid = -1;
-	gboolean filter;
-	gboolean is_sched_switch;
-	gboolean is_wakeup;
-	gboolean last_is_wakeup = FALSE;
-	const char *comm;
+	gint x;
 
 	/* Calculate the size of 16 characters */
 	if (!width_16) {
@@ -1483,85 +1499,36 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 
 	ts = ginfo->view_start_time;
 
-	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, ts);
+	trace_graph_plot_start(ginfo, plot, ts);
 
-	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+	set_color(ginfo->draw, gc, last_color);
 
-		if (record->ts < ginfo->view_start_time) {
-			free_record(record);
+	while (trace_graph_plot_event(ginfo, plot,
+				      &line, &lcolor, &ltime,
+				      &box, &bcolor, &bstart, &bend)) {
+
+		/* really should not happen */
+		if (!line && !box)
 			continue;
-		}
-		if (record->ts > ginfo->view_end_time)
-			break;
 
-		ts = record->ts - ginfo->view_start_time;
-
-		x = (gint)((gdouble)ts * ginfo->resolution);
-
-		is_sched_switch = FALSE;
-
-		if (check_sched_switch(ginfo, record, &pid, &comm)) {
-			is_sched_switch = TRUE;
-			if (ginfo->read_comms) {
-				/*
-				 * First time through, register any missing
-				 *  comm / pid mappings.
-				 */
-				if (!pevent_pid_is_registered(ginfo->pevent, pid))
-					pevent_register_comm(ginfo->pevent,
-							     strdup(comm), pid);
+		if (box) {
+			if (bcolor != last_color) {
+				last_color = bcolor;
+				set_color(ginfo->draw, gc, last_color);
 			}
-		} else
-			pid = pevent_data_pid(ginfo->pevent, record);
 
-		event_id = pevent_data_type(ginfo->pevent, record);
+			draw_plot_box(ginfo, i, bstart, bend, gc);
+		}
 
-		if (last_pid != pid) {
+		if (line) {
 
-			if (last_pid < 0) {
-				/* if we hit a sched switch, use the original pid */
-				if (is_sched_switch)
-					last_pid = pevent_data_pid(ginfo->pevent, record);
-				else
-					last_pid = pid;
-				set_color_by_pid(ginfo->draw, gc, last_pid);
+			if (lcolor != last_color) {
+				last_color = lcolor;
+				set_color(ginfo->draw, gc, last_color);
 			}
-				
-			filter = graph_filter_on_task(ginfo, last_pid);
 
-			if (!filter && last_pid)
+			x = draw_plot_line(ginfo, i, ltime, gc);
 
-				gdk_draw_rectangle(ginfo->curr_pixmap, gc,
-						   TRUE,
-						   last_x, PLOT_BOX_TOP(cpu),
-						   x - last_x, PLOT_BOX_SIZE);
-
-			last_x = x;
-
-			set_color_by_pid(ginfo->draw, gc, pid);
-		}
-
-		filter = graph_filter_on_task(ginfo, pid);
-
-		/* Also show the task switching out */
-		if (filter && is_sched_switch)
-			filter = graph_filter_on_task(ginfo, last_pid);
-
-		/* Lets see if a filtered task is waking up */
-		is_wakeup = check_sched_wakeup(ginfo, record, &wake_pid);
-		if (filter && is_wakeup)
-			filter = graph_filter_on_task(ginfo, wake_pid);
-
-		if (!filter) {
-			filter = graph_filter_on_event(ginfo, record);
-			if (!filter)
-				gdk_draw_line(ginfo->curr_pixmap, gc,
-					      x, PLOT_TOP(cpu), x, PLOT_BOTTOM(cpu));
-		}
-
-		last_pid = pid;
-
-		if (!filter) {
 			/* Figure out if we can show the text for the previous record */
 
 			p3 = x;
@@ -1570,45 +1537,41 @@ static void draw_cpu(struct graph_info *ginfo, gint cpu,
 			if (!p3)
 				p3 = 1;
 
-			display_pid = next_display_pid;
-
 			/* first record, continue */
 			if (p2)
-				draw_event_label(ginfo, cpu, last_event_id, display_pid,
+				draw_event_label(ginfo, i,
 						 p1, p2, p3, width_16, font);
 
 			p1 = p2;
 			p2 = p3;
+		}
+	}
 
-			last_event_id = event_id;
-			last_is_wakeup = is_wakeup;
-			last_wake_pid = wake_pid;
-
-			if (last_is_wakeup)
-				next_display_pid = last_wake_pid;
-			else
-				next_display_pid = pid;
+	if (box) {
+		if (bcolor != last_color) {
+			last_color = bcolor;
+			set_color(ginfo->draw, gc, last_color);
 		}
 
-		free_record(record);
+		draw_plot_box(ginfo, i, bstart, bend, gc);
 	}
 
-	if (p2 && next_display_pid >= 0)
-		draw_event_label(ginfo, cpu, last_event_id, next_display_pid,
+	if (line) {
+		if (lcolor != last_color) {
+			last_color = lcolor;
+			set_color(ginfo->draw, gc, last_color);
+		}
+
+		draw_plot_line(ginfo, i, ltime, gc);
+	}
+
+	if (p2)
+		draw_event_label(ginfo, i,
 				 p1, p2, ginfo->draw_width, width_16, font);
 
-	if (last_pid > 0 &&
-	    !graph_filter_on_task(ginfo, last_pid)) {
+	trace_graph_plot_end(ginfo, plot);
 
-		x = ginfo->draw_width;
-
-		gdk_draw_rectangle(ginfo->curr_pixmap, gc,
-				   TRUE,
-				   last_x, PLOT_BOX_TOP(cpu),
-				   x - last_x, PLOT_BOX_SIZE);
-	}
-
-	free_record(record);
+	return;
 }
 
 
@@ -1700,7 +1663,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 static void draw_info(struct graph_info *ginfo,
 		      gint new_width)
 {
-	gint cpu;
+	gint i;
 
 	if (!ginfo->handle)
 		return;
@@ -1713,8 +1676,8 @@ static void draw_info(struct graph_info *ginfo,
 	draw_timeline(ginfo, new_width);
 
 	
-	for (cpu = 0; cpu < ginfo->cpus; cpu++)
-		draw_cpu(ginfo, cpu, new_width, ginfo->read_comms);
+	for (i = 0; i < ginfo->plots; i++)
+		draw_plot(ginfo, i, new_width, ginfo->read_comms);
 
 	ginfo->read_comms = FALSE;
 }

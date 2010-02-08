@@ -1,13 +1,32 @@
+#include <string.h>
+
 #include "trace-graph.h"
+
+struct cpu_plot_info {
+	int			cpu;
+	struct record		*record;
+	unsigned long long	last_time;
+	int			last_pid;
+};
+
+static gint hash_pid(gint val)
+{
+	/* idle always gets black */
+	if (!val)
+		return 0;
+
+	return trace_hash(val);
+}
 
 static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot,
 			       unsigned long long time)
 {
+	struct cpu_plot_info *cpu_info = plot->private;
 	struct record *record;
 	long cpu;
 	int ret = 0;
 
-	cpu = (long)plot->private;
+	cpu = cpu_info->cpu;
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 	record = tracecmd_read_data(ginfo->handle, cpu);
@@ -22,17 +41,260 @@ static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot
 	return ret;
 }
 
+/*
+ * Return 1 if we should skip record, otherwise 0
+ *
+ * @orig_pid gets the pid of the record
+ * @sched_pid gets the pid of the record or if the record is
+ *   a sched_switch, it gets the next task
+ *   If it is a wakeup, then sched_pid gets the task being woken
+ * @is_sched_switch returns 1 on context switch, otherwise 0
+ */
+static int filter_record(struct graph_info *ginfo,
+			 struct record *record,
+			 int *orig_pid, int *sched_pid,
+			 gboolean *sched_switch)
+{
+	gboolean is_sched_switch;
+	gboolean is_wakeup;
+	const char *comm;
+	int wake_pid;
+	int filter;
+
+	*orig_pid = pevent_data_pid(ginfo->pevent, record);
+
+	filter = trace_graph_filter_on_task(ginfo, *orig_pid);
+
+	if (trace_graph_check_sched_switch(ginfo, record, sched_pid, &comm)) {
+		is_sched_switch = TRUE;
+
+		/* Also show the task switching out */
+		if (filter)
+			filter = trace_graph_filter_on_task(ginfo, *sched_pid);
+
+		if (ginfo->read_comms) {
+			/*
+			 * First time through, register any missing
+			 *  comm / pid mappings.
+			 */
+			if (!pevent_pid_is_registered(ginfo->pevent, *sched_pid))
+				pevent_register_comm(ginfo->pevent,
+						     strdup(comm), *sched_pid);
+		}
+	} else
+		*sched_pid = *orig_pid;
+
+	if (filter) {
+		/* Lets see if a filtered task is waking up */
+		is_wakeup = trace_graph_check_sched_wakeup(ginfo, record, &wake_pid);
+		if (is_wakeup) {
+			filter = trace_graph_filter_on_task(ginfo, wake_pid);
+			if (!filter)
+				*sched_pid = wake_pid;
+		}
+	}
+
+	*sched_switch = is_sched_switch;
+	return filter;
+}
+
+static int cpu_plot_display_last_event(struct graph_info *ginfo,
+				       struct graph_plot *plot,
+				       struct trace_seq *s,
+				       unsigned long long time)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+	struct event_format *event;
+	struct record *record;
+	int cpu = cpu_info->cpu;
+	unsigned long long offset = 0;
+	gboolean is_sched_switch;
+	int sched_pid;
+	int pid;
+	int type;
+
+	/*
+	 * Get the next record so we know can save its offset and
+	 * reset the cursor, not to mess up the plotting
+	 */
+	record = tracecmd_peek_data(ginfo->handle, cpu);
+	if (record)
+		offset = record->offset;
+	/* Don't need to free a peek */
+
+	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+
+	/* find the non filtered event */
+	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+		if (!filter_record(ginfo, record, &pid, &sched_pid, &is_sched_switch) &&
+		    !trace_graph_filter_on_event(ginfo, record) &&
+		    record->ts >= time)
+			break;
+		free_record(record);
+	}
+
+	if (offset)
+		tracecmd_set_cursor(ginfo->handle, cpu, offset);
+
+	if (!record)
+		return 0;
+
+	/* Must have the record we want */
+	type = pevent_data_type(ginfo->pevent, record);
+	event = pevent_data_event_from_type(ginfo->pevent, type);
+	if (is_sched_switch)
+		pid = sched_pid;
+	trace_seq_printf(s, "%s-%d\n%s\n",
+			 pevent_data_comm_from_pid(ginfo->pevent, pid),
+			 pid, event->name);
+	free_record(record);
+
+	if (offset)
+		return 1;
+
+	/*
+	 * We need to stop the iterator, read last record.
+	 */
+	record = tracecmd_read_cpu_last(ginfo->handle, cpu);
+	free_record(record);
+
+	return 1;
+}
+
+static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
+			   unsigned long long time)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+	struct record *last_record = NULL;
+	struct record *record;
+	int cpu;
+
+	cpu = cpu_info->cpu;
+	cpu_info->record = NULL;
+	cpu_info->last_time = 0ULL;
+	cpu_info->last_pid = -1;
+
+	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+
+	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+		if (record->ts >= time)
+			break;
+
+		free_record(last_record);
+		last_record = record;
+	}
+
+	free_record(record);
+	/* reset so the next record read is the first record */
+	if (last_record) {
+		record = tracecmd_read_at(ginfo->handle,
+					  last_record->offset,
+					  NULL);
+		free_record(record);
+		free_record(last_record);
+	} else
+		tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+
+}
+
+static int cpu_plot_event(struct graph_info *ginfo,
+			  struct graph_plot *plot,
+			  gboolean *line, int *lcolor,
+			  unsigned long long *ltime,
+			  gboolean *box, int *bcolor,
+			  unsigned long long *bstart,
+			  unsigned long long *bend)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+	struct record *record;
+	int sched_pid;
+	int orig_pid;
+	int is_sched_switch;
+	int filter;
+	int box_filter;
+	int pid;
+	int cpu;
+	int ret = 1;
+
+	cpu = cpu_info->cpu;
+	record = tracecmd_read_data(ginfo->handle, cpu);
+
+	if (!record) {
+		/* Finish a box if the last record was not idle */
+		if (cpu_info->last_pid > 0) {
+			*box = TRUE;
+			*bstart = cpu_info->last_time;
+			*bend = ginfo->view_end_time;
+		}
+		return 0;
+	}
+
+	cpu = cpu_info->cpu;
+
+	filter = filter_record(ginfo, record, &orig_pid, &sched_pid, &is_sched_switch);
+
+	/* set pid to record, or next task on sched_switch */
+	pid = is_sched_switch ? sched_pid : orig_pid;
+
+	if (cpu_info->last_pid != pid) {
+
+		if (cpu_info->last_pid < 0) {
+			/* if we hit a sched switch, use the original pid for box*/
+			if (is_sched_switch)
+				cpu_info->last_pid = orig_pid;
+			else
+				cpu_info->last_pid = pid;
+		}
+
+		/* Box should always use the original pid (prev in sched_switch) */
+		box_filter = trace_graph_filter_on_task(ginfo, orig_pid);
+
+		if (!box_filter && cpu_info->last_pid) {
+			*bcolor = hash_pid(cpu_info->last_pid);
+			*box = TRUE;
+			*bstart = cpu_info->last_time;
+			*bend = record->ts;
+		}
+
+		cpu_info->last_time = record->ts;
+	}
+
+	if (!filter && !trace_graph_filter_on_event(ginfo, record)) {
+		*line = TRUE;
+		*ltime = record->ts;
+		*lcolor = hash_pid(pid);
+	}
+
+	cpu_info->last_pid = pid;
+
+	if (record->ts > ginfo->view_end_time)
+		ret = 0;
+
+	free_record(record);
+
+	return ret;
+}
+
+
 static const struct plot_callbacks cpu_plot_cb = {
-	.match_time		 = cpu_plot_match_time
+	.match_time		= cpu_plot_match_time,
+	.plot_event		= cpu_plot_event,
+	.start			= cpu_plot_start,
+	.display_last_event	= cpu_plot_display_last_event
 };
 
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)
 {
+	struct cpu_plot_info *cpu_info;
 	char label[100];
 	long cpu;
 
 	for (cpu = 0; cpu < cpus; cpu++) {
+		cpu_info = malloc_or_die(sizeof(*cpu_info));
+		cpu_info->cpu = cpu;
+
 		snprintf(label, 100, "CPU %ld", cpu);
-		trace_graph_plot_append(ginfo, label, &cpu_plot_cb, (void *)cpu);
+
+		trace_graph_plot_append(ginfo, label, &cpu_plot_cb, cpu_info);
 	}
 }

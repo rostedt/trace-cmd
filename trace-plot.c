@@ -73,3 +73,51 @@ int trace_graph_plot_match_time(struct graph_info *ginfo,
 
 	return plot->cb->match_time(ginfo, plot, time);
 }
+
+void trace_graph_plot_start(struct graph_info *ginfo,
+			    struct graph_plot *plot,
+			    unsigned long long time)
+{
+	if (!plot->cb->start)
+		return;
+
+	return plot->cb->start(ginfo, plot, time);
+}
+
+int trace_graph_plot_event(struct graph_info *ginfo,
+			   struct graph_plot *plot,
+			   gboolean *line, int *lcolor,
+			   unsigned long long *ltime,
+			   gboolean *box, int *bcolor,
+			   unsigned long long *bstart,
+			   unsigned long long *bend)
+{
+	*line = FALSE;
+	*box = FALSE;
+
+	if (!plot->cb->plot_event)
+		return 0;
+
+	return plot->cb->plot_event(ginfo, plot, line, lcolor, ltime,
+				    box, bcolor, bstart, bend);
+}
+
+void trace_graph_plot_end(struct graph_info *ginfo,
+			  struct graph_plot *plot)
+{
+	if (!plot->cb->end)
+		return;
+
+	return plot->cb->end(ginfo, plot);
+}
+
+int trace_graph_plot_display_last_event(struct graph_info *ginfo,
+					struct graph_plot *plot,
+					struct trace_seq *s,
+					unsigned long long time)
+{
+	if (!plot->cb->display_last_event)
+		return 0;
+
+	return plot->cb->display_last_event(ginfo, plot, s, time);
+}

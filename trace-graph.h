@@ -19,10 +19,49 @@ struct graph_plot;
  *   Return true if a selected time should expose plot.
  *   Should only return true if an event has the exact time that
  *   is passed in.
+ *
+ * start:
+ *   Initialize for plotting. This is called with the start time
+ *   to start plotting.
+ *
+ * plot_event:
+ *   This is called by the plotter. Return 1 to plot an event or
+ *   0 to stop the plotting.
+ *   color returns the color that should be printed.
+ *   line returns 1 or 0 if a line should be drawn.
+ *   ltime returns the time that the line should be drawn at
+ *    (ignored if line is 0)
+ *   box returns 1 or 0 if a box should be drawn
+ *    bstart is the time the box starts at
+ *    bend is the time the box ends at
+ *     (bstart and bend are ignored if box is 0)
+ *   time is the time of the current event
+ *   (box and line can be true and processed even if the func returns 0)
+ *
+ * end:
+ *   called at the end of the plotting in case the plotter needs to
+ *   release any resourses.
+ * display_last_event:
+ *   If enough space between the event before and the event after
+ *   a event, the plot may ask to display that event.
+ *   The time will be given to find the event, the time may be before
+ *   the given event.
  */
 struct plot_callbacks {
 	int (*match_time)(struct graph_info *, struct graph_plot *,
 			  unsigned long long time);
+	void (*start)(struct graph_info *, struct graph_plot *,
+		      unsigned long long time);
+	int (*plot_event)(struct graph_info *ginfo,
+			  struct graph_plot *plot,
+			  gboolean *line, int *lcolor,
+			  unsigned long long *ltime,
+			  gboolean *box, int *bcolor,
+			  unsigned long long *bstart,
+			  unsigned long long *bend);
+	void (*end)(struct graph_info *, struct graph_plot *);
+	int (*display_last_event)(struct graph_info *ginfo, struct graph_plot *plot,
+				  struct trace_seq *s, unsigned long long time);
 };
 
 struct graph_plot {
@@ -160,6 +199,15 @@ void trace_graph_free_info(struct graph_info *ginfo);
 int trace_graph_load_handle(struct graph_info *ginfo,
 			    struct tracecmd_input *handle);
 
+int trace_graph_check_sched_switch(struct graph_info *ginfo,
+				   struct record *record,
+				   gint *pid, const char **comm);
+int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
+				   struct record *record,
+				   gint *pid);
+gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid);
+gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *record);
+
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);
 void trace_graph_plot_init(struct graph_info *ginfo);
@@ -171,6 +219,25 @@ int trace_graph_plot_match_time(struct graph_info *ginfo,
 				struct graph_plot *plot,
 				unsigned long long time);
 
+int trace_graph_plot_display_last_event(struct graph_info *ginfo,
+					struct graph_plot *plot,
+					struct trace_seq *s,
+					unsigned long long time);
+
+void trace_graph_plot_start(struct graph_info *ginfo,
+			    struct graph_plot *plot,
+			    unsigned long long time);
+
+int trace_graph_plot_event(struct graph_info *ginfo,
+			   struct graph_plot *plot,
+			   gboolean *line, int *lcolor,
+			   unsigned long long *ltime,
+			   gboolean *box, int *bcolor,
+			   unsigned long long *bstart,
+			   unsigned long long *bend);
+
+void trace_graph_plot_end(struct graph_info *ginfo,
+			  struct graph_plot *plot);
 
 /* cpu plot */
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);
