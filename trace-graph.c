@@ -48,13 +48,13 @@
 #define PLOT_SIZE	10
 #define PLOT_BOX_SIZE	PLOT_SIZE
 #define PLOT_GIVE	2
-#define PLOT_LINE(cpu) (80 * (cpu) + 80 + PLOT_SIZE)
-#define PLOT_TOP(cpu) (PLOT_LINE(cpu) - PLOT_SIZE * 2)
-#define PLOT_BOX_TOP(cpu) (PLOT_LINE(cpu) - PLOT_SIZE)
-#define PLOT_BOTTOM(cpu) (PLOT_LINE(cpu)-1)
-#define PLOT_BOX_BOTTOM(cpu) (PLOT_LINE(cpu))
-#define PLOT_SPACE(cpus) (80 * (cpus) + 80)
-#define PLOT_LABEL(cpu) (PLOT_TOP(cpu))
+#define PLOT_LINE(plot) (80 * (plot) + 80 + PLOT_SIZE)
+#define PLOT_TOP(plot) (PLOT_LINE(plot) - PLOT_SIZE * 2)
+#define PLOT_BOX_TOP(plot) (PLOT_LINE(plot) - PLOT_SIZE)
+#define PLOT_BOTTOM(plot) (PLOT_LINE(plot)-1)
+#define PLOT_BOX_BOTTOM(plot) (PLOT_LINE(plot))
+#define PLOT_SPACE(plots) (80 * (plots) + 80)
+#define PLOT_LABEL(plot) (PLOT_TOP(plot))
 #define PLOT_X		5
 
 static gint largest_plot_label = 0;
@@ -648,8 +648,8 @@ info_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data
 	if (!ginfo->curr_pixmap)
 		return FALSE;
 
-	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
-			    ginfo->cpu_data_w, ginfo->cpu_data_h);
+	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
+			    ginfo->plot_data_w, ginfo->plot_data_h);
 	if (event->is_hint)
 		gdk_window_get_pointer(event->window, &x, &y, &state);
 	else {
@@ -862,10 +862,10 @@ static void draw_plot_info(struct graph_info *ginfo, gint i, gint x, gint y)
 	if (y > view_start + height)
 		y -= height;
 
-	ginfo->cpu_data_x = x;
-	ginfo->cpu_data_y = y;
-	ginfo->cpu_data_w = width;
-	ginfo->cpu_data_h = height;
+	ginfo->plot_data_x = x;
+	ginfo->plot_data_y = y;
+	ginfo->plot_data_w = width;
+	ginfo->plot_data_h = height;
 
 	pix = gdk_pixmap_new(ginfo->draw->window,
 			     width,
@@ -905,8 +905,8 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	if (!ginfo->handle)
 		return FALSE;
 
-	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
-			    ginfo->cpu_data_w, ginfo->cpu_data_h);
+	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
+			    ginfo->plot_data_w, ginfo->plot_data_h);
 	if (event->is_hint)
 		gdk_window_get_pointer(event->window, &x, &y, &state);
 	else {
@@ -1225,8 +1225,8 @@ leave_notify_event(GtkWidget *widget, GdkEventCrossing *event, gpointer data)
 	if (!ginfo->handle)
 		return FALSE;
 
-	update_with_backend(ginfo, ginfo->cpu_data_x, ginfo->cpu_data_y,
-			    ginfo->cpu_data_w, ginfo->cpu_data_h);
+	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
+			    ginfo->plot_data_w, ginfo->plot_data_h);
 
 	return FALSE;
 }

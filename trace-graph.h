@@ -159,13 +159,11 @@ struct graph_info {
 
 	struct filter_task	*hide_tasks;
 
-	/* Box info for CPU data info window */
-	gint			cpu_data_x;
-	gint			cpu_data_y;
-	gint			cpu_data_w;
-	gint			cpu_data_h;
-
-	gint			cpu_x;		/* x coord where CPU numbers are drawn */
+	/* Box info for plot data info window */
+	gint			plot_data_x;
+	gint			plot_data_y;
+	gint			plot_data_w;
+	gint			plot_data_h;
 };
 
 
