@@ -224,6 +224,11 @@ void trace_graph_plot_init(struct graph_info *ginfo);
 void trace_graph_plot_append(struct graph_info *ginfo,
 			     const char *label, const struct plot_callbacks *cb,
 			     void *data);
+void trace_graph_plot_insert(struct graph_info *ginfo,
+			     int pos,
+			     const char *label, const struct plot_callbacks *cb,
+			     void *data);
+void trace_graph_plot_remove(struct graph_info *ginfo, int pos);
 
 int trace_graph_plot_match_time(struct graph_info *ginfo,
 				struct graph_plot *plot,

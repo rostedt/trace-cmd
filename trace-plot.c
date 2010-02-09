@@ -26,9 +26,10 @@ void trace_graph_plot_init(struct graph_info *ginfo)
 	ginfo->plot_list = NULL;
 }
 
-void trace_graph_plot_append(struct graph_info *ginfo,
-			     const char *label, const struct plot_callbacks *cb,
-			     void *data)
+static struct graph_plot *
+allocate_plot(struct graph_info *ginfo,
+	      const char *label, const struct plot_callbacks *cb,
+	      void *data)
 {
 	struct graph_plot *plot;
 	char *name;
@@ -47,6 +48,17 @@ void trace_graph_plot_append(struct graph_info *ginfo,
 	plot->next = ginfo->plot_list;
 	ginfo->plot_list = plot;
 
+	return plot;
+}
+
+void trace_graph_plot_append(struct graph_info *ginfo,
+			     const char *label, const struct plot_callbacks *cb,
+			     void *data)
+{
+	struct graph_plot *plot;
+
+	plot = allocate_plot(ginfo, label, cb, data);
+
 	if (!ginfo->plots) {
 		ginfo->plot_array = malloc_or_die(sizeof(ginfo->plot_array[0]));
 		ginfo->plot_array[0] = plot;
@@ -62,6 +74,65 @@ void trace_graph_plot_append(struct graph_info *ginfo,
 	}
 
 	ginfo->plots++;
+}
+
+void trace_graph_plot_insert(struct graph_info *ginfo,
+			     int pos,
+			     const char *label, const struct plot_callbacks *cb,
+			     void *data)
+{
+	struct graph_plot *plot;
+
+	if (pos >= ginfo->plots)
+		return trace_graph_plot_append(ginfo, label, cb, data);
+
+	if (pos < 0)
+		pos = 0;
+
+	plot = allocate_plot(ginfo, label, cb, data);
+
+	ginfo->plot_array = realloc(ginfo->plot_array,
+				    sizeof(ginfo->plot_array[0]) *
+				    (ginfo->plots + 1));
+
+	if (!ginfo->plot_array)
+		die("unable to resize plot array");
+
+	memmove(&ginfo->plot_array[pos+1], &ginfo->plot_array[pos],
+		sizeof(ginfo->plot_array[0]) * (ginfo->plots - pos));
+
+	ginfo->plot_array[pos] = plot;
+
+	ginfo->plots++;
+}
+
+void trace_graph_plot_remove(struct graph_info *ginfo, int pos)
+{
+	struct graph_plot **pplot;
+
+	if (pos < 0 || pos >= ginfo->plots || !ginfo->plots)
+		return;
+
+	for (pplot = &ginfo->plot_list; *pplot; pplot = &((*pplot)->next)) {
+
+		if (*pplot != ginfo->plot_array[pos])
+			continue;
+
+		*pplot = (*pplot)->next;
+		break;
+	}
+
+	free(ginfo->plot_array[pos]);
+
+	ginfo->plots--;
+
+	if (ginfo->plots) {
+		memmove(&ginfo->plot_array[pos], &ginfo->plot_array[pos+1],
+			sizeof(ginfo->plot_array[0]) * (ginfo->plots - pos));
+	} else {
+		free(ginfo->plot_array);
+		ginfo->plot_array = NULL;
+	}
 }
 
 int trace_graph_plot_match_time(struct graph_info *ginfo,
