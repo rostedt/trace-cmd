@@ -77,6 +77,7 @@ struct plot_callbacks {
 };
 
 struct graph_plot {
+	int				pos;
 	char				*label;
 	const struct plot_callbacks	*cb;
 	void				*private;
@@ -93,7 +94,9 @@ struct graph_info {
 	gint			cpus;
 
 	gint			plots;
-	struct graph_plot	**plot_array;
+	struct graph_plot	**plot_array;	/* all plots */
+	struct graph_plot	*plot_clicked;	/* plot that was clicked on */
+
 
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
@@ -116,8 +119,6 @@ struct graph_info {
 	gint			press_x;	/* x where button is pressed */
 	gint			last_x;		/* last x seen while moving mouse */
 	gboolean		line_active;	/* set when button is pressed */
-
-	gint			plot_clicked;	/* plot that was clicked on */
 
 	gdouble			hadj_value;	/* value to set hadj width */
 	gdouble			hadj_page_size;	/* visible size to set hadj */
@@ -228,7 +229,7 @@ void trace_graph_plot_insert(struct graph_info *ginfo,
 			     int pos,
 			     const char *label, const struct plot_callbacks *cb,
 			     void *data);
-void trace_graph_plot_remove(struct graph_info *ginfo, int pos);
+void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot);
 
 int trace_graph_plot_match_time(struct graph_info *ginfo,
 				struct graph_plot *plot,

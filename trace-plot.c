@@ -52,6 +52,8 @@ void trace_graph_plot_append(struct graph_info *ginfo,
 
 	plot = allocate_plot(ginfo, label, cb, data);
 
+	plot->pos = ginfo->plots;
+
 	if (!ginfo->plots) {
 		ginfo->plot_array = malloc_or_die(sizeof(ginfo->plot_array[0]));
 		ginfo->plot_array[0] = plot;
@@ -75,6 +77,7 @@ void trace_graph_plot_insert(struct graph_info *ginfo,
 			     void *data)
 {
 	struct graph_plot *plot;
+	int i;
 
 	if (pos >= ginfo->plots)
 		return trace_graph_plot_append(ginfo, label, cb, data);
@@ -83,7 +86,7 @@ void trace_graph_plot_insert(struct graph_info *ginfo,
 		pos = 0;
 
 	plot = allocate_plot(ginfo, label, cb, data);
-
+	plot->pos = pos;
 	ginfo->plot_array = realloc(ginfo->plot_array,
 				    sizeof(ginfo->plot_array[0]) *
 				    (ginfo->plots + 1));
@@ -97,10 +100,17 @@ void trace_graph_plot_insert(struct graph_info *ginfo,
 	ginfo->plot_array[pos] = plot;
 
 	ginfo->plots++;
+
+	/* Update the new positions */
+	for (i = pos + 1; i < ginfo->plots; i++)
+		ginfo->plot_array[i]->pos = i;
 }
 
-void trace_graph_plot_remove(struct graph_info *ginfo, int pos)
+void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot)
 {
+	int pos = plot->pos;
+	int i;
+
 	if (pos < 0 || pos >= ginfo->plots || !ginfo->plots)
 		return;
 
@@ -111,6 +121,9 @@ void trace_graph_plot_remove(struct graph_info *ginfo, int pos)
 	if (ginfo->plots) {
 		memmove(&ginfo->plot_array[pos], &ginfo->plot_array[pos+1],
 			sizeof(ginfo->plot_array[0]) * (ginfo->plots - pos));
+		/* Update the new positions */
+		for (i = pos; i < ginfo->plots; i++)
+			ginfo->plot_array[i]->pos = i;
 	} else {
 		free(ginfo->plot_array);
 		ginfo->plot_array = NULL;

@@ -434,14 +434,27 @@ static void
 remove_plot_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
-	int p = ginfo->plot_clicked;
+	struct graph_plot *plot = ginfo->plot_clicked;
 
-	if (p < 0)
+	if (!plot)
 		return;
 
-	trace_graph_plot_remove(ginfo, p);
+	trace_graph_plot_remove(ginfo, plot);
 	redraw_graph(ginfo);
 	update_label_window(ginfo);
+}
+
+static struct graph_plot *find_plot_by_y(struct graph_info *ginfo, gint y)
+{
+	gint i;
+
+	for (i = 0; i < ginfo->plots; i++) {
+		if (y >= (PLOT_TOP(i) - PLOT_GIVE) &&
+		    y <= (PLOT_BOTTOM(i) + PLOT_GIVE)) {
+			return ginfo->plot_array[i];
+		}
+	}
+	return NULL;
 }
 
 static gboolean
@@ -463,7 +476,6 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	gint pid;
 	gint len;
 	gint x, y;
-	gint i;
 
 	x = event->x;
 	y = event->y;
@@ -539,22 +551,14 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	time =  convert_x_to_time(ginfo, x);
 
-	ginfo->plot_clicked = -1;
+	plot = find_plot_by_y(ginfo, y);
+	ginfo->plot_clicked = plot;
 
-	for (i = 0; i < ginfo->plots; i++) {
-		if (y >= (PLOT_TOP(i) - PLOT_GIVE) &&
-		    y <= (PLOT_BOTTOM(i) + PLOT_GIVE)) {
-			plot = ginfo->plot_array[i];
-			record = trace_graph_plot_find_record(ginfo, plot, time);
-			ginfo->plot_clicked = i;
-			break;
-		}
-	}
-
-	if (ginfo->plot_clicked < 0)
-		gtk_widget_set_sensitive(menu_remove_plot, FALSE);
-	else
+	if (plot) {
+		record = trace_graph_plot_find_record(ginfo, plot, time);
 		gtk_widget_set_sensitive(menu_remove_plot, TRUE);
+	} else
+		gtk_widget_set_sensitive(menu_remove_plot, FALSE);
 
 	if (record) {
 
@@ -860,7 +864,8 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 	return 0;
 }
 
-static void draw_plot_info(struct graph_info *ginfo, gint i, gint x, gint y)
+static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
+			   gint x, gint y)
 {
 	PangoLayout *layout;
 	GtkAdjustment *vadj;
@@ -895,7 +900,7 @@ static void draw_plot_info(struct graph_info *ginfo, gint i, gint x, gint y)
 	dprintf(3, "start=%llu end=%llu time=%llu\n",
 		(u64)ginfo->start_time, (u64)ginfo->end_time, (u64)time);
 
-	if (!trace_graph_plot_display_info(ginfo, ginfo->plot_array[i], &s, time)) {
+	if (!trace_graph_plot_display_info(ginfo, plot, &s, time)) {
 		/* Just display the current time */
 		trace_seq_init(&s);
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
@@ -957,7 +962,7 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	struct graph_info *ginfo = data;
 	GdkModifierType state;
 	gint x, y;
-	gint i;
+	struct graph_plot *plot;
 
 	if (!ginfo->handle)
 		return FALSE;
@@ -984,11 +989,9 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 		return TRUE;
 	}
 
-	for (i = 0; i < ginfo->plots; i++) {
-		if (y >= (PLOT_TOP(i) - PLOT_GIVE) &&
-		    y <= (PLOT_BOTTOM(i) + PLOT_GIVE))
-			draw_plot_info(ginfo, i, x, y);
-	}
+	plot = find_plot_by_y(ginfo, y);
+	if (plot)
+		draw_plot_info(ginfo, plot, x, y);
 
 	return TRUE;
 }
