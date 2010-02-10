@@ -564,3 +564,15 @@ void graph_plot_init_tasks(struct graph_info *ginfo)
 	snprintf(label, 100, "TASK %d", pid);
 	trace_graph_plot_insert(ginfo, 1, label, &task_plot_cb, task_info);
 }
+
+void graph_plot_task(struct graph_info *ginfo, int pid)
+{
+	struct task_plot_info *task_info;
+	char label[100];
+
+	task_info = malloc_or_die(sizeof(*task_info));
+	task_info->pid = pid;
+
+	snprintf(label, 100, "TASK %d", pid);
+	trace_graph_plot_append(ginfo, label, &task_plot_cb, task_info);
+}

@@ -57,9 +57,10 @@
 #define PLOT_LABEL(plot) (PLOT_TOP(plot))
 #define PLOT_X		5
 
-static gint largest_plot_label = 0;
+static gint largest_plot_label;
 
 static void redraw_pixmap_backend(struct graph_info *ginfo);
+static void update_label_window(struct graph_info *ginfo);
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
@@ -419,6 +420,16 @@ filter_clear_tasks_clicked (gpointer data)
 	trace_graph_clear_tasks(ginfo);
 }
 
+static void
+plot_task_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	graph_plot_task(ginfo, ginfo->filter_task_selected);
+	redraw_graph(ginfo);
+	update_label_window(ginfo);
+}
+
 static gboolean
 do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
@@ -428,6 +439,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_add_task;
 	static GtkWidget *menu_filter_hide_task;
 	static GtkWidget *menu_filter_clear_tasks;
+	static GtkWidget *menu_plot_task;
 	struct record *record = NULL;
 	struct graph_plot *plot;
 	const char *comm;
@@ -473,6 +485,13 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 		g_signal_connect_swapped (G_OBJECT (menu_filter_clear_tasks), "activate",
 					  G_CALLBACK (filter_clear_tasks_clicked),
+					  data);
+
+		menu_plot_task = gtk_menu_item_new_with_label("Plot task");
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_plot_task);
+
+		g_signal_connect_swapped (G_OBJECT (menu_plot_task), "activate",
+					  G_CALLBACK (plot_task_clicked),
 					  data);
 
 	}
@@ -536,10 +555,15 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
 					text);
 
+		snprintf(text, len, "Plot %s-%d", comm, pid);
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_plot_task),
+					text);
+
 		g_free(text);
 
 		gtk_widget_set_sensitive(menu_filter_add_task, TRUE);
 		gtk_widget_set_sensitive(menu_filter_hide_task, TRUE);
+		gtk_widget_show(menu_plot_task);
 
 		free_record(record);
 	} else {
@@ -550,6 +574,8 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
 					"Hide task to filter");
 		gtk_widget_set_sensitive(menu_filter_hide_task, FALSE);
+
+		gtk_widget_hide(menu_plot_task);
 	}
 
 		
@@ -1810,18 +1836,21 @@ destroy_event(GtkWidget *widget, gpointer data)
 	return TRUE;
 }
 
+static void redraw_label_window(struct graph_info *ginfo, int x, int y,
+				int w, int h)
+{
+	gdk_draw_drawable(ginfo->info->window,
+			  ginfo->info->style->fg_gc[GTK_WIDGET_STATE(ginfo->info)],
+			  ginfo->info_pixmap, x, y, x, y, w, h);
+}
+
 static gboolean
 info_expose_event(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 
-	gdk_draw_drawable(ginfo->info->window,
-			  ginfo->info->style->fg_gc[GTK_WIDGET_STATE(ginfo->info)],
-			  ginfo->info_pixmap,
-			  event->area.x, event->area.y,
-			  event->area.x, event->area.y,
-			  event->area.width, event->area.height);
-
+	redraw_label_window(ginfo, event->area.x, event->area.y,
+			    event->area.width, event->area.height);
 	return FALSE;
 }
 
@@ -1858,6 +1887,8 @@ static void info_draw_plot_labels(struct graph_info *ginfo)
 	if (!ginfo->handle)
 		return;
 
+	largest_plot_label = 0;
+
 	for (i = 0; i < ginfo->plots; i++)
 		info_draw_plot_label(ginfo, i);
 }
@@ -1883,6 +1914,9 @@ static void update_label_window(struct graph_info *ginfo)
 
 	gtk_widget_set_size_request(ginfo->info, largest_plot_label + 10,
 				    ginfo->draw_height);
+
+	redraw_label_window(ginfo, 0, 0, ginfo->info->allocation.width,
+			    ginfo->info->allocation.height);
 }
 
 static gboolean

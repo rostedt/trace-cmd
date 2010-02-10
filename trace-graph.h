@@ -267,4 +267,7 @@ int trace_graph_plot_display_info(struct graph_info *ginfo,
 /* cpu plot */
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);
 
+/* task plot */
+void graph_plot_task(struct graph_info *ginfo, int pid);
+
 #endif /* _TRACE_GRAPH_H */
