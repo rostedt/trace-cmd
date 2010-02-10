@@ -155,8 +155,10 @@ static struct plot_hash *find_hash(struct plot_hash **array, gint val)
 static void add_hash(struct plot_hash **array, struct graph_plot *plot, gint val)
 {
 	struct plot_hash *hash;
+	struct plot_list *list;
 	gint key;
 
+	list = malloc_or_die(sizeof(*list));
 	hash = find_hash(array, val);
 	if (!hash) {
 		hash = g_new0(typeof(*hash), 1);
@@ -167,25 +169,29 @@ static void add_hash(struct plot_hash **array, struct graph_plot *plot, gint val
 		array[key] = hash;
 	}
 
-	plot->next = hash->plots;
-	hash->plots = plot;
+	list->next = hash->plots;
+	list->plot = plot;
+
+	hash->plots = list;
 }
 
 static void remove_hash(struct plot_hash **array, struct graph_plot *plot, gint val)
 {
 	struct plot_hash *hash, **phash;
-	struct graph_plot **pplot;
+	struct plot_list **pplot;
+	struct plot_list *list;
 	gint key;
 
 	hash = find_hash(array, val);
 	pplot = &hash->plots;
 
-	while (*pplot) {
-		if (*pplot == plot) {
-			*pplot = plot->next;
+	while ((list = *pplot)) {
+		if (list->plot == plot) {
+			*pplot = list->next;
+			free(list);
 			break;
 		}
-		pplot = &(*pplot)->next;
+		pplot = &list->next;
 	}
 
 	if (hash->plots)

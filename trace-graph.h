@@ -81,7 +81,6 @@ struct plot_callbacks {
 };
 
 struct graph_plot {
-	struct graph_plot		*next;	/* for hash */
 	int				pos;
 	char				*label;
 	const struct plot_callbacks	*cb;
@@ -93,9 +92,14 @@ struct graph_callbacks {
 	graph_filter_cb		*filter;
 };
 
+struct plot_list {
+	struct plot_list	*next;
+	struct graph_plot	*plot;
+};
+
 struct plot_hash {
 	struct plot_hash	*next;
-	struct graph_plot	*plots;
+	struct plot_list	*plots;
 	gint			val;
 };
 
