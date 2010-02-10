@@ -1500,6 +1500,105 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 	return NULL;
 }
 
+/**
+ * tracecmd_read_prev - read the record before the given record
+ * @handle: input handle to the trace.dat file
+ * @record: the record to use to find the previous record.
+ *
+ * This returns the record before the @record on its CPU. If
+ * @record is the first record, NULL is returned. The cursor is set
+ * as if the previous record was read by tracecmd_read_data().
+ *
+ * @record can not be NULL, otherwise NULL is returned.
+ *
+ * Note, this is not that fast of an algorithm, since it needs
+ * to build the timestamp for the record.
+ *
+ * Note 2: This may free any record allocoted with tracecmd_peek_data().
+ *
+ * The record returned must be freed with free_record().
+ */
+struct record *
+tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
+{
+	unsigned long long offset, page_offset;;
+	struct cpu_data *cpu_data;
+	int index;
+	int cpu;
+
+	if (!record)
+		return NULL;
+
+	cpu = record->cpu;
+	offset = record->offset;
+	cpu_data = &handle->cpu_data[cpu];
+
+	page_offset = calc_page_offset(handle, offset);
+	index = offset - page_offset;
+
+	/* Note, the record passed in could have been a peek */
+	if (cpu_data->next) {
+		free_record(cpu_data->next);
+		cpu_data->next = NULL;
+	}
+
+	/* Reset the cursor */
+	/* Should not happen */
+	if (get_page(handle, cpu, page_offset) < 0)
+		return NULL;
+
+	update_page_info(handle, cpu);
+
+	/* Find the record before this record */
+	index = 0;
+	for (;;) {
+		record = tracecmd_read_data(handle, cpu);
+		/* Should not happen! */
+		if (!record)
+			return NULL;
+		if (record->offset == offset)
+			break;
+		index = record->offset - page_offset;
+		free_record(record);
+	}
+	free_record(record);
+
+	if (index)
+		/* we found our record */
+		return tracecmd_read_at(handle, page_offset + index, NULL);
+
+	/* The previous record is on the previous page */
+	for (;;) {
+		/* check if this is the first page */
+		if (page_offset == cpu_data->file_offset)
+			return NULL;
+		page_offset -= handle->page_size;
+
+		/* Updating page to a new page will reset index to 0 */
+		get_page(handle, cpu, page_offset);
+
+		record = NULL;
+		index = 0;
+		do {
+			if (record) {
+				index = record->offset - page_offset;
+				free_record(record);
+			}
+			record = tracecmd_read_data(handle, cpu);
+			/* Should not happen */
+			if (!record)
+				return NULL;
+		} while (record->offset != offset);
+		free_record(record);
+
+		if (index)
+			/* we found our record */
+			return tracecmd_read_at(handle, page_offset + index, NULL);
+	}
+
+	/* Not reached */
+}
+
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];

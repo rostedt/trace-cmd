@@ -64,6 +64,9 @@ struct record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu);
 
 struct record *
+tracecmd_read_prev(struct tracecmd_input *handle, struct record *record);
+
+struct record *
 tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu);
 
 struct record *
