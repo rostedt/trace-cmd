@@ -3,10 +3,19 @@
 
 void trace_graph_plot_free(struct graph_info *ginfo)
 {
+	struct graph_plot **array;
+	int plots;
 	int i;
 
-	for (i = 0; i < ginfo->plots; i++)
-		free(ginfo->plot_array[i]);
+	/* copy the plot_array since the removing plots will modify it */
+	array = malloc_or_die(sizeof(*array) * ginfo->plots);
+	memcpy(array, ginfo->plot_array, sizeof(*array) * ginfo->plots);
+	plots = ginfo->plots;
+
+
+	for (i = 0; i < plots; i++)
+		trace_graph_plot_remove(ginfo, array[i]);
+	free(array);
 
 	if (ginfo->plot_array) {
 		free(ginfo->plot_array);
