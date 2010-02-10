@@ -517,6 +517,11 @@ static int calc_index(struct tracecmd_input *handle,
 	return (unsigned long)ptr - (unsigned long)handle->cpu_data[cpu].page->map;
 }
 
+static unsigned long long calc_page_offset(struct tracecmd_input *handle,
+					   unsigned long long offset)
+{
+	return offset & ~(handle->page_size - 1);
+}
 
 static int read_page(struct tracecmd_input *handle, off64_t offset,
 		     void *map)
@@ -876,7 +881,7 @@ find_and_peek_event(struct tracecmd_input *handle, unsigned long long offset,
 		return NULL;
 
 	/* Move this cpu index to point to this offest */
-	page_offset = offset & ~(handle->page_size - 1);
+	page_offset = calc_page_offset(handle, offset);
 
 	if (get_page(handle, cpu, page_offset) < 0)
 		return NULL;
@@ -924,7 +929,7 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 	unsigned long long page_offset;
 	int cpu;
 
-	page_offset = offset & ~(handle->page_size - 1);
+	page_offset = calc_page_offset(handle, offset);
 
 	/* check to see if we have this page already */
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
@@ -969,7 +974,7 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 	int index;
 	int ret;
 
-	page_offset = record->offset & ~(handle->page_size - 1);
+	page_offset = calc_page_offset(handle, record->offset);
 	index = record->offset & (handle->page_size - 1);
 
 	ret =get_page(handle, record->cpu, page_offset);
@@ -1150,7 +1155,7 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 			end = next;
 
 		next = start + (end - start) / 2;
-		next &= ~(handle->page_size - 1);
+		next = calc_page_offset(handle, next);
 
 		/* Prevent an infinite loop if start and end are a page off */
 		if (next == start)
@@ -1206,7 +1211,7 @@ int tracecmd_set_cursor(struct tracecmd_input *handle,
 		return -1; 	/* cpu does not have this offset. */
 
 	/* Move this cpu index to point to this offest */
-	page_offset = offset & ~(handle->page_size - 1);
+	page_offset = calc_page_offset(handle, offset);
 
 	if (get_page(handle, cpu, page_offset) < 0)
 		return -1;
