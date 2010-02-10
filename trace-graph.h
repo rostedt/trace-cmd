@@ -81,6 +81,7 @@ struct plot_callbacks {
 };
 
 struct graph_plot {
+	struct graph_plot		*next;	/* for hash */
 	int				pos;
 	char				*label;
 	const struct plot_callbacks	*cb;
@@ -92,6 +93,14 @@ struct graph_callbacks {
 	graph_filter_cb		*filter;
 };
 
+struct plot_hash {
+	struct plot_hash	*next;
+	struct graph_plot	*plots;
+	gint			val;
+};
+
+#define PLOT_HASH_SIZE 1024
+
 struct graph_info {
 	struct tracecmd_input	*handle;
 	struct pevent		*pevent;
@@ -101,6 +110,9 @@ struct graph_info {
 	struct graph_plot	**plot_array;	/* all plots */
 	struct graph_plot	*plot_clicked;	/* plot that was clicked on */
 
+	gint			nr_task_hash;
+	struct plot_hash	*task_hash[PLOT_HASH_SIZE];
+	struct plot_hash	*cpu_hash[PLOT_HASH_SIZE];
 
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
@@ -226,15 +238,29 @@ gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *re
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);
 void trace_graph_plot_init(struct graph_info *ginfo);
-void trace_graph_plot_append(struct graph_info *ginfo,
-			     const char *label, const struct plot_callbacks *cb,
-			     void *data);
-void trace_graph_plot_insert(struct graph_info *ginfo,
-			     int pos,
-			     const char *label, const struct plot_callbacks *cb,
-			     void *data);
+struct graph_plot *trace_graph_plot_append(struct graph_info *ginfo,
+					   const char *label,
+					   const struct plot_callbacks *cb,
+					   void *data);
+struct graph_plot *trace_graph_plot_insert(struct graph_info *ginfo,
+					   int pos,
+					   const char *label,
+					   const struct plot_callbacks *cb,
+					   void *data);
 void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot);
+struct plot_hash *trace_graph_plot_find_task(struct graph_info *ginfo, gint task);
+void trace_graph_plot_add_task(struct graph_info *ginfo, struct graph_plot *plot,
+			       gint task);
+void trace_graph_plot_remove_task(struct graph_info *ginfo,
+				  struct graph_plot *plot,
+				  gint task);
+struct plot_hash *trace_graph_plot_find_cpu(struct graph_info *ginfo, gint cpu);
+void trace_graph_plot_add_cpu(struct graph_info *ginfo, struct graph_plot *plot,
+			      gint cpu);
+void trace_graph_plot_remove_cpu(struct graph_info *ginfo, struct graph_plot *plot,
+				 gint cpu);
 
+/* plot callbacks */
 int trace_graph_plot_match_time(struct graph_info *ginfo,
 				struct graph_plot *plot,
 				unsigned long long time);

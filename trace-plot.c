@@ -44,9 +44,10 @@ allocate_plot(struct graph_info *ginfo,
 	return plot;
 }
 
-void trace_graph_plot_append(struct graph_info *ginfo,
-			     const char *label, const struct plot_callbacks *cb,
-			     void *data)
+struct graph_plot *
+trace_graph_plot_append(struct graph_info *ginfo,
+			const char *label, const struct plot_callbacks *cb,
+			void *data)
 {
 	struct graph_plot *plot;
 
@@ -69,12 +70,15 @@ void trace_graph_plot_append(struct graph_info *ginfo,
 	}
 
 	ginfo->plots++;
+
+	return plot;
 }
 
-void trace_graph_plot_insert(struct graph_info *ginfo,
-			     int pos,
-			     const char *label, const struct plot_callbacks *cb,
-			     void *data)
+struct graph_plot *
+trace_graph_plot_insert(struct graph_info *ginfo,
+			int pos,
+			const char *label, const struct plot_callbacks *cb,
+			void *data)
 {
 	struct graph_plot *plot;
 	int i;
@@ -104,6 +108,8 @@ void trace_graph_plot_insert(struct graph_info *ginfo,
 	/* Update the new positions */
 	for (i = pos + 1; i < ginfo->plots; i++)
 		ginfo->plot_array[i]->pos = i;
+
+	return plot;
 }
 
 void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot)
@@ -130,6 +136,119 @@ void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot)
 		ginfo->plot_array = NULL;
 	}
 }
+
+static struct plot_hash *find_hash(struct plot_hash **array, gint val)
+{
+	struct plot_hash *hash;
+	gint key;
+
+	key = trace_hash(val) % PLOT_HASH_SIZE;
+
+	for (hash = array[key]; hash; hash = hash->next) {
+		if (hash->val == val)
+			return hash;
+	}
+
+	return NULL;
+}
+
+static void add_hash(struct plot_hash **array, struct graph_plot *plot, gint val)
+{
+	struct plot_hash *hash;
+	gint key;
+
+	hash = find_hash(array, val);
+	if (!hash) {
+		hash = g_new0(typeof(*hash), 1);
+		g_assert(hash);
+		key = trace_hash(val) % PLOT_HASH_SIZE;
+		hash->next = array[key];
+		hash->val = val;
+		array[key] = hash;
+	}
+
+	plot->next = hash->plots;
+	hash->plots = plot;
+}
+
+static void remove_hash(struct plot_hash **array, struct graph_plot *plot, gint val)
+{
+	struct plot_hash *hash, **phash;
+	struct graph_plot **pplot;
+	gint key;
+
+	hash = find_hash(array, val);
+	pplot = &hash->plots;
+
+	while (*pplot) {
+		if (*pplot == plot) {
+			*pplot = plot->next;
+			break;
+		}
+		pplot = &(*pplot)->next;
+	}
+
+	if (hash->plots)
+		return;
+
+	/* remove this hash item */
+	key = trace_hash(val) % PLOT_HASH_SIZE;
+	phash = &array[key];
+	while (*phash) {
+		if (*phash == hash) {
+			*phash = hash->next;
+			break;
+		}
+		phash = &(*phash)->next;
+	}
+
+	g_free(hash);
+}
+
+struct plot_hash *
+trace_graph_plot_find_task(struct graph_info *ginfo, gint task)
+{
+	return find_hash(ginfo->task_hash, task);
+}
+
+void trace_graph_plot_add_task(struct graph_info *ginfo,
+			       struct graph_plot *plot,
+			       gint task)
+{
+	add_hash(ginfo->task_hash, plot, task);
+	ginfo->nr_task_hash++;
+}
+
+void trace_graph_plot_remove_task(struct graph_info *ginfo,
+				  struct graph_plot *plot,
+				  gint task)
+{
+	remove_hash(ginfo->task_hash, plot, task);
+	ginfo->nr_task_hash--;
+}
+
+struct plot_hash *
+trace_graph_plot_find_cpu(struct graph_info *ginfo, gint cpu)
+{
+	return find_hash(ginfo->cpu_hash, cpu);
+}
+
+void trace_graph_plot_add_cpu(struct graph_info *ginfo,
+			      struct graph_plot *plot,
+			      gint cpu)
+{
+	add_hash(ginfo->cpu_hash, plot, cpu);
+}
+
+void trace_graph_plot_remove_cpu(struct graph_info *ginfo,
+				 struct graph_plot *plot,
+				 gint cpu)
+{
+	remove_hash(ginfo->cpu_hash, plot, cpu);
+}
+
+
+/* Plot callback helpers */
 
 int trace_graph_plot_match_time(struct graph_info *ginfo,
 				struct graph_plot *plot,

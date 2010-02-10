@@ -398,6 +398,7 @@ void cpu_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
 
+	trace_graph_plot_remove_cpu(ginfo, plot, cpu_info->cpu);
 	free(cpu_info);
 }
 
@@ -414,6 +415,7 @@ static const struct plot_callbacks cpu_plot_cb = {
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)
 {
 	struct cpu_plot_info *cpu_info;
+	struct graph_plot *plot;
 	char label[100];
 	long cpu;
 
@@ -423,6 +425,7 @@ void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)
 
 		snprintf(label, 100, "CPU %ld", cpu);
 
-		trace_graph_plot_append(ginfo, label, &cpu_plot_cb, cpu_info);
+		plot = trace_graph_plot_append(ginfo, label, &cpu_plot_cb, cpu_info);
+		trace_graph_plot_add_cpu(ginfo, plot, cpu);
 	}
 }

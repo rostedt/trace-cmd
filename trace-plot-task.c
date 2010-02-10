@@ -536,6 +536,8 @@ void task_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
 {
 	struct task_plot_info *task_info = plot->private;
 
+	trace_graph_plot_remove_task(ginfo, plot, task_info->pid);
+
 	free(task_info);
 }
 
@@ -576,11 +578,14 @@ void graph_plot_init_tasks(struct graph_info *ginfo)
 void graph_plot_task(struct graph_info *ginfo, int pid)
 {
 	struct task_plot_info *task_info;
+	struct graph_plot *plot;
 	char label[100];
 
 	task_info = malloc_or_die(sizeof(*task_info));
 	task_info->pid = pid;
 
 	snprintf(label, 100, "TASK %d", pid);
-	trace_graph_plot_append(ginfo, label, &task_plot_cb, task_info);
+	plot = trace_graph_plot_append(ginfo, label, &task_plot_cb, task_info);
+
+	trace_graph_plot_add_task(ginfo, plot, pid);
 }

@@ -1626,7 +1626,6 @@ static void draw_info(struct graph_info *ginfo,
 
 	draw_timeline(ginfo, new_width);
 
-	
 	for (i = 0; i < ginfo->plots; i++)
 		draw_plot(ginfo, i, new_width, ginfo->read_comms);
 
@@ -2087,7 +2086,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo->task_filter = filter_task_hash_alloc();
 	ginfo->hide_tasks = filter_task_hash_alloc();
-	
+
 	ginfo->widget = gtk_hbox_new(FALSE, 0);
 	gtk_widget_show(ginfo->widget);
 
