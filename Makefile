@@ -144,7 +144,7 @@ TRACE_CMD_OBJS = trace-cmd.o trace-read.o trace-split.o
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
 	trace-hash.o
 TRACE_GRAPH_OBJS = trace-graph.o trace-compat.o trace-hash.o trace-filter.o \
-		trace-plot.o trace-plot-cpu.o
+		trace-plot.o trace-plot-cpu.o trace-plot-task.o
 TRACE_VIEW_MAIN_OBJS = trace-view-main.o $(TRACE_VIEW_OBJS)
 TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS)
 KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) kernel-shark.o
