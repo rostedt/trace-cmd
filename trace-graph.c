@@ -430,6 +430,20 @@ plot_task_clicked (gpointer data)
 	update_label_window(ginfo);
 }
 
+static void
+remove_plot_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	int p = ginfo->plot_clicked;
+
+	if (p < 0)
+		return;
+
+	trace_graph_plot_remove(ginfo, p);
+	redraw_graph(ginfo);
+	update_label_window(ginfo);
+}
+
 static gboolean
 do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
@@ -440,6 +454,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_hide_task;
 	static GtkWidget *menu_filter_clear_tasks;
 	static GtkWidget *menu_plot_task;
+	static GtkWidget *menu_remove_plot;
 	struct record *record = NULL;
 	struct graph_plot *plot;
 	const char *comm;
@@ -494,6 +509,14 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 					  G_CALLBACK (plot_task_clicked),
 					  data);
 
+		menu_remove_plot = gtk_menu_item_new_with_label("Remove Plot");
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_remove_plot);
+		gtk_widget_show(menu_remove_plot);
+
+		g_signal_connect_swapped (G_OBJECT (menu_remove_plot), "activate",
+					  G_CALLBACK (remove_plot_clicked),
+					  data);
+
 	}
 
 	if (ginfo->filter_enabled)
@@ -516,14 +539,22 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	time =  convert_x_to_time(ginfo, x);
 
+	ginfo->plot_clicked = -1;
+
 	for (i = 0; i < ginfo->plots; i++) {
 		if (y >= (PLOT_TOP(i) - PLOT_GIVE) &&
 		    y <= (PLOT_BOTTOM(i) + PLOT_GIVE)) {
 			plot = ginfo->plot_array[i];
 			record = trace_graph_plot_find_record(ginfo, plot, time);
+			ginfo->plot_clicked = i;
 			break;
 		}
 	}
+
+	if (ginfo->plot_clicked < 0)
+		gtk_widget_set_sensitive(menu_remove_plot, FALSE);
+	else
+		gtk_widget_set_sensitive(menu_remove_plot, TRUE);
 
 	if (record) {
 

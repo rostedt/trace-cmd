@@ -119,6 +119,8 @@ struct graph_info {
 	gint			last_x;		/* last x seen while moving mouse */
 	gboolean		line_active;	/* set when button is pressed */
 
+	gint			plot_clicked;	/* plot that was clicked on */
+
 	gdouble			hadj_value;	/* value to set hadj width */
 	gdouble			hadj_page_size;	/* visible size to set hadj */
 
