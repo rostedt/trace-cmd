@@ -111,10 +111,11 @@ void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot)
 	int pos = plot->pos;
 	int i;
 
-	if (pos < 0 || pos >= ginfo->plots || !ginfo->plots)
-		return;
+	if (plot->cb->destroy)
+		plot->cb->destroy(ginfo, plot);
 
-	free(ginfo->plot_array[pos]);
+	free(plot->label);
+	free(plot);
 
 	ginfo->plots--;
 

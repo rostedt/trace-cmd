@@ -53,6 +53,9 @@ struct graph_plot;
  * display_info:
  *   display information about a given time. A resolution is
  *   passed in to show how much time is in 1 pixel.
+ *
+ * destroy:
+ *   destructor routine. Cleans up all resourses that the plot allocated.
  */
 struct plot_callbacks {
 	int (*match_time)(struct graph_info *, struct graph_plot *,
@@ -74,6 +77,7 @@ struct plot_callbacks {
 	int (*display_info)(struct graph_info *, struct graph_plot *,
 			    struct trace_seq *s,
 			    unsigned long long time);
+	void (*destroy)(struct graph_info *, struct graph_plot *);
 };
 
 struct graph_plot {

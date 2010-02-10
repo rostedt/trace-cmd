@@ -4,7 +4,6 @@
 
 struct cpu_plot_info {
 	int			cpu;
-	struct record		*record;
 	unsigned long long	last_time;
 	int			last_pid;
 };
@@ -177,7 +176,6 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 	int cpu;
 
 	cpu = cpu_info->cpu;
-	cpu_info->record = NULL;
 	cpu_info->last_time = 0ULL;
 	cpu_info->last_pid = -1;
 
@@ -396,6 +394,13 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 	return 1;
 }
 
+void cpu_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+
+	free(cpu_info);
+}
+
 static const struct plot_callbacks cpu_plot_cb = {
 	.match_time		= cpu_plot_match_time,
 	.plot_event		= cpu_plot_event,
@@ -403,6 +408,7 @@ static const struct plot_callbacks cpu_plot_cb = {
 	.display_last_event	= cpu_plot_display_last_event,
 	.find_record		= cpu_plot_find_record,
 	.display_info		= cpu_plot_display_info,
+	.destroy		= cpu_plot_destroy
 };
 
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)
