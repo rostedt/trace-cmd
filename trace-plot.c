@@ -3,13 +3,10 @@
 
 void trace_graph_plot_free(struct graph_info *ginfo)
 {
-	struct graph_plot *plot;
+	int i;
 
-	while (ginfo->plot_list) {
-		plot = ginfo->plot_list;
-		ginfo->plot_list = plot->next;
-		free(plot);
-	}
+	for (i = 0; i < ginfo->plots; i++)
+		free(ginfo->plot_array[i]);
 
 	if (ginfo->plot_array) {
 		free(ginfo->plot_array);
@@ -23,7 +20,6 @@ void trace_graph_plot_init(struct graph_info *ginfo)
 {
 	ginfo->plots = 0;
 	ginfo->plot_array = NULL;
-	ginfo->plot_list = NULL;
 }
 
 static struct graph_plot *
@@ -44,9 +40,6 @@ allocate_plot(struct graph_info *ginfo,
 	plot->label = name;
 	plot->cb = cb;
 	plot->private = data;
-
-	plot->next = ginfo->plot_list;
-	ginfo->plot_list = plot;
 
 	return plot;
 }
@@ -108,19 +101,8 @@ void trace_graph_plot_insert(struct graph_info *ginfo,
 
 void trace_graph_plot_remove(struct graph_info *ginfo, int pos)
 {
-	struct graph_plot **pplot;
-
 	if (pos < 0 || pos >= ginfo->plots || !ginfo->plots)
 		return;
-
-	for (pplot = &ginfo->plot_list; *pplot; pplot = &((*pplot)->next)) {
-
-		if (*pplot != ginfo->plot_array[pos])
-			continue;
-
-		*pplot = (*pplot)->next;
-		break;
-	}
 
 	free(ginfo->plot_array[pos]);
 

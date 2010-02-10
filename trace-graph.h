@@ -77,7 +77,6 @@ struct plot_callbacks {
 };
 
 struct graph_plot {
-	struct graph_plot		*next;
 	char				*label;
 	const struct plot_callbacks	*cb;
 	void				*private;
@@ -95,7 +94,6 @@ struct graph_info {
 
 	gint			plots;
 	struct graph_plot	**plot_array;
-	struct graph_plot	*plot_list;
 
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
