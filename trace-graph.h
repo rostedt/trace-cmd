@@ -14,6 +14,16 @@ typedef void (graph_filter_cb)(struct graph_info *ginfo,
 
 struct graph_plot;
 
+struct plot_info {
+	gboolean		line;
+	int			lcolor;
+	unsigned long long	ltime;
+	gboolean		box;
+	int			bcolor;
+	unsigned long long	bstart;
+	unsigned long long	bend;
+};
+
 /*
  * match_time:
  *   Return true if a selected time should expose plot.
@@ -25,8 +35,7 @@ struct graph_plot;
  *   to start plotting.
  *
  * plot_event:
- *   This is called by the plotter. Return 1 to plot an event or
- *   0 to stop the plotting.
+ *   This is called by the plotter.
  *   color returns the color that should be printed.
  *   line returns 1 or 0 if a line should be drawn.
  *   ltime returns the time that the line should be drawn at
@@ -36,7 +45,6 @@ struct graph_plot;
  *    bend is the time the box ends at
  *     (bstart and bend are ignored if box is 0)
  *   time is the time of the current event
- *   (box and line can be true and processed even if the func returns 0)
  *
  * end:
  *   called at the end of the plotting in case the plotter needs to
@@ -64,11 +72,8 @@ struct plot_callbacks {
 		      unsigned long long time);
 	int (*plot_event)(struct graph_info *ginfo,
 			  struct graph_plot *plot,
-			  gboolean *line, int *lcolor,
-			  unsigned long long *ltime,
-			  gboolean *box, int *bcolor,
-			  unsigned long long *bstart,
-			  unsigned long long *bend);
+			  struct record *record,
+			  struct plot_info *info);
 	void (*end)(struct graph_info *, struct graph_plot *);
 	int (*display_last_event)(struct graph_info *ginfo, struct graph_plot *plot,
 				  struct trace_seq *s, unsigned long long time);
@@ -85,6 +90,11 @@ struct graph_plot {
 	char				*label;
 	const struct plot_callbacks	*cb;
 	void				*private;
+
+	/* Used for drawing */
+	gint				 last_color;
+	gint				p1, p2, p3;
+	GdkGC				*gc;
 };
 
 struct graph_callbacks {
@@ -117,6 +127,7 @@ struct graph_info {
 	gint			nr_task_hash;
 	struct plot_hash	*task_hash[PLOT_HASH_SIZE];
 	struct plot_hash	*cpu_hash[PLOT_HASH_SIZE];
+	struct plot_list	*all_recs;
 
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
@@ -263,6 +274,10 @@ void trace_graph_plot_add_cpu(struct graph_info *ginfo, struct graph_plot *plot,
 			      gint cpu);
 void trace_graph_plot_remove_cpu(struct graph_info *ginfo, struct graph_plot *plot,
 				 gint cpu);
+void trace_graph_plot_add_all_recs(struct graph_info *ginfo,
+				   struct graph_plot *plot);
+void trace_graph_plot_remove_all_recs(struct graph_info *ginfo,
+				      struct graph_plot *plot);
 
 /* plot callbacks */
 int trace_graph_plot_match_time(struct graph_info *ginfo,
@@ -280,11 +295,8 @@ void trace_graph_plot_start(struct graph_info *ginfo,
 
 int trace_graph_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   gboolean *line, int *lcolor,
-			   unsigned long long *ltime,
-			   gboolean *box, int *bcolor,
-			   unsigned long long *bstart,
-			   unsigned long long *bend);
+			   struct record *record,
+			   struct plot_info *info);
 
 void trace_graph_plot_end(struct graph_info *ginfo,
 			  struct graph_plot *plot);

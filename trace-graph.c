@@ -1406,25 +1406,13 @@ static void draw_plot_box(struct graph_info *ginfo, int i,
 			   x2 - x1, PLOT_BOX_SIZE);
 }
 
-static void draw_plot(struct graph_info *ginfo, gint i,
-		      gint new_width, gboolean read_comms)
+static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
+		      struct record *record)
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
-	gint height = PLOT_LINE(i);
-	struct graph_plot *plot = ginfo->plot_array[i];
-	static GdkGC *gc;
 	static gint width_16;
-	guint64 ts;
-	gint lcolor;
-	gint bcolor;
-	gint last_color = -1;
-	gboolean box;
-	gboolean line;
-	unsigned long long ltime;
-	unsigned long long bstart;
-	unsigned long long bend;
-	gint p1 = 0, p2 = 0, p3 = 0;
+	struct plot_info info;
 	gint x;
 
 	/* Calculate the size of 16 characters */
@@ -1442,87 +1430,117 @@ static void draw_plot(struct graph_info *ginfo, gint i,
 		g_object_unref(layout);
 	}
 
-	if (!gc)
-		gc = gdk_gc_new(ginfo->draw->window);
+	trace_graph_plot_event(ginfo, plot, record, &info);
 
-	gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
-		      0, height, new_width, height);
+	if (info.box) {
+		if (info.bcolor != plot->last_color) {
+			plot->last_color = info.bcolor;
+			set_color(ginfo->draw, plot->gc, plot->last_color);
+		}
 
-	ts = ginfo->view_start_time;
+		draw_plot_box(ginfo, plot->pos, info.bstart, info.bend, plot->gc);
+	}
 
-	trace_graph_plot_start(ginfo, plot, ts);
+	if (info.line) {
+		if (info.lcolor != plot->last_color) {
+			plot->last_color = info.lcolor;
+			set_color(ginfo->draw, plot->gc, plot->last_color);
+		}
 
-	set_color(ginfo->draw, gc, last_color);
+		x = draw_plot_line(ginfo, plot->pos, info.ltime, plot->gc);
 
-	while (trace_graph_plot_event(ginfo, plot,
-				      &line, &lcolor, &ltime,
-				      &box, &bcolor, &bstart, &bend)) {
+		/* Figure out if we can show the text for the previous record */
 
-		/* really should not happen */
-		if (!line && !box)
-			continue;
+		plot->p3 = x;
 
-		if (box) {
-			if (bcolor != last_color) {
-				last_color = bcolor;
-				set_color(ginfo->draw, gc, last_color);
+		/* Make sure p2 will be non-zero the next iteration */
+		if (!plot->p3)
+			plot->p3 = 1;
+
+		/* first record, continue */
+		if (plot->p2)
+			plot->p2 = draw_event_label(ginfo, plot->pos,
+						    plot->p1, plot->p2, plot->p3, width_16, font);
+
+		plot->p1 = plot->p2;
+		plot->p2 = plot->p3;
+	}
+
+	if (!record && plot->p2)
+		draw_event_label(ginfo, plot->pos,
+				 plot->p1, plot->p2, ginfo->draw_width, width_16, font);
+}
+
+static void draw_plots(struct graph_info *ginfo, gint new_width)
+{
+	struct plot_list *list;
+	struct graph_plot *plot;
+	struct record *record;
+	struct plot_hash *hash;
+	gint pid;
+	gint cpu;
+	gint i;
+
+	/* Initialize plots */
+	for (i = 0; i < ginfo->plots; i++) {
+		plot = ginfo->plot_array[i];
+
+		if (!plot->gc)
+			plot->gc = gdk_gc_new(ginfo->draw->window);
+		plot->p1 = 0;
+		plot->p2 = 0;
+		plot->p3 = 0;
+		plot->last_color = -1;
+
+		gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
+			      0, PLOT_LINE(i), new_width, PLOT_LINE(i));
+
+		trace_graph_plot_start(ginfo, plot, ginfo->view_start_time);
+
+		set_color(ginfo->draw, plot->gc, plot->last_color);
+	}
+
+	/* Shortcut if we don't have any task plots */
+	if (!ginfo->nr_task_hash && !ginfo->all_recs) {
+		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+			hash = trace_graph_plot_find_cpu(ginfo, cpu);
+			if (!hash)
+				continue;
+
+			while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+				for (list = hash->plots; list; list = list->next)
+					draw_plot(ginfo, list->plot, record);
+				free_record(record);
 			}
-
-			draw_plot_box(ginfo, i, bstart, bend, gc);
 		}
-
-		if (line) {
-
-			if (lcolor != last_color) {
-				last_color = lcolor;
-				set_color(ginfo->draw, gc, last_color);
-			}
-
-			x = draw_plot_line(ginfo, i, ltime, gc);
-
-			/* Figure out if we can show the text for the previous record */
-
-			p3 = x;
-
-			/* Make sure p2 will be non-zero the next iteration */
-			if (!p3)
-				p3 = 1;
-
-			/* first record, continue */
-			if (p2)
-				p2 = draw_event_label(ginfo, i,
-						      p1, p2, p3, width_16, font);
-
-			p1 = p2;
-			p2 = p3;
-		}
+		goto out;
 	}
 
-	if (box) {
-		if (bcolor != last_color) {
-			last_color = bcolor;
-			set_color(ginfo->draw, gc, last_color);
+	while ((record = tracecmd_read_next_data(ginfo->handle, &cpu))) {
+		hash = trace_graph_plot_find_cpu(ginfo, cpu);
+		if (hash) {
+			for (list = hash->plots; list; list = list->next)
+				draw_plot(ginfo, list->plot, record);
 		}
-
-		draw_plot_box(ginfo, i, bstart, bend, gc);
+		pid = pevent_data_pid(ginfo->pevent, record);
+		hash = trace_graph_plot_find_task(ginfo, pid);
+		if (hash) {
+			for (list = hash->plots; list; list = list->next)
+				draw_plot(ginfo, list->plot, record);
+		}
+		for (list = ginfo->all_recs; list; list = list->next)
+			draw_plot(ginfo, list->plot, record);
+		free_record(record);
 	}
 
-	if (line) {
-		if (lcolor != last_color) {
-			last_color = lcolor;
-			set_color(ginfo->draw, gc, last_color);
-		}
-
-		draw_plot_line(ginfo, i, ltime, gc);
+out:
+	for (i = 0; i < ginfo->plots; i++) {
+		plot = ginfo->plot_array[i];
+		draw_plot(ginfo, plot, NULL);
+		trace_graph_plot_end(ginfo, plot);
+		gdk_gc_unref(plot->gc);
+		plot->gc = NULL;
 	}
-
-	if (p2)
-		draw_event_label(ginfo, i,
-				 p1, p2, ginfo->draw_width, width_16, font);
-
-	trace_graph_plot_end(ginfo, plot);
-
-	return;
 }
 
 
@@ -1614,8 +1632,6 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 static void draw_info(struct graph_info *ginfo,
 		      gint new_width)
 {
-	gint i;
-
 	if (!ginfo->handle)
 		return;
 
@@ -1626,8 +1642,7 @@ static void draw_info(struct graph_info *ginfo,
 
 	draw_timeline(ginfo, new_width);
 
-	for (i = 0; i < ginfo->plots; i++)
-		draw_plot(ginfo, i, new_width, ginfo->read_comms);
+	draw_plots(ginfo, new_width);
 
 	ginfo->read_comms = FALSE;
 }

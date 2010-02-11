@@ -204,14 +204,10 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 
 static int cpu_plot_event(struct graph_info *ginfo,
 			  struct graph_plot *plot,
-			  gboolean *line, int *lcolor,
-			  unsigned long long *ltime,
-			  gboolean *box, int *bcolor,
-			  unsigned long long *bstart,
-			  unsigned long long *bend)
+			  struct record *record,
+			  struct plot_info *info)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	struct record *record;
 	int sched_pid;
 	int orig_pid;
 	int is_sched_switch;
@@ -222,14 +218,13 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	int ret = 1;
 
 	cpu = cpu_info->cpu;
-	record = tracecmd_read_data(ginfo->handle, cpu);
 
 	if (!record) {
 		/* Finish a box if the last record was not idle */
 		if (cpu_info->last_pid > 0) {
-			*box = TRUE;
-			*bstart = cpu_info->last_time;
-			*bend = ginfo->view_end_time;
+			info->box = TRUE;
+			info->bstart = cpu_info->last_time;
+			info->bend = ginfo->view_end_time;
 		}
 		return 0;
 	}
@@ -255,27 +250,25 @@ static int cpu_plot_event(struct graph_info *ginfo,
 		box_filter = trace_graph_filter_on_task(ginfo, orig_pid);
 
 		if (!box_filter && cpu_info->last_pid) {
-			*bcolor = hash_pid(cpu_info->last_pid);
-			*box = TRUE;
-			*bstart = cpu_info->last_time;
-			*bend = record->ts;
+			info->bcolor = hash_pid(cpu_info->last_pid);
+			info->box = TRUE;
+			info->bstart = cpu_info->last_time;
+			info->bend = record->ts;
 		}
 
 		cpu_info->last_time = record->ts;
 	}
 
 	if (!filter && !trace_graph_filter_on_event(ginfo, record)) {
-		*line = TRUE;
-		*ltime = record->ts;
-		*lcolor = hash_pid(pid);
+		info->line = TRUE;
+		info->ltime = record->ts;
+		info->lcolor = hash_pid(pid);
 	}
 
 	cpu_info->last_pid = pid;
 
 	if (record->ts > ginfo->view_end_time)
 		ret = 0;
-
-	free_record(record);
 
 	return ret;
 }

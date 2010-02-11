@@ -256,16 +256,11 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 
 static int task_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   gboolean *line, int *lcolor,
-			   unsigned long long *ltime,
-			   gboolean *box, int *bcolor,
-			   unsigned long long *bstart,
-			   unsigned long long *bend)
+			   struct record *record,
+			   struct plot_info *info)
 {
 	struct task_plot_info *task_info = plot->private;
-	struct record *record = NULL;
 	gboolean match;
-	int next_cpu;
 	int sched_pid;
 	int rec_pid;
 	int is_wakeup;
@@ -274,90 +269,82 @@ static int task_plot_event(struct graph_info *ginfo,
 
 	pid = task_info->pid;
 
-	do {
-		free_record(record);
-
-		record = tracecmd_read_next_data(ginfo->handle, &next_cpu);
-
-		if (!record) {
-			/* no more records, finish a box if one was started */
-			if (task_info->last_cpu >= 0) {
-				*box = TRUE;
-				*bstart = task_info->last_time;
-				*bend = ginfo->view_end_time;
-				*bcolor = hash_cpu(task_info->last_cpu);
-			}
-			return 0;
+	if (!record) {
+		/* no more records, finish a box if one was started */
+		if (task_info->last_cpu >= 0) {
+			info->box = TRUE;
+			info->bstart = task_info->last_time;
+			info->bend = ginfo->view_end_time;
+			info->bcolor = hash_cpu(task_info->last_cpu);
 		}
+		return 0;
+	}
 
-		match = record_matches_pid(ginfo, record, pid, &rec_pid,
-					   &sched_pid, &is_sched, &is_wakeup);
+	match = record_matches_pid(ginfo, record, pid, &rec_pid,
+				   &sched_pid, &is_sched, &is_wakeup);
 
-	} while (!match && next_cpu != task_info->last_cpu);
+	if (!match && record->cpu != task_info->last_cpu)
+		return 0;
 
 	if (match) {
-		*line = TRUE;
-		*lcolor = hash_pid(rec_pid);
-		*ltime = record->ts;
+		info->line = TRUE;
+		info->lcolor = hash_pid(rec_pid);
+		info->ltime = record->ts;
 
 		if (is_wakeup) {
 			/* Wake up but not task */
-			*ltime = hash_pid(rec_pid);
-			free_record(record);
+			info->ltime = hash_pid(rec_pid);
 
 			/* Another task ? */
-			if (task_info->last_cpu == next_cpu) {
-				*box = TRUE;
-				*bcolor = hash_cpu(task_info->last_cpu);
-				*bstart = task_info->last_time;
-				*bend = record->ts;
+			if (task_info->last_cpu == record->cpu) {
+				info->box = TRUE;
+				info->bcolor = hash_cpu(task_info->last_cpu);
+				info->bstart = task_info->last_time;
+				info->bend = record->ts;
 				task_info->last_cpu = -1;
 			}
 
 			return 1;
 		}
 
-		if (task_info->last_cpu != next_cpu) {
+		if (task_info->last_cpu != record->cpu) {
 			if (task_info->last_cpu >= 0) {
 				/* Switched CPUs */
-				*box = TRUE;
-				*bcolor = hash_cpu(task_info->last_cpu);
-				*bstart = task_info->last_time;
-				*bend = record->ts;
+				info->box = TRUE;
+				info->bcolor = hash_cpu(task_info->last_cpu);
+				info->bstart = task_info->last_time;
+				info->bend = record->ts;
 			}
 			task_info->last_time = record->ts;
 		}
 
-		task_info->last_cpu = next_cpu;
+		task_info->last_cpu = record->cpu;
 		if (is_sched) {
 			if (rec_pid != pid) {
 				/* Just got scheduled in */
-				task_info->last_cpu = next_cpu;
+				task_info->last_cpu = record->cpu;
 				task_info->last_time = record->ts;
-			} else if (!*box) {
+			} else if (!info->box) {
 				/* just got scheduled out */
-				*box = TRUE;
-				*bcolor = hash_cpu(task_info->last_cpu);
-				*bstart = task_info->last_time;
-				*bend = record->ts;
+				info->box = TRUE;
+				info->bcolor = hash_cpu(task_info->last_cpu);
+				info->bstart = task_info->last_time;
+				info->bend = record->ts;
 				task_info->last_cpu = -1;
 			}
 		}
 
-		free_record(record);
 		return 1;
 	}
 
 	/* not a match, and on the last CPU, scheduled out? */
 	if (task_info->last_cpu >= 0) {
-		*box = TRUE;
-		*bcolor = hash_cpu(task_info->last_cpu);
-		*bstart = task_info->last_time;
-		*bend = record->ts;
+		info->box = TRUE;
+		info->bcolor = hash_cpu(task_info->last_cpu);
+		info->bstart = task_info->last_time;
+		info->bend = record->ts;
 		task_info->last_cpu = -1;
 	}
-
-	free_record(record);
 
 	return 1;
 }
@@ -536,7 +523,7 @@ void task_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
 {
 	struct task_plot_info *task_info = plot->private;
 
-	trace_graph_plot_remove_task(ginfo, plot, task_info->pid);
+	trace_graph_plot_remove_all_recs(ginfo, plot);
 
 	free(task_info);
 }
@@ -587,5 +574,5 @@ void graph_plot_task(struct graph_info *ginfo, int pid)
 	snprintf(label, 100, "TASK %d", pid);
 	plot = trace_graph_plot_append(ginfo, label, &task_plot_cb, task_info);
 
-	trace_graph_plot_add_task(ginfo, plot, pid);
+	trace_graph_plot_add_all_recs(ginfo, plot);
 }

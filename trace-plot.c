@@ -262,6 +262,35 @@ void trace_graph_plot_remove_cpu(struct graph_info *ginfo,
 	remove_hash(ginfo->cpu_hash, plot, cpu);
 }
 
+void trace_graph_plot_add_all_recs(struct graph_info *ginfo,
+				   struct graph_plot *plot)
+{
+	struct plot_list *list;
+
+	list = malloc_or_die(sizeof(*list));
+	list->next = ginfo->all_recs;
+	list->plot = plot;
+
+	ginfo->all_recs = list;
+}
+
+void trace_graph_plot_remove_all_recs(struct graph_info *ginfo,
+				      struct graph_plot *plot)
+{
+	struct plot_list **pplot;
+	struct plot_list *list;
+
+	pplot = &ginfo->all_recs;
+
+	while ((list = *pplot)) {
+		if (list->plot == plot) {
+			*pplot = list->next;
+			free(list);
+			break;
+		}
+		pplot = &list->next;
+	}
+}
 
 /* Plot callback helpers */
 
@@ -287,20 +316,16 @@ void trace_graph_plot_start(struct graph_info *ginfo,
 
 int trace_graph_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   gboolean *line, int *lcolor,
-			   unsigned long long *ltime,
-			   gboolean *box, int *bcolor,
-			   unsigned long long *bstart,
-			   unsigned long long *bend)
+			   struct record *record,
+			   struct plot_info *info)
 {
-	*line = FALSE;
-	*box = FALSE;
+	info->line = FALSE;
+	info->box = FALSE;
 
 	if (!plot->cb->plot_event)
 		return 0;
 
-	return plot->cb->plot_event(ginfo, plot, line, lcolor, ltime,
-				    box, bcolor, bstart, bend);
+	return plot->cb->plot_event(ginfo, plot, record, info);
 }
 
 void trace_graph_plot_end(struct graph_info *ginfo,
