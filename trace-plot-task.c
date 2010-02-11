@@ -58,6 +58,9 @@ static gboolean record_matches_pid(struct graph_info *ginfo,
 		}
 	}
 
+	if (*pid == match_pid)
+		return TRUE;
+
 	return FALSE;
 }
 
