@@ -61,8 +61,8 @@ static int filter_record(struct graph_info *ginfo,
 			 int *orig_pid, int *sched_pid,
 			 gboolean *sched_switch)
 {
-	gboolean is_sched_switch;
-	gboolean is_wakeup;
+	gboolean is_sched_switch = FALSE;
+	gboolean is_wakeup = FALSE;
 	const char *comm;
 	int wake_pid;
 	int filter;
@@ -201,6 +201,7 @@ static int cpu_plot_event(struct graph_info *ginfo,
 			info->box = TRUE;
 			info->bstart = cpu_info->last_time;
 			info->bend = ginfo->view_end_time;
+			info->bcolor = hash_pid(cpu_info->last_pid);
 		}
 		return 0;
 	}
@@ -315,6 +316,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 			}
 
+			convert_nano(record->ts, &sec, &usec);
 			trace_seq_printf(s, "%lu.%06lu", sec, usec);
 			if (pid)
 				trace_seq_printf(s, " %s-%d", comm, pid);
@@ -326,6 +328,8 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 		return ret;
 	}
 
+	convert_nano(record->ts, &sec, &usec);
+
 	pevent = ginfo->pevent;
 
 	pid = pevent_data_pid(ginfo->pevent, record);
@@ -333,8 +337,6 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 
 	if (record->ts > time - 2/ginfo->resolution &&
 	    record->ts < time + 2/ginfo->resolution) {
-
-		convert_nano(record->ts, &sec, &usec);
 
 		type = pevent_data_type(pevent, record);
 		event = pevent_data_event_from_type(pevent, type);
