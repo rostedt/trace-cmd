@@ -84,6 +84,9 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 
 int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 				  int cpu, unsigned long long ts);
+void
+tracecmd_set_all_cpus_to_timestamp(struct tracecmd_input *handle,
+				   unsigned long long time);
 
 int tracecmd_set_cursor(struct tracecmd_input *handle,
 			int cpu, unsigned long long offset);

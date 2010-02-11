@@ -1179,6 +1179,31 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 }
 
 /**
+ * tracecmd_set_all_cpus_to_timestamp - set all CPUs iterator to a given time
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU pointer to set
+ * @ts: the timestamp to set the CPU at.
+ *
+ * This sets the CPU iterator used by tracecmd_read_data and
+ * tracecmd_peek_data to a location in the CPU storage near
+ * a given timestamp. It will try to set the iterator to a time before
+ * the time stamp and not actually at a given time.
+ *
+ * To use this to find a record in a time field, call this function
+ * first, than iterate with tracecmd_read_next_data to find the records
+ * you need.
+ */
+void
+tracecmd_set_all_cpus_to_timestamp(struct tracecmd_input *handle,
+				   unsigned long long time)
+{
+	int cpu;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++)
+		tracecmd_set_cpu_to_timestamp(handle, cpu, time);
+}
+
+/**
  * tracecmd_set_cursor - set the offset for the next tracecmd_read_data
  * @handle: input handle for the trace.dat file
  * @cpu: the CPU pointer to set
