@@ -96,6 +96,9 @@ static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
 
 	trace_seq_printf(s, "%.*s", field->size, (char *)(data + field->offset));
 
+	if (get_field_val(s, data, event, "target_cpu", &val, 0) == 0)
+		trace_seq_printf(s, " [%03llu]", val);
+
 	if (get_field_val(s, data, event, "success", &val, 0) == 0)
 		trace_seq_puts(s, val ? " Success" : " Failed");
 
