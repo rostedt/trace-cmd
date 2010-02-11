@@ -405,9 +405,11 @@ task_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
 	return find_record(ginfo, pid, time);
 }
 
+#define MAX_SEARCH 20
+
 static struct record *
 find_previous_record(struct graph_info *ginfo, struct record *start_record,
-		     int pid, int cpu, unsigned long long time)
+		     int pid, int cpu)
 {
 	struct record *last_record = start_record;
 	struct record *record;
@@ -416,11 +418,13 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 	gboolean is_wakeup;
 	gint rec_pid;
 	gint sched_pid;
+	int count = 0;
 
 	if (!last_record)
 		last_record = tracecmd_read_cpu_last(ginfo->handle, cpu);
 
 	while ((record = tracecmd_read_prev(ginfo->handle, last_record))) {
+		count++;
 
 		match = record_matches_pid(ginfo, record, pid, &rec_pid,
 					   &sched_pid, &is_sched, &is_wakeup);
@@ -430,7 +434,7 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 		if (last_record != start_record)
 			free_record(last_record);
 
-		if (record->ts < time) {
+		if (count > MAX_SEARCH) {
 			free_record(record);
 			return NULL;
 		}
@@ -449,7 +453,6 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 	struct record *record;
 	struct record **records;
 	unsigned long long ts;
-	unsigned long long limit;
 	int next_cpu;
 	int cpu;
 
@@ -465,15 +468,12 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 		free_record(record);
 	}
 
-	/* Only search 5 pixels back */
-	limit = time - (5 / ginfo->resolution);
-
 	/* find a previous record */
 	records = malloc_or_die(sizeof(*records) * ginfo->cpus);
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 		record = tracecmd_read_data(ginfo->handle, cpu);
 		records[cpu] = find_previous_record(ginfo, record,
-						    pid, cpu, limit);
+						    pid, cpu);
 		free_record(record);
 	}
 
@@ -500,7 +500,7 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 		}
 
 		record = find_previous_record(ginfo, records[next_cpu],
-					      pid, next_cpu, limit);
+					      pid, next_cpu);
 		free_record(records[next_cpu]);
 		records[next_cpu] = record;
 		record = NULL;
