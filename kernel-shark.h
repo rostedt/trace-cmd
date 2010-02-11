@@ -13,6 +13,7 @@ struct shark_info {
 	struct graph_callbacks		graph_cbs;
 	gint				selected_task;
 	gboolean			list_filter_enabled;
+	gboolean			graph_follows;
 };
 
 #define offset_of(type, field)		(long)(&((type *)0)->field)

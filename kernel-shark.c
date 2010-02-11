@@ -294,12 +294,10 @@ cpus_clicked (gpointer data)
 				trace_view_cpu_filter_callback, trace_tree);
 }
 
-static void row_double_clicked(GtkTreeView        *treeview,
-			       GtkTreePath        *path,
-			       GtkTreeViewColumn  *col,
-			       gpointer            data)
+static void graph_follows_tree(struct shark_info *info,
+			       GtkTreeView *treeview,
+			       GtkTreePath *path)
 {
-	struct shark_info *info = data;
 	TraceViewRecord *rec;
 	GtkTreeModel *model;
 	gchar *spath;
@@ -318,6 +316,35 @@ static void row_double_clicked(GtkTreeView        *treeview,
 	rec = trace_view_store_get_visible_row(TRACE_VIEW_STORE(model), row);
 	time = rec->timestamp;
 	trace_graph_select_by_time(info->ginfo, time);
+}
+
+static void row_double_clicked(GtkTreeView        *treeview,
+			       GtkTreePath        *path,
+			       GtkTreeViewColumn  *col,
+			       gpointer            data)
+{
+	struct shark_info *info = data;
+
+	graph_follows_tree(info, treeview, path);
+}
+
+static void cursor_changed(GtkTreeView        *treeview,
+			   gpointer            data)
+{
+	struct shark_info *info = data;
+	GtkTreePath *path;
+
+	if (!info->graph_follows)
+		return;
+
+	gtk_tree_view_get_cursor(treeview, &path, NULL);
+
+	if (!path)
+		return;
+
+	graph_follows_tree(info, treeview, path);
+
+	gtk_tree_path_free(path);
 }
 
 static void
@@ -374,6 +401,13 @@ filter_clear_tasks_clicked (gpointer data)
 	trace_graph_clear_tasks(info->ginfo);
 
 	info->list_filter_enabled = 0;
+}
+
+static void graph_check_toggle(gpointer data, GtkWidget *widget)
+{
+	struct shark_info *info = data;
+
+	info->graph_follows = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 }
 
 static gboolean
@@ -552,6 +586,7 @@ void kernel_shark(int argc, char **argv)
 	GtkWidget *widget;
 	GtkWidget *label;
 	GtkWidget *spin;
+	GtkWidget *check;
 	int ret;
 	int c;
 
@@ -807,6 +842,15 @@ void kernel_shark(int argc, char **argv)
 
 	trace_view_search_setup(GTK_BOX(hbox), GTK_TREE_VIEW(info->treeview));
 
+	check = gtk_check_button_new_with_label("graph follows");
+	gtk_box_pack_start(GTK_BOX(hbox), check, TRUE, TRUE, 0);
+	gtk_widget_show(check);
+
+	g_signal_connect_swapped (check, "toggled",
+				  G_CALLBACK (graph_check_toggle),
+				  (gpointer) info);
+
+
 	/* --- Top Level Trace View Paging Hbox --- */
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -825,6 +869,9 @@ void kernel_shark(int argc, char **argv)
 
 	g_signal_connect(info->treeview, "row-activated",
 			 (GCallback)row_double_clicked, info);
+
+	g_signal_connect(info->treeview, "cursor-changed",
+			 (GCallback)cursor_changed, info);
 
 	gtk_container_add(GTK_CONTAINER(scrollwin), info->treeview);
 
