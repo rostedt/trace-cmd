@@ -377,7 +377,7 @@ task_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
 
 static struct record *
 find_previous_record(struct graph_info *ginfo, struct record *start_record,
-		     int pid, int cpu)
+		     int pid, int cpu, unsigned long long time)
 {
 	struct record *last_record = start_record;
 	struct record *record;
@@ -399,6 +399,11 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 
 		if (last_record != start_record)
 			free_record(last_record);
+
+		if (record->ts < time) {
+			free_record(record);
+			return NULL;
+		}
 		last_record = record;
 	}
 
@@ -414,6 +419,7 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 	struct record *record;
 	struct record **records;
 	unsigned long long ts;
+	unsigned long long limit;
 	int next_cpu;
 	int cpu;
 
@@ -429,11 +435,15 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 		free_record(record);
 	}
 
+	/* Only search 5 pixels back */
+	limit = time - (5 / ginfo->resolution);
+
 	/* find a previous record */
 	records = malloc_or_die(sizeof(*records) * ginfo->cpus);
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 		record = tracecmd_read_data(ginfo->handle, cpu);
-		records[cpu] = find_previous_record(ginfo, record, pid, cpu);
+		records[cpu] = find_previous_record(ginfo, record,
+						    pid, cpu, limit);
 		free_record(record);
 	}
 
@@ -459,7 +469,8 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 			break;
 		}
 
-		record = find_previous_record(ginfo, records[next_cpu], pid, next_cpu);
+		record = find_previous_record(ginfo, records[next_cpu],
+					      pid, next_cpu, limit);
 		free_record(records[next_cpu]);
 		records[next_cpu] = record;
 		record = NULL;
