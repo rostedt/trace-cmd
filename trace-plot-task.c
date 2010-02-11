@@ -224,8 +224,6 @@ static int task_plot_display_last_event(struct graph_info *ginfo,
 	 */
 	offsets = save_offsets(ginfo);
 
-	set_cpus_to_time(ginfo, time);
-
 	record = find_record(ginfo, pid, time);
 
 	restore_offsets(ginfo, offsets);
@@ -419,7 +417,6 @@ get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 	int next_cpu;
 	int cpu;
 
-	set_cpus_to_time(ginfo, time);
 	record = find_record(ginfo, pid, time);
 
 	/* If the time is right at this record, use it */
