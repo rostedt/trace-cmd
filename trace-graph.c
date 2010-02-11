@@ -2039,7 +2039,10 @@ create_graph_info(struct graph_info *ginfo)
 
 void trace_graph_free_info(struct graph_info *ginfo)
 {
-	tracecmd_close(ginfo->handle);
+	if (ginfo->handle) {
+		trace_graph_plot_free(ginfo);
+		tracecmd_close(ginfo->handle);
+	}
 	ginfo->handle = NULL;
 }
 
@@ -2053,11 +2056,8 @@ static int load_handle(struct graph_info *ginfo,
 	if (!handle)
 		return -1;
 
-	trace_graph_plot_free(ginfo);
 	trace_graph_plot_init(ginfo);
-
-	if (ginfo->handle)
-		trace_graph_free_info(ginfo);
+	trace_graph_free_info(ginfo);
 
 	ginfo->handle = handle;
 	tracecmd_ref(handle);

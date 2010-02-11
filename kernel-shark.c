@@ -116,6 +116,7 @@ static void ks_graph_filter(struct graph_info *ginfo,
 static void free_info(struct shark_info *info)
 {
 	tracecmd_close(info->handle);
+	trace_graph_free_info(info->ginfo);
 	free(info->ginfo);
 	free(info);
 }
