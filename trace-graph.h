@@ -22,6 +22,7 @@ struct plot_info {
 	int			bcolor;
 	unsigned long long	bstart;
 	unsigned long long	bend;
+	gboolean		bfill;
 };
 
 /*
@@ -44,6 +45,7 @@ struct plot_info {
  *    bstart is the time the box starts at
  *    bend is the time the box ends at
  *     (bstart and bend are ignored if box is 0)
+ *    bfill whether or not to fill the box (default TRUE)
  *   time is the time of the current event
  *
  * end:

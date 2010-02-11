@@ -321,6 +321,7 @@ int trace_graph_plot_event(struct graph_info *ginfo,
 {
 	info->line = FALSE;
 	info->box = FALSE;
+	info->bfill = TRUE;
 
 	if (!plot->cb->plot_event)
 		return 0;

@@ -2,10 +2,13 @@
 
 #include "trace-graph.h"
 
+#define RED 0xff
+
 struct task_plot_info {
 	int			pid;
 	struct cpu_data		*cpu_data;
 	unsigned long long	last_time;
+	unsigned long long	wake_time;
 	int			last_cpu;
 };
 
@@ -305,6 +308,8 @@ static int task_plot_event(struct graph_info *ginfo,
 				task_info->last_cpu = -1;
 			}
 
+			task_info->wake_time = record->ts;
+
 			return 1;
 		}
 
@@ -325,6 +330,13 @@ static int task_plot_event(struct graph_info *ginfo,
 				/* Just got scheduled in */
 				task_info->last_cpu = record->cpu;
 				task_info->last_time = record->ts;
+				if (task_info->wake_time) {
+					info->box = TRUE;
+					info->bfill = FALSE;
+					info->bstart = task_info->wake_time;
+					info->bend = record->ts;
+					info->bcolor = RED;
+				}
 			} else if (!info->box) {
 				/* just got scheduled out */
 				info->box = TRUE;
@@ -334,6 +346,8 @@ static int task_plot_event(struct graph_info *ginfo,
 				task_info->last_cpu = -1;
 			}
 		}
+
+		task_info->wake_time = 0;
 
 		return 1;
 	}

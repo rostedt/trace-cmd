@@ -1402,7 +1402,8 @@ static gint draw_plot_line(struct graph_info *ginfo, int i,
 
 static void draw_plot_box(struct graph_info *ginfo, int i,
 			  unsigned long long start,
-			  unsigned long long end, GdkGC *gc)
+			  unsigned long long end,
+			  gboolean fill, GdkGC *gc)
 {
 	gint x1;
 	gint x2;
@@ -1411,7 +1412,7 @@ static void draw_plot_box(struct graph_info *ginfo, int i,
 	x2 = convert_time_to_x(ginfo, end);
 
 	gdk_draw_rectangle(ginfo->curr_pixmap, gc,
-			   TRUE,
+			   fill,
 			   x1, PLOT_BOX_TOP(i),
 			   x2 - x1, PLOT_BOX_SIZE);
 }
@@ -1448,7 +1449,8 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 			set_color(ginfo->draw, plot->gc, plot->last_color);
 		}
 
-		draw_plot_box(ginfo, plot->pos, info.bstart, info.bend, plot->gc);
+		draw_plot_box(ginfo, plot->pos, info.bstart, info.bend,
+			      info.bfill, plot->gc);
 	}
 
 	if (info.line) {
