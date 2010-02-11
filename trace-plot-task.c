@@ -540,10 +540,10 @@ int task_plot_display_info(struct graph_info *ginfo,
 	pid = pevent_data_pid(ginfo->pevent, record);
 	comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 
+	convert_nano(record->ts, &sec, &usec);
+
 	if (record->ts > time - 2/ginfo->resolution &&
 	    record->ts < time + 2/ginfo->resolution) {
-
-		convert_nano(record->ts, &sec, &usec);
 
 		type = pevent_data_type(pevent, record);
 		event = pevent_data_event_from_type(pevent, type);
