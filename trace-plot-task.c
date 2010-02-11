@@ -268,8 +268,8 @@ static int task_plot_display_last_event(struct graph_info *ginfo,
 			trace_seq_printf(s, "%s-%d\n%s\n",
 					 pevent_data_comm_from_pid(ginfo->pevent, rec_pid),
 					 rec_pid, event->name);
-		free_record(record);
 	}
+	free_record(record);
 
 	return 1;
 }
