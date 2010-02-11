@@ -426,6 +426,7 @@ plot_task_clicked (gpointer data)
 	struct graph_info *ginfo = data;
 
 	graph_plot_task(ginfo, ginfo->filter_task_selected);
+	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
 	redraw_graph(ginfo);
 	update_label_window(ginfo);
 }
@@ -440,6 +441,7 @@ remove_plot_clicked (gpointer data)
 		return;
 
 	trace_graph_plot_remove(ginfo, plot);
+	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
 	redraw_graph(ginfo);
 	update_label_window(ginfo);
 }
