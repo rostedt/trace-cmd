@@ -251,8 +251,6 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 {
 	struct task_plot_info *task_info = plot->private;
 
-	set_cpus_to_time(ginfo, time);
-
 	task_info->last_time = 0ULL;
 	task_info->last_cpu = -1;
 }

@@ -171,35 +171,11 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 			   unsigned long long time)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	struct record *last_record = NULL;
-	struct record *record;
 	int cpu;
 
 	cpu = cpu_info->cpu;
 	cpu_info->last_time = 0ULL;
 	cpu_info->last_pid = -1;
-
-	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-
-	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
-		if (record->ts >= time)
-			break;
-
-		free_record(last_record);
-		last_record = record;
-	}
-
-	free_record(record);
-	/* reset so the next record read is the first record */
-	if (last_record) {
-		record = tracecmd_read_at(ginfo->handle,
-					  last_record->offset,
-					  NULL);
-		free_record(record);
-		free_record(last_record);
-	} else
-		tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-
 }
 
 static int cpu_plot_event(struct graph_info *ginfo,

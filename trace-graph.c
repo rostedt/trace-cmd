@@ -1510,6 +1510,9 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 		set_color(ginfo->draw, plot->gc, plot->last_color);
 	}
 
+	tracecmd_set_all_cpus_to_timestamp(ginfo->handle,
+					   ginfo->view_start_time);
+
 	/* Shortcut if we don't have any task plots */
 	if (!ginfo->nr_task_hash && !ginfo->all_recs) {
 		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
@@ -1518,6 +1521,14 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 				continue;
 
 			while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+				if (record->ts < ginfo->view_start_time) {
+					free_record(record);
+					continue;
+				}
+				if (record->ts > ginfo->view_end_time) {
+					free_record(record);
+					break;
+				}
 				for (list = hash->plots; list; list = list->next)
 					draw_plot(ginfo, list->plot, record);
 				free_record(record);
@@ -1527,6 +1538,14 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 	}
 
 	while ((record = tracecmd_read_next_data(ginfo->handle, &cpu))) {
+		if (record->ts < ginfo->view_start_time) {
+			free_record(record);
+			continue;
+		}
+		if (record->ts > ginfo->view_end_time) {
+			free_record(record);
+			break;
+		}
 		hash = trace_graph_plot_find_cpu(ginfo, cpu);
 		if (hash) {
 			for (list = hash->plots; list; list = list->next)
