@@ -424,8 +424,15 @@ static void
 plot_task_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
+	struct graph_plot *plot = ginfo->plot_clicked;
+	int pos;
 
-	graph_plot_task(ginfo, ginfo->filter_task_selected);
+	if (plot)
+		pos = plot->pos + 1;
+	else
+		pos = ginfo->plots + 1;
+
+	graph_plot_task(ginfo, ginfo->filter_task_selected, pos);
 	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
 	redraw_graph(ginfo);
 	update_label_window(ginfo);

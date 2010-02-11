@@ -565,7 +565,7 @@ void graph_plot_init_tasks(struct graph_info *ginfo)
 	trace_graph_plot_insert(ginfo, 1, label, &task_plot_cb, task_info);
 }
 
-void graph_plot_task(struct graph_info *ginfo, int pid)
+void graph_plot_task(struct graph_info *ginfo, int pid, int pos)
 {
 	struct task_plot_info *task_info;
 	struct graph_plot *plot;
@@ -580,7 +580,7 @@ void graph_plot_task(struct graph_info *ginfo, int pid)
 	len = strlen(comm) + 100;
 	label = malloc_or_die(len);
 	snprintf(label, len, "%s-%d", comm, pid);
-	plot = trace_graph_plot_append(ginfo, label, &task_plot_cb, task_info);
+	plot = trace_graph_plot_insert(ginfo, pos, label, &task_plot_cb, task_info);
 	free(label);
 
 	trace_graph_plot_add_all_recs(ginfo, plot);
