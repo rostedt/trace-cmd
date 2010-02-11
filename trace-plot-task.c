@@ -9,6 +9,7 @@ struct task_plot_info {
 	struct cpu_data		*cpu_data;
 	unsigned long long	last_time;
 	unsigned long long	wake_time;
+	unsigned long long	display_wake_time;
 	int			last_cpu;
 };
 
@@ -234,15 +235,41 @@ static int task_plot_display_last_event(struct graph_info *ginfo,
 	record_matches_pid(ginfo, record, pid, &rec_pid,
 			   &sched_pid, &is_sched, &is_wakeup);
 
-	/* Must have the record we want */
-	type = pevent_data_type(ginfo->pevent, record);
-	event = pevent_data_event_from_type(ginfo->pevent, type);
-	if (is_sched)
-		pid = sched_pid;
-	trace_seq_printf(s, "%s-%d\n%s\n",
-			 pevent_data_comm_from_pid(ginfo->pevent, pid),
-			 pid, event->name);
-	free_record(record);
+	if (is_sched) {
+		if (sched_pid == pid) {
+			if (task_info->display_wake_time) {
+				trace_seq_printf(s, "sched_switch\n"
+						 "CPU %d: lat: %.3fus\n",
+						 record->cpu,
+						 (double)(record->ts -
+							  task_info->display_wake_time) / 1000.0);
+				task_info->display_wake_time = 0;
+			} else {
+				trace_seq_printf(s, "sched_switch\n"
+						 "CPU %d\n",
+						 record->cpu);
+			}
+		} else {
+			trace_seq_printf(s, "sched_switch\n"
+					 "CPU %d %s-%d\n",
+					 record->cpu,
+					 pevent_data_comm_from_pid(ginfo->pevent, pid),
+					 pid);
+		}
+	} else {
+			
+		/* Must have the record we want */
+		type = pevent_data_type(ginfo->pevent, record);
+		event = pevent_data_event_from_type(ginfo->pevent, type);
+		if (pid == rec_pid)
+			trace_seq_printf(s, "CPU %d\n%s\n",
+					 record->cpu, event->name);
+		else
+			trace_seq_printf(s, "%s-%d\n%s\n",
+					 pevent_data_comm_from_pid(ginfo->pevent, rec_pid),
+					 rec_pid, event->name);
+		free_record(record);
+	}
 
 	return 1;
 }
@@ -254,6 +281,8 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 
 	task_info->last_time = 0ULL;
 	task_info->last_cpu = -1;
+	task_info->wake_time = 0ULL;
+	task_info->display_wake_time = 0ULL;
 }
 
 static int task_plot_event(struct graph_info *ginfo,
@@ -307,6 +336,7 @@ static int task_plot_event(struct graph_info *ginfo,
 			}
 
 			task_info->wake_time = record->ts;
+			task_info->display_wake_time = record->ts;
 
 			return 1;
 		}
