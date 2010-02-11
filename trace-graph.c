@@ -434,7 +434,8 @@ plot_task_clicked (gpointer data)
 
 	graph_plot_task(ginfo, ginfo->filter_task_selected, pos);
 	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
-	redraw_graph(ginfo);
+	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
+	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 	update_label_window(ginfo);
 }
 
@@ -449,7 +450,7 @@ remove_plot_clicked (gpointer data)
 
 	trace_graph_plot_remove(ginfo, plot);
 	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
-	redraw_graph(ginfo);
+	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 	update_label_window(ginfo);
 }
 
