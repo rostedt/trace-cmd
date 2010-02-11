@@ -48,12 +48,14 @@
 #define PLOT_SIZE	10
 #define PLOT_BOX_SIZE	PLOT_SIZE
 #define PLOT_GIVE	2
-#define PLOT_LINE(plot) (80 * (plot) + 80 + PLOT_SIZE)
+#define PLOT_BEGIN	80
+#define PLOT_SEP	50
+#define PLOT_LINE(plot) (PLOT_SEP * (plot) + PLOT_BEGIN + PLOT_SIZE)
 #define PLOT_TOP(plot) (PLOT_LINE(plot) - PLOT_SIZE * 2)
 #define PLOT_BOX_TOP(plot) (PLOT_LINE(plot) - PLOT_SIZE)
 #define PLOT_BOTTOM(plot) (PLOT_LINE(plot)-1)
 #define PLOT_BOX_BOTTOM(plot) (PLOT_LINE(plot))
-#define PLOT_SPACE(plots) (80 * (plots) + 80)
+#define PLOT_SPACE(plots) (PLOT_SEP * (plots) + PLOT_BEGIN)
 #define PLOT_LABEL(plot) (PLOT_TOP(plot))
 #define PLOT_X		5
 
