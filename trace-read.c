@@ -248,7 +248,7 @@ static void read_data_info(struct tracecmd_input *handle)
 		ts = 0;
 		if (filter_cpu >= 0) {
 			cpu = filter_cpu;
-			record = tracecmd_peek_data(handle, cpu);
+			record = tracecmd_read_data(handle, cpu);
 		} else
 			record = tracecmd_read_next_data(handle, &cpu);
 
