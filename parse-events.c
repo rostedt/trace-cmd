@@ -1923,9 +1923,6 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	memset(arg, 0, sizeof(*arg));
 	arg->type = PRINT_FLAGS;
 
-	if (read_expected_item(EVENT_DELIM, "(") < 0)
-		goto out_err;
-
 	field = alloc_arg();
 
 	type = process_arg(event, field, &token);
@@ -1954,7 +1951,6 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 
  out_free:
 	free_token(token);
- out_err:
 	*tok = NULL;
 	return EVENT_ERROR;
 }
@@ -1968,9 +1964,6 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 
 	memset(arg, 0, sizeof(*arg));
 	arg->type = PRINT_SYMBOL;
-
-	if (read_expected_item(EVENT_DELIM, "(") < 0)
-		goto out_err;
 
 	field = alloc_arg();
 
@@ -1990,7 +1983,6 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 
  out_free:
 	free_token(token);
- out_err:
 	*tok = NULL;
 	return EVENT_ERROR;
 }
@@ -2004,9 +1996,6 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 
 	memset(arg, 0, sizeof(*arg));
 	arg->type = PRINT_DYNAMIC_ARRAY;
-
-	if (read_expected_item(EVENT_DELIM, "(") < 0)
-		goto out_err;
 
 	/*
 	 * The item within the parenthesis is another field that holds
@@ -2050,7 +2039,6 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
  out_free:
 	free(arg);
 	free_token(token);
- out_err:
 	*tok = NULL;
 	return EVENT_ERROR;
 }
@@ -2117,9 +2105,6 @@ process_str(struct event_format *event __unused, struct print_arg *arg, char **t
 	enum event_type type;
 	char *token;
 
-	if (read_expected(EVENT_DELIM, "(") < 0)
-		goto out_err;
-
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
 		goto out_free;
 
@@ -2143,6 +2128,32 @@ process_str(struct event_format *event __unused, struct print_arg *arg, char **t
 }
 
 static enum event_type
+process_function(struct event_format *event, struct print_arg *arg,
+		 char *token, char **tok)
+{
+	if (strcmp(token, "__print_flags") == 0) {
+		free_token(token);
+		return process_flags(event, arg, tok);
+	}
+	if (strcmp(token, "__print_symbolic") == 0) {
+		free_token(token);
+		return process_symbols(event, arg, tok);
+	}
+	if (strcmp(token, "__get_str") == 0) {
+		free_token(token);
+		return process_str(event, arg, tok);
+	}
+	if (strcmp(token, "__get_dynamic_array") == 0) {
+		free_token(token);
+		return process_dynamic_array(event, arg, tok);
+	}
+
+	warning("function %s not defined", token);
+	free_token(token);
+	return EVENT_ERROR;
+}
+
+static enum event_type
 process_arg_token(struct event_format *event, struct print_arg *arg,
 		  char **tok, enum event_type type)
 {
@@ -2156,38 +2167,36 @@ process_arg_token(struct event_format *event, struct print_arg *arg,
 		if (strcmp(token, "REC") == 0) {
 			free_token(token);
 			type = process_entry(event, arg, &token);
-		} else if (strcmp(token, "__print_flags") == 0) {
-			free_token(token);
-			type = process_flags(event, arg, &token);
-		} else if (strcmp(token, "__print_symbolic") == 0) {
-			free_token(token);
-			type = process_symbols(event, arg, &token);
-		} else if (strcmp(token, "__get_str") == 0) {
-			free_token(token);
-			type = process_str(event, arg, &token);
-		} else if (strcmp(token, "__get_dynamic_array") == 0) {
-			free_token(token);
-			type = process_dynamic_array(event, arg, &token);
-		} else {
-			atom = token;
-			/* test the next token */
-			type = read_token_item(&token);
-
-			/* atoms can be more than one token long */
-			while (type == EVENT_ITEM) {
-				atom = realloc(atom, strlen(atom) + strlen(token) + 2);
-				strcat(atom, " ");
-				strcat(atom, token);
-				free_token(token);
-				type = read_token_item(&token);
-			}
-
-			/* todo, test for function */
-
-			arg->type = PRINT_ATOM;
-			arg->atom.atom = atom;
+			break;
 		}
+		atom = token;
+		/* test the next token */
+		type = read_token_item(&token);
+
+		/*
+		 * If the next token is a parenthesis, then this
+		 * is a function.
+		 */
+		if (type == EVENT_DELIM && strcmp(token, "(") == 0) {
+			free_token(token);
+			token = NULL;
+			/* this will free atom. */
+			type = process_function(event, arg, atom, &token);
+			break;
+		}
+		/* atoms can be more than one token long */
+		while (type == EVENT_ITEM) {
+			atom = realloc(atom, strlen(atom) + strlen(token) + 2);
+			strcat(atom, " ");
+			strcat(atom, token);
+			free_token(token);
+			type = read_token_item(&token);
+		}
+
+		arg->type = PRINT_ATOM;
+		arg->atom.atom = atom;
 		break;
+
 	case EVENT_DQUOTE:
 	case EVENT_SQUOTE:
 		arg->type = PRINT_ATOM;
