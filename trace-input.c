@@ -622,17 +622,37 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 	handle->cpu_data[cpu].page = NULL;
 }
 
-void free_record(struct record *record)
+static void __free_record(struct record *record)
 {
-	if (!record)
-		return;
-
 	if (record->private) {
 		struct page *page = record->private;
 		__free_page(page->handle, page);
 	}
 
 	free(record);
+}
+
+void free_record(struct record *record)
+{
+	if (!record)
+		return;
+
+	if (record->locked)
+		die("freeing record when it is locked!");
+	record->data = NULL;
+
+	__free_record(record);
+}
+
+static void free_next(struct tracecmd_input *handle, int cpu)
+{
+	struct record *record = handle->cpu_data[cpu].next;
+
+	if (!record)
+		return;
+
+	handle->cpu_data[cpu].next = NULL;
+	__free_record(record);
 }
 
 /*
@@ -833,10 +853,7 @@ peek_event(struct tracecmd_input *handle, unsigned long long offset,
 	 * tracecmd_read_at.
 	 */
 	update_page_info(handle, cpu);
-	if (handle->cpu_data[cpu].next) {
-		free_record(handle->cpu_data[cpu].next);
-		handle->cpu_data[cpu].next = NULL;
-	}
+	free_next(handle, cpu);
 
 	do {
 		free_record(record);
@@ -1016,10 +1033,7 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 		return NULL;
 
 	handle->cpu_data[cpu].index = 0;
-	if (handle->cpu_data[cpu].next) {
-		free_record(handle->cpu_data[cpu].next);
-		handle->cpu_data[cpu].next = NULL;
-	}
+	free_next(handle, cpu);
 
 	return tracecmd_read_data(handle, cpu);
 }
@@ -1415,6 +1429,8 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	if (handle->cpu_data[cpu].next) {
 
 		record = handle->cpu_data[cpu].next;
+		if (!record->data)
+			die("Something freed the record");
 
 		if (handle->cpu_data[cpu].timestamp == record->ts)
 			return record;
@@ -1423,7 +1439,7 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 		 * The timestamp changed, which means the cached
 		 * record is no longer valid. Reread a new record.
 		 */
-		free_record(record);
+		free_next(handle, cpu);
 	}
 
 	if (!page)
@@ -1495,6 +1511,7 @@ read_again:
 
 	record->record_size = handle->cpu_data[cpu].index - index;
 	record->private = page;
+	record->locked = 1;
 	page->ref_count++;
 
 	return record;
@@ -1517,6 +1534,8 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
+	if (record)
+		record->locked = 0;
 
 	return record;
 }
@@ -1606,10 +1625,7 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
 	index = offset - page_offset;
 
 	/* Note, the record passed in could have been a peek */
-	if (cpu_data->next) {
-		free_record(cpu_data->next);
-		cpu_data->next = NULL;
-	}
+	free_next(handle, cpu);
 
 	/* Reset the cursor */
 	/* Should not happen */
@@ -1975,14 +1991,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 		return;
 
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
-		struct record *rec;
-		/*
-		 * The tracecmd_peek_data may have cached a record
-		 * Do a read to flush it out.
-		 */
-		rec = tracecmd_read_data(handle, cpu);
-		if (rec)
-			free_record(rec);
+		/* The tracecmd_peek_data may have cached a record */
+		free_next(handle, cpu);
 		free_page(handle, cpu);
 		if (!list_empty(&handle->cpu_data[cpu].pages))
 			warning("pages still allocated on cpu %d", cpu);
