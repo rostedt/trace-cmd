@@ -90,6 +90,8 @@ tracecmd_set_all_cpus_to_timestamp(struct tracecmd_input *handle,
 
 int tracecmd_set_cursor(struct tracecmd_input *handle,
 			int cpu, unsigned long long offset);
+unsigned long long
+tracecmd_get_cursor(struct tracecmd_input *handle, int cpu);
 
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);

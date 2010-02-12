@@ -1246,6 +1246,50 @@ int tracecmd_set_cursor(struct tracecmd_input *handle,
 	return 0;
 }
 
+/**
+ * tracecmd_get_cursor - get the offset for the next tracecmd_read_data
+ * @handle: input handle for the trace.dat file
+ * @cpu: the CPU pointer to get the cursor from
+ *
+ * Returns the offset of the next record that would be read.
+ */
+unsigned long long
+tracecmd_get_cursor(struct tracecmd_input *handle, int cpu)
+{
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	struct pevent *pevent;
+	int index;
+
+	if (cpu < 0 || cpu >= handle->cpus)
+		return 0;
+
+	/*
+	 * Use the next pointer if it exists and matches the
+	 * current timestamp.
+	 */
+	if (cpu_data->next &&
+	    cpu_data->next->ts == cpu_data->timestamp)
+		return cpu_data->next->offset;
+
+	/*
+	 * Either the next point does not exist, or it does
+	 * not match the timestamp. The next read will use the
+	 * current page.
+	 *
+	 * If the offset is at the end, then return that.
+	 */
+	if (cpu_data->offset >= cpu_data->file_offset +
+	    cpu_data->file_size)
+		return cpu_data->offset;
+
+	pevent = handle->pevent;
+
+	index = cpu_data->index ? cpu_data->index :
+		pevent->header_page_data_offset;
+
+	return cpu_data->offset + index;
+}
+
 
 static unsigned int
 translate_data(struct tracecmd_input *handle,
