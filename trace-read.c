@@ -203,8 +203,6 @@ static void show_data(struct tracecmd_input *handle,
 	pevent_print_event(pevent, &s, record);
 	trace_seq_do_printf(&s);
 	printf("\n");
-
-	free_record(record);
 }
 
 static void read_rest(void)
@@ -252,9 +250,10 @@ static void read_data_info(struct tracecmd_input *handle)
 		} else
 			record = tracecmd_read_next_data(handle, &cpu);
 
-		if (record)
+		if (record) {
 			show_data(handle, record, next);
-
+			free_record(record);
+		}
 	} while (record);
 
 	show_test(handle);
