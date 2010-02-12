@@ -224,10 +224,8 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 		   struct event_format *event)
 {
 	struct record *rec;
-	void *copy_data;
 	unsigned long long val, pid;
 	void *data = record->data;
-	int size = record->size;
 	int cpu = record->cpu;
 
 	if (get_field_val(s, data, event, "common_pid", &pid))
@@ -236,33 +234,19 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 	if (get_field_val(s, data, event, "func", &val))
 		return trace_seq_putc(s, '!');
 
-	/*
-	 * peek_data may unmap the data pointer. Copy it first.
-	 */
-	copy_data = malloc(size);
-	if (!copy_data)
-		return trace_seq_printf(s, " <FAILED TO ALLOCATE MEMORY!>");
-
-	memcpy(copy_data, data, size);
-	data = copy_data;
-
 	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
 	if (rec)
 		rec = get_return_for_leaf(s, cpu, pid, val, rec);
-			
+
 	if (rec) {
 		/*
-		 * The record returned needs to be freed.
-		 * We also do a new peek on this CPU to update the
-		 * record cache.
+		 * If this is a leaf function, then get_return_for_leaf
+		 * returns the return of the function
 		 */
 		print_graph_entry_leaf(s, event, data, rec);
 		free_record(rec);
-		tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
 	} else
 		print_graph_nested(s, event, data);
-
-	free(data);
 
 	return 0;
 }
