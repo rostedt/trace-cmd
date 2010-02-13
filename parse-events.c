@@ -30,11 +30,11 @@
 
 #include "parse-events.h"
 
-static char *input_buf;
+static const char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
 
-static void init_input_buf(char *buf, unsigned long long size)
+static void init_input_buf(const char *buf, unsigned long long size)
 {
 	input_buf = buf;
 	input_buf_siz = size;
@@ -657,26 +657,6 @@ static enum event_type get_type(int ch)
 	return EVENT_OP;
 }
 
-static void __push_char(char c)
-{
-	if (input_buf_ptr <= 0)
-		die("too much pushback");
-	input_buf[--input_buf_ptr] = c;
-}
-
-static void __push_str(char *s)
-{
-	char *e = s;
-
-	while (*e++)
-		/* nothing */;
-	e--;
-	while (s != e) {
-		e--;
-		__push_char(*e);
-	}
-}
-
 static int __read_char(void)
 {
 	if (input_buf_ptr >= input_buf_siz)
@@ -692,6 +672,8 @@ static int __peek_char(void)
 
 	return input_buf[input_buf_ptr];
 }
+
+static enum event_type force_token(const char *str, char **tok);
 
 static enum event_type __read_token(char **tok)
 {
@@ -848,20 +830,41 @@ static enum event_type __read_token(char **tok)
 		if (strcmp(*tok, "LOCAL_PR_FMT") == 0) {
 			free(*tok);
 			*tok = NULL;
-			__push_str("\"\%s\" ");
-			return __read_token(tok);
+			return force_token("\"\%s\" ", tok);
 		} else if (strcmp(*tok, "STA_PR_FMT") == 0) {
 			free(*tok);
 			*tok = NULL;
-			__push_str("\" sta:%pM\" ");
-			return __read_token(tok);
+			return force_token("\" sta:%pM\" ", tok);
 		} else if (strcmp(*tok, "VIF_PR_FMT") == 0) {
 			free(*tok);
 			*tok = NULL;
-			__push_str("\" vif:%p(%d)\" ");
-			return __read_token(tok);
+			return force_token("\" vif:%p(%d)\" ", tok);
 		}
 	}
+
+	return type;
+}
+
+static enum event_type force_token(const char *str, char **tok)
+{
+	const char *save_input_buf;
+	unsigned long long save_input_buf_ptr;
+	unsigned long long save_input_buf_siz;
+	enum event_type type;
+	
+	/* save off the current input pointers */
+	save_input_buf = input_buf;
+	save_input_buf_ptr = input_buf_ptr;
+	save_input_buf_siz = input_buf_siz;
+
+	init_input_buf(str, strlen(str));
+
+	type = __read_token(tok);
+
+	/* reset back to original token */
+	input_buf = save_input_buf;
+	input_buf_ptr = save_input_buf_ptr;
+	input_buf_siz = save_input_buf_siz;
 
 	return type;
 }
