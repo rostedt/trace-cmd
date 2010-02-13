@@ -562,8 +562,27 @@ enum event_type {
 
 static void add_event(struct pevent *pevent, struct event_format *event)
 {
-	event->next = pevent->event_list;
-	pevent->event_list = event;
+	int i;
+
+	if (!pevent->events)
+		pevent->events = malloc_or_die(sizeof(event));
+	else
+		pevent->events =
+			realloc(pevent->events, sizeof(event) *
+				(pevent->nr_events + 1));
+	if (!pevent->events)
+		die("Can not allocate events");
+
+	for (i = 0; i < pevent->nr_events; i++) {
+		if (pevent->events[i]->id > event->id)
+			break;
+	}
+	if (i < pevent->nr_events)
+		memmove(&pevent->events[i + 1],
+			&pevent->events[i],
+			sizeof(event) * (pevent->nr_events - i));
+
+	pevent->events[i] = event;
 	pevent->nr_events++;
 
 	event->pevent = pevent;
@@ -2470,10 +2489,10 @@ static int get_common_info(struct pevent *pevent,
 	 * All events should have the same common elements.
 	 * Pick any event to find where the type is;
 	 */
-	if (!pevent->event_list)
+	if (!pevent->events)
 		die("no event_list!");
 
-	event = pevent->event_list;
+	event = pevent->events[0];
 	field = pevent_find_common_field(event, type);
 	if (!field)
 		die("field '%s' not found", type);
@@ -2538,6 +2557,8 @@ static int parse_common_lock_depth(struct pevent *pevent, void *data)
 	return ret;
 }
 
+static int events_id_cmp(const void *a, const void *b);
+
 /**
  * pevent_find_event - find an event by given id
  * @pevent: a handle to the pevent
@@ -2547,13 +2568,19 @@ static int parse_common_lock_depth(struct pevent *pevent, void *data)
  */
 struct event_format *pevent_find_event(struct pevent *pevent, int id)
 {
-	struct event_format *event;
+	struct event_format **eventptr;
+	struct event_format key;
+	struct event_format *pkey = &key;
 
-	for (event = pevent->event_list; event; event = event->next) {
-		if (event->id == id)
-			break;
-	}
-	return event;
+	key.id = id;
+
+	eventptr = bsearch(&pkey, pevent->events, pevent->nr_events,
+			   sizeof(*pevent->events), events_id_cmp);
+
+	if (eventptr)
+		return *eventptr;
+
+	return NULL;
 }
 
 /**
@@ -2570,8 +2597,10 @@ pevent_find_event_by_name(struct pevent *pevent,
 			  const char *sys, const char *name)
 {
 	struct event_format *event;
+	int i;
 
-	for (event = pevent->event_list; event; event = event->next) {
+	for (i = 0; i < pevent->nr_events; i++) {
+		event = pevent->events[i];
 		if (strcmp(event->name, name) == 0) {
 			if (!sys)
 				break;
@@ -2579,6 +2608,9 @@ pevent_find_event_by_name(struct pevent *pevent,
 				break;
 		}
 	}
+	if (i == pevent->nr_events)
+		event = NULL;
+
 	return event;
 }
 
@@ -3257,7 +3289,7 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 		struct event_format *event;
 
 		check_lock_depth = 0;
-		event = pevent->event_list;
+		event = pevent->events[0];
 		field = pevent_find_common_field(event, "common_lock_depth");
 		if (field)
 			lock_depth_exists = 1;
@@ -3474,11 +3506,10 @@ static int events_system_cmp(const void *a, const void *b)
 struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type sort_type)
 {
 	struct event_format **events;
-	struct event_format *event;
 	int (*sort)(const void *a, const void *b);
 	int i = 0;
 
-	events = pevent->events;
+	events = pevent->sort_events;
 
 	if (events && pevent->last_type == sort_type)
 		return events;
@@ -3488,17 +3519,16 @@ struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_
 		if (!events)
 			return NULL;
 
-		for (event = pevent->event_list; event; event = event->next) {
-			if (i == pevent->nr_events) {
-				warning("Wrong event count");
-				free(events);
-				return NULL;
-			}
-			events[i++] = event;
-		}
+		memcpy(events, pevent->events, sizeof(*events) * pevent->nr_events);
 		events[i] = NULL;
 
-		pevent->events = events;
+		pevent->sort_events = events;
+
+		/* the internal events are sorted by id */
+		if (sort_type == EVENT_SORT_ID) {
+			pevent->last_type = sort_type;
+			return events;
+		}
 	}
 
 	switch (sort_type) {
@@ -3890,7 +3920,6 @@ static void free_event(struct event_format *event)
  */
 void pevent_free(struct pevent *pevent)
 {
-	struct event_format *event, *next_event;
 	struct cmdline_list *cmdlist = pevent->cmdlist, *cmdnext;
 	struct func_list *funclist = pevent->funclist, *funcnext;
 	struct printk_list *printklist = pevent->printklist, *printknext;
@@ -3942,13 +3971,11 @@ void pevent_free(struct pevent *pevent)
 		printklist = printknext;
 	}
 
+	for (i = 0; i < pevent->nr_events; i++)
+		free_event(pevent->events[i]);
+
 	free(pevent->events);
-
-	for (event = pevent->event_list; event; event = next_event) {
-		next_event = event->next;
-
-		free_event(event);
-	}
+	free(pevent->sort_events);
 
 	free(pevent);
 }

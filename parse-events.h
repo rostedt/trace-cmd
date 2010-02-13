@@ -194,7 +194,6 @@ struct print_fmt {
 };
 
 struct event_format {
-	struct event_format		*next;
 	struct pevent		*pevent;
 	char			*name;
 	int			id;
@@ -258,9 +257,9 @@ struct pevent {
 	struct printk_list *printklist;
 	unsigned int printk_count;
 
-	struct event_format *event_list;
-	int nr_events;
 	struct event_format **events;
+	int nr_events;
+	struct event_format **sort_events;
 	enum event_sort_type last_type;
 
 	int type_offset;
