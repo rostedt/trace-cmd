@@ -2056,8 +2056,8 @@ static int load_handle(struct graph_info *ginfo,
 	if (!handle)
 		return -1;
 
-	trace_graph_plot_init(ginfo);
 	trace_graph_free_info(ginfo);
+	trace_graph_plot_init(ginfo);
 
 	ginfo->handle = handle;
 	tracecmd_ref(handle);
