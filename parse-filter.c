@@ -518,18 +518,16 @@ process_not(struct event_format *event, struct filter_arg **parg,
 	return type;
 }
 
-static int filter_event(struct event_filter *filter,
-			struct event_format *event,
-			const char *filter_str, char **error_str)
+static int
+process_event(struct event_format *event, const char *filter_str,
+	      struct filter_arg **parg, char **error_str)
 {
-	struct filter_type *filter_type;
 	enum event_type type;
-	struct filter_arg *arg;
 	char *token;
 
 	pevent_buffer_init(filter_str, strlen(filter_str));
 
-	type = process_token(event, &arg, &token, error_str, 1);
+	type = process_token(event, parg, &token, error_str, 1);
 
 	if (type == EVENT_ERROR)
 		return -1;
@@ -539,8 +537,30 @@ static int filter_event(struct event_filter *filter,
 			   "Expected end where %s was found",
 			   token);
 		free_token(token);
-		free_arg(arg);
+		free_arg(*parg);
+		*parg = NULL;
 		return -1;
+	}
+	return 0;
+}
+
+static int filter_event(struct event_filter *filter,
+			struct event_format *event,
+			const char *filter_str, char **error_str)
+{
+	struct filter_type *filter_type;
+	struct filter_arg *arg;
+	int ret;
+
+	if (filter_str) {
+		ret = process_event(event, filter_str, &arg, error_str);
+		if (ret < 0)
+			return ret;
+	} else {
+		/* just add a TRUE arg */
+		arg = allocate_arg();
+		arg->type = FILTER_ARG_BOOLEAN;
+		arg->bool.value = FILTER_TRUE;
 	}
 
 	filter_type = add_filter_type(filter, event->id);
@@ -577,25 +597,35 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 	char *sys_name = NULL;
 	char *token;
 	int rtn = 0;
+	int len;
 	int ret;
 
 	if (error_str)
 		*error_str = NULL;
 
 	filter_start = strchr(filter_str, ':');
-	if (!filter_start) {
-		show_error(error_str, "No filter found");
-		return -1;
-	}
+	if (filter_start) {
+		len = filter_start - filter_str;
+		filter_start++;
+	} else
+		len = strlen(filter_str);
 
-	pevent_buffer_init(filter_str, filter_start - filter_str);
+	pevent_buffer_init(filter_str, len);
 
  again:
 	type = read_token(&token);
+	if (type == EVENT_NONE) {
+		show_error(error_str, "No filter found");
+		/* This can only happen when events is NULL, but still */
+		free_events(events);
+		return -1;
+	}
+
 	if (type != EVENT_ITEM) {
 		show_error(error_str, "Expected an event name but got %s",
 			   token);
 		free_token(token);
+		free_events(events);
 		return -1;
 	}
 
@@ -657,7 +687,7 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 
 	/* filter starts here */
 	for (event = events; event; event = event->next) {
-		ret = filter_event(filter, event->event, filter_start + 1,
+		ret = filter_event(filter, event->event, filter_start,
 				   error_str);
 		/* Failures are returned if a parse error happened */
 		if (ret < 0)
