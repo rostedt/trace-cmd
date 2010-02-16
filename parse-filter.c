@@ -198,6 +198,12 @@ find_event(struct pevent *pevent, struct event_list **events,
 	struct event_format *event;
 	struct event_list *list;
 
+	if (!event_name) {
+		/* if no name is given, then swap sys and name */
+		event_name = sys_name;
+		sys_name = NULL;
+	}
+
 	event = pevent_find_event_by_name(pevent, sys_name, event_name);
 	if (!event)
 		return -1;
