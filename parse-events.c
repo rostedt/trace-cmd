@@ -767,7 +767,7 @@ static enum event_type __read_token(char **tok)
 		ch = __peek_char();
 		if (ch == '=')
 			buf[i++] = __read_char();
-		break;
+		goto out;
 
 	case EVENT_DQUOTE:
 	case EVENT_SQUOTE:
