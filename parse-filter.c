@@ -23,7 +23,9 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <regex.h>
 #include <errno.h>
+#include <sys/types.h>
 
 #include "parse-events.h"
 
@@ -191,12 +193,40 @@ static void free_arg(struct filter_arg *arg)
 	free(arg);
 }
 
+static void add_event(struct event_list **events,
+		      struct event_format *event)
+{
+	struct event_list *list;
+
+	list = malloc_or_die(sizeof(*list));
+	list->next = *events;
+	*events = list;
+	list->event = event;
+}
+
+static int event_match(struct event_format *event,
+		       regex_t *sreg, regex_t *ereg)
+{
+	if (sreg) {
+		return !regexec(sreg, event->system, 0, NULL, 0) &&
+			!regexec(ereg, event->name, 0, NULL, 0);
+	}
+
+	return !regexec(ereg, event->system, 0, NULL, 0) ||
+		!regexec(ereg, event->name, 0, NULL, 0);
+}
+
 static int
 find_event(struct pevent *pevent, struct event_list **events,
 	   char *sys_name, char *event_name)
 {
 	struct event_format *event;
-	struct event_list *list;
+	regex_t ereg;
+	regex_t sreg;
+	int match = 0;
+	char *reg;
+	int ret;
+	int i;
 
 	if (!event_name) {
 		/* if no name is given, then swap sys and name */
@@ -204,14 +234,40 @@ find_event(struct pevent *pevent, struct event_list **events,
 		sys_name = NULL;
 	}
 
-	event = pevent_find_event_by_name(pevent, sys_name, event_name);
-	if (!event)
+	reg = malloc_or_die(strlen(event_name) + 3);
+	sprintf(reg, "^%s$", event_name);
+
+	ret = regcomp(&ereg, reg, REG_ICASE|REG_NOSUB);
+	free(reg);
+
+	if (ret)
 		return -1;
 
-	list = malloc_or_die(sizeof(*list));
-	list->next = *events;
-	*events = list;
-	list->event = event;
+	if (sys_name) {
+		reg = malloc_or_die(strlen(sys_name) + 3);
+		sprintf(reg, "^%s$", sys_name);
+		ret = regcomp(&sreg, reg, REG_ICASE|REG_NOSUB);
+		free(reg);
+		if (ret) {
+			regfree(&ereg);
+			return -1;
+		}
+	}
+
+	for (i = 0; i < pevent->nr_events; i++) {
+		event = pevent->events[i];
+		if (event_match(event, sys_name ? &sreg : NULL, &ereg)) {
+			match = 1;
+			add_event(events, event);
+		}
+	}
+
+	regfree(&ereg);
+	if (sys_name)
+		regfree(&sreg);
+
+	if (!match)
+		return -1;
 
 	return 0;
 }
@@ -597,11 +653,12 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 	struct pevent *pevent = filter->pevent;
 	struct event_list *event;
 	struct event_list *events = NULL;
-	enum event_type type;
 	const char *filter_start;
+	const char *next_event;
+	char *this_event;
 	char *event_name = NULL;
 	char *sys_name = NULL;
-	char *token;
+	char *sp;
 	int rtn = 0;
 	int len;
 	int ret;
@@ -610,86 +667,60 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 		*error_str = NULL;
 
 	filter_start = strchr(filter_str, ':');
-	if (filter_start) {
+	if (filter_start)
 		len = filter_start - filter_str;
-		filter_start++;
-	} else
+	else
 		len = strlen(filter_str);
 
-	pevent_buffer_init(filter_str, len);
 
- again:
-	type = read_token(&token);
-	if (type == EVENT_NONE) {
-		show_error(error_str, "No filter found");
-		/* This can only happen when events is NULL, but still */
-		free_events(events);
-		return -1;
-	}
+	do {
+		next_event = strchr(filter_str, ',');
+		if (next_event &&
+		    (!filter_start || next_event < filter_start))
+			len = next_event - filter_str;
+		else if (filter_start)
+			len = filter_start - filter_str;
+		else
+			len = strlen(filter_str);
 
-	if (type != EVENT_ITEM) {
-		show_error(error_str, "Expected an event name but got %s",
-			   token);
-		free_token(token);
-		free_events(events);
-		return -1;
-	}
+		this_event = malloc_or_die(len + 1);
+		memcpy(this_event, filter_str, len);
+		this_event[len] = 0;
 
-	sys_name = token;
-	type = read_token(&token);
-	if (type == EVENT_OP && strcmp(token, ".") == 0) {
-		/* this is of "system.event" format */
-		free_token(token);
-		type = read_token(&token);
-		if (type != EVENT_ITEM) {
-			if (token)
+		filter_str = next_event;
+
+		sys_name = strtok_r(this_event, "/", &sp);
+		event_name = strtok_r(NULL, "/", &sp);
+
+		if (!sys_name) {
+			show_error(error_str, "No filter found");
+			/* This can only happen when events is NULL, but still */
+			free_events(events);
+			free(this_event);
+			return -1;
+		}
+
+		/* Find this event */
+		ret = find_event(pevent, &events, sys_name, event_name);
+		if (ret < 0) {
+			if (event_name)
 				show_error(error_str,
-					   "Expected an event after '%s.' and before %s",
-					   sys_name, token);
+					   "No event found under '%s.%s'",
+					   sys_name, event_name);
 			else
 				show_error(error_str,
-					   "Expected an event after '%s.'",
+					   "No event found under '%s'",
 					   sys_name);
-			goto out_err;
+			free_events(events);
+			free(this_event);
+			return -1;
 		}
-		event_name = token;
-		type = read_token(&token);
-	} else
-		event_name = NULL;
+		free(this_event);
+	} while (filter_str);
 
-	/* Find this event */
-	ret = find_event(pevent, &events, sys_name, event_name);
-	if (ret < 0) {
-		if (event_name)
-			show_error(error_str,
-				   "No event found under '%s.%s'",
-				   sys_name, event_name);
-		else
-			show_error(error_str,
-				   "No event found under '%s'",
-				   sys_name);
-		goto out_err;
-	}
-
-	free_token(sys_name);
-	free_token(event_name);
-	sys_name = NULL;
-	event_name = NULL;
-
-	if (type == EVENT_DELIM && strcmp(token, ",")) {
-		/* This filter is for more than one event */
-		free_token(token);
-		goto again;
-	}
-
-	/* this should be the end of parsing events */
-	if (type != EVENT_NONE) {
-		free_events(events);
-		show_error(error_str,
-			   "expected ':' after %s", token);
-		free_token(token);
-		return -1;
-	}
+	/* Skip the ':' */
+	if (filter_start)
+		filter_start++;
 
 	/* filter starts here */
 	for (event = events; event; event = event->next) {
@@ -703,13 +734,6 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 	free_events(events);
 
 	return rtn;
-
- out_err:
-	free_token(event_name);
-	free_token(sys_name);
-	free_token(token);
-	free_events(events);
-	return -1;
 }
 
 static void free_filter_type(struct filter_type *filter_type)
@@ -726,6 +750,7 @@ void pevent_filter_free(struct event_filter *filter)
 	for (i = 0; i < filter->filters; i++)
 		free_filter_type(&filter->event_filters[i]);
 
+	free(filter->event_filters);
 	free(filter);
 }
 
