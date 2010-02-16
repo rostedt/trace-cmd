@@ -50,6 +50,30 @@ static void show_error(char **error_str, const char *fmt, ...)
 	va_end(ap);
 }
 
+static char *strim(char *string)
+{
+	char *ret;
+
+	if (!string)
+		return NULL;
+	while (*string) {
+		if (!isspace(*string))
+			break;
+		string++;
+	}
+	ret = string;
+
+	string = ret + strlen(ret) - 1;
+	while (string > ret) {
+		if (!isspace(*string))
+			break;
+		string--;
+	}
+	string[1] = 0;
+
+	return ret;
+}
+
 static void free_token(char *token)
 {
 	pevent_free_token(token);
@@ -704,7 +728,7 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 		}
 
 		/* Find this event */
-		ret = find_event(pevent, &events, sys_name, event_name);
+		ret = find_event(pevent, &events, strim(sys_name), strim(event_name));
 		if (ret < 0) {
 			if (event_name)
 				show_error(error_str,
