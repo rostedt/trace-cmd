@@ -41,10 +41,12 @@
 static struct filter {
 	struct filter		*next;
 	const char		*filter;
+	int			neg;
 } *filter_strings;
 static struct filter **filter_next = &filter_strings;
 
 static struct event_filter *event_filters;
+static struct event_filter *event_filter_out;
 
 static unsigned int page_size;
 static int input_fd;
@@ -197,13 +199,14 @@ static void test_save(struct record *record, int cpu)
 }
 #endif
 
-static void add_filter(const char *filter)
+static void add_filter(const char *filter, int neg)
 {
 	struct filter *ftr;
 
 	ftr = malloc_or_die(sizeof(*ftr));
 	ftr->filter = filter;
 	ftr->next = NULL;
+	ftr->neg = neg;
 
 	/* must maintain order of command line */
 	*filter_next = ftr;
@@ -212,6 +215,7 @@ static void add_filter(const char *filter)
 
 static void process_filters(struct tracecmd_input *handle)
 {
+	struct event_filter *event_filter;
 	struct pevent *pevent;
 	struct filter *filter;
 	char *errstr;
@@ -219,11 +223,17 @@ static void process_filters(struct tracecmd_input *handle)
 
 	pevent = tracecmd_get_pevent(handle);
 	event_filters = pevent_filter_alloc(pevent);
+	event_filter_out = pevent_filter_alloc(pevent);
 
 	while (filter_strings) {
 		filter = filter_strings;
 		filter_strings = filter->next;
-		ret = pevent_filter_add_filter_str(event_filters,
+		if (filter->neg)
+			event_filter = event_filter_out;
+		else
+			event_filter = event_filters;
+
+		ret = pevent_filter_add_filter_str(event_filter,
 						   filter->filter,
 						   &errstr);
 		if (ret < 0)
@@ -311,7 +321,9 @@ static void read_data_info(struct tracecmd_input *handle)
 			switch (ret) {
 			case FILTER_NONE:
 			case FILTER_MATCH:
-				show_data(handle, record, next);
+				ret = pevent_filter_match(event_filter_out, record);
+				if (ret != FILTER_MATCH)
+					show_data(handle, record, next);
 				break;
 			}
 			free_record(record);
@@ -319,6 +331,7 @@ static void read_data_info(struct tracecmd_input *handle)
 	} while (record);
 
 	pevent_filter_free(event_filters);
+	pevent_filter_free(event_filter_out);
 
 	show_test(handle);
 }
@@ -343,6 +356,7 @@ void trace_report (int argc, char **argv)
 	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
+	int neg = 0;
 	int c;
 
 	if (argc < 2)
@@ -360,7 +374,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPlEF:",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPlEF:v",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -372,7 +386,7 @@ void trace_report (int argc, char **argv)
 			input_file = optarg;
 			break;
 		case 'F':
-			add_filter(optarg);
+			add_filter(optarg, neg);
 			break;
 		case 'f':
 			show_funcs = 1;
@@ -391,6 +405,11 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'l':
 			latency_format = 1;
+			break;
+		case 'v':
+			if (neg)
+				die("Only 1 -v can be used");
+			neg = 1;
 			break;
 		case 0:
 			switch(option_index) {
