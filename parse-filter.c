@@ -687,6 +687,9 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 		memcpy(this_event, filter_str, len);
 		this_event[len] = 0;
 
+		if (next_event)
+			next_event++;
+
 		filter_str = next_event;
 
 		sys_name = strtok_r(this_event, "/", &sp);
