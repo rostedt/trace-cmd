@@ -768,6 +768,46 @@ static void free_filter_type(struct filter_type *filter_type)
 	free_arg(filter_type->filter);
 }
 
+/**
+ * pevent_filter_remove_event - remove a filter for an event
+ * @filter: the event filter to remove from
+ * @event_id: the event to remove a filter for
+ *
+ * Removes the filter saved for an event defined by @event_id
+ * from the @filter.
+ *
+ * Returns 1: if an event was removed
+ *   0: if the event was not found
+ */
+int pevent_filter_remove_event(struct event_filter *filter,
+			       int event_id)
+{
+	struct filter_type *filter_type;
+	unsigned long len;
+
+	if (!filter->filters)
+		return 0;
+
+	filter_type = find_filter_type(filter, event_id);
+
+	if (!filter_type)
+		return 0;
+
+	free_filter_type(filter_type);
+
+	/* The filter_type points into the event_filters array */
+	len = (unsigned long)(filter->event_filters + filter->filters) -
+		(unsigned long)(filter_type + 1);
+
+	memmove(filter_type, filter_type + 1, len);
+	filter->filters--;
+
+	memset(&filter->event_filters[filter->filters], 0,
+	       sizeof(*filter_type));
+
+	return 1;
+}
+
 void pevent_filter_free(struct event_filter *filter)
 {
 	int i;
