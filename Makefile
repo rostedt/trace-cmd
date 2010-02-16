@@ -149,7 +149,7 @@ TRACE_VIEW_MAIN_OBJS = trace-view-main.o $(TRACE_VIEW_OBJS)
 TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS)
 KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) kernel-shark.o
 
-PEVENT_LIB_OBJS = parse-events.o trace-seq.o
+PEVENT_LIB_OBJS = parse-events.o trace-seq.o parse-filter.o
 TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
 			trace-output.o trace-record.o
 

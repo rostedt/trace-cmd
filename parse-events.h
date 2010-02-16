@@ -110,7 +110,7 @@ enum format_flags {
 
 struct format_field {
 	struct format_field	*next;
-	struct event_format		*event;
+	struct event_format	*event;
 	char			*type;
 	char			*name;
 	int			offset;
@@ -238,6 +238,18 @@ enum event_sort_type {
 	EVENT_SORT_ID,
 	EVENT_SORT_NAME,
 	EVENT_SORT_SYSTEM,
+};
+
+enum event_type {
+	EVENT_ERROR,
+	EVENT_NONE,
+	EVENT_SPACE,
+	EVENT_NEWLINE,
+	EVENT_OP,
+	EVENT_DELIM,
+	EVENT_ITEM,
+	EVENT_DQUOTE,
+	EVENT_SQUOTE,
 };
 
 struct cmdline;
@@ -469,9 +481,111 @@ void pevent_free(struct pevent *pevent);
 void pevent_ref(struct pevent *pevent);
 void pevent_unref(struct pevent *pevent);
 
+/* access to the internal parser */
+void pevent_buffer_init(const char *buf, unsigned long long size);
+enum event_type pevent_read_token(char **tok);
+void pevent_free_token(char *token);
+
 /* for debugging */
 void pevent_print_funcs(struct pevent *pevent);
 void pevent_print_printk(struct pevent *pevent);
 
+/* ----------------------- filtering ----------------------- */
+
+enum filter_boolean_type {
+	FILTER_FALSE,
+	FILTER_TRUE,
+};
+
+enum filter_op_type {
+	FILTER_OP_AND = 1,
+	FILTER_OP_OR,
+	FILTER_OP_NOT,
+};
+
+enum filter_cmp_type {
+	FILTER_CMP_NONE,
+	FILTER_CMP_EQ,
+	FILTER_CMP_NE,
+	FILTER_CMP_GT,
+	FILTER_CMP_LT,
+	FILTER_CMP_GE,
+	FILTER_CMP_LE,
+	FILTER_CMP_MATCH,
+	FILTER_CMP_NOT_MATCH,
+	FILTER_CMP_CONTAIN,
+	FILTER_CMP_NOT_CONTAIN,
+};
+
+enum filter_arg_type {
+	FILTER_ARG_NONE,
+	FILTER_ARG_BOOLEAN,
+	FILTER_ARG_OP,
+	FILTER_ARG_NUM,
+	FILTER_ARG_STR,
+};
+
+struct fliter_arg;
+
+struct filter_arg_boolean {
+	enum filter_boolean_type	value;
+};
+
+struct filter_arg_op {
+	enum filter_op_type	type;
+	struct filter_arg	*left;
+	struct filter_arg	*right;
+};
+
+struct filter_arg_num {
+	enum filter_cmp_type	type;
+	struct format_field	*field;
+	unsigned long long	val;
+};
+
+struct filter_arg_str {
+	enum filter_cmp_type	type;
+	struct format_field	*field;
+	char			*val;
+};
+
+struct filter_arg {
+	enum filter_arg_type	type;
+	union {
+		struct filter_arg_boolean	bool;
+		struct filter_arg_op		op;
+		struct filter_arg_num		num;
+		struct filter_arg_str		str;
+	};
+};
+
+struct filter_type {
+	int			event_id;
+	struct event_format	*event;
+	struct filter_arg	*filter;
+};
+
+struct event_filter {
+	struct pevent		*pevent;
+	int			filters;
+	struct filter_type	*event_filters;
+};
+
+struct event_filter *pevent_filter_alloc(struct pevent *pevent);
+
+#define FILTER_NONE		-2
+#define FILTER_NOEXIST		-1
+#define FILTER_MISS		0
+#define FILTER_MATCH		1
+
+int pevent_filter_add_filter_str(struct event_filter *filter,
+				 const char *filter_str,
+				 char **error_str);
+
+
+int pevent_filter_match(struct event_filter *filter,
+			struct record *record);
+
+void pevent_filter_free(struct event_filter *filter);
 
 #endif /* _PARSE_EVENTS_H */

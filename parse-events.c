@@ -44,6 +44,19 @@ static void init_input_buf(const char *buf, unsigned long long size)
 	input_buf_ptr = 0;
 }
 
+/**
+ * pevent_buffer_init - init buffer for parsing
+ * @buf: buffer to parse
+ * @size: the size of the buffer
+ *
+ * For use with pevent_read_token(), this initializes the internal
+ * buffer that pevent_read_token() will parse.
+ */
+void pevent_buffer_init(const char *buf, unsigned long long size)
+{
+	init_input_buf(buf, size);
+}
+
 void breakpoint(void)
 {
 	static int x;
@@ -551,18 +564,6 @@ static struct event_format *alloc_event(void)
 	return event;
 }
 
-enum event_type {
-	EVENT_ERROR,
-	EVENT_NONE,
-	EVENT_SPACE,
-	EVENT_NEWLINE,
-	EVENT_OP,
-	EVENT_DELIM,
-	EVENT_ITEM,
-	EVENT_DQUOTE,
-	EVENT_SQUOTE,
-};
-
 static void add_event(struct pevent *pevent, struct event_format *event)
 {
 	int i;
@@ -912,6 +913,29 @@ static enum event_type read_token(char **tok)
 	/* not reached */
 	*tok = NULL;
 	return EVENT_NONE;
+}
+
+/**
+ * pevent_read_token - access to utilites to use the pevent parser
+ * @tok: The token to return
+ *
+ * This will parse tokens from the string given by
+ * pevent_init_data().
+ *
+ * Returns the token type.
+ */
+enum event_type pevent_read_token(char **tok)
+{
+	return read_token(tok);
+}
+
+/**
+ * pevent_free_token - free a token returned by pevent_read_token
+ * @token: the token to free
+ */
+void pevent_free_token(char *token)
+{
+	free_token(token);
 }
 
 /* no newline */

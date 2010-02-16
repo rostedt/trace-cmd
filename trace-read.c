@@ -38,6 +38,14 @@
 
 #include "trace-local.h"
 
+static struct filter {
+	struct filter		*next;
+	const char		*filter;
+} *filter_strings;
+static struct filter **filter_next = &filter_strings;
+
+static struct event_filter *event_filters;
+
 static unsigned int page_size;
 static int input_fd;
 const char *input_file = "trace.dat";
@@ -189,11 +197,57 @@ static void test_save(struct record *record, int cpu)
 }
 #endif
 
+static void add_filter(const char *filter)
+{
+	struct filter *ftr;
+
+	ftr = malloc_or_die(sizeof(*ftr));
+	ftr->filter = filter;
+	ftr->next = NULL;
+
+	/* must maintain order of command line */
+	*filter_next = ftr;
+	filter_next = &ftr->next;
+}
+
+static void process_filters(struct tracecmd_input *handle)
+{
+	struct pevent *pevent;
+	struct filter *filter;
+	char *errstr;
+	int ret;
+
+	pevent = tracecmd_get_pevent(handle);
+	event_filters = pevent_filter_alloc(pevent);
+
+	while (filter_strings) {
+		filter = filter_strings;
+		filter_strings = filter->next;
+		ret = pevent_filter_add_filter_str(event_filters,
+						   filter->filter,
+						   &errstr);
+		if (ret < 0)
+			die("Error filtering: %s\n   %s",
+			    filter->filter, errstr);
+		free(errstr);
+		free(filter);
+	}
+}
+
+static int filter_record(struct tracecmd_input *handle,
+			 struct record *record)
+{
+	return 0;
+}
+
 static void show_data(struct tracecmd_input *handle,
 		      struct record *record, int cpu)
 {
 	struct pevent *pevent;
 	struct trace_seq s;
+
+	if (filter_record(handle, record))
+		return;
 
 	pevent = tracecmd_get_pevent(handle);
 
@@ -241,6 +295,8 @@ static void read_data_info(struct tracecmd_input *handle)
 		return;
 	}
 
+	process_filters(handle);
+
 	do {
 		next = -1;
 		ts = 0;
@@ -251,7 +307,13 @@ static void read_data_info(struct tracecmd_input *handle)
 			record = tracecmd_read_next_data(handle, &cpu);
 
 		if (record) {
-			show_data(handle, record, next);
+			ret = pevent_filter_match(event_filters, record);
+			switch (ret) {
+			case FILTER_NONE:
+			case FILTER_MATCH:
+				show_data(handle, record, next);
+				break;
+			}
 			free_record(record);
 		}
 	} while (record);
@@ -296,7 +358,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPlE",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPlEF:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -306,6 +368,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'i':
 			input_file = optarg;
+			break;
+		case 'F':
+			add_filter(optarg);
 			break;
 		case 'f':
 			show_funcs = 1;
