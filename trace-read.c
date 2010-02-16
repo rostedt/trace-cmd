@@ -318,6 +318,8 @@ static void read_data_info(struct tracecmd_input *handle)
 		}
 	} while (record);
 
+	pevent_filter_free(event_filters);
+
 	show_test(handle);
 }
 
