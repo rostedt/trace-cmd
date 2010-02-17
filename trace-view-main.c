@@ -98,7 +98,8 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 static void
 events_clicked (gpointer data)
 {
-	GtkTreeView *trace_tree = data;
+	struct trace_tree_info *info = data;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->trace_tree);
 	GtkTreeModel *model;
 	TraceViewStore *store;
 	gboolean all_events;
@@ -124,7 +125,8 @@ events_clicked (gpointer data)
 static void
 cpus_clicked (gpointer data)
 {
-	GtkTreeView *trace_tree = data;
+	struct trace_tree_info *info = data;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->trace_tree);
 	TraceViewStore *store;
 	gboolean all_cpus;
 	guint64 *cpu_mask;
