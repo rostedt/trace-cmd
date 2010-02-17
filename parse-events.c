@@ -3534,7 +3534,6 @@ struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_
 {
 	struct event_format **events;
 	int (*sort)(const void *a, const void *b);
-	int i = 0;
 
 	events = pevent->sort_events;
 
@@ -3547,7 +3546,7 @@ struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_
 			return NULL;
 
 		memcpy(events, pevent->events, sizeof(*events) * pevent->nr_events);
-		events[i] = NULL;
+		events[pevent->nr_events] = NULL;
 
 		pevent->sort_events = events;
 
