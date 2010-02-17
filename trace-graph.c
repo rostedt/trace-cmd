@@ -178,42 +178,9 @@ static void graph_filter_task_clear(struct graph_info *ginfo)
 	ginfo->filter_enabled = 0;
 }
 
-gboolean graph_filter_system(struct graph_info *ginfo, const gchar *system)
-{
-	const gchar **sys = &system;
-
-	if (ginfo->all_events)
-		return TRUE;
-
-	if (!ginfo->systems)
-		return FALSE;
-
-	sys = bsearch(sys, ginfo->systems, ginfo->systems_size,
-		      sizeof(system), str_cmp);
-
-	return sys != NULL;
-}
-
-gboolean graph_filter_event(struct graph_info *ginfo, gint event_id)
-{
-	gint *event = &event_id;
-
-	if (ginfo->all_events)
-		return TRUE;
-
-	if (!ginfo->event_ids)
-		return FALSE;
-
-	event = bsearch(event, ginfo->event_ids, ginfo->event_ids_size,
-			sizeof(event_id), id_cmp);
-
-	return event != NULL;
-}
-
 gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *record)
 {
-	struct event_format *event;
-	gint event_id;
+	int ret;
 
 	if (!record)
 		return TRUE;
@@ -221,18 +188,8 @@ gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *re
 	if (ginfo->all_events)
 		return FALSE;
 
-	event_id = pevent_data_type(ginfo->pevent, record);
-	event = pevent_data_event_from_type(ginfo->pevent, event_id);
-	if (!event)
-		return TRUE;
-
-	if (graph_filter_system(ginfo, event->system))
-		return FALSE;
-
-	if (graph_filter_event(ginfo, event_id))
-		return FALSE;
-
-	return TRUE;
+	ret = pevent_filter_match(ginfo->event_filter, record);
+	return ret == FILTER_MATCH ? FALSE : TRUE;
 }
 
 gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid)
@@ -1766,28 +1723,6 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 		gtk_adjustment_set_value(vadj, (PLOT_BOTTOM(i) - view_width) + 10);
 }
 
-static void graph_free_systems(struct graph_info *ginfo)
-{
-	gint i;
-
-	if (!ginfo->systems)
-		return;
-
-	for (i = 0; ginfo->systems[i]; i++)
-		g_free(ginfo->systems[i]);
-
-	g_free(ginfo->systems);
-	ginfo->systems = NULL;
-	ginfo->systems_size = 0;
-}
-
-static void graph_free_events(struct graph_info *ginfo)
-{
-	g_free(ginfo->event_ids);
-	ginfo->event_ids = NULL;
-	ginfo->event_ids_size = 0;
-}
-
 void trace_graph_event_filter_callback(gboolean accept,
 				       gboolean all_events,
 				       gchar **systems,
@@ -1795,13 +1730,9 @@ void trace_graph_event_filter_callback(gboolean accept,
 				       gpointer data)
 {
 	struct graph_info *ginfo = data;
-	gint i;
 
 	if (!accept)
 		return;
-
-	graph_free_systems(ginfo);
-	graph_free_events(ginfo);
 
 	if (all_events) {
 		ginfo->all_events = TRUE;
@@ -1811,33 +1742,10 @@ void trace_graph_event_filter_callback(gboolean accept,
 
 	ginfo->all_events = FALSE;
 
-	if (systems) {
-		for (ginfo->systems_size = 0;
-		     systems[ginfo->systems_size];
-		     ginfo->systems_size++)
-			;
+	pevent_filter_reset(ginfo->event_filter);
 
-		ginfo->systems = g_new(typeof(*systems), ginfo->systems_size + 1);
-		for (i = 0; i < ginfo->systems_size; i++)
-			ginfo->systems[i] = g_strdup(systems[i]);
-		ginfo->systems[i] = NULL;
-
-		qsort(ginfo->systems, ginfo->systems_size, sizeof(gchar *), str_cmp);
-	}
-
-	if (events) {
-		for (ginfo->event_ids_size = 0;
-		     events[ginfo->event_ids_size] >= 0;
-		     ginfo->event_ids_size++)
-			;
-
-		ginfo->event_ids = g_new(typeof(*events), ginfo->event_ids_size + 1);
-		for (i = 0; i < ginfo->event_ids_size; i++)
-			ginfo->event_ids[i] = events[i];
-		ginfo->event_ids[i] = -1;
-
-		qsort(ginfo->event_ids, ginfo->event_ids_size, sizeof(gint), id_cmp);
-	}
+	trace_filter_convert_char_to_filter(ginfo->event_filter,
+					    systems, events);
 
 	redraw_graph(ginfo);
 }
@@ -1907,9 +1815,6 @@ destroy_event(GtkWidget *widget, gpointer data)
 	struct graph_info *ginfo = data;
 
 	trace_graph_free_info(ginfo);
-
-	graph_free_systems(ginfo);
-	graph_free_events(ginfo);
 
 	filter_task_hash_free(ginfo->task_filter);
 	filter_task_hash_free(ginfo->hide_tasks);
@@ -2040,6 +1945,7 @@ create_graph_info(struct graph_info *ginfo)
 void trace_graph_free_info(struct graph_info *ginfo)
 {
 	if (ginfo->handle) {
+		pevent_filter_free(ginfo->event_filter);
 		trace_graph_plot_free(ginfo);
 		tracecmd_close(ginfo->handle);
 	}
@@ -2067,6 +1973,8 @@ static int load_handle(struct graph_info *ginfo,
 	ginfo->pevent = tracecmd_get_pevent(handle);
 	ginfo->cpus = tracecmd_cpus(handle);
 	ginfo->all_events = TRUE;
+
+	ginfo->event_filter = pevent_filter_alloc(ginfo->pevent);
 
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;

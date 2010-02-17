@@ -590,8 +590,7 @@ event_dialog_response (gpointer data, gint response_id)
  */
 void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       gboolean all_events,
-			       gchar **systems,
-			       gint *events,
+			       gchar **systems, gint *events,
 			       trace_filter_event_cb_func func,
 			       gpointer data)
 {
@@ -882,4 +881,131 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 				    width, height);
 
 	gtk_widget_show_all(dialog);
+}
+
+static void add_system_str(gchar ***systems, char *system, int count)
+{
+	if (!systems)
+		return;
+
+	if (!count)
+		*systems = malloc_or_die(sizeof(char *) * 2);
+	else
+		*systems = realloc(*systems, sizeof(char *) * (count + 2));
+	if (!*systems)
+		die("Can't allocate systems");
+
+	(*systems)[count] = system;
+	(*systems)[count+1] = NULL;
+}
+
+static void add_event_int(gint **events, gint event, int count)
+{
+	if (!events)
+		return;
+
+	if (!count)
+		*events = malloc_or_die(sizeof(gint) * 2);
+	else
+		*events = realloc(*events, sizeof(gint) * (count + 2));
+	if (!*events)
+		die("Can't allocate events");
+
+	(*events)[count] = event;
+	(*events)[count+1] = -1;
+}
+
+/* -- Helper functions -- */
+
+/**
+ * trace_filter_convert_filter_to_names - convert a filter to names.
+ * @filter: the filter to convert
+ * @systems: array of systems that the filter selects (may be NULL)
+ * @event_ids: array of event ids that the filter selects (may be NULL)
+ *
+ * @systems will be filled when the filter selects all events within
+ * its system. (may return NULL)
+ *
+ * @event_ids will be all events selected (not including those selected
+ *  by @systems)
+ */
+void trace_filter_convert_filter_to_names(struct event_filter *filter,
+					  gchar ***systems,
+					  gint **event_ids)
+{
+	struct pevent *pevent = filter->pevent;
+	struct event_format **events;
+	struct event_format *event;
+	char *last_system = NULL;
+	int all_selected = 1;
+	int start_sys = 0;
+	int sys_count = 0;
+	int event_count = 0;
+	int i, x;
+
+	if (systems)
+		*systems = NULL;
+	if (event_ids)
+		*event_ids = NULL;
+
+	events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+
+	for (i = 0; events[i]; i++) {
+		event = events[i];
+
+		if (systems && last_system &&
+		    strcmp(last_system, events[i]->system) != 0) {
+			if (all_selected)
+				add_system_str(systems, last_system, sys_count++);
+			start_sys = i;
+			all_selected = 1;
+		}
+
+		if (pevent_event_filtered(filter, event->id)) {
+			if (!all_selected || !systems)
+				add_event_int(event_ids, event->id, event_count++);
+		} else {
+			if (all_selected && event_ids) {
+				for (x = start_sys; x < i; x++) {
+					add_event_int(event_ids,
+						      events[x]->id, event_count++);
+				}
+			}
+			all_selected = 0;
+		}
+		last_system = event->system;
+	}
+
+	if (systems && last_system && all_selected)
+		add_system_str(systems, last_system, sys_count++);
+}
+
+/**
+ * trace_filter_convert_char_to_filter - convert the strings to the filter
+ * @filter: the filter to convert
+ * @systems: array of systems that will have its events selected in @filter
+ * @events: array of event ids that will be selected in @filter
+ */
+void trace_filter_convert_char_to_filter(struct event_filter *filter,
+					 gchar **systems,
+					 gint *events)
+{
+	struct event_format *event;
+	int i;
+
+	if (systems) {
+		for (i = 0; systems[i]; i++)
+			pevent_filter_add_filter_str(filter,
+						     systems[i], NULL);
+	}
+
+	if (events) {
+		for (i = 0; events[i] >= 0; i++) {
+			event = pevent_find_event(filter->pevent, events[i]);
+			if (event)
+				pevent_filter_add_filter_str(filter,
+							     event->name,
+							     NULL);
+		}
+	}
 }

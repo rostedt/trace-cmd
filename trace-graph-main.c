@@ -106,12 +106,14 @@ events_clicked (gpointer data)
 		return;
 
 	all_events = ginfo->all_events;
-	systems = ginfo->systems;
-	events = ginfo->event_ids;
 
+	trace_filter_convert_filter_to_names(ginfo->event_filter,
+					     &systems, &events);
 	trace_filter_event_dialog(ginfo->handle, all_events,
 				  systems, events,
 				  trace_graph_event_filter_callback, ginfo);
+	free(systems);
+	free(events);
 }
 
 void trace_graph(int argc, char **argv)

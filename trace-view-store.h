@@ -117,10 +117,7 @@ struct trace_view_store
 	/* filters */
 	gint			all_events; /* set 1 when all events are enabled */
 						/* else */
-	gchar			**systems;  /* sorted list of systems that are enabled */
-	gint			*event_types; /* sorted list of events that are enabled */
-	gint			systems_size; /* size of systems array */
-	gint			event_types_size; /* size of event_types array */
+	struct event_filter	*event_filter; /* Filtered events */
 	struct filter_task	*task_filter;	/* hash of tasks to filter on */
 	struct filter_task	*hide_tasks;	/* hash of tasks to not display */
 
@@ -157,15 +154,9 @@ TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 
 TraceViewRecord *trace_view_store_get_visible_row(TraceViewStore *store, gint row);
 
-gboolean trace_view_store_system_enabled(TraceViewStore *store, const gchar *system);
-
 gboolean trace_view_store_event_enabled(TraceViewStore *store, gint event_id);
 
 void trace_view_store_set_all_events_enabled(TraceViewStore *store);
-
-void trace_view_store_set_system_enabled(TraceViewStore *store, const gchar *system);
-
-void trace_view_store_set_event_enabled(TraceViewStore *store, gint event_id);
 
 void trace_view_store_clear_all_events_enabled(TraceViewStore *store);
 
@@ -249,16 +240,10 @@ static inline gboolean trace_view_store_get_all_events_enabled(TraceViewStore *s
 	return store->all_events;
 }
 
-static inline gchar **trace_view_store_get_systems_enabled(TraceViewStore *store)
+static inline struct event_filter *
+trace_view_store_get_event_filter(TraceViewStore *store)
 {
-	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
-	return store->systems;
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);
+	return store->event_filter;
 }
-
-static inline gint *trace_view_store_get_events_enabled(TraceViewStore *store)
-{
-	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
-	return store->event_types;
-}
-
 #endif /* _trace_view_store_h_included_ */

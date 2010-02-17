@@ -54,6 +54,13 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       trace_filter_event_cb_func func,
 			       gpointer data);
 
+void trace_filter_convert_filter_to_names(struct event_filter *filter,
+					  gchar ***systems,
+					  gint **events);
+
+void trace_filter_convert_char_to_filter(struct event_filter *filter,
+					 gchar **systems,
+					 gint *events);
 /**
  * trace_filter_cpu_cb_func - callback type for CPU dialog
  * @accept: TRUE if the accept button was pressed, otherwise FALSE

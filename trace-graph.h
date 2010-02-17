@@ -187,10 +187,7 @@ struct graph_info {
 	gboolean		filter_available;
 
 	gboolean		all_events;	/* all events enabled */
-	gchar			**systems;	/* event systems to filter on */
-	gint			*event_ids;	/* events to filter on */
-	gint			systems_size;
-	gint			event_ids_size;
+	struct event_filter	*event_filter;	/* filtered events */
 
 	/* cache of event fields */
 	gint			ftrace_sched_switch_id;

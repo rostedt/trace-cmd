@@ -192,6 +192,7 @@ static void
 list_events_clicked (gpointer data)
 {
 	struct shark_info *info = data;
+	struct event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -206,12 +207,16 @@ list_events_clicked (gpointer data)
 	store = TRACE_VIEW_STORE(model);
 
 	all_events = trace_view_store_get_all_events_enabled(store);
-	systems = trace_view_store_get_systems_enabled(store);
-	events = trace_view_store_get_events_enabled(store);
+	event_filter = trace_view_store_get_event_filter(store);
+
+	trace_filter_convert_filter_to_names(event_filter,
+					     &systems, &events);
 
 	trace_filter_event_dialog(store->handle, all_events,
 				  systems, events,
 				  trace_view_event_filter_callback, info->treeview);
+	free(systems);
+	free(events);
 }
 
 static void
@@ -224,18 +229,20 @@ graph_events_clicked (gpointer data)
 	gint *events;
 
 	all_events = ginfo->all_events;
-	systems = ginfo->systems;
-	events = ginfo->event_ids;
-
+	trace_filter_convert_filter_to_names(ginfo->event_filter,
+					     &systems, &events);
 	trace_filter_event_dialog(info->handle, all_events,
 				  systems, events,
 				  trace_graph_event_filter_callback, ginfo);
+	free(systems);
+	free(events);
 }
 
 static void
 sync_graph_events_to_list_clicked (gpointer data)
 {
 	struct shark_info *info = data;
+	struct event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -250,11 +257,15 @@ sync_graph_events_to_list_clicked (gpointer data)
 	store = TRACE_VIEW_STORE(model);
 
 	all_events = trace_view_store_get_all_events_enabled(store);
-	systems = trace_view_store_get_systems_enabled(store);
-	events = trace_view_store_get_events_enabled(store);
+	event_filter = trace_view_store_get_event_filter(store);
+
+	trace_filter_convert_filter_to_names(event_filter,
+					     &systems, &events);
 
 	trace_graph_event_filter_callback(TRUE, all_events, systems,
 					  events, info->ginfo);
+	free(systems);
+	free(events);
 }
 
 
@@ -268,11 +279,13 @@ sync_list_events_to_graph_clicked (gpointer data)
 	gint *events;
 
 	all_events = ginfo->all_events;
-	systems = ginfo->systems;
-	events = ginfo->event_ids;
+	trace_filter_convert_filter_to_names(ginfo->event_filter,
+					     &systems, &events);
 
 	trace_view_event_filter_callback(TRUE, all_events, systems,
 					 events, info->treeview);
+	free(systems);
+	free(events);
 }
 
 /* Callback for the clicked signal of the CPUs filter button */

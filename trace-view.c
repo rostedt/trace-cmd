@@ -384,13 +384,13 @@ void trace_view_event_filter_callback(gboolean accept,
 				      gint *events,
 				      gpointer data)
 {
+	struct event_filter *event_filter;
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
 	TraceViewRecord *vrec;
 	guint64 time;
 	gint row;
-	gint i;
 
 	if (!accept)
 		return;
@@ -409,15 +409,9 @@ void trace_view_event_filter_callback(gboolean accept,
 	} else {
 		trace_view_store_clear_all_events_enabled(store);
 
-		if (systems) {
-			for (i = 0; systems[i]; i++)
-				trace_view_store_set_system_enabled(store, systems[i]);
-		}
+		event_filter = trace_view_store_get_event_filter(store);
 
-		if (events) {
-			for (i = 0; events[i] >= 0; i++)
-				trace_view_store_set_event_enabled(store, events[i]);
-		}
+		trace_filter_convert_char_to_filter(event_filter, systems, events);
 	}
 
 	/* Keep track of the currently selected row */
