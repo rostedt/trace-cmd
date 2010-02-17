@@ -499,7 +499,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 	}
 	free_token(op);
 
-	field = pevent_find_field(event, field_name);
+	field = pevent_find_any_field(event, field_name);
 	free_token(field_name);
 
 	arg = allocate_arg();
