@@ -22,11 +22,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <ctype.h>
 #include <errno.h>
 #include <sys/types.h>
 
 #include "parse-events.h"
+#include "util.h"
 
 struct event_list {
 	struct event_list	*next;
@@ -47,30 +47,6 @@ static void show_error(char **error_str, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(*error_str, MAX_ERR_STR_SIZE, fmt, ap);
 	va_end(ap);
-}
-
-static char *strim(char *string)
-{
-	char *ret;
-
-	if (!string)
-		return NULL;
-	while (*string) {
-		if (!isspace(*string))
-			break;
-		string++;
-	}
-	ret = string;
-
-	string = ret + strlen(ret) - 1;
-	while (string > ret) {
-		if (!isspace(*string))
-			break;
-		string--;
-	}
-	string[1] = 0;
-
-	return ret;
 }
 
 static void free_token(char *token)
