@@ -32,12 +32,18 @@ struct event_filter_list {
  * trace_adv_filter_cb_func - callback type for advanced filter dialog
  * @accept: TRUE if the accept button was pressed, otherwise FALSE
  * @text: The text that was entered
+ * @delete_event_filters: The list of event ids for filters to remove
  * @data: The data given passed in to the event dialog function
  *
- * If @accept is FALSE then @text should be ignored. @data is still valid.
+ * If @accept is FALSE then @text and @delete_event_filters
+ * should be ignored. @data is still valid.
+ *
+ * @text may be NULL or empty, and @delete_event_ids may also be NULL.
+ * @delete_event_ids if not NULL, then ends with -1
  */
 typedef void (*trace_adv_filter_cb_func)(gboolean accept,
 					 const gchar *text,
+					 gint *delete_event_filters,
 					 gpointer data);
 
 /**

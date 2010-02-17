@@ -47,4 +47,18 @@ static inline char *strim(char *string)
 	return ret;
 }
 
+static inline int has_text(const char *text)
+{
+	if (!text)
+		return 0;
+
+	while (*text) {
+		if (!isspace(*text))
+			return 1;
+		text++;
+	}
+
+	return 0;
+}
+
 #endif

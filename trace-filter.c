@@ -21,6 +21,7 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "trace-cmd.h"
 #include "trace-local.h"
@@ -28,12 +29,13 @@
 #include "trace-view.h"
 
 #include "cpu.h"
+#include "util.h"
 
 #define DIALOG_WIDTH	400
 #define DIALOG_HEIGHT	600
 
 #define TEXT_DIALOG_WIDTH	400
-#define TEXT_DIALOG_HEIGHT	200
+#define TEXT_DIALOG_HEIGHT	400
 
 int str_cmp(const void *a, const void *b)
 {
@@ -62,9 +64,57 @@ struct dialog_helper {
 
 struct adv_event_filter_helper {
 	trace_adv_filter_cb_func	func;
+	GtkTreeView			*view;
 	GtkWidget			*entry;
 	gpointer			data;
 };
+
+enum {
+	ADV_COL_DELETE,
+	ADV_COL_EVENT,
+	ADV_COL_FILTER,
+	ADV_COL_ID,
+	NUM_ADV_FILTER_COLS,
+};
+
+static gint *get_event_ids(GtkTreeView *treeview)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gboolean active;
+	gint *ids = NULL;
+	gint id;
+	int count = 0;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
+	if (!model)
+		return NULL;
+
+	if (!gtk_tree_model_iter_children(model, &iter, NULL))
+		return NULL;
+
+	for (;;) {
+		gtk_tree_model_get(GTK_TREE_MODEL(model), &iter,
+				   ADV_COL_DELETE, &active,
+				   ADV_COL_ID, &id,
+				   -1);
+
+		if (active) {
+			if (count)
+				ids = realloc(ids, sizeof(*ids) * (count + 2));
+			else
+				ids = malloc(sizeof(*ids) * 2);
+			ids[count] = id;
+			count++;
+			ids[count] = -1;
+		}
+
+		if (!gtk_tree_model_iter_next(model, &iter))
+			break;
+	}
+
+	return ids;
+}
 
 /* Callback for the clicked signal of the advanced filter button */
 static void
@@ -73,14 +123,17 @@ adv_filter_dialog_response (gpointer data, gint response_id)
 	struct dialog_helper *helper = data;
 	struct adv_event_filter_helper *event_helper = helper->data;
 	const gchar *text;
+	gint *event_ids;
 
 	switch (response_id) {
 	case GTK_RESPONSE_ACCEPT:
 		text = gtk_entry_get_text(GTK_ENTRY(event_helper->entry));
-		event_helper->func(TRUE, text, event_helper->data);
+		event_ids = get_event_ids(event_helper->view);
+		event_helper->func(TRUE, text, event_ids, event_helper->data);
+		free(event_ids);
 		break;
 	case GTK_RESPONSE_REJECT:
-		event_helper->func(FALSE, NULL, event_helper->data);
+		event_helper->func(FALSE, NULL, NULL, event_helper->data);
 		break;
 	default:
 		break;
@@ -90,6 +143,164 @@ adv_filter_dialog_response (gpointer data, gint response_id)
 
 	g_free(event_helper);
 	g_free(helper);
+}
+
+static GtkTreeModel *
+create_tree_filter_model(struct tracecmd_input *handle,
+		       struct event_filter *event_filter)
+{
+	GtkTreeStore *treestore;
+	GtkTreeIter iter_events;
+	struct pevent *pevent;
+	struct event_format **events;
+	char *str;
+	gint i;
+
+	pevent = tracecmd_get_pevent(handle);
+
+	treestore = gtk_tree_store_new(NUM_ADV_FILTER_COLS, G_TYPE_BOOLEAN,
+				       G_TYPE_STRING, G_TYPE_STRING,
+				       G_TYPE_INT);
+
+	events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+	if (!events)
+		return GTK_TREE_MODEL(treestore);
+
+	for (i = 0; events[i]; i++) {
+		str = pevent_filter_make_string(event_filter, events[i]->id);
+		if (!str)
+			continue;
+
+		/* We only want to show advanced filters */
+		if (strcmp(str, "TRUE") == 0 || strcmp(str, "FALSE") == 0) {
+			free(str);
+			continue;
+		}
+
+		gtk_tree_store_append(treestore, &iter_events, NULL);
+		gtk_tree_store_set(treestore, &iter_events,
+				   ADV_COL_DELETE, FALSE,
+				   ADV_COL_EVENT, events[i]->name,
+				   ADV_COL_FILTER, str,
+				   ADV_COL_ID, events[i]->id,
+				   -1);
+		free(str);
+	}
+
+	return GTK_TREE_MODEL(treestore);
+}
+
+#define DELETE_FILTER "Delete Filter"
+
+static void adv_filter_cursor_changed(GtkTreeView *treeview, gpointer data)
+{
+	GtkTreeViewColumn *col;
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	GtkTreeIter iter;
+	gboolean active;
+	const gchar *title;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
+	if (!model)
+		return;
+
+	gtk_tree_view_get_cursor(treeview, &path, &col);
+	if (!path)
+		return;
+
+	if (!col)
+		goto free;
+
+	title = gtk_tree_view_column_get_title(col);
+
+	if (strcmp(title, DELETE_FILTER) != 0)
+		goto free;
+
+	if (!gtk_tree_model_get_iter(model, &iter, path))
+		goto free;
+
+	gtk_tree_model_get(model, &iter,
+			   ADV_COL_DELETE, &active,
+			   -1);
+
+	active = active ? FALSE : TRUE;
+
+	gtk_tree_store_set(GTK_TREE_STORE(model), &iter,
+			   ADV_COL_DELETE, active,
+			   -1);
+
+ free:
+	gtk_tree_path_free(path);
+}
+
+static GtkWidget *
+create_adv_filter_view(struct tracecmd_input *handle,
+		       struct event_filter *event_filter)
+{
+	GtkTreeViewColumn *col;
+	GtkCellRenderer *renderer;
+	GtkCellRenderer *togrend;
+	GtkWidget *view;
+	GtkTreeModel *model;
+
+	view = gtk_tree_view_new();
+
+	renderer  = gtk_cell_renderer_text_new();
+
+	togrend  = gtk_cell_renderer_toggle_new();
+
+	/* --- delete column --- */
+
+	col = gtk_tree_view_column_new();
+
+	gtk_tree_view_column_set_title(col, DELETE_FILTER);
+
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view), col);
+
+	gtk_tree_view_column_pack_start(col, togrend, FALSE);
+	gtk_tree_view_column_add_attribute(col, togrend, "active", ADV_COL_DELETE);
+
+	/* --- events column --- */
+
+	col = gtk_tree_view_column_new();
+
+	gtk_tree_view_column_set_title(col, "Event");
+
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view), col);
+
+	gtk_tree_view_column_pack_start(col, renderer, FALSE);
+
+	gtk_tree_view_column_add_attribute(col, renderer, "text", ADV_COL_EVENT);
+
+	/* --- filter column --- */
+
+	col = gtk_tree_view_column_new();
+
+	gtk_tree_view_column_set_title(col, "Filter");
+
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view), col);
+
+	gtk_tree_view_column_pack_start(col, renderer, FALSE);
+
+	gtk_tree_view_column_add_attribute(col, renderer, "text", ADV_COL_FILTER);
+
+
+	model = create_tree_filter_model(handle, event_filter);
+
+	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
+
+	g_object_unref(model);
+
+	gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)),
+				    GTK_SELECTION_NONE);
+
+
+	g_signal_connect_swapped (view, "cursor-changed",
+				  G_CALLBACK (adv_filter_cursor_changed),
+				  (gpointer) view);
+
+	return view;
 }
 
 /**
@@ -110,6 +321,8 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	GtkWidget *hbox;
 	GtkWidget *label;
 	GtkWidget *entry;
+	GtkWidget *scrollwin;
+	GtkWidget *view;
 
 	helper = g_malloc(sizeof(*helper));
 	g_assert(helper);
@@ -139,16 +352,14 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 				  G_CALLBACK (adv_filter_dialog_response),
 				  (gpointer) helper);
 
-#if 0
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_event_list_view(handle, all_events, systems, events);
+	view = create_adv_filter_view(handle, event_filter);
 	event_helper->view = GTK_TREE_VIEW(view);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
-#endif
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);

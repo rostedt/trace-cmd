@@ -30,6 +30,7 @@
 #include "trace-view.h"
 #include "trace-compat.h"
 #include "cpu.h"
+#include "util.h"
 
 enum {
 	COL_INDEX,
@@ -434,6 +435,7 @@ void trace_view_event_filter_callback(gboolean accept,
 
 void trace_view_adv_filter_callback(gboolean accept,
 				    const gchar *text,
+				    gint *event_ids,
 				    gpointer data)
 {
 	struct event_filter *event_filter;
@@ -445,6 +447,7 @@ void trace_view_adv_filter_callback(gboolean accept,
 	guint64 time;
 	gint row;
 	int ret;
+	int i;
 
 	if (!accept)
 		return;
@@ -453,17 +456,28 @@ void trace_view_adv_filter_callback(gboolean accept,
 	if (!model)
 		return;
 
-	store = TRACE_VIEW_STORE(model);
+	if (!has_text(text) && !event_ids)
+		return;
 
-	trace_view_store_clear_all_events_enabled(store);
+	store = TRACE_VIEW_STORE(model);
 
 	event_filter = trace_view_store_get_event_filter(store);
 
-	ret = pevent_filter_add_filter_str(event_filter, text, &error_str);
-	if (ret < 0) {
-		warning("filter failed due to: %s", error_str);
-		free(error_str);
-		return;
+	if (event_ids) {
+		for (i = 0; event_ids[i] >= 0; i++)
+			pevent_filter_remove_event(event_filter, event_ids[i]);
+	}
+
+	if (has_text(text)) {
+
+		trace_view_store_clear_all_events_enabled(store);
+
+		ret = pevent_filter_add_filter_str(event_filter, text, &error_str);
+		if (ret < 0) {
+			warning("filter failed due to: %s", error_str);
+			free(error_str);
+			return;
+		}
 	}
 
 	/* Keep track of the currently selected row */

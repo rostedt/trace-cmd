@@ -49,6 +49,7 @@ void trace_view_event_filter_callback(gboolean accept,
 
 void trace_view_adv_filter_callback(gboolean accept,
 				    const gchar *text,
+				    gint *event_ids,
 				    gpointer data);
 
 void trace_view_cpu_filter_callback(gboolean accept,
