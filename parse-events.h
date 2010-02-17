@@ -582,10 +582,10 @@ struct event_filter *pevent_filter_alloc(struct pevent *pevent);
 #define FILTER_MISS		0
 #define FILTER_MATCH		1
 
-enum filter_remove_type {
-	FILTER_REMOVE_FALSE,
-	FILTER_REMOVE_TRUE,
-	FILTER_REMOVE_BOTH,
+enum filter_trivial_type {
+	FILTER_TRIVIAL_FALSE,
+	FILTER_TRIVIAL_TRUE,
+	FILTER_TRIVIAL_BOTH,
 };
 
 int pevent_filter_add_filter_str(struct event_filter *filter,
@@ -602,7 +602,7 @@ int pevent_event_filtered(struct event_filter *filter,
 void pevent_filter_reset(struct event_filter *filter);
 
 void pevent_filter_clear_trivial(struct event_filter *filter,
-				 enum filter_remove_type type);
+				 enum filter_trivial_type type);
 
 void pevent_filter_free(struct event_filter *filter);
 
@@ -610,5 +610,9 @@ char *pevent_filter_make_string(struct event_filter *filter, int event_id);
 
 int pevent_filter_remove_event(struct event_filter *filter,
 			       int event_id);
+
+int pevent_filter_event_has_trivial(struct event_filter *filter,
+				    int event_id,
+				    enum filter_trivial_type type);
 
 #endif /* _PARSE_EVENTS_H */

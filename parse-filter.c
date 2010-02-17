@@ -861,7 +861,7 @@ void pevent_filter_free(struct event_filter *filter)
  * Removes filters that only contain a TRUE or FALES boolean arg.
  */
 void pevent_filter_clear_trivial(struct event_filter *filter,
-				 enum filter_remove_type type)
+				 enum filter_trivial_type type)
 {
 	struct filter_type *filter_type;
 	int count = 0;
@@ -880,10 +880,10 @@ void pevent_filter_clear_trivial(struct event_filter *filter,
 		if (filter_type->filter->type != FILTER_ARG_BOOLEAN)
 			continue;
 		switch (type) {
-		case FILTER_REMOVE_FALSE:
+		case FILTER_TRIVIAL_FALSE:
 			if (filter_type->filter->bool.value)
 				continue;
-		case FILTER_REMOVE_TRUE:
+		case FILTER_TRIVIAL_TRUE:
 			if (!filter_type->filter->bool.value)
 				continue;
 		default:
@@ -905,6 +905,43 @@ void pevent_filter_clear_trivial(struct event_filter *filter,
 		pevent_filter_remove_event(filter, ids[i]);
 
 	free(ids);
+}
+
+/**
+ * pevent_filter_event_has_trivial - return true event contains trivial filter
+ * @filter: the filter with the information
+ * @event_id: the id of the event to test
+ * @type: trivial type to test for (TRUE, FALSE, EITHER)
+ *
+ * Returns 1 if the event contains a matching trivial type
+ *  otherwise 0.
+ */
+int pevent_filter_event_has_trivial(struct event_filter *filter,
+				    int event_id,
+				    enum filter_trivial_type type)
+{
+	struct filter_type *filter_type;
+
+	if (!filter->filters)
+		return 0;
+
+	filter_type = find_filter_type(filter, event_id);
+
+	if (!filter_type)
+		return 0;
+
+	if (filter_type->filter->type != FILTER_ARG_BOOLEAN)
+		return 0;
+
+	switch (type) {
+	case FILTER_TRIVIAL_FALSE:
+		return !filter_type->filter->bool.value;
+
+	case FILTER_TRIVIAL_TRUE:
+		return filter_type->filter->bool.value;
+	default:
+		return 1;
+	}
 }
 
 static int test_filter(struct event_format *event,
