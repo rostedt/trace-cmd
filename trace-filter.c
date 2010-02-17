@@ -32,6 +32,9 @@
 #define DIALOG_WIDTH	400
 #define DIALOG_HEIGHT	600
 
+#define TEXT_DIALOG_WIDTH	400
+#define TEXT_DIALOG_HEIGHT	200
+
 int str_cmp(const void *a, const void *b)
 {
 	char * const * sa = a;
@@ -56,6 +59,116 @@ struct dialog_helper {
 	GtkWidget		*dialog;
 	gpointer		data;
 };
+
+struct adv_event_filter_helper {
+	trace_adv_filter_cb_func	func;
+	GtkWidget			*entry;
+	gpointer			data;
+};
+
+/* Callback for the clicked signal of the advanced filter button */
+static void
+adv_filter_dialog_response (gpointer data, gint response_id)
+{
+	struct dialog_helper *helper = data;
+	struct adv_event_filter_helper *event_helper = helper->data;
+	const gchar *text;
+
+	switch (response_id) {
+	case GTK_RESPONSE_ACCEPT:
+		text = gtk_entry_get_text(GTK_ENTRY(event_helper->entry));
+		event_helper->func(TRUE, text, event_helper->data);
+		break;
+	case GTK_RESPONSE_REJECT:
+		event_helper->func(FALSE, NULL, event_helper->data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
+
+	g_free(event_helper);
+	g_free(helper);
+}
+
+/**
+ * trace_adv_filter_dialog - make dialog for text
+ * @handle: the handle to the tracecmd data file
+ * @event_filter: advanced filters
+ * @func: The function to call when accept or cancel is pressed
+ * @data: data to pass to the function @func
+ */
+void trace_adv_filter_dialog(struct tracecmd_input *handle,
+			     struct event_filter *event_filter,
+			       trace_adv_filter_cb_func func,
+			       gpointer data)
+{
+	struct dialog_helper *helper;
+	struct adv_event_filter_helper *event_helper;
+	GtkWidget *dialog;
+	GtkWidget *hbox;
+	GtkWidget *label;
+	GtkWidget *entry;
+
+	helper = g_malloc(sizeof(*helper));
+	g_assert(helper);
+
+	/* --- Make dialog window --- */
+
+	dialog = gtk_dialog_new_with_buttons("Advanced Filters",
+					     NULL,
+					     GTK_DIALOG_MODAL,
+					     "Apply",
+					     GTK_RESPONSE_ACCEPT,
+					     GTK_STOCK_CANCEL,
+					     GTK_RESPONSE_REJECT,
+					     NULL);
+
+	event_helper = g_new0(typeof(*event_helper), 1);
+	g_assert(event_helper);
+
+	helper->dialog = dialog;
+	helper->data = event_helper;
+
+	event_helper->func = func;
+	event_helper->data = data;
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (dialog, "response",
+				  G_CALLBACK (adv_filter_dialog_response),
+				  (gpointer) helper);
+
+#if 0
+	scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
+	view = create_event_list_view(handle, all_events, systems, events);
+	event_helper->view = GTK_TREE_VIEW(view);
+	gtk_container_add(GTK_CONTAINER(scrollwin), view);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
+#endif
+
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+	gtk_widget_show(hbox);
+
+	label = gtk_label_new("Filter:");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	entry = gtk_entry_new();
+	gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, 0);
+	gtk_widget_show(entry);
+
+	event_helper->entry = entry;
+
+	gtk_widget_set_size_request(GTK_WIDGET(dialog),
+				    TEXT_DIALOG_WIDTH, TEXT_DIALOG_HEIGHT);
+
+	gtk_widget_show_all(dialog);
+}
 
 enum {
 	COL_EVENT,

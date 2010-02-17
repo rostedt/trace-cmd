@@ -126,6 +126,28 @@ events_clicked (gpointer data)
 	free(events);
 }
 
+/* Callback for the clicked signal of the Advanced filter button */
+static void
+adv_filter_clicked (gpointer data)
+{
+	struct trace_tree_info *info = data;
+	struct event_filter *event_filter;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->trace_tree);
+	GtkTreeModel *model;
+	TraceViewStore *store;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	event_filter = trace_view_store_get_event_filter(store);
+
+	trace_adv_filter_dialog(store->handle, event_filter,
+				trace_view_adv_filter_callback, trace_tree);
+}
+
 /* Callback for the clicked signal of the CPUs filter button */
 static void
 cpus_clicked (gpointer data)
@@ -287,6 +309,22 @@ void trace_view(int argc, char **argv)
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (events_clicked),
+				  (gpointer) &tree_info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - Advanced Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("advanced event filter");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (adv_filter_clicked),
 				  (gpointer) &tree_info);
 
 	/* We do need to show menu items */

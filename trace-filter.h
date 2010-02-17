@@ -29,6 +29,18 @@ struct event_filter_list {
 };
 
 /**
+ * trace_adv_filter_cb_func - callback type for advanced filter dialog
+ * @accept: TRUE if the accept button was pressed, otherwise FALSE
+ * @text: The text that was entered
+ * @data: The data given passed in to the event dialog function
+ *
+ * If @accept is FALSE then @text should be ignored. @data is still valid.
+ */
+typedef void (*trace_adv_filter_cb_func)(gboolean accept,
+					 const gchar *text,
+					 gpointer data);
+
+/**
  * trace_filter_event_cb_func - callback type for event dialog
  * @accept: TRUE if the accept button was pressed, otherwise FALSE
  * @all_events: TRUE if "All Events" was checked
@@ -46,6 +58,11 @@ typedef void (*trace_filter_event_cb_func)(gboolean accept,
 					   char **systems,
 					   gint *events,
 					   gpointer data);
+
+void trace_adv_filter_dialog(struct tracecmd_input *handle,
+			     struct event_filter *event_filter,
+			     trace_adv_filter_cb_func func,
+			     gpointer data);
 
 void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       gboolean all_events,
