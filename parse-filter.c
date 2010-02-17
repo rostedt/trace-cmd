@@ -942,6 +942,27 @@ static int test_filter(struct event_format *event,
 }
 
 /**
+ * pevent_event_filtered - return true if event has filter
+ * @filter: filter struct with filter information
+ * @event_id: event id to test if filter exists
+ *
+ * Returns 1 if filter found for @event_id
+ *   otherwise 0;
+ */
+int pevent_event_filtered(struct event_filter *filter,
+			  int event_id)
+{
+	struct filter_type *filter_type;
+
+	if (!filter->filters)
+		return 0;
+
+	filter_type = find_filter_type(filter, event_id);
+
+	return filter_type ? 1 : 0;
+}
+
+/**
  * pevent_filter_match - test if a record matches a filter
  * @filter: filter struct with filter information
  * @record: the record to test against the filter
