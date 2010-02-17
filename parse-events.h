@@ -615,4 +615,6 @@ int pevent_filter_event_has_trivial(struct event_filter *filter,
 				    int event_id,
 				    enum filter_trivial_type type);
 
+int pevent_filter_copy(struct event_filter *dest, struct event_filter *source);
+
 #endif /* _PARSE_EVENTS_H */

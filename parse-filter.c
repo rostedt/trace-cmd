@@ -853,6 +853,72 @@ void pevent_filter_free(struct event_filter *filter)
 	free(filter);
 }
 
+static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg);
+
+static int copy_filter_type(struct event_filter *filter,
+			     struct event_filter *source,
+			     struct filter_type *filter_type)
+{
+	struct filter_arg *arg;
+	struct event_format *event;
+	const char *sys;
+	const char *name;
+	char *str;
+
+	/* Can't assume that the pevent's are the same */
+	sys = filter_type->event->system;
+	name = filter_type->event->name;
+	event = pevent_find_event_by_name(filter->pevent, sys, name);
+	if (!event)
+		return -1;
+
+	str = arg_to_str(source, filter_type->filter);
+	if (!str)
+		return -1;
+
+	if (strcmp(str, "TRUE") == 0 || strcmp(str, "FALSE") == 0) {
+		/* Add trivial event */
+		arg = allocate_arg();
+		arg->type = FILTER_ARG_BOOLEAN;
+		if (strcmp(str, "TRUE") == 0)
+			arg->bool.value = 1;
+		else
+			arg->bool.value = 0;
+
+		filter_type = add_filter_type(filter, event->id);
+		filter_type->filter = arg;
+
+		free(str);
+		return 0;
+	}
+
+	filter_event(filter, event, str, NULL);
+	free(str);
+
+	return 0;
+}
+
+/**
+ * pevent_filter_copy - copy a filter using another filter
+ * @dest - the filter to copy to
+ * @source - the filter to copy from
+ *
+ * Returns 0 on success and -1 if not all filters were copied
+ */
+int pevent_filter_copy(struct event_filter *dest, struct event_filter *source)
+{
+	int i;
+	int ret = 0;
+
+	pevent_filter_reset(dest);
+
+	for (i = 0; i < source->filters; i++) {
+		if (copy_filter_type(dest, source, &source->event_filters[i]))
+			ret = -1;
+	}
+	return ret;
+}
+
 /**
  * pevent_filter_clear_trivial - clear TRUE and FALSE filters
  * @filter: the filter to remove trivial filters from
@@ -1137,8 +1203,6 @@ int pevent_filter_match(struct event_filter *filter,
 	return test_filter(filter_type->event, filter_type->filter, record) ?
 		FILTER_MATCH : FILTER_MISS;
 }
-
-static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg);
 
 static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 {
