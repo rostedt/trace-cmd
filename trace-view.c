@@ -444,6 +444,7 @@ void trace_view_adv_filter_callback(gboolean accept,
 	char *error_str;
 	guint64 time;
 	gint row;
+	int ret;
 
 	if (!accept)
 		return;
@@ -458,7 +459,12 @@ void trace_view_adv_filter_callback(gboolean accept,
 
 	event_filter = trace_view_store_get_event_filter(store);
 
-	pevent_filter_add_filter_str(event_filter, text, &error_str);
+	ret = pevent_filter_add_filter_str(event_filter, text, &error_str);
+	if (ret < 0) {
+		warning("filter failed due to: %s", error_str);
+		free(error_str);
+		return;
+	}
 
 	/* Keep track of the currently selected row */
 	row = trace_view_get_selected_row(GTK_WIDGET(trace_tree));
