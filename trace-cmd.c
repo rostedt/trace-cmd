@@ -1043,6 +1043,7 @@ void usage(char **argv)
 	       "          -E show event files stored\n"
 	       "          -F filter to filter output on\n"
 	       "          -v will negate all -F after it (Not show matches)\n"
+	       "          -w show wakeup latencies\n"
 	       "          -l show latency format (default with latency tracers)\n"
 	       "\n"
 	       " %s split [options] -o file [start [end]]\n"

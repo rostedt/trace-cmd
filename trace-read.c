@@ -37,6 +37,7 @@
 #include <errno.h>
 
 #include "trace-local.h"
+#include "trace-hash-local.h"
 
 static struct filter {
 	struct filter		*next;
@@ -53,6 +54,29 @@ static int input_fd;
 const char *input_file = "trace.dat";
 
 static int filter_cpu = -1;
+
+static int show_wakeup;
+static int wakeup_id;
+static int wakeup_new_id;
+static int sched_id;
+
+static struct format_field *wakeup_task;
+static struct format_field *wakeup_success;
+static struct format_field *wakeup_new_task;
+static struct format_field *wakeup_new_success;
+static struct format_field *sched_task;
+
+static unsigned long long total_wakeup_lat;
+static unsigned long wakeup_lat_count;
+
+struct wakeup_info {
+	struct wakeup_info	*next;
+	unsigned long long	start;
+	int			pid;
+};
+
+#define WAKEUP_HASH_SIZE 1024
+static struct wakeup_info *wakeup_hash[WAKEUP_HASH_SIZE];
 
 /* Debug variables for testing tracecmd_read_at */
 #define TEST_READ_AT 0
@@ -250,6 +274,178 @@ static int filter_record(struct tracecmd_input *handle,
 	return 0;
 }
 
+static void init_wakeup(struct tracecmd_input *handle)
+{
+	struct event_format *event;
+	struct pevent *pevent;
+
+	if (!show_wakeup)
+		return;
+
+	pevent = tracecmd_get_pevent(handle);
+
+	event = pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
+	if (!event)
+		goto fail;
+	wakeup_id = event->id;
+	wakeup_task = pevent_find_field(event, "pid");
+	if (!wakeup_task)
+		goto fail;
+	wakeup_success = pevent_find_field(event, "success");
+	if (!wakeup_success)
+		goto fail;
+
+
+	event = pevent_find_event_by_name(pevent, "sched", "sched_switch");
+	if (!event)
+		goto fail;
+	sched_id = event->id;
+	sched_task = pevent_find_field(event, "next_pid");
+	if (!sched_task)
+		goto fail;
+
+
+	wakeup_new_id = -1;
+
+	event = pevent_find_event_by_name(pevent, "sched", "sched_wakeup_new");
+	if (!event)
+		goto skip;
+	wakeup_new_id = event->id;
+	wakeup_new_task = pevent_find_field(event, "pid");
+	if (!wakeup_new_task)
+		goto fail;
+	wakeup_new_success = pevent_find_field(event, "success");
+	if (!wakeup_new_success)
+		goto fail;
+
+ skip:
+	return;
+
+ fail:
+	show_wakeup = 0;
+}
+
+static unsigned int calc_wakeup_key(unsigned long val)
+{
+	return trace_hash(val) % WAKEUP_HASH_SIZE;
+}
+
+static struct wakeup_info *
+__find_wakeup(unsigned int key, unsigned int val)
+{
+	struct wakeup_info *info = wakeup_hash[key];
+
+	while (info) {
+		if (info->pid == val)
+			return info;
+	}
+
+	return NULL;
+}
+
+static void add_wakeup(unsigned int val, unsigned long long start)
+{
+	unsigned int key = calc_wakeup_key(val);
+	struct wakeup_info *info;
+
+	info = __find_wakeup(key, val);
+	if (info) {
+		/* Hmm, double wakeup? */
+		info->start = start;
+		return;
+	}
+
+	info = malloc_or_die(sizeof(*info));
+	info->pid = val;
+	info->start = start;
+	info->next = wakeup_hash[key];
+	wakeup_hash[key] = info;
+}
+
+static void add_sched(unsigned int val, unsigned long long end)
+{
+	unsigned int key = calc_wakeup_key(val);
+	struct wakeup_info *info;
+	struct wakeup_info **next;
+	unsigned long long cal;
+
+	info = __find_wakeup(key, val);
+	if (!info)
+		return;
+
+	cal = end - info->start;
+
+	printf(" Latency: %llu.%03llu usecs", cal / 1000, cal % 1000);
+
+	total_wakeup_lat += cal;
+	wakeup_lat_count++;
+
+	next = &wakeup_hash[key];
+	while (*next) {
+		if (*next == info) {
+			*next = info->next;
+			break;
+		}
+		next = &(*next)->next;
+	}
+	free(info);
+}
+
+static void process_wakeup(struct pevent *pevent, struct record *record)
+{
+	unsigned long long val;
+	int id;
+
+	if (!show_wakeup)
+		return;
+
+	id = pevent_data_type(pevent, record);
+	if (id == wakeup_id) {
+		if (pevent_read_number_field(wakeup_success, record->data, &val))
+			return;
+		if (!val)
+			return;
+		if (pevent_read_number_field(wakeup_task, record->data, &val))
+			return;
+		add_wakeup(val, record->ts);
+	} else if (id == wakeup_new_id) {
+		if (pevent_read_number_field(wakeup_new_success, record->data, &val))
+			return;
+		if (!val)
+			return;
+		if (pevent_read_number_field(wakeup_new_task, record->data, &val))
+			return;
+		add_wakeup(val, record->ts);
+	} else if (id == sched_id) {
+		if (pevent_read_number_field(sched_task, record->data, &val))
+			return;
+		add_sched(val, record->ts);
+	}
+}
+
+static void finish_wakeup(void)
+{
+	struct wakeup_info *info;
+	int i;
+
+	if (!show_wakeup || !wakeup_lat_count)
+		return;
+
+	total_wakeup_lat /= wakeup_lat_count;
+
+	printf("\nAverage wakeup latency: %llu.%03llu usecs\n\n",
+	       total_wakeup_lat / 1000,
+	       total_wakeup_lat % 1000);
+
+	for (i = 0; i < WAKEUP_HASH_SIZE; i++) {
+		while (wakeup_hash[i]) {
+			info = wakeup_hash[i];
+			wakeup_hash[i] = info->next;
+			free(info);
+		}
+	}
+}
+
 static void show_data(struct tracecmd_input *handle,
 		      struct record *record, int cpu)
 {
@@ -266,6 +462,9 @@ static void show_data(struct tracecmd_input *handle,
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, record);
 	trace_seq_do_printf(&s);
+
+	process_wakeup(pevent, record);
+
 	printf("\n");
 }
 
@@ -305,6 +504,7 @@ static void read_data_info(struct tracecmd_input *handle)
 		return;
 	}
 
+	init_wakeup(handle);
 	process_filters(handle);
 
 	do {
@@ -374,7 +574,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPlEF:v",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPlEwF:v",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -402,6 +602,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'E':
 			show_events = 1;
+			break;
+		case 'w':
+			show_wakeup = 1;
 			break;
 		case 'l':
 			latency_format = 1;
@@ -488,6 +691,8 @@ void trace_report (int argc, char **argv)
 	read_data_info(handle);
 
 	tracecmd_close(handle);
+
+	finish_wakeup();
 
 	return;
 }

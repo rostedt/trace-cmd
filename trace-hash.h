@@ -22,6 +22,7 @@
 #define _TRACE_HASH_H
 
 #include <glib.h>
+#include "trace-hash-local.h"
 
 struct filter_task_item {
 	struct filter_task_item	*next;
@@ -32,8 +33,6 @@ struct filter_task {
 	struct filter_task_item **hash;
 	gint			count;
 };
-
-guint trace_hash(gint val);
 
 struct filter_task_item *
 filter_task_find_pid(struct filter_task *hash, gint pid);
