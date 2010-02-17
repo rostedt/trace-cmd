@@ -853,6 +853,60 @@ void pevent_filter_free(struct event_filter *filter)
 	free(filter);
 }
 
+/**
+ * pevent_filter_clear_trivial - clear TRUE and FALSE filters
+ * @filter: the filter to remove trivial filters from
+ * @type: remove only true, false, or both
+ *
+ * Removes filters that only contain a TRUE or FALES boolean arg.
+ */
+void pevent_filter_clear_trivial(struct event_filter *filter,
+				 enum filter_remove_type type)
+{
+	struct filter_type *filter_type;
+	int count = 0;
+	int *ids;
+	int i;
+
+	if (!filter->filters)
+		return;
+
+	/*
+	 * Two steps, first get all ids with trivial filters.
+	 *  then remove those ids.
+	 */
+	for (i = 0; i < filter->filters; i++) {
+		filter_type = &filter->event_filters[i];
+		if (filter_type->filter->type != FILTER_ARG_BOOLEAN)
+			continue;
+		switch (type) {
+		case FILTER_REMOVE_FALSE:
+			if (filter_type->filter->bool.value)
+				continue;
+		case FILTER_REMOVE_TRUE:
+			if (!filter_type->filter->bool.value)
+				continue;
+		default:
+			break;
+		}
+		if (count)
+			ids = realloc(ids, sizeof(*ids) * (count + 1));
+		else
+			ids = malloc(sizeof(*ids));
+		if (!ids)
+			die("Can't allocate ids");
+		ids[count++] = filter_type->event_id;
+	}
+
+	if (!count)
+		return;
+
+	for (i = 0; i < count; i++)
+		pevent_filter_remove_event(filter, ids[i]);
+
+	free(ids);
+}
+
 static int test_filter(struct event_format *event,
 		       struct filter_arg *arg, struct record *record);
 

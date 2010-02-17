@@ -582,6 +582,12 @@ struct event_filter *pevent_filter_alloc(struct pevent *pevent);
 #define FILTER_MISS		0
 #define FILTER_MATCH		1
 
+enum filter_remove_type {
+	FILTER_REMOVE_FALSE,
+	FILTER_REMOVE_TRUE,
+	FILTER_REMOVE_BOTH,
+};
+
 int pevent_filter_add_filter_str(struct event_filter *filter,
 				 const char *filter_str,
 				 char **error_str);
@@ -594,6 +600,9 @@ int pevent_event_filtered(struct event_filter *filter,
 			  int event_id);
 
 void pevent_filter_reset(struct event_filter *filter);
+
+void pevent_filter_clear_trivial(struct event_filter *filter,
+				 enum filter_remove_type type);
 
 void pevent_filter_free(struct event_filter *filter);
 
