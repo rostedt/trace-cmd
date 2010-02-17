@@ -77,6 +77,12 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       trace_filter_event_cb_func func,
 			       gpointer data);
 
+void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
+			       struct event_filter *filter,
+			       gboolean all_events,
+			       trace_filter_event_cb_func func,
+			       gpointer data);
+
 void trace_filter_convert_filter_to_names(struct event_filter *filter,
 					  gchar ***systems,
 					  gint **events);

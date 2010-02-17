@@ -525,7 +525,7 @@ void trace_view_store_clear_all_events_enabled(TraceViewStore *store)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 
-	pevent_filter_clear_trivial(store->event_filter, FILTER_TRIVIAL_TRUE);
+	pevent_filter_clear_trivial(store->event_filter, FILTER_TRIVIAL_BOTH);
 	store->all_events = 0;
 }
 

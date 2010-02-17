@@ -273,6 +273,7 @@ create_adv_filter_view(struct tracecmd_input *handle,
 
 	gtk_tree_view_column_add_attribute(col, renderer, "text", ADV_COL_EVENT);
 
+
 	/* --- filter column --- */
 
 	col = gtk_tree_view_column_new();
@@ -384,6 +385,7 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 enum {
 	COL_EVENT,
 	COL_ACTIVE,
+	COL_NORMAL,
 	COL_ACTIVE_START,
 	COL_EVENT_ID,
 	NUM_EVENT_COLS,
@@ -421,8 +423,9 @@ gboolean event_is_enabled(gint *events, gint events_size, gint event)
 
 static GtkTreeModel *
 create_tree_event_model(struct tracecmd_input *handle,
-		       gboolean all_events, gchar **systems_set,
-		       gint *event_ids_set)
+			struct event_filter *filter,
+			gboolean all_events, gchar **systems_set,
+			gint *event_ids_set)
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_all, iter_sys, iter_events;
@@ -431,7 +434,7 @@ create_tree_event_model(struct tracecmd_input *handle,
 	struct event_format *event;
 	char *last_system = NULL;
 	gboolean sysactive;
-	gboolean active;
+	gboolean active, normal;
 	gchar **systems = NULL;
 	gint *event_ids = NULL;
 	gint systems_size;
@@ -442,12 +445,13 @@ create_tree_event_model(struct tracecmd_input *handle,
 
 	treestore = gtk_tree_store_new(NUM_EVENT_COLS, G_TYPE_STRING,
 				       G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-				       G_TYPE_INT);
+				       G_TYPE_BOOLEAN, G_TYPE_INT);
 
 	gtk_tree_store_append(treestore, &iter_all, NULL);
 	gtk_tree_store_set(treestore, &iter_all,
 			   COL_EVENT,	"All",
 			   COL_ACTIVE, all_events,
+			   COL_NORMAL, TRUE,
 			   COL_ACTIVE_START, FALSE,
 			   -1);
 
@@ -480,19 +484,31 @@ create_tree_event_model(struct tracecmd_input *handle,
 			gtk_tree_store_set(treestore, &iter_sys,
 					   COL_EVENT, event->system,
 					   COL_ACTIVE, sysactive,
+					   COL_NORMAL, TRUE,
 					   -1);
 			last_system = event->system;
 		}
 
 		active = all_events || sysactive ||
 			event_is_enabled(event_ids, event_ids_size, event->id);
+
+		normal = TRUE;
+		if (active && filter) {
+			if (!pevent_filter_event_has_trivial(filter, event->id,
+							     FILTER_TRIVIAL_BOTH))
+				normal = FALSE;
+			/* Make trivial false not selected */
+			else if (pevent_filter_event_has_trivial(filter, event->id,
+								 FILTER_TRIVIAL_FALSE))
+				active = FALSE;
+		}
 		gtk_tree_store_append(treestore, &iter_events, &iter_sys);
 		gtk_tree_store_set(treestore, &iter_events,
 				   COL_EVENT, event->name,
 				   COL_ACTIVE, active,
+				   COL_NORMAL, normal,
 				   COL_EVENT_ID, event->id,
 				   -1);
-
 	}
 
 	g_free(systems);
@@ -694,6 +710,7 @@ static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
 
 static GtkWidget *
 create_event_list_view(struct tracecmd_input *handle,
+		       struct event_filter *filter,
 		       gboolean all_events, gchar **systems,
 		       gint *events)
 {
@@ -720,10 +737,12 @@ create_event_list_view(struct tracecmd_input *handle,
 	gtk_tree_view_column_pack_start(col, togrend, FALSE);
 	gtk_tree_view_column_pack_start(col, renderer, FALSE);
 	gtk_tree_view_column_add_attribute(col, togrend, "active", COL_ACTIVE);
+	gtk_tree_view_column_add_attribute(col, togrend, "sensitive", COL_NORMAL);
 
 	gtk_tree_view_column_add_attribute(col, renderer, "text", COL_EVENT);
+	gtk_tree_view_column_add_attribute(col, renderer, "sensitive", COL_NORMAL);
 
-	model = create_tree_event_model(handle, all_events, systems, events);
+	model = create_tree_event_model(handle, filter, all_events, systems, events);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
@@ -901,22 +920,12 @@ event_dialog_response (gpointer data, gint response_id)
 	g_free(helper);
 }
 
-/**
- * trace_filter_event_dialog - make dialog with event listing
- * @handle: the handle to the tracecmd data file
- * @all_events: if TRUE then select all events.
- * @systems: NULL or a string array of systems terminated with NULL
- * @events: NULL or a int array of event ids terminated with -1
- * @func: The function to call when accept or cancel is pressed
- * @data: data to pass to the function @func
- *
- * If @all_events is set, then @systems and @events are ignored.
- */
-void trace_filter_event_dialog(struct tracecmd_input *handle,
-			       gboolean all_events,
-			       gchar **systems, gint *events,
-			       trace_filter_event_cb_func func,
-			       gpointer data)
+static void filter_event_dialog(struct tracecmd_input *handle,
+				struct event_filter *filter,
+				gboolean all_events,
+				gchar **systems, gint *events,
+				trace_filter_event_cb_func func,
+				gpointer data)
 {
 	struct dialog_helper *helper;
 	struct event_filter_helper *event_helper;
@@ -955,7 +964,7 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_event_list_view(handle, all_events, systems, events);
+	view = create_event_list_view(handle, filter, all_events, systems, events);
 	event_helper->view = GTK_TREE_VIEW(view);
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
@@ -965,6 +974,52 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
+}
+
+/**
+ * trace_filter_event_dialog - make dialog with event listing
+ * @handle: the handle to the tracecmd data file
+ * @all_events: if TRUE then select all events.
+ * @systems: NULL or a string array of systems terminated with NULL
+ * @events: NULL or a int array of event ids terminated with -1
+ * @func: The function to call when accept or cancel is pressed
+ * @data: data to pass to the function @func
+ *
+ * If @all_events is set, then @systems and @events are ignored.
+ */
+void trace_filter_event_dialog(struct tracecmd_input *handle,
+			       gboolean all_events,
+			       gchar **systems, gint *events,
+			       trace_filter_event_cb_func func,
+			       gpointer data)
+{
+	filter_event_dialog(handle, NULL, all_events, systems,
+			    events, func, data);
+}
+
+/**
+ * trace_filter_event_filter_dialog - make dialog with event listing
+ * @handle: the handle to the tracecmd data file
+ * @filter: the event filter to determine what to display.
+ * @all_events: if TRUE then select all events.
+ * @func: The function to call when accept or cancel is pressed
+ * @data: data to pass to the function @func
+ *
+ * If @all_events is set, then @systems and @events are ignored.
+ */
+void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
+				      struct event_filter *filter,
+				      gboolean all_events,
+				      trace_filter_event_cb_func func,
+				      gpointer data)
+{
+	gchar **systems;
+	gint *event_ids;
+
+	trace_filter_convert_filter_to_names(filter, &systems, &event_ids);
+
+	filter_event_dialog(handle, filter, all_events, systems,
+			    event_ids, func, data);
 }
 
 struct cpu_filter_helper {
@@ -1285,7 +1340,8 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 			all_selected = 1;
 		}
 
-		if (pevent_event_filtered(filter, event->id)) {
+		if (pevent_filter_event_has_trivial(filter, event->id,
+						    FILTER_TRIVIAL_TRUE)) {
 			if (!all_selected || !systems)
 				add_event_int(event_ids, event->id, event_count++);
 		} else {
@@ -1296,6 +1352,10 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 				}
 			}
 			all_selected = 0;
+
+			/* If this event is filtered, still add it */
+			if (pevent_event_filtered(filter, event->id))
+				add_event_int(event_ids, event->id, event_count++);
 		}
 		last_system = event->system;
 	}
@@ -1314,8 +1374,17 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 					 gchar **systems,
 					 gint *events)
 {
+	struct pevent *pevent;
+	struct event_filter *copy;
 	struct event_format *event;
 	int i;
+
+	pevent = filter->pevent;
+
+	/* Make a copy to use later */
+	copy = pevent_filter_alloc(pevent);
+	pevent_filter_copy(copy, filter);
+	pevent_filter_reset(filter);
 
 	if (systems) {
 		for (i = 0; systems[i]; i++)
@@ -1332,4 +1401,8 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 							     NULL);
 		}
 	}
+
+	pevent_update_trivial(filter, copy, FILTER_TRIVIAL_BOTH);
+
+	pevent_filter_free(copy);
 }

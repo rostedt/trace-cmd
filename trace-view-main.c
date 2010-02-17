@@ -104,8 +104,6 @@ events_clicked (gpointer data)
 	GtkTreeModel *model;
 	TraceViewStore *store;
 	gboolean all_events;
-	gchar **systems;
-	gint *events;
 
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
@@ -116,14 +114,10 @@ events_clicked (gpointer data)
 	all_events = trace_view_store_get_all_events_enabled(store);
 	event_filter = trace_view_store_get_event_filter(store);
 
-	trace_filter_convert_filter_to_names(event_filter,
-					     &systems, &events);
-
-	trace_filter_event_dialog(store->handle, all_events,
-				  systems, events,
-				  trace_view_event_filter_callback, trace_tree);
-	free(systems);
-	free(events);
+	trace_filter_event_filter_dialog(store->handle, event_filter,
+					 all_events,
+					 trace_view_event_filter_callback,
+					 trace_tree);
 }
 
 /* Callback for the clicked signal of the Advanced filter button */
