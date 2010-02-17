@@ -521,17 +521,11 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	}
 }
 
-static void clear_all_events(TraceViewStore *store)
-{
-	pevent_filter_reset(store->event_filter);
-}
-
 void trace_view_store_clear_all_events_enabled(TraceViewStore *store)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 
-	clear_all_events(store);
-
+	pevent_filter_clear_trivial(store->event_filter, FILTER_REMOVE_TRUE);
 	store->all_events = 0;
 }
 
@@ -546,7 +540,7 @@ void trace_view_store_set_all_events_enabled(TraceViewStore *store)
 	 * All enabled means that we don't need to look at 
 	 * the system events, so free those arrays.
 	 */
-	clear_all_events(store);
+	pevent_filter_reset(store->event_filter);
 
 	store->all_events = 1;
 }
