@@ -589,6 +589,8 @@ int pevent_filter_match(struct event_filter *filter,
 int pevent_event_filtered(struct event_filter *filter,
 			  int event_id);
 
+void pevent_filter_reset(struct event_filter *filter);
+
 void pevent_filter_free(struct event_filter *filter);
 
 #endif /* _PARSE_EVENTS_H */

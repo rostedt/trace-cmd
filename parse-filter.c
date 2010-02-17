@@ -808,16 +808,30 @@ int pevent_filter_remove_event(struct event_filter *filter,
 	return 1;
 }
 
-void pevent_filter_free(struct event_filter *filter)
+/**
+ * pevent_filter_reset - clear all filters in a filter
+ * @filter: the event filter to reset
+ *
+ * Removes all filters from a filter and resets it.
+ */
+void pevent_filter_reset(struct event_filter *filter)
 {
 	int i;
-
-	pevent_unref(filter->pevent);
 
 	for (i = 0; i < filter->filters; i++)
 		free_filter_type(&filter->event_filters[i]);
 
 	free(filter->event_filters);
+	filter->filters = 0;
+	filter->event_filters = NULL;
+}
+
+void pevent_filter_free(struct event_filter *filter)
+{
+	pevent_unref(filter->pevent);
+
+	pevent_filter_reset(filter);
+
 	free(filter);
 }
 
