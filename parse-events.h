@@ -22,6 +22,7 @@
 #define _PARSE_EVENTS_H
 
 #include <stdarg.h>
+#include <regex.h>
 
 #ifndef __unused
 #define __unused __attribute__ ((unused))
@@ -485,6 +486,7 @@ void pevent_unref(struct pevent *pevent);
 void pevent_buffer_init(const char *buf, unsigned long long size);
 enum event_type pevent_read_token(char **tok);
 void pevent_free_token(char *token);
+int pevent_peek_char(void);
 
 /* for debugging */
 void pevent_print_funcs(struct pevent *pevent);
@@ -513,8 +515,8 @@ enum filter_cmp_type {
 	FILTER_CMP_LE,
 	FILTER_CMP_MATCH,
 	FILTER_CMP_NOT_MATCH,
-	FILTER_CMP_CONTAIN,
-	FILTER_CMP_NOT_CONTAIN,
+	FILTER_CMP_REGEX,
+	FILTER_CMP_NOT_REGEX,
 };
 
 enum filter_arg_type {
@@ -547,6 +549,8 @@ struct filter_arg_str {
 	enum filter_cmp_type	type;
 	struct format_field	*field;
 	char			*val;
+	char			*buffer;
+	regex_t			reg;
 };
 
 struct filter_arg {

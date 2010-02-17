@@ -23,7 +23,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
-#include <regex.h>
 #include <errno.h>
 #include <sys/types.h>
 
@@ -89,7 +88,20 @@ static enum event_type read_token(char **tok)
 		type = pevent_read_token(&token);
 	} while (type == EVENT_NEWLINE || type == EVENT_SPACE);
 
-	*tok = token;
+	/* If token is = or ! check to see if the next char is ~ */
+	if (token &&
+	    (strcmp(token, "=") == 0 || strcmp(token, "!") == 0) &&
+	    pevent_peek_char() == '~') {
+		/* append it */
+		*tok = malloc(3);
+		sprintf(*tok, "%c%c", *token, '~');
+		free_token(token);
+		/* Now remove the '~' from the buffer */
+		pevent_read_token(&token);
+		free_token(token);
+	} else
+		*tok = token;
+
 	return type;
 }
 
@@ -205,6 +217,8 @@ static void free_arg(struct filter_arg *arg)
 
 	case FILTER_ARG_STR:
 		free(arg->str.val);
+		regfree(&arg->str.reg);
+		free(arg->str.buffer);
 		break;
 
 	case FILTER_ARG_OP:
@@ -314,6 +328,8 @@ static int process_valid_field(struct filter_arg *arg,
 			       char *val,
 			       char **error_str)
 {
+	int ret;
+
 	switch (type) {
 
 	case EVENT_SQUOTE:
@@ -332,6 +348,13 @@ static int process_valid_field(struct filter_arg *arg,
 			op_type = FILTER_CMP_NOT_MATCH;
 			break;
 
+		case FILTER_CMP_REGEX:
+		case FILTER_CMP_NOT_REGEX:
+			ret = regcomp(&arg->str.reg, val, REG_ICASE|REG_NOSUB);
+			if (ret)
+				return -1;
+			break;
+
 		default:
 			show_error(error_str,
 				   "Op not allowed with string");
@@ -343,9 +366,24 @@ static int process_valid_field(struct filter_arg *arg,
 		arg->str.val = strdup(val);
 		if (!arg->str.val)
 			die("Can't allocate arg value");
+
+		/* Need a buffer to copy data int for tests */
+		arg->str.buffer = malloc_or_die(arg->str.field->size + 1);
+		/* Null terminate this buffer */
+		arg->str.buffer[arg->str.field->size] = 0;
+
 		break;
 	case EVENT_ITEM:
  as_int:
+		switch (op_type) {
+		case FILTER_CMP_REGEX:
+		case FILTER_CMP_NOT_REGEX:
+			show_error(error_str,
+				   "Op not allowed with integers");
+			return -1;
+		default:
+			break;
+		}
 		arg->type = FILTER_ARG_NUM;
 		arg->num.field = field;
 		arg->num.type = op_type;
@@ -477,6 +515,10 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 		etype = FILTER_CMP_LE;
 	} else if (strcmp(token, ">=") == 0) {
 		etype = FILTER_CMP_GE;
+	} else if (strcmp(token, "=~") == 0) {
+		etype = FILTER_CMP_REGEX;
+	} else if (strcmp(token, "!~") == 0) {
+		etype = FILTER_CMP_NOT_REGEX;
 	} else {
 		show_error(error_str,
 			   "Unknown op '%s' after '%s'",
@@ -897,13 +939,34 @@ static int test_str(struct event_format *event,
 		    struct filter_arg *arg, struct record *record)
 {
 	const char *val = record->data + arg->str.field->offset;
+	const char *buffer;
+
+	/*
+	 * We need to copy the data since we can't be sure the field
+	 * is null terminated.
+	 */
+	if (*(val + arg->str.field->size - 1)) {
+		/* copy it */
+		memcpy(arg->str.buffer, val, arg->str.field->size);
+		/* the buffer is already NULL terminated */
+		buffer = arg->str.buffer;
+	} else
+		/* OK, it's NULL terminated */
+		buffer = val;
 
 	switch (arg->str.type) {
 	case FILTER_CMP_MATCH:
-		return strncmp(val, arg->str.val, arg->str.field->size) == 0;
+		return strcmp(buffer, arg->str.val) == 0;
 
 	case FILTER_CMP_NOT_MATCH:
-		return strncmp(val, arg->str.val, arg->str.field->size) != 0;
+		return strcmp(buffer, arg->str.val) != 0;
+
+	case FILTER_CMP_REGEX:
+		/* Returns zero on match */
+		return !regexec(&arg->str.reg, buffer, 0, NULL, 0);
+
+	case FILTER_CMP_NOT_REGEX:
+		return regexec(&arg->str.reg, buffer, 0, NULL, 0);
 
 	default:
 		/* ?? */

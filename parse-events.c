@@ -696,6 +696,16 @@ static int __peek_char(void)
 	return input_buf[input_buf_ptr];
 }
 
+/**
+ * pevent_peek_char - peek at the next character that will be read
+ *
+ * Returns the next character read, or -1 if end of buffer.
+ */
+int pevent_peek_char(void)
+{
+	return __peek_char();
+}
+
 static enum event_type force_token(const char *str, char **tok);
 
 static enum event_type __read_token(char **tok)
