@@ -597,4 +597,6 @@ void pevent_filter_reset(struct event_filter *filter);
 
 void pevent_filter_free(struct event_filter *filter);
 
+char *pevent_filter_make_string(struct event_filter *filter, int event_id);
+
 #endif /* _PARSE_EVENTS_H */

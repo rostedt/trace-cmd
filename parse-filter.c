@@ -1071,3 +1071,263 @@ int pevent_filter_match(struct event_filter *filter,
 		FILTER_MATCH : FILTER_MISS;
 }
 
+static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg);
+
+static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	char *str = NULL;
+	char *left = NULL;
+	char *right = NULL;
+	char *op = NULL;
+	int left_val = -1;
+	int right_val = -1;
+	int val;
+	int len;
+
+	switch (arg->op.type) {
+	case FILTER_OP_AND:
+		op = "&&";
+		/* fall through */
+	case FILTER_OP_OR:
+		if (!op)
+			op = "||";
+
+		left = arg_to_str(filter, arg->op.left);
+		right = arg_to_str(filter, arg->op.right);
+		if (!left || !right)
+			break;
+
+		/* Try to consolidate boolean values */
+		if (strcmp(left, "TRUE") == 0)
+			left_val = 1;
+		else if (strcmp(left, "FALSE") == 0)
+			left_val = 0;
+
+		if (strcmp(right, "TRUE") == 0)
+			right_val = 1;
+		else if (strcmp(right, "FALSE") == 0)
+			right_val = 0;
+
+		if (left_val >= 0) {
+			if ((arg->op.type == FILTER_OP_AND && !left_val) ||
+			    (arg->op.type == FILTER_OP_OR && left_val)) {
+				/* Just return left value */
+				str = left;
+				left = NULL;
+				break;
+			}
+			if (right_val >= 0) {
+				/* just evaluate this. */
+				val = 0;
+				switch (arg->op.type) {
+				case FILTER_OP_AND:
+					val = left_val && right_val;
+					break;
+				case FILTER_OP_OR:
+					val = left_val || right_val;
+					break;
+				default:
+					break;
+				}
+				str = malloc_or_die(6);
+				if (val)
+					strcpy(str, "TRUE");
+				else
+					strcpy(str, "FALSE");
+				break;
+			}
+		}
+		if (right_val >= 0) {
+			if ((arg->op.type == FILTER_OP_AND && !right_val) ||
+			    (arg->op.type == FILTER_OP_OR && right_val)) {
+				/* Just return right value */
+				str = right;
+				right = NULL;
+				break;
+			}
+			/* The right value is meaningless */
+			str = left;
+			left = NULL;
+			break;
+		}
+
+		len = strlen(left) + strlen(right) + strlen(op) + 10;
+		str = malloc_or_die(len);
+		snprintf(str, len, "(%s) %s (%s)",
+			 left, op, right);
+		break;
+
+	case FILTER_OP_NOT:
+		op = "!";
+		right = arg_to_str(filter, arg->op.right);
+		if (!right)
+			break;
+
+		/* See if we can consolidate */
+		if (strcmp(right, "TRUE") == 0)
+			right_val = 1;
+		else if (strcmp(right, "FALSE") == 0)
+			right_val = 0;
+		if (right_val >= 0) {
+			/* just return the opposite */
+			str = malloc_or_die(6);
+			if (right_val)
+				strcpy(str, "FALSE");
+			else
+				strcpy(str, "TRUE");
+			break;
+		}
+		len = strlen(right) + strlen(op) + 3;
+		str = malloc_or_die(len);
+		snprintf(str, len, "%s(%s)", op, right);
+		break;
+
+	default:
+		/* ?? */
+		break;
+	}
+	free(left);
+	free(right);
+	return str;
+}
+
+static char *num_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	char *str = NULL;
+	char *op = NULL;
+	int len;
+
+	switch (arg->num.type) {
+	case FILTER_CMP_EQ:
+		op = "==";
+		/* fall through */
+	case FILTER_CMP_NE:
+		if (!op)
+			op = "!=";
+		/* fall through */
+	case FILTER_CMP_GT:
+		if (!op)
+			op = ">";
+		/* fall through */
+	case FILTER_CMP_LT:
+		if (!op)
+			op = "<";
+		/* fall through */
+	case FILTER_CMP_GE:
+		if (!op)
+			op = ">=";
+		/* fall through */
+	case FILTER_CMP_LE:
+		if (!op)
+			op = "<=";
+
+		len = strlen(arg->num.field->name) + strlen(op) + 30;
+		str = malloc_or_die(len);
+		if (arg->num.field->flags & FIELD_IS_SIGNED)
+			snprintf(str, len, "%s %s %lld",
+				 arg->num.field->name,
+				 op, arg->num.val);
+		else
+			snprintf(str, len, "%s %s %llu",
+				 arg->num.field->name,
+				 op, arg->num.val);
+		break;
+
+	default:
+		/* ?? */
+		break;
+	}
+	return str;
+}
+
+static char *str_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	char *str = NULL;
+	char *op = NULL;
+	int len;
+
+	switch (arg->str.type) {
+	case FILTER_CMP_MATCH:
+		op = "==";
+		/* fall through */
+	case FILTER_CMP_NOT_MATCH:
+		if (!op)
+			op = "!=";
+		/* fall through */
+	case FILTER_CMP_REGEX:
+		if (!op)
+			op = "=~";
+		/* fall through */
+	case FILTER_CMP_NOT_REGEX:
+		if (!op)
+			op = "!~";
+
+		len = strlen(arg->str.field->name) + strlen(op) +
+			strlen(arg->str.val) + 6;
+		str = malloc_or_die(len);
+		snprintf(str, len, "%s %s \"%s\"",
+			 arg->str.field->name,
+			 op, arg->str.val);
+		break;
+
+	default:
+		/* ?? */
+		break;
+	}
+	return str;
+}
+
+static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	char *str;
+
+	switch (arg->type) {
+	case FILTER_ARG_BOOLEAN:
+		str = malloc_or_die(6);
+		if (arg->bool.value)
+			strcpy(str, "TRUE");
+		else
+			strcpy(str, "FALSE");
+		return str;
+
+	case FILTER_ARG_OP:
+		return op_to_str(filter, arg);
+
+	case FILTER_ARG_NUM:
+		return num_to_str(filter, arg);
+
+	case FILTER_ARG_STR:
+		return str_to_str(filter, arg);
+
+	default:
+		/* ?? */
+		return NULL;
+	}
+
+}
+
+/**
+ * pevent_filter_make_string - return a string showing the filter
+ * @filter: filter struct with filter information
+ * @event_id: the event id to return the filter string with
+ *
+ * Returns a string that displays the filter contents.
+ *  This string must be freed with free(str).
+ *  NULL is returned if no filter is found.
+ */
+char *
+pevent_filter_make_string(struct event_filter *filter, int event_id)
+{
+	struct filter_type *filter_type;
+
+	if (!filter->filters)
+		return NULL;
+
+	filter_type = find_filter_type(filter, event_id);
+
+	if (!filter_type)
+		return NULL;
+
+	return arg_to_str(filter, filter_type->filter);
+}
+
