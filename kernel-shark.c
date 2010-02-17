@@ -751,7 +751,7 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Filter - Events Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("sync graph events to list");
+	sub_item = gtk_menu_item_new_with_label("sync graph events with list");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
@@ -767,7 +767,7 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Filter - Events Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("sync list events to graph");
+	sub_item = gtk_menu_item_new_with_label("sync list events with graph");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
