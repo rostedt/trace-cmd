@@ -907,8 +907,8 @@ static int copy_filter_type(struct event_filter *filter,
  */
 int pevent_filter_copy(struct event_filter *dest, struct event_filter *source)
 {
-	int i;
 	int ret = 0;
+	int i;
 
 	pevent_filter_reset(dest);
 
@@ -917,6 +917,69 @@ int pevent_filter_copy(struct event_filter *dest, struct event_filter *source)
 			ret = -1;
 	}
 	return ret;
+}
+
+
+/**
+ * pevent_update_trivial - update the trivial filters with the given filter
+ * @dest - the filter to update
+ * @source - the filter as the source of the update
+ * @type - the type of trivial filter to update.
+ *
+ * Scan dest for trivial events matching @type to replace with the source.
+ *
+ * Returns 0 on success and -1 if there was a problem updating, but
+ *   events may have still been updated on error.
+ */
+
+int pevent_update_trivial(struct event_filter *dest, struct event_filter *source,
+			  enum filter_trivial_type type)
+{
+	struct pevent *src_pevent;
+	struct pevent *dest_pevent;
+	struct event_format *event;
+	struct filter_type *filter_type;
+	struct filter_arg *arg;
+	char *str;
+	int i;
+
+	src_pevent = source->pevent;
+	dest_pevent = dest->pevent;
+
+	/* Do nothing if either of the filters has nothing to filter */
+	if (!dest->filters || !source->filters)
+		return 0;
+
+	for (i = 0; i < dest->filters; i++) {
+		filter_type = &dest->event_filters[i];
+		arg = filter_type->filter;
+		if (arg->type != FILTER_ARG_BOOLEAN)
+			continue;
+		if ((arg->bool.value && type == FILTER_TRIVIAL_FALSE) ||
+		    (!arg->bool.value && type == FILTER_TRIVIAL_TRUE))
+			continue;
+
+		event = filter_type->event;
+
+		if (src_pevent != dest_pevent) {
+			/* do a look up */
+			event = pevent_find_event_by_name(src_pevent,
+							  event->system,
+							  event->name);
+			if (!event)
+				return -1;
+		}
+
+		str = pevent_filter_make_string(source, event->id);
+		if (!str)
+			continue;
+
+		/* Don't bother if the filter is trivial too */
+		if (strcmp(str, "TRUE") != 0 && strcmp(str, "FALSE") != 0)
+			filter_event(dest, event, str, NULL);
+		free(str);
+	}
+	return 0;
 }
 
 /**
