@@ -58,6 +58,7 @@ static int cpu_count;
 static int *pids;
 
 static int filter_task;
+static int filter_pid = -1;
 
 struct func_list {
 	struct func_list *next;
@@ -309,11 +310,14 @@ static void update_task_filter(void)
 	int pid = getpid();
 	char spid[100];
 
-	if (!filter_task) {
+	if (!filter_task && filter_pid < 0) {
 		update_ftrace_pid("");
 		enable_tracing();
 		return;
 	}
+
+	if (filter_pid >= 0)
+		pid = filter_pid;
 
 	snprintf(spid, 100, "%d", pid);
 
@@ -1061,11 +1065,13 @@ void usage(char **argv)
 	       "%s version %s\n\n"
 	       "usage:\n"
 	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
-	       "           [-s usecs][-O option ][-l func][-g func][-n func][command ...]\n"
+	       "           [-s usecs][-O option ][-l func][-g func][-n func]\n"
+	       "           [-P pid][command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -F filter only on the given process\n"
+	       "          -P trace the given pid like -F for the command\n"
 	       "          -l filter function name\n"
 	       "          -g set graph function\n"
 	       "          -n do not trace function\n"
@@ -1075,7 +1081,7 @@ void usage(char **argv)
 	       "          -O option to enable (or disable)\n"
 	       "          -s sleep interval between recording (in usecs) [default: 1000]\n"
 	       "\n"
-	       " %s start [-e event][-p plugin] [-d] [-O option ]\n"
+	       " %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
 	       "          Uses same options as record, but does not run a command.\n"
 	       "          It only enables the tracing and exits\n"
 	       "\n"
@@ -1160,7 +1166,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1198,7 +1204,16 @@ int main (int argc, char **argv)
 				break;
 
 			case 'F':
+				if (filter_pid >= 0)
+					die("-P and -F can not both be specified");
 				filter_task = 1;
+				break;
+			case 'P':
+				if (filter_task)
+					die("-P and -F can not both be specified");
+				if (filter_pid >= 0)
+					die("only one -P pid can be filtered at a time");
+				filter_pid = atoi(optarg);
 				break;
 			case 'v':
 				if (extract)
