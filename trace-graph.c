@@ -480,7 +480,6 @@ plot_task_clicked (gpointer data)
 
 	graph_plot_task(ginfo, ginfo->filter_task_selected, pos);
 	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
-	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
 	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 	update_label_window(ginfo);
 }
@@ -2184,6 +2183,8 @@ static int load_handle(struct graph_info *ginfo,
 
 void trace_graph_refresh(struct graph_info *ginfo)
 {
+	ginfo->draw_height = PLOT_SPACE(ginfo->plots);
+	gtk_widget_set_size_request(ginfo->draw, ginfo->draw_width, ginfo->draw_height);
 	update_label_window(ginfo);
 	redraw_graph(ginfo);
 }
