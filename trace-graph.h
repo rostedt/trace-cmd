@@ -274,6 +274,10 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid);
 gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *record);
 
+void trace_graph_copy_filter(struct graph_info *ginfo,
+			     gboolean all_events,
+			     struct event_filter *event_filter);
+
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);
 void trace_graph_plot_init(struct graph_info *ginfo);

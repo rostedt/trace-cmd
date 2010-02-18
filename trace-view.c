@@ -379,6 +379,30 @@ void trace_view_select(GtkWidget *treeview, guint64 time)
 	gtk_tree_path_free(path);
 }
 
+static void update_rows(GtkTreeView *trace_tree, TraceViewStore *store)
+{
+	TraceViewRecord *vrec;
+	guint64 time;
+	gint row;
+
+	/* Keep track of the currently selected row */
+	row = trace_view_get_selected_row(GTK_WIDGET(trace_tree));
+	if (row >= 0) {
+		vrec = trace_view_store_get_row(store, row);
+		time = vrec->timestamp;
+	}
+
+	/* Force an update */
+	g_object_ref(store);
+	gtk_tree_view_set_model(trace_tree, NULL);
+	trace_view_store_update_filter(store);
+	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
+	g_object_unref(store);
+
+	if (row >= 0)
+		trace_view_select(GTK_WIDGET(trace_tree), time);
+}
+
 void trace_view_event_filter_callback(gboolean accept,
 				      gboolean all_events,
 				      gchar **systems,
@@ -389,9 +413,6 @@ void trace_view_event_filter_callback(gboolean accept,
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
-	TraceViewRecord *vrec;
-	guint64 time;
-	gint row;
 
 	if (!accept)
 		return;
@@ -415,22 +436,7 @@ void trace_view_event_filter_callback(gboolean accept,
 		trace_filter_convert_char_to_filter(event_filter, systems, events);
 	}
 
-	/* Keep track of the currently selected row */
-	row = trace_view_get_selected_row(GTK_WIDGET(trace_tree));
-	if (row >= 0) {
-		vrec = trace_view_store_get_row(store, row);
-		time = vrec->timestamp;
-	}
-
-	/* Force an update */
-	g_object_ref(store);
-	gtk_tree_view_set_model(trace_tree, NULL);
-	trace_view_store_update_filter(store);
-	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
-	g_object_unref(store);
-
-	if (row >= 0)
-		trace_view_select(GTK_WIDGET(trace_tree), time);
+	update_rows(trace_tree, store);
 }
 
 void trace_view_adv_filter_callback(gboolean accept,
@@ -442,10 +448,7 @@ void trace_view_adv_filter_callback(gboolean accept,
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
-	TraceViewRecord *vrec;
 	char *error_str;
-	guint64 time;
-	gint row;
 	int ret;
 	int i;
 
@@ -480,22 +483,40 @@ void trace_view_adv_filter_callback(gboolean accept,
 		}
 	}
 
-	/* Keep track of the currently selected row */
-	row = trace_view_get_selected_row(GTK_WIDGET(trace_tree));
-	if (row >= 0) {
-		vrec = trace_view_store_get_row(store, row);
-		time = vrec->timestamp;
+	update_rows(trace_tree, store);
+}
+
+void trace_view_copy_filter(GtkWidget *treeview,
+			    gboolean all_events,
+			    struct event_filter *src_event_filter)
+{
+	GtkTreeView *trace_tree;
+	struct event_filter *event_filter;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+
+	trace_tree = GTK_TREE_VIEW(treeview);
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	if (all_events) {
+		if (trace_view_store_get_all_events_enabled(store))
+			return;
+
+		trace_view_store_set_all_events_enabled(store);
+	} else {
+		trace_view_store_clear_all_events_enabled(store);
+
+		event_filter = trace_view_store_get_event_filter(store);
+
+		pevent_filter_copy(event_filter, src_event_filter);
 	}
 
-	/* Force an update */
-	g_object_ref(store);
-	gtk_tree_view_set_model(trace_tree, NULL);
-	trace_view_store_update_filter(store);
-	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
-	g_object_unref(store);
-
-	if (row >= 0)
-		trace_view_select(GTK_WIDGET(trace_tree), time);
+	update_rows(trace_tree, store);
 }
 
 void trace_view_cpu_filter_callback(gboolean accept,

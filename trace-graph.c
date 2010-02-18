@@ -1796,6 +1796,25 @@ void trace_graph_adv_filter_callback(gboolean accept,
 	redraw_graph(ginfo);
 }
 
+void trace_graph_copy_filter(struct graph_info *ginfo,
+			     gboolean all_events,
+			     struct event_filter *event_filter)
+{
+	if (all_events) {
+		ginfo->all_events = TRUE;
+		/* filter is no longer used */
+		pevent_filter_reset(ginfo->event_filter);
+		redraw_graph(ginfo);
+		return;
+	}
+
+	ginfo->all_events = FALSE;
+
+	pevent_filter_copy(ginfo->event_filter, event_filter);
+
+	redraw_graph(ginfo);
+}
+
 static void redraw_pixmap_backend(struct graph_info *ginfo)
 {
 	GdkPixmap *old_pix;

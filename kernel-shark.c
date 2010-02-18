@@ -271,8 +271,6 @@ sync_graph_events_to_list_clicked (gpointer data)
 	GtkTreeModel *model;
 	TraceViewStore *store;
 	gboolean all_events;
-	gchar **systems;
-	gint *events;
 
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
@@ -283,13 +281,8 @@ sync_graph_events_to_list_clicked (gpointer data)
 	all_events = trace_view_store_get_all_events_enabled(store);
 	event_filter = trace_view_store_get_event_filter(store);
 
-	trace_filter_convert_filter_to_names(event_filter,
-					     &systems, &events);
-
-	trace_graph_event_filter_callback(TRUE, all_events, systems,
-					  events, info->ginfo);
-	free(systems);
-	free(events);
+	trace_graph_copy_filter(info->ginfo, all_events,
+				event_filter);
 }
 
 
@@ -299,17 +292,11 @@ sync_list_events_to_graph_clicked (gpointer data)
 	struct shark_info *info = data;
 	struct graph_info *ginfo = info->ginfo;
 	gboolean all_events;
-	gchar **systems;
-	gint *events;
 
 	all_events = ginfo->all_events;
-	trace_filter_convert_filter_to_names(ginfo->event_filter,
-					     &systems, &events);
 
-	trace_view_event_filter_callback(TRUE, all_events, systems,
-					 events, info->treeview);
-	free(systems);
-	free(events);
+	trace_view_copy_filter(info->treeview, all_events,
+			       ginfo->event_filter);
 }
 
 /* Callback for the clicked signal of the CPUs filter button */

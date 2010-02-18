@@ -57,6 +57,10 @@ void trace_view_cpu_filter_callback(gboolean accept,
 				    guint64 *selected_cpu_mask,
 				    gpointer data);
 
+void trace_view_copy_filter(GtkWidget *treeview,
+			    gboolean all_events,
+			    struct event_filter *event_filter);
+
 void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview);
 
 gint trace_view_get_selected_row(GtkWidget *treeview);
