@@ -98,16 +98,6 @@ static int filter_record(struct graph_info *ginfo,
 		/* Also show the task switching out */
 		if (filter)
 			filter = trace_graph_filter_on_task(ginfo, *sched_pid);
-
-		if (ginfo->read_comms) {
-			/*
-			 * First time through, register any missing
-			 *  comm / pid mappings.
-			 */
-			if (!pevent_pid_is_registered(ginfo->pevent, *sched_pid))
-				pevent_register_comm(ginfo->pevent,
-						     strdup(comm), *sched_pid);
-		}
 	} else
 		*sched_pid = *orig_pid;
 

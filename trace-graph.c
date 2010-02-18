@@ -793,6 +793,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 	unsigned long long val;
 	struct event_format *event;
 	gint id;
+	int ret = 1;
 
 	if (ginfo->event_sched_switch_id < 0) {
 		event = pevent_find_event_by_name(ginfo->pevent,
@@ -820,7 +821,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 			*comm = record->data + ginfo->event_comm_field->offset;
 		if (pid)
 			*pid = val;
-		return 1;
+		goto out;
 	}
 
 	if (id == ginfo->ftrace_sched_switch_id) {
@@ -829,7 +830,19 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 			*comm = record->data + ginfo->ftrace_comm_field->offset;
 		if (pid)
 			*pid = val;
-		return 1;
+		goto out;
+	}
+
+	ret = 0;
+ out:
+	if (ret && comm && ginfo->read_comms) {
+		/*
+		 * First time through, register any missing
+		 *  comm / pid mappings.
+		 */
+		if (!pevent_pid_is_registered(ginfo->pevent, *pid))
+			pevent_register_comm(ginfo->pevent,
+					     strdup(*comm), *pid);
 	}
 
 	return 0;
