@@ -34,7 +34,7 @@
 #define DIALOG_WIDTH	400
 #define DIALOG_HEIGHT	600
 
-#define TEXT_DIALOG_WIDTH	400
+#define TEXT_DIALOG_WIDTH	450
 #define TEXT_DIALOG_HEIGHT	400
 
 int str_cmp(const void *a, const void *b)
@@ -381,6 +381,16 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	event_helper->view = GTK_TREE_VIEW(view);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
+
+	label = gtk_label_new(" <event>[,<event>] : [!][(]<field><op><val>[)]"
+			      "[&&/|| [(]<field><op><val>[)]]\n\n"
+			      "Examples:\n"
+			      "   sched_switch : next_prio < 100 && (prev_prio > 100"
+			      "&& prev_pid != 0)\n"
+			      "   irq.* : irq != 38\n"
+			      "   .* : common_pid == 1234");
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+	gtk_widget_show(label);
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
