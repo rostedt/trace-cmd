@@ -231,6 +231,11 @@ void trace_graph_event_filter_callback(gboolean accept,
 				       gint *events,
 				       gpointer data);
 
+void trace_graph_adv_filter_callback(gboolean accept,
+				     const gchar *text,
+				     gint *event_ids,
+				     gpointer data);
+
 static inline GtkWidget *trace_graph_get_draw(struct graph_info *ginfo)
 {
 	return ginfo->draw;

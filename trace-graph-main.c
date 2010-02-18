@@ -110,6 +110,16 @@ events_clicked (gpointer data)
 					 trace_graph_event_filter_callback, ginfo);
 }
 
+/* Callback for the clicked signal of the Advanced filter button */
+static void
+adv_filter_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+
+	trace_adv_filter_dialog(ginfo->handle, ginfo->event_filter,
+				trace_graph_adv_filter_callback, ginfo);
+}
+
 void trace_graph(int argc, char **argv)
 {
 	struct tracecmd_input *handle = NULL;
@@ -240,6 +250,22 @@ void trace_graph(int argc, char **argv)
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (events_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - Advanced Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("advanced event filter");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (adv_filter_clicked),
 				  (gpointer) ginfo);
 
 	/* We do need to show menu items */

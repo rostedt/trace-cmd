@@ -32,6 +32,8 @@
 #include "trace-hash.h"
 #include "trace-filter.h"
 
+#include "util.h"
+
 #define DEBUG_LEVEL	0
 #if DEBUG_LEVEL > 0
 # define dprintf(l, x...)			\
@@ -1748,6 +1750,48 @@ void trace_graph_event_filter_callback(gboolean accept,
 
 	trace_filter_convert_char_to_filter(ginfo->event_filter,
 					    systems, events);
+
+	redraw_graph(ginfo);
+}
+
+void trace_graph_adv_filter_callback(gboolean accept,
+				     const gchar *text,
+				     gint *event_ids,
+				     gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct event_filter *event_filter;
+	char *error_str;
+	int ret;
+	int i;
+
+	if (!accept)
+		return;
+
+	if (!has_text(text) && !event_ids)
+		return;
+
+	event_filter = ginfo->event_filter;
+
+	if (event_ids) {
+		for (i = 0; event_ids[i] >= 0; i++)
+			pevent_filter_remove_event(event_filter, event_ids[i]);
+	}
+
+	if (has_text(text)) {
+
+		ginfo->all_events = FALSE;
+
+		pevent_filter_clear_trivial(event_filter,
+					    FILTER_TRIVIAL_BOTH);
+
+		ret = pevent_filter_add_filter_str(event_filter, text, &error_str);
+		if (ret < 0) {
+			warning("filter failed due to: %s", error_str);
+			free(error_str);
+			return;
+		}
+	}
 
 	redraw_graph(ginfo);
 }
