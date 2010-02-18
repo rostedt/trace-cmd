@@ -75,13 +75,14 @@ allocate_plot(struct graph_info *ginfo,
 
 struct graph_plot *
 trace_graph_plot_append(struct graph_info *ginfo,
-			const char *label, const struct plot_callbacks *cb,
-			void *data)
+			const char *label, enum graph_plot_type type,
+			const struct plot_callbacks *cb, void *data)
 {
 	struct graph_plot *plot;
 
 	plot = allocate_plot(ginfo, label, cb, data);
 
+	plot->type = type;
 	plot->pos = ginfo->plots;
 
 	if (!ginfo->plots) {
@@ -105,21 +106,21 @@ trace_graph_plot_append(struct graph_info *ginfo,
 
 struct graph_plot *
 trace_graph_plot_insert(struct graph_info *ginfo,
-			int pos,
-			const char *label, const struct plot_callbacks *cb,
-			void *data)
+			int pos, const char *label, enum graph_plot_type type,
+			const struct plot_callbacks *cb, void *data)
 {
 	struct graph_plot *plot;
 	int i;
 
 	if (pos >= ginfo->plots)
-		return trace_graph_plot_append(ginfo, label, cb, data);
+		return trace_graph_plot_append(ginfo, label, type, cb, data);
 
 	if (pos < 0)
 		pos = 0;
 
 	plot = allocate_plot(ginfo, label, cb, data);
 	plot->pos = pos;
+	plot->type = type;
 	ginfo->plot_array = realloc(ginfo->plot_array,
 				    sizeof(ginfo->plot_array[0]) *
 				    (ginfo->plots + 1));

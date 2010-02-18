@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "trace-graph.h"
+#include "cpu.h"
 
 struct cpu_plot_info {
 	int			cpu;
@@ -385,7 +386,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 	return 1;
 }
 
-void cpu_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
+static void cpu_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
 
@@ -403,20 +404,112 @@ static const struct plot_callbacks cpu_plot_cb = {
 	.destroy		= cpu_plot_destroy
 };
 
-void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)
+static void add_cpu_plot(struct graph_info *ginfo, gint cpu)
 {
 	struct cpu_plot_info *cpu_info;
 	struct graph_plot *plot;
 	char label[100];
+
+	cpu_info = malloc_or_die(sizeof(*cpu_info));
+	cpu_info->cpu = cpu;
+
+	snprintf(label, 100, "CPU %d", cpu);
+
+	plot = trace_graph_plot_append(ginfo, label, PLOT_TYPE_CPU,
+				       &cpu_plot_cb, cpu_info);
+	trace_graph_plot_add_cpu(ginfo, plot, cpu);
+}
+
+void graph_plot_cpus_update_callback(gboolean accept,
+				     gboolean all_cpus,
+				     guint64 *selected_cpu_mask,
+				     gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct cpu_plot_info *cpu_info;
+	struct graph_plot *plot;
+	gboolean old_all_cpus;
+	guint64 *old_cpu_mask;
+	int i;
+
+	if (!accept)
+		return;
+
+	/* Get the current status */
+	graph_plot_cpus_plotted(ginfo, &old_all_cpus, &old_cpu_mask);
+
+	if (old_all_cpus == all_cpus ||
+	    (selected_cpu_mask &&
+	     cpus_equal(old_cpu_mask, selected_cpu_mask, ginfo->cpus))) {
+		/* Nothing to do */
+		g_free(old_cpu_mask);
+		return;
+	}
+
+	if (!all_cpus) {
+		/*
+		 * Remove any plots not selected.
+		 * Go backwards, since removing a plot shifts the
+		 * array from current position back.
+		 */
+		for (i = ginfo->plots - 1; i >= 0; i--) {
+			plot = ginfo->plot_array[i];
+			if (plot->type != PLOT_TYPE_CPU)
+				continue;
+			cpu_info = plot->private;
+			if (!cpu_isset(selected_cpu_mask, cpu_info->cpu))
+				trace_graph_plot_remove(ginfo, plot);
+		}
+	}
+
+	/* Now add any plots not set */
+	for (i = 0; i < ginfo->cpus; i++) {
+		if (!all_cpus && !cpu_isset(selected_cpu_mask, i))
+			continue;
+		if (cpu_isset(old_cpu_mask, i))
+			continue;
+		add_cpu_plot(ginfo, i);
+	}
+
+	g_free(old_cpu_mask);
+
+	trace_graph_refresh(ginfo);
+}
+
+/**
+ * graph_plot_cpus_plotted - return what CPUs are plotted
+ * @ginfo: the graph info structure
+ * @all_cpus: returns true if all CPUS are currently plotted
+ * @cpu_mask: returns an allocated mask of what cpus are set
+ *
+ * @cpu_mask must be freed with g_free() after this is called.
+ */
+void graph_plot_cpus_plotted(struct graph_info *ginfo,
+			     gboolean *all_cpus, guint64 **cpu_mask)
+{
+	struct cpu_plot_info *cpu_info;
+	struct graph_plot *plot;
+	int i;
+
+	*cpu_mask = g_new0(guint64, (ginfo->cpus >> 6) + 1);
+	g_assert(*cpu_mask);
+
+	for (i = 0; i < ginfo->plots; i++) {
+		plot = ginfo->plot_array[i];
+		if (plot->type != PLOT_TYPE_CPU)
+			continue;
+		cpu_info = plot->private;
+		cpu_set(*cpu_mask, cpu_info->cpu);
+	}
+
+	*all_cpus = cpu_weight(*cpu_mask, ginfo->cpus) == ginfo->cpus ?
+		TRUE : FALSE;
+}
+
+void graph_plot_init_cpus(struct graph_info *ginfo, int cpus)
+{
 	long cpu;
 
-	for (cpu = 0; cpu < cpus; cpu++) {
-		cpu_info = malloc_or_die(sizeof(*cpu_info));
-		cpu_info->cpu = cpu;
-
-		snprintf(label, 100, "CPU %ld", cpu);
-
-		plot = trace_graph_plot_append(ginfo, label, &cpu_plot_cb, cpu_info);
-		trace_graph_plot_add_cpu(ginfo, plot, cpu);
-	}
+	for (cpu = 0; cpu < cpus; cpu++)
+		add_cpu_plot(ginfo, cpu);
 }

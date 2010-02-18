@@ -32,6 +32,13 @@ typedef void (graph_filter_cb)(struct graph_info *ginfo,
 			       struct filter_task *task_filter,
 			       struct filter_task *hide_tasks);
 
+/* Used for quereing what plots are defined */
+enum graph_plot_type {
+	PLOT_TYPE_OTHER,
+	PLOT_TYPE_CPU,
+	PLOT_TYPE_TASK,
+};
+
 struct graph_plot;
 
 struct plot_info {
@@ -108,6 +115,7 @@ struct plot_callbacks {
 };
 
 struct graph_plot {
+	enum graph_plot_type		type;
 	int				pos;
 	char				*label;
 	const struct plot_callbacks	*cb;
@@ -251,6 +259,8 @@ static inline GtkWidget *trace_graph_get_window(struct graph_info *ginfo)
 	return ginfo->widget;
 }
 
+void trace_graph_refresh(struct graph_info *ginfo);
+
 struct filter_task_item *
 trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid);
 struct filter_task_item *
@@ -283,11 +293,13 @@ void trace_graph_plot_free(struct graph_info *ginfo);
 void trace_graph_plot_init(struct graph_info *ginfo);
 struct graph_plot *trace_graph_plot_append(struct graph_info *ginfo,
 					   const char *label,
+					   enum graph_plot_type type,
 					   const struct plot_callbacks *cb,
 					   void *data);
 struct graph_plot *trace_graph_plot_insert(struct graph_info *ginfo,
 					   int pos,
 					   const char *label,
+					   enum graph_plot_type type,
 					   const struct plot_callbacks *cb,
 					   void *data);
 void trace_graph_plot_remove(struct graph_info *ginfo, struct graph_plot *plot);
@@ -341,6 +353,12 @@ int trace_graph_plot_display_info(struct graph_info *ginfo,
 
 /* cpu plot */
 void graph_plot_init_cpus(struct graph_info *ginfo, int cpus);
+void graph_plot_cpus_plotted(struct graph_info *ginfo,
+			     gboolean *all_cpus, guint64 **cpu_mask);
+void graph_plot_cpus_update_callback(gboolean accept,
+				     gboolean all_cpus,
+				     guint64 *selected_cpu_mask,
+				     gpointer data);
 
 /* task plot */
 void graph_plot_task(struct graph_info *ginfo, int pid, int pos);

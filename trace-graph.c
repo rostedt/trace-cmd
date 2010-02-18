@@ -2076,6 +2076,12 @@ static int load_handle(struct graph_info *ginfo,
 	return 0;
 }
 
+void trace_graph_refresh(struct graph_info *ginfo)
+{
+	update_label_window(ginfo);
+	redraw_graph(ginfo);
+}
+
 int trace_graph_load_handle(struct graph_info *ginfo,
 			    struct tracecmd_input *handle)
 {

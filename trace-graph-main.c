@@ -120,6 +120,37 @@ adv_filter_clicked (gpointer data)
 				trace_graph_adv_filter_callback, ginfo);
 }
 
+/* Callback for the clicked signal of the plot CPUs button */
+static void
+plot_cpu_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	gboolean all_cpus;
+	guint64 *cpu_mask;
+
+	if (!ginfo->handle)
+		return;
+
+	graph_plot_cpus_plotted(ginfo, &all_cpus, &cpu_mask);
+
+	trace_filter_cpu_dialog(all_cpus, cpu_mask, ginfo->cpus,
+				graph_plot_cpus_update_callback, ginfo);
+	g_free(cpu_mask);
+}
+
+/* Callback for the clicked signal of the plot tasks button */
+static void
+plot_tasks_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	gboolean all_events = TRUE;
+
+	if (!ginfo->handle)
+		return;
+
+	all_events = ginfo->all_events;
+}
+
 void trace_graph(int argc, char **argv)
 {
 	struct tracecmd_input *handle = NULL;
@@ -273,6 +304,52 @@ void trace_graph(int argc, char **argv)
 
 
 	/* --- End Filter Options --- */
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
+
+	/* --- Plot Option --- */
+
+	menu_item = gtk_menu_item_new_with_label("Plots");
+	gtk_widget_show(menu_item);
+
+	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
+
+	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- Plot - CPUs Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("CPUs");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (plot_cpu_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Plot - Tasks Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Tasks");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (plot_tasks_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- End Plot Options --- */
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
 
 

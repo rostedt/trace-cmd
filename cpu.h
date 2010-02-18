@@ -57,4 +57,38 @@ static inline void set_cpus(guint64 *cpu_mask, gint cpus)
 	*(cpu_mask) = (1ULL << (cpus & ((1ULL << 6) - 1))) - 1;
 }
 
+static inline gboolean cpus_equal(guint64 *a_mask, guint64 *b_mask,
+				  gint cpus)
+{
+	gint idx;
+
+	for (idx = 0; idx < (cpus >> 6) + 1; idx++) {
+		if (*(a_mask + idx) != *(b_mask + idx))
+			return FALSE;
+	}
+	return TRUE;
+}
+
+/* Hamming weight */
+static inline guint hweight(guint mask)
+{
+	guint64 w = mask;
+
+	w -= (w >> 1) & 0x5555555555555555ul;
+	w =  (w & 0x3333333333333333ul) + ((w >> 2) & 0x3333333333333333ul);
+	w =  (w + (w >> 4)) & 0x0f0f0f0f0f0f0f0ful;
+	return (w * 0x0101010101010101ul) >> 56;
+}
+
+static inline guint cpu_weight(guint64 *cpu_mask, guint cpus)
+{
+	guint weight = 0;
+	gint idx;
+
+	for (idx = 0; idx < (cpus >> 6) + 1; idx++)
+		weight += hweight(*(cpu_mask + idx));
+
+	return weight;
+}
+
 #endif /* _CPU_H */
