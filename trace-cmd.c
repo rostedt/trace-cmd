@@ -59,6 +59,15 @@ static int *pids;
 
 static int filter_task;
 
+struct func_list {
+	struct func_list *next;
+	const char *func;
+};
+
+static struct func_list *filter_funcs;
+static struct func_list *notrace_funcs;
+static struct func_list *graph_funcs;
+
 struct event_list {
 	struct event_list *next;
 	const char *event;
@@ -997,6 +1006,48 @@ static int trace_empty(void)
 	return ret;
 }
 
+static void write_func_file(const char *file, struct func_list **list)
+{
+	struct func_list *item;
+	char *path;
+	int fd;
+
+	path = get_tracing_file(file);
+
+	fd = open(path, O_WRONLY | O_TRUNC);
+	if (fd < 0)
+		goto free;
+
+	while (*list) {
+		item = *list;
+		*list = item->next;
+		write(fd, item->func, strlen(item->func));
+		write(fd, " ", 1);
+		free(item);
+	}
+	close(fd);
+
+ free:
+	put_tracing_file(path);
+}
+
+static void set_funcs(void)
+{
+	write_func_file("set_ftrace_filter", &filter_funcs);
+	write_func_file("set_ftrace_notrace", &notrace_funcs);
+	write_func_file("set_graph_function", &graph_funcs);
+}
+
+static void add_func(struct func_list **list, const char *func)
+{
+	struct func_list *item;
+
+	item = malloc_or_die(sizeof(*item));
+	item->func = func;
+	item->next = *list;
+	*list = item;
+}
+
 void usage(char **argv)
 {
 	char *arg = argv[0];
@@ -1009,11 +1060,15 @@ void usage(char **argv)
 	printf("\n"
 	       "%s version %s\n\n"
 	       "usage:\n"
-	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file][-s usecs][-O option ] [command ...]\n"
+	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
+	       "           [-s usecs][-O option ][-l func][-g func][-n func][command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
 	       "          -F filter only on the given process\n"
+	       "          -l filter function name\n"
+	       "          -g set graph function\n"
+	       "          -n do not trace function\n"
 	       "          -v will negate all -e after it (disable those events)\n"
 	       "          -d disable function tracer when running\n"
 	       "          -o data output file [default trace.dat]\n"
@@ -1105,7 +1160,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:v")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1149,6 +1204,15 @@ int main (int argc, char **argv)
 				if (extract)
 					usage(argv);
 				neg_event = 1;
+				break;
+			case 'l':
+				add_func(&filter_funcs, optarg);
+				break;
+			case 'n':
+				add_func(&notrace_funcs, optarg);
+				break;
+			case 'g':
+				add_func(&graph_funcs, optarg);
 				break;
 			case 'p':
 				if (plugin)
@@ -1254,6 +1318,7 @@ int main (int argc, char **argv)
 	if (!extract) {
 		fset = set_ftrace(!disable);
 		disable_all();
+		set_funcs();
 
 		if (events)
 			enable_events();
