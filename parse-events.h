@@ -313,6 +313,9 @@ struct pevent {
 	struct format_field *bprint_ip_field;
 	struct format_field *bprint_fmt_field;
 	struct format_field *bprint_buf_field;
+
+	/* cache */
+	struct event_format *last_event;
 };
 
 void die(char *fmt, ...);

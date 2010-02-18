@@ -2609,13 +2609,19 @@ struct event_format *pevent_find_event(struct pevent *pevent, int id)
 	struct event_format key;
 	struct event_format *pkey = &key;
 
+	/* Check cache first */
+	if (pevent->last_event && pevent->last_event->id == id)
+		return pevent->last_event;
+
 	key.id = id;
 
 	eventptr = bsearch(&pkey, pevent->events, pevent->nr_events,
 			   sizeof(*pevent->events), events_id_cmp);
 
-	if (eventptr)
+	if (eventptr) {
+		pevent->last_event = *eventptr;
 		return *eventptr;
+	}
 
 	return NULL;
 }
@@ -2636,6 +2642,11 @@ pevent_find_event_by_name(struct pevent *pevent,
 	struct event_format *event;
 	int i;
 
+	if (pevent->last_event &&
+	    strcmp(pevent->last_event->name, name) == 0 &&
+	    (!sys || strcmp(pevent->last_event->system, sys) == 0))
+		return pevent->last_event;
+
 	for (i = 0; i < pevent->nr_events; i++) {
 		event = pevent->events[i];
 		if (strcmp(event->name, name) == 0) {
@@ -2648,6 +2659,7 @@ pevent_find_event_by_name(struct pevent *pevent,
 	if (i == pevent->nr_events)
 		event = NULL;
 
+	pevent->last_event = event;
 	return event;
 }
 
