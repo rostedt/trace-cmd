@@ -62,6 +62,33 @@ struct dialog_helper {
 	gpointer		data;
 };
 
+/**
+ * trace_array_add - allocate and add an int to an array.
+ * @array: address of array to allocate
+ * @count: address of the current count of array data
+ * @val:  the value to append to the array.
+ *
+ * The first call to this, @array should be uninitialized
+ * and @count should be zero. @array will be malloced and
+ * val will be added to it. If count is greater than zero,
+ * then array will be realloced, and val will be appened
+ * to it.
+ *
+ * This also always ends the array with -1, so the values are
+ * assumed to always be positive.
+ *
+ * @array must be freed with free().
+ */
+void trace_array_add(gint **array, gint *count, gint val)
+{
+	if (*count)
+		*array = realloc(*array, sizeof(val) * (*count + 2));
+	else
+		*array = malloc(sizeof(val) * 2);
+	(*array)[(*count)++] = val;
+	(*array)[*count] = -1;
+}
+
 struct adv_event_filter_helper {
 	trace_adv_filter_cb_func	func;
 	GtkTreeView			*view;
@@ -99,15 +126,8 @@ static gint *get_event_ids(GtkTreeView *treeview)
 				   ADV_COL_ID, &id,
 				   -1);
 
-		if (active) {
-			if (count)
-				ids = realloc(ids, sizeof(*ids) * (count + 2));
-			else
-				ids = malloc(sizeof(*ids) * 2);
-			ids[count] = id;
-			count++;
-			ids[count] = -1;
-		}
+		if (active)
+			trace_array_add(&ids, &count, id);
 
 		if (!gtk_tree_model_iter_next(model, &iter))
 			break;
@@ -378,6 +398,341 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
 				    TEXT_DIALOG_WIDTH, TEXT_DIALOG_HEIGHT);
+
+	gtk_widget_show_all(dialog);
+}
+
+/* --- task list dialog --- */
+
+struct task_helper {
+	trace_task_cb_func		func;
+	GtkTreeView			*view;
+	gboolean			start;
+	gpointer			data;
+};
+
+enum {
+	TASK_COL_SELECT,
+	TASK_COL_PID,
+	TASK_COL_COMM,
+	NUM_TASK_COLS,
+};
+
+static void get_tasks(GtkTreeView *treeview,
+		      gint **selected,
+		      gint **non_selected)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gboolean active;
+	gint *pids = NULL;
+	gint *non_pids = NULL;
+	gint pid;
+	int pid_count = 0;
+	int non_count = 0;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
+	if (!model)
+		return;
+
+	if (!gtk_tree_model_iter_children(model, &iter, NULL))
+		return;
+
+	for (;;) {
+		gtk_tree_model_get(GTK_TREE_MODEL(model), &iter,
+				   TASK_COL_SELECT, &active,
+				   TASK_COL_PID, &pid,
+				   -1);
+
+		if (active)
+			trace_array_add(&pids, &pid_count, pid);
+		else
+			trace_array_add(&non_pids, &non_count, pid);
+
+		if (!gtk_tree_model_iter_next(model, &iter))
+			break;
+	}
+
+	*selected = pids;
+	*non_selected = non_pids;
+}
+
+/* Callback for the clicked signal of the task filter button */
+static void
+task_dialog_response (gpointer data, gint response_id)
+{
+	struct dialog_helper *helper = data;
+	struct task_helper *event_helper = helper->data;
+	gint *selected;
+	gint *non_select;
+
+	switch (response_id) {
+	case GTK_RESPONSE_ACCEPT:
+		get_tasks(event_helper->view, &selected, &non_select);
+		event_helper->func(TRUE, selected, non_select, event_helper->data);
+		free(selected);
+		free(non_select);
+		break;
+	case GTK_RESPONSE_REJECT:
+		event_helper->func(FALSE, NULL, NULL, event_helper->data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
+
+	g_free(event_helper);
+	g_free(helper);
+}
+
+static GtkTreeModel *
+create_task_model(struct tracecmd_input *handle,
+		  gint *tasks,
+		  gint *selected)
+{
+	GtkTreeStore *treestore;
+	GtkTreeIter iter;
+	struct pevent *pevent;
+	const char *comm;
+	gboolean select;
+	gint *ret;
+	gint *list;
+	gint count;
+	gint i;
+
+	if (!tasks)
+		return NULL;
+
+	pevent = tracecmd_get_pevent(handle);
+
+	treestore = gtk_tree_store_new(NUM_TASK_COLS, G_TYPE_BOOLEAN,
+				       G_TYPE_INT, G_TYPE_STRING);
+
+	/* sort our tasks */
+	for (i = 0; tasks[i] >= 0; i++)
+		;
+	count = i;
+
+	/* Don't assume we can modify the array passed in. */
+	list = malloc_or_die(sizeof(gint) * (count + 1));
+	memcpy(list, tasks, sizeof(gint) * (count + 1));
+	qsort(list, count, sizeof(gint), id_cmp);
+
+	/* Now that we have our own copy, use it instead */
+	tasks = list;
+
+	if (selected) {
+		/* do the same for selected */
+		for (i = 0; selected[i] >= 0; i++)
+			;
+		count = i;
+		/* count is now the size of selected */
+
+		list = malloc_or_die(sizeof(gint) * (count + 1));
+		memcpy(list, selected, sizeof(gint) * (count + 1));
+		qsort(list, count, sizeof(gint), id_cmp);
+
+		selected = list;
+	}
+
+
+	for (i = 0; tasks[i] >= 0; i++) {
+
+		comm = pevent_data_comm_from_pid(pevent, tasks[i]);
+
+		gtk_tree_store_append(treestore, &iter, NULL);
+
+		select = FALSE;
+
+		if (selected) {
+			ret = bsearch(&tasks[i], selected, count,
+				      sizeof(gint), id_cmp);
+			if (ret)
+				select = TRUE;
+		}
+
+		gtk_tree_store_set(treestore, &iter,
+				   TASK_COL_SELECT, select,
+				   TASK_COL_PID, tasks[i],
+				   TASK_COL_COMM, comm,
+				   -1);
+	}
+
+	free(tasks);
+	free(selected);
+
+	return GTK_TREE_MODEL(treestore);
+}
+
+static void task_cursor_changed(gpointer data, GtkTreeView *treeview)
+{
+	struct task_helper *event_helper = data;
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	GtkTreeIter iter;
+	gboolean active;
+
+	if (!event_helper->start) {
+		event_helper->start = TRUE;
+		return;
+	}
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
+	if (!model)
+		return;
+
+	gtk_tree_view_get_cursor(treeview, &path, NULL);
+	if (!path)
+		return;
+
+	if (!gtk_tree_model_get_iter(model, &iter, path))
+		goto free;
+
+	gtk_tree_model_get(model, &iter,
+			   TASK_COL_SELECT, &active,
+			   -1);
+
+	active = active ? FALSE : TRUE;
+
+	gtk_tree_store_set(GTK_TREE_STORE(model), &iter,
+			   TASK_COL_SELECT, active,
+			   -1);
+
+ free:
+	gtk_tree_path_free(path);
+}
+
+static GtkWidget *
+create_task_view(struct tracecmd_input *handle,
+		 gint *tasks, gint *selected,
+		 struct task_helper *event_helper)
+{
+	GtkTreeViewColumn *col;
+	GtkCellRenderer *renderer;
+	GtkCellRenderer *togrend;
+	GtkWidget *view;
+	GtkTreeModel *model;
+
+	view = gtk_tree_view_new();
+
+	renderer  = gtk_cell_renderer_text_new();
+	togrend  = gtk_cell_renderer_toggle_new();
+
+
+	/* --- select column --- */
+
+	col = gtk_tree_view_column_new();
+
+	gtk_tree_view_column_set_title(col, "Plot");
+
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view), col);
+
+	gtk_tree_view_column_pack_start(col, togrend, FALSE);
+	gtk_tree_view_column_add_attribute(col, togrend, "active", TASK_COL_SELECT);
+
+	/* --- pid column --- */
+
+	col = gtk_tree_view_column_new();
+
+	gtk_tree_view_column_set_title(col, "PID");
+
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view), col);
+
+	gtk_tree_view_column_pack_start(col, renderer, FALSE);
+
+	gtk_tree_view_column_add_attribute(col, renderer, "text", TASK_COL_PID);
+
+
+	/* --- comm column --- */
+
+	col = gtk_tree_view_column_new();
+
+	gtk_tree_view_column_set_title(col, "Task");
+
+	gtk_tree_view_append_column(GTK_TREE_VIEW(view), col);
+
+	gtk_tree_view_column_pack_start(col, renderer, FALSE);
+
+	gtk_tree_view_column_add_attribute(col, renderer, "text", TASK_COL_COMM);
+
+
+	model = create_task_model(handle, tasks, selected);
+
+	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
+
+	g_object_unref(model);
+
+	gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(view)),
+				    GTK_SELECTION_NONE);
+
+	g_signal_connect_swapped (view, "cursor-changed",
+				  G_CALLBACK (task_cursor_changed),
+				  (gpointer) event_helper);
+
+	return view;
+}
+
+/**
+ * trace_task_dialog - make dialog to select tasks
+ * @handle: the handle to the tracecmd data file
+ * @tasks: array of task pids ending with -1
+ * @selected: tasks from @tasks that should be selected (can be NULL).
+ *      Also an array of pids ending with -1
+ * @func: callback function when accept or cancel is selected
+ * @data: data to pass to the function @func
+ */
+void trace_task_dialog(struct tracecmd_input *handle,
+		       gint *tasks, gint *selected,
+		       trace_task_cb_func func,
+		       gpointer data)
+{
+	struct dialog_helper *helper;
+	struct task_helper *event_helper;
+	GtkWidget *dialog;
+	GtkWidget *scrollwin;
+	GtkWidget *view;
+
+	helper = g_malloc(sizeof(*helper));
+	g_assert(helper);
+
+	/* --- Make dialog window --- */
+
+	dialog = gtk_dialog_new_with_buttons("Select Tasks",
+					     NULL,
+					     GTK_DIALOG_MODAL,
+					     "Apply",
+					     GTK_RESPONSE_ACCEPT,
+					     GTK_STOCK_CANCEL,
+					     GTK_RESPONSE_REJECT,
+					     NULL);
+
+	event_helper = g_new0(typeof(*event_helper), 1);
+	g_assert(event_helper);
+
+	helper->dialog = dialog;
+	helper->data = event_helper;
+
+	event_helper->func = func;
+	event_helper->data = data;
+	event_helper->start = FALSE;
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (dialog, "response",
+				  G_CALLBACK (task_dialog_response),
+				  (gpointer) helper);
+
+	scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
+	view = create_task_view(handle, tasks, selected, event_helper);
+	event_helper->view = GTK_TREE_VIEW(view);
+	gtk_container_add(GTK_CONTAINER(scrollwin), view);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
+
+	gtk_widget_set_size_request(GTK_WIDGET(dialog),
+				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
 }

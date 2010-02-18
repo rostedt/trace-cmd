@@ -47,6 +47,24 @@ typedef void (*trace_adv_filter_cb_func)(gboolean accept,
 					 gpointer data);
 
 /**
+ * trace_task_cb_func - callback type for task dialog
+ * @accept: TRUE if the accept button was pressed, otherwise FALSE
+ * @selected: list of pids of tasks selected
+ * @non_select: list of pids of tasks not selected
+ * @data: The data given passed in to the event dialog function
+ *
+ * If @accept is FALSE then @selected and @non_select
+ * should be ignored. @data is still valid.
+ *
+ * Both @selected and @non_select may be NULL, if either is not
+ * NULL they will be sorted and end with -1.
+ */
+typedef void (*trace_task_cb_func)(gboolean accept,
+				   gint *selected,
+				   gint *non_selected,
+				   gpointer data);
+
+/**
  * trace_filter_event_cb_func - callback type for event dialog
  * @accept: TRUE if the accept button was pressed, otherwise FALSE
  * @all_events: TRUE if "All Events" was checked
@@ -69,6 +87,11 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			     struct event_filter *event_filter,
 			     trace_adv_filter_cb_func func,
 			     gpointer data);
+
+void trace_task_dialog(struct tracecmd_input *handle,
+		       gint *tasks, gint *selected,
+		       trace_task_cb_func func,
+		       gpointer data);
 
 void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       gboolean all_events,
@@ -114,5 +137,7 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpu_mask_selected, gint
 
 int str_cmp(const void *a, const void *b);
 int id_cmp(const void *a, const void *b);
+
+void trace_array_add(gint **array, gint *count, gint val);
 
 #endif /* _TRACE_FILTER_H */

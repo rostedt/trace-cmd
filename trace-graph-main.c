@@ -143,12 +143,19 @@ static void
 plot_tasks_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
-	gboolean all_events = TRUE;
+	gint *selected;
+	gint *tasks;
 
 	if (!ginfo->handle)
 		return;
 
-	all_events = ginfo->all_events;
+	tasks = trace_graph_task_list(ginfo);
+	graph_plot_task_plotted(ginfo, &selected);
+
+	trace_task_dialog(ginfo->handle, tasks, selected,
+			  graph_plot_task_update_callback, ginfo);
+	free(tasks);
+	free(selected);
 }
 
 void trace_graph(int argc, char **argv)

@@ -367,5 +367,11 @@ void graph_plot_cpus_update_callback(gboolean accept,
 
 /* task plot */
 void graph_plot_task(struct graph_info *ginfo, int pid, int pos);
+void graph_plot_task_update_callback(gboolean accept,
+				     gint *selected,
+				     gint *non_select,
+				     gpointer data);
+void graph_plot_task_plotted(struct graph_info *ginfo,
+			     gint **plotted);
 
 #endif /* _TRACE_GRAPH_H */

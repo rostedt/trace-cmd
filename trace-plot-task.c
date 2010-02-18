@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "trace-graph.h"
+#include "trace-filter.h"
 
 #define RED 0xff
 
@@ -610,6 +611,93 @@ static const struct plot_callbacks task_plot_cb = {
 	.display_info		= task_plot_display_info,
 	.destroy		= task_plot_destroy
 };
+
+/**
+ * graph_plot_task_plotted - return what tasks are plotted
+ * @ginfo: the graph info structure
+ * @plotted: returns an allocated array of gints holding the pids.
+ *  the last pid is -1, NULL, if none are.
+ *
+ * @plotted must be freed with free() after this is called.
+ */
+void graph_plot_task_plotted(struct graph_info *ginfo,
+			     gint **plotted)
+{
+	struct task_plot_info *task_info;
+	struct graph_plot *plot;
+	int count = 0;
+	int i;
+
+	*plotted = NULL;
+	for (i = 0; i < ginfo->plots; i++) {
+		plot = ginfo->plot_array[i];
+		if (plot->type != PLOT_TYPE_TASK)
+			continue;
+		task_info = plot->private;
+		trace_array_add(plotted, &count, task_info->pid);
+	}
+}
+
+void graph_plot_task_update_callback(gboolean accept,
+				     gint *selected,
+				     gint *non_select,
+				     gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct task_plot_info *task_info;
+	struct graph_plot *plot;
+	gint select_size = 0;
+	gint *ptr;
+	int i;
+
+	if (!accept)
+		return;
+
+	/* The selected and non_select are sorted */
+	if (selected) {
+		for (i = 0; selected[i] >= 0; i++)
+			;
+		select_size = i;
+	}
+
+	/*
+	 * Remove and add task plots.
+	 * Go backwards, since removing a plot shifts the
+	 * array from current position back.
+	 */
+	for (i = ginfo->plots - 1; i >= 0; i--) {
+		plot = ginfo->plot_array[i];
+		if (plot->type != PLOT_TYPE_TASK)
+			continue;
+		/* If non are selected, then remove all */
+		if (!select_size) {
+			trace_graph_plot_remove(ginfo, plot);
+			continue;
+		}
+		task_info = plot->private;
+		ptr = bsearch(&task_info->pid, selected, select_size,
+			      sizeof(gint), id_cmp);
+		if (ptr) {
+			/*
+			 * This plot plot already exists, remove it
+			 * from the selected array.
+			 */
+			memmove(ptr, ptr + 1,
+				(unsigned long)(selected + select_size) -
+				(unsigned long)(ptr + 1));
+			select_size--;
+			continue;
+		}
+		/* Remove the plot */
+		trace_graph_plot_remove(ginfo, plot);
+	}
+
+	/* Now add any plots that need to be added */
+	for (i = 0; i < select_size; i++)
+		graph_plot_task(ginfo, selected[i], ginfo->plots);
+
+	trace_graph_refresh(ginfo);
+}
 
 void graph_plot_init_tasks(struct graph_info *ginfo)
 {
