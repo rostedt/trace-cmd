@@ -66,6 +66,91 @@ static gint largest_plot_label;
 static void redraw_pixmap_backend(struct graph_info *ginfo);
 static void update_label_window(struct graph_info *ginfo);
 
+struct task_list {
+	struct task_list	*next;
+	gint			pid;
+};
+
+static guint get_task_hash_key(gint pid)
+{
+	return trace_hash(pid) % TASK_HASH_SIZE;
+}
+
+static struct task_list *find_task_hash(struct graph_info *ginfo,
+					gint key, gint pid)
+{
+	struct task_list *list;
+
+	for (list = ginfo->tasks[key]; list; list = list->next) {
+		if (list->pid == pid)
+			return list;
+	}
+
+	return NULL;
+}
+
+static struct task_list *add_task_hash(struct graph_info *ginfo,
+				       int pid)
+{
+	struct task_list *list;
+	guint key = get_task_hash_key(pid);
+
+	list = find_task_hash(ginfo, key, pid);
+	if (list)
+		return list;
+
+	list = malloc_or_die(sizeof(*list));
+	list->pid = pid;
+	list->next = ginfo->tasks[key];
+	ginfo->tasks[key] = list;
+
+	return list;
+}
+
+static void free_task_hash(struct graph_info *ginfo)
+{
+	struct task_list *list;
+	int i;
+
+	for (i = 0; i < TASK_HASH_SIZE; i++) {
+		while (ginfo->tasks[i]) {
+			list = ginfo->tasks[i];
+			ginfo->tasks[i] = list->next;
+			free(list);
+		}
+	}
+}
+
+/**
+ * trace_graph_task_list - return an allocated list of all found tasks
+ * @ginfo: The graph info structure
+ *
+ * Returns an allocated list of pids found in the graph, ending
+ * with a -1. This array must be freed with free().
+ */
+gint *trace_graph_task_list(struct graph_info *ginfo)
+{
+	struct task_list *list;
+	gint *pids;
+	gint count = 0;
+	gint i;
+
+	for (i = 0; i < TASK_HASH_SIZE; i++) {
+		list = ginfo->tasks[i];
+		while (list) {
+			if (count)
+				pids = realloc(pids, sizeof(*pids) * (count + 2));
+			else
+				pids = malloc(sizeof(*pids) * 2);
+			pids[count++] = list->pid;
+			pids[count] = -1;
+			list = list->next;
+		}
+	}
+
+	return pids;
+}
+
 static void convert_nano(unsigned long long time, unsigned long *sec,
 			 unsigned long *usec)
 {
@@ -792,8 +877,15 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 {
 	unsigned long long val;
 	struct event_format *event;
+	gint this_pid;
 	gint id;
 	int ret = 1;
+
+	if (ginfo->read_comms) {
+		/* record all pids, for task plots */
+		this_pid = pevent_data_pid(ginfo->pevent, record);
+		add_task_hash(ginfo, this_pid);
+	}
 
 	if (ginfo->event_sched_switch_id < 0) {
 		event = pevent_find_event_by_name(ginfo->pevent,
@@ -2026,6 +2118,7 @@ void trace_graph_free_info(struct graph_info *ginfo)
 		pevent_filter_free(ginfo->event_filter);
 		trace_graph_plot_free(ginfo);
 		tracecmd_close(ginfo->handle);
+		free_task_hash(ginfo);
 	}
 	ginfo->handle = NULL;
 }

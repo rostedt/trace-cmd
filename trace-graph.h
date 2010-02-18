@@ -144,6 +144,8 @@ struct plot_hash {
 };
 
 #define PLOT_HASH_SIZE 1024
+#define TASK_HASH_SIZE 1024
+struct task_list;
 
 struct graph_info {
 	struct tracecmd_input	*handle;
@@ -158,6 +160,8 @@ struct graph_info {
 	struct plot_hash	*task_hash[PLOT_HASH_SIZE];
 	struct plot_hash	*cpu_hash[PLOT_HASH_SIZE];
 	struct plot_list	*all_recs;
+
+	struct task_list	 *tasks[TASK_HASH_SIZE];
 
 	GtkWidget		*widget;	/* Box to hold graph */
 	GtkWidget		*scrollwin;	/* graph scroll window */
@@ -287,6 +291,7 @@ gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct record *re
 void trace_graph_copy_filter(struct graph_info *ginfo,
 			     gboolean all_events,
 			     struct event_filter *event_filter);
+gint *trace_graph_task_list(struct graph_info *ginfo);
 
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);
