@@ -1736,13 +1736,15 @@ void trace_graph_event_filter_callback(gboolean accept,
 
 	if (all_events) {
 		ginfo->all_events = TRUE;
+		/* filter is no longer used */
+		pevent_filter_reset(ginfo->event_filter);
 		redraw_graph(ginfo);
 		return;
 	}
 
 	ginfo->all_events = FALSE;
 
-	pevent_filter_reset(ginfo->event_filter);
+	pevent_filter_clear_trivial(ginfo->event_filter, FILTER_TRIVIAL_BOTH);
 
 	trace_filter_convert_char_to_filter(ginfo->event_filter,
 					    systems, events);

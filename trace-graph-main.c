@@ -99,21 +99,15 @@ events_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
 	gboolean all_events = TRUE;
-	gchar **systems = NULL;
-	gint *events = NULL;
 
 	if (!ginfo->handle)
 		return;
 
 	all_events = ginfo->all_events;
 
-	trace_filter_convert_filter_to_names(ginfo->event_filter,
-					     &systems, &events);
-	trace_filter_event_dialog(ginfo->handle, all_events,
-				  systems, events,
-				  trace_graph_event_filter_callback, ginfo);
-	free(systems);
-	free(events);
+	trace_filter_event_filter_dialog(ginfo->handle, ginfo->event_filter,
+					 all_events,
+					 trace_graph_event_filter_callback, ginfo);
 }
 
 void trace_graph(int argc, char **argv)
