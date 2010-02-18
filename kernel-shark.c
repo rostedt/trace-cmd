@@ -319,6 +319,46 @@ cpus_clicked (gpointer data)
 				trace_view_cpu_filter_callback, trace_tree);
 }
 
+/* Callback for the clicked signal of the plot CPUs button */
+static void
+plot_cpu_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	gboolean all_cpus;
+	guint64 *cpu_mask;
+
+	if (!ginfo->handle)
+		return;
+
+	graph_plot_cpus_plotted(ginfo, &all_cpus, &cpu_mask);
+
+	trace_filter_cpu_dialog(all_cpus, cpu_mask, ginfo->cpus,
+				graph_plot_cpus_update_callback, ginfo);
+	g_free(cpu_mask);
+}
+
+/* Callback for the clicked signal of the plot tasks button */
+static void
+plot_tasks_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	gint *selected;
+	gint *tasks;
+
+	if (!ginfo->handle)
+		return;
+
+	tasks = trace_graph_task_list(ginfo);
+	graph_plot_task_plotted(ginfo, &selected);
+
+	trace_task_dialog(ginfo->handle, tasks, selected,
+			  graph_plot_task_update_callback, ginfo);
+	free(tasks);
+	free(selected);
+}
+
 static void graph_follows_tree(struct shark_info *info,
 			       GtkTreeView *treeview,
 			       GtkTreePath *path)
@@ -842,6 +882,53 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- End Filter Options --- */
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
+
+	/* --- Plot Option --- */
+
+	menu_item = gtk_menu_item_new_with_label("Plots");
+	gtk_widget_show(menu_item);
+
+	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
+
+	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- Plot - CPUs Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("CPUs");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (plot_cpu_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Plot - Tasks Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Tasks");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (plot_tasks_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- End Plot Options --- */
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
 
 	/* --- Top Level Vpaned --- */
 
