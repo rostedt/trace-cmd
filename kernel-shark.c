@@ -229,6 +229,39 @@ graph_events_clicked (gpointer data)
 					 ginfo);
 }
 
+/* Callback for the clicked signal of the List advanced filter button */
+static void
+adv_list_filter_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct event_filter *event_filter;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	GtkTreeModel *model;
+	TraceViewStore *store;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	event_filter = trace_view_store_get_event_filter(store);
+
+	trace_adv_filter_dialog(store->handle, event_filter,
+				trace_view_adv_filter_callback, trace_tree);
+}
+
+/* Callback for the clicked signal of the Graph advanced filter button */
+static void
+adv_graph_filter_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+
+	trace_adv_filter_dialog(ginfo->handle, ginfo->event_filter,
+				trace_graph_adv_filter_callback, ginfo);
+}
+
 static void
 sync_graph_events_to_list_clicked (gpointer data)
 {
@@ -766,6 +799,38 @@ void kernel_shark(int argc, char **argv)
 	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (sync_list_events_to_graph_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - List Advanced Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("list advanced event");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (adv_list_filter_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - Graph Advanced Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("graph advanced event");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (adv_graph_filter_clicked),
 				  (gpointer) info);
 
 	/* We do need to show menu items */
