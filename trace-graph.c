@@ -893,6 +893,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 			return 0;
 
 		ginfo->event_sched_switch_id = event->id;
+		ginfo->event_prev_state = pevent_find_field(event, "prev_state");
 		ginfo->event_pid_field = pevent_find_field(event, "next_pid");
 		ginfo->event_comm_field = pevent_find_field(event, "next_comm");
 

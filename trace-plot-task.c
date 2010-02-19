@@ -24,6 +24,7 @@
 #include "trace-filter.h"
 
 #define RED 0xff
+#define GREEN (0xff<<16)
 
 struct task_plot_info {
 	int			pid;
@@ -31,6 +32,7 @@ struct task_plot_info {
 	unsigned long long	last_time;
 	unsigned long long	wake_time;
 	unsigned long long	display_wake_time;
+	int			wake_color;
 	int			last_cpu;
 };
 
@@ -53,6 +55,19 @@ static gint hash_pid(gint val)
 static int hash_cpu(int cpu)
 {
 	return trace_hash(cpu + 124);
+}
+
+static gboolean is_running(struct graph_info *ginfo, struct record *record)
+{
+	unsigned long long val;
+	int id;
+
+	id = pevent_data_type(ginfo->pevent, record);
+	if (id != ginfo->event_sched_switch_id)
+		return FALSE;
+
+	pevent_read_number_field(ginfo->event_prev_state, record->data, &val);
+	return val ? FALSE : TRUE;
 }
 
 static gboolean record_matches_pid(struct graph_info *ginfo,
@@ -357,6 +372,7 @@ static int task_plot_event(struct graph_info *ginfo,
 			}
 
 			task_info->wake_time = record->ts;
+			task_info->wake_color = GREEN;
 			task_info->display_wake_time = record->ts;
 
 			return 1;
@@ -384,8 +400,10 @@ static int task_plot_event(struct graph_info *ginfo,
 					info->bfill = FALSE;
 					info->bstart = task_info->wake_time;
 					info->bend = record->ts;
-					info->bcolor = RED;
-				}
+					info->bcolor = task_info->wake_color;
+				} else
+					task_info->wake_time = 0;
+
 			} else if (!info->box) {
 				/* just got scheduled out */
 				info->box = TRUE;
@@ -393,10 +411,15 @@ static int task_plot_event(struct graph_info *ginfo,
 				info->bstart = task_info->last_time;
 				info->bend = record->ts;
 				task_info->last_cpu = -1;
-			}
-		}
-
-		task_info->wake_time = 0;
+				if (is_running(ginfo, record)) {
+					task_info->wake_time = record->ts;
+					task_info->wake_color = RED;
+				} else
+					task_info->wake_time = 0;
+			} else
+				task_info->wake_time = 0;
+		} else
+			task_info->wake_time = 0;
 
 		return 1;
 	}

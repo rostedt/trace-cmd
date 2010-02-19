@@ -206,6 +206,7 @@ struct graph_info {
 	gint			event_sched_switch_id;
 	gint			event_wakeup_id;
 	gint			event_wakeup_new_id;
+	struct format_field	*event_prev_state;
 	struct format_field	*event_pid_field;
 	struct format_field	*event_comm_field;
 	struct format_field	*ftrace_pid_field;
