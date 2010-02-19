@@ -51,7 +51,8 @@ static struct event_filter *event_filter_out;
 
 static unsigned int page_size;
 static int input_fd;
-const char *input_file = "trace.dat";
+const char *default_input_file = "trace.dat";
+const char *input_file;
 
 static int filter_cpu = -1;
 
@@ -631,6 +632,15 @@ void trace_report (int argc, char **argv)
 			usage(argv);
 		}
 	}
+
+	if ((argc - optind) >= 2) {
+		if (input_file)
+			usage(argv);
+		input_file = argv[optind + 1];
+	}
+
+	if (!input_file)
+		input_file = default_input_file;
 
 	handle = read_trace_header();
 	if (!handle)

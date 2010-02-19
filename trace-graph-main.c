@@ -189,6 +189,12 @@ void trace_graph(int argc, char **argv)
 		}
 	}
 
+	if ((argc - optind) >= 1) {
+		if (input_file)
+			usage(basename(argv[0]));
+		input_file = argv[optind];
+	}
+
 	if (!input_file) {
 		ret = stat(default_input_file, &st);
 		if (ret >= 0)

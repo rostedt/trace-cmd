@@ -676,6 +676,12 @@ void kernel_shark(int argc, char **argv)
 		}
 	}
 
+	if ((argc - optind) >= 1) {
+		if (input_file)
+			usage(basename(argv[0]));
+		input_file = argv[optind];
+	}
+
 	info = g_new0(typeof(*info), 1);
 	if (!info)
 		die("Unable to allocate info");
