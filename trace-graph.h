@@ -184,6 +184,8 @@ struct graph_info {
 	gint			press_x;	/* x where button is pressed */
 	gint			last_x;		/* last x seen while moving mouse */
 	gboolean		line_active;	/* set when button is pressed */
+	guint64			line_time;	/* time line of where line_active is set */
+	gboolean		zoom;		/* set when shift button is pressed */
 
 	gdouble			hadj_value;	/* value to set hadj width */
 	gdouble			hadj_page_size;	/* visible size to set hadj */

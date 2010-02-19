@@ -360,6 +360,12 @@ static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
 	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
 }
 
+static void clear_info_box(struct graph_info *ginfo)
+{
+	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
+			    ginfo->plot_data_w, ginfo->plot_data_h);
+}
+
 static void redraw_graph(struct graph_info *ginfo)
 {
 	gdouble height;
@@ -712,15 +718,45 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		return TRUE;
 	}
 
-
 	ginfo->press_x = event->x;
 	ginfo->last_x = 0;
 
 	draw_line(widget, event->x, ginfo);
 
 	ginfo->line_active = TRUE;
+	ginfo->line_time = convert_x_to_time(ginfo, event->x);
+
+	if (!(event->state & GDK_SHIFT_MASK))
+		ginfo->zoom = TRUE;
 
 	return TRUE;
+}
+
+static void draw_latency(struct graph_info *ginfo, gint x, gint y);
+static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
+			   gint x, gint y);
+
+static void motion_plot(struct graph_info *ginfo, gint x, gint y)
+{
+	struct graph_plot *plot;
+
+	if (!ginfo->curr_pixmap)
+		return;
+
+	if (ginfo->line_active) {
+		if (ginfo->last_x)
+			clear_last_line(ginfo->draw, ginfo);
+		ginfo->last_x = x;
+		draw_line(ginfo->draw, ginfo->press_x, ginfo);
+		draw_line(ginfo->draw, x, ginfo);
+		if (!ginfo->zoom)
+			draw_latency(ginfo, x, y);
+		return;
+	}
+
+	plot = find_plot_by_y(ginfo, y);
+	if (plot)
+		draw_plot_info(ginfo, plot, x, y);
 }
 
 static gboolean
@@ -744,6 +780,10 @@ info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	draw_line(ginfo->draw, 0, ginfo);
 
 	ginfo->line_active = TRUE;
+	ginfo->line_time = convert_x_to_time(ginfo, gtk_adjustment_get_value(ginfo->hadj));;
+
+	if (!(event->state & GDK_SHIFT_MASK))
+		ginfo->zoom = TRUE;
 
 	return FALSE;
 }
@@ -764,8 +804,8 @@ info_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data
 	if (!ginfo->curr_pixmap)
 		return FALSE;
 
-	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
-			    ginfo->plot_data_w, ginfo->plot_data_h);
+	clear_info_box(ginfo);
+
 	if (event->is_hint)
 		gdk_window_get_pointer(event->window, &x, &y, &state);
 	else {
@@ -779,16 +819,14 @@ info_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data
 	if (x < 0)
 		return FALSE;
 
-	if (ginfo->last_x)
-		clear_last_line(ginfo->draw, ginfo);
-	ginfo->last_x = x;
-	draw_line(ginfo->draw, ginfo->press_x, ginfo);
-	draw_line(ginfo->draw, x, ginfo);
+	x += gtk_adjustment_get_value(ginfo->hadj);
+
+	motion_plot(ginfo, x, y);
 
 	return FALSE;
 }
 
-static void activate_zoom(struct graph_info *ginfo, gint x);
+static void button_release(struct graph_info *ginfo, gint x);
 
 static gboolean
 info_button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
@@ -801,7 +839,7 @@ info_button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer dat
 
 	x = event->x - ginfo->scrollwin->allocation.x - ginfo->info_scrollwin->allocation.x;
 
-	activate_zoom(ginfo, x);
+	button_release(ginfo, x);
 
 	return FALSE;
 }
@@ -940,15 +978,11 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 	return ret;
 }
 
-static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
-			   gint x, gint y)
+static void draw_info_box(struct graph_info *ginfo, const gchar *buffer,
+			  gint x, gint y)
 {
 	PangoLayout *layout;
 	GtkAdjustment *vadj;
-	struct pevent *pevent;
-	guint64 time;
-	unsigned long sec, usec;
-	struct trace_seq s;
 	gint width, height;
 	GdkPixmap *pix;
 	static GdkGC *pix_bg;
@@ -966,25 +1000,7 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 		gdk_gc_set_foreground(pix_bg, &color);
 	}
 
-	time =  convert_x_to_time(ginfo, x);
-	convert_nano(time, &sec, &usec);
-
-	pevent = ginfo->pevent;
-
-	trace_seq_init(&s);
-
-	dprintf(3, "start=%llu end=%llu time=%llu\n",
-		(u64)ginfo->start_time, (u64)ginfo->end_time, (u64)time);
-
-	if (!trace_graph_plot_display_info(ginfo, plot, &s, time)) {
-		/* Just display the current time */
-		trace_seq_init(&s);
-		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
-	}
-
-	trace_seq_putc(&s, 0);
-
-	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
+	layout = gtk_widget_create_pango_layout(ginfo->draw, buffer);
 	pango_layout_get_pixel_size(layout, &width, &height);
 
 	width += PLOT_BOARDER * 2;
@@ -1032,19 +1048,74 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 	g_object_unref(pix);
 }
 
+static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
+			   gint x, gint y)
+{
+	struct pevent *pevent;
+	guint64 time;
+	unsigned long sec, usec;
+	struct trace_seq s;
+
+	time =  convert_x_to_time(ginfo, x);
+	convert_nano(time, &sec, &usec);
+
+	pevent = ginfo->pevent;
+
+	trace_seq_init(&s);
+
+	dprintf(3, "start=%llu end=%llu time=%llu\n",
+		(u64)ginfo->start_time, (u64)ginfo->end_time, (u64)time);
+
+	if (!trace_graph_plot_display_info(ginfo, plot, &s, time)) {
+		/* Just display the current time */
+		trace_seq_init(&s);
+		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+	}
+
+	trace_seq_putc(&s, 0);
+
+	draw_info_box(ginfo, s.buffer, x, y);
+}
+
+static void draw_latency(struct graph_info *ginfo, gint x, gint y)
+{
+	struct pevent *pevent;
+	unsigned long sec, usec;
+	struct trace_seq s;
+	gboolean neg;
+	gint64 time;
+
+	time =  convert_x_to_time(ginfo, x);
+	time -= ginfo->line_time;
+
+	if (time < 0) {
+		neg = TRUE;
+		time *= -1;
+	} else
+		neg = FALSE;
+
+	convert_nano(time, &sec, &usec);
+
+	pevent = ginfo->pevent;
+
+	trace_seq_init(&s);
+	trace_seq_printf(&s, "Diff: %s%ld.%06lu secs", neg ? "-":"", sec, usec);
+
+	draw_info_box(ginfo, s.buffer, x, y);
+}
+
 static gboolean
 motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
 	struct graph_info *ginfo = data;
 	GdkModifierType state;
 	gint x, y;
-	struct graph_plot *plot;
 
 	if (!ginfo->handle)
 		return FALSE;
 
-	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
-			    ginfo->plot_data_w, ginfo->plot_data_h);
+	clear_info_box(ginfo);
+
 	if (event->is_hint)
 		gdk_window_get_pointer(event->window, &x, &y, &state);
 	else {
@@ -1053,21 +1124,7 @@ motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 		state = event->state;
 	}
 
-	if (!ginfo->curr_pixmap)
-		return TRUE;
-
-	if (ginfo->line_active) {
-		if (ginfo->last_x)
-			clear_last_line(widget, ginfo);
-		ginfo->last_x = x;
-		draw_line(widget, ginfo->press_x, ginfo);
-		draw_line(widget, x, ginfo);
-		return TRUE;
-	}
-
-	plot = find_plot_by_y(ginfo, y);
-	if (plot)
-		draw_plot_info(ginfo, plot, x, y);
+	motion_plot(ginfo, x, y);
 
 	return TRUE;
 }
@@ -1320,16 +1377,13 @@ static void zoom_out_window(struct graph_info *ginfo, gint start, gint end)
 
 	ginfo->hadj_value = start_x;
 }
+
 static void activate_zoom(struct graph_info *ginfo, gint x)
 {
-
-	if (!ginfo->line_active)
+	if (!ginfo->zoom)
 		return;
 
-	ginfo->line_active = FALSE;
-	clear_last_line(ginfo->draw, ginfo);
-	ginfo->last_x = ginfo->press_x;
-	clear_last_line(ginfo->draw, ginfo);
+	ginfo->zoom = FALSE;
 
 	if (x > ginfo->press_x) {
 		/* make a decent zoom */
@@ -1340,6 +1394,22 @@ static void activate_zoom(struct graph_info *ginfo, gint x)
 		zoom_out_window(ginfo, ginfo->press_x, x);
 }
 
+static void button_release(struct graph_info *ginfo, gint x)
+{
+
+	if (!ginfo->line_active)
+		return;
+
+	clear_last_line(ginfo->draw, ginfo);
+	ginfo->last_x = ginfo->press_x;
+	clear_last_line(ginfo->draw, ginfo);
+	ginfo->line_active = FALSE;
+
+	clear_info_box(ginfo);
+
+	activate_zoom(ginfo, x);
+}
+
 static gboolean
 button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
@@ -1348,7 +1418,7 @@ button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 	if (!ginfo->handle)
 		return FALSE;
 
-	activate_zoom(ginfo, event->x);
+	button_release(ginfo, event->x);
 
 	return TRUE;
 }
@@ -1361,8 +1431,7 @@ leave_notify_event(GtkWidget *widget, GdkEventCrossing *event, gpointer data)
 	if (!ginfo->handle)
 		return FALSE;
 
-	update_with_backend(ginfo, ginfo->plot_data_x, ginfo->plot_data_y,
-			    ginfo->plot_data_w, ginfo->plot_data_h);
+	clear_info_box(ginfo);
 
 	return FALSE;
 }
