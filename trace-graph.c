@@ -936,7 +936,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 					     strdup(*comm), *pid);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
