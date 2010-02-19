@@ -30,11 +30,12 @@
 
 #include "cpu.h"
 #include "util.h"
+#include "list.h"
 
 #define DIALOG_WIDTH	400
 #define DIALOG_HEIGHT	600
 
-#define TEXT_DIALOG_WIDTH	450
+#define TEXT_DIALOG_WIDTH	500
 #define TEXT_DIALOG_HEIGHT	400
 
 int str_cmp(const void *a, const void *b)
@@ -89,12 +90,372 @@ void trace_array_add(gint **array, gint *count, gint val)
 	(*array)[*count] = -1;
 }
 
+/* --- event info box --- */
+
+struct event_combo_info {
+	struct pevent		*pevent;
+	GtkWidget		*event_combo;
+	GtkWidget		*field_combo;
+};
+
 struct adv_event_filter_helper {
 	trace_adv_filter_cb_func	func;
 	GtkTreeView			*view;
 	GtkWidget			*entry;
+	struct event_combo_info		combo_info;
 	gpointer			data;
 };
+
+static GtkTreeModel *create_event_combo_model(struct pevent *pevent)
+{
+	GtkTreeStore *tree;
+	GtkTreeIter sys_iter;
+	GtkTreeIter iter;
+	struct event_format **events;
+	struct event_format *event;
+	const char *last_sys = NULL;
+	int i;
+
+	events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+	if (!events)
+		return NULL;
+
+	tree = gtk_tree_store_new(1, G_TYPE_STRING);
+
+
+	for (i = 0; events[i]; i++) {
+		event = events[i];
+		if (!last_sys || strcmp(last_sys, event->system) != 0) {
+			last_sys = event->system;
+
+			gtk_tree_store_append(tree, &sys_iter, NULL);
+			gtk_tree_store_set(tree, &sys_iter,
+					   0, last_sys,
+					   -1);
+		}
+		gtk_tree_store_append(tree, &iter, &sys_iter);
+		gtk_tree_store_set(tree, &iter,
+				   0, event->name,
+				   -1);
+	}
+
+	return GTK_TREE_MODEL(tree);
+}
+
+static GtkTreeModel *create_field_combo_model(struct pevent *pevent)
+{
+	GtkListStore *list;
+	GtkTreeIter iter;
+	struct event_format **events;
+	struct format_field **fields;
+	struct format_field *field;
+	int i;
+
+	events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+	if (!events)
+		return NULL;
+
+	list = gtk_list_store_new(1, G_TYPE_STRING);
+
+	/* use any event for common fields */
+	fields = pevent_event_common_fields(events[0]);
+
+	for (i = 0; fields[i]; i++) {
+		field = fields[i];
+		gtk_list_store_append(list, &iter);
+		gtk_list_store_set(list, &iter,
+				   0, field->name,
+				   -1);
+	}
+
+	free(fields);
+
+	return GTK_TREE_MODEL(list);
+}
+
+static void update_field_combo(struct pevent *pevent,
+			       GtkWidget *combo,
+			       const char *system,
+			       const char *event_name)
+{
+	struct event_format **events;
+	struct event_format *event;
+	struct format_field **fields;
+	struct format_field *field;
+	GtkTreeModel *model;
+	GtkListStore *list;
+	GtkTreeIter iter;
+	int i;
+
+	model = gtk_combo_box_get_model(GTK_COMBO_BOX(combo));
+	if (!model)
+		return;
+
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return;
+
+	if (event_name) {
+		event = pevent_find_event_by_name(pevent, system, event_name);
+		if (!event)
+			return;
+	} else {
+		/* use any event */
+		events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+		if (!events)
+			return;
+		event = events[0];
+	}
+
+	/* Remove all the objects and reset it */
+	g_object_ref(model);
+	gtk_combo_box_set_model(GTK_COMBO_BOX(combo), NULL);
+
+	list = GTK_LIST_STORE(model);
+
+	while (gtk_list_store_remove(list, &iter))
+		;
+
+	/* always load the common fields first */
+	fields = pevent_event_common_fields(event);
+	for (i = 0; fields[i]; i++) {
+		field = fields[i];
+		gtk_list_store_append(list, &iter);
+		gtk_list_store_set(list, &iter,
+				   0, field->name,
+				   -1);
+	}
+	free(fields);
+
+	/* Now add event specific events */
+	if (event_name) {
+		fields = pevent_event_fields(event);
+		for (i = 0; fields[i]; i++) {
+			field = fields[i];
+			gtk_list_store_append(list, &iter);
+			gtk_list_store_set(list, &iter,
+					   0, field->name,
+					   -1);
+		}
+		free(fields);
+	}
+	gtk_combo_box_set_model(GTK_COMBO_BOX(combo), model);
+	g_object_unref(model);
+
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return;
+	gtk_combo_box_set_active_iter(GTK_COMBO_BOX(combo), &iter);
+}
+
+static void event_combo_changed(GtkComboBox *combo, gpointer data)
+{
+	struct event_combo_info *info = data;
+	GtkWidget *field_combo = info->field_combo;
+	GtkTreeIter parent_iter;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreePath *path;
+	gchar *system_name = NULL;
+	gchar *event_name = NULL;
+	gint depth;
+
+	model = gtk_combo_box_get_model(combo);
+	if (!model)
+		return;
+
+	if (!gtk_combo_box_get_active_iter(combo, &iter))
+		return;
+
+	path = gtk_tree_model_get_path(model, &iter);
+	if (!path)
+		return;
+
+	depth = gtk_tree_path_get_depth(path);
+
+	if (depth > 1) {
+		gtk_tree_model_get(model, &iter,
+				   0, &event_name,
+				   -1);
+		gtk_tree_model_iter_parent(model, &parent_iter,
+					   &iter);
+		gtk_tree_model_get(model, &parent_iter,
+				   0, &system_name,
+				   -1);
+	} else
+		gtk_tree_model_get(model, &iter,
+				   0, &system_name,
+				   -1);
+
+	update_field_combo(info->pevent, field_combo,
+			   system_name, event_name);
+
+	g_free(system_name);
+	g_free(event_name);
+	gtk_tree_path_free(path);
+}
+
+static void insert_combo_text(struct event_combo_info *info,
+			      GtkComboBox *combo)
+{
+	struct adv_event_filter_helper *event_helper;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	GtkWidget *entry;
+	gchar *text;
+	gint pos;
+
+	model = gtk_combo_box_get_model(combo);
+	if (!model)
+		return;
+
+	if (!gtk_combo_box_get_active_iter(combo, &iter))
+		return;
+
+	gtk_tree_model_get(model, &iter,
+			   0, &text,
+			   -1);
+
+	event_helper = container_of(info, typeof(*event_helper), combo_info);
+	entry = event_helper->entry;
+
+	pos = gtk_editable_get_position(GTK_EDITABLE(entry));
+	gtk_editable_insert_text(GTK_EDITABLE(entry), text, strlen(text), &pos);
+	gtk_editable_set_position(GTK_EDITABLE(entry), pos);
+
+	g_free(text);
+}
+
+static void event_insert_pressed(GtkButton *button,
+				 gpointer data)
+{
+	struct event_combo_info *info = data;
+
+	insert_combo_text(info, GTK_COMBO_BOX(info->event_combo));
+}
+
+static void field_insert_pressed(GtkButton *button,
+				 gpointer data)
+{
+	struct event_combo_info *info = data;
+
+	insert_combo_text(info, GTK_COMBO_BOX(info->field_combo));
+}
+
+static GtkWidget *event_info_box(struct event_combo_info *info)
+{
+	GtkWidget *hbox;
+	GtkWidget *hbox2;
+	GtkWidget *label;
+	GtkCellRenderer *renderer;
+	GtkTreeModel *model;
+	GtkWidget *event_combo;
+	GtkWidget *field_combo;
+	GtkWidget *button;
+
+	hbox = gtk_hbox_new(FALSE, 0);
+
+	hbox2 = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), hbox2, TRUE, TRUE, 0);
+	gtk_widget_show(hbox2);
+
+
+	label = gtk_label_new("Event:");
+	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	/* --- Set up the event selection combo box --- */
+
+	model = create_event_combo_model(info->pevent);
+
+	renderer = gtk_cell_renderer_text_new();
+
+	event_combo = gtk_combo_box_new_with_model(model);
+	gtk_box_pack_start(GTK_BOX(hbox2), event_combo, FALSE, FALSE, 0);
+	gtk_widget_show(event_combo);
+
+	/* Free model with combobox */
+	g_object_unref(model);
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(event_combo),
+				   renderer,
+				   TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(event_combo),
+				       renderer,
+				       "text", 0,
+				       NULL);
+
+	gtk_combo_box_set_active(GTK_COMBO_BOX(event_combo), 0);
+
+
+	/* --- add insert button --- */
+
+	button = gtk_button_new_with_label("Insert");
+	gtk_box_pack_start(GTK_BOX(hbox2), button, FALSE, FALSE, 0);
+	gtk_widget_show(button);
+
+
+	g_signal_connect (button, "pressed",
+			  G_CALLBACK (event_insert_pressed),
+			  (gpointer) info);
+
+
+	/* --- second hbox ---- */
+
+	hbox2 = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), hbox2, TRUE, TRUE, 0);
+	gtk_widget_show(hbox2);
+
+	label = gtk_label_new("Field:");
+	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+
+	/* --- Set up the field selection combo box --- */
+
+	model = create_field_combo_model(info->pevent);
+
+	renderer = gtk_cell_renderer_text_new();
+
+	field_combo = gtk_combo_box_new_with_model(model);
+	gtk_box_pack_start(GTK_BOX(hbox2), field_combo, FALSE, FALSE, 0);
+	gtk_widget_show(field_combo);
+
+	/* Free model with combobox */
+	g_object_unref(model);
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(field_combo),
+				   renderer,
+				   TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(field_combo),
+				       renderer,
+				       "text", 0,
+				       NULL);
+
+	gtk_combo_box_set_active(GTK_COMBO_BOX(field_combo), 0);
+
+
+	/* --- add insert button --- */
+
+	button = gtk_button_new_with_label("Insert");
+	gtk_box_pack_start(GTK_BOX(hbox2), button, FALSE, FALSE, 0);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "pressed",
+			  G_CALLBACK (field_insert_pressed),
+			  (gpointer) info);
+
+
+	g_signal_connect (event_combo, "changed",
+			  G_CALLBACK (event_combo_changed),
+			  (gpointer) info);
+
+	info->event_combo = event_combo;
+	info->field_combo = field_combo;
+
+	return hbox;
+}
+
+
+/* --- advance filter --- */
 
 enum {
 	ADV_COL_DELETE,
@@ -266,9 +627,9 @@ create_adv_filter_view(struct tracecmd_input *handle,
 
 	view = gtk_tree_view_new();
 
-	renderer  = gtk_cell_renderer_text_new();
+	renderer = gtk_cell_renderer_text_new();
 
-	togrend  = gtk_cell_renderer_toggle_new();
+	togrend = gtk_cell_renderer_toggle_new();
 
 	/* --- delete column --- */
 
@@ -336,6 +697,7 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			       trace_adv_filter_cb_func func,
 			       gpointer data)
 {
+	struct pevent *pevent;
 	struct dialog_helper *helper;
 	struct adv_event_filter_helper *event_helper;
 	GtkWidget *dialog;
@@ -344,6 +706,7 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	GtkWidget *entry;
 	GtkWidget *scrollwin;
 	GtkWidget *view;
+	GtkWidget *event_box;
 
 	helper = g_malloc(sizeof(*helper));
 	g_assert(helper);
@@ -389,11 +752,19 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			      "&& prev_pid != 0)\n"
 			      "   irq.* : irq != 38\n"
 			      "   .* : common_pid == 1234");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, FALSE, 0);
 	gtk_widget_show(label);
 
+	pevent = tracecmd_get_pevent(handle);
+
+	event_helper->combo_info.pevent = pevent;
+
+	event_box = event_info_box(&event_helper->combo_info);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), event_box, FALSE, FALSE, 0);
+	gtk_widget_show(event_box);
+
 	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, FALSE, 0);
 	gtk_widget_show(hbox);
 
 	label = gtk_label_new("Filter:");
