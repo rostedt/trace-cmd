@@ -429,6 +429,8 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct record *record);
 
 struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type);
+struct format_field **pevent_event_common_fields(struct event_format *event);
+struct format_field **pevent_event_fields(struct event_format *event);
 
 static inline int pevent_get_cpus(struct pevent *pevent)
 {

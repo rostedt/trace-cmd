@@ -3599,6 +3599,62 @@ struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_
 	return events;
 }
 
+static struct format_field **
+get_event_fields(const char *type, const char *name,
+		 int count, struct format_field *list)
+{
+	struct format_field **fields;
+	struct format_field *field;
+	int i = 0;
+
+	fields = malloc_or_die(sizeof(*fields) * (count + 1));
+	for (field = list; field; field = field->next) {
+		fields[i++] = field;
+		if (i == count + 1) {
+			warning("event %s has more %s fields than specified",
+				name, type);
+			i--;
+			break;
+		}
+	}
+
+	if (i != count)
+		warning("event %s has less %s fields than specified",
+			name, type);
+
+	fields[i] = NULL;
+
+	return fields;
+}
+
+/**
+ * pevent_event_common_fields - return a list of common fields for an event
+ * @event: the event to return the common fields of.
+ *
+ * Returns an allocated array of fields. The last item in the array is NULL.
+ * The array must be freed with free().
+ */
+struct format_field **pevent_event_common_fields(struct event_format *event)
+{
+	return get_event_fields("common", event->name,
+				event->format.nr_common,
+				event->format.common_fields);
+}
+
+/**
+ * pevent_event_fields - return a list of event specific fields for an event
+ * @event: the event to return the fields of.
+ *
+ * Returns an allocated array of fields. The last item in the array is NULL.
+ * The array must be freed with free().
+ */
+struct format_field **pevent_event_fields(struct event_format *event)
+{
+	return get_event_fields("event", event->name,
+				event->format.nr_fields,
+				event->format.fields);
+}
+
 static void print_fields(struct trace_seq *s, struct print_flag_sym *field)
 {
 	trace_seq_printf(s, "{ %s, %s }", field->value, field->str);
