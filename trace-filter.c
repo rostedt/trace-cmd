@@ -1230,7 +1230,8 @@ create_tree_event_model(struct tracecmd_input *handle,
 
 		normal = TRUE;
 		if (active && filter) {
-			if (!pevent_filter_event_has_trivial(filter, event->id,
+			if (pevent_event_filtered(filter, event->id) &&
+			    !pevent_filter_event_has_trivial(filter, event->id,
 							     FILTER_TRIVIAL_BOTH))
 				normal = FALSE;
 			/* Make trivial false not selected */
