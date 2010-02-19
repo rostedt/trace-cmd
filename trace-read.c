@@ -338,6 +338,7 @@ __find_wakeup(unsigned int key, unsigned int val)
 	while (info) {
 		if (info->pid == val)
 			return info;
+		info = info->next;
 	}
 
 	return NULL;
