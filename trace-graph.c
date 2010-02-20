@@ -63,6 +63,9 @@
 
 static gint largest_plot_label;
 
+static GdkGC *green;
+static GdkGC *red;
+
 static void redraw_pixmap_backend(struct graph_info *ginfo);
 static void update_label_window(struct graph_info *ginfo);
 
@@ -306,9 +309,68 @@ static void __update_with_backend(struct graph_info *ginfo,
 			  width, height);
 }
 
+static void update_label_time(GtkWidget *label, gint64 time)
+{
+	unsigned long sec, usec;
+	struct trace_seq s;
+	char *min = "";
+
+	if (time < 0) {
+		time *= -1;
+		min = "-";
+	}
+
+	convert_nano(time, &sec, &usec);
+
+	trace_seq_init(&s);
+	trace_seq_printf(&s, "%s%lu.%06lu", min, sec, usec);
+
+	gtk_label_set_text(GTK_LABEL(label), s.buffer);
+}
+
+static void update_cursor(struct graph_info *ginfo)
+{
+	update_label_time(ginfo->cursor_label, ginfo->cursor);
+}
+
+static void update_pointer(struct graph_info *ginfo, gint x)
+{
+	guint64 time;
+
+	time = convert_x_to_time(ginfo, x);
+	update_label_time(ginfo->pointer_time, time);
+}
+
+static void update_marka(struct graph_info *ginfo, gint x)
+{
+	guint64 timeA;
+
+	timeA = convert_x_to_time(ginfo, x);
+	ginfo->marka_time = timeA;
+
+	update_label_time(ginfo->marka_label, timeA);
+}
+
+static void update_markb(struct graph_info *ginfo, guint x)
+{
+	gint64 timeA, timeB;
+
+	timeA = ginfo->marka_time;
+	timeB = convert_x_to_time(ginfo, x);
+	ginfo->markb_time = timeB;
+
+	update_label_time(ginfo->markb_label, timeB);
+	update_label_time(ginfo->delta_label, timeB - timeA);
+}
+
 static void draw_cursor(struct graph_info *ginfo)
 {
 	gint x;
+
+	if (!ginfo->cursor)
+		return;
+
+	update_cursor(ginfo);
 
 	if (ginfo->cursor < ginfo->view_start_time ||
 	    ginfo->cursor > ginfo->view_end_time)
@@ -320,14 +382,39 @@ static void draw_cursor(struct graph_info *ginfo)
 		      x, 0, x, ginfo->draw->allocation.width);
 }
 
+static void draw_marka(struct graph_info *ginfo)
+{
+	gint x;
+
+	if (!ginfo->show_marka)
+		return;
+
+	x = convert_time_to_x(ginfo, ginfo->marka_time);
+	gdk_draw_line(ginfo->draw->window, green,
+		      x, 0, x, ginfo->draw->allocation.width);
+}
+
+static void draw_markb(struct graph_info *ginfo)
+{
+	gint x;
+
+	if (!ginfo->show_markb)
+		return;
+
+	x = convert_time_to_x(ginfo, ginfo->markb_time);
+	gdk_draw_line(ginfo->draw->window, red,
+		      x, 0, x, ginfo->draw->allocation.width);
+}
+
 static void update_with_backend(struct graph_info *ginfo,
 				gint x, gint y,
 				gint width, gint height)
 {
 	__update_with_backend(ginfo, x, y, width, height);
 
-	if (ginfo->cursor)
-		draw_cursor(ginfo);
+	draw_cursor(ginfo);
+	draw_markb(ginfo);
+	draw_marka(ginfo);
 }
 
 static gboolean
@@ -349,15 +436,12 @@ draw_line(GtkWidget *widget, gdouble x, struct graph_info *ginfo)
 		      x, 0, x, widget->allocation.width);
 }
 
-static void clear_last_line(GtkWidget *widget, struct graph_info *ginfo)
+static void clear_line(struct graph_info *ginfo, gint x)
 {
-	gint x;
-
-	x = ginfo->last_x;
 	if (x)
 		x--;
 
-	update_with_backend(ginfo, x, 0, x+2, widget->allocation.height);
+	update_with_backend(ginfo, x, 0, x+2, ginfo->draw->allocation.height);
 }
 
 static void clear_info_box(struct graph_info *ginfo)
@@ -682,6 +766,28 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return TRUE;
 }
 
+static void button_press(struct graph_info *ginfo, gint x, guint state)
+{
+	ginfo->press_x = x;
+	ginfo->last_x = 0;
+
+	draw_line(ginfo->draw, x, ginfo);
+
+	ginfo->line_active = TRUE;
+	ginfo->line_time = convert_x_to_time(ginfo, x);
+
+	if (state & GDK_SHIFT_MASK) {
+		ginfo->show_marka = FALSE;
+		ginfo->show_markb = FALSE;
+		clear_line(ginfo, convert_time_to_x(ginfo, ginfo->marka_time));
+		clear_line(ginfo, convert_time_to_x(ginfo, ginfo->markb_time));
+		update_marka(ginfo, x);
+	} else
+		ginfo->zoom = TRUE;
+
+	return;
+}
+
 static gboolean
 button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
@@ -700,15 +806,14 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (event->type == GDK_2BUTTON_PRESS) {
 		if (ginfo->line_active) {
 			ginfo->line_active = FALSE;
-			clear_last_line(widget, ginfo);
-			ginfo->last_x = ginfo->press_x;
-			clear_last_line(widget, ginfo);
+			clear_line(ginfo, ginfo->last_x);
+			clear_line(ginfo, ginfo->press_x);
 		}
 		if (ginfo->cursor >= ginfo->view_start_time &&
 		    ginfo->cursor <= ginfo->view_end_time) {
 			ginfo->last_x = convert_time_to_x(ginfo, ginfo->cursor);
 			ginfo->cursor = 0;
-			clear_last_line(widget, ginfo);
+			clear_line(ginfo, ginfo->last_x);
 		}
 
 		ginfo->cursor = convert_x_to_time(ginfo, event->x);
@@ -718,16 +823,7 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		return TRUE;
 	}
 
-	ginfo->press_x = event->x;
-	ginfo->last_x = 0;
-
-	draw_line(widget, event->x, ginfo);
-
-	ginfo->line_active = TRUE;
-	ginfo->line_time = convert_x_to_time(ginfo, event->x);
-
-	if (!(event->state & GDK_SHIFT_MASK))
-		ginfo->zoom = TRUE;
+	button_press(ginfo, event->x, event->state);
 
 	return TRUE;
 }
@@ -743,9 +839,12 @@ static void motion_plot(struct graph_info *ginfo, gint x, gint y)
 	if (!ginfo->curr_pixmap)
 		return;
 
+	if (ginfo->pointer_time)
+		update_pointer(ginfo, x);
+
 	if (ginfo->line_active) {
 		if (ginfo->last_x)
-			clear_last_line(ginfo->draw, ginfo);
+			clear_line(ginfo, ginfo->last_x);
 		ginfo->last_x = x;
 		draw_line(ginfo->draw, ginfo->press_x, ginfo);
 		draw_line(ginfo->draw, x, ginfo);
@@ -774,16 +873,7 @@ info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (event->type == GDK_2BUTTON_PRESS)
 		return FALSE;
 
-	ginfo->press_x = 0;
-	ginfo->last_x = 0;
-
-	draw_line(ginfo->draw, 0, ginfo);
-
-	ginfo->line_active = TRUE;
-	ginfo->line_time = convert_x_to_time(ginfo, gtk_adjustment_get_value(ginfo->hadj));;
-
-	if (!(event->state & GDK_SHIFT_MASK))
-		ginfo->zoom = TRUE;
+	button_press(ginfo, gtk_adjustment_get_value(ginfo->hadj), event->state);
 
 	return FALSE;
 }
@@ -1084,6 +1174,8 @@ static void draw_latency(struct graph_info *ginfo, gint x, gint y)
 	struct trace_seq s;
 	gboolean neg;
 	gint64 time;
+
+	update_markb(ginfo, x);
 
 	time =  convert_x_to_time(ginfo, x);
 	time -= ginfo->line_time;
@@ -1400,9 +1492,14 @@ static void button_release(struct graph_info *ginfo, gint x)
 	if (!ginfo->line_active)
 		return;
 
-	clear_last_line(ginfo->draw, ginfo);
-	ginfo->last_x = ginfo->press_x;
-	clear_last_line(ginfo->draw, ginfo);
+	if (!ginfo->zoom) {
+		ginfo->show_marka = TRUE;
+		ginfo->show_markb = TRUE;
+		update_markb(ginfo, x);
+	}
+
+	clear_line(ginfo, ginfo->last_x);
+	clear_line(ginfo, ginfo->press_x);
 	ginfo->line_active = FALSE;
 
 	clear_info_box(ginfo);
@@ -1865,7 +1962,7 @@ void trace_graph_select_by_time(struct graph_info *ginfo, guint64 time)
 
 	ginfo->last_x = convert_time_to_x(ginfo, ginfo->cursor);
 	ginfo->cursor = 0;
-	clear_last_line(ginfo->draw, ginfo);
+	clear_line(ginfo, ginfo->last_x);
 	ginfo->cursor = time;
 
 	update_with_backend(ginfo, 0, 0, width, ginfo->draw_height);
@@ -1992,6 +2089,7 @@ void trace_graph_copy_filter(struct graph_info *ginfo,
 static void redraw_pixmap_backend(struct graph_info *ginfo)
 {
 	GdkPixmap *old_pix;
+	static gboolean init;
 
 	old_pix = ginfo->curr_pixmap;
 
@@ -2013,17 +2111,16 @@ static void redraw_pixmap_backend(struct graph_info *ginfo)
 
 	draw_info(ginfo, ginfo->draw->allocation.width);
 
-	if (old_pix) {
-#if 0
-		gdk_draw_drawable(ginfo->curr_pixmap,
-				  ginfo->draw->style->fg_gc[GTK_WIDGET_STATE(ginfo->draw)],
-				  old_pix,
-				  0, 0, 0, 0,
-				  old_w, old_h);
-#endif
-
-		g_object_unref(old_pix);
+	if (!init) {
+		init = TRUE;
+		green = gdk_gc_new(ginfo->draw->window);
+		red = gdk_gc_new(ginfo->draw->window);
+		set_color(ginfo->draw, green, (0xff<<16));
+		set_color(ginfo->draw, red, 0xff);
 	}
+
+	if (old_pix)
+		g_object_unref(old_pix);
 
 	if (ginfo->hadj_value) {
 //		gtk_adjustment_set_lower(ginfo->hadj, -100.0);
@@ -2188,6 +2285,8 @@ void trace_graph_free_info(struct graph_info *ginfo)
 		trace_graph_plot_free(ginfo);
 		tracecmd_close(ginfo->handle);
 		free_task_hash(ginfo);
+
+		ginfo->cursor = 0;
 	}
 	ginfo->handle = NULL;
 }
@@ -2248,6 +2347,14 @@ static int load_handle(struct graph_info *ginfo,
 	ginfo->view_start_time = ginfo->start_time;
 	ginfo->view_end_time = ginfo->end_time;
 
+	if (!ginfo->draw)
+		return 0;
+
+	update_cursor(ginfo);
+	update_pointer(ginfo, 0);
+	update_marka(ginfo, 0);
+	update_markb(ginfo, 0);
+
 	return 0;
 }
 
@@ -2277,6 +2384,9 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs)
 {
 	struct graph_info *ginfo;
+	GtkWidget *table;
+	GtkWidget *hbox;
+	GtkWidget *label;
 
 	ginfo = g_new0(typeof(*ginfo), 1);
 	g_assert(ginfo != NULL);
@@ -2291,8 +2401,80 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	ginfo->task_filter = filter_task_hash_alloc();
 	ginfo->hide_tasks = filter_task_hash_alloc();
 
-	ginfo->widget = gtk_hbox_new(FALSE, 0);
+	ginfo->widget = gtk_vbox_new(FALSE, 0);
 	gtk_widget_show(ginfo->widget);
+
+
+	ginfo->status_hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(ginfo->widget), ginfo->status_hbox, FALSE, FALSE, 0);
+	gtk_widget_show(ginfo->status_hbox);
+
+	table = gtk_table_new(1, 23, FALSE);
+	gtk_box_pack_start(GTK_BOX(ginfo->status_hbox), table, FALSE, FALSE, 0);
+	gtk_widget_show(table);
+
+	/* --- Pointer --- */
+
+	label = gtk_label_new("Pointer:");
+	gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(label);
+
+	ginfo->pointer_time = gtk_label_new("0.0");
+	gtk_table_attach(GTK_TABLE(table), ginfo->pointer_time, 1, 3, 0, 1,
+			 GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(ginfo->pointer_time);
+
+	/* --- Cursor --- */
+
+	label = gtk_label_new("Cursor:");
+	gtk_table_attach(GTK_TABLE(table), label, 4, 5, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(label);
+
+	ginfo->cursor_label = gtk_label_new("0.0");
+	gtk_table_attach(GTK_TABLE(table), ginfo->cursor_label, 6, 8, 0, 1,
+			 GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(ginfo->cursor_label);
+
+
+	/* --- Marker A --- */
+
+	label = gtk_label_new("Marker A:");
+	gtk_table_attach(GTK_TABLE(table), label, 9, 10, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(label);
+
+	ginfo->marka_label = gtk_label_new("0.0");
+	gtk_table_attach(GTK_TABLE(table), ginfo->marka_label, 11, 13, 0, 1,
+			 GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(ginfo->marka_label);
+
+
+	/* --- Marker B --- */
+
+	label = gtk_label_new("Marker B:");
+	gtk_table_attach(GTK_TABLE(table), label, 14, 15, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(label);
+
+	ginfo->markb_label = gtk_label_new("0.0");
+	gtk_table_attach(GTK_TABLE(table), ginfo->markb_label, 16, 18, 0, 1,
+			 GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(ginfo->markb_label);
+
+
+	/* --- Delta --- */
+
+	label = gtk_label_new("A,B Delta:");
+	gtk_table_attach(GTK_TABLE(table), label, 19, 20, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(label);
+
+	ginfo->delta_label = gtk_label_new("0.0");
+	gtk_table_attach(GTK_TABLE(table), ginfo->delta_label, 21, 23, 0, 1,
+			 GTK_EXPAND, GTK_EXPAND, 3, 3);
+	gtk_widget_show(ginfo->delta_label);
+
+
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(ginfo->widget), hbox, TRUE, TRUE, 0);
+	gtk_widget_show(hbox);
 
 	ginfo->scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(ginfo->scrollwin),
@@ -2308,7 +2490,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				       GTK_POLICY_NEVER,
 				       GTK_POLICY_NEVER);
 	gtk_widget_show(ginfo->info_scrollwin);
-	gtk_box_pack_start(GTK_BOX(ginfo->widget), ginfo->info_scrollwin, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), ginfo->info_scrollwin, FALSE, FALSE, 0);
 
 	ginfo->info = create_graph_info(ginfo);
 	gtk_widget_show(ginfo->info);
@@ -2316,7 +2498,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(ginfo->info_scrollwin),
 					      ginfo->info);
 
-	gtk_box_pack_start(GTK_BOX (ginfo->widget), ginfo->scrollwin, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX (hbox), ginfo->scrollwin, TRUE, TRUE, 0);
 
 	gtk_signal_connect(GTK_OBJECT(ginfo->hadj), "value_changed",
 			   (GtkSignalFunc) value_changed, ginfo);

@@ -164,6 +164,12 @@ struct graph_info {
 	struct task_list	 *tasks[TASK_HASH_SIZE];
 
 	GtkWidget		*widget;	/* Box to hold graph */
+	GtkWidget		*status_hbox;	/* hbox holding status info */
+	GtkWidget		*pointer_time;	/* time that pointer is at */
+	GtkWidget		*cursor_label;	/* label showing cursor time */
+	GtkWidget		*marka_label;	/* label showing Marker A time */
+	GtkWidget		*markb_label;	/* label showing Marker B time */
+	GtkWidget		*delta_label;	/* label showing delta of B - A */
 	GtkWidget		*scrollwin;	/* graph scroll window */
 	GtkWidget		*info_scrollwin; /* graph scroll window (for info widget) */
 	GtkWidget		*info;		/* info window */
@@ -185,6 +191,10 @@ struct graph_info {
 	gint			last_x;		/* last x seen while moving mouse */
 	gboolean		line_active;	/* set when button is pressed */
 	guint64			line_time;	/* time line of where line_active is set */
+	guint64			marka_time;	/* time that marker A is at */
+	guint64			markb_time;	/* time that marker B is at */
+	gboolean		show_marka;	/* draw marker A line */
+	gboolean		show_markb;	/* draw marker B line */
 	gboolean		zoom;		/* set when shift button is pressed */
 
 	gdouble			hadj_value;	/* value to set hadj width */
