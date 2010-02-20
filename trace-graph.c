@@ -2387,6 +2387,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	GtkWidget *table;
 	GtkWidget *hbox;
 	GtkWidget *label;
+	GtkWidget *eventbox;
+	GdkColor color;
 
 	ginfo = g_new0(typeof(*ginfo), 1);
 	g_assert(ginfo != NULL);
@@ -2413,6 +2415,10 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_box_pack_start(GTK_BOX(ginfo->status_hbox), table, FALSE, FALSE, 0);
 	gtk_widget_show(table);
 
+	color.red = (0xff) *(65535/255);
+	color.green = (0xff) *(65535/255);
+	color.blue = (0xff) *(65535/255);
+
 	/* --- Pointer --- */
 
 	label = gtk_label_new("Pointer:");
@@ -2420,7 +2426,11 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->pointer_time = gtk_label_new("0.0");
-	gtk_table_attach(GTK_TABLE(table), ginfo->pointer_time, 1, 3, 0, 1,
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
+	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->pointer_time);
+	gtk_table_attach(GTK_TABLE(table), eventbox, 1, 3, 0, 1,
 			 GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(ginfo->pointer_time);
 
@@ -2431,7 +2441,11 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->cursor_label = gtk_label_new("0.0");
-	gtk_table_attach(GTK_TABLE(table), ginfo->cursor_label, 6, 8, 0, 1,
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
+	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->cursor_label);
+	gtk_table_attach(GTK_TABLE(table), eventbox, 6, 8, 0, 1,
 			 GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(ginfo->cursor_label);
 
@@ -2443,7 +2457,11 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->marka_label = gtk_label_new("0.0");
-	gtk_table_attach(GTK_TABLE(table), ginfo->marka_label, 11, 13, 0, 1,
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
+	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->marka_label);
+	gtk_table_attach(GTK_TABLE(table), eventbox, 11, 13, 0, 1,
 			 GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(ginfo->marka_label);
 
@@ -2455,7 +2473,11 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->markb_label = gtk_label_new("0.0");
-	gtk_table_attach(GTK_TABLE(table), ginfo->markb_label, 16, 18, 0, 1,
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
+	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->markb_label);
+	gtk_table_attach(GTK_TABLE(table), eventbox, 16, 18, 0, 1,
 			 GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(ginfo->markb_label);
 
@@ -2467,7 +2489,11 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->delta_label = gtk_label_new("0.0");
-	gtk_table_attach(GTK_TABLE(table), ginfo->delta_label, 21, 23, 0, 1,
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
+	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->delta_label);
+	gtk_table_attach(GTK_TABLE(table), eventbox, 21, 23, 0, 1,
 			 GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(ginfo->delta_label);
 
