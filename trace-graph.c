@@ -2389,6 +2389,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	GtkWidget *label;
 	GtkWidget *eventbox;
 	GdkColor color;
+	GdkColor colorAB;
 
 	ginfo = g_new0(typeof(*ginfo), 1);
 	g_assert(ginfo != NULL);
@@ -2452,9 +2453,28 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	/* --- Marker A --- */
 
-	label = gtk_label_new("Marker A:");
-	gtk_table_attach(GTK_TABLE(table), label, 9, 10, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_widget_show(hbox);
+
+	label = gtk_label_new("Marker");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
+
+	label = gtk_label_new("A:");
+
+	colorAB.red = 0;
+	colorAB.green = (0xff) *(65535/255);
+	colorAB.blue = 0;
+
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &colorAB);
+	gtk_container_add(GTK_CONTAINER(eventbox), label);
+
+	gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	gtk_table_attach(GTK_TABLE(table), hbox, 9, 10, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
 
 	ginfo->marka_label = gtk_label_new("0.0");
 	eventbox = gtk_event_box_new();
@@ -2468,8 +2488,28 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	/* --- Marker B --- */
 
-	label = gtk_label_new("Marker B:");
-	gtk_table_attach(GTK_TABLE(table), label, 14, 15, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_widget_show(hbox);
+
+	label = gtk_label_new("Marker");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	label = gtk_label_new("B:");
+
+	colorAB.red = (0xff) *(65535/255);
+	colorAB.green = 0;
+	colorAB.blue = 0;
+
+	eventbox = gtk_event_box_new();
+	gtk_widget_show(eventbox);
+	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &colorAB);
+	gtk_container_add(GTK_CONTAINER(eventbox), label);
+
+	gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	gtk_table_attach(GTK_TABLE(table), hbox, 14, 15, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(label);
 
 	ginfo->markb_label = gtk_label_new("0.0");
