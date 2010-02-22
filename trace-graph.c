@@ -777,11 +777,14 @@ static void button_press(struct graph_info *ginfo, gint x, guint state)
 	ginfo->line_time = convert_x_to_time(ginfo, x);
 
 	if (state & GDK_SHIFT_MASK) {
-		ginfo->show_marka = FALSE;
 		ginfo->show_markb = FALSE;
-		clear_line(ginfo, convert_time_to_x(ginfo, ginfo->marka_time));
 		clear_line(ginfo, convert_time_to_x(ginfo, ginfo->markb_time));
-		update_marka(ginfo, x);
+		/* We only update A if it hasn't been made yet */
+		if (!ginfo->marka_time) {
+			ginfo->show_marka = FALSE;
+			clear_line(ginfo, convert_time_to_x(ginfo, ginfo->marka_time));
+			update_marka(ginfo, x);
+		}
 	} else
 		ginfo->zoom = TRUE;
 
@@ -1488,6 +1491,7 @@ static void activate_zoom(struct graph_info *ginfo, gint x)
 
 static void button_release(struct graph_info *ginfo, gint x)
 {
+	gint old_x;
 
 	if (!ginfo->line_active)
 		return;
@@ -1503,6 +1507,18 @@ static void button_release(struct graph_info *ginfo, gint x)
 	ginfo->line_active = FALSE;
 
 	clear_info_box(ginfo);
+
+	/* If button is released at same location, set A (without shift) */
+	if (ginfo->zoom &&
+	    x >= ginfo->press_x-1 && x <= ginfo->press_x+1) {
+		old_x = convert_time_to_x(ginfo, ginfo->marka_time);
+		ginfo->show_marka = TRUE;
+		update_marka(ginfo, x);
+		clear_line(ginfo, old_x);
+		if (ginfo->markb_time)
+			update_label_time(ginfo->delta_label,
+					  ginfo->markb_time - ginfo->marka_time);
+	}
 
 	activate_zoom(ginfo, x);
 }
