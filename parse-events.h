@@ -524,18 +524,53 @@ enum filter_cmp_type {
 	FILTER_CMP_NOT_REGEX,
 };
 
+enum filter_exp_type {
+	FILTER_EXP_NONE,
+	FILTER_EXP_ADD,
+	FILTER_EXP_SUB,
+	FILTER_EXP_MUL,
+	FILTER_EXP_DIV,
+	FILTER_EXP_MOD,
+	FILTER_EXP_RSHIFT,
+	FILTER_EXP_LSHIFT,
+	FILTER_EXP_AND,
+	FILTER_EXP_OR,
+	FILTER_EXP_XOR,
+	FILTER_EXP_NOT,
+};
+
 enum filter_arg_type {
 	FILTER_ARG_NONE,
 	FILTER_ARG_BOOLEAN,
+	FILTER_ARG_VALUE,
+	FILTER_ARG_FIELD,
 	FILTER_ARG_OP,
+	FILTER_ARG_EXP,
 	FILTER_ARG_NUM,
 	FILTER_ARG_STR,
+};
+
+enum filter_value_type {
+	FILTER_NUMBER,
+	FILTER_STRING
 };
 
 struct fliter_arg;
 
 struct filter_arg_boolean {
 	enum filter_boolean_type	value;
+};
+
+struct filter_arg_field {
+	struct format_field	*field;
+};
+
+struct filter_arg_value {
+	enum filter_value_type	type;
+	union {
+		char			*str;
+		unsigned long long	val;
+	};
 };
 
 struct filter_arg_op {
@@ -546,8 +581,8 @@ struct filter_arg_op {
 
 struct filter_arg_num {
 	enum filter_cmp_type	type;
-	struct format_field	*field;
-	unsigned long long	val;
+	struct filter_arg	*left;
+	struct filter_arg	*right;
 };
 
 struct filter_arg_str {
@@ -562,6 +597,8 @@ struct filter_arg {
 	enum filter_arg_type	type;
 	union {
 		struct filter_arg_boolean	bool;
+		struct filter_arg_field		field;
+		struct filter_arg_value		value;
 		struct filter_arg_op		op;
 		struct filter_arg_num		num;
 		struct filter_arg_str		str;

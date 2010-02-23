@@ -297,25 +297,273 @@ static void free_events(struct event_list *events)
 	}
 }
 
-static int process_valid_field(struct filter_arg *arg,
-			       struct format_field *field,
-			       enum filter_cmp_type op_type,
-			       enum event_type type,
-			       char *val,
-			       char **error_str)
+static enum event_type
+process_filter(struct event_format *event, struct filter_arg **parg,
+	       enum event_type type, char **tok, char **error_str);
+
+static enum event_type
+process_paren(struct event_format *event, struct filter_arg **parg,
+	      char **tok, char **error_str);
+
+static enum event_type
+process_not(struct event_format *event, struct filter_arg **parg,
+	    char **tok, char **error_str);
+
+static enum event_type
+process_op_token(struct event_format *event, struct filter_arg *larg,
+		 struct filter_arg **parg, enum event_type type, char **tok,
+		 char **error_str);
+
+static enum event_type
+process_op(struct event_format *event, struct filter_arg *larg,
+	   struct filter_arg **parg, char **tok, char **error_str);
+
+/*
+ * Output: tok, parg
+ */
+static enum event_type
+process_token(struct event_format *event, struct filter_arg **parg,
+	      char **tok, char **error_str, int cont)
 {
-	int ret;
+	struct filter_arg *arg;
+	enum event_type type;
+	char *token;
+
+	*tok = NULL;
+	*parg = NULL;
+
+	type = read_token(&token);
+
+	if (type == EVENT_ITEM) {
+		type = process_filter(event, parg, type, &token, error_str);
+
+	} else if (type == EVENT_DELIM && strcmp(token, "(") == 0) {
+		free_token(token);
+		type = process_paren(event, parg, &token, error_str);
+
+	} else if (type == EVENT_OP && strcmp(token, "!") == 0) {
+		type = process_not(event, parg, &token, error_str);
+	} else {
+		if (type == EVENT_NONE)
+			show_error(error_str, "unexpected end of filter");
+		else
+			show_error(error_str, "unexpected token '%s'", token);
+		type = EVENT_ERROR;
+	}
+
+	*tok = token;
+	while (cont && type != EVENT_ERROR) {
+		if (type != EVENT_OP)
+			break;
+		/* continue */
+		arg = *parg;
+		*parg = NULL;
+		type = process_op_token(event, arg, parg, type, tok, error_str);
+	}
+
+	if (type == EVENT_ERROR) {
+		free_arg(*parg);
+		*parg = NULL;
+		return EVENT_ERROR;
+	}
+
+	return type;
+}
+
+/*
+ * Input: tok
+ * Output: parg, tok
+ */
+static enum event_type
+process_bool(struct event_format *event, struct filter_arg *larg,
+	     struct filter_arg **parg, char **tok, char **error_str)
+{
+	struct filter_arg *rarg;
+	struct filter_arg *arg;
+	enum event_type type;
+	enum filter_op_type btype;
+
+	/* Can only be called with '&&' or '||' */
+	btype = strcmp(*tok, "&&") == 0 ?
+		FILTER_OP_AND : FILTER_OP_OR;
+
+	type = process_token(event, &rarg, tok, error_str, 0);
+	if (type == EVENT_ERROR) {
+		free_arg(larg);
+		*parg = NULL;
+		return type;
+	}
+
+	/*
+	 * If larg or rarg is null then if this is AND, the whole expression
+	 * becomes NULL, elso if this is an OR, then we use the non NULL
+	 * condition.
+	 */
+	if (!larg || !rarg) {
+		if (btype == FILTER_OP_AND ||
+		    (!larg && !rarg)) {
+			free_arg(larg);
+			free_arg(rarg);
+			*parg = NULL;
+			return type;
+		}
+		*parg = larg ? larg : rarg;
+		return type;
+	}
+
+	arg = allocate_arg();
+	arg->type = FILTER_ARG_OP;
+	arg->op.type = btype;
+	arg->op.left = larg;
+	arg->op.right = rarg;
+
+	*parg = arg;
+
+	return type;
+}
+
+/*
+ * Input: tok
+ * Output: parg
+ */
+static enum event_type
+process_value_token(struct event_format *event, struct filter_arg **parg,
+		    enum event_type type, char **tok, char **error_str)
+{
+	struct format_field *field;
+	struct filter_arg *arg;
+	char *token;
+
+	token = *tok;
+	*tok = NULL;
+
+	arg = allocate_arg();
 
 	switch (type) {
 
 	case EVENT_SQUOTE:
-		/* treat this as a character if string is of length 1? */
-		if (strlen(val) == 1)
-			goto as_int;
-		/* fall through */
-
 	case EVENT_DQUOTE:
-		/* right now only allow match */
+		arg->type = FILTER_ARG_VALUE;
+		arg->value.type = FILTER_STRING;
+		arg->value.str = token;
+		break;
+	case EVENT_ITEM:
+		/* if it is a number, then convert it */
+		if (isdigit(token[0])) {
+			arg->type = FILTER_ARG_VALUE;
+			arg->value.type = FILTER_NUMBER;
+			arg->value.val = strtoll(token, NULL, 0);
+			free_token(token);
+			break;
+		}
+		/* Consider this a field */
+		field = pevent_find_any_field(event, token);
+		free_token(token);
+		if (!field) {
+			/* not a field, so NULL it up */
+			free_arg(arg);
+			arg = NULL;
+			break;
+		}
+
+		arg->type = FILTER_ARG_FIELD;
+		arg->field.field = field;
+		break;
+	default:
+		free_arg(arg);
+		show_error(error_str, "expected a value but found %s",
+			   token);
+		free_token(token);
+		return EVENT_ERROR;
+	}
+
+	*parg = arg;
+	return type;
+}
+
+/*
+ * Output: parg
+ */
+static enum event_type
+process_value(struct event_format *event, struct filter_arg **parg,
+	      char **error_str)
+{
+	enum event_type type;
+	char *token;
+
+	type = read_token(&token);
+	type = process_value_token(event, parg, type, &token, error_str);
+	free_token(token);
+	return type;
+}
+
+/*
+ * Output: parg, tok
+ */
+static enum event_type
+process_cmp(struct event_format *event, enum filter_cmp_type op_type,
+	    struct filter_arg *larg, struct filter_arg **parg,
+	    char **tok, char **error_str)
+{
+	struct filter_arg *arg;
+	struct filter_arg *rarg;
+	enum event_type type;
+	int ret;
+
+	*parg = NULL;
+
+	type = process_value(event, &rarg, error_str);
+	if (type == EVENT_ERROR)
+		return type;
+
+	arg = allocate_arg();
+	/*
+	 * If either arg is NULL if right was field not found.
+	 * Then make the entire expression NULL. (will turn to FALSE)
+	 */
+	if (!larg || !rarg) {
+		free_arg(larg);
+		free_arg(rarg);
+		free_arg(arg);
+		arg = NULL;
+		goto cont;
+	}
+
+	switch (type) {
+	case EVENT_SQUOTE:
+		/* treat this as a character if string is of length 1? */
+		if (strlen(rarg->str.val) == 1) {
+			switch (op_type) {
+			case FILTER_CMP_REGEX:
+			case FILTER_CMP_NOT_REGEX:
+				/* regex can't be used with ints */
+				break;
+			default:
+				goto as_int;
+			}
+		}
+		/* fall through */
+	case EVENT_DQUOTE:
+		arg->type = FILTER_ARG_STR;
+
+		if (larg->type != FILTER_ARG_FIELD) {
+			free(larg);
+			free(rarg);
+			show_error(error_str,
+				   "Illegal lval for string comparison");
+			free_arg(arg);
+			return EVENT_ERROR;
+		}
+
+		arg->str.field = larg->field.field;
+		free_arg(larg);
+
+		/* free the rarg, and use its token */
+		arg->str.val = rarg->value.str;
+		rarg->value.str = NULL;
+		free_arg(rarg);
+
+		/* Make sure this is a valid string compare */
 		switch (op_type) {
 		case FILTER_CMP_EQ:
 			op_type = FILTER_CMP_MATCH;
@@ -326,98 +574,171 @@ static int process_valid_field(struct filter_arg *arg,
 
 		case FILTER_CMP_REGEX:
 		case FILTER_CMP_NOT_REGEX:
-			ret = regcomp(&arg->str.reg, val, REG_ICASE|REG_NOSUB);
-			if (ret)
-				return -1;
+			ret = regcomp(&arg->str.reg, arg->str.val, REG_ICASE|REG_NOSUB);
+			if (ret) {
+				show_error(error_str,
+					   "RegEx '%s' did not compute",
+					   arg->str.val);
+				free_arg(arg);
+				return EVENT_ERROR;
+			}
 			break;
-
 		default:
 			show_error(error_str,
-				   "Op not allowed with string");
-			return -1;
+				   "Illegal comparison for string");
+			free_arg(arg);
+			return EVENT_ERROR;
 		}
-		arg->type = FILTER_ARG_STR;
-		arg->str.field = field;
-		arg->str.type = op_type;
-		arg->str.val = strdup(val);
-		if (!arg->str.val)
-			die("Can't allocate arg value");
 
-		/* Need a buffer to copy data int for tests */
+		arg->str.type = op_type;
+
+		/*
+		 * Need a buffer to copy data int for tests		 */
 		arg->str.buffer = malloc_or_die(arg->str.field->size + 1);
 		/* Null terminate this buffer */
 		arg->str.buffer[arg->str.field->size] = 0;
 
 		break;
-	case EVENT_ITEM:
+	default:
  as_int:
 		switch (op_type) {
 		case FILTER_CMP_REGEX:
 		case FILTER_CMP_NOT_REGEX:
 			show_error(error_str,
 				   "Op not allowed with integers");
-			return -1;
+			free_arg(arg);
+			return EVENT_ERROR;
 		default:
 			break;
 		}
+		/* numeric compare */
 		arg->type = FILTER_ARG_NUM;
-		arg->num.field = field;
 		arg->num.type = op_type;
-		arg->num.val = strtoll(val, NULL, 0);
+		arg->num.left = larg;
+		arg->num.right = rarg;
 		break;
-
-	default:
-		/* Can't happen */
-		return -1;
 	}
-
-	return 0;
+ cont:
+	*parg = arg;
+	return read_token(tok);
 }
 
+/*
+ * Output: parg, tok
+ */
 static enum event_type
-process_filter(struct event_format *event, struct filter_arg **parg,
-	       char **tok, char **error_str, int cont);
-
-static enum event_type
-process_paren(struct event_format *event, struct filter_arg **parg,
-	      char **tok, char **error_str, int cont);
-
-static enum event_type
-process_not(struct event_format *event, struct filter_arg **parg,
-	    char **tok, char **error_str, int cont);
-
-static enum event_type
-process_token(struct event_format *event, struct filter_arg **parg,
-	      char **tok, char **error_str, int cont)
+process_exp(struct event_format *event, enum filter_exp_type etype,
+	    struct filter_arg *larg, struct filter_arg **parg,
+	    char **tok, char **error_str)
 {
+	struct filter_arg *rarg;
+	struct filter_arg *arg;
 	enum event_type type;
-	char *token;
 
-	*tok = NULL;
-	*parg = NULL;
+	type = process_value(event, &rarg, error_str);
+	if (type == EVENT_ERROR)
+		return type;
 
-	type = read_token(&token);
-
-	if (type == EVENT_ITEM) {
-		type = process_filter(event, parg, &token, error_str, cont);
-
-	} else if (type == EVENT_DELIM && strcmp(token, "(") == 0) {
-		free_token(token);
-		type = process_paren(event, parg, &token, error_str, cont);
-
-	} else if (type == EVENT_OP && strcmp(token, "!") == 0) {
-		type = process_not(event, parg, &token, error_str, cont);
+	/* larg can be NULL if a field did not match */
+	if (!larg) {
+		/* syntax is correct, just return NULL */
+		arg = NULL;
+		free_arg(rarg);
+		goto cont;
 	}
 
-	if (type == EVENT_ERROR) {
+	arg = allocate_arg();
+	arg->type = FILTER_ARG_EXP;
+	arg->op.type = etype;
+	arg->op.left = larg;
+	arg->op.right = rarg;
+
+ cont:
+	/* still need a cmp */
+	return process_op(event, arg, parg, tok, error_str);
+}
+
+/*
+ * Input: tok
+ * Output: parg, tok
+ */
+static enum event_type
+process_op_token(struct event_format *event, struct filter_arg *larg,
+		 struct filter_arg **parg, enum event_type type, char **tok,
+		 char **error_str)
+{
+	enum filter_cmp_type ctype;
+	enum filter_exp_type etype = FILTER_EXP_NONE;
+	char *token;
+
+	token = *tok;
+	*parg = NULL;
+
+	if (type != EVENT_OP) {
+		*parg = larg;
+		return type;
+	}
+
+	if (strcmp(token, "&&") == 0 || strcmp(token, "||") == 0) {
+		/* handle boolean cases */
+		return process_bool(event, larg, parg, tok, error_str);
+	}
+
+	/* Check for value expressions */
+	if (strcmp(token, "+") == 0) {
+		etype = FILTER_EXP_ADD;
+	} else if (strcmp(token, "-") == 0) {
+		etype = FILTER_EXP_SUB;
+	} else if (strcmp(token, "*") == 0) {
+		etype = FILTER_EXP_MUL;
+	} else if (strcmp(token, "/") == 0) {
+		etype = FILTER_EXP_DIV;
+	} else if (strcmp(token, "%") == 0) {
+		etype = FILTER_EXP_MOD;
+	} else if (strcmp(token, ">>") == 0) {
+		etype = FILTER_EXP_RSHIFT;
+	} else if (strcmp(token, "<<") == 0) {
+		etype = FILTER_EXP_LSHIFT;
+	} else if (strcmp(token, "&") == 0) {
+		etype = FILTER_EXP_AND;
+	} else if (strcmp(token, "|") == 0) {
+		etype = FILTER_EXP_OR;
+	} else if (strcmp(token, "^") == 0) {
+		etype = FILTER_EXP_XOR;
+	} else if (strcmp(token, "~") == 0)
+		etype = FILTER_EXP_NOT;
+
+	if (etype != FILTER_EXP_NONE) {
 		free_token(token);
-		free_arg(*parg);
-		*parg = NULL;
+		return process_exp(event, etype, larg, parg, tok, error_str);
+	}
+
+	if (strcmp(token, "==") == 0) {
+		ctype = FILTER_CMP_EQ;
+	} else if (strcmp(token, "!=") == 0) {
+		ctype = FILTER_CMP_NE;
+	} else if (strcmp(token, "<") == 0) {
+		ctype = FILTER_CMP_LT;
+	} else if (strcmp(token, ">") == 0) {
+		ctype = FILTER_CMP_GT;
+	} else if (strcmp(token, "<=") == 0) {
+		ctype = FILTER_CMP_LE;
+	} else if (strcmp(token, ">=") == 0) {
+		ctype = FILTER_CMP_GE;
+	} else if (strcmp(token, "=~") == 0) {
+		ctype = FILTER_CMP_REGEX;
+	} else if (strcmp(token, "!~") == 0) {
+		ctype = FILTER_CMP_NOT_REGEX;
+	} else {
+		show_error(error_str,
+			   "Unknown op '%s'", token);
+		free_token(token);
 		return EVENT_ERROR;
 	}
 
-	*tok = token;
-	return type;
+	free_token(token);
+	*tok = NULL;
+	return process_cmp(event, ctype, larg, parg, tok, error_str);
 }
 
 static enum event_type
@@ -425,142 +746,39 @@ process_op(struct event_format *event, struct filter_arg *larg,
 	   struct filter_arg **parg, char **tok, char **error_str)
 {
 	enum event_type type;
-	struct filter_arg *arg;
 
-	arg = allocate_arg();
-	arg->type = FILTER_ARG_OP;
-	arg->op.left = larg;
-
-	/* Can only be called with '&&' or '||' */
-	arg->op.type = strcmp(*tok, "&&") == 0 ?
-		FILTER_OP_AND : FILTER_OP_OR;
-
-	free_token(*tok);
-
-	type = process_token(event, &arg->op.right, tok, error_str, 1);
-	if (type == EVENT_ERROR)
-		free_arg(arg);
-
-	*parg = arg;
+	*tok = NULL;
+	type = read_token(tok);
+	type = process_op_token(event, larg, parg, type, tok, error_str);
 
 	return type;
 }
 
 static enum event_type
 process_filter(struct event_format *event, struct filter_arg **parg,
-	       char **tok, char **error_str, int cont)
+	       enum event_type type, char **tok, char **error_str)
 {
-	struct format_field *field;
-	enum filter_cmp_type etype;
-	struct filter_arg *arg;
-	enum event_type type;
-	char *field_name;
-	char *token;
-	char *op;
-	int ret;
+	struct filter_arg *larg = NULL;
 
 	*parg = NULL;
 
-	field_name = *tok;
+	type = process_value_token(event, &larg, type, tok, error_str);
+	free_token(*tok);
 	*tok = NULL;
 
-	type = read_token(&token);
-	if (type != EVENT_OP) {
-		if (type == EVENT_NONE)
-			show_error(error_str,
-				   "Expected OP but found end of filter after %s",
-				   field_name);
-		else
-			show_error(error_str,
-				   "Expected OP but found %s after %s",
-				   token, field_name);
-		free_token(field_name);
-		free_token(token);
-		return EVENT_ERROR;
-	}
-
-	if (strcmp(token, "==") == 0) {
-		etype = FILTER_CMP_EQ;
-	} else if (strcmp(token, "!=") == 0) {
-		etype = FILTER_CMP_NE;
-	} else if (strcmp(token, "<") == 0) {
-		etype = FILTER_CMP_LT;
-	} else if (strcmp(token, ">") == 0) {
-		etype = FILTER_CMP_GT;
-	} else if (strcmp(token, "<=") == 0) {
-		etype = FILTER_CMP_LE;
-	} else if (strcmp(token, ">=") == 0) {
-		etype = FILTER_CMP_GE;
-	} else if (strcmp(token, "=~") == 0) {
-		etype = FILTER_CMP_REGEX;
-	} else if (strcmp(token, "!~") == 0) {
-		etype = FILTER_CMP_NOT_REGEX;
-	} else {
-		show_error(error_str,
-			   "Unknown op '%s' after '%s'",
-			   token, field_name);
-		free_token(field_name);
-		free_token(token);
-		return EVENT_ERROR;
-	}
-	op = token;
-
-	type = read_token(&token);
-	if (type != EVENT_ITEM && type != EVENT_SQUOTE && type != EVENT_DQUOTE) {
-		show_error(error_str,
-			   "Expected an item after '%s %s' instead of %s",
-			   field_name, op, token);
-		free_token(field_name);
-		free_token(op);
-		free_token(token);
-		return EVENT_ERROR;
-	}
-	free_token(op);
-
-	field = pevent_find_any_field(event, field_name);
-	free_token(field_name);
-
-	arg = allocate_arg();
-
-	if (field) {
-		ret = process_valid_field(arg, field, etype, type, token, error_str);
-		if (ret < 0) {
-			free_arg(arg);
-			return EVENT_ERROR;
-		}
-	} else {
-		/*
-		 * When an event does not contain a field in the
-		 * filter, just make it false.
-		 */
-		arg->type = FILTER_ARG_BOOLEAN;
-		arg->bool.value = FILTER_FALSE;
-	}
-
-	free_token(token);
-
-	type = read_token(tok);
-
-	if (cont && type == EVENT_OP &&
-	    (strcmp(*tok, "&&") == 0 || strcmp(*tok, "||") == 0)) {
-		/* continue */;
-		type = process_op(event, arg, parg, tok, error_str);
-	} else
-		*parg = arg;
-
-	return type;
+	return process_op(event, larg, parg, tok, error_str);
 }
 
 static enum event_type
 process_paren(struct event_format *event, struct filter_arg **parg,
-	      char **tok, char **error_str, int cont)
+	      char **tok, char **error_str)
 {
 	struct filter_arg *arg;
 	enum event_type type;
 
 	*parg = NULL;
 
-	type = process_token(event, &arg, tok, error_str, 1);
+	type = process_token(event, &arg, tok, error_str, 0);
 	if (type == EVENT_ERROR) {
 		free_arg(arg);
 		return type;
@@ -578,22 +796,16 @@ process_paren(struct event_format *event, struct filter_arg **parg,
 		return EVENT_ERROR;
 	}
 	free_token(*tok);
+	*tok = NULL;
 
-	type = read_token(tok);
+	*parg = arg;
 
-	if (cont && type == EVENT_OP &&
-	    (strcmp(*tok, "&&") == 0 || strcmp(*tok, "||") == 0)) {
-		/* continue */;
-		type = process_op(event, arg, parg, tok, error_str);
-	} else
-		*parg = arg;
-
-	return type;
+	return read_token(tok);
 }
 
 static enum event_type
 process_not(struct event_format *event, struct filter_arg **parg,
-	    char **tok, char **error_str, int cont)
+	    char **tok, char **error_str)
 {
 	struct filter_arg *arg;
 	enum event_type type;
@@ -611,13 +823,14 @@ process_not(struct event_format *event, struct filter_arg **parg,
 		*tok = NULL;
 		return EVENT_ERROR;
 	}
+	/* If the bool value is NULL, then make this into TRUE */
+	if (!arg->op.right) {
+		arg->type = FILTER_ARG_BOOLEAN;
+		arg->bool.value = FILTER_TRUE;
+	}
 
-	if (cont && type == EVENT_OP &&
-	    (strcmp(*tok, "&&") == 0 || strcmp(*tok, "||") == 0)) {
-		/* continue */;
-		type = process_op(event, arg, parg, tok, error_str);
-	} else
-		*parg = arg;
+	free_token(*tok);
+	*tok = NULL;
 
 	return type;
 }
@@ -645,6 +858,14 @@ process_event(struct event_format *event, const char *filter_str,
 		*parg = NULL;
 		return -1;
 	}
+
+	/* If parg is NULL, then make it into FALSE */
+	if (!*parg) {
+		*parg = allocate_arg();
+		(*parg)->type = FILTER_ARG_BOOLEAN;
+		(*parg)->bool.value = FILTER_FALSE;
+	}
+
 	return 0;
 }
 
@@ -931,7 +1152,6 @@ int pevent_filter_copy(struct event_filter *dest, struct event_filter *source)
  * Returns 0 on success and -1 if there was a problem updating, but
  *   events may have still been updated on error.
  */
-
 int pevent_update_trivial(struct event_filter *dest, struct event_filter *source,
 			  enum filter_trivial_type type)
 {
@@ -1099,31 +1319,102 @@ get_value(struct format_field *field, struct record *record)
 	return val;
 }
 
+static unsigned long long
+get_arg_value(struct event_format *event, struct filter_arg *arg, struct record *record);
+
+static unsigned long long
+get_exp_value(struct event_format *event, struct filter_arg *arg, struct record *record)
+{
+	unsigned long long lval, rval;
+
+	lval = get_arg_value(event, arg->op.left, record);
+	rval = get_arg_value(event, arg->op.right, record);
+
+	switch (arg->op.type) {
+	case FILTER_EXP_ADD:
+		return lval + rval;
+
+	case FILTER_EXP_SUB:
+		return lval - rval;
+
+	case FILTER_EXP_MUL:
+		return lval * rval;
+
+	case FILTER_EXP_DIV:
+		return lval / rval;
+
+	case FILTER_EXP_MOD:
+		return lval % rval;
+
+	case FILTER_EXP_RSHIFT:
+		return lval >> rval;
+
+	case FILTER_EXP_LSHIFT:
+		return lval << rval;
+
+	case FILTER_EXP_AND:
+		return lval & rval;
+
+	case FILTER_EXP_OR:
+		return lval | rval;
+
+	case FILTER_EXP_XOR:
+		return lval ^ rval;
+
+	case FILTER_EXP_NOT:
+	default:
+		die("error in exp");
+	}
+	return 0;
+}
+
+static unsigned long long
+get_arg_value(struct event_format *event, struct filter_arg *arg, struct record *record)
+{
+	switch (arg->type) {
+	case FILTER_ARG_FIELD:
+		return get_value(arg->field.field, record);
+
+	case FILTER_ARG_VALUE:
+		if (arg->value.type != FILTER_NUMBER)
+			die("must have number field!");
+		return arg->value.val;
+
+	case FILTER_ARG_EXP:
+		return get_exp_value(event, arg, record);
+
+	default:
+		die("oops in filter");
+	}
+	return 0;
+}
+
 static int test_num(struct event_format *event,
 		    struct filter_arg *arg, struct record *record)
 {
-	unsigned long long val;
+	unsigned long long lval, rval;
 
-	val = get_value(arg->num.field, record);
+	lval = get_arg_value(event, arg->num.left, record);
+	rval = get_arg_value(event, arg->num.right, record);
 
 	switch (arg->num.type) {
 	case FILTER_CMP_EQ:
-		return val == arg->num.val;
+		return lval == rval;
 
 	case FILTER_CMP_NE:
-		return val != arg->num.val;
+		return lval != rval;
 
 	case FILTER_CMP_GT:
-		return val > arg->num.val;
+		return lval > rval;
 
 	case FILTER_CMP_LT:
-		return val < arg->num.val;
+		return lval < rval;
 
 	case FILTER_CMP_GE:
-		return val >= arg->num.val;
+		return lval >= rval;
 
 	case FILTER_CMP_LE:
-		return val <= arg->num.val;
+		return lval <= rval;
 
 	default:
 		/* ?? */
@@ -1208,7 +1499,17 @@ static int test_filter(struct event_format *event,
 	case FILTER_ARG_STR:
 		return test_str(event, arg, record);
 
+	case FILTER_ARG_EXP:
+	case FILTER_ARG_VALUE:
+	case FILTER_ARG_FIELD:
+		/*
+		 * Expressions, fields and values evaluate
+		 * to true if they return non zero
+		 */
+		return !!get_arg_value(event, arg, record);
+
 	default:
+		die("oops!");
 		/* ?? */
 		return 0;
 	}
@@ -1385,11 +1686,87 @@ static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 	return str;
 }
 
+static char *val_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	char *str;
+
+	str = malloc_or_die(30);
+
+	snprintf(str, 30, "%lld", arg->value.val);
+
+	return str;
+}
+
+static char *field_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	return strdup(arg->field.field->name);
+}
+
+static char *exp_to_str(struct event_filter *filter, struct filter_arg *arg)
+{
+	char *lstr;
+	char *rstr;
+	char *op;
+	char *str;
+	int len;
+
+	lstr = arg_to_str(filter, arg->op.left);
+	rstr = arg_to_str(filter, arg->op.right);
+
+	switch (arg->op.type) {
+	case FILTER_EXP_ADD:
+		op = "+";
+		break;
+	case FILTER_EXP_SUB:
+		op = "-";
+		break;
+	case FILTER_EXP_MUL:
+		op = "*";
+		break;
+	case FILTER_EXP_DIV:
+		op = "/";
+		break;
+	case FILTER_EXP_MOD:
+		op = "%";
+		break;
+	case FILTER_EXP_RSHIFT:
+		op = ">>";
+		break;
+	case FILTER_EXP_LSHIFT:
+		op = "<<";
+		break;
+	case FILTER_EXP_AND:
+		op = "&";
+		break;
+	case FILTER_EXP_OR:
+		op = "|";
+		break;
+	case FILTER_EXP_XOR:
+		op = "^";
+		break;
+	default:
+		die("oops in exp");
+	}
+
+	len = strlen(op) + strlen(lstr) + strlen(rstr) + 4;
+	str = malloc_or_die(len);
+	snprintf(str, len, "%s %s %s", lstr, op, rstr);
+	free(lstr);
+	free(rstr);
+
+	return str;
+}
+
 static char *num_to_str(struct event_filter *filter, struct filter_arg *arg)
 {
+	char *lstr;
+	char *rstr;
 	char *str = NULL;
 	char *op = NULL;
 	int len;
+
+	lstr = arg_to_str(filter, arg->num.left);
+	rstr = arg_to_str(filter, arg->num.right);
 
 	switch (arg->num.type) {
 	case FILTER_CMP_EQ:
@@ -1415,22 +1792,19 @@ static char *num_to_str(struct event_filter *filter, struct filter_arg *arg)
 		if (!op)
 			op = "<=";
 
-		len = strlen(arg->num.field->name) + strlen(op) + 30;
+		len = strlen(lstr) + strlen(op) + strlen(rstr) + 4;
 		str = malloc_or_die(len);
-		if (arg->num.field->flags & FIELD_IS_SIGNED)
-			snprintf(str, len, "%s %s %lld",
-				 arg->num.field->name,
-				 op, arg->num.val);
-		else
-			snprintf(str, len, "%s %s %llu",
-				 arg->num.field->name,
-				 op, arg->num.val);
+		sprintf(str, "%s %s %s", lstr, op, rstr);
+
 		break;
 
 	default:
 		/* ?? */
 		break;
 	}
+
+	free(lstr);
+	free(rstr);
 	return str;
 }
 
@@ -1492,6 +1866,15 @@ static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg)
 
 	case FILTER_ARG_STR:
 		return str_to_str(filter, arg);
+
+	case FILTER_ARG_VALUE:
+		return val_to_str(filter, arg);
+
+	case FILTER_ARG_FIELD:
+		return field_to_str(filter, arg);
+
+	case FILTER_ARG_EXP:
+		return exp_to_str(filter, arg);
 
 	default:
 		/* ?? */
