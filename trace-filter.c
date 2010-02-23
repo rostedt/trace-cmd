@@ -35,7 +35,7 @@
 #define DIALOG_WIDTH	400
 #define DIALOG_HEIGHT	600
 
-#define TEXT_DIALOG_WIDTH	500
+#define TEXT_DIALOG_WIDTH	600
 #define TEXT_DIALOG_HEIGHT	400
 
 int str_cmp(const void *a, const void *b)
@@ -95,6 +95,7 @@ void trace_array_add(gint **array, gint *count, gint val)
 struct event_combo_info {
 	struct pevent		*pevent;
 	GtkWidget		*event_combo;
+	GtkWidget		*op_combo;
 	GtkWidget		*field_combo;
 };
 
@@ -140,6 +141,28 @@ static GtkTreeModel *create_event_combo_model(struct pevent *pevent)
 	}
 
 	return GTK_TREE_MODEL(tree);
+}
+
+static GtkTreeModel *create_op_combo_model(struct pevent *pevent)
+{
+	GtkListStore *list;
+	GtkTreeIter iter;
+	int i;
+	const gchar *ops[] = {":", ",", "==", "!=", "<", ">", "<=",
+			      ">=", "=~", "!~", "!", "(", ")", "+",
+			      "-", "*", "/", "<<", ">>", "&&", "||",
+			      "&", "|", NULL};
+
+	list = gtk_list_store_new(1, G_TYPE_STRING);
+
+	for (i = 0; ops[i]; i++) {
+		gtk_list_store_append(list, &iter);
+		gtk_list_store_set(list, &iter,
+				   0, ops[i],
+				   -1);
+	}
+
+	return GTK_TREE_MODEL(list);
 }
 
 static GtkTreeModel *create_field_combo_model(struct pevent *pevent)
@@ -320,6 +343,8 @@ static void insert_combo_text(struct event_combo_info *info,
 	pos = gtk_editable_get_position(GTK_EDITABLE(entry));
 	gtk_editable_insert_text(GTK_EDITABLE(entry), text, strlen(text), &pos);
 	gtk_editable_set_position(GTK_EDITABLE(entry), pos);
+	gtk_editable_insert_text(GTK_EDITABLE(entry), " ", 1, &pos);
+	gtk_editable_set_position(GTK_EDITABLE(entry), pos);
 
 	g_free(text);
 }
@@ -332,6 +357,14 @@ static void event_insert_pressed(GtkButton *button,
 	insert_combo_text(info, GTK_COMBO_BOX(info->event_combo));
 }
 
+static void op_insert_pressed(GtkButton *button,
+				 gpointer data)
+{
+	struct event_combo_info *info = data;
+
+	insert_combo_text(info, GTK_COMBO_BOX(info->op_combo));
+}
+
 static void field_insert_pressed(GtkButton *button,
 				 gpointer data)
 {
@@ -340,108 +373,83 @@ static void field_insert_pressed(GtkButton *button,
 	insert_combo_text(info, GTK_COMBO_BOX(info->field_combo));
 }
 
+static GtkWidget *
+create_combo_box(struct event_combo_info *info, GtkWidget *hbox, const gchar *text,
+		 GtkTreeModel *(*combo_model_create)(struct pevent *pevent),
+		 void (*insert_pressed)(GtkButton *button, gpointer data))
+{
+	GtkCellRenderer *renderer;
+	GtkTreeModel *model;
+	GtkWidget *label;
+	GtkWidget *hbox2;
+	GtkWidget *combo;
+	GtkWidget *button;
+
+	hbox2 = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), hbox2, TRUE, TRUE, 0);
+	gtk_widget_show(hbox2);
+
+	label = gtk_label_new(text);
+	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	/* --- Set up the selection combo box --- */
+
+	model = combo_model_create(info->pevent);
+
+	renderer = gtk_cell_renderer_text_new();
+
+	combo = gtk_combo_box_new_with_model(model);
+	gtk_box_pack_start(GTK_BOX(hbox2), combo, FALSE, FALSE, 0);
+	gtk_widget_show(combo);
+
+	/* Free model with combobox */
+	g_object_unref(model);
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo),
+				   renderer,
+				   TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo),
+				       renderer,
+				       "text", 0,
+				       NULL);
+
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+
+
+	/* --- add insert button --- */
+
+	button = gtk_button_new_with_label("Insert");
+	gtk_box_pack_start(GTK_BOX(hbox2), button, FALSE, FALSE, 0);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "pressed",
+			  G_CALLBACK (insert_pressed),
+			  (gpointer) info);
+
+	return combo;
+}
+
 static GtkWidget *event_info_box(struct event_combo_info *info)
 {
 	GtkWidget *hbox;
-	GtkWidget *hbox2;
-	GtkWidget *label;
-	GtkCellRenderer *renderer;
-	GtkTreeModel *model;
 	GtkWidget *event_combo;
+	GtkWidget *op_combo;
 	GtkWidget *field_combo;
-	GtkWidget *button;
 
 	hbox = gtk_hbox_new(FALSE, 0);
 
-	hbox2 = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hbox), hbox2, TRUE, TRUE, 0);
-	gtk_widget_show(hbox2);
+	event_combo = create_combo_box(info, hbox, "Event:",
+				       create_event_combo_model,
+				       event_insert_pressed);
 
+	op_combo = create_combo_box(info, hbox, "Op:",
+				    create_op_combo_model,
+				    op_insert_pressed);
 
-	label = gtk_label_new("Event:");
-	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-	gtk_widget_show(label);
-
-	/* --- Set up the event selection combo box --- */
-
-	model = create_event_combo_model(info->pevent);
-
-	renderer = gtk_cell_renderer_text_new();
-
-	event_combo = gtk_combo_box_new_with_model(model);
-	gtk_box_pack_start(GTK_BOX(hbox2), event_combo, FALSE, FALSE, 0);
-	gtk_widget_show(event_combo);
-
-	/* Free model with combobox */
-	g_object_unref(model);
-
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(event_combo),
-				   renderer,
-				   TRUE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(event_combo),
-				       renderer,
-				       "text", 0,
-				       NULL);
-
-	gtk_combo_box_set_active(GTK_COMBO_BOX(event_combo), 0);
-
-
-	/* --- add insert button --- */
-
-	button = gtk_button_new_with_label("Insert");
-	gtk_box_pack_start(GTK_BOX(hbox2), button, FALSE, FALSE, 0);
-	gtk_widget_show(button);
-
-
-	g_signal_connect (button, "pressed",
-			  G_CALLBACK (event_insert_pressed),
-			  (gpointer) info);
-
-
-	/* --- second hbox ---- */
-
-	hbox2 = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hbox), hbox2, TRUE, TRUE, 0);
-	gtk_widget_show(hbox2);
-
-	label = gtk_label_new("Field:");
-	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-	gtk_widget_show(label);
-
-
-	/* --- Set up the field selection combo box --- */
-
-	model = create_field_combo_model(info->pevent);
-
-	renderer = gtk_cell_renderer_text_new();
-
-	field_combo = gtk_combo_box_new_with_model(model);
-	gtk_box_pack_start(GTK_BOX(hbox2), field_combo, FALSE, FALSE, 0);
-	gtk_widget_show(field_combo);
-
-	/* Free model with combobox */
-	g_object_unref(model);
-
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(field_combo),
-				   renderer,
-				   TRUE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(field_combo),
-				       renderer,
-				       "text", 0,
-				       NULL);
-
-	gtk_combo_box_set_active(GTK_COMBO_BOX(field_combo), 0);
-
-
-	/* --- add insert button --- */
-
-	button = gtk_button_new_with_label("Insert");
-	gtk_box_pack_start(GTK_BOX(hbox2), button, FALSE, FALSE, 0);
-	gtk_widget_show(button);
-
-	g_signal_connect (button, "pressed",
-			  G_CALLBACK (field_insert_pressed),
-			  (gpointer) info);
+	field_combo = create_combo_box(info, hbox, "Field:",
+				       create_field_combo_model,
+				       field_insert_pressed);
 
 
 	g_signal_connect (event_combo, "changed",
@@ -449,6 +457,7 @@ static GtkWidget *event_info_box(struct event_combo_info *info)
 			  (gpointer) info);
 
 	info->event_combo = event_combo;
+	info->op_combo = op_combo;
 	info->field_combo = field_combo;
 
 	return hbox;
