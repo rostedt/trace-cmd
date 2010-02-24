@@ -127,6 +127,7 @@ extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus);
 struct tracecmd_output *tracecmd_create_file(const char *output_file,
 					     int cpus, char * const *cpu_data_files);
+struct tracecmd_output *tracecmd_create_init_fd(int fd, int cpus);
 void tracecmd_output_close(struct tracecmd_output *handle);
 struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);
@@ -137,6 +138,7 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder);
 struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu);
+struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu);
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
 void tracecmd_stat_cpu(struct trace_seq *s, int cpu);

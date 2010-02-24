@@ -520,8 +520,8 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	return 0;
 }
 
-static struct tracecmd_output *create_file(const char *output_file, int cpus,
-					   struct tracecmd_input *ihandle)
+static struct tracecmd_output *
+create_file_fd(int fd, int cpus, struct tracecmd_input *ihandle)
 {
 	struct tracecmd_output *handle;
 	unsigned long long endian8;
@@ -539,9 +539,7 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 		return NULL;
 	memset(handle, 0, sizeof(*handle));
 
-	handle->fd = open(output_file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (handle->fd < 0)
-		goto out_free;
+	handle->fd = fd;
 
 	buf[0] = 23;
 	buf[1] = 8;
@@ -629,6 +627,25 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
  out_free:
 	tracecmd_output_close(handle);
 	return NULL;
+}
+
+static struct tracecmd_output *create_file(const char *output_file, int cpus,
+					   struct tracecmd_input *ihandle)
+{
+	struct tracecmd_output *handle;
+	int fd;
+
+	fd = open(output_file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+	if (fd < 0)
+		return NULL;
+
+	handle = create_file_fd(fd, cpus, ihandle);
+	if (!handle) {
+		close(fd);
+		unlink(output_file);
+	}
+
+	return handle;
 }
 
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus)
@@ -755,6 +772,18 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 		return NULL;
 
 	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0)
+		return NULL;
+
+	return handle;
+}
+
+struct tracecmd_output *
+tracecmd_create_init_fd(int fd, int cpus)
+{
+	struct tracecmd_output *handle;
+
+	handle = create_file_fd(fd, cpus, NULL);
+	if (!handle)
 		return NULL;
 
 	return handle;

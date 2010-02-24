@@ -56,7 +56,7 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 	free(recorder);
 }
 
-struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
+struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu)
 {
 	struct tracecmd_recorder *recorder;
 	char *tracing = NULL;
@@ -76,9 +76,7 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
 
 	recorder->page_size = getpagesize();
 
-	recorder->fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (recorder->fd < 0)
-		goto out_free;
+	recorder->fd = fd;
 
 	tracing = tracecmd_find_tracing_dir();
 	if (!tracing) {
@@ -110,6 +108,24 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
 
 	tracecmd_free_recorder(recorder);
 	return NULL;
+}
+
+struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
+{
+	struct tracecmd_recorder *recorder;
+	int fd;
+
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+	if (recorder->fd < 0)
+		return NULL;
+
+	recorder = tracecmd_create_recorder_fd(fd, cpu);
+	if (!recorder) {
+		close(fd);
+		unlink(file);
+	}
+
+	return recorder;
 }
 
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep)
