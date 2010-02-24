@@ -965,8 +965,10 @@ static int create_recorder(int cpu)
 
 	if (!recorder)
 		die ("can't create recorder");
-	while (!finished)
-		tracecmd_start_recording(recorder, sleep_time);
+	while (!finished) {
+		if (tracecmd_start_recording(recorder, sleep_time) < 0)
+			break;
+	}
 	tracecmd_free_recorder(recorder);
 
 	exit(0);
