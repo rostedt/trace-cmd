@@ -35,10 +35,14 @@
 
 #include "trace-local.h"
 
+#define MAX_OPTION_SIZE 4096
+
 static char *default_output_dir = ".";
 static char *output_dir;
 static char *default_output_file = "trace";
 static char *output_file;
+
+static int use_tcp;
 
 static int backlog = 5;
 
@@ -84,6 +88,16 @@ static int read_string(int fd, char *buf, size_t size)
 	return i;
 }
 
+static int process_option(char *option)
+{
+	/* currently the only option we have is to us TCP */
+	if (strcmp(option, "TCP") == 0) {
+		use_tcp = 1;
+		return 1;
+	}
+	return 0;
+}
+
 static int done;
 static void finish(int sig)
 {
@@ -97,6 +111,7 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	socklen_t peer_addr_len;
 	char buf[page_size];
 	char *tempfile;
+	int cfd;
 	int fd;
 	int n;
 	int once = 0;
@@ -108,13 +123,22 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	if (fd < 0)
 		die("creating %s", tempfile);
 
+	if (use_tcp) {
+		if (listen(sfd, backlog) < 0)
+			die("listen");
+		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
+		close(sfd);
+		sfd = cfd;
+	}
+
 	do {
 		peer_addr_len = sizeof(peer_addr);
 		/* TODO, make this copyless! */
 		n = read(sfd, buf, page_size);
 		if (!n)
 			break;
-		if (n < page_size && !once) {
+		/* UDP requires that we get the full size in one go */
+		if (!use_tcp && n < page_size && !once) {
 			once = 1;
 			warning("read %d bytes, expected %d", n, page_size);
 		}
@@ -142,7 +166,7 @@ static int open_udp(const char *node, const char *port, int *pid,
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = use_tcp ? SOCK_STREAM : SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
 
 	s = getaddrinfo(NULL, buf, &hints, &result);
@@ -187,15 +211,18 @@ static void process_client(const char *node, const char *port, int fd)
 {
 	char **temp_files;
 	char buf[BUFSIZ];
+	char *option;
 	int *port_array;
 	int *pid_array;
 	int pagesize;
 	int udp_port;
+	int options;
+	int size;
 	int cpus;
 	int cpu;
 	int pid;
 	int ofd;
-	int n, s, t;
+	int n, s, t, i;
 
 	/* Let the client know what we are */
 	write(fd, "tracecmd", 8);
@@ -223,6 +250,42 @@ static void process_client(const char *node, const char *port, int fd)
 	printf("pagesize=%d\n", pagesize);
 	if (pagesize <= 0)
 		return;
+
+	/* Now the number of options */
+	n = read_string(fd, buf, BUFSIZ);
+	if (n == BUFSIZ)
+		/** ERROR **/
+		return;
+
+	options = atoi(buf);
+
+	for (i = 0; i < options; i++) {
+		/* next is the size of the options */
+		n = read_string(fd, buf, BUFSIZ);
+		if (n == BUFSIZ)
+			/** ERROR **/
+			return;
+		size = atoi(buf);
+		/* prevent a client from killing us */
+		if (size > MAX_OPTION_SIZE)
+			return;
+		option = malloc_or_die(size);
+		do {
+			t = size;
+			s = 0;
+			s = read(fd, option+s, t);
+			if (s <= 0)
+				return;
+			t -= s;
+			s = size - t;
+		} while (t);
+
+		s = process_option(option);
+		free(option);
+		/* do we understand this option? */
+		if (!s)
+			return;
+	}
 
 	/* Create the client file */
 	snprintf(buf, BUFSIZ, "%s.%s:%s.dat", output_file, node, port);

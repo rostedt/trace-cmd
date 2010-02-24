@@ -50,6 +50,10 @@
 #define ITER_CTRL	"trace_options"
 #define MAX_LATENCY	"tracing_max_latency"
 
+#define UDP_MAX_PACKET (65536 - 20)
+
+static int use_tcp;
+
 static unsigned int page_size;
 
 static const char *output_file = "trace.dat";
@@ -912,11 +916,12 @@ static void connect_port(int cpu)
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = use_tcp ? SOCK_STREAM : SOCK_DGRAM;
 
 	s = getaddrinfo(host, buf, &hints, &results);
 	if (s != 0)
-		die("connecting to UDP server %s:%s", host, buf);
+		die("connecting to %s server %s:%s",
+		    use_tcp ? "TCP" : "UDP", host, buf);
 
 	for (rp = results; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
@@ -929,7 +934,8 @@ static void connect_port(int cpu)
 	}
 
 	if (rp == NULL)
-		die("Can not connect to UDP server %s:%s", host, buf);
+		die("Can not connect to %s server %s:%s",
+		    use_tcp ? "TCP" : "UDP", host, buf);
 
 	freeaddrinfo(results);
 
@@ -1046,6 +1052,28 @@ static void setup_network(void)
 
 	/* include \0 */
 	write(sfd, buf, strlen(buf)+1);
+
+	/*
+	 * If we are using IPV4 and our page size is greater than
+	 * or equal to 64K, we need to punt and use TCP. :-(
+	 */
+
+	/* TODO, test for ipv4 */
+	if (page_size >= UDP_MAX_PACKET) {
+		warning("page size too big for UDP using TCP in live read");
+		use_tcp = 1;
+	}
+
+	if (use_tcp) {
+		/* Send one option */
+		write(sfd, "1", 2);
+		/* Size 4 */
+		write(sfd, "4", 2);
+		/* use TCP */
+		write(sfd, "TCP", 4);
+	} else
+		/* No options */
+		write(sfd, "0", 2);
 
 	client_ports = malloc_or_die(sizeof(int) * cpu_count);
 
