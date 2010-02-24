@@ -112,10 +112,6 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 		peer_addr_len = sizeof(peer_addr);
 		/* TODO, make this copyless! */
 		n = read(sfd, buf, page_size);
-#if 0
-		n = recvfrom(sfd, buf, page_size, 0,
-			     (struct sockaddr *)&peer_addr, &peer_addr_len);
-#endif
 		if (!n)
 			break;
 		if (n < page_size && !once) {
