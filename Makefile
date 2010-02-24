@@ -140,7 +140,7 @@ endef
 	$(Q)$(call check_gui)
 
 
-TRACE_CMD_OBJS = trace-cmd.o trace-read.o trace-split.o
+TRACE_CMD_OBJS = trace-cmd.o trace-read.o trace-split.o trace-listen.o
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
 	trace-hash.o
 TRACE_GRAPH_OBJS = trace-graph.o trace-compat.o trace-hash.o trace-filter.o \

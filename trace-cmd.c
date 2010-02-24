@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -48,7 +50,7 @@
 #define ITER_CTRL	"trace_options"
 #define MAX_LATENCY	"tracing_max_latency"
 
-unsigned int page_size;
+static unsigned int page_size;
 
 static const char *output_file = "trace.dat";
 
@@ -56,6 +58,10 @@ static int latency;
 static int sleep_time = 1000;
 static int cpu_count;
 static int *pids;
+
+static char *host;
+static int *client_ports;
+static int sfd;
 
 static int filter_task;
 static int filter_pid = -1;
@@ -116,7 +122,7 @@ static void kill_threads(void)
 {
 	int i;
 
-	if (!cpu_count)
+	if (!cpu_count || !pids)
 		return;
 
 	for (i = 0; i < cpu_count; i++) {
@@ -895,6 +901,41 @@ static void flush(int sig)
 		tracecmd_stop_recording(recorder);
 }
 
+static void connect_port(int cpu)
+{
+	struct addrinfo hints;
+	struct addrinfo *results, *rp;
+	int s;
+	char buf[BUFSIZ];
+
+	snprintf(buf, BUFSIZ, "%d", client_ports[cpu]);
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+
+	s = getaddrinfo(host, buf, &hints, &results);
+	if (s != 0)
+		die("connecting to UDP server %s:%s", host, buf);
+
+	for (rp = results; rp != NULL; rp = rp->ai_next) {
+		sfd = socket(rp->ai_family, rp->ai_socktype,
+			     rp->ai_protocol);
+		if (sfd == -1)
+			continue;
+		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != 1)
+			break;
+		close(sfd);
+	}
+
+	if (rp == NULL)
+		die("Can not connect to UDP server %s:%s", host, buf);
+
+	freeaddrinfo(results);
+
+	client_ports[cpu] = sfd;
+}
+
 static int create_recorder(int cpu)
 {
 	char *file;
@@ -913,10 +954,14 @@ static int create_recorder(int cpu)
 	/* do not kill tasks on error */
 	cpu_count = 0;
 
-	file = get_temp_file(cpu);
-
-	recorder = tracecmd_create_recorder(file, cpu);
-	put_temp_file(file);
+	if (client_ports) {
+		connect_port(cpu);
+		recorder = tracecmd_create_recorder_fd(client_ports[cpu], cpu);
+	} else {
+		file = get_temp_file(cpu);
+		recorder = tracecmd_create_recorder(file, cpu);
+		put_temp_file(file);
+	}
 
 	if (!recorder)
 		die ("can't create recorder");
@@ -927,17 +972,124 @@ static int create_recorder(int cpu)
 	exit(0);
 }
 
+static void setup_network(void)
+{
+	struct tracecmd_output *handle;
+	struct addrinfo hints;
+	struct addrinfo *result, *rp;
+	int sfd, s;
+	ssize_t n;
+	char buf[BUFSIZ];
+	char *server;
+	char *port;
+	char *p;
+	int cpu;
+	int i;
+
+	if (!strchr(host, ':')) {
+		server = strdup("localhost");
+		if (!server)
+			die("alloctating server");
+		port = host;
+		host = server;
+	} else {
+		host = strdup(host);
+		if (!host)
+			die("alloctating server");
+		server = strtok_r(host, ":", &p);
+		port = strtok_r(NULL, ":", &p);
+	}
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	s = getaddrinfo(server, port, &hints, &result);
+	if (s != 0)
+		die("getaddrinfo: %s", gai_strerror(s));
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		sfd = socket(rp->ai_family, rp->ai_socktype,
+			     rp->ai_protocol);
+		if (sfd == -1)
+			continue;
+
+		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
+			break;
+		close(sfd);
+	}
+
+	if (!rp)
+		die("Can not connect to %s:%d", server, port);
+
+	freeaddrinfo(result);
+
+	n = read(sfd, buf, 8);
+
+	/* Make sure the server is the tracecmd server */
+	if (memcmp(buf, "tracecmd", 8) != 0)
+		die("server not tracecmd server");
+
+	/* write the number of CPUs we have (in ASCII) */
+
+	sprintf(buf, "%d", cpu_count);
+
+	/* include \0 */
+	write(sfd, buf, strlen(buf)+1);
+
+	/* write the pagesize (in ASCII) */
+
+	page_size = getpagesize();
+	sprintf(buf, "%d", page_size);
+
+	/* include \0 */
+	write(sfd, buf, strlen(buf)+1);
+
+	client_ports = malloc_or_die(sizeof(int) * cpu_count);
+
+	/*
+	 * Now we will receive back a comma deliminated list
+	 * of client ports to connect to.
+	 */
+	for (cpu = 0; cpu < cpu_count; cpu++) {
+		for (i = 0; i < BUFSIZ; i++) {
+			n = read(sfd, buf+i, 1);
+			if (n != 1)
+				die("Error, reading server ports");
+			if (!buf[i] || buf[i] == ',')
+				break;
+		}
+		if (i == BUFSIZ)
+			die("read bad port number");
+		buf[i] = 0;
+		client_ports[cpu] = atoi(buf);
+	}
+
+	/* Now create the handle through this socket */
+	handle = tracecmd_create_init_fd(sfd, cpu_count);
+
+	/* OK, we are all set, let'r rip! */
+}
+
+static void finish_network(void)
+{
+	close(sfd);
+	free(host);
+}
+
 static void start_threads(void)
 {
 	int i;
 
 	cpu_count = count_cpus();
 
+	if (host)
+		setup_network();
+
 	/* make a thread for every CPU we have */
 	pids = malloc_or_die(sizeof(*pids) * cpu_count);
 
 	memset(pids, 0, sizeof(*pids) * cpu_count);
-
 
 	for (i = 0; i < cpu_count; i++) {
 		pids[i] = create_recorder(i);
@@ -949,6 +1101,11 @@ static void record_data(void)
 	struct tracecmd_output *handle;
 	char **temp_files;
 	int i;
+
+	if (host) {
+		finish_network();
+		return;
+	}
 
 	if (latency)
 		handle = tracecmd_create_file_latency(output_file, cpu_count);
@@ -1066,7 +1223,7 @@ void usage(char **argv)
 	       "usage:\n"
 	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
 	       "           [-s usecs][-O option ][-l func][-g func][-n func]\n"
-	       "           [-P pid][command ...]\n"
+	       "           [-P pid][-N host:port][command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
@@ -1080,6 +1237,7 @@ void usage(char **argv)
 	       "          -o data output file [default trace.dat]\n"
 	       "          -O option to enable (or disable)\n"
 	       "          -s sleep interval between recording (in usecs) [default: 1000]\n"
+	       "          -N host:port to connect to (see listen)\n"
 	       "\n"
 	       " %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
 	       "          Uses same options as record, but does not run a command.\n"
@@ -1122,11 +1280,17 @@ void usage(char **argv)
 	       "                  if left out, will start at beginning of file\n"
 	       "          end   - decimal end time in seconds\n"
 	       "\n"
+	       " %s listen -p port[-D][-o file][-d dir]\n"
+	       "          Creates a socket to listen for clients.\n"
+	       "          -D create it in daemon mode.\n"
+	       "          -o file name to use for clients.\n"
+	       "          -d diretory to store client files.\n"
+	       "\n"
 	       " %s list [-e][-p]\n"
 	       "          -e list available events\n"
 	       "          -p list available plugins\n"
 	       "          -o list available options\n"
-	       "\n", p, VERSION_STRING, p, p, p, p, p, p, p, p);
+	       "\n", p, VERSION_STRING, p, p, p, p, p, p, p, p, p);
 	exit(-1);
 }
 
@@ -1159,6 +1323,9 @@ int main (int argc, char **argv)
 	if (strcmp(argv[1], "report") == 0) {
 		trace_report(argc, argv);
 		exit(0);
+	} else if (strcmp(argv[1], "listen") == 0) {
+		trace_listen(argc, argv);
+		exit(0);
 	} else if (strcmp(argv[1], "split") == 0) {
 		trace_split(argc, argv);
 		exit(0);
@@ -1166,7 +1333,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:N:")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1241,6 +1408,8 @@ int main (int argc, char **argv)
 				disable = 1;
 				break;
 			case 'o':
+				if (host)
+					die("-o incompatible with -N");
 				if (!record && !extract)
 					die("start does not take output\n"
 					    "Did you mean 'record'?");
@@ -1256,6 +1425,13 @@ int main (int argc, char **argv)
 				if (extract)
 					usage(argv);
 				sleep_time = atoi(optarg);
+				break;
+			case 'N':
+				if (!record)
+					die("-N only available with record");
+				if (output)
+					die("-N incompatible with -o");
+				host = optarg;
 				break;
 			}
 		}
