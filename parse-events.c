@@ -2937,7 +2937,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			f = pevent_find_any_field(event, arg->string.string);
 			arg->string.offset = f->offset;
 		}
-		str_offset = *(int *)(data + arg->string.offset);
+		str_offset = data2host4(pevent, data + arg->string.offset);
 		str_offset &= 0xffff;
 		trace_seq_puts(s, ((char *)data) + str_offset);
 		break;
