@@ -133,6 +133,8 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);
 int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			     int cpus, char * const *cpu_data_files);
+int tracecmd_attach_cpu_data(char *file, int cpus, char * const *cpu_data_files);
+int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files);
 
 /* --- Reading the Fly Recorder Trace --- */
 

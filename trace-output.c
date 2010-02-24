@@ -762,6 +762,63 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 	return -1;
 }
 
+int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
+{
+	struct tracecmd_input *ihandle;
+	struct tracecmd_output *handle;
+	struct pevent *pevent;
+	int ret = -1;
+
+	/* Move the file descriptor to the beginning */
+	if (lseek(fd, 0, SEEK_SET) == (off_t)-1)
+		return -1;
+
+	/* get a input handle from this */
+	ihandle = tracecmd_alloc_fd(fd);
+	if (!ihandle)
+		return -1;
+
+	/* move the file descriptor to the end */
+	if (lseek(fd, 0, SEEK_END) == (off_t)-1)
+		goto out_free;
+
+	/* create a partial output handle */
+
+	handle = malloc(sizeof(*handle));
+	if (!handle)
+		return -1;
+	memset(handle, 0, sizeof(*handle));
+
+	handle->fd = fd;
+
+	/* get endian and page size */
+	pevent = tracecmd_get_pevent(ihandle);
+	/* Use the pevent of the ihandle for later writes */
+	handle->pevent = tracecmd_get_pevent(ihandle);
+	pevent_ref(pevent);
+	handle->page_size = tracecmd_page_size(ihandle);
+
+	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0)
+		goto out_free;
+
+	ret = 0;
+	tracecmd_output_close(handle);
+ out_free:
+	tracecmd_close(ihandle);
+	return ret;
+}
+
+int tracecmd_attach_cpu_data(char *file, int cpus, char * const *cpu_data_files)
+{
+	int fd;
+
+	fd = open(file, O_RDWR);
+	if (fd < 0)
+		return -1;
+
+	return tracecmd_attach_cpu_data_fd(fd, cpus, cpu_data_files);
+}
+
 struct tracecmd_output *tracecmd_create_file(const char *output_file,
 					     int cpus, char * const *cpu_data_files)
 {
