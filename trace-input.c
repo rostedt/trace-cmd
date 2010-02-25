@@ -1707,6 +1707,7 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	int i;
 
 	cpu_data->offset = cpu_data->file_offset;
 	cpu_data->size = cpu_data->file_size;
@@ -1724,9 +1725,16 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 		perror("mmap");
 		fprintf(stderr, "Can not mmap file, will read instead\n");
 
-		if (cpu)
-			/* Other CPUs worked! bail */
-			return -1;
+		if (cpu) {
+			/*
+			 * If the other CPUs had size and was able to mmap
+			 * then bail.
+			 */
+			for (i = 0; i < cpu; i++) {
+				if (handle->cpu_data[i].size)
+					return -1;
+			}
+		}
 
 		/* try again without mmapping, just read it directly */
 		handle->read_page = 1;
