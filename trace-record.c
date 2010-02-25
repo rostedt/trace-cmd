@@ -116,7 +116,7 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
 	int fd;
 
 	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (recorder->fd < 0)
+	if (fd < 0)
 		return NULL;
 
 	recorder = tracecmd_create_recorder_fd(fd, cpu);
