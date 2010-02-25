@@ -56,6 +56,8 @@ static int use_tcp;
 
 static unsigned int page_size;
 
+static int buffer_size;
+
 static const char *output_file = "trace.dat";
 
 static int latency;
@@ -1239,6 +1241,32 @@ static void add_func(struct func_list **list, const char *func)
 	*list = item;
 }
 
+void set_buffer_size(void)
+{
+	char buf[BUFSIZ];
+	char *path;
+	int ret;
+	int fd;
+
+	if (!buffer_size)
+		return;
+
+	if (buffer_size < 0)
+		die("buffer size must be positive");
+
+	snprintf(buf, BUFSIZ, "%d", buffer_size);
+
+	path = get_tracing_file("buffer_size_kb");
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		die("can't open %s", path);
+
+	ret = write(fd, buf, strlen(buf));
+	if (ret < 0)
+		warning("Can't write to %s", path);
+	close(fd);
+}
+
 void usage(char **argv)
 {
 	char *arg = argv[0];
@@ -1253,7 +1281,7 @@ void usage(char **argv)
 	       "usage:\n"
 	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
 	       "           [-s usecs][-O option ][-l func][-g func][-n func]\n"
-	       "           [-P pid][-N host:port][-t][command ...]\n"
+	       "           [-P pid][-N host:port][-t][-b size][command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
@@ -1269,6 +1297,7 @@ void usage(char **argv)
 	       "          -s sleep interval between recording (in usecs) [default: 1000]\n"
 	       "          -N host:port to connect to (see listen)\n"
 	       "          -t used with -N, forces use of tcp in live trace\n"
+	       "          -b change kernel buffersize (in kilobytes per CPU)\n"
 	       "\n"
 	       " %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
 	       "          Uses same options as record, but does not run a command.\n"
@@ -1281,9 +1310,10 @@ void usage(char **argv)
 	       "          Stops the tracer from recording more data.\n"
 	       "          Used in conjunction with start\n"
 	       "\n"
-	       " %s reset\n"
+	       " %s reset [-b size]\n"
 	       "          Disables the tracer (may reset trace file)\n"
 	       "          Used in conjunction with start\n"
+	       "          -b change the kernel buffer size (in kilobytes per CPU)\n"
 	       "\n"
 	       " %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-E][-F filter][-v]\n"
 	       "          -i input file [default trace.dat]\n"
@@ -1364,7 +1394,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:N:t")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:N:tb:")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1467,6 +1497,9 @@ int main (int argc, char **argv)
 			case 't':
 				use_tcp = 1;
 				break;
+			case 'b':
+				buffer_size = atoi(optarg);
+				break;
 			}
 		}
 
@@ -1475,7 +1508,18 @@ int main (int argc, char **argv)
 		exit(0);
 
 	} else if (strcmp(argv[1], "reset") == 0) {
+		while ((c = getopt(argc-1, argv+1, "b:")) >= 0) {
+			switch (c) {
+			case 'b':
+				buffer_size = atoi(optarg);
+				/* Min buffer size is 1 */
+				if (strcmp(optarg, "0") == 0)
+					buffer_size = 1;
+				break;
+			}
+		}
 		disable_all();
+		set_buffer_size();
 		exit(0);
 
 	} else if (strcmp(argv[1], "list") == 0) {
@@ -1547,6 +1591,7 @@ int main (int argc, char **argv)
 
 		if (events)
 			enable_events();
+		set_buffer_size();
 	}
 
 	if (plugin) {
