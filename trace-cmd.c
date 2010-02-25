@@ -1253,7 +1253,7 @@ void usage(char **argv)
 	       "usage:\n"
 	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
 	       "           [-s usecs][-O option ][-l func][-g func][-n func]\n"
-	       "           [-P pid][-N host:port][command ...]\n"
+	       "           [-P pid][-N host:port][-t][command ...]\n"
 	       "          -e run command with event enabled\n"
 	       "          -f filter for previous -e event\n"
 	       "          -p run command with plugin enabled\n"
@@ -1268,6 +1268,7 @@ void usage(char **argv)
 	       "          -O option to enable (or disable)\n"
 	       "          -s sleep interval between recording (in usecs) [default: 1000]\n"
 	       "          -N host:port to connect to (see listen)\n"
+	       "          -t used with -N, forces use of tcp in live trace\n"
 	       "\n"
 	       " %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
 	       "          Uses same options as record, but does not run a command.\n"
@@ -1363,7 +1364,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:N:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:N:t")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1462,6 +1463,9 @@ int main (int argc, char **argv)
 				if (output)
 					die("-N incompatible with -o");
 				host = optarg;
+				break;
+			case 't':
+				use_tcp = 1;
 				break;
 			}
 		}
