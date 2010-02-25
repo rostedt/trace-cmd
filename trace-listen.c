@@ -126,15 +126,19 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	if (use_tcp) {
 		if (listen(sfd, backlog) < 0)
 			die("listen");
+		peer_addr_len = sizeof(peer_addr);
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
+		if (cfd < 0)
+			die("accept");
 		close(sfd);
 		sfd = cfd;
 	}
 
 	do {
-		peer_addr_len = sizeof(peer_addr);
 		/* TODO, make this copyless! */
 		n = read(sfd, buf, page_size);
+		if (n < 0)
+			die("reading client");
 		if (!n)
 			break;
 		/* UDP requires that we get the full size in one go */
@@ -286,6 +290,9 @@ static void process_client(const char *node, const char *port, int fd)
 		if (!s)
 			return;
 	}
+
+	if (use_tcp)
+		printf("Using TCP for live connection\n");
 
 	/* Create the client file */
 	snprintf(buf, BUFSIZ, "%s.%s:%s.dat", output_file, node, port);
