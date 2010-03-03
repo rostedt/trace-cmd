@@ -169,6 +169,10 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 	line = strtok_r(file, "\n", &next);
 	while (line) {
 		addr_str = strtok_r(line, ":", &fmt);
+		if (!addr_str) {
+			warning("printk format with empty entry");
+			break;
+		}
 		addr = strtoull(addr_str, NULL, 16);
 		/* fmt still has a space, skip it */
 		printk = strdup(fmt+1);
