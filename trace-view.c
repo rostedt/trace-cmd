@@ -525,10 +525,16 @@ void trace_view_cpu_filter_callback(gboolean accept,
 				    gpointer data)
 {
 	GtkTreeView *trace_tree = data;
+	TraceViewRecord *rec;
 	GtkTreeModel *model;
 	TraceViewStore *store;
+	guint64 time = 0;
+	gint selected_row;
 	gint cpus;
 	gint cpu;
+
+	if (!accept)
+		return;
 
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
@@ -536,11 +542,23 @@ void trace_view_cpu_filter_callback(gboolean accept,
 
 	store = TRACE_VIEW_STORE(model);
 
-	if (!accept)
-		return;
+	selected_row = trace_view_get_selected_row(GTK_WIDGET(trace_tree));
+	if (selected_row < 0)
+		selected_row = 0;
 
 	g_object_ref(store);
 	gtk_tree_view_set_model(trace_tree, NULL);
+
+	/*
+	 * If the selected row is not part of one of the CPUs
+	 * that are kept, then find one that is. Do nothing if
+	 * the first row is selected.
+	 */
+	if (selected_row) {
+		/* Save this timestamp */
+		rec = trace_view_store_get_visible_row(TRACE_VIEW_STORE(model), selected_row);
+		time = rec->timestamp;
+	}
 
 	if (all_cpus) {
 		trace_view_store_set_all_cpus(store);
@@ -559,6 +577,14 @@ void trace_view_cpu_filter_callback(gboolean accept,
  set_model:
 	gtk_tree_view_set_model(trace_tree, GTK_TREE_MODEL(store));
 	g_object_unref(store);
+
+	if (!time)
+		return;
+	/*
+	 * Try to select the row that was near the selection
+	 * before the change.
+	 */
+	trace_view_select(GTK_WIDGET(trace_tree), time);
 }
 
 static GtkTreeModel *create_col_model(GtkTreeView *treeview)
