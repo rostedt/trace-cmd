@@ -1,0 +1,54 @@
+TRACE-CMD-RESET(1)
+==================
+
+NAME
+----
+trace-cmd-reset - turn off all Ftrace tracing to bring back full performance
+
+SYNOPSIS
+--------
+*trace-cmd reset* ['OPTIONS']
+
+DESCRIPTION
+-----------
+The trace-cmd(1) reset command turns off all tracing of Ftrace. This will
+bring back the performance of the system before tracing was enabled. This is
+necessary since 'trace-cmd-record(1)', 'trace-cmd-stop(1)' and
+'trace-cmd-extract(1)' do not disable the tracer, event after the data has
+been pulled from the buffers. The rational is that the user may want to
+manually enable the tracer with the Ftrace pseudo file sytem, or examine other
+parts of Ftrace to see what trace-cmd did. After the reset command happens,
+the data in the ring buffer, and the options that were used are all lost.
+
+OPTIONS
+-------
+*-b* 'buffer_size'::
+    When the kernel boots, the Ftrace ring buffer is of a miminal size (3
+    pages per CPU). The first time the tracer is used, the ring buffer size
+    expands to what it was set for (default 1.4 Megs per CPU).
+
+    If no more tracing is to be done, this option allows you to shrink the
+    ring buffer down to free up available memory.
+
+    trace-cmd reset -b 1
+
+
+SEE ALSO
+--------
+trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
+trace-cmd-stop(1), trace-cmd-extract(1), trace-cmd-split(1),
+trace-cmd-list(1), trace-cmd-listen(1)
+
+AUTHOR
+------
+Written by Steven Rostedt, <rostedt@goodmis.org>
+
+RESOURCES
+---------
+git://git.kernel.org/pub/scm/linux/kernel/git/rostedt/trace-cmd.git
+
+COPYING
+-------
+Copyright \(C) 2010 Red Hat, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).
+

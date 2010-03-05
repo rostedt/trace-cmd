@@ -1,0 +1,66 @@
+TRACE-CMD-EXTRACT(1)
+===================
+
+NAME
+----
+trace-cmd-extract - extract out the data from the Ftrace Linux tracer.
+
+SYNOPSIS
+--------
+*trace-cmd extract ['OPTIONS']*
+
+DESCRIPTION
+-----------
+The trace-cmd(1) extract is usually used after 'trace-cmd-start(1)' and
+'trace-cmd-stop(1)'. It can be used after the Ftrace tracer has been started
+manually through the Ftrace pseudo file system.
+
+The extract command creates a trace.dat file that can be used by
+'trace-cmd-report(1)' to read from. It reads the kernel internal ring buffer
+to produce the trace.dat file.
+
+OPTIONS
+-------
+*-p* 'plugin'::
+    Although *extract* does not start any traces, some of the plugins require
+    just reading the output in ASCII format. These are the latency tracers,
+    since the latency tracers have a separate internal buffer. The plugin
+    option is therefore only necessary for the 'wakeup', 'wakeup-rt',
+    'irqsoff', 'preemptoff' and 'preemptirqsoff' plugins.
+
+    With out this option, the extract command will extract from the internal
+    Ftrace buffers.
+
+*-O* 'option'::
+    If a latency tracer is being extracted, and the *-p* option is used, then
+    there are some Ftrace options that can change the format. This will update
+    those options before extracting.  To see the list of options see
+    'trace-cmd-list'. To enable an option, write its name, to disable the
+    option append the characters 'no' to it. For example: 'noprint-parent'
+    will disable the 'print-parent' option that prints the parent function in
+    printing a function event.
+
+*-o* 'outputfile'::
+    By default, the extract command will create a 'trace.dat' file. This
+    option will change where the file is written to.
+
+
+SEE ALSO
+--------
+trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
+trace-cmd-stop(1), trace-cmd-reset(1), trace-cmd-split(1),
+trace-cmd-list(1), trace-cmd-listen(1)
+
+AUTHOR
+------
+Written by Steven Rostedt, <rostedt@goodmis.org>
+
+RESOURCES
+---------
+git://git.kernel.org/pub/scm/linux/kernel/git/rostedt/trace-cmd.git
+
+COPYING
+-------
+Copyright \(C) 2010 Red Hat, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).
+
