@@ -302,6 +302,12 @@ force:
 TAGS:	force
 	find . -name '*.[ch]' | xargs etags
 
+doc:
+	$(MAKE) -C Documentation all
+
+doc_clean:
+	$(MAKE) -C Documentation clean
+
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
 
