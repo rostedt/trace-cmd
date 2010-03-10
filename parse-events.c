@@ -3958,8 +3958,8 @@ int pevent_register_event_handler(struct pevent *pevent,
 			return -1;
 	}
 
-	printf("overriding event (%d) %s:%s with new print handler\n",
-	       event->id, event->system, event->name);
+	pr_stat("overriding event (%d) %s:%s with new print handler\n",
+		event->id, event->system, event->name);
 
 	event->handler = func;
 	return 0;

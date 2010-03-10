@@ -85,6 +85,17 @@ void __weak warning(char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
+void __weak pr_stat(char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+
+	printf("\n");
+}
+
 void __weak *malloc_or_die(unsigned int size)
 {
 	void *data;
