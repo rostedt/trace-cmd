@@ -226,6 +226,20 @@ void warning(char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
+void pr_stat(char *fmt, ...)
+{
+	va_list ap;
+
+	if (silence_warnings)
+		return;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+
+	printf("\n");
+}
+
 void *malloc_or_die(unsigned int size)
 {
 	void *data;
