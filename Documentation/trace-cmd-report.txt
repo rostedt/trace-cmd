@@ -134,6 +134,9 @@ OPTIONS
     this option will report the latency between the time the task was first
     woken, and the time it was scheduled in.
 
+*-q*::
+    Quiet non critical warnings.
+
 EXAMPLES
 --------
 

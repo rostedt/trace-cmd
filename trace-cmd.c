@@ -52,6 +52,8 @@
 
 #define UDP_MAX_PACKET (65536 - 20)
 
+int silence_warnings;
+
 static int use_tcp;
 
 static unsigned int page_size;
@@ -208,6 +210,9 @@ void die(char *fmt, ...)
 void warning(char *fmt, ...)
 {
 	va_list ap;
+
+	if (silence_warnings)
+		return;
 
 	if (errno)
 		perror("trace-cmd");
