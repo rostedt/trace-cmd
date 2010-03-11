@@ -11,9 +11,21 @@ KS_EXTRAVERSION =
 # file format version
 FILE_VERSION = 5
 
+
 CC = gcc
 AR = ar
 EXT = -std=gnu99
+INSTALL = install
+
+prefix = $(HOME)
+bindir_relative = bin
+bindir = $(prefix)/$(bindir_relative)
+
+export prefix bindir
+
+# Shell quotes
+bindir_SQ = $(subst ','\'',$(bindir))
+bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
 
 MAKEFLAGS += --no-print-directory
 
@@ -176,7 +188,9 @@ TARGETS = $(CMD_TARGETS) $(GUI_TARGETS)
 #    If you want kernelshark, then do:  make gui
 ###
 
-all: $(CMD_TARGETS) show_gui_make
+all: all_cmd show_gui_make
+
+all_cmd: $(CMD_TARGETS)
 
 gui: $(CMD_TARGETS)
 	$(Q)$(MAKE) BUILDGUI=1 all_gui
@@ -301,6 +315,19 @@ force:
 
 TAGS:	force
 	find . -name '*.[ch]' | xargs etags
+
+install_cmd: all_cmd
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) trace-cmd '$(DESTDIR_SQ)$(bindir_SQ)'
+
+install: install_cmd
+	@echo "*** to install the gui, type \"make install_gui\" ***"
+
+install_gui: install_cmd gui
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) trace-view '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) trace-graph '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) kernelshark '$(DESTDIR_SQ)$(bindir_SQ)'
 
 doc:
 	$(MAKE) -C Documentation all
