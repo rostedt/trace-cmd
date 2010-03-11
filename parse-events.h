@@ -257,6 +257,7 @@ struct cmdline;
 struct cmdline_list;
 struct func_map;
 struct func_list;
+struct event_handler;
 
 struct pevent {
 	int ref_count;
@@ -313,6 +314,8 @@ struct pevent {
 	struct format_field *bprint_ip_field;
 	struct format_field *bprint_fmt_field;
 	struct format_field *bprint_buf_field;
+
+	struct event_handler *handlers;
 
 	/* cache */
 	struct event_format *last_event;

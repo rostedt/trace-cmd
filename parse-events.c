@@ -37,12 +37,28 @@ static const char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
 
+static int show_warning = 1;
+
+#define do_warning(fmt, ...)				\
+	do {						\
+		if (show_warning)			\
+			warning(fmt, ##__VA_ARGS__);	\
+	} while (0)
+
 static void init_input_buf(const char *buf, unsigned long long size)
 {
 	input_buf = buf;
 	input_buf_siz = size;
 	input_buf_ptr = 0;
 }
+
+struct event_handler {
+	struct event_handler		*next;
+	int				id;
+	const char			*sys_name;
+	const char			*event_name;
+	pevent_event_handler_func	func;
+};
 
 /**
  * pevent_buffer_init - init buffer for parsing
@@ -969,7 +985,7 @@ static enum event_type read_token_item(char **tok)
 static int test_type(enum event_type type, enum event_type expect)
 {
 	if (type != expect) {
-		warning("Error: expected type %d but read %d",
+		do_warning("Error: expected type %d but read %d",
 		    expect, type);
 		return -1;
 	}
@@ -980,13 +996,13 @@ static int test_type_token(enum event_type type, const char *token,
 		    enum event_type expect, const char *expect_tok)
 {
 	if (type != expect) {
-		warning("Error: expected type %d but read %d",
+		do_warning("Error: expected type %d but read %d",
 		    expect, type);
 		return -1;
 	}
 
 	if (strcmp(token, expect_tok) != 0) {
-		warning("Error: expected '%s' but read '%s'",
+		do_warning("Error: expected '%s' but read '%s'",
 		    expect_tok, token);
 		return -1;
 	}
@@ -1527,7 +1543,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		case '-':
 			break;
 		default:
-			warning("bad op token %s", token);
+			do_warning("bad op token %s", token);
 			goto out_free;
 
 		}
@@ -1620,7 +1636,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		type = process_array(event, arg, tok);
 
 	} else {
-		warning("unknown op '%s'", token);
+		do_warning("unknown op '%s'", token);
 		event->flags |= EVENT_FL_FAILED;
 		/* the arg is now the left side */
 		goto out_free;
@@ -1690,7 +1706,7 @@ eval_type_str(unsigned long long val, const char *type, int pointer)
 	if (pointer) {
 
 		if (type[len-1] != '*') {
-			warning("pointer expected with non pointer type");
+			do_warning("pointer expected with non pointer type");
 			return val;
 		}
 
@@ -2207,7 +2223,7 @@ process_function(struct event_format *event, struct print_arg *arg,
 		return process_dynamic_array(event, arg, tok);
 	}
 
-	warning("function %s not defined", token);
+	do_warning("function %s not defined", token);
 	free_token(token);
 	return EVENT_ERROR;
 }
@@ -3474,7 +3490,7 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 
 	event = pevent_find_event(pevent, type);
 	if (!event) {
-		warning("ug! no event found for type %d", type);
+		do_warning("ug! no event found for type %d", type);
 		return;
 	}
 
@@ -3611,7 +3627,7 @@ get_event_fields(const char *type, const char *name,
 	for (field = list; field; field = field->next) {
 		fields[i++] = field;
 		if (i == count + 1) {
-			warning("event %s has more %s fields than specified",
+			do_warning("event %s has more %s fields than specified",
 				name, type);
 			i--;
 			break;
@@ -3619,7 +3635,7 @@ get_event_fields(const char *type, const char *name,
 	}
 
 	if (i != count)
-		warning("event %s has less %s fields than specified",
+		do_warning("event %s has less %s fields than specified",
 			name, type);
 
 	fields[i] = NULL;
@@ -3832,6 +3848,56 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 	return 0;
 }
 
+static int event_matches(struct event_format *event,
+			 int id, const char *sys_name,
+			 const char *event_name)
+{
+	if (id >= 0 && id != event->id)
+		return 0;
+
+	if (event_name && (strcmp(event_name, event->name) != 0))
+		return 0;
+
+	if (sys_name && (strcmp(sys_name, event->system) != 0))
+		return 0;
+
+	return 1;
+}
+
+static void free_handler(struct event_handler *handle)
+{
+	free((void *)handle->sys_name);
+	free((void *)handle->event_name);
+	free(handle);
+}
+
+static int find_event_handle(struct pevent *pevent, struct event_format *event)
+{
+	struct event_handler *handle, **next;
+
+	for (next = &pevent->handlers; *next;
+	     next = &(*next)->next) {
+		handle = *next;
+		if (event_matches(event, handle->id,
+				  handle->sys_name,
+				  handle->event_name))
+			break;
+	}
+
+	if (!(*next))
+		return 0;
+
+	pr_stat("overriding event (%d) %s:%s with new print handler",
+		event->id, event->system, event->name);
+
+	event->handler = handle->func;
+
+	*next = handle->next;
+	free_handler(handle);
+
+	return 1;
+}
+
 /**
  * pevent_parse_event - parse the event format
  * @pevent: the handle to the pevent
@@ -3878,15 +3944,25 @@ int pevent_parse_event(struct pevent *pevent,
 
 	ret = event_read_format(event);
 	if (ret < 0) {
-		warning("failed to read event format for %s", event->name);
+		do_warning("failed to read event format for %s", event->name);
 		goto event_failed;
 	}
 
+	/*
+	 * If the event has an override, don't print warnings if the event
+	 * print format fails to parse.
+	 */
+	if (find_event_handle(pevent, event))
+		show_warning = 0;
+
 	ret = event_read_print(event);
 	if (ret < 0) {
-		warning("failed to read event print fmt for %s", event->name);
+		do_warning("failed to read event print fmt for %s",
+			   event->name);
+		show_warning = 1;
 		goto event_failed;
 	}
+	show_warning = 1;
 
 	add_event(pevent, event);
 
@@ -3942,27 +4018,43 @@ int pevent_register_event_handler(struct pevent *pevent,
 				  pevent_event_handler_func func)
 {
 	struct event_format *event;
+	struct event_handler *handle;
 
 	if (id >= 0) {
 		/* search by id */
 		event = pevent_find_event(pevent, id);
 		if (!event)
-			return -1;
+			goto not_found;
 		if (event_name && (strcmp(event_name, event->name) != 0))
-			return -1;
+			goto not_found;
 		if (sys_name && (strcmp(sys_name, event->system) != 0))
-			return -1;
+			goto not_found;
 	} else {
 		event = pevent_find_event_by_name(pevent, sys_name, event_name);
 		if (!event)
-			return -1;
+			goto not_found;
 	}
 
-	pr_stat("overriding event (%d) %s:%s with new print handler\n",
+	pr_stat("overriding event (%d) %s:%s with new print handler",
 		event->id, event->system, event->name);
 
 	event->handler = func;
 	return 0;
+
+ not_found:
+	/* Save for later use. */
+	handle = malloc_or_die(sizeof(*handle));
+	memset(handle, 0, sizeof(handle));
+	handle->id = id;
+	if (event_name)
+		handle->event_name = strdup(event_name);
+	if (sys_name)
+		handle->sys_name = strdup(sys_name);
+
+	handle->next = pevent->handlers;
+	pevent->handlers = handle;
+
+	return -1;
 }
 
 /**
@@ -4027,6 +4119,7 @@ void pevent_free(struct pevent *pevent)
 	struct cmdline_list *cmdlist = pevent->cmdlist, *cmdnext;
 	struct func_list *funclist = pevent->funclist, *funcnext;
 	struct printk_list *printklist = pevent->printklist, *printknext;
+	struct event_handler *handle;
 	int i;
 
 	pevent->ref_count--;
@@ -4077,6 +4170,12 @@ void pevent_free(struct pevent *pevent)
 
 	for (i = 0; i < pevent->nr_events; i++)
 		free_event(pevent->events[i]);
+
+	while (pevent->handlers) {
+		handle = pevent->handlers;
+		pevent->handlers = handle->next;
+		free_handler(handle);
+	}
 
 	free(pevent->events);
 	free(pevent->sort_events);
