@@ -451,7 +451,6 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
  */
 int tracecmd_read_headers(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = handle->pevent;
 	int ret;
 
 	ret = read_header_files(handle);
@@ -476,8 +475,6 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 
 	/* register default ftrace functions first */
 	tracecmd_ftrace_overrides(handle);
-
-	handle->plugin_list = tracecmd_load_plugins(pevent);
 
 	return 0;
 }
@@ -1895,6 +1892,8 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 	handle->pevent = pevent_alloc();
 	if (!handle->pevent)
 		goto failed_read;
+
+	handle->plugin_list = tracecmd_load_plugins(handle->pevent);
 
 	handle->pevent->file_bigendian = buf[0];
 	handle->pevent->host_bigendian = tracecmd_host_bigendian();
