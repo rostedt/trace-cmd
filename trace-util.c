@@ -227,7 +227,7 @@ load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
 	list->name = plugin;
 	plugin_list = list;
 
-	printf("registering plugin: %s\n", plugin);
+	pr_stat("registering plugin: %s", plugin);
 	ret = func(pevent);
 
 	return plugin_list;
