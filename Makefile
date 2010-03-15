@@ -356,7 +356,12 @@ show_gui_done:
 
 PHONY += show_gui_make
 
+tags:	force
+	$(RM) tags
+	find . -name '*.[ch]' | xargs ctags
+
 TAGS:	force
+	$(RM) TAGS
 	find . -name '*.[ch]' | xargs etags
 
 install_cmd: all_cmd
@@ -380,6 +385,7 @@ doc_clean:
 
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
+	$(RM) tags TAGS
 
 
 ##### PYTHON STUFF #####
