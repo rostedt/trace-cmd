@@ -20,7 +20,7 @@ end-time is needed, use 0.0 as the start-time.
 
 If start-time is left out, then the split will start at the beginning of the
 file. If end-time is left out, then split will continue to the end unless it
-meets one of the reqirements specified by the options.
+meets one of the requirements specified by the options.
 
 OPTIONS
 -------
@@ -66,7 +66,7 @@ OPTIONS
 
     trace-cmd split -r -e 10000
 
-    This will break up trace.dat into serval smaller files, each with at most
+    This will break up trace.dat into several smaller files, each with at most
     10,000 events in it.
 
 *-c*::

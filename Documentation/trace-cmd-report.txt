@@ -17,7 +17,7 @@ created by trace-cmd record.
 OPTIONS
 -------
 *-i* 'input-file'::
-    By default, trace-cmd report willl read the file 'trace.dat'. But the *-i*
+    By default, trace-cmd report will read the file 'trace.dat'. But the *-i*
     option open up the given 'input-file' instead. Note, the input file may
     also be specified as the last item on the command line.
 
@@ -126,7 +126,7 @@ OPTIONS
     that interrupts were disabled. The 'h' means that this was called inside
     an interrupt handler. The '1' is the preemption disabled (preempt_count)
     was set to one.  The two '.'s are "need_resched" flag and kernel lock
-    counter.  If the "need_resched" flag is set, then that charater would be a
+    counter.  If the "need_resched" flag is set, then that character would be a
     'N'.
 
 *-w*::
@@ -263,7 +263,7 @@ Average wakeup latency: 110.021 usecs
 The above version will only show the wakeups and context switches of Real Time
 tasks. The 'prio' used inside the kernel starts at 0 for highest priority.
 That is 'prio' 0 is equivalent to user space real time priority 99, and
-priority 98 is quivalent to user space real time priority 1.
+priority 98 is equivalent to user space real time priority 1.
 Prios less than 100 represent Real Time tasks.
 
 

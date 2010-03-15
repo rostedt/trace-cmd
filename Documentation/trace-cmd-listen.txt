@@ -20,7 +20,7 @@ PORT is the port that the remote host used to connect with.
 OPTIONS
 -------
 *-p* 'port'::
-    This option will specifies tha port to listen to.
+    This option will specify the port to listen to.
 
 *-D*::
     This options causes trace-cmd listen to go into a daemon mode and run in
@@ -30,7 +30,7 @@ OPTIONS
     This option specifies a directory to write the data files into.
 
 *-o* 'filename'::
-    This option overides the default 'trace' in the 'trace.HOST:PORT.dat' that
+    This option overrides the default 'trace' in the 'trace.HOST:PORT.dat' that
     is created when a remote host connects.
 
 

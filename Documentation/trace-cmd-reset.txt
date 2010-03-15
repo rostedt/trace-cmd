@@ -16,14 +16,14 @@ bring back the performance of the system before tracing was enabled. This is
 necessary since 'trace-cmd-record(1)', 'trace-cmd-stop(1)' and
 'trace-cmd-extract(1)' do not disable the tracer, event after the data has
 been pulled from the buffers. The rational is that the user may want to
-manually enable the tracer with the Ftrace pseudo file sytem, or examine other
+manually enable the tracer with the Ftrace pseudo file system, or examine other
 parts of Ftrace to see what trace-cmd did. After the reset command happens,
 the data in the ring buffer, and the options that were used are all lost.
 
 OPTIONS
 -------
 *-b* 'buffer_size'::
-    When the kernel boots, the Ftrace ring buffer is of a miminal size (3
+    When the kernel boots, the Ftrace ring buffer is of a minimal size (3
     pages per CPU). The first time the tracer is used, the ring buffer size
     expands to what it was set for (default 1.4 Megs per CPU).
 

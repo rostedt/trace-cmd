@@ -37,7 +37,7 @@ OPTIONS
     the Linux kernel. They are grouped by subsystem where you can enable all
     events of a given subsystem or specify specific events to be enabled. The
     'event' is of the format "subsystem:event-name". You can also just specify
-    the subsystem without the ':event-name' or the eventname without the
+    the subsystem without the ':event-name' or the event-name without the
     "subsystem:". Using "-e sched_switch" will enable the "sched_switch" event
     where as, "-e sched" will enable all events under the "sched" subsystem.
 
@@ -51,7 +51,7 @@ OPTIONS
     Specify a filter for the previous event. This must come after a *-e*. This
     will filter what events get recorded based on the content of the event.
     Filtering is passed to the kernel directly so what filtering is allowed
-    may depend on what verison of the kernel you have. Basically, it will
+    may depend on what version of the kernel you have. Basically, it will
     let you use C notation to check if an event should be processed or not.
 
 ----------------------------------------

@@ -12,7 +12,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 The trace-cmd(1) command interacts with the Ftrace tracer that is built inside
-the Linux kernel. It intefaces with the Ftrace specific files found in the
+the Linux kernel. It interfaces with the Ftrace specific files found in the
 debugfs file system under the tracing directory. A 'COMMAND' must be
 specified to tell trace-cmd what to do.
 
