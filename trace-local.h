@@ -31,6 +31,7 @@ typedef unsigned long long u64;
 void usage(char **argv);
 
 extern int silence_warnings;
+extern int show_status;
 
 struct tracecmd_input *read_trace_header(void);
 int read_trace_files(void);

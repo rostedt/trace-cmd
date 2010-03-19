@@ -576,7 +576,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPlEwF:vq",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPlEwF:Vvq",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -615,6 +615,9 @@ void trace_report (int argc, char **argv)
 			if (neg)
 				die("Only 1 -v can be used");
 			neg = 1;
+			break;
+		case 'V':
+			show_status = 1;
 			break;
 		case 'q':
 			silence_warnings = 1;

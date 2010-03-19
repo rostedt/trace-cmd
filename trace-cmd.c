@@ -53,6 +53,7 @@
 #define UDP_MAX_PACKET (65536 - 20)
 
 int silence_warnings;
+int show_status;
 
 static int use_tcp;
 
@@ -230,7 +231,7 @@ void pr_stat(char *fmt, ...)
 {
 	va_list ap;
 
-	if (silence_warnings)
+	if (!show_status)
 		return;
 
 	va_start(ap, fmt);
@@ -1334,7 +1335,7 @@ void usage(char **argv)
 	       "          Used in conjunction with start\n"
 	       "          -b change the kernel buffer size (in kilobytes per CPU)\n"
 	       "\n"
-	       " %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-E][-F filter][-v]\n"
+	       " %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-E][-F filter][-v][-V]\n"
 	       "          -i input file [default trace.dat]\n"
 	       "          -e show file endianess\n"
 	       "          -f show function list\n"
@@ -1342,6 +1343,7 @@ void usage(char **argv)
 	       "          -E show event files stored\n"
 	       "          -F filter to filter output on\n"
 	       "          -v will negate all -F after it (Not show matches)\n"
+	       "          -V verbose (shows plugins being loaded)\n"
 	       "          -w show wakeup latencies\n"
 	       "          -l show latency format (default with latency tracers)\n"
 	       "\n"

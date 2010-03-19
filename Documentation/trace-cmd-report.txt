@@ -109,6 +109,9 @@ OPTIONS
     Will not display any sched_switch events that have a prev_state of 0.
     Removing the *-v* will only print out those events.
 
+*-V*::
+    Show the plugins that are loaded.
+
 *-l*::
     This adds a "latency output" format. Information about interrupts being
     disabled, soft irq being disabled, the "need_resched" flag being set,
