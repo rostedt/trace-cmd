@@ -11,6 +11,7 @@ KS_EXTRAVERSION =
 # file format version
 FILE_VERSION = 5
 
+MAKEFLAGS += --no-print-directory
 
 CC = gcc
 AR = ar
@@ -21,13 +22,63 @@ prefix = $(HOME)
 bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 
+# copy a bit from Linux kbuild
+
+ifeq ("$(origin V)", "command line")
+  VERBOSE = $(V)
+endif
+ifndef VERBOSE
+  VERBOSE = 0
+endif
+
+ifeq ("$(origin O)", "command line")
+  BUILD_OUTPUT := $(O)
+endif
+
+ifeq ($(BUILD_SRC),)
+ifneq ($(BUILD_OUTPUT),)
+
+define build_output
+	$(if $(VERBOSE:1=),@)$(MAKE) -C $(BUILD_OUTPUT) 	\
+	BUILD_SRC=$(CURDIR) -f $(CURDIR)/Makefile $1
+endef
+
+saved-output := $(BUILD_OUTPUT)
+BUILD_OUTPUT := $(shell cd $(BUILD_OUTPUT) && /bin/pwd)
+$(if $(BUILD_OUTPUT),, \
+     $(error output directory "$(saved-output)" does not exist))
+
+all: sub-make
+
+gui: force
+	$(call build_output, all_cmd)
+	$(call build_output, BUILDGUI=1 all_gui)
+
+$(filter-out gui,$(MAKECMDGOALS)): sub-make
+
+sub-make: force
+	$(call build_output, $(MAKECMDGOALS))
+
+
+# Leave processing to above invocation of make
+skip-makefile := 1
+
+endif # BUILD_OUTPUT
+endif # BUILD_SRC
+
+# We process the rest of the Makefile if this is the final invocation of make
+ifeq ($(skip-makefile),)
+
+srctree		:= $(if $(BUILD_SRC),$(BUILD_SRC),$(CURDIR))
+objtree		:= $(CURDIR)
+src		:= $(srctree)
+obj		:= $(objtree)
+
 export prefix bindir
 
 # Shell quotes
 bindir_SQ = $(subst ','\'',$(bindir))
 bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
-
-MAKEFLAGS += --no-print-directory
 
 LIBS = -L. -ltracecmd -ldl
 LIB_FILE = libtracecmd.a
@@ -86,15 +137,6 @@ INCLUDES = -I. -I/usr/local/include $(CONFIG_INCLUDES)
 
 CFLAGS = -g -Wall $(CONFIG_FLAGS) $(INCLUDES)
 
-# copy a bit from Linux kbuild
-
-ifeq ("$(origin V)", "command line")
-  VERBOSE = $(V)
-endif
-ifndef VERBOSE
-  VERBOSE = 0
-endif
-
 ifeq ($(VERBOSE),1)
   Q =
   print_compile =
@@ -144,13 +186,15 @@ define check_gui
 		$(REBUILD_GUI);							\
 	else									\
 		$(print_compile)						\
-		$(CC) -c $(CFLAGS) $(EXT) $< -o $@;				\
+		$(CC) -c $(CFLAGS) $(EXT) $< -o $(obj)/$@;			\
 	fi;
 endef
 
-%.o: %.c
+$(obj)/%.o: $(src)/%.c
 	$(Q)$(call check_gui)
 
+%.o: $(src)/%.c
+	$(Q)$(call check_gui)
 
 TRACE_CMD_OBJS = trace-cmd.o trace-read.o trace-split.o trace-listen.o
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
@@ -224,7 +268,7 @@ libparsevent.so: $(PEVENT_LIB_OBJS)
 libparsevent.a: $(PEVENT_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
-$(TCMD_LIB_OBJS): %.o: %.c
+$(TCMD_LIB_OBJS): %.o: $(src)/%.c
 	$(Q)$(do_fpic_compile)
 
 libtracecmd.so: $(TCMD_LIB_OBJS)
@@ -233,7 +277,7 @@ libtracecmd.so: $(TCMD_LIB_OBJS)
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
-$(PLUGIN_OBJS): %.o : %.c
+$(PLUGIN_OBJS): %.o : $(src)/%.c
 	$(Q)$(do_compile_plugin_obj)
 
 $(PLUGINS): %.so: %.o
@@ -289,7 +333,7 @@ endef
 $(gui_deps): ks_version.h
 $(non_gui_deps): tc_version.h
 
-$(all_deps): .%.d: %.c
+$(all_deps): .%.d: $(src)/%.c
 	$(Q)$(call check_gui_deps)
 
 $(all_objs) : %.o : .%.d
@@ -310,8 +354,7 @@ show_gui_make:
 show_gui_done:
 	@echo "*** gui build complete ***"
 
-.PHONY: force show_gui_make
-force:
+PHONY += show_gui_make
 
 TAGS:	force
 	find . -name '*.[ch]' | xargs etags
@@ -354,8 +397,17 @@ ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	gcc -fpic -c  $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
 	$(CC) --shared $^ $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
 
-.PHONY: python
+PHONY += python
 python: ctracecmd.so
 
-.PHONY: python-gui
+PHONY += python-gui
 python-gui: ctracecmd.so ctracecmdgui.so 
+
+endif # skip-makefile
+
+PHONY += force
+force:
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable so we can use it in if_changed and friends.
+.PHONY: $(PHONY)
