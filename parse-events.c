@@ -3139,6 +3139,34 @@ get_bprint_format(void *data, int size __unused, struct event_format *event)
 	return format;
 }
 
+static void print_mac_arg(struct trace_seq *s, int mac, void *data,
+			  struct event_format *event, struct print_arg *arg)
+{
+	unsigned char *buf;
+	char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+
+	if (arg->type != PRINT_FIELD) {
+		trace_seq_printf(s, "ARG TYPE NOT FIELD BUT %d",
+				 arg->type);
+		return;
+	}
+
+	if (mac == 'm')
+		fmt = "%.2x%.2x%.2x%.2x%.2x%.2x";
+	if (!arg->field.field) {
+		arg->field.field =
+			pevent_find_any_field(event, arg->field.name);
+		if (!arg->field.field)
+			die("field %s not found", arg->field.name);
+	}
+	if (arg->field.field->size != 6) {
+		trace_seq_printf(s, "INVALIDMAC");
+		return;
+	}
+	buf = data + arg->field.field->offset;
+	trace_seq_printf(s, fmt, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+}
+
 static void pretty_print(struct trace_seq *s, void *data, int size, struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
@@ -3224,29 +3252,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 					ptr++;
 					show_func = *ptr;
 				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
-					unsigned char *buf;
-					char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
-
-					if (arg->type != PRINT_FIELD) {
-						trace_seq_printf(s, "ARG TYPE NOT FIELD BUT %d",
-								 arg->type);
-						break;
-					}
-
-					if (*(ptr+1) == 'm')
-						fmt = "%.2x%.2x%.2x%.2x%.2x%.2x";
-					if (!arg->field.field) {
-						arg->field.field =
-							pevent_find_any_field(event, arg->field.name);
-						if (!arg->field.field)
-							die("field %s not found", arg->field.name);
-					}
-					if (arg->field.field->size != 6) {
-						trace_seq_printf(s, "INVALIDMAC");
-						break;
-					}
-					buf = data + arg->field.field->offset;
-					trace_seq_printf(s, fmt, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+					print_mac_arg(s, *(ptr+1), data, event, arg);
 					ptr++;
 					break;
 				}
