@@ -3226,6 +3226,13 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
 					unsigned char *buf;
 					char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+
+					if (arg->type != PRINT_FIELD) {
+						trace_seq_printf(s, "ARG TYPE NOT FIELD BUT %d",
+								 arg->type);
+						break;
+					}
+
 					if (*(ptr+1) == 'm')
 						fmt = "%.2x%.2x%.2x%.2x%.2x%.2x";
 					if (!arg->field.field) {
