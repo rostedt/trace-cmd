@@ -1421,8 +1421,6 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 out_free:
 	free_token(*tok);
 	*tok = NULL;
-	free(right);
-	free(left);
 	free_arg(arg);
 	return EVENT_ERROR;
 }
