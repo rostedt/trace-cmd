@@ -100,7 +100,7 @@ endif
 
 ifeq ($(BUILDGUI), 1)
 
-CONFIG_INCLUDES = $(shell pkg-config --cflags $(PACKAGES))
+CONFIG_INCLUDES = $(shell pkg-config --cflags $(PACKAGES)) -I$(obj)
 
 CONFIG_FLAGS = -DBUILDGUI \
 	-DGTK_VERSION=$(shell pkg-config --modversion gtk+-2.0 | \
@@ -132,7 +132,7 @@ EXTRAVERSION	= $(TC_EXTRAVERSION)
 GUI		=
 GOBJ		= "    "$@
 
-REBUILD_GUI	= $(MAKE) BUILDGUI=1 $@
+REBUILD_GUI	= $(MAKE) -f $(src)/Makefile BUILDGUI=1 $@
 G		= $(REBUILD_GUI); /bin/true ||
 N		=
 endif
@@ -226,7 +226,7 @@ PLUGINS := $(PLUGIN_OBJS:.o=.so)
 ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) \
 	$(TRACE_GRAPH_MAIN_OBJS) $(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
 
-CMD_TARGETS = tc_version.h libparsevent.a $(LIB_FILE) trace-cmd  $(PLUGINS)
+CMD_TARGETS = trace_plugin_dir tc_version.h libparsevent.a $(LIB_FILE) trace-cmd  $(PLUGINS)
 
 GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
 
@@ -246,7 +246,7 @@ all: all_cmd show_gui_make
 all_cmd: $(CMD_TARGETS)
 
 gui: $(CMD_TARGETS)
-	$(Q)$(MAKE) BUILDGUI=1 all_gui
+	$(Q)$(MAKE) -f $(src)/Makefile BUILDGUI=1 all_gui
 
 all_gui: $(GUI_TARGETS) show_gui_done
 
@@ -331,7 +331,7 @@ define update_plugin_dir
 endef
 
 trace_plugin_dir: force
-	$(Q)$(G)$(call update_plugin_dir)
+	$(Q)$(N)$(call update_plugin_dir)
 
 ## make deps
 
@@ -413,7 +413,7 @@ doc_clean:
 
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
-	$(RM) tags TAGS
+	$(RM) tags TAGS trace_plugin_dir
 
 
 ##### PYTHON STUFF #####
