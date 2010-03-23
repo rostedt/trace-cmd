@@ -1747,6 +1747,36 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	return 0;
 }
 
+static int handle_options(struct tracecmd_input *handle)
+{
+	unsigned short option;
+	unsigned int size;
+	char *buf;
+
+	do {
+		if (do_read_check(handle, &option, 2))
+			return -1;
+
+		switch (option) {
+		case TRACECMD_OPTION_DONE:
+			break;
+		default:
+			warning("unknown option %d", option);
+			/* next 4 bytes is the size of the option */
+			if (do_read_check(handle, &size, 4))
+				return -1;
+			size = __data2host4(handle->pevent, size);
+			buf = malloc_or_die(size);
+			if (do_read_check(handle, buf, size))
+				return -1;
+			free(buf);
+			break;
+		}
+	} while (option != TRACECMD_OPTION_DONE);
+
+	return 0;
+}
+
 /**
  * tracecmd_init_data - prepare reading the data from trace.dat
  * @handle: input handle for the trace.dat file
@@ -1783,13 +1813,26 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	pevent_set_cpus(pevent, handle->cpus);
 	pevent_set_long_size(pevent, handle->long_size);
 
+	if (do_read_check(handle, buf, 10))
+		return -1;
+
+	/* check if this handles options */
+	if (strncmp(buf, "options", 7) == 0) {
+		if (handle_options(handle) < 0)
+			return -1;
+		if (do_read_check(handle, buf, 10))
+			return -1;
+	}
+
 	/*
 	 * Check if this is a latency report or not.
 	 */
-	if (do_read_check(handle, buf, 10))
-		return -1;
 	if (strncmp(buf, "latency", 7) == 0)
 		return 1;
+
+	/* We expect this to be flyrecord */
+	if (strncmp(buf, "flyrecord", 9) != 0)
+		return -1;
 
 	handle->cpu_data = malloc(sizeof(*handle->cpu_data) * handle->cpus);
 	if (!handle->cpu_data)

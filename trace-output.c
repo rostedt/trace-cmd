@@ -327,7 +327,7 @@ static int copy_event_system(struct tracecmd_output *handle, const char *sys)
 	endian4 = convert_endian_4(handle, count);
 	if (do_write_check(handle, &endian4, 4))
 		return -1;
-	
+
 	rewinddir(dir);
 	while ((dent = readdir(dir))) {
 		if (strcmp(dent->d_name, ".") == 0 ||
@@ -648,6 +648,26 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 	return handle;
 }
 
+static int add_options(struct tracecmd_output *handle)
+{
+	unsigned short option;
+
+	if (do_write_check(handle, "options  ", 10))
+		return -1;
+
+	/*
+	 * Right now we have no options, but this is where options
+	 * will be added in the future.
+	 */
+
+	option = TRACECMD_OPTION_DONE;
+
+	if (do_write_check(handle, &option, 2))
+		return -1;
+
+	return 0;
+}
+
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus)
 {
 	struct tracecmd_output *handle;
@@ -659,6 +679,9 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 
 	cpus = convert_endian_4(handle, cpus);
 	if (do_write_check(handle, &cpus, 4))
+		goto out_free;
+
+	if (add_options(handle) < 0)
 		goto out_free;
 
 	if (do_write_check(handle, "latency  ", 10))
@@ -695,6 +718,9 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 
 	endian4 = convert_endian_4(handle, cpus);
 	if (do_write_check(handle, &endian4, 4))
+		goto out_free;
+
+	if (add_options(handle) < 0)
 		goto out_free;
 
 	if (do_write_check(handle, "flyrecord", 10))

@@ -61,6 +61,10 @@ char *tracecmd_find_tracing_dir(void);
 
 /* --- Opening and Reading the trace.dat file --- */
 
+enum {
+	TRACECMD_OPTION_DONE,
+};
+
 struct tracecmd_input *tracecmd_alloc(const char *file);
 struct tracecmd_input *tracecmd_alloc_fd(int fd);
 struct tracecmd_input *tracecmd_open(const char *file);

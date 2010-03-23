@@ -9,7 +9,7 @@ KS_PATCHLEVEL = 2
 KS_EXTRAVERSION =
 
 # file format version
-FILE_VERSION = 5
+FILE_VERSION = 6
 
 MAKEFLAGS += --no-print-directory
 
