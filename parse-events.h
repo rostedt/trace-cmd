@@ -176,9 +176,11 @@ struct print_arg_op {
 	struct print_arg	*right;
 };
 
+struct pevent_function_handler;
+
 struct print_arg_func {
-	char			*name;
-	struct print_arg	*args;
+	struct pevent_function_handler	*func;
+	struct print_arg		*args;
 };
 
 enum print_arg_type {
@@ -191,6 +193,7 @@ enum print_arg_type {
 	PRINT_STRING,
 	PRINT_DYNAMIC_ARRAY,
 	PRINT_OP,
+	PRINT_FUNC,
 };
 
 struct print_arg {
@@ -251,6 +254,18 @@ enum event_type {
 	EVENT_ITEM,
 	EVENT_DQUOTE,
 	EVENT_SQUOTE,
+};
+
+typedef unsigned long long (*pevent_func_handler)(struct trace_seq *s,
+					     unsigned long long *args);
+
+enum pevent_func_arg_type {
+	PEVENT_FUNC_ARG_VOID,
+	PEVENT_FUNC_ARG_INT,
+	PEVENT_FUNC_ARG_LONG,
+	PEVENT_FUNC_ARG_STRING,
+	PEVENT_FUNC_ARG_PTR,
+	PEVENT_FUNC_ARG_MAX_TYPES
 };
 
 struct cmdline;
@@ -316,6 +331,7 @@ struct pevent {
 	struct format_field *bprint_buf_field;
 
 	struct event_handler *handlers;
+	struct pevent_function_handler *func_handlers;
 
 	/* cache */
 	struct event_format *last_event;
@@ -390,7 +406,7 @@ enum trace_flag_type {
 };
 
 int pevent_register_comm(struct pevent *pevent, char *comm, int pid);
-int pevent_register_function(struct pevent *pevetn, char *name,
+int pevent_register_function(struct pevent *pevent, char *name,
 			     unsigned long long addr, char *mod);
 int pevent_register_print_string(struct pevent *pevent, char *fmt,
 				 unsigned long long addr);
@@ -406,6 +422,10 @@ int pevent_parse_event(struct pevent *pevent, char *buf, unsigned long size, cha
 
 int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func);
+int pevent_register_print_function(struct pevent *pevent,
+				   pevent_func_handler func,
+				   enum pevent_func_arg_type ret_type,
+				   char *name, ...);
 
 struct format_field *pevent_find_common_field(struct event_format *event, const char *name);
 struct format_field *pevent_find_field(struct event_format *event, const char *name);

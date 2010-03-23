@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <errno.h>
 
@@ -59,6 +60,24 @@ struct event_handler {
 	const char			*event_name;
 	pevent_event_handler_func	func;
 };
+
+struct pevent_func_params {
+	struct pevent_func_params	*next;
+	enum pevent_func_arg_type	type;
+};
+
+struct pevent_function_handler {
+	struct pevent_function_handler	*next;
+	enum pevent_func_arg_type	ret_type;
+	char				*name;
+	pevent_func_handler		func;
+	struct pevent_func_params	*params;
+	int				nr_args;
+};
+
+static unsigned long long
+process_defined_func(struct trace_seq *s, void *data, int size,
+		     struct event_format *event, struct print_arg *arg);
 
 /**
  * pevent_buffer_init - init buffer for parsing
@@ -634,6 +653,8 @@ static void free_flag_sym(struct print_flag_sym *fsym)
 
 static void free_arg(struct print_arg *arg)
 {
+	struct print_arg *farg;
+
 	if (!arg)
 		return;
 
@@ -667,6 +688,14 @@ static void free_arg(struct print_arg *arg)
 		free(arg->op.op);
 		free_arg(arg->op.left);
 		free_arg(arg->op.right);
+		break;
+	case PRINT_FUNC:
+		while (arg->func.args) {
+			farg = arg->func.args;
+			arg->func.args = farg->next;
+			free_arg(farg);
+		}
+		break;
 
 	case PRINT_NULL:
 	default:
@@ -2201,10 +2230,66 @@ process_str(struct event_format *event __unused, struct print_arg *arg, char **t
 	return EVENT_ERROR;
 }
 
+static struct pevent_function_handler *
+find_func_handler(struct pevent *pevent, char *func_name)
+{
+	struct pevent_function_handler *func;
+
+	for (func = pevent->func_handlers; func; func = func->next) {
+		if (strcmp(func->name, func_name) == 0)
+			break;
+	}
+
+	return func;
+}
+
+static enum event_type
+process_func_handler(struct event_format *event, struct pevent_function_handler *func,
+		     struct print_arg *arg, char **tok)
+{
+	struct print_arg **next_arg;
+	struct print_arg *farg;
+	enum event_type type;
+	char *token;
+	char *test;
+	int i;
+
+	arg->type = PRINT_FUNC;
+	arg->func.func = func;
+
+	*tok = NULL;
+
+	next_arg = &(arg->func.args);
+	for (i = 0; i < func->nr_args; i++) {
+		farg = alloc_arg();
+		type = process_arg(event, farg, &token);
+		if (i < (func->nr_args - 1))
+			test = ",";
+		else
+			test = ")";
+
+		if (test_type_token(type, token, EVENT_DELIM, test)) {
+			free_arg(farg);
+			free_token(token);
+			return EVENT_ERROR;
+		}
+
+		*next_arg = farg;
+		next_arg = &(farg->next);
+	}
+
+	type = read_token(&token);
+	*tok = token;
+
+	return type;
+}
+
 static enum event_type
 process_function(struct event_format *event, struct print_arg *arg,
 		 char *token, char **tok)
 {
+	struct pevent_function_handler *func;
+
 	if (strcmp(token, "__print_flags") == 0) {
 		free_token(token);
 		return process_flags(event, arg, tok);
@@ -2220,6 +2305,12 @@ process_function(struct event_format *event, struct print_arg *arg,
 	if (strcmp(token, "__get_dynamic_array") == 0) {
 		free_token(token);
 		return process_dynamic_array(event, arg, tok);
+	}
+
+	func = find_func_handler(event->pevent, token);
+	if (func) {
+		free_token(token);
+		return process_func_handler(event, func, arg, tok);
 	}
 
 	do_warning("function %s not defined", token);
@@ -2717,7 +2808,11 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		return eval_type(val, arg, 0);
 	case PRINT_STRING:
 		return 0;
-		break;
+	case PRINT_FUNC: {
+		struct trace_seq s;
+		trace_seq_init(&s);
+		return process_defined_func(&s, data, size, event, arg);
+	}
 	case PRINT_OP:
 		if (strcmp(arg->op.op, "[") == 0) {
 			/*
@@ -2974,10 +3069,79 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		else
 			print_str_arg(s, data, size, event, arg->op.right->op.right);
 		break;
+	case PRINT_FUNC:
+		process_defined_func(s, data, size, event, arg);
+		break;
 	default:
 		/* well... */
 		break;
 	}
+}
+
+static unsigned long long
+process_defined_func(struct trace_seq *s, void *data, int size,
+		     struct event_format *event, struct print_arg *arg)
+{
+	struct pevent_function_handler *func_handle = arg->func.func;
+	struct pevent_func_params *param;
+	unsigned long long *args;
+	unsigned long long ret;
+	struct print_arg *farg;
+	struct trace_seq str;
+	struct save_str {
+		struct save_str *next;
+		char *str;
+	} *strings = NULL, *string;
+	int i;
+
+	if (!func_handle->nr_args) {
+		ret = (*func_handle->func)(s, NULL);
+		goto out;
+	}
+
+	farg = arg->func.args;
+	param = func_handle->params;
+
+	args = malloc_or_die(sizeof(*args) * func_handle->nr_args);
+	for (i = 0; i < func_handle->nr_args; i++) {
+		switch (param->type) {
+		case PEVENT_FUNC_ARG_INT:
+		case PEVENT_FUNC_ARG_LONG:
+		case PEVENT_FUNC_ARG_PTR:
+			args[i] = eval_num_arg(data, size, event, farg);
+			break;
+		case PEVENT_FUNC_ARG_STRING:
+			trace_seq_init(&str);
+			print_str_arg(&str, data, size, event, farg);
+			trace_seq_terminate(&str);
+			string = malloc_or_die(sizeof(*string));
+			string->next = strings;
+			string->str = strdup(str.buffer);
+			strings = string;
+			break;
+		default:
+			/*
+			 * Something went totally wrong, this is not
+			 * an input error, something in this code broke.
+			 */
+			die("Unexpected end of arguments\n");
+			break;
+		}
+		farg = farg->next;
+	}
+
+	ret = (*func_handle->func)(s, args);
+	free(args);
+	while (strings) {
+		string = strings;
+		strings = string->next;
+		free(string->str);
+		free(string);
+	}
+
+ out:
+	/* TBD : handle return type here */
+	return ret;
 }
 
 static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct event_format *event)
@@ -3143,11 +3307,16 @@ get_bprint_format(void *data, int size __unused, struct event_format *event)
 	return format;
 }
 
-static void print_mac_arg(struct trace_seq *s, int mac, void *data,
+static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 			  struct event_format *event, struct print_arg *arg)
 {
 	unsigned char *buf;
 	char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+
+	if (arg->type == PRINT_FUNC) {
+		process_defined_func(s, data, size, event, arg);
+		return;
+	}
 
 	if (arg->type != PRINT_FIELD) {
 		trace_seq_printf(s, "ARG TYPE NOT FIELD BUT %d",
@@ -3256,7 +3425,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 					ptr++;
 					show_func = *ptr;
 				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
-					print_mac_arg(s, *(ptr+1), data, event, arg);
+					print_mac_arg(s, *(ptr+1), data, size, event, arg);
 					ptr++;
 					break;
 				}
@@ -3972,6 +4141,8 @@ int pevent_parse_event(struct pevent *pevent,
 	if (find_event_handle(pevent, event))
 		show_warning = 0;
 
+	/* Add pevent to event so that function list can be referenced */
+	event->pevent = pevent;
 	ret = event_read_print(event);
 	if (ret < 0) {
 		do_warning("failed to read event print fmt for %s",
@@ -4011,6 +4182,94 @@ int pevent_parse_event(struct pevent *pevent,
 	event->flags |= EVENT_FL_FAILED;
 	/* still add it even if it failed */
 	add_event(pevent, event);
+	return -1;
+}
+
+static void free_func_handle(struct pevent_function_handler *func)
+{
+	struct pevent_func_params *params;
+
+	free(func->name);
+
+	while (func->params) {
+		params = func->params;
+		func->params = params->next;
+		free(params);
+	}
+
+	free(func);
+}
+
+/**
+ * pevent_register_print_function - register a helper function
+ * @pevent: the handle to the pevent
+ * @func: the function to process the helper function
+ * @name: the name of the helper function
+ * @parameters: A list of enum pevent_func_arg_type
+ *
+ * Some events may have helper functions in the print format arguments.
+ * This allows a plugin to dynmically create a way to process one
+ * of these functions.
+ *
+ * The @parameters is a variable list of pevent_func_arg_type enums that
+ * must end with PEVENT_FUNC_ARG_VOID.
+ */
+int pevent_register_print_function(struct pevent *pevent,
+				   pevent_func_handler func,
+				   enum pevent_func_arg_type ret_type,
+				   char *name, ...)
+{
+	struct pevent_function_handler *func_handle;
+	struct pevent_func_params **next_param;
+	struct pevent_func_params *param;
+	enum pevent_func_arg_type type;
+	va_list ap;
+
+	func_handle = find_func_handler(pevent, name);
+	if (func_handle) {
+		warning("function helper '%s' already defined", name);
+		return -1;
+	}
+
+	func_handle = malloc_or_die(sizeof(*func_handle));
+	memset(func_handle, 0, sizeof(*func_handle));
+
+	func_handle->ret_type = ret_type;
+	func_handle->name = strdup(name);
+	func_handle->func = func;
+	if (!func_handle->name)
+		die("Failed to allocate function name");
+
+	next_param = &(func_handle->params);
+	va_start(ap, name);
+	for (;;) {
+		type = va_arg(ap, enum pevent_func_arg_type);
+		if (type == PEVENT_FUNC_ARG_VOID)
+			break;
+
+		if (type < 0 || type >= PEVENT_FUNC_ARG_MAX_TYPES) {
+			warning("Invalid argument type %d", type);
+			goto out_free;
+		}
+
+		param = malloc_or_die(sizeof(*param));
+		param->type = type;
+		param->next = NULL;
+
+		*next_param = param;
+		next_param = &(param->next);
+
+		func_handle->nr_args++;
+	}
+	va_end(ap);
+
+	func_handle->next = pevent->func_handlers;
+	pevent->func_handlers = func_handle;
+
+	return 0;
+ out_free:
+	va_end(ap);
+	free_func_handle(func_handle);
 	return -1;
 }
 
