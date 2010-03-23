@@ -210,7 +210,7 @@ TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
 			trace-output.o trace-record.o
 
 PLUGIN_OBJS = plugin_hrtimer.o plugin_kmem.o plugin_sched_switch.o \
-	plugin_mac80211.o
+	plugin_mac80211.o plugin_jbd2.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
