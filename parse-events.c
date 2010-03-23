@@ -1419,6 +1419,8 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 	return type;
 
 out_free:
+	/* Top may point to itself */
+	top->op.right = NULL;
 	free_token(token);
 	free_arg(arg);
 	return EVENT_ERROR;
@@ -2333,6 +2335,11 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 		if (type == EVENT_OP) {
 			type = process_op(event, arg, &token);
 			free_token(token);
+			if (type == EVENT_ERROR) {
+				*list = NULL;
+				free_arg(arg);
+				return -1;
+			}
 			list = &arg->next;
 			continue;
 		}
