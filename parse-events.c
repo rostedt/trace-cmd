@@ -79,6 +79,8 @@ static unsigned long long
 process_defined_func(struct trace_seq *s, void *data, int size,
 		     struct event_format *event, struct print_arg *arg);
 
+static void free_func_handle(struct pevent_function_handler *func);
+
 /**
  * pevent_buffer_init - init buffer for parsing
  * @buf: buffer to parse
@@ -2254,6 +2256,22 @@ find_func_handler(struct pevent *pevent, char *func_name)
 	return func;
 }
 
+static void remove_func_handler(struct pevent *pevent, char *func_name)
+{
+	struct pevent_function_handler *func;
+	struct pevent_function_handler **next;
+
+	next = &pevent->func_handlers;
+	while ((func = *next)) {
+		if (strcmp(func->name, func_name) == 0) {
+			*next = func->next;
+			free_func_handle(func);
+			break;
+		}
+		next = &func->next;
+	}
+}
+
 static enum event_type
 process_func_handler(struct event_format *event, struct pevent_function_handler *func,
 		     struct print_arg *arg, char **tok)
@@ -4246,8 +4264,13 @@ int pevent_register_print_function(struct pevent *pevent,
 
 	func_handle = find_func_handler(pevent, name);
 	if (func_handle) {
-		warning("function helper '%s' already defined", name);
-		return -1;
+		/*
+		 * This is most like caused by the users own
+		 * plugins updating the function. This overrides the
+		 * system defaults.
+		 */
+		pr_stat("override of function helper '%s'", name);
+		remove_func_handler(pevent, name);
 	}
 
 	func_handle = malloc_or_die(sizeof(*func_handle));
