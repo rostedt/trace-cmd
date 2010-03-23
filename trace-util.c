@@ -32,7 +32,7 @@
 
 #include "trace-cmd.h"
 
-#define PLUGIN_DIR ".trace-cmd/plugins"
+#define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
 #define DEBUGFS_PATH "/sys/kernel/debug"
 
 #define __weak __attribute__((weak))
@@ -293,37 +293,24 @@ char *tracecmd_find_tracing_dir(void)
 	return tracing_dir;
 }
 
-struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
+static int load_plugins(struct pevent *pevent, struct plugin_list **list,
+			char *path)
 {
-	struct plugin_list *list = NULL;
 	struct dirent *dent;
 	struct stat st;
 	DIR *dir;
-	char *home;
-	char *path;
 	int ret;
-
-	home = getenv("HOME");
-
-	if (!home)
-		return NULL;
-
-	path = malloc_or_die(strlen(home) + strlen(PLUGIN_DIR) + 2);
-
-	strcpy(path, home);
-	strcat(path, "/");
-	strcat(path, PLUGIN_DIR);
 
 	ret = stat(path, &st);
 	if (ret < 0)
-		goto fail;
+		return -1;
 
 	if (!S_ISDIR(st.st_mode))
-		goto fail;
+		return -1;
 
 	dir = opendir(path);
 	if (!dir)
-		goto fail;
+		return -1;
 
 	while ((dent = readdir(dir))) {
 		const char *name = dent->d_name;
@@ -332,11 +319,39 @@ struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
 		    strcmp(name, "..") == 0)
 			continue;
 
-		list = load_plugin(pevent, list, path, name);
+		*list = load_plugin(pevent, *list, path, name);
 	}
 
 	closedir(dir);
- fail:
+
+	return 0;
+}
+
+struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
+{
+	struct plugin_list *list = NULL;
+	char *home;
+	char *path;
+
+/* If a system plugin directory was defined, check that first */
+#ifdef PLUGIN_DIR
+	load_plugins(pevent, &list, MAKE_STR(PLUGIN_DIR));
+#endif
+
+	/* Now let the home directory override the system defaults */
+	home = getenv("HOME");
+
+	if (!home)
+		return list;
+
+	path = malloc_or_die(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
+
+	strcpy(path, home);
+	strcat(path, "/");
+	strcat(path, LOCAL_PLUGIN_DIR);
+
+	load_plugins(pevent, &list, path);
+
 	free(path);
 
 	return list;

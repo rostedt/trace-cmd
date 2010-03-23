@@ -18,9 +18,17 @@ AR = ar
 EXT = -std=gnu99
 INSTALL = install
 
-prefix = $(HOME)
+prefix := $(HOME)
 bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
+
+ifeq ($(prefix),$(HOME))
+plugin_dir = $(HOME)/.trace-cmd/plugins
+else
+plugin_dir = $(prefix)/share/trace-cmd/plugins
+PLUGIN_DIR = -DPLUGIN_DIR=$(plugin_dir)
+PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
+endif
 
 # copy a bit from Linux kbuild
 
@@ -79,6 +87,7 @@ export prefix bindir
 # Shell quotes
 bindir_SQ = $(subst ','\'',$(bindir))
 bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
+plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
 LIBS = -L. -ltracecmd -ldl
 LIB_FILE = libtracecmd.a
@@ -135,7 +144,7 @@ KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 INCLUDES = -I. -I/usr/local/include $(CONFIG_INCLUDES)
 
-CFLAGS = -g -Wall $(CONFIG_FLAGS) $(INCLUDES)
+CFLAGS = -g -Wall $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
 
 ifeq ($(VERBOSE),1)
   Q =
@@ -277,6 +286,8 @@ libtracecmd.so: $(TCMD_LIB_OBJS)
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
+trace-util.o: trace_plugin_dir
+
 $(PLUGIN_OBJS): %.o : $(src)/%.c
 	$(Q)$(do_compile_plugin_obj)
 
@@ -308,6 +319,19 @@ ks_version.h: force
 
 tc_version.h: force
 	$(Q)$(N)$(call update_version.h)
+
+define update_plugin_dir
+	(echo 'PLUGIN_DIR=$(PLUGIN_DIR)' > $@.tmp;	\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then		\
+		rm -f $@.tmp;				\
+	else						\
+		echo '  UPDATE                 $@';	\
+		mv -f $@.tmp $@;			\
+	fi);
+endef
+
+trace_plugin_dir: force
+	$(Q)$(G)$(call update_plugin_dir)
 
 ## make deps
 
@@ -363,6 +387,10 @@ tags:	force
 TAGS:	force
 	$(RM) TAGS
 	find . -name '*.[ch]' | xargs etags
+
+install_plugins: $(PLUGINS)
+	$(INSTALL) -d -m 755  '$(plugin_dir_SQ)'
+	$(INSTALL) $^  '$(plugin_dir_SQ)'
 
 install_cmd: all_cmd
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
