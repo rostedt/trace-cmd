@@ -1419,6 +1419,9 @@ process_arg(struct event_format *event, struct print_arg *arg, char **tok)
 }
 
 static enum event_type
+process_op(struct event_format *event, struct print_arg *arg, char **tok);
+
+static enum event_type
 process_cond(struct event_format *event, struct print_arg *top, char **tok)
 {
 	struct print_arg *arg, *left, *right;
@@ -1435,6 +1438,14 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 
 	*tok = NULL;
 	type = process_arg(event, left, &token);
+
+ again:
+	/* Handle other operations in the arguments */
+	if (type == EVENT_OP && strcmp(token, ":") != 0) {
+		type = process_op(event, left, &token);
+		goto again;
+	}
+
 	if (test_type_token(type, token, EVENT_OP, ":"))
 		goto out_free;
 
@@ -1670,7 +1681,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		goto out_free;
 	}
 
-	if (type == EVENT_OP) {
+	if (type == EVENT_OP && strcmp(*tok, ":") != 0) {
 		int prio;
 
 		/* higher prios need to be closer to the root */
@@ -2859,6 +2870,14 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 						 data + offset, pevent->long_size);
 			if (typearg)
 				val = eval_type(val, typearg, 1);
+			break;
+		} else if (strcmp(arg->op.op, "?") == 0) {
+			left = eval_num_arg(data, size, event, arg->op.left);
+			arg = arg->op.right;
+			if (left)
+				val = eval_num_arg(data, size, event, arg->op.left);
+			else
+				val = eval_num_arg(data, size, event, arg->op.right);
 			break;
 		}
  default_op:
