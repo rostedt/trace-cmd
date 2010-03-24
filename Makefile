@@ -18,7 +18,7 @@ AR = ar
 EXT = -std=gnu99
 INSTALL = install
 
-prefix := $(HOME)
+prefix ?= /usr/local
 bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 
