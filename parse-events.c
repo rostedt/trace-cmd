@@ -4369,6 +4369,7 @@ int pevent_register_event_handler(struct pevent *pevent,
 	if (sys_name)
 		handle->sys_name = strdup(sys_name);
 
+	handle->func = func;
 	handle->next = pevent->handlers;
 	pevent->handlers = handle;
 
