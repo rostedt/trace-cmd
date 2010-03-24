@@ -17,3 +17,4 @@ ctracecmd_wrap.c
 ctracecmdgui_wrap.c
 tags
 TAGS
+trace_plugin_dir
