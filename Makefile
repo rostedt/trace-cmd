@@ -392,7 +392,7 @@ install_plugins: $(PLUGINS)
 	$(INSTALL) -d -m 755  '$(plugin_dir_SQ)'
 	$(INSTALL) $^  '$(plugin_dir_SQ)'
 
-install_cmd: all_cmd
+install_cmd: all_cmd install_plugins
 	$(INSTALL) -d -m 755 '$(bindir_SQ)'
 	$(INSTALL) trace-cmd '$(bindir_SQ)'
 
