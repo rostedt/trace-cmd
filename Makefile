@@ -393,17 +393,17 @@ install_plugins: $(PLUGINS)
 	$(INSTALL) $^  '$(plugin_dir_SQ)'
 
 install_cmd: all_cmd
-	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) trace-cmd '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) -d -m 755 '$(bindir_SQ)'
+	$(INSTALL) trace-cmd '$(bindir_SQ)'
 
 install: install_cmd
 	@echo "*** to install the gui, type \"make install_gui\" ***"
 
 install_gui: install_cmd gui
-	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) trace-view '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) trace-graph '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) kernelshark '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) -d -m 755 '$(bindir_SQ)'
+	$(INSTALL) trace-view '$(bindir_SQ)'
+	$(INSTALL) trace-graph '$(bindir_SQ)'
+	$(INSTALL) kernelshark '$(bindir_SQ)'
 
 doc:
 	$(MAKE) -C Documentation all
