@@ -1131,8 +1131,8 @@ static int event_read_id(void)
 static int field_is_string(struct format_field *field)
 {
 	if ((field->flags & FIELD_IS_ARRAY) &&
-	    (!strstr(field->type, "char") || !strstr(field->type, "u8") ||
-	     !strstr(field->type, "s8")))
+	    (strstr(field->type, "char") || strstr(field->type, "u8") ||
+	     strstr(field->type, "s8")))
 		return 1;
 
 	return 0;
@@ -1293,11 +1293,10 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 			free(brackets);
 		}
 
-		if (field_is_string(field)) {
+		if (field_is_string(field))
 			field->flags |= FIELD_IS_STRING;
-			if (field_is_dynamic(field))
-				field->flags |= FIELD_IS_DYNAMIC;
-		}
+		if (field_is_dynamic(field))
+			field->flags |= FIELD_IS_DYNAMIC;
 
 		if (test_type_token(type, token,  EVENT_OP, ";"))
 			goto fail;
