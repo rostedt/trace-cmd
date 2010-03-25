@@ -576,7 +576,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPlEwF:Vvq",
+		c = getopt_long (argc-1, argv+1, "+hi:fepPNLlEwF:Vvq",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -595,6 +595,12 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'P':
 			show_printk = 1;
+			break;
+		case 'L':
+			tracecmd_disable_sys_plugins = 1;
+			break;
+		case 'N':
+			tracecmd_disable_plugins = 1;
 			break;
 		case 'e':
 			show_endian = 1;

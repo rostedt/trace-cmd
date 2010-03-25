@@ -67,11 +67,13 @@ static struct usage_help usage_help[] = {
 	{
 		"report",
 		"read out the trace stored in a trace.dat file",
-		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-E][-F filter][-v][-V]\n"
+		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-E][-F filter][-v][-V]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
 		"          -f show function list\n"
 		"          -P show printk list\n"
+		"          -L load only local (~/.trace-cmd/plugins) plugins\n"
+		"          -N do not load any plugins\n"
 		"          -E show event files stored\n"
 		"          -F filter to filter output on\n"
 		"          -v will negate all -F after it (Not show matches)\n"

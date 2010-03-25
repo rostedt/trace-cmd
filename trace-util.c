@@ -35,6 +35,9 @@
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
 #define DEBUGFS_PATH "/sys/kernel/debug"
 
+int tracecmd_disable_sys_plugins;
+int tracecmd_disable_plugins;
+
 #define __weak __attribute__((weak))
 
 #define _STR(x) #x
@@ -333,9 +336,13 @@ struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
 	char *home;
 	char *path;
 
+	if (tracecmd_disable_plugins)
+		return NULL;
+
 /* If a system plugin directory was defined, check that first */
 #ifdef PLUGIN_DIR
-	load_plugins(pevent, &list, MAKE_STR(PLUGIN_DIR));
+	if (!tracecmd_disable_sys_plugins)
+		load_plugins(pevent, &list, MAKE_STR(PLUGIN_DIR));
 #endif
 
 	/* Now let the home directory override the system defaults */

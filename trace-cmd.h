@@ -28,6 +28,9 @@ void parse_cmdlines(struct pevent *pevent, char *file, int size);
 void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(char *file, unsigned int size);
 
+extern int tracecmd_disable_sys_plugins;
+extern int tracecmd_disable_plugins;
+
 struct plugin_list;
 struct plugin_list *tracecmd_load_plugins(struct pevent *pevent);
 void tracecmd_unload_plugins(struct plugin_list *list);
