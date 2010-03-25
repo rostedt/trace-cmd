@@ -17,7 +17,7 @@ static struct usage_help usage_help[] = {
 		"record",
 		"record a trace into a trace.dat file",
 		" %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
-		"           [-s usecs][-O option ][-l func][-g func][-n func]\n"
+		"           [-s usecs][-O option ][-l func][-g func][-n func] \\\n"
 		"           [-P pid][-N host:port][-t][-b size][command ...]\n"
 		"          -e run command with event enabled\n"
 		"          -f filter for previous -e event\n"
