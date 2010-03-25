@@ -37,7 +37,6 @@
 #include <glob.h>
 
 #include "trace-local.h"
-#include "version.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -1285,95 +1284,6 @@ void set_buffer_size(void)
 	if (ret < 0)
 		warning("Can't write to %s", path);
 	close(fd);
-}
-
-void usage(char **argv)
-{
-	char *arg = argv[0];
-	char *p = arg+strlen(arg);
-
-	while (p >= arg && *p != '/')
-		p--;
-	p++;
-
-	printf("\n"
-	       "%s version %s\n\n"
-	       "usage:\n"
-	       " %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
-	       "           [-s usecs][-O option ][-l func][-g func][-n func]\n"
-	       "           [-P pid][-N host:port][-t][-b size][command ...]\n"
-	       "          -e run command with event enabled\n"
-	       "          -f filter for previous -e event\n"
-	       "          -p run command with plugin enabled\n"
-	       "          -F filter only on the given process\n"
-	       "          -P trace the given pid like -F for the command\n"
-	       "          -l filter function name\n"
-	       "          -g set graph function\n"
-	       "          -n do not trace function\n"
-	       "          -v will negate all -e after it (disable those events)\n"
-	       "          -d disable function tracer when running\n"
-	       "          -o data output file [default trace.dat]\n"
-	       "          -O option to enable (or disable)\n"
-	       "          -s sleep interval between recording (in usecs) [default: 1000]\n"
-	       "          -N host:port to connect to (see listen)\n"
-	       "          -t used with -N, forces use of tcp in live trace\n"
-	       "          -b change kernel buffersize (in kilobytes per CPU)\n"
-	       "\n"
-	       " %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
-	       "          Uses same options as record, but does not run a command.\n"
-	       "          It only enables the tracing and exits\n"
-	       "\n"
-	       " %s extract [-p plugin][-O option][-o file]\n"
-	       "          Uses same options as record, but only reads an existing trace.\n"
-	       "\n"
-	       " %s stop\n"
-	       "          Stops the tracer from recording more data.\n"
-	       "          Used in conjunction with start\n"
-	       "\n"
-	       " %s reset [-b size]\n"
-	       "          Disables the tracer (may reset trace file)\n"
-	       "          Used in conjunction with start\n"
-	       "          -b change the kernel buffer size (in kilobytes per CPU)\n"
-	       "\n"
-	       " %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-E][-F filter][-v][-V]\n"
-	       "          -i input file [default trace.dat]\n"
-	       "          -e show file endianess\n"
-	       "          -f show function list\n"
-	       "          -P show printk list\n"
-	       "          -E show event files stored\n"
-	       "          -F filter to filter output on\n"
-	       "          -v will negate all -F after it (Not show matches)\n"
-	       "          -V verbose (shows plugins being loaded)\n"
-	       "          -w show wakeup latencies\n"
-	       "          -l show latency format (default with latency tracers)\n"
-	       "\n"
-	       " %s split [options] -o file [start [end]]\n"
-	       "          -o output file to write to (file.1, file.2, etc)\n"
-	       "          -s n  split file up by n seconds\n"
-	       "          -m n  split file up by n milliseconds\n"
-	       "          -u n  split file up by n microseconds\n"
-	       "          -e n  split file up by n events\n"
-	       "          -p n  split file up by n pages\n"
-	       "          -r    repeat from start to end\n"
-	       "          -c    per cpu, that is -p 2 will be 2 pages for each CPU\n"
-	       "          if option is specified, it will split the file\n"
-	       "           up starting at start, and ending at end\n"
-	       "          start - decimal start time in seconds (ex: 75678.923853)\n"
-	       "                  if left out, will start at beginning of file\n"
-	       "          end   - decimal end time in seconds\n"
-	       "\n"
-	       " %s listen -p port[-D][-o file][-d dir]\n"
-	       "          Creates a socket to listen for clients.\n"
-	       "          -D create it in daemon mode.\n"
-	       "          -o file name to use for clients.\n"
-	       "          -d diretory to store client files.\n"
-	       "\n"
-	       " %s list [-e][-p]\n"
-	       "          -e list available events\n"
-	       "          -p list available plugins\n"
-	       "          -o list available options\n"
-	       "\n", p, VERSION_STRING, p, p, p, p, p, p, p, p, p);
-	exit(-1);
 }
 
 int main (int argc, char **argv)
