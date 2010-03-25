@@ -373,10 +373,10 @@ ifneq ($(dep_includes),)
 endif
 
 show_gui_make:
-	@echo "*** to build the gui, type \"make gui\" ***"
+	@echo "Note: to build the gui, type \"make gui\""
 
 show_gui_done:
-	@echo "*** gui build complete ***"
+	@echo "gui build complete"
 
 PHONY += show_gui_make
 
@@ -397,7 +397,7 @@ install_cmd: all_cmd install_plugins
 	$(INSTALL) trace-cmd '$(bindir_SQ)'
 
 install: install_cmd
-	@echo "*** to install the gui, type \"make install_gui\" ***"
+	@echo "Note: to install the gui, type \"make install_gui\""
 
 install_gui: install_cmd gui
 	$(INSTALL) -d -m 755 '$(bindir_SQ)'

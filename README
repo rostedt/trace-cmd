@@ -9,3 +9,29 @@ These files also make up the code to create the libraries
 The applications are licensed under the GNU General Public License 2.0
 (see COPYING) and the libraries are licensed under the GNU
 Lesser General Public License 2.1 (See COPYING.LIB).
+
+BUILDING:
+
+To make trace-cmd
+    make
+
+To make the gui
+    make gui
+
+INSTALL:
+
+To install trace-cmd
+    make install
+
+To install the gui
+    make install_gui
+
+Note: The default install is relative to /usr/local
+    The default install directory is /usr/local/bin
+    The default plugin directory is /usr/local/share/trace-cmd/plugins
+
+To change the default, you can set 'prefix', eg
+mkdir $HOME/test-trace
+make prefix=$HOME/test-trace
+make prefix=$HOME/test-trace install
+
