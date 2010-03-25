@@ -1050,7 +1050,7 @@ static void setup_network(void)
 	}
 
 	if (!rp)
-		die("Can not connect to %s:%d", server, port);
+		die("Can not connect to %s:%s", server, port);
 
 	freeaddrinfo(result);
 
