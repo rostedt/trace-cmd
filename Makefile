@@ -114,6 +114,7 @@ EXTRAVERSION	= $(KS_EXTRAVERSION)
 
 GUI		= 'GUI '
 GOBJ		= $@
+GSPACE		=
 
 REBUILD_GUI	= /bin/true
 G		=
@@ -130,7 +131,8 @@ PATCHLEVEL	= $(TC_PATCHLEVEL)
 EXTRAVERSION	= $(TC_EXTRAVERSION)
 
 GUI		=
-GOBJ		= "    "$@
+GSPACE		= "    "
+GOBJ		= $(GSPACE)$@
 
 REBUILD_GUI	= $(MAKE) -f $(src)/Makefile BUILDGUI=1 $@
 G		= $(REBUILD_GUI); /bin/true ||
@@ -154,6 +156,7 @@ ifeq ($(VERBOSE),1)
   print_shared_lib_compile =
   print_plugin_obj_compile =
   print_plugin_build =
+  print_install =
 else
   Q = @
   print_compile =		echo '  $(GUI)COMPILE            '$(GOBJ);
@@ -163,6 +166,7 @@ else
   print_plugin_obj_compile =	echo '  $(GUI)COMPILE PLUGIN OBJ '$(GOBJ);
   print_plugin_build =		echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
   print_static_lib_build =	echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
+  print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	'$2;
 endif
 
 do_fpic_compile =					\
@@ -388,22 +392,31 @@ TAGS:	force
 	$(RM) TAGS
 	find . -name '*.[ch]' | xargs etags
 
-install_plugins: $(PLUGINS)
-	$(INSTALL) -d -m 755  '$(plugin_dir_SQ)'
-	$(INSTALL) $^  '$(plugin_dir_SQ)'
+PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
+
+define do_install
+	$(print_install)			\
+	if [ ! -d $2 ]; then 			\
+		$(INSTALL) -d -m 755 $2 ;	\
+	fi;					\
+	$(INSTALL) $1 $2;
+endef
+
+$(PLUGINS_INSTALL): %.install : %.so force
+	$(Q)$(call do_install, $<, '$(plugin_dir_SQ)')
+
+install_plugins: $(PLUGINS_INSTALL)
 
 install_cmd: all_cmd install_plugins
-	$(INSTALL) -d -m 755 '$(bindir_SQ)'
-	$(INSTALL) trace-cmd '$(bindir_SQ)'
+	$(Q)$(call do_install, trace-cmd, '$(bindir_SQ)')
 
 install: install_cmd
 	@echo "Note: to install the gui, type \"make install_gui\""
 
 install_gui: install_cmd gui
-	$(INSTALL) -d -m 755 '$(bindir_SQ)'
-	$(INSTALL) trace-view '$(bindir_SQ)'
-	$(INSTALL) trace-graph '$(bindir_SQ)'
-	$(INSTALL) kernelshark '$(bindir_SQ)'
+	$(Q)$(call do_install, trace-view, '$(bindir_SQ)')
+	$(Q)$(call do_install, trace-graph, '$(bindir_SQ)')
+	$(Q)$(call do_install, kernelshark, '$(bindir_SQ)')
 
 doc:
 	$(MAKE) -C Documentation all
