@@ -67,7 +67,8 @@ static struct usage_help usage_help[] = {
 	{
 		"report",
 		"read out the trace stored in a trace.dat file",
-		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-E][-F filter][-v][-V]\n"
+		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-r][-E]\\\n"
+		"           [-F filter][-v][-V]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
 		"          -f show function list\n"
@@ -76,6 +77,7 @@ static struct usage_help usage_help[] = {
 		"          -N do not load any plugins\n"
 		"          -E show event files stored\n"
 		"          -F filter to filter output on\n"
+		"          -r raw format: ignore print format and only show field data\n"
 		"          -v will negate all -F after it (Not show matches)\n"
 		"          -V verbose (shows plugins being loaded)\n"
 		"          -w show wakeup latencies\n"

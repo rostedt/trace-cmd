@@ -558,6 +558,7 @@ void trace_report (int argc, char **argv)
 	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
+	int raw = 0;
 	int neg = 0;
 	int c;
 
@@ -576,7 +577,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepPNLlEwF:Vvq",
+		c = getopt_long (argc-1, argv+1, "+hi:feprPNLlEwF:Vvq",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -610,6 +611,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'E':
 			show_events = 1;
+			break;
+		case 'r':
+			raw = 1;
 			break;
 		case 'w':
 			show_wakeup = 1;
@@ -668,6 +672,9 @@ void trace_report (int argc, char **argv)
 	}
 
 	pevent = tracecmd_get_pevent(handle);
+
+	if (raw)
+		pevent->print_raw = 1;
 
 	if (show_endian) {
 		printf("file is %s endian and host is %s endian\n",
