@@ -12,6 +12,16 @@ else
   print_xsltproc =		echo '      XSLTPROC            '`basename $@`;
 endif
 
+define manpage.xsl
+	if [ ! -f ${MANPAGE_DOCBOOK_XSL} ]; then 		\
+		echo "*********************************";	\
+		echo "** No docbook.xsl is installed **";	\
+		echo "** Can't make man pages        **";	\
+		echo "*********************************";	\
+		exit 1;						\
+	fi
+endef
+
 do_asciidoc_build =				\
 	($(print_asciidoc)			\
 	 asciidoc -d manpage -b docbook -o $@ $<)
@@ -26,12 +36,13 @@ do_xsltproc_build =				\
 #
 MANPAGE_DOCBOOK_XSL =  $(shell locate manpages/docbook.xsl | head -1)
 
-$(obj)/%.xml: $(src)/%.txt
+$(obj)/%.xsl: $(src)/%.txt
 	$(Q)mkdir -p $(obj)
 	$(Q)$(do_asciidoc_build)
 
 
-$(obj)/%.1: $(obj)/%.xml manpage.xsl
+$(obj)/%.1: $(obj)/%.xsl
+	@$(call manpage.xsl)
 	$(Q)$(do_xsltproc_build)
 
 TEXT = $(wildcard *.txt)
@@ -40,14 +51,7 @@ MAN = $(patsubst %.txt,$(obj)/%.1, ${TEXT})
 
 all: ${MAN}
 
-manpage.xsl:
-	@if [ ! -f ${MANPAGE_DOCBOOK_XSL} ]; then 		\
-		echo "*********************************";	\
-		echo "** No docbook.xsl is installed **";	\
-		echo "** Can't make man pages        **";	\
-		echo "*********************************";	\
-	fi
 
 clean:
 	(cd $(obj); \
-	 $(RM) *.xml *.1)
+	 $(RM) *.xml *.xsl *.1)
