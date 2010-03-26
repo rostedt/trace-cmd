@@ -107,6 +107,7 @@ enum format_flags {
 	FIELD_IS_SIGNED		= 4,
 	FIELD_IS_STRING		= 8,
 	FIELD_IS_DYNAMIC	= 16,
+	FIELD_IS_LONG		= 32,
 };
 
 struct format_field {

@@ -1146,6 +1146,15 @@ static int field_is_dynamic(struct format_field *field)
 	return 0;
 }
 
+static int field_is_long(struct format_field *field)
+{
+	/* includes long long */
+	if (strstr(field->type, "long"))
+		return 1;
+
+	return 0;
+}
+
 static int event_read_fields(struct event_format *event, struct format_field **fields)
 {
 	struct format_field *field = NULL;
@@ -1297,6 +1306,8 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 			field->flags |= FIELD_IS_STRING;
 		if (field_is_dynamic(field))
 			field->flags |= FIELD_IS_DYNAMIC;
+		if (field_is_long(field))
+			field->flags |= FIELD_IS_LONG;
 
 		if (test_type_token(type, token,  EVENT_OP, ";"))
 			goto fail;
@@ -3415,7 +3426,14 @@ static void print_event_fields(struct trace_seq *s, void *data, int size,
 			} else if (field->flags & FIELD_IS_SIGNED) {
 				switch (field->size) {
 				case 4:
-					trace_seq_printf(s, "%d", (int)val);
+					/*
+					 * If field is long then print it in hex.
+					 * A long usually stores pointers.
+					 */
+					if (field->flags & FIELD_IS_LONG)
+						trace_seq_printf(s, "0x%x", (int)val);
+					else
+						trace_seq_printf(s, "%d", (int)val);
 					break;
 				case 2:
 					trace_seq_printf(s, "%2d", (short)val);
@@ -3426,8 +3444,12 @@ static void print_event_fields(struct trace_seq *s, void *data, int size,
 				default:
 					trace_seq_printf(s, "%lld", val);
 				}
-			} else
-				trace_seq_printf(s, "%llu", val);
+			} else {
+				if (field->flags & FIELD_IS_LONG)
+					trace_seq_printf(s, "0x%llx", val);
+				else
+					trace_seq_printf(s, "%llu", val);
+			}
 		}
 		field = field->next;
 	}
