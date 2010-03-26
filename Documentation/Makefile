@@ -35,6 +35,14 @@ do_xsltproc_build =				\
 	 xsltproc --nonet -o $@ ${MANPAGE_DOCBOOK_XSL} $< $(hide_xsltproc_output))
 
 #
+# asciidoc requires a synopsis, but file format man pages (5) do
+# not require them. This removes it from the file in the final step.
+define remove_synopsis
+	(sed -e '/^\.SH "SYNOPSIS"/,/^\.sp/d' $1 > $1.tmp;\
+	 mv $1.tmp $1)
+endef
+
+#
 # Most likely a docbook.xsl is already installed on the users system
 # instead of creating a new wheel, lets reuse what's already there.
 #
@@ -49,10 +57,17 @@ $(obj)/%.1: $(obj)/%.1.xsl
 	@$(call manpage.xsl)
 	$(Q)$(do_xsltproc_build)
 
+$(obj)/%.5: $(obj)/%.5.xsl
+	@$(call manpage.xsl)
+	$(Q)$(do_xsltproc_build)
+	$(Q)$(call remove_synopsis, $@)
+
 TEXT1 = $(wildcard *.1.txt)
 MAN1 = $(patsubst %.1.txt,$(obj)/%.1, ${TEXT1})
+TEXT5 = $(wildcard *.5.txt)
+MAN5 = $(patsubst %.5.txt,$(obj)/%.5, ${TEXT5})
 
-all: $(MAN1)
+all: $(MAN1) $(MAN5)
 
 define do_install
 	$(print_install)			\
@@ -62,16 +77,19 @@ define do_install
 	$(INSTALL) $1 $2;
 endef
 
-MAN1_INSTALL = $(subst .1,.install,$(MAN1))
+MAN1_INSTALL = $(subst .1,.1.install,$(MAN1))
+MAN5_INSTALL = $(subst .5,.5.install,$(MAN5))
 
-$(MAN1_INSTALL): %.install : %.1 force
+$(MAN1_INSTALL): %.1.install : %.1 force
 	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man1')
+$(MAN5_INSTALL): %.5.install : %.5 force
+	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man5')
 
-install: $(MAN1_INSTALL)
+install: $(MAN1_INSTALL) $(MAN5_INSTALL)
 
 clean:
 	(cd $(obj); \
-	 $(RM) *.xml *.xsl *.1)
+	 $(RM) *.xml *.xsl *.1 *.5)
 
 .PHONE: force
 force:
