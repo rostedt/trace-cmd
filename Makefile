@@ -21,6 +21,10 @@ INSTALL = install
 prefix ?= /usr/local
 bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
+man_dir = $(prefix)/share/man
+man_dir_SQ = '$(subst ','\'',$(man_dir))'
+
+export man_dir man_dir_SQ INSTALL
 
 ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
@@ -423,6 +427,9 @@ doc:
 
 doc_clean:
 	$(MAKE) -C $(src)/Documentation clean
+
+install_doc:
+	$(MAKE) -C $(src)/Documentation install
 
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d

@@ -6,11 +6,13 @@ ifeq ($(VERBOSE),1)
   Q =
   print_asciidoc =
   print_xsltproc =
+  print_install =
   hide_xsltproc_output =
 else
   Q = @
   print_asciidoc =		echo '      ASCIIDOC            '`basename $@`;
   print_xsltproc =		echo '      XSLTPROC            '`basename $@`;
+  print_install =		echo '      INSTALL             '`basename $1`'	to	'$2;
   hide_xsltproc_output = 2> /dev/null
 endif
 
@@ -49,11 +51,29 @@ $(obj)/%.1: $(obj)/%.xsl
 
 TEXT = $(wildcard *.txt)
 XML = $(patsubst %.txt,$(obj)/%.xsl, ${TEXT})
-MAN = $(patsubst %.txt,$(obj)/%.1, ${TEXT})
+MAN1 = $(patsubst %.txt,$(obj)/%.1, ${TEXT})
 
-all: ${MAN}
+all: $(MAN1)
 
+
+define do_install
+	$(print_install)			\
+	if [ ! -d $2 ]; then 			\
+		$(INSTALL) -d -m 755 $2 ;	\
+	fi;					\
+	$(INSTALL) $1 $2;
+endef
+
+MAN1_INSTALL = $(subst .1,.install,$(MAN1))
+
+$(MAN1_INSTALL): %.install : %.1 force
+	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man1')
+
+install: $(MAN1_INSTALL)
 
 clean:
 	(cd $(obj); \
 	 $(RM) *.xml *.xsl *.1)
+
+.PHONE: force
+force:
