@@ -6,10 +6,12 @@ ifeq ($(VERBOSE),1)
   Q =
   print_asciidoc =
   print_xsltproc =
+  hide_xsltproc_output =
 else
   Q = @
   print_asciidoc =		echo '      ASCIIDOC            '`basename $@`;
   print_xsltproc =		echo '      XSLTPROC            '`basename $@`;
+  hide_xsltproc_output = 2> /dev/null
 endif
 
 define manpage.xsl
@@ -28,7 +30,7 @@ do_asciidoc_build =				\
 
 do_xsltproc_build =				\
 	($(print_xsltproc)			\
-	 xsltproc --nonet -o $@ ${MANPAGE_DOCBOOK_XSL} $<)
+	 xsltproc --nonet -o $@ ${MANPAGE_DOCBOOK_XSL} $< $(hide_xsltproc_output))
 
 #
 # Most likely a docbook.xsl is already installed on the users system
