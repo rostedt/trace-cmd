@@ -45,16 +45,14 @@ $(obj)/%.xsl: $(src)/%.txt
 	$(Q)$(do_asciidoc_build)
 
 
-$(obj)/%.1: $(obj)/%.xsl
+$(obj)/%.1: $(obj)/%.1.xsl
 	@$(call manpage.xsl)
 	$(Q)$(do_xsltproc_build)
 
-TEXT = $(wildcard *.txt)
-XML = $(patsubst %.txt,$(obj)/%.xsl, ${TEXT})
-MAN1 = $(patsubst %.txt,$(obj)/%.1, ${TEXT})
+TEXT1 = $(wildcard *.1.txt)
+MAN1 = $(patsubst %.1.txt,$(obj)/%.1, ${TEXT1})
 
 all: $(MAN1)
-
 
 define do_install
 	$(print_install)			\
