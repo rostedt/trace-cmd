@@ -112,6 +112,17 @@ OPTIONS
 *-V*::
     Show the plugins that are loaded.
 
+*-L*::
+    This will not load system wide plugins. It loads "local only". That is
+    what it finds in the ~/.trace-cmd/plugins directory.
+
+*-N*::
+    This will not load any plugins.
+
+*-r*::
+    This will show the events in "raw" format. That is, it will ignore the event's
+    print formatting and just print the contents of each field.
+
 *-l*::
     This adds a "latency output" format. Information about interrupts being
     disabled, soft irq being disabled, the "need_resched" flag being set,
