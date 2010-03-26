@@ -3737,11 +3737,16 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 {
 	int print_pretty = 1;
 
-	if (event->handler)
-		print_pretty = event->handler(s, record, event);
+	if (event->pevent->print_raw)
+		print_event_fields(s, record->data, record->size, event);
+	else {
 
-	if (print_pretty)
-		pretty_print(s, record->data, record->size, event);
+		if (event->handler)
+			print_pretty = event->handler(s, record, event);
+
+		if (print_pretty)
+			pretty_print(s, record->data, record->size, event);
+	}
 
 	trace_seq_terminate(s);
 }
@@ -3755,8 +3760,6 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	unsigned long usecs;
 	const char *comm;
 	void *data = record->data;
-	int size = record->size;
-	int print_pretty = 1;
 	int type;
 	int pid;
 	int len;
@@ -3789,14 +3792,8 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	len = strlen(event->name);
 	if (len < 20)
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
-	
-	if (event->handler)
-		print_pretty = event->handler(s, record, event);
 
-	if (print_pretty)
-		pretty_print(s, data, size, event);
-
-	trace_seq_terminate(s);
+	pevent_event_info(s, event, record);
 }
 
 static int events_id_cmp(const void *a, const void *b)

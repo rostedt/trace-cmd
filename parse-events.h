@@ -326,6 +326,8 @@ struct pevent {
 	int ld_offset;
 	int ld_size;
 
+	int print_raw;
+
 	struct format_field *bprint_ip_field;
 	struct format_field *bprint_fmt_field;
 	struct format_field *bprint_buf_field;
