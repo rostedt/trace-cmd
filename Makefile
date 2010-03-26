@@ -82,7 +82,7 @@ objtree		:= $(CURDIR)
 src		:= $(srctree)
 obj		:= $(objtree)
 
-export prefix bindir
+export prefix bindir src obj
 
 # Shell quotes
 bindir_SQ = $(subst ','\'',$(bindir))
@@ -419,10 +419,10 @@ install_gui: install_cmd gui
 	$(Q)$(call do_install, kernelshark, '$(bindir_SQ)')
 
 doc:
-	$(MAKE) -C Documentation all
+	$(MAKE) -C $(src)/Documentation all
 
 doc_clean:
-	$(MAKE) -C Documentation clean
+	$(MAKE) -C $(src)/Documentation clean
 
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d

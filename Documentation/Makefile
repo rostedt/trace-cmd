@@ -1,19 +1,23 @@
 
+obj := $(obj)/Documentation
+src := $(src)/Documentation
+
 #
 # Most likely a docbook.xsl is already installed on the users system
 # instead of creating a new wheel, lets reuse what's already there.
 #
 MANPAGE_DOCBOOK_XSL =  $(shell locate manpages/docbook.xsl | head -1)
 
-%.xml: %.txt
-	asciidoc -d manpage -b docbook $<
+$(obj)/%.xml: $(src)/%.txt
+	mkdir -p $(obj)
+	asciidoc -d manpage -b docbook -o $@ $<
 
-%.1: %.xml manpage.xsl
-	xsltproc --nonet ${MANPAGE_DOCBOOK_XSL} $< > $@
+$(obj)/%.1: $(obj)/%.xml manpage.xsl
+	xsltproc --nonet -o $@ ${MANPAGE_DOCBOOK_XSL} $<
 
 TEXT = $(wildcard *.txt)
-XML = $(patsubst %.txt,%.xsl, ${TEXT})
-MAN = $(patsubst %.txt,%.1, ${TEXT})
+XML = $(patsubst %.txt,$(obj)/%.xsl, ${TEXT})
+MAN = $(patsubst %.txt,$(obj)/%.1, ${TEXT})
 
 all: ${MAN}
 
@@ -26,4 +30,5 @@ manpage.xsl:
 	fi
 
 clean:
-	$(RM) *.xml *.1
+	(cd $(obj); \
+	 $(RM) *.xml *.1)
