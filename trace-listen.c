@@ -507,6 +507,9 @@ void trace_listen(int argc, char **argv)
 	if (!output_dir)
 		output_dir = default_output_dir;
 
+	if (chdir(output_dir) < 0)
+		die("Can't access directory %s", output_dir);
+
 	if (daemon)
 		start_daemon();
 
