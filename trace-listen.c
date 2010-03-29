@@ -494,6 +494,8 @@ static void do_listen(char *port)
 
 static void start_daemon(void)
 {
+	if (daemon(1, 0) < 0)
+		die("starting daemon");
 }
 
 void trace_listen(int argc, char **argv)
