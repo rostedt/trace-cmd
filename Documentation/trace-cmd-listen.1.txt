@@ -33,6 +33,9 @@ OPTIONS
     This option overrides the default 'trace' in the 'trace.HOST:PORT.dat' that
     is created when a remote host connects.
 
+*-l* 'filename'::
+    This option writes the output messages to a log file instead of standard output.
+
 
 SEE ALSO
 --------

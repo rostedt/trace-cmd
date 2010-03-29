@@ -104,11 +104,12 @@ static struct usage_help usage_help[] = {
 	{
 		"listen",
 		"listen on a network socket for trace clients",
-		" %s listen -p port[-D][-o file][-d dir]\n"
+		" %s listen -p port[-D][-o file][-d dir][-l logfile]\n"
 		"          Creates a socket to listen for clients.\n"
 		"          -D create it in daemon mode.\n"
 		"          -o file name to use for clients.\n"
 		"          -d diretory to store client files.\n"
+		"	   -l logfile to write messages to.\n"
 	},
 	{
 		"list",

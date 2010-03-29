@@ -43,6 +43,8 @@ static char *output_dir;
 static char *default_output_file = "trace";
 static char *output_file;
 
+static FILE *logfp;
+
 static int debug;
 
 static int use_tcp;
@@ -107,6 +109,51 @@ static void finish(int sig)
 	done = 1;
 }
 
+#define LOG_BUF_SIZE 1024
+static void __plog(const char *prefix, const char *fmt, va_list ap,
+		   FILE *fp)
+{
+	static int newline = 1;
+	char buf[LOG_BUF_SIZE];
+	int r;
+
+	r = vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
+
+	if (r > LOG_BUF_SIZE)
+		r = LOG_BUF_SIZE;
+
+	if (logfp) {
+		if (newline)
+			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
+		else
+			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
+		newline = buf[r - 1] == '\n';
+		fflush(logfp);
+		return;
+	}
+
+	fprintf(fp, "%.*s", r, buf);
+}
+
+static void plog(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	__plog("", fmt, ap, stdout);
+	va_end(ap);
+}
+
+static void pdie(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	__plog("Error: ", fmt, ap, stderr);
+	va_end(ap);
+	exit(-1);
+}
+
 static void process_udp_child(int sfd, const char *host, const char *port,
 			      int cpu, int page_size)
 {
@@ -124,15 +171,15 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	tempfile = get_temp_file(host, port, cpu);
 	fd = open(tempfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
 	if (fd < 0)
-		die("creating %s", tempfile);
+		pdie("creating %s", tempfile);
 
 	if (use_tcp) {
 		if (listen(sfd, backlog) < 0)
-			die("listen");
+			pdie("listen");
 		peer_addr_len = sizeof(peer_addr);
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
 		if (cfd < 0)
-			die("accept");
+			pdie("accept");
 		close(sfd);
 		sfd = cfd;
 	}
@@ -141,7 +188,7 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 		/* TODO, make this copyless! */
 		n = read(sfd, buf, page_size);
 		if (n < 0)
-			die("reading client");
+			pdie("reading client");
 		if (!n)
 			break;
 		/* UDP requires that we get the full size in one go */
@@ -178,7 +225,7 @@ static int open_udp(const char *node, const char *port, int *pid,
 
 	s = getaddrinfo(NULL, buf, &hints, &result);
 	if (s != 0)
-		die("getaddrinfo: error opening udp socket");
+		pdie("getaddrinfo: error opening udp socket");
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
@@ -195,7 +242,7 @@ static int open_udp(const char *node, const char *port, int *pid,
 	if (rp == NULL) {
 		freeaddrinfo(result);
 		if (++num_port > MAX_PORT_SEARCH)
-			die("No available ports to bind");
+			pdie("No available ports to bind");
 		goto again;
 	}
 
@@ -204,7 +251,7 @@ static int open_udp(const char *node, const char *port, int *pid,
 	*pid = fork();
 
 	if (*pid < 0)
-		die("creating udp reader");
+		pdie("creating udp reader");
 
 	if (!*pid)
 		process_udp_child(sfd, node, port, cpu, pagesize);
@@ -242,7 +289,7 @@ static void process_client(const char *node, const char *port, int fd)
 
 	cpus = atoi(buf);
 
-	printf("cpus=%d\n", cpus);
+	plog("cpus=%d\n", cpus);
 	if (cpus < 0)
 		return;
 
@@ -254,7 +301,7 @@ static void process_client(const char *node, const char *port, int fd)
 
 	pagesize = atoi(buf);
 
-	printf("pagesize=%d\n", pagesize);
+	plog("pagesize=%d\n", pagesize);
 	if (pagesize <= 0)
 		return;
 
@@ -295,14 +342,14 @@ static void process_client(const char *node, const char *port, int fd)
 	}
 
 	if (use_tcp)
-		printf("Using TCP for live connection\n");
+		plog("Using TCP for live connection\n");
 
 	/* Create the client file */
 	snprintf(buf, BUFSIZ, "%s.%s:%s.dat", output_file, node, port);
 
 	ofd = open(buf, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (ofd < 0)
-		die("Can not create file %s", buf);
+		pdie("Can not create file %s", buf);
 
 	port_array = malloc_or_die(sizeof(int) * cpus);
 	pid_array = malloc_or_die(sizeof(int) * cpus);
@@ -334,7 +381,7 @@ static void process_client(const char *node, const char *port, int fd)
 		do {
 			s = write(ofd, buf+s, t);
 			if (s < 0)
-				die("writing to file");
+				pdie("writing to file");
 			t -= s;
 			s = n - t;
 		} while (t);
@@ -410,10 +457,10 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 			service, NI_MAXSERV, NI_NUMERICSERV);
 
 	if (s == 0)
-		printf("Connected with %s:%s\n",
+		plog("Connected with %s:%s\n",
 		       host, service);
 	else {
-		printf("Error with getnameinfo: %s\n",
+		plog("Error with getnameinfo: %s\n",
 		       gai_strerror(s));
 		close(cfd);
 		return;
@@ -425,7 +472,7 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 		if (nread > 0)
 			nread = read(cfd, buf, BUFSIZ);
 		if (cfd < 0)
-			die("client");
+			pdie("client");
 		if (nread > 0)
 			write(1, buf, nread);
 	} while (nread);
@@ -465,7 +512,7 @@ static void do_listen(char *port)
 
 	s = getaddrinfo(NULL, port, &hints, &result);
 	if (s != 0)
-		die("getaddrinfo: error opening %s", port);
+		pdie("getaddrinfo: error opening %s", port);
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
@@ -480,19 +527,19 @@ static void do_listen(char *port)
 	}
 
 	if (rp == NULL)
-		die("Could not bind");
+		pdie("Could not bind");
 
 	freeaddrinfo(result);
 
 	if (listen(sfd, backlog) < 0)
-		die("listen");
+		pdie("listen");
 
 	peer_addr_len = sizeof(peer_addr);
 
 	do {
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
 		if (cfd < 0)
-			die("connecting");
+			pdie("connecting");
 
 		do_connection(cfd, &peer_addr, peer_addr_len);
 
@@ -507,6 +554,7 @@ static void start_daemon(void)
 
 void trace_listen(int argc, char **argv)
 {
+	char *logfile = NULL;
 	char *port = NULL;
 	char *iface;
 	int daemon = 0;
@@ -527,7 +575,7 @@ void trace_listen(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hp:o:d:i:D",
+		c = getopt_long (argc-1, argv+1, "+hp:o:d:i:l:D",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -546,6 +594,9 @@ void trace_listen(int argc, char **argv)
 			break;
 		case 'o':
 			output_file = optarg;
+			break;
+		case 'l':
+			logfile = optarg;
 			break;
 		case 'D':
 			daemon = 1;
@@ -573,6 +624,13 @@ void trace_listen(int argc, char **argv)
 
 	if (!output_dir)
 		output_dir = default_output_dir;
+
+	if (logfile) {
+		/* set the writes to a logfile instead */
+		logfp = fopen(logfile, "w");
+		if (!logfp)
+			die("creating log file %s", logfile);
+	}
 
 	if (chdir(output_dir) < 0)
 		die("Can't access directory %s", output_dir);
