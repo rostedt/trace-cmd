@@ -27,6 +27,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -367,6 +368,63 @@ static void process_client(const char *node, const char *port, int fd)
 	}
 }
 
+static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
+			  socklen_t peer_addr_len)
+{
+	char host[NI_MAXHOST], service[NI_MAXSERV];
+	char buf[BUFSIZ];
+	ssize_t nread;
+	pid_t pid;
+	int s;
+	int status;
+	int ret;
+
+	/* Clean up any children that has started before */
+	do {
+		ret = waitpid(0, &status, WNOHANG);
+	} while (ret > 0);
+
+	pid = fork();
+	if (pid < 0) {
+		warning("failed to create child");
+		return;
+	}
+
+	if (pid > 0) {
+		close(cfd);
+		return;
+	}
+
+	s = getnameinfo((struct sockaddr *)peer_addr, peer_addr_len,
+			host, NI_MAXHOST,
+			service, NI_MAXSERV, NI_NUMERICSERV);
+
+	if (s == 0)
+		printf("Connected with %s:%s\n",
+		       host, service);
+	else {
+		printf("Error with getnameinfo: %s\n",
+		       gai_strerror(s));
+		close(cfd);
+		return;
+	}
+
+	process_client(host, service, cfd);
+
+	do {
+		if (nread > 0)
+			nread = read(cfd, buf, BUFSIZ);
+		if (cfd < 0)
+			die("client");
+		if (nread > 0)
+			write(1, buf, nread);
+	} while (nread);
+
+	close(cfd);
+
+	exit(0);
+}
+
 static void do_listen(char *port)
 {
 	struct addrinfo hints;
@@ -374,9 +432,6 @@ static void do_listen(char *port)
 	int sfd, s, cfd;
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
-	ssize_t nread;
-	char buf[BUFSIZ];
-	char host[NI_MAXHOST], service[NI_MAXSERV];
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -413,34 +468,10 @@ static void do_listen(char *port)
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
 		if (cfd < 0)
 			die("connecting");
-		s = getnameinfo((struct sockaddr *)&peer_addr, peer_addr_len,
-				host, NI_MAXHOST,
-				service, NI_MAXSERV, NI_NUMERICSERV);
 
-		if (s == 0)
-			printf("Connected with %s:%s\n",
-			       host, service);
-		else {
-			printf("Error with getnameinfo: %s\n",
-			       gai_strerror(s));
-			close(cfd);
-			close(sfd);
-			return;
-		}
+		do_connection(cfd, &peer_addr, peer_addr_len);
 
-		process_client(host, service, cfd);
-
-		do {
-			if (nread > 0)
-				nread = read(cfd, buf, BUFSIZ);
-			if (cfd < 0)
-				die("client");
-			if (nread > 0)
-				write(1, buf, nread);
-		} while (nread);
-
-		close(cfd);
-	} while (0);
+	} while (1);
 }
 
 static void start_daemon(void)
