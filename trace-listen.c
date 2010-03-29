@@ -43,6 +43,8 @@ static char *output_dir;
 static char *default_output_file = "trace";
 static char *output_file;
 
+static int debug;
+
 static int use_tcp;
 
 static int backlog = 5;
@@ -368,16 +370,15 @@ static void process_client(const char *node, const char *port, int fd)
 	}
 }
 
-static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
-			  socklen_t peer_addr_len)
+static int do_fork(int cfd)
 {
-	char host[NI_MAXHOST], service[NI_MAXSERV];
-	char buf[BUFSIZ];
-	ssize_t nread;
-	pid_t pid;
-	int s;
 	int status;
+	pid_t pid;
 	int ret;
+
+	/* in debug mode, we do not fork off children */
+	if (debug)
+		return 0;
 
 	/* Clean up any children that has started before */
 	do {
@@ -387,13 +388,29 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 	pid = fork();
 	if (pid < 0) {
 		warning("failed to create child");
-		return;
+		return -1;
 	}
 
 	if (pid > 0) {
 		close(cfd);
-		return;
+		return pid;
 	}
+
+	return 0;
+}
+
+static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
+			  socklen_t peer_addr_len)
+{
+	char host[NI_MAXHOST], service[NI_MAXSERV];
+	char buf[BUFSIZ];
+	ssize_t nread;
+	int s;
+	int ret;
+
+	ret = do_fork(cfd);
+	if (ret)
+		return;
 
 	s = getnameinfo((struct sockaddr *)peer_addr, peer_addr_len,
 			host, NI_MAXHOST,
@@ -422,7 +439,8 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 
 	close(cfd);
 
-	exit(0);
+	if (!debug)
+		exit(0);
 }
 
 static void do_listen(char *port)
@@ -496,6 +514,7 @@ void trace_listen(int argc, char **argv)
 		static struct option long_options[] = {
 			{"port", required_argument, NULL, 'p'},
 			{"help", no_argument, NULL, '?'},
+			{"debug", no_argument, NULL, 0},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -521,6 +540,14 @@ void trace_listen(int argc, char **argv)
 			break;
 		case 'D':
 			daemon = 1;
+			break;
+		case 0:
+			switch (option_index) {
+			case 2:
+				debug = 1;
+				break;
+			}
+			break;
 		default:
 			usage(argv);
 		}
