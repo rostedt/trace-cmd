@@ -372,18 +372,11 @@ static void process_client(const char *node, const char *port, int fd)
 
 static int do_fork(int cfd)
 {
-	int status;
 	pid_t pid;
-	int ret;
 
 	/* in debug mode, we do not fork off children */
 	if (debug)
 		return 0;
-
-	/* Clean up any children that has started before */
-	do {
-		ret = waitpid(0, &status, WNOHANG);
-	} while (ret > 0);
 
 	pid = fork();
 	if (pid < 0) {
@@ -443,6 +436,17 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 		exit(0);
 }
 
+static void clean_up(int sig)
+{
+	int status;
+	int ret;
+
+	/* Clean up any children that has started before */
+	do {
+		ret = waitpid(0, &status, WNOHANG);
+	} while (ret > 0);
+}
+
 static void do_listen(char *port)
 {
 	struct addrinfo hints;
@@ -450,6 +454,9 @@ static void do_listen(char *port)
 	int sfd, s, cfd;
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
+
+	if (!debug)
+		signal(SIGCHLD, clean_up);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
