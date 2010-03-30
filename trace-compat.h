@@ -43,6 +43,8 @@ void gtk_menu_item_set_label(GtkMenuItem *menu_item, const gchar *label);
 gdouble gtk_adjustment_get_page_size(GtkAdjustment *adj);
 gdouble gtk_adjustment_get_upper(GtkAdjustment *adj);
 gdouble gtk_adjustment_get_lower(GtkAdjustment *adj);
+gboolean gtk_show_uri(GdkScreen *screen, const gchar *uri,
+		      guint32 timestamp, GError **error);
 
 #endif /* version < 2.14.0 */
 

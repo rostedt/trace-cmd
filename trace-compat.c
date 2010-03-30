@@ -22,6 +22,9 @@
  *  Linux Kernel that were written by Frederic Weisbecker.
  */
 #include "trace-compat.h"
+#include "trace-gui.h"
+
+#include <gdk/gdk.h>
 
 #if GTK_VERSION < CALC_GTK_VERSION(2,18,0)
 
@@ -68,6 +71,12 @@ gdouble gtk_adjustment_get_upper(GtkAdjustment *adj)
 gdouble gtk_adjustment_get_lower(GtkAdjustment *adj)
 {
 	return adj->lower;
+}
+
+gboolean gtk_show_uri(GdkScreen *screen, const gchar *uri,
+		      guint32 timestamp, GError **error)
+{
+	return FALSE;
 }
 
 #endif /* version < 2.14.0 */
