@@ -443,8 +443,6 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 			  socklen_t peer_addr_len)
 {
 	char host[NI_MAXHOST], service[NI_MAXSERV];
-	char buf[BUFSIZ];
-	ssize_t nread;
 	int s;
 	int ret;
 
@@ -467,15 +465,6 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 	}
 
 	process_client(host, service, cfd);
-
-	do {
-		if (nread > 0)
-			nread = read(cfd, buf, BUFSIZ);
-		if (cfd < 0)
-			pdie("client");
-		if (nread > 0)
-			write(1, buf, nread);
-	} while (nread);
 
 	close(cfd);
 
