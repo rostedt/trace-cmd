@@ -71,6 +71,17 @@ static void put_temp_file(char *file)
 
 #define MAX_PATH 1024
 
+static void signal_setup(int sig, sighandler_t handle)
+{
+	struct sigaction action;
+
+	sigaction(sig, NULL, &action);
+	/* Make accept return EINTR */
+	action.sa_flags &= ~SA_RESTART;
+	action.sa_handler = handle;
+	sigaction(sig, &action, NULL);
+}
+
 static void delete_temp_file(const char *host, const char *port, int cpu)
 {
 	char file[MAX_PATH];
@@ -147,10 +158,17 @@ static void plog(const char *fmt, ...)
 static void pdie(const char *fmt, ...)
 {
 	va_list ap;
+	char *str = "";
 
 	va_start(ap, fmt);
 	__plog("Error: ", fmt, ap, stderr);
 	va_end(ap);
+	if (errno)
+		str = strerror(errno);
+	if (logfp)
+		fprintf(logfp, "\n%s\n", str);
+	else
+		fprintf(stderr, "\n%s\n", str);
 	exit(-1);
 }
 
@@ -166,7 +184,7 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	int n;
 	int once = 0;
 
-	signal(SIGUSR1, finish);
+	signal_setup(SIGUSR1, finish);
 
 	tempfile = get_temp_file(host, port, cpu);
 	fd = open(tempfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
@@ -178,6 +196,8 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 			pdie("listen");
 		peer_addr_len = sizeof(peer_addr);
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
+		if (cfd < 0 && errno == EINTR)
+			goto done;
 		if (cfd < 0)
 			pdie("accept");
 		close(sfd);
@@ -187,8 +207,11 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	do {
 		/* TODO, make this copyless! */
 		n = read(sfd, buf, page_size);
-		if (n < 0)
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
 			pdie("reading client");
+		}
 		if (!n)
 			break;
 		/* UDP requires that we get the full size in one go */
@@ -199,6 +222,7 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 		write(fd, buf, n);
 	} while (!done);
 
+ done:
 	put_temp_file(tempfile);
 	exit(0);
 }
@@ -376,16 +400,24 @@ static void process_client(const char *node, const char *port, int fd)
 	/* Now we are ready to start reading data from the client */
 	do {
 		n = read(fd, buf, BUFSIZ);
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
+			pdie("reading client");
+		}
 		t = n;
 		s = 0;
 		do {
 			s = write(ofd, buf+s, t);
-			if (s < 0)
+			if (s < 0) {
+				if (errno == EINTR)
+					break;
 				pdie("writing to file");
+			}
 			t -= s;
 			s = n - t;
 		} while (t);
-	} while (n > 0);
+	} while (n > 0 && !done);
 
 	/* wait a little to let our readers finish reading */
 	sleep(1);
@@ -436,10 +468,12 @@ static int do_fork(int cfd)
 		return pid;
 	}
 
+	signal_setup(SIGINT, finish);
+
 	return 0;
 }
 
-static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
+static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 			  socklen_t peer_addr_len)
 {
 	char host[NI_MAXHOST], service[NI_MAXSERV];
@@ -448,7 +482,7 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 
 	ret = do_fork(cfd);
 	if (ret)
-		return;
+		return ret;
 
 	s = getnameinfo((struct sockaddr *)peer_addr, peer_addr_len,
 			host, NI_MAXHOST,
@@ -461,7 +495,7 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 		plog("Error with getnameinfo: %s\n",
 		       gai_strerror(s));
 		close(cfd);
-		return;
+		return -1;
 	}
 
 	process_client(host, service, cfd);
@@ -470,6 +504,63 @@ static void do_connection(int cfd, struct sockaddr_storage *peer_addr,
 
 	if (!debug)
 		exit(0);
+
+	return 0;
+}
+
+static int *client_pids;
+static int saved_pids;
+static int size_pids;
+#define PIDS_BLOCK 32
+
+static void add_process(int pid)
+{
+	if (!client_pids) {
+		size_pids = PIDS_BLOCK;
+		client_pids = malloc_or_die(sizeof(*client_pids) * size_pids);
+	} else if (!(saved_pids % PIDS_BLOCK)) {
+		size_pids += PIDS_BLOCK;
+		client_pids = realloc(client_pids,
+				      sizeof(*client_pids) * size_pids);
+		if (!client_pids)
+			pdie("realloc of pids");
+	}
+	client_pids[saved_pids++] = pid;
+}
+
+static void remove_process(int pid)
+{
+	int i;
+
+	for (i = 0; i < saved_pids; i++) {
+		if (client_pids[i] == pid)
+			break;
+	}
+
+	if (i == saved_pids)
+		return;
+
+	saved_pids--;
+
+	if (saved_pids == i)
+		return;
+
+	memmove(&client_pids[i], &client_pids[i+1],
+		sizeof(*client_pids) * (saved_pids - i));
+
+}
+
+static void kill_clients(void)
+{
+	int status;
+	int i;
+
+	for (i = 0; i < saved_pids; i++) {
+		kill(client_pids[i], SIGINT);
+		waitpid(client_pids[i], &status, 0);
+	}
+
+	saved_pids = 0;
 }
 
 static void clean_up(int sig)
@@ -480,6 +571,8 @@ static void clean_up(int sig)
 	/* Clean up any children that has started before */
 	do {
 		ret = waitpid(0, &status, WNOHANG);
+		if (ret > 0)
+			remove_process(ret);
 	} while (ret > 0);
 }
 
@@ -490,9 +583,10 @@ static void do_listen(char *port)
 	int sfd, s, cfd;
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
+	int pid;
 
 	if (!debug)
-		signal(SIGCHLD, clean_up);
+		signal_setup(SIGCHLD, clean_up);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -527,12 +621,19 @@ static void do_listen(char *port)
 
 	do {
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
+		printf("connected!\n");
+		if (cfd < 0 && errno == EINTR)
+			continue;
 		if (cfd < 0)
 			pdie("connecting");
 
-		do_connection(cfd, &peer_addr, peer_addr_len);
+		pid = do_connection(cfd, &peer_addr, peer_addr_len);
+		if (pid > 0)
+			add_process(pid);
 
-	} while (1);
+	} while (!done);
+
+	kill_clients();
 }
 
 static void start_daemon(void)
@@ -626,6 +727,9 @@ void trace_listen(int argc, char **argv)
 
 	if (daemon)
 		start_daemon();
+
+	signal_setup(SIGINT, finish);
+	signal_setup(SIGTERM, finish);
 
 	do_listen(port);
 
