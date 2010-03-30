@@ -28,6 +28,7 @@
 
 #include "trace-cmd.h"
 #include "trace-view.h"
+#include "trace-gui.h"
 
 #define version "0.1.1"
 
@@ -55,26 +56,19 @@ load_clicked (gpointer data)
 {
 	struct trace_tree_info *info = data;
 	struct tracecmd_input *handle;
-	GtkWidget *dialog;
 	gchar *filename;
 
-	dialog = gtk_file_chooser_dialog_new("Load File",
-					     NULL,
-					     GTK_FILE_CHOOSER_ACTION_OPEN,
-					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-					     NULL);
-	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		handle = tracecmd_open(filename);
-		if (handle) {
-			trace_view_reload(info->trace_tree, handle, info->spin);
-			/* Free handle when freeing the trace tree */
-			tracecmd_close(handle);
-		}
-		g_free(filename);
+	filename = trace_get_file_dialog("Load File");
+	if (!filename)
+		return;
+
+	handle = tracecmd_open(filename);
+	if (handle) {
+		trace_view_reload(info->trace_tree, handle, info->spin);
+		/* Free handle when freeing the trace tree */
+		tracecmd_close(handle);
 	}
-	gtk_widget_destroy(dialog);
+	g_free(filename);
 }
 
 /* Callback for the clicked signal of the Exit button */

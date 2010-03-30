@@ -34,5 +34,7 @@ void trace_show_help(GtkWidget *window, const gchar *link, GError **error);
 void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 		  gchar *message, ...);
 
+gchar *trace_get_file_dialog(const gchar *title);
+
 
 #endif /* _TRACE_GUI */

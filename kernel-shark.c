@@ -141,28 +141,21 @@ load_clicked (gpointer data)
 {
 	struct shark_info *info = data;
 	struct tracecmd_input *handle;
-	GtkWidget *dialog;
 	gchar *filename;
 
-	dialog = gtk_file_chooser_dialog_new("Load File",
-					     NULL,
-					     GTK_FILE_CHOOSER_ACTION_OPEN,
-					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-					     NULL);
-	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		handle = tracecmd_open(filename);
-		if (handle) {
-			tracecmd_close(info->handle);
-			info->handle = handle;
-			trace_graph_load_handle(info->ginfo, handle);
-			trace_view_reload(info->treeview, handle, info->spin);
-			update_title(info->window, filename);
-		}
-		g_free(filename);
+	filename = trace_get_file_dialog("Load File");
+	if (!filename)
+		return;
+
+	handle = tracecmd_open(filename);
+	if (handle) {
+		tracecmd_close(info->handle);
+		info->handle = handle;
+		trace_graph_load_handle(info->ginfo, handle);
+		trace_view_reload(info->treeview, handle, info->spin);
+		update_title(info->window, filename);
 	}
-	gtk_widget_destroy(dialog);
+	g_free(filename);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -763,12 +756,11 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- File - Load Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("Load info");
+	sub_item = gtk_menu_item_new_with_label("Load data");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
 
-	/* We can attach the Quit menu item to our exit function */
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (load_clicked),
 				  (gpointer) info);

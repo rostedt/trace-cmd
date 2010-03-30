@@ -77,3 +77,22 @@ void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 	gtk_dialog_run(GTK_DIALOG(dialog));
 	gtk_widget_destroy(dialog);
 }
+
+gchar *trace_get_file_dialog(const gchar *title)
+{
+	GtkWidget *dialog;
+	gchar *filename = NULL;
+
+	dialog = gtk_file_chooser_dialog_new(title,
+					     NULL,
+					     GTK_FILE_CHOOSER_ACTION_OPEN,
+					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					     NULL);
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+
+	gtk_widget_destroy(dialog);
+
+	return filename;
+}
