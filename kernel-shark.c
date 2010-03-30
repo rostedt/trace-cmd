@@ -31,6 +31,7 @@
 
 #include "trace-compat.h"
 #include "trace-cmd.h"
+#include "trace-gui.h"
 #include "kernel-shark.h"
 #include "version.h"
 
@@ -360,6 +361,34 @@ plot_tasks_clicked (gpointer data)
 			  graph_plot_task_update_callback, ginfo);
 	free(tasks);
 	free(selected);
+}
+
+/* Callback for the clicked signal of the help contents button */
+static void
+help_content_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	GError *error = NULL;
+	gchar *link;
+
+	link = "http://www.google.com";
+
+	trace_show_help(info->window, link, &error);
+}
+
+
+/* Callback for the clicked signal of the help about button */
+static void
+help_about_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_dialog(GTK_WINDOW(info->window), TRACE_GUI_INFO,
+		     "KernelShark\n\n"
+		     "version %s\n\n"
+		     "Copyright (C) 2009, 2010 Red Hat Inc\n\n"
+		     " Author: Steven Rostedt <srostedt@redhat.com>",
+		     VERSION_STRING);
 }
 
 static void graph_follows_tree(struct shark_info *info,
@@ -936,6 +965,53 @@ void kernel_shark(int argc, char **argv)
 
 
 	/* --- End Plot Options --- */
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
+
+
+	/* --- Help Option --- */
+
+	menu_item = gtk_menu_item_new_with_label("Help");
+	gtk_widget_show(menu_item);
+
+	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
+
+	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+	/* --- Help - Contents Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Contents");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (help_content_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Help - About Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("About");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (help_about_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- End Help Options --- */
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
 
 
