@@ -227,13 +227,14 @@ static int parse_cpu(struct tracecmd_input *handle,
 
 	while (record && (!end || record->ts <= end)) {
 		if (cpu_data[cpu].index + record->record_size > page_size) {
+
+			if (type == SPLIT_PAGES && pages++ > count_limit)
+				break;
+
 			if (cpu_data[cpu].page)
 				write_page(pevent, &cpu_data[cpu], long_size);
 			else
 				cpu_data[cpu].page = malloc_or_die(page_size);
-
-			if (type == SPLIT_PAGES && pages++ > count_limit)
-				break;
 
 			memset(cpu_data[cpu].page, 0, page_size);
 			ptr = cpu_data[cpu].page;
