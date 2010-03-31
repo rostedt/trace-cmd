@@ -489,13 +489,12 @@ void trace_split (int argc, char **argv)
 
 	pevent = tracecmd_get_pevent(handle);
 
-	if (!output) {
-		if (repeat)
-			output = strdup(input_file);
-		else {
-			output = malloc_or_die(strlen(input_file) + 3);
-			sprintf(output, "%s.1", input_file);
-		}
+	if (!output)
+		output = strdup(input_file);
+
+	if (!repeat) {
+		output = realloc(output, strlen(output) + 3);
+		strcat(output, ".1");
 	}
 
 	current = start_ns;
