@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -333,10 +334,17 @@ static double parse_file(struct tracecmd_input *handle,
 	struct cpu_data *cpu_data;
 	struct record *record;
 	char **cpu_list;
+	char *output;
+	char *base;
 	char *file;
+	char *dir;
 	int cpus;
 	int cpu;
 	int fd;
+
+	output = strdup(output_file);
+	dir = dirname(output);
+	base = basename(output);
 
 	ohandle = tracecmd_copy(handle, output_file);
 
@@ -345,7 +353,7 @@ static double parse_file(struct tracecmd_input *handle,
 
 	for (cpu = 0; cpu < cpus; cpu++) {
 		file = malloc_or_die(strlen(output_file) + 50);
-		sprintf(file, ".tmp.%s.%d", output_file, cpu);
+		sprintf(file, "%s/.tmp.%s.%d", dir, base, cpu);
 		fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 		cpu_data[cpu].cpu = cpu;
 		cpu_data[cpu].fd = fd;
@@ -383,6 +391,7 @@ static double parse_file(struct tracecmd_input *handle,
 	}
 	free(cpu_data);
 	free(cpu_list);
+	free(output);
 	tracecmd_output_close(ohandle);
 
 	return current;
