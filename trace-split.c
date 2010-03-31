@@ -404,6 +404,7 @@ void trace_split (int argc, char **argv)
 	unsigned long long start_ns = 0, end_ns = 0;
 	unsigned long long current;
 	double start, end;
+	char *endptr;
 	char *output = NULL;
 	char *output_file;
 	enum split_types split_type = SPLIT_NONE;
@@ -464,14 +465,24 @@ void trace_split (int argc, char **argv)
 
 	if (ac >= 2) {
 		optind++;
-		start = strtod(argv[optind], NULL);
+		start = strtod(argv[optind], &endptr);
 		if (ac > 3)
 			usage(argv);
+
+		/* Make sure a true start value was entered */
+		if (*endptr != 0)
+			die("Start value not floating point: %s", argv[optind]);
 
 		start_ns = (unsigned long long)(start * 1000000000.0);
 		optind++;
 		if (ac == 3) {
-			end = strtod(argv[optind], NULL);
+			end = strtod(argv[optind], &endptr);
+
+			/* Make sure a true end value was entered */
+			if (*endptr != 0)
+				die("End value not floating point: %s",
+				    argv[optind]);
+
 			end_ns = (unsigned long long)(end * 1000000000.0);
 			if (end_ns < start_ns)
 				die("Error: end is less than start");
