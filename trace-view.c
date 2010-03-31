@@ -29,6 +29,7 @@
 #include "trace-local.h"
 #include "trace-view.h"
 #include "trace-compat.h"
+#include "version.h"
 #include "cpu.h"
 #include "util.h"
 
@@ -869,4 +870,51 @@ void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
 	g_signal_connect_swapped (entry, "activate",
 				  G_CALLBACK (search_tree),
 				  (gpointer) info);
+}
+
+int trace_view_save_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *trace_tree)
+{
+	struct event_filter *event_filter;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gboolean all_events;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return -1;
+
+	store = TRACE_VIEW_STORE(model);
+
+	tracecmd_xml_start_system(handle, "TraceView", VERSION_STRING);
+
+	all_events = trace_view_store_get_all_events_enabled(store);
+	event_filter = trace_view_store_get_event_filter(store);
+
+	tracecmd_xml_start_sub_system(handle, "EventFilter");
+
+	if (all_events || !event_filter)
+		tracecmd_xml_write_element(handle, "FilterType", "all events");
+	else {
+		tracecmd_xml_write_element(handle, "FilterType", "filter");
+		trace_filter_save_events(handle, event_filter);
+	}
+
+	tracecmd_xml_end_sub_system(handle);
+
+	if (store->task_filter) {
+		tracecmd_xml_start_sub_system(handle, "TaskFilter");
+		trace_filter_save_tasks(handle, store->task_filter);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	if (store->hide_tasks) {
+		tracecmd_xml_start_sub_system(handle, "HideTasks");
+		trace_filter_save_tasks(handle, store->hide_tasks);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	tracecmd_xml_end_system(handle);
+
+	return 0;
 }

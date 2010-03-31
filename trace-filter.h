@@ -23,6 +23,8 @@
 
 #include <gtk/gtk.h>
 
+#include "trace-xml.h"
+
 struct event_filter_list {
 	struct event_filter_list	*next;
 	struct event			*event;
@@ -139,5 +141,10 @@ int str_cmp(const void *a, const void *b);
 int id_cmp(const void *a, const void *b);
 
 void trace_array_add(gint **array, gint *count, gint val);
+
+int trace_filter_save_events(struct tracecmd_xml_handle *handle,
+			     struct event_filter *filter);
+int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
+			    struct filter_task *filter);
 
 #endif /* _TRACE_FILTER_H */

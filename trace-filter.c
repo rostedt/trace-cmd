@@ -2158,3 +2158,54 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 
 	pevent_filter_free(copy);
 }
+
+int trace_filter_save_events(struct tracecmd_xml_handle *handle,
+			     struct event_filter *filter)
+{
+	struct event_format *event;
+	char **systems;
+	gint *event_ids;
+	char *str;
+	int i;
+
+	trace_filter_convert_filter_to_names(filter, &systems,
+					     &event_ids);
+
+	for (i = 0; systems && systems[i]; i++)
+		tracecmd_xml_write_element(handle, "System", systems[i]);
+
+	for (i = 0; event_ids && event_ids[i] > 0; i++) {
+		str = pevent_filter_make_string(filter, event_ids[i]);
+		if (!str)
+			continue;
+
+		event = pevent_find_event(filter->pevent, event_ids[i]);
+		if (event) {
+
+			/* skip not filtered items */
+			if (strcmp(str, "FALSE") == 0) {
+				free(str);
+				continue;
+			}
+
+			tracecmd_xml_start_sub_system(handle, "Event");
+			tracecmd_xml_write_element(handle, "System", event->system);
+			tracecmd_xml_write_element(handle, "Name", event->name);
+			/* If this is has an advanced filter, include that too */
+			if (strcmp(str, "TRUE") != 0) {
+				tracecmd_xml_write_element(handle, "Advanced",
+							   str);
+			}
+			tracecmd_xml_end_sub_system(handle);
+		}
+		free(str);
+	}
+
+	return 0;
+}
+
+int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
+			    struct filter_task *filter)
+{
+	return 0;
+}
