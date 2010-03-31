@@ -949,7 +949,7 @@ static void connect_port(int cpu)
 			     rp->ai_protocol);
 		if (sfd == -1)
 			continue;
-		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != 1)
+		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;
 		close(sfd);
 	}
