@@ -39,6 +39,11 @@
 #include "trace-cmd-local.h"
 #include "list.h"
 
+#define MISSING_EVENTS (1 << 31)
+#define MISSING_STORED (1 << 30)
+
+#define COMMIT_MASK ((1 << 27) - 1)
+
 /* for debugging read instead of mmap */
 static int force_read = 0;
 
@@ -48,6 +53,7 @@ struct page {
 	struct tracecmd_input	*handle;
 	void			*map;
 	int			ref_count;
+	long long		lost_events;
 };
 
 struct cpu_data {
@@ -679,6 +685,7 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
 	void *ptr = handle->cpu_data[cpu].page->map;
+	unsigned int flags;
 
 	/* FIXME: handle header page */
 	if (pevent->header_page_ts_size != 8) {
@@ -690,15 +697,38 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	ptr += 8;
 	switch (pevent->header_page_size_size) {
 	case 4:
-		handle->cpu_data[cpu].page_size = data2host4(pevent, ptr);
+		flags = data2host4(pevent, ptr);
+		ptr += 4;
 		break;
 	case 8:
-		handle->cpu_data[cpu].page_size = data2host8(pevent, ptr);
+		flags = (unsigned int)data2host8(pevent, ptr);
+		ptr += 8;
 		break;
 	default:
 		warning("bad long size");
 		return -1;
 	}
+
+	handle->cpu_data[cpu].page_size = flags & COMMIT_MASK;
+
+	if (flags & MISSING_EVENTS) {
+		breakpoint();
+		if (flags & MISSING_STORED) {
+			ptr += handle->cpu_data[cpu].page_size;
+			switch (pevent->header_page_size_size) {
+			case 4:
+				handle->cpu_data[cpu].page->lost_events =
+					data2host4(pevent, ptr);
+				break;
+			case 8:
+				handle->cpu_data[cpu].page->lost_events =
+					data2host8(pevent, ptr);
+				break;
+			}
+		} else
+			handle->cpu_data[cpu].page->lost_events = -1;
+	} else
+		handle->cpu_data[cpu].page->lost_events = 0;
 
 	handle->cpu_data[cpu].index = 0;
 
@@ -1435,6 +1465,7 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	void *ptr;
 	unsigned long long extend;
 	unsigned int type_len;
+	long long missed_events = 0;
 	int length;
 
 	if (index < 0)
@@ -1464,8 +1495,10 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 
 	ptr = page->map + index;
 
-	if (!index)
+	if (!index) {
+		missed_events = page->lost_events;
 		ptr = handle->cpu_data[cpu].page->map + pevent->header_page_data_offset;
+	}
 
 read_again:
 	index = calc_index(handle, ptr, cpu);
@@ -1520,6 +1553,7 @@ read_again:
 	record->cpu = cpu;
 	record->data = ptr;
 	record->offset = handle->cpu_data[cpu].offset + index;
+	record->missed_events = missed_events;
 
 	ptr += length;
 

@@ -462,6 +462,12 @@ static void show_data(struct tracecmd_input *handle,
 	test_save(record, cpu);
 
 	trace_seq_init(&s);
+	if (record->missed_events > 0)
+		trace_seq_printf(&s, "CPU:%d [%lld EVENTS DROPPED]\n",
+				 record->cpu, record->missed_events);
+	else if (record->missed_events < 0)
+		trace_seq_printf(&s, "CPU:%d [EVENTS DROPPED]\n",
+				 record->cpu);
 	pevent_print_event(pevent, &s, record);
 	trace_seq_do_printf(&s);
 

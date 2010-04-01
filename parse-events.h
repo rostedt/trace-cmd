@@ -38,6 +38,7 @@
 struct record {
 	unsigned long long	ts;
 	unsigned long long	offset;
+	long long		missed_events;	/* buffer dropped events before */
 	int			record_size;	/* size of binary record */
 	int			size;		/* size of data */
 	void			*data;
@@ -284,6 +285,7 @@ struct pevent {
 	int header_page_size_size;
 	int header_page_data_offset;
 	int header_page_data_size;
+	int header_page_overwrite;
 
 	int file_bigendian;
 	int host_bigendian;

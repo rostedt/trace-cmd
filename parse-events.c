@@ -4041,10 +4041,15 @@ static void print_args(struct print_arg *args)
 }
 
 static void parse_header_field(const char *field,
-			       int *offset, int *size)
+			       int *offset, int *size, int mandatory)
 {
+	unsigned long long save_input_buf_ptr;
+	unsigned long long save_input_buf_siz;
 	char *token;
 	int type;
+
+	save_input_buf_ptr = input_buf_ptr;
+	save_input_buf_siz = input_buf_siz;
 
 	if (read_expected(EVENT_ITEM, "field") < 0)
 		return;
@@ -4056,8 +4061,20 @@ static void parse_header_field(const char *field,
 		goto fail;
 	free_token(token);
 
-	if (read_expected(EVENT_ITEM, field) < 0)
-		return;
+	/*
+	 * If this is not a mandatory field, then test it first.
+	 */
+	if (mandatory) {
+		if (read_expected(EVENT_ITEM, field) < 0)
+			return;
+	} else {
+		if (read_expect_type(EVENT_ITEM, &token) < 0)
+			goto fail;
+		if (strcmp(token, field) != 0)
+			goto discard;
+		free_token(token);
+	}
+
 	if (read_expected(EVENT_OP, ";") < 0)
 		return;
 	if (read_expected(EVENT_ITEM, "offset") < 0)
@@ -4106,6 +4123,14 @@ static void parse_header_field(const char *field,
 	}
  fail:
 	free_token(token);
+	return;
+
+ discard:
+	input_buf_ptr = save_input_buf_ptr;
+	input_buf_siz = save_input_buf_siz;
+	*offset = 0;
+	*size = 0;
+	free_token(token);
 }
 
 /**
@@ -4123,6 +4148,8 @@ static void parse_header_field(const char *field,
 int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
 			     int long_size)
 {
+	int ignore;
+
 	if (!size) {
 		/*
 		 * Old kernels did not have header page info.
@@ -4137,11 +4164,13 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 	init_input_buf(buf, size);
 
 	parse_header_field("timestamp", &pevent->header_page_ts_offset,
-			   &pevent->header_page_ts_size);
+			   &pevent->header_page_ts_size, 1);
 	parse_header_field("commit", &pevent->header_page_size_offset,
-			   &pevent->header_page_size_size);
+			   &pevent->header_page_size_size, 1);
+	parse_header_field("overwrite", &pevent->header_page_overwrite,
+			   &ignore, 0);
 	parse_header_field("data", &pevent->header_page_data_offset,
-			   &pevent->header_page_data_size);
+			   &pevent->header_page_data_size, 1);
 
 	return 0;
 }
