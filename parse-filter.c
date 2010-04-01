@@ -298,10 +298,6 @@ static void free_events(struct event_list *events)
 }
 
 static enum event_type
-process_filter(struct event_format *event, struct filter_arg **parg,
-	       enum event_type type, char **tok, char **error_str);
-
-static enum event_type
 process_paren(struct event_format *event, struct filter_arg **parg,
 	      char **tok, char **error_str);
 
@@ -310,22 +306,26 @@ process_not(struct event_format *event, struct filter_arg **parg,
 	    char **tok, char **error_str);
 
 static enum event_type
+process_value_token(struct event_format *event, struct filter_arg **parg,
+		    enum event_type type, char **tok, char **error_str);
+
+static enum event_type
 process_op_token(struct event_format *event, struct filter_arg *larg,
 		 struct filter_arg **parg, enum event_type type, char **tok,
 		 char **error_str);
 
-static enum event_type
-process_op(struct event_format *event, struct filter_arg *larg,
-	   struct filter_arg **parg, char **tok, char **error_str);
-
 /*
+ * process_token
+ *  Called when a new expression is found. Processes an op, or
+ *  ends early if a ')' is found.
+ *
  * Output: tok, parg
  */
 static enum event_type
 process_token(struct event_format *event, struct filter_arg **parg,
-	      char **tok, char **error_str, int cont)
+	      char **tok, char **error_str)
 {
-	struct filter_arg *arg;
+	struct filter_arg *arg = NULL;
 	enum event_type type;
 	char *token;
 
@@ -334,37 +334,109 @@ process_token(struct event_format *event, struct filter_arg **parg,
 
 	type = read_token(&token);
 
-	if (type == EVENT_ITEM) {
-		type = process_filter(event, parg, type, &token, error_str);
+	/*
+	 * This is a start of a new expresion. We expect to find
+	 * a item or a parenthesis.
+	 */
+	switch (type) {
+	case EVENT_SQUOTE:
+	case EVENT_DQUOTE:
+	case EVENT_ITEM:
+		type = process_value_token(event, &arg, type, &token, error_str);
+		if (type == EVENT_ERROR) {
+			free_token(token);
+			return type;
+		}
+		type = read_token(&token);
+		break;
+	case EVENT_DELIM:
+		if (strcmp(token, "(") != 0)
+			break;
 
-	} else if (type == EVENT_DELIM && strcmp(token, "(") == 0) {
 		free_token(token);
-		type = process_paren(event, parg, &token, error_str);
+		type = process_paren(event, &arg, &token, error_str);
+		if (type == EVENT_NONE) {
+			*tok = token;
+			*parg = arg;
+			return type;
+		}
+		if (arg) {
+			/*
+			 * If the parenthesis was a full expression,
+			 * then just return it. Otherwise, we may still
+			 * need to find an op.
+			 */
+			switch (arg->type) {
+			case FILTER_ARG_OP:
+			case FILTER_ARG_NUM:
+			case FILTER_ARG_STR:
+				*tok = token;
+				*parg = arg;
+				return type;
+			default:
+				break;
+			}
+		}
+		break;
 
-	} else if (type == EVENT_OP && strcmp(token, "!") == 0) {
-		type = process_not(event, parg, &token, error_str);
-	} else {
-		if (type == EVENT_NONE)
-			show_error(error_str, "unexpected end of filter");
-		else
-			show_error(error_str, "unexpected token '%s'", token);
-		type = EVENT_ERROR;
+	case EVENT_OP:
+		if (strcmp(token, "!") != 0)
+			break;
+
+		/*
+		 * A not is its own filter, it just negates,
+		 * process it by itself.
+		 */
+		*tok = token;
+		type = process_not(event, parg, tok, error_str);
+		return type;
+
+	default:
+		break;
 	}
 
-	*tok = token;
-	while (cont && type != EVENT_ERROR) {
-		if (type != EVENT_OP)
-			break;
-		/* continue */
-		arg = *parg;
+	for (;;) {
+		if (type == EVENT_NONE) {
+			show_error(error_str, "unexpected end of filter");
+			type = EVENT_ERROR;
+
+		} else if (type == EVENT_DELIM && strcmp(token, ")") == 0) {
+			/* Parenthesis call this and may return at anytime. */
+			*tok = token;
+			*parg = arg;
+			return type;
+
+		} else if (type != EVENT_OP) {
+			show_error(error_str, "Expected an OP but found %s", token);
+			type = EVENT_ERROR;
+		}
+
+		if (type == EVENT_ERROR) {
+			free_token(token);
+			return type;
+		}
+
+		*tok = token;
 		*parg = NULL;
 		type = process_op_token(event, arg, parg, type, tok, error_str);
-	}
 
-	if (type == EVENT_ERROR) {
-		free_arg(*parg);
-		*parg = NULL;
-		return EVENT_ERROR;
+		if (type == EVENT_ERROR) {
+			free_arg(*parg);
+			*parg = NULL;
+			return EVENT_ERROR;
+		}
+
+		if (!(*parg) || (*parg)->type != FILTER_ARG_EXP)
+			break;
+
+		/*
+		 * This op was an expression (value return)
+		 * It's not fine by itself, there had better be an OP
+		 * after it.
+		 */
+		token = *tok;
+		*tok = NULL;
+		arg = *parg;
 	}
 
 	return type;
@@ -387,7 +459,7 @@ process_bool(struct event_format *event, struct filter_arg *larg,
 	btype = strcmp(*tok, "&&") == 0 ?
 		FILTER_OP_AND : FILTER_OP_OR;
 
-	type = process_token(event, &rarg, tok, error_str, 0);
+	type = process_token(event, &rarg, tok, error_str);
 	if (type == EVENT_ERROR) {
 		free_arg(larg);
 		*parg = NULL;
@@ -396,7 +468,7 @@ process_bool(struct event_format *event, struct filter_arg *larg,
 
 	/*
 	 * If larg or rarg is null then if this is AND, the whole expression
-	 * becomes NULL, elso if this is an OR, then we use the non NULL
+	 * becomes NULL, else if this is an OR, then we use the non NULL
 	 * condition.
 	 */
 	if (!larg || !rarg) {
@@ -417,9 +489,18 @@ process_bool(struct event_format *event, struct filter_arg *larg,
 	arg->op.left = larg;
 	arg->op.right = rarg;
 
-	*parg = arg;
 
-	return type;
+	/*
+	 * If the next token is also a boolean expression, then
+	 * make the next boolean the parent..
+	 */
+	if (type != EVENT_OP ||
+	    (strcmp(*tok, "&&") != 0 && strcmp(*tok, "||") != 0)) {
+		*parg = arg;
+		return type;
+	}
+
+	return process_bool(event, arg, parg, tok, error_str);
 }
 
 /*
@@ -482,22 +563,50 @@ process_value_token(struct event_format *event, struct filter_arg **parg,
 }
 
 /*
- * Output: parg
+ * Output: parg, tok
  */
 static enum event_type
 process_value(struct event_format *event, struct filter_arg **parg,
-	      char **error_str)
+	      enum event_type *orig_type, char **tok, char **error_str)
 {
 	enum event_type type;
 	char *token;
 
+	*tok = NULL;
 	type = read_token(&token);
-	type = process_value_token(event, parg, type, &token, error_str);
-	free_token(token);
+	*orig_type = type;
+	if (type == EVENT_DELIM && strcmp(token, "(") == 0) {
+		type = process_paren(event, parg, &token, error_str);
+		/* Must be a expression or value */
+		if (type == EVENT_ERROR || !(*parg)) {
+			free_token(token);
+			return type;
+		}
+		switch ((*parg)->type) {
+		case FILTER_ARG_BOOLEAN:
+		case FILTER_ARG_VALUE:
+		case FILTER_ARG_FIELD:
+		case FILTER_ARG_EXP:
+			break;
+		default:
+			show_error(error_str, "expected a value");
+			free_token(token);
+			return EVENT_ERROR;
+		}
+	} else {
+		type = process_value_token(event, parg, type, &token, error_str);
+		free_token(token);
+		if (type == EVENT_ERROR)
+			return type;
+		type = read_token(&token);
+	}
+
+	*tok = token;
 	return type;
 }
 
 /*
+ * Input: larg
  * Output: parg, tok
  */
 static enum event_type
@@ -507,18 +616,21 @@ process_cmp(struct event_format *event, enum filter_cmp_type op_type,
 {
 	struct filter_arg *arg;
 	struct filter_arg *rarg;
+	enum event_type orig_type;
 	enum event_type type;
 	int ret;
 
 	*parg = NULL;
 
-	type = process_value(event, &rarg, error_str);
-	if (type == EVENT_ERROR)
+	type = process_value(event, &rarg, &orig_type, tok, error_str);
+	if (type == EVENT_ERROR) {
+		free_arg(rarg);
 		return type;
+	}
 
 	arg = allocate_arg();
 	/*
-	 * If either arg is NULL if right was field not found.
+	 * If either arg is NULL or right was field not found.
 	 * Then make the entire expression NULL. (will turn to FALSE)
 	 */
 	if (!larg || !rarg) {
@@ -529,7 +641,7 @@ process_cmp(struct event_format *event, enum filter_cmp_type op_type,
 		goto cont;
 	}
 
-	switch (type) {
+	switch (orig_type) {
 	case EVENT_SQUOTE:
 		/* treat this as a character if string is of length 1? */
 		if (strlen(rarg->str.val) == 1) {
@@ -620,10 +732,11 @@ process_cmp(struct event_format *event, enum filter_cmp_type op_type,
 	}
  cont:
 	*parg = arg;
-	return read_token(tok);
+	return type;
 }
 
 /*
+ * Input: larg
  * Output: parg, tok
  */
 static enum event_type
@@ -633,11 +746,14 @@ process_exp(struct event_format *event, enum filter_exp_type etype,
 {
 	struct filter_arg *rarg;
 	struct filter_arg *arg;
+	enum event_type orig_type;
 	enum event_type type;
 
-	type = process_value(event, &rarg, error_str);
-	if (type == EVENT_ERROR)
+	type = process_value(event, &rarg, &orig_type, tok, error_str);
+	if (type == EVENT_ERROR) {
+		free_arg(rarg);
 		return type;
+	}
 
 	/* larg can be NULL if a field did not match */
 	if (!larg) {
@@ -655,7 +771,8 @@ process_exp(struct event_format *event, enum filter_exp_type etype,
 
  cont:
 	/* still need a cmp */
-	return process_op(event, arg, parg, tok, error_str);
+	type = process_op_token(event, arg, parg, type, tok, error_str);
+	return type;
 }
 
 /*
@@ -742,31 +859,25 @@ process_op_token(struct event_format *event, struct filter_arg *larg,
 }
 
 static enum event_type
-process_op(struct event_format *event, struct filter_arg *larg,
-	   struct filter_arg **parg, char **tok, char **error_str)
-{
-	enum event_type type;
-
-	*tok = NULL;
-	type = read_token(tok);
-	type = process_op_token(event, larg, parg, type, tok, error_str);
-
-	return type;
-}
-
-static enum event_type
 process_filter(struct event_format *event, struct filter_arg **parg,
-	       enum event_type type, char **tok, char **error_str)
+	       char **tok, char **error_str)
 {
 	struct filter_arg *larg = NULL;
+	enum event_type type;
 
 	*parg = NULL;
-
-	type = process_value_token(event, &larg, type, tok, error_str);
-	free_token(*tok);
 	*tok = NULL;
 
-	return process_op(event, larg, parg, tok, error_str);
+	type = process_token(event, parg, tok, error_str);
+
+	if (type == EVENT_OP &&
+	    (strcmp(*tok, "&&") == 0 || strcmp(*tok, "||") == 0)) {
+		larg = *parg;
+		*parg = NULL;
+		type = process_bool(event, larg, parg, tok, error_str);
+	}
+
+	return type;
 }
 
 static enum event_type
@@ -778,11 +889,17 @@ process_paren(struct event_format *event, struct filter_arg **parg,
 
 	*parg = NULL;
 
-	type = process_token(event, &arg, tok, error_str, 0);
+	type = process_token(event, &arg, tok, error_str);
 	if (type == EVENT_ERROR) {
 		free_arg(arg);
 		return type;
 	}
+
+	if (type == EVENT_OP &&
+	    (strcmp(*tok, "&&") == 0 || strcmp(*tok, "||") == 0)) {
+		type = process_bool(event, arg, parg, tok, error_str);
+	}
+
 	if (type != EVENT_DELIM || strcmp(*tok, ")") != 0) {
 		if (*tok)
 			show_error(error_str,
@@ -815,7 +932,7 @@ process_not(struct event_format *event, struct filter_arg **parg,
 	arg->op.type = FILTER_OP_NOT;
 
 	arg->op.left = NULL;
-	type = process_token(event, &arg->op.right, tok, error_str, 0);
+	type = process_token(event, &arg->op.right, tok, error_str);
 	if (type == EVENT_ERROR) {
 		free_arg(arg);
 		*parg = NULL;
@@ -844,7 +961,7 @@ process_event(struct event_format *event, const char *filter_str,
 
 	pevent_buffer_init(filter_str, strlen(filter_str));
 
-	type = process_token(event, parg, &token, error_str, 1);
+	type = process_filter(event, parg, &token, error_str);
 
 	if (type == EVENT_ERROR)
 		return -1;

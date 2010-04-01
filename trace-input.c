@@ -712,7 +712,6 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	handle->cpu_data[cpu].page_size = flags & COMMIT_MASK;
 
 	if (flags & MISSING_EVENTS) {
-		breakpoint();
 		if (flags & MISSING_STORED) {
 			ptr += handle->cpu_data[cpu].page_size;
 			switch (pevent->header_page_size_size) {
