@@ -30,6 +30,7 @@
 #include "trace-view.h"
 #include "trace-xml.h"
 #include "trace-gui.h"
+#include "trace-compat.h"
 
 #define version "0.1.1"
 
@@ -40,8 +41,13 @@
 static char *input_file;
 
 struct trace_tree_info {
-	GtkWidget *trace_tree;
-	GtkWidget *spin;
+	struct tracecmd_input	*handle;
+	GtkWidget		*trace_tree;
+	GtkWidget		*spin;
+	gint			filter_enabled;
+	gint			filter_task_selected;
+	struct filter_task	*task_filter;
+	struct filter_task	*hide_tasks;
 };
 
 void usage(char *prog)
@@ -68,6 +74,7 @@ load_clicked (gpointer data)
 		trace_view_reload(info->trace_tree, handle, info->spin);
 		/* Free handle when freeing the trace tree */
 		tracecmd_close(handle);
+		info->handle = handle;
 	}
 	g_free(filename);
 }
@@ -203,24 +210,209 @@ cpus_clicked (gpointer data)
 				trace_view_cpu_filter_callback, trace_tree);
 }
 
-#if 0
-static GtkTreeModel *
-create_combo_box_model(void)
+static void
+filter_list_clicked (gpointer data)
 {
-	GtkListStore *store;
-	GtkTreeIter iter;
+	struct trace_tree_info *info = data;
 
-	store = gtk_list_store_new(1, G_TYPE_STRING);
-	gtk_list_store_append(store, &iter);
-	gtk_list_store_set(store, &iter, 0, "1", -1);
+	if (!filter_task_count(info->task_filter) &&
+	    !filter_task_count(info->hide_tasks))
+		return;
 
-	return GTK_TREE_MODEL(store);
+	info->filter_enabled ^= 1;
+
+	if (info->filter_enabled)
+		trace_view_update_filters(info->trace_tree,
+					  info->task_filter,
+					  info->hide_tasks);
+	else
+		trace_view_update_filters(info->trace_tree, NULL, NULL);
 }
-#endif
+
+static void update_task_filter(struct trace_tree_info *info,
+			       struct filter_task *filter)
+{
+	struct filter_task_item *task;
+	gint pid = info->filter_task_selected;
+
+	task = filter_task_find_pid(filter, pid);
+
+	if (task)
+		filter_task_remove_pid(filter, pid);
+	else
+		filter_task_add_pid(filter, pid);
+
+	if (info->filter_enabled)
+		trace_view_update_filters(info->trace_tree,
+					  info->task_filter,
+					  info->hide_tasks);
+}
+
+static void filter_add_task_clicked(gpointer data)
+{
+	struct trace_tree_info *info = data;
+
+	update_task_filter(info, info->task_filter);
+}
+
+static void filter_hide_task_clicked(gpointer data)
+{
+	struct trace_tree_info *info = data;
+
+	update_task_filter(info, info->hide_tasks);
+}
+
+static void
+filter_clear_tasks_clicked (gpointer data)
+{
+	struct trace_tree_info *info = data;
+
+	trace_view_update_filters(info->trace_tree, NULL, NULL);
+	info->filter_enabled = 0;
+}
+
+static gboolean
+do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	struct trace_tree_info *info = data;
+	static GtkWidget *menu;
+	static GtkWidget *menu_filter_enable;
+	static GtkWidget *menu_filter_add_task;
+	static GtkWidget *menu_filter_hide_task;
+	static GtkWidget *menu_filter_clear_tasks;
+	struct pevent *pevent;
+	struct record *record;
+	TraceViewRecord *vrec;
+	GtkTreeModel *model;
+	const char *comm;
+	gchar *text;
+	gint pid;
+	gint len;
+	guint64 offset;
+	gint row;
+	gint cpu;
+
+	if (!menu) {
+		menu = gtk_menu_new();
+
+		menu_filter_enable = gtk_menu_item_new_with_label("Enable Filter");
+		gtk_widget_show(menu_filter_enable);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_enable);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_enable), "activate",
+					  G_CALLBACK (filter_list_clicked),
+					  data);
+
+		menu_filter_add_task = gtk_menu_item_new_with_label("Add Task");
+		gtk_widget_show(menu_filter_add_task);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_add_task);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_add_task), "activate",
+					  G_CALLBACK (filter_add_task_clicked),
+					  data);
+
+		menu_filter_hide_task = gtk_menu_item_new_with_label("Hide Task");
+		gtk_widget_show(menu_filter_hide_task);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_hide_task);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_hide_task), "activate",
+					  G_CALLBACK (filter_hide_task_clicked),
+					  data);
+
+		menu_filter_clear_tasks = gtk_menu_item_new_with_label("Clear Task Filter");
+		gtk_widget_show(menu_filter_clear_tasks);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_filter_clear_tasks);
+
+		g_signal_connect_swapped (G_OBJECT (menu_filter_clear_tasks), "activate",
+					  G_CALLBACK (filter_clear_tasks_clicked),
+					  data);
+
+	}
+
+	row = trace_view_get_selected_row(GTK_WIDGET(info->trace_tree));
+	if (row >= 0) {
+
+		model = gtk_tree_view_get_model(GTK_TREE_VIEW(info->trace_tree));
+		vrec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);
+		offset = vrec->offset;
+
+		record = tracecmd_read_at(info->handle, offset, &cpu);
+
+		if (record) {
+			pevent = tracecmd_get_pevent(info->handle);
+			pid = pevent_data_pid(pevent, record);
+			comm = pevent_data_comm_from_pid(pevent, pid);
+
+			len = strlen(comm) + 50;
+
+			text = g_malloc(len);
+			g_assert(text);
+
+			if (filter_task_find_pid(info->task_filter, pid))
+				snprintf(text, len, "Remove %s-%d to filter", comm, pid);
+			else
+				snprintf(text, len, "Add %s-%d to filter", comm, pid);
+
+			info->filter_task_selected = pid;
+
+			gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_add_task),
+						text);
+
+			if (filter_task_find_pid(info->hide_tasks, pid))
+				snprintf(text, len, "Show %s-%d", comm, pid);
+			else
+				snprintf(text, len, "Hide %s-%d", comm, pid);
+
+			gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
+						text);
+
+			g_free(text);
+
+			info->filter_task_selected = pid;
+
+			gtk_widget_show(menu_filter_add_task);
+			gtk_widget_show(menu_filter_hide_task);
+			free_record(record);
+		}
+	} else {
+		gtk_widget_hide(menu_filter_add_task);
+		gtk_widget_hide(menu_filter_hide_task);
+	}
+
+	if (info->filter_enabled)
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
+					"Disable List Filter");
+	else
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_enable),
+					"Enable List Filter");
+
+	if (filter_task_count(info->task_filter) ||
+	    filter_task_count(info->hide_tasks)) {
+		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
+		gtk_widget_set_sensitive(menu_filter_enable, TRUE);
+	} else {
+		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
+		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
+	}
+
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL, 3,
+		       gtk_get_current_event_time());
+
+	return TRUE;
+}
+
+static gboolean
+button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	if (event->button == 3)
+		return do_tree_popup(widget, event, data);
+
+	return FALSE;
+}
 
 void trace_view(int argc, char **argv)
 {
-	static struct tracecmd_input *handle;
+	static struct tracecmd_input *handle = NULL;
 	struct trace_tree_info tree_info;
 	struct stat st;
 	GtkWidget *trace_tree;
@@ -267,6 +459,11 @@ void trace_view(int argc, char **argv)
 
 	if (input_file)
 		handle = tracecmd_open(input_file);
+
+	memset(&tree_info, 0, sizeof(tree_info));
+	tree_info.handle = handle;
+	tree_info.task_filter = filter_task_hash_alloc();
+	tree_info.hide_tasks = filter_task_hash_alloc();
 
 	/* --- Main window --- */
 
@@ -454,6 +651,10 @@ void trace_view(int argc, char **argv)
 	label = gtk_label_new("      Search: ");
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
+
+	gtk_signal_connect(GTK_OBJECT(trace_tree), "button_press_event",
+			   (GtkSignalFunc) button_press_event,
+			   (gpointer) &tree_info);
 
 	trace_view_search_setup(GTK_BOX(hbox), GTK_TREE_VIEW(trace_tree));
 
