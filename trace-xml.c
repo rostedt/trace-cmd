@@ -25,13 +25,20 @@
 
 #include <libxml/xmlwriter.h>
 #include <libxml/parser.h>
-#include <libxml/encoding.h>
+#include <libxml/xpath.h>
 
 #include "trace-cmd.h"
 #include "trace-xml.h"
 
 struct tracecmd_xml_handle {
 	xmlTextWriterPtr	writer;
+	xmlDocPtr		doc;
+};
+
+struct tracecmd_xml_system {
+	struct tracecmd_xml_handle *handle;
+	xmlXPathObjectPtr	result;
+	xmlNodePtr		cur;
 };
 
 #define TRACE_ENCODING "UTF-8"
@@ -122,6 +129,101 @@ void tracecmd_xml_close(struct tracecmd_xml_handle *handle)
 		xmlTextWriterEndDocument(handle->writer);
 		xmlFreeTextWriter(handle->writer);
 	}
-
+	if (handle->doc) {
+		xmlFreeDoc(handle->doc);
+	}
 	free(handle);
+}
+
+/***********************************************************/
+/***  Reading XML files                                  ***/
+/***********************************************************/
+
+
+struct tracecmd_xml_handle *tracecmd_xml_open(const char *file)
+{
+	struct tracecmd_xml_handle *handle;
+
+	handle = malloc_or_die(sizeof(*handle));
+	memset(handle, 0, sizeof(*handle));
+
+	handle->doc = xmlParseFile(file);
+	if (!handle->doc)
+		goto fail_free;
+
+	return handle;
+
+ fail_free:
+	free(handle);
+	return NULL;
+}
+
+struct tracecmd_xml_system *
+tracecmd_xml_find_system(struct tracecmd_xml_handle *handle,
+			 const char *system)
+{
+	struct tracecmd_xml_system *sys;
+	xmlXPathContextPtr context;
+	xmlXPathObjectPtr result;
+	xmlChar *xpath;
+	char *path;
+
+	path = malloc_or_die(strlen(system) + 3);
+	sprintf(path, "//%s", system);
+	xpath = BAD_CAST path;
+
+	context = xmlXPathNewContext(handle->doc);
+	result = xmlXPathEvalExpression(xpath, context);
+	free(path);
+
+	if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
+		xmlXPathFreeObject(result);
+		return NULL;
+	}
+
+	sys = malloc_or_die(sizeof(*sys));
+	sys->handle = handle;
+	sys->result = result;
+	sys->cur = result->nodesetval->nodeTab[0]->xmlChildrenNode;
+
+	return sys;
+}
+
+struct tracecmd_xml_system_node *
+tracecmd_xml_system_node(struct tracecmd_xml_system *system)
+{
+	return (struct tracecmd_xml_system_node *)system->cur;
+}
+
+const char *tracecmd_xml_node_type(struct tracecmd_xml_system_node *tnode)
+{
+	xmlNodePtr node = (xmlNodePtr)tnode;
+	return (const char *)node->name;
+}
+
+struct tracecmd_xml_system_node *
+tracecmd_xml_node_child(struct tracecmd_xml_system_node *tnode)
+{
+	xmlNodePtr node = (xmlNodePtr)tnode;
+	return (struct tracecmd_xml_system_node *)node->xmlChildrenNode;
+}
+
+struct tracecmd_xml_system_node *
+tracecmd_xml_node_next(struct tracecmd_xml_system_node *tnode)
+{
+	xmlNodePtr node = (xmlNodePtr)tnode;
+	return (struct tracecmd_xml_system_node *)node->next;
+}
+
+const char *tracecmd_xml_node_value(struct tracecmd_xml_handle *handle,
+				    struct tracecmd_xml_system_node *tnode)
+{
+	xmlNodePtr node = (xmlNodePtr)tnode;
+	return (const char *)xmlNodeListGetString(handle->doc, node->xmlChildrenNode, 1);
+}
+
+void tracecmd_xml_free_system(struct tracecmd_xml_system *system)
+{
+	xmlXPathFreeObject(system->result);
+	free(system);
 }

@@ -918,3 +918,119 @@ int trace_view_save_filters(struct tracecmd_xml_handle *handle,
 
 	return 0;
 }
+
+static int load_event_filter(TraceViewStore *store,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	struct event_filter *event_filter;
+	const char *name;
+	const char *value;
+
+	event_filter = trace_view_store_get_event_filter(store);
+
+	child = tracecmd_xml_node_child(node);
+	name = tracecmd_xml_node_type(child);
+	if (strcmp(name, "FilterType") != 0)
+		return -1;
+
+	value = tracecmd_xml_node_value(handle, child);
+	/* Do nothing with all events enabled */
+	if (strcmp(value, "all events") == 0)
+		return 0;
+
+	node = tracecmd_xml_node_next(child);
+	if (!node)
+		return -1;
+
+	trace_view_store_clear_all_events_enabled(store);
+
+	trace_filter_load_events(event_filter, handle, node);
+
+	return 0;
+}
+
+static int load_task_filter(TraceViewStore *store,
+			    struct tracecmd_xml_handle *handle,
+			    struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	const char *name;
+	const char *value;
+
+	child = tracecmd_xml_node_child(node);
+	name = tracecmd_xml_node_type(child);
+	if (strcmp(name, "FilterType") == 0) {
+		value = tracecmd_xml_node_value(handle, child);
+		printf("value = %s\n", value);
+	}
+
+	return 0;
+}
+
+static int load_hide_tasks(TraceViewStore *store,
+			   struct tracecmd_xml_handle *handle,
+			   struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	const char *name;
+	const char *value;
+
+	child = tracecmd_xml_node_child(node);
+	name = tracecmd_xml_node_type(child);
+	if (strcmp(name, "FilterType") == 0) {
+		value = tracecmd_xml_node_value(handle, child);
+		printf("value = %s\n", value);
+	}
+
+	return 0;
+}
+
+int trace_view_load_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *trace_tree)
+{
+	struct tracecmd_xml_system *system;
+	struct tracecmd_xml_system_node *syschild;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	const char *name;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return -1;
+
+	store = TRACE_VIEW_STORE(model);
+
+	system = tracecmd_xml_find_system(handle, "TraceView");
+	if (!system)
+		return -1;
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+
+		if (strcmp(name, "EventFilter") == 0)
+			load_event_filter(store, handle, syschild);
+
+		else if (strcmp(name, "TaskFilter") == 0)
+			load_task_filter(store, handle, syschild);
+
+		else if (strcmp(name, "HideTasks") == 0)
+			load_hide_tasks(store, handle, syschild);
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	tracecmd_xml_free_system(system);
+
+	update_rows(trace_tree, store);
+	return 0;
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+	return -1;
+}

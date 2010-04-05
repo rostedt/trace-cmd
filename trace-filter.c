@@ -2209,3 +2209,78 @@ int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
 {
 	return 0;
 }
+
+int trace_filter_load_events(struct event_filter *event_filter,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	const char *name;
+	const char *system;
+	const char *event;
+	const char *value;
+	char *buffer;
+
+	while (node) {
+		name = tracecmd_xml_node_type(node);
+
+		if (strcmp(name, "System") == 0) {
+			system = tracecmd_xml_node_value(handle, node);
+			pevent_filter_add_filter_str(event_filter,
+						     system, NULL);
+		} else if (strcmp(name, "Event") == 0) {
+			system = NULL;
+			event = NULL;
+			value = NULL;
+			child = tracecmd_xml_node_child(node);
+			if (!child)
+				return -1;
+			do {
+				name = tracecmd_xml_node_type(child);
+				if (strcmp(name, "System") == 0)
+					system = tracecmd_xml_node_value(handle, child);
+				else if (strcmp(name, "Name") == 0)
+					event = tracecmd_xml_node_value(handle, child);
+				else if (strcmp(name, "Advanced") == 0)
+					value = tracecmd_xml_node_value(handle, child);
+				child = tracecmd_xml_node_next(child);
+			} while (child);
+
+			if (event || system) {
+				if (event && system) {
+					if (value) {
+						buffer = malloc_or_die(strlen(event) +
+								       strlen(system) +
+								       strlen(value) + 3);
+						sprintf(buffer, "%s/%s:%s",
+							system, event, value);
+					} else {
+						buffer = malloc_or_die(strlen(event) +
+								       strlen(system) + 2);
+						sprintf(buffer, "%s/%s",
+							system, event);
+					}
+				} else {
+					if (!event)
+						event = system;
+					if (value) {
+						buffer = malloc_or_die(strlen(event) +
+								       strlen(value) + 2);
+						sprintf(buffer, "%s:%s",
+							event, value);
+					} else {
+						buffer = malloc_or_die(strlen(event) + 1);
+						sprintf(buffer, "%s", event);
+					}
+				}
+				pevent_filter_add_filter_str(event_filter,
+							     buffer, NULL);
+				free(buffer);
+			}
+		}
+
+		node = tracecmd_xml_node_next(node);
+	}
+
+	return 0;
+}

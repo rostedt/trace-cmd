@@ -72,7 +72,30 @@ load_clicked (gpointer data)
 	g_free(filename);
 }
 
-/* Callback for the clicked signal of the Save State button */
+/* Callback for the clicked signal of the Load Filters button */
+static void
+load_filters_clicked (gpointer data)
+{
+	struct trace_tree_info *info = data;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->trace_tree);
+	struct tracecmd_xml_handle *handle;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Load Filters");
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_open(filename);
+	if (!handle)
+		warning("Could not open %s", filename);
+	g_free(filename);
+
+	trace_view_load_filters(handle, trace_tree);
+
+	tracecmd_xml_close(handle);
+}
+
+/* Callback for the clicked signal of the Save Filters button */
 static void
 save_filters_clicked (gpointer data)
 {
@@ -81,13 +104,13 @@ save_filters_clicked (gpointer data)
 	struct tracecmd_xml_handle *handle;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Save State");
+	filename = trace_get_file_dialog("Save Filters");
 	if (!filename)
 		return;
 
 	handle = tracecmd_xml_create(filename);
 	if (!handle)
-		warning("Could not create save state %s", filename);
+		warning("Could not create %s", filename);
 	g_free(filename);
 
 	trace_view_save_filters(handle, trace_tree);
@@ -286,7 +309,22 @@ void trace_view(int argc, char **argv)
 	gtk_widget_show(sub_item);
 
 
-	/* --- File - Save State Option --- */
+	/* --- File - Load Filter Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Load filters");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (load_filters_clicked),
+				  (gpointer) &tree_info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- File - Save Filter Option --- */
 
 	sub_item = gtk_menu_item_new_with_label("Save filters");
 

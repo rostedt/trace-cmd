@@ -68,5 +68,7 @@ gint trace_view_get_selected_row(GtkWidget *treeview);
 
 int trace_view_save_filters(struct tracecmd_xml_handle *handle,
 			    GtkTreeView *treeview);
+int trace_view_load_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *treeview);
 
 #endif /* _TRACE_VIEW_H */

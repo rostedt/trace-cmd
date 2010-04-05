@@ -135,16 +135,20 @@ typedef void (*trace_filter_cpu_cb_func)(gboolean accept,
 void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpu_mask_selected, gint cpus,
 			     trace_filter_cpu_cb_func func, gpointer data);
 
-/* put here because there's no other place */
-
-int str_cmp(const void *a, const void *b);
-int id_cmp(const void *a, const void *b);
-
 void trace_array_add(gint **array, gint *count, gint val);
 
+/* save and load filters */
 int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 			     struct event_filter *filter);
 int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
 			    struct filter_task *filter);
+int trace_filter_load_events(struct event_filter *event_filter,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node);
+
+/* put here because there's no other place */
+
+int str_cmp(const void *a, const void *b);
+int id_cmp(const void *a, const void *b);
 
 #endif /* _TRACE_FILTER_H */
