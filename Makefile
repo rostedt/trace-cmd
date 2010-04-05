@@ -13,8 +13,8 @@ FILE_VERSION = 6
 
 MAKEFLAGS += --no-print-directory
 
-CC = gcc
-AR = ar
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
 EXT = -std=gnu99
 INSTALL = install
 
