@@ -1582,7 +1582,9 @@ int main (int argc, char **argv)
 	record_data();
 	delete_thread_data();
 
-	printf("Buffer statistics:\n\n");
+	printf("Kernel buffer statistics:\n"
+	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
+	       "        recorded in the trace data. They should all be zero.\n\n");
 	for (cpu = 0; cpu < cpu_count; cpu++) {
 		trace_seq_init(&s);
 		trace_seq_printf(&s, "CPU: %d\n", cpu);
