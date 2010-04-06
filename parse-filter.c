@@ -946,6 +946,7 @@ process_not(struct event_format *event, struct filter_arg **parg,
 		arg->bool.value = FILTER_TRUE;
 	}
 
+	*parg = arg;
 	free_token(*tok);
 	*tok = NULL;
 
