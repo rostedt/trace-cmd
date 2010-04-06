@@ -23,6 +23,7 @@
  */
 #include "trace-compat.h"
 #include "trace-gui.h"
+#include "trace-cmd.h"
 
 #include <gdk/gdk.h>
 
@@ -77,6 +78,18 @@ gboolean gtk_show_uri(GdkScreen *screen, const gchar *uri,
 		      guint32 timestamp, GError **error)
 {
 	return FALSE;
+}
+
+void g_string_vprintf(GString *string, const gchar *format, va_list args)
+{
+	char buf[1024];
+	gint len;
+
+	len = vsnprintf(buf, 1024, format, args);
+	if (len >= 1024)
+		die("compat g_string_vprintf can not process length of %d\n", len);
+
+	g_string_printf(string, "%s", buf);
 }
 
 #endif /* version < 2.14.0 */

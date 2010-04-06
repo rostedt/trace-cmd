@@ -22,6 +22,7 @@
 #define _TRACE_COMPAT_H
 
 #include <gtk/gtk.h>
+#include <stdarg.h>
 
 #define CALC_GTK_VERSION(maj, min, ext) ((maj << 16) + (min << 8) + ext)
 
@@ -45,6 +46,8 @@ gdouble gtk_adjustment_get_upper(GtkAdjustment *adj);
 gdouble gtk_adjustment_get_lower(GtkAdjustment *adj);
 gboolean gtk_show_uri(GdkScreen *screen, const gchar *uri,
 		      guint32 timestamp, GError **error);
+
+void g_string_vprintf(GString *string, const gchar *format, va_list args);
 
 #endif /* version < 2.14.0 */
 

@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <gtk/gtk.h>
+#include <errno.h>
 #include <getopt.h>
 
 #include "trace-compat.h"
@@ -49,8 +50,15 @@
 #define TRACE_WIDTH	800
 #define TRACE_HEIGHT	600
 
+#define DIALOG_WIDTH	500
+#define DIALOG_HEIGHT	550
+
 #define default_input_file "trace.dat"
 static char *input_file;
+
+static GtkWidget *statusbar;
+static GtkWidget *statuspix;
+static GString *statusstr;
 
 void usage(char *prog)
 {
@@ -59,6 +67,34 @@ void usage(char *prog)
 	printf("  -v	Display version and exit\n");
 	printf("  -i	input_file, default is %s\n", default_input_file);
 }
+
+void pr_stat(char *fmt, ...)
+{
+	GString *str;
+	va_list ap;
+
+	if (!statusstr) {
+		statusstr = g_string_new("");
+		if (!statusstr)
+			die("Allocating status string");
+	}
+
+	str = g_string_new("");
+
+	va_start(ap, fmt);
+	g_string_vprintf(str, fmt, ap);
+	va_end(ap);
+
+	g_string_append_printf(statusstr, "%s\n", str->str);
+
+	if (statusbar) {
+		gtk_statusbar_push(GTK_STATUSBAR(statusbar), 1, str->str);
+		gtk_widget_show(statuspix);
+	}
+
+	g_string_free(str, TRUE);
+}
+
 
 /* graph callbacks */
 
@@ -715,6 +751,81 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return FALSE;
 }
 
+static void
+status_display_clicked (gpointer data)
+{
+	GtkWidget *dialog;
+	GtkWidget *scrollwin;
+	GtkWidget *viewport;
+	GtkWidget *textview;
+	GtkTextBuffer *buffer;
+
+	dialog = gtk_dialog_new_with_buttons("Status",
+					     NULL,
+					     GTK_DIALOG_MODAL,
+					     "OK",
+					     GTK_RESPONSE_ACCEPT,
+					     NULL);
+
+	scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
+	gtk_widget_show(scrollwin);
+
+	viewport = gtk_viewport_new(NULL, NULL);
+	gtk_widget_show(viewport);
+
+	gtk_container_add(GTK_CONTAINER(scrollwin), viewport);
+
+	textview = gtk_text_view_new();
+	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
+	gtk_text_buffer_set_text(buffer, statusstr->str, -1);
+
+	gtk_container_add(GTK_CONTAINER(viewport), textview);
+	gtk_widget_show(textview);
+
+	gtk_widget_set_size_request(GTK_WIDGET(dialog),
+				    DIALOG_WIDTH, DIALOG_HEIGHT);
+
+	gtk_dialog_run(GTK_DIALOG(dialog));
+
+	gtk_widget_destroy(dialog);
+}
+
+static gboolean
+do_status_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	static GtkWidget *menu;
+	static GtkWidget *menu_status_display;
+
+	if (!menu) {
+		menu = gtk_menu_new();
+		menu_status_display = gtk_menu_item_new_with_label("Display Status");
+		gtk_widget_show(menu_status_display);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_status_display);
+
+		g_signal_connect_swapped (G_OBJECT (menu_status_display), "activate",
+					  G_CALLBACK (status_display_clicked),
+					  data);
+	}
+
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL, 3,
+		       gtk_get_current_event_time());
+
+	return TRUE;
+}
+
+static gboolean
+button_press_status(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	if (event->button == 1)
+		return do_status_popup(widget, event, data);
+
+	return FALSE;
+}
+
 void kernel_shark(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
@@ -734,6 +845,7 @@ void kernel_shark(int argc, char **argv)
 	GtkWidget *label;
 	GtkWidget *spin;
 	GtkWidget *check;
+	GtkWidget *eventbox;
 	int ret;
 	int c;
 
@@ -1186,6 +1298,28 @@ void kernel_shark(int argc, char **argv)
 			   (GtkSignalFunc) button_press_event, info);
 
 	gtk_widget_show(info->treeview);
+
+	/* --- Set up Status Bar --- */
+
+	statusbar = gtk_statusbar_new();
+
+	gtk_box_pack_start(GTK_BOX(vbox), statusbar, FALSE, FALSE, 0);
+	gtk_widget_show(statusbar);
+
+	statuspix = gtk_image_new_from_stock(GTK_STOCK_INFO,
+					     GTK_ICON_SIZE_SMALL_TOOLBAR);
+
+	eventbox = gtk_event_box_new();
+	gtk_container_add(GTK_CONTAINER(eventbox), statuspix);
+	gtk_widget_show(eventbox);
+
+	gtk_box_pack_end(GTK_BOX(statusbar), eventbox, FALSE, FALSE, 0);
+
+	if (statusstr)
+		gtk_widget_show(statuspix);
+
+	gtk_signal_connect(GTK_OBJECT(eventbox), "button_press_event",
+			   (GtkSignalFunc) button_press_status, info);
 
 
 	/**********************************************
