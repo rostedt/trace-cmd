@@ -1651,11 +1651,9 @@ event_dialog_response (gpointer data, gint response_id)
 
 	switch (response_id) {
 	case GTK_RESPONSE_ACCEPT:
-		printf("accept!\n");
 		accept_events(event_helper);
 		break;
 	case GTK_RESPONSE_REJECT:
-		printf("reject!\n");
 		event_helper->func(FALSE, FALSE, NULL, NULL,
 				   event_helper->data);
 		break;
