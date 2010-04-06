@@ -216,6 +216,7 @@ void trace_graph(int argc, char **argv)
 	GtkWidget *menu_item;
 	GtkWidget *sub_item;
 	GtkWidget *widget;
+	GtkWidget *statusbar;
 	int c;
 	int ret;
 
@@ -453,6 +454,14 @@ void trace_graph(int argc, char **argv)
 	widget = trace_graph_get_window(ginfo);
 	gtk_box_pack_start(GTK_BOX (hbox), widget, TRUE, TRUE, 0);
 	gtk_widget_show(widget);
+
+
+	/* --- Set up Status Bar --- */
+
+	statusbar = trace_status_bar_new();
+
+	gtk_box_pack_start(GTK_BOX(vbox), statusbar, FALSE, FALSE, 0);
+	gtk_widget_show(statusbar);
 
 
 	/**********************************************

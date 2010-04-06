@@ -29,6 +29,8 @@ enum trace_dialog_type {
 	TRACE_GUI_ERROR,
 };
 
+GtkWidget *trace_status_bar_new(void);
+
 void trace_show_help(GtkWidget *window, const gchar *link, GError **error);
 
 void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,

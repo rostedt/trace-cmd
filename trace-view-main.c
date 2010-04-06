@@ -435,6 +435,7 @@ void trace_view(int argc, char **argv)
 	GtkWidget *scrollwin;
 	GtkWidget *label;
 	GtkWidget *spin;
+	GtkWidget *statusbar;
 	int ret;
 	int c;
 
@@ -686,6 +687,13 @@ void trace_view(int argc, char **argv)
 	gtk_container_add(GTK_CONTAINER(scrollwin), trace_tree);
 	gtk_widget_show(trace_tree);
 
+
+	/* --- Set up Status Bar --- */
+
+	statusbar = trace_status_bar_new();
+
+	gtk_box_pack_start(GTK_BOX(vbox), statusbar, FALSE, FALSE, 0);
+	gtk_widget_show(statusbar);
 
 	/**********************************************
 	 *   Main Window
