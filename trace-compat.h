@@ -54,6 +54,7 @@ void g_string_vprintf(GString *string, const gchar *format, va_list args);
 #if GTK_VERSION < CALC_GTK_VERSION(2,12,0)
 
 GtkWidget *gtk_tree_view_column_get_tree_view(GtkTreeViewColumn *col);
+void gtk_widget_set_tooltip_text(GtkWidget *widget, const gchar *text);
 
 #endif /* version < 2.12.0 */
 

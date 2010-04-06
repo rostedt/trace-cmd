@@ -2609,8 +2609,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->cursor_label = gtk_label_new("0.0");
-	set_label_cursor(ginfo->cursor_label);
 	eventbox = gtk_event_box_new();
+	set_label_cursor(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
 	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->cursor_label);
@@ -2631,13 +2631,13 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 
 	label = gtk_label_new("A:");
-	set_label_a(label);
 
 	colorAB.red = 0;
 	colorAB.green = (0xff) *(65535/255);
 	colorAB.blue = 0;
 
 	eventbox = gtk_event_box_new();
+	set_label_a(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &colorAB);
 	gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -2648,8 +2648,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_table_attach(GTK_TABLE(table), hbox, 9, 10, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
 
 	ginfo->marka_label = gtk_label_new("0.0");
-	set_label_a(ginfo->marka_label);
 	eventbox = gtk_event_box_new();
+	set_label_a(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
 	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->marka_label);
@@ -2669,13 +2669,13 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	label = gtk_label_new("B:");
-	set_label_b(label);
 
 	colorAB.red = (0xff) *(65535/255);
 	colorAB.green = 0;
 	colorAB.blue = 0;
 
 	eventbox = gtk_event_box_new();
+	set_label_b(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &colorAB);
 	gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -2687,8 +2687,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->markb_label = gtk_label_new("0.0");
-	set_label_b(ginfo->markb_label);
 	eventbox = gtk_event_box_new();
+	set_label_b(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
 	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->markb_label);

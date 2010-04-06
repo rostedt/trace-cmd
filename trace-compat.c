@@ -101,4 +101,20 @@ GtkWidget *gtk_tree_view_column_get_tree_view(GtkTreeViewColumn *col)
 	return col->tree_view;
 }
 
+void gtk_widget_set_tooltip_text(GtkWidget *widget, const gchar *text)
+{
+	static GtkTooltips *tooltips;
+
+	/* Only works for widgets with windows, sorry */
+	if (GTK_WIDGET_NO_WINDOW(widget))
+		return;
+
+	if (!tooltips) {
+		tooltips = gtk_tooltips_new();
+		gtk_tooltips_enable(tooltips);
+	}
+
+	gtk_tooltips_set_tip(GTK_TOOLTIPS(tooltips), widget, text, text);
+}
+
 #endif /* version < 2.12.0 */
