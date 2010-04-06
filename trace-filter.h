@@ -148,6 +148,12 @@ int trace_filter_load_events(struct event_filter *event_filter,
 int trace_filter_load_task_filter(struct filter_task *filter,
 				  struct tracecmd_xml_handle *handle,
 				  struct tracecmd_xml_system_node *node);
+int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
+			      struct filter_task *task_filter,
+			      struct filter_task *hide_tasks);
+int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
+			      struct filter_task *task_filter,
+			      struct filter_task *hide_tasks);
 
 /* put here because there's no other place */
 

@@ -29,7 +29,6 @@
 #include "trace-local.h"
 #include "trace-view.h"
 #include "trace-compat.h"
-#include "version.h"
 #include "cpu.h"
 #include "util.h"
 
@@ -873,9 +872,7 @@ void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
 }
 
 int trace_view_save_filters(struct tracecmd_xml_handle *handle,
-			    GtkTreeView *trace_tree,
-			    struct filter_task *task_filter,
-			    struct filter_task *hide_tasks)
+			    GtkTreeView *trace_tree)
 {
 	struct event_filter *event_filter;
 	GtkTreeModel *model;
@@ -888,7 +885,7 @@ int trace_view_save_filters(struct tracecmd_xml_handle *handle,
 
 	store = TRACE_VIEW_STORE(model);
 
-	tracecmd_xml_start_system(handle, "TraceView", VERSION_STRING);
+	tracecmd_xml_start_system(handle, "TraceView");
 
 	all_events = trace_view_store_get_all_events_enabled(store);
 	event_filter = trace_view_store_get_event_filter(store);
@@ -903,18 +900,6 @@ int trace_view_save_filters(struct tracecmd_xml_handle *handle,
 	}
 
 	tracecmd_xml_end_sub_system(handle);
-
-	if (task_filter && filter_task_count(task_filter)) {
-		tracecmd_xml_start_sub_system(handle, "TaskFilter");
-		trace_filter_save_tasks(handle, task_filter);
-		tracecmd_xml_end_sub_system(handle);
-	}
-
-	if (hide_tasks && filter_task_count(hide_tasks)) {
-		tracecmd_xml_start_sub_system(handle, "HideTasks");
-		trace_filter_save_tasks(handle, hide_tasks);
-		tracecmd_xml_end_sub_system(handle);
-	}
 
 	tracecmd_xml_end_system(handle);
 
@@ -954,9 +939,7 @@ static int load_event_filter(TraceViewStore *store,
 }
 
 int trace_view_load_filters(struct tracecmd_xml_handle *handle,
-			    GtkTreeView *trace_tree,
-			    struct filter_task *task_filter,
-			    struct filter_task *hide_tasks)
+			    GtkTreeView *trace_tree)
 {
 	struct tracecmd_xml_system *system;
 	struct tracecmd_xml_system_node *syschild;
@@ -983,12 +966,6 @@ int trace_view_load_filters(struct tracecmd_xml_handle *handle,
 
 		if (strcmp(name, "EventFilter") == 0)
 			load_event_filter(store, handle, syschild);
-
-		else if (strcmp(name, "TaskFilter") == 0)
-			trace_filter_load_task_filter(task_filter, handle, syschild);
-
-		else if (strcmp(name, "HideTasks") == 0)
-			trace_filter_load_task_filter(hide_tasks, handle, syschild);
 
 		syschild = tracecmd_xml_node_next(syschild);
 	} while (syschild);

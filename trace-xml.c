@@ -58,7 +58,8 @@ int tracecmd_xml_write_element(struct tracecmd_xml_handle *handle,
 	return ret;
 }
 
-struct tracecmd_xml_handle *tracecmd_xml_create(const char *name)
+struct tracecmd_xml_handle *tracecmd_xml_create(const char *name,
+						const char *version)
 {
 	struct tracecmd_xml_handle *handle;
 	int ret;
@@ -75,6 +76,11 @@ struct tracecmd_xml_handle *tracecmd_xml_create(const char *name)
 	if (ret < 0)
 		goto fail_close;
 
+	ret = xmlTextWriterStartElement(handle->writer,
+					BAD_CAST "KernelShark");
+	if (ret < 0)
+		goto fail_close;
+
 	return handle;
 
  fail_close:
@@ -85,17 +91,13 @@ struct tracecmd_xml_handle *tracecmd_xml_create(const char *name)
 }
 
 int tracecmd_xml_start_system(struct tracecmd_xml_handle *handle,
-			      const char *system, const char *version)
+			      const char *system)
 {
 	int ret;
 
 	ret = xmlTextWriterStartElement(handle->writer,
 					BAD_CAST system);
 
-	if (ret < 0)
-		return ret;
-
-	ret = tracecmd_xml_write_element(handle, "Version", "%s", version);
 	if (ret < 0)
 		return ret;
 
@@ -126,6 +128,7 @@ void tracecmd_xml_end_sub_system(struct tracecmd_xml_handle *handle)
 void tracecmd_xml_close(struct tracecmd_xml_handle *handle)
 {
 	if (handle->writer) {
+		xmlTextWriterEndElement(handle->writer);
 		xmlTextWriterEndDocument(handle->writer);
 		xmlFreeTextWriter(handle->writer);
 	}

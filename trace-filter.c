@@ -2327,3 +2327,65 @@ int trace_filter_load_task_filter(struct filter_task *filter,
 
 	return 0;
 }
+
+int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
+			      struct filter_task *task_filter,
+			      struct filter_task *hide_tasks)
+{
+	struct tracecmd_xml_system *system;
+	struct tracecmd_xml_system_node *syschild;
+	const char *name;
+
+	system = tracecmd_xml_find_system(handle, "TraceFilter");
+	if (!system)
+		return -1;
+
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+
+		if (strcmp(name, "TaskFilter") == 0)
+			trace_filter_load_task_filter(task_filter, handle, syschild);
+
+		else if (strcmp(name, "HideTasks") == 0)
+			trace_filter_load_task_filter(hide_tasks, handle, syschild);
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	tracecmd_xml_free_system(system);
+
+	return 0;
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+	return -1;
+}
+
+int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
+			      struct filter_task *task_filter,
+			      struct filter_task *hide_tasks)
+{
+
+	tracecmd_xml_start_system(handle, "TraceFilter");
+
+	if (task_filter && filter_task_count(task_filter)) {
+		tracecmd_xml_start_sub_system(handle, "TaskFilter");
+		trace_filter_save_tasks(handle, task_filter);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	if (hide_tasks && filter_task_count(hide_tasks)) {
+		tracecmd_xml_start_sub_system(handle, "HideTasks");
+		trace_filter_save_tasks(handle, hide_tasks);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	tracecmd_xml_end_system(handle);
+
+	return 0;
+}

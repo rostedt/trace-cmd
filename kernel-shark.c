@@ -177,15 +177,10 @@ load_filters_clicked (gpointer data)
 		warning("Could not open %s", filename);
 	g_free(filename);
 
-	/*
-	 * Just in case we are loading only a tree view filter,
-	 * we will load the task filters for the tree view first.
-	 * Then we load the graph next, and if the graph has
-	 * trace filters, than those will override them.
-	 */
-	trace_view_load_filters(handle, trace_tree,
-				ginfo->task_filter,
-				ginfo->hide_tasks);
+	trace_filter_load_filters(handle, ginfo->task_filter,
+				  ginfo->hide_tasks);
+
+	trace_view_load_filters(handle, trace_tree);
 	trace_graph_load_filters(ginfo, handle);
 
 	tracecmd_xml_close(handle);
@@ -205,15 +200,17 @@ save_filters_clicked (gpointer data)
 	if (!filename)
 		return;
 
-	handle = tracecmd_xml_create(filename);
+	handle = tracecmd_xml_create(filename, VERSION_STRING);
 	if (!handle)
 		warning("Could not create %s", filename);
 	g_free(filename);
 
-	trace_view_save_filters(handle, trace_tree,
-				ginfo->task_filter, ginfo->hide_tasks);
+	trace_view_save_filters(handle, trace_tree);
 
 	trace_graph_save_filters(ginfo, handle);
+
+	trace_filter_save_filters(handle, ginfo->task_filter,
+				  ginfo->hide_tasks);
 
 	tracecmd_xml_close(handle);
 }

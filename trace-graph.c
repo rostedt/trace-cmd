@@ -32,8 +32,6 @@
 #include "trace-hash.h"
 #include "trace-filter.h"
 
-#include "version.h"
-
 #include "util.h"
 
 #define DEBUG_LEVEL	0
@@ -2437,6 +2435,12 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 	struct tracecmd_xml_system_node *syschild;
 	const char *name;
 
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
+		ginfo->filter_available = 1;
+	else
+		ginfo->filter_available = 0;
+
 	system = tracecmd_xml_find_system(handle, "TraceGraph");
 	if (!system)
 		return -1;
@@ -2450,12 +2454,6 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 
 		if (strcmp(name, "EventFilter") == 0)
 			load_event_filter(ginfo, handle, syschild);
-
-		else if (strcmp(name, "TaskFilter") == 0)
-			trace_filter_load_task_filter(ginfo->task_filter, handle, syschild);
-
-		else if (strcmp(name, "HideTasks") == 0)
-			trace_filter_load_task_filter(ginfo->hide_tasks, handle, syschild);
 
 		syschild = tracecmd_xml_node_next(syschild);
 	} while (syschild);
@@ -2474,6 +2472,9 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 
  out_free_sys:
 	tracecmd_xml_free_system(system);
+	if (ginfo->filter_enabled)
+		trace_graph_refresh(ginfo);
+
 	return -1;
 }
 
@@ -2482,7 +2483,7 @@ int trace_graph_save_filters(struct graph_info *ginfo,
 {
 	struct event_filter *event_filter;
 
-	tracecmd_xml_start_system(handle, "TraceGraph", VERSION_STRING);
+	tracecmd_xml_start_system(handle, "TraceGraph");
 
 	event_filter = ginfo->event_filter;
 
@@ -2496,18 +2497,6 @@ int trace_graph_save_filters(struct graph_info *ginfo,
 	}
 
 	tracecmd_xml_end_sub_system(handle);
-
-	if (ginfo->task_filter && filter_task_count(ginfo->task_filter)) {
-		tracecmd_xml_start_sub_system(handle, "TaskFilter");
-		trace_filter_save_tasks(handle, ginfo->task_filter);
-		tracecmd_xml_end_sub_system(handle);
-	}
-
-	if (ginfo->hide_tasks && filter_task_count(ginfo->hide_tasks)) {
-		tracecmd_xml_start_sub_system(handle, "HideTasks");
-		trace_filter_save_tasks(handle, ginfo->hide_tasks);
-		tracecmd_xml_end_sub_system(handle);
-	}
 
 	tracecmd_xml_end_system(handle);
 

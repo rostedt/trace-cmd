@@ -31,6 +31,8 @@
 #include "trace-filter.h"
 #include "trace-gui.h"
 
+#include "version.h"
+
 #define version "0.1.1"
 
 #define TRACE_WIDTH	800
@@ -169,6 +171,9 @@ load_filters_clicked (gpointer data)
 		warning("Could not open %s", filename);
 	g_free(filename);
 
+	trace_filter_load_filters(handle, ginfo->task_filter,
+				  ginfo->hide_tasks);
+
 	trace_graph_load_filters(ginfo, handle);
 
 	tracecmd_xml_close(handle);
@@ -186,10 +191,13 @@ save_filters_clicked (gpointer data)
 	if (!filename)
 		return;
 
-	handle = tracecmd_xml_create(filename);
+	handle = tracecmd_xml_create(filename, VERSION_STRING);
 	if (!handle)
 		warning("Could not create %s", filename);
 	g_free(filename);
+
+	trace_filter_save_filters(handle, ginfo->task_filter,
+				  ginfo->hide_tasks);
 
 	trace_graph_save_filters(ginfo, handle);
 

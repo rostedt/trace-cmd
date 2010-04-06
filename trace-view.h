@@ -67,12 +67,8 @@ void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview);
 gint trace_view_get_selected_row(GtkWidget *treeview);
 
 int trace_view_save_filters(struct tracecmd_xml_handle *handle,
-			    GtkTreeView *treeview,
-			    struct filter_task *task_filter,
-			    struct filter_task *hide_tasks);
+			    GtkTreeView *treeview);
 int trace_view_load_filters(struct tracecmd_xml_handle *handle,
-			    GtkTreeView *treeview,
-			    struct filter_task *task_filter,
-			    struct filter_task *hide_tasks);
+			    GtkTreeView *treeview);
 
 #endif /* _TRACE_VIEW_H */

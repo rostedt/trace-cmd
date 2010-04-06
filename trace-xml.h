@@ -25,12 +25,12 @@ struct tracecmd_xml_handle;
 struct tacecmd_xml_system;
 struct tacecmd_xml_system_node;
 
-struct tracecmd_xml_handle *tracecmd_xml_create(const char *name);
+struct tracecmd_xml_handle *tracecmd_xml_create(const char *name, const char *version);
 struct tracecmd_xml_handle *tracecmd_xml_open(const char *name);
 void tracecmd_xml_close(struct tracecmd_xml_handle *handle);
 
 int tracecmd_xml_start_system(struct tracecmd_xml_handle *handle,
-			      const char *system, const char *version);
+			      const char *system);
 void tracecmd_xml_end_system(struct tracecmd_xml_handle *handle);
 
 int tracecmd_xml_start_sub_system(struct tracecmd_xml_handle *handle,

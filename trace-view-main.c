@@ -29,8 +29,11 @@
 #include "trace-cmd.h"
 #include "trace-view.h"
 #include "trace-xml.h"
+#include "trace-filter.h"
 #include "trace-gui.h"
 #include "trace-compat.h"
+
+#include "version.h"
 
 #define version "0.1.1"
 
@@ -93,12 +96,16 @@ load_filters_clicked (gpointer data)
 		return;
 
 	handle = tracecmd_xml_open(filename);
-	if (!handle)
+	if (!handle) {
 		warning("Could not open %s", filename);
+		return;
+	}
 	g_free(filename);
 
-	trace_view_load_filters(handle, trace_tree, info->task_filter,
-				info->hide_tasks);
+	trace_filter_load_filters(handle, info->task_filter,
+				  info->hide_tasks);
+
+	trace_view_load_filters(handle, trace_tree);
 
 	tracecmd_xml_close(handle);
 }
@@ -116,13 +123,13 @@ save_filters_clicked (gpointer data)
 	if (!filename)
 		return;
 
-	handle = tracecmd_xml_create(filename);
+	handle = tracecmd_xml_create(filename, VERSION_STRING);
 	if (!handle)
 		warning("Could not create %s", filename);
 	g_free(filename);
 
-	trace_view_save_filters(handle, trace_tree,
-				info->task_filter, info->hide_tasks);
+	trace_filter_save_filters(handle, info->task_filter, info->hide_tasks);
+	trace_view_save_filters(handle, trace_tree);
 
 	tracecmd_xml_close(handle);
 }
