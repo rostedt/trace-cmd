@@ -38,8 +38,6 @@
 int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
 
-#define __weak __attribute__((weak))
-
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
@@ -52,71 +50,6 @@ struct plugin_list {
 	char			*name;
 	void			*handle;
 };
-
-void __weak die(char *fmt, ...)
-{
-	va_list ap;
-	int ret = errno;
-
-	if (errno)
-		perror("trace-cmd");
-	else
-		ret = -1;
-
-	va_start(ap, fmt);
-	fprintf(stderr, "  ");
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-
-	fprintf(stderr, "\n");
-	exit(ret);
-}
-
-void __weak warning(char *fmt, ...)
-{
-	va_list ap;
-
-	if (errno)
-		perror("trace-cmd");
-	errno = 0;
-
-	va_start(ap, fmt);
-	fprintf(stderr, "  ");
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-
-	fprintf(stderr, "\n");
-}
-
-void __weak pr_stat(char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-
-	printf("\n");
-}
-
-void __weak *malloc_or_die(unsigned int size)
-{
-	void *data;
-
-	data = malloc(size);
-	if (!data)
-		die("malloc");
-	return data;
-}
-
-int __weak bigendian(void)
-{
-	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
-	unsigned int *ptr;
-
-	ptr = (unsigned int *)str;
-	return *ptr == 0x01020304;
-}
 
 void parse_cmdlines(struct pevent *pevent,
 		    char *file, int size __unused)
