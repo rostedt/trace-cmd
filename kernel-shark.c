@@ -788,6 +788,8 @@ void kernel_shark(int argc, char **argv)
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	info->window = window;
 
+	trace_dialog_register_window(window);
+
 	if (input_file)
 		update_title(window, input_file);
 

@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 #include <ctype.h>
 
 #include "trace-compat.h"
@@ -34,6 +35,8 @@
 static GtkWidget *statusbar;
 static GtkWidget *statuspix;
 static GString *statusstr;
+
+static GtkWidget *parent_window;
 
 void pr_stat(char *fmt, ...)
 {
@@ -58,6 +61,51 @@ void pr_stat(char *fmt, ...)
 		gtk_statusbar_push(GTK_STATUSBAR(statusbar), 1, str->str);
 		gtk_widget_show(statuspix);
 	}
+
+	g_string_free(str, TRUE);
+}
+
+/**
+ * trace_dialog_register_window - register window for warning dialogs
+ * @window: parent window to use for other dialogs
+ *
+ * The warning messages do not have a way to pass the window to
+ * the function, since these functions are also used by the command
+ * line interface. This allows an application to give the warning
+ * messages a window to use.
+ */
+void trace_dialog_register_window(GtkWidget *window)
+{
+	parent_window = window;
+}
+
+void warning(char *fmt, ...)
+{
+	GString *str;
+	va_list ap;
+
+	if (!parent_window) {
+		va_start(ap, fmt);
+		__vwarning(fmt, ap);
+		va_end(ap);
+		return;
+	}
+
+	str = g_string_new("");
+
+	va_start(ap, fmt);
+	g_string_vprintf(str, fmt, ap);
+	va_end(ap);
+
+	g_string_append(str, "\n");
+
+	if (errno)
+		g_string_prepend(str, strerror(errno));
+
+	errno = 0;
+
+	trace_dialog(GTK_WINDOW(parent_window), TRACE_GUI_WARNING,
+		     str->str);
 
 	g_string_free(str, TRUE);
 }

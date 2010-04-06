@@ -479,6 +479,8 @@ void trace_view(int argc, char **argv)
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
+	trace_dialog_register_window(window);
+
 	/* --- Top Level Vbox --- */
 
 	vbox = gtk_vbox_new(FALSE, 0);
