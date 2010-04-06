@@ -766,7 +766,25 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return TRUE;
 }
 
-static void button_press(struct graph_info *ginfo, gint x, guint state)
+static void draw_info_box(struct graph_info *ginfo, const gchar *buffer,
+			  gint x, gint y);
+
+static void stop_zoom_tip(struct graph_info *ginfo)
+{
+	clear_info_box(ginfo);
+}
+
+static void show_zoom_tip(struct graph_info *ginfo, gint x, gint y)
+{
+	clear_info_box(ginfo);
+
+	draw_info_box(ginfo,
+		      "Click and hold left mouse and drag right to zoom in\n"
+		      "Click and hold left mouse and drag left to zoom out",
+		      x, y);
+}
+
+static void button_press(struct graph_info *ginfo, gint x, gint y, guint state)
 {
 	ginfo->press_x = x;
 	ginfo->last_x = 0;
@@ -785,8 +803,10 @@ static void button_press(struct graph_info *ginfo, gint x, guint state)
 			clear_line(ginfo, convert_time_to_x(ginfo, ginfo->marka_time));
 			update_marka(ginfo, x);
 		}
-	} else
+	} else {
 		ginfo->zoom = TRUE;
+		show_zoom_tip(ginfo, x, y);
+	}
 
 	return;
 }
@@ -826,7 +846,7 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		return TRUE;
 	}
 
-	button_press(ginfo, event->x, event->state);
+	button_press(ginfo, event->x, event->y, event->state);
 
 	return TRUE;
 }
@@ -838,6 +858,9 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 static void motion_plot(struct graph_info *ginfo, gint x, gint y)
 {
 	struct graph_plot *plot;
+
+	if (ginfo->zoom)
+		stop_zoom_tip(ginfo);
 
 	if (!ginfo->curr_pixmap)
 		return;
@@ -876,7 +899,7 @@ info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (event->type == GDK_2BUTTON_PRESS)
 		return FALSE;
 
-	button_press(ginfo, gtk_adjustment_get_value(ginfo->hadj), event->state);
+	button_press(ginfo, gtk_adjustment_get_value(ginfo->hadj), event->y, event->state);
 
 	return FALSE;
 }
@@ -1500,7 +1523,8 @@ static void button_release(struct graph_info *ginfo, gint x)
 		ginfo->show_marka = TRUE;
 		ginfo->show_markb = TRUE;
 		update_markb(ginfo, x);
-	}
+	} else
+		stop_zoom_tip(ginfo);
 
 	clear_line(ginfo, ginfo->last_x);
 	clear_line(ginfo, ginfo->press_x);
