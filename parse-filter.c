@@ -615,7 +615,7 @@ process_cmp(struct event_format *event, enum filter_cmp_type op_type,
 	    char **tok, char **error_str)
 {
 	struct filter_arg *arg;
-	struct filter_arg *rarg;
+	struct filter_arg *rarg = NULL;
 	enum event_type orig_type;
 	enum event_type type;
 	int ret;
@@ -744,7 +744,7 @@ process_exp(struct event_format *event, enum filter_exp_type etype,
 	    struct filter_arg *larg, struct filter_arg **parg,
 	    char **tok, char **error_str)
 {
-	struct filter_arg *rarg;
+	struct filter_arg *rarg = NULL;
 	struct filter_arg *arg;
 	enum event_type orig_type;
 	enum event_type type;
