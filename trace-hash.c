@@ -19,6 +19,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 
@@ -154,4 +155,30 @@ struct filter_task *filter_task_hash_copy(struct filter_task *hash)
 	new_hash->count = hash->count;
 
 	return new_hash;
+}
+
+int *filter_task_pids(struct filter_task *hash)
+{
+	struct filter_task_item *task;
+	int *pids;
+	int count = 0;
+	int i;
+
+	if (!hash->count)
+		return NULL;
+
+	pids = malloc(sizeof(*pids) * (hash->count + 1));
+	if (!pids)
+		return NULL;
+
+	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
+		task = hash->hash[i];
+		while (task) {
+			pids[count++] = task->pid;
+			task = task->next;
+		}
+	}
+	pids[count] = -1;
+
+	return pids;
 }

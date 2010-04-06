@@ -873,7 +873,9 @@ void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
 }
 
 int trace_view_save_filters(struct tracecmd_xml_handle *handle,
-			    GtkTreeView *trace_tree)
+			    GtkTreeView *trace_tree,
+			    struct filter_task *task_filter,
+			    struct filter_task *hide_tasks)
 {
 	struct event_filter *event_filter;
 	GtkTreeModel *model;
@@ -902,15 +904,15 @@ int trace_view_save_filters(struct tracecmd_xml_handle *handle,
 
 	tracecmd_xml_end_sub_system(handle);
 
-	if (store->task_filter) {
+	if (task_filter && filter_task_count(task_filter)) {
 		tracecmd_xml_start_sub_system(handle, "TaskFilter");
-		trace_filter_save_tasks(handle, store->task_filter);
+		trace_filter_save_tasks(handle, task_filter);
 		tracecmd_xml_end_sub_system(handle);
 	}
 
-	if (store->hide_tasks) {
+	if (hide_tasks && filter_task_count(hide_tasks)) {
 		tracecmd_xml_start_sub_system(handle, "HideTasks");
-		trace_filter_save_tasks(handle, store->hide_tasks);
+		trace_filter_save_tasks(handle, hide_tasks);
 		tracecmd_xml_end_sub_system(handle);
 	}
 
@@ -951,44 +953,10 @@ static int load_event_filter(TraceViewStore *store,
 	return 0;
 }
 
-static int load_task_filter(TraceViewStore *store,
-			    struct tracecmd_xml_handle *handle,
-			    struct tracecmd_xml_system_node *node)
-{
-	struct tracecmd_xml_system_node *child;
-	const char *name;
-	const char *value;
-
-	child = tracecmd_xml_node_child(node);
-	name = tracecmd_xml_node_type(child);
-	if (strcmp(name, "FilterType") == 0) {
-		value = tracecmd_xml_node_value(handle, child);
-		printf("value = %s\n", value);
-	}
-
-	return 0;
-}
-
-static int load_hide_tasks(TraceViewStore *store,
-			   struct tracecmd_xml_handle *handle,
-			   struct tracecmd_xml_system_node *node)
-{
-	struct tracecmd_xml_system_node *child;
-	const char *name;
-	const char *value;
-
-	child = tracecmd_xml_node_child(node);
-	name = tracecmd_xml_node_type(child);
-	if (strcmp(name, "FilterType") == 0) {
-		value = tracecmd_xml_node_value(handle, child);
-		printf("value = %s\n", value);
-	}
-
-	return 0;
-}
-
 int trace_view_load_filters(struct tracecmd_xml_handle *handle,
-			    GtkTreeView *trace_tree)
+			    GtkTreeView *trace_tree,
+			    struct filter_task *task_filter,
+			    struct filter_task *hide_tasks)
 {
 	struct tracecmd_xml_system *system;
 	struct tracecmd_xml_system_node *syschild;
@@ -1017,10 +985,10 @@ int trace_view_load_filters(struct tracecmd_xml_handle *handle,
 			load_event_filter(store, handle, syschild);
 
 		else if (strcmp(name, "TaskFilter") == 0)
-			load_task_filter(store, handle, syschild);
+			trace_filter_load_task_filter(task_filter, handle, syschild);
 
 		else if (strcmp(name, "HideTasks") == 0)
-			load_hide_tasks(store, handle, syschild);
+			trace_filter_load_task_filter(hide_tasks, handle, syschild);
 
 		syschild = tracecmd_xml_node_next(syschild);
 	} while (syschild);

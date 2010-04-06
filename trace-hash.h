@@ -42,6 +42,7 @@ void filter_task_clear(struct filter_task *hash);
 struct filter_task *filter_task_hash_alloc(void);
 void filter_task_hash_free(struct filter_task *hash);
 struct filter_task *filter_task_hash_copy(struct filter_task *hash);
+int *filter_task_pids(struct filter_task *hash);
 
 static inline gint filter_task_count(struct filter_task *hash)
 {

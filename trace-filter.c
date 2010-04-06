@@ -2207,6 +2207,21 @@ int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
 			    struct filter_task *filter)
 {
+	char buffer[100];
+	int *pids;
+	int i;
+
+	pids = filter_task_pids(filter);
+	if (!pids)
+		return -1;
+
+	for (i = 0; pids[i] >= 0; i++) {
+		snprintf(buffer, 100, "%d", pids[i]);
+		tracecmd_xml_write_element(handle, "Task", buffer);
+	}
+
+	free(pids);
+
 	return 0;
 }
 
@@ -2279,6 +2294,34 @@ int trace_filter_load_events(struct event_filter *event_filter,
 			}
 		}
 
+		node = tracecmd_xml_node_next(node);
+	}
+
+	return 0;
+}
+
+int trace_filter_load_task_filter(struct filter_task *filter,
+				  struct tracecmd_xml_handle *handle,
+				  struct tracecmd_xml_system_node *node)
+{
+	const char *name;
+	const char *task;
+	int pid;
+
+	if (!filter)
+		return 0;
+
+	node = tracecmd_xml_node_child(node);
+
+	while (node) {
+		name = tracecmd_xml_node_type(node);
+
+		if (strcmp(name, "Task") == 0) {
+			task = tracecmd_xml_node_value(handle, node);
+			pid = atoi(task);
+			if (!filter_task_find_pid(filter, pid))
+				filter_task_add_pid(filter, pid);
+		}
 		node = tracecmd_xml_node_next(node);
 	}
 

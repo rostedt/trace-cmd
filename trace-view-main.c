@@ -97,7 +97,8 @@ load_filters_clicked (gpointer data)
 		warning("Could not open %s", filename);
 	g_free(filename);
 
-	trace_view_load_filters(handle, trace_tree);
+	trace_view_load_filters(handle, trace_tree, info->task_filter,
+				info->hide_tasks);
 
 	tracecmd_xml_close(handle);
 }
@@ -120,7 +121,8 @@ save_filters_clicked (gpointer data)
 		warning("Could not create %s", filename);
 	g_free(filename);
 
-	trace_view_save_filters(handle, trace_tree);
+	trace_view_save_filters(handle, trace_tree,
+				info->task_filter, info->hide_tasks);
 
 	tracecmd_xml_close(handle);
 }
