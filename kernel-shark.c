@@ -158,6 +158,66 @@ load_clicked (gpointer data)
 	g_free(filename);
 }
 
+/* Callback for the clicked signal of the Load Filters button */
+static void
+load_filters_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	struct tracecmd_xml_handle *handle;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Load Filters");
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_open(filename);
+	if (!handle)
+		warning("Could not open %s", filename);
+	g_free(filename);
+
+	/*
+	 * Just in case we are loading only a tree view filter,
+	 * we will load the task filters for the tree view first.
+	 * Then we load the graph next, and if the graph has
+	 * trace filters, than those will override them.
+	 */
+	trace_view_load_filters(handle, trace_tree,
+				ginfo->task_filter,
+				ginfo->hide_tasks);
+	trace_graph_load_filters(ginfo, handle);
+
+	tracecmd_xml_close(handle);
+}
+
+/* Callback for the clicked signal of the Save Filters button */
+static void
+save_filters_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	struct tracecmd_xml_handle *handle;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Save Filters");
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_create(filename);
+	if (!handle)
+		warning("Could not create %s", filename);
+	g_free(filename);
+
+	trace_view_save_filters(handle, trace_tree,
+				ginfo->task_filter, ginfo->hide_tasks);
+
+	trace_graph_save_filters(ginfo, handle);
+
+	tracecmd_xml_close(handle);
+}
+
 /* Callback for the clicked signal of the Exit button */
 static void
 exit_clicked (gpointer data)
@@ -768,6 +828,35 @@ void kernel_shark(int argc, char **argv)
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
 
+
+	/* --- File - Load Filter Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Load filters");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (load_filters_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- File - Save Filter Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Save filters");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (save_filters_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
 
 	/* --- File - Quit Option --- */
 
