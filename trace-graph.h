@@ -24,6 +24,7 @@
 #include <gtk/gtk.h>
 #include "trace-cmd.h"
 #include "trace-hash.h"
+#include "trace-xml.h"
 
 struct graph_info;
 
@@ -305,6 +306,11 @@ void trace_graph_copy_filter(struct graph_info *ginfo,
 			     gboolean all_events,
 			     struct event_filter *event_filter);
 gint *trace_graph_task_list(struct graph_info *ginfo);
+
+int trace_graph_load_filters(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle);
+int trace_graph_save_filters(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle);
 
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);

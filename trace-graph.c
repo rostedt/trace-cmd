@@ -32,6 +32,8 @@
 #include "trace-hash.h"
 #include "trace-filter.h"
 
+#include "version.h"
+
 #include "util.h"
 
 #define DEBUG_LEVEL	0
@@ -2391,6 +2393,123 @@ int trace_graph_load_handle(struct graph_info *ginfo,
 
 	update_label_window(ginfo);
 	redraw_graph(ginfo);
+
+	return 0;
+}
+
+static int load_event_filter(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	struct event_filter *event_filter;
+	const char *name;
+	const char *value;
+
+	event_filter = ginfo->event_filter;
+
+	child = tracecmd_xml_node_child(node);
+	name = tracecmd_xml_node_type(child);
+	if (strcmp(name, "FilterType") != 0)
+		return -1;
+
+	value = tracecmd_xml_node_value(handle, child);
+	/* Do nothing with all events enabled */
+	if (strcmp(value, "all events") == 0)
+		return 0;
+
+	node = tracecmd_xml_node_next(child);
+	if (!node)
+		return -1;
+
+	pevent_filter_clear_trivial(event_filter, FILTER_TRIVIAL_BOTH);
+	ginfo->all_events = FALSE;
+
+	trace_filter_load_events(event_filter, handle, node);
+
+	return 0;
+}
+
+int trace_graph_load_filters(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle)
+{
+	struct tracecmd_xml_system *system;
+	struct tracecmd_xml_system_node *syschild;
+	const char *name;
+
+	system = tracecmd_xml_find_system(handle, "TraceGraph");
+	if (!system)
+		return -1;
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+
+		if (strcmp(name, "EventFilter") == 0)
+			load_event_filter(ginfo, handle, syschild);
+
+		else if (strcmp(name, "TaskFilter") == 0)
+			trace_filter_load_task_filter(ginfo->task_filter, handle, syschild);
+
+		else if (strcmp(name, "HideTasks") == 0)
+			trace_filter_load_task_filter(ginfo->hide_tasks, handle, syschild);
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
+		ginfo->filter_available = 1;
+	else
+		ginfo->filter_available = 0;
+
+	tracecmd_xml_free_system(system);
+
+	trace_graph_refresh(ginfo);
+
+	return 0;
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+	return -1;
+}
+
+int trace_graph_save_filters(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle)
+{
+	struct event_filter *event_filter;
+
+	tracecmd_xml_start_system(handle, "TraceGraph", VERSION_STRING);
+
+	event_filter = ginfo->event_filter;
+
+	tracecmd_xml_start_sub_system(handle, "EventFilter");
+
+	if (ginfo->all_events || !event_filter)
+		tracecmd_xml_write_element(handle, "FilterType", "all events");
+	else {
+		tracecmd_xml_write_element(handle, "FilterType", "filter");
+		trace_filter_save_events(handle, event_filter);
+	}
+
+	tracecmd_xml_end_sub_system(handle);
+
+	if (ginfo->task_filter && filter_task_count(ginfo->task_filter)) {
+		tracecmd_xml_start_sub_system(handle, "TaskFilter");
+		trace_filter_save_tasks(handle, ginfo->task_filter);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	if (ginfo->hide_tasks && filter_task_count(ginfo->hide_tasks)) {
+		tracecmd_xml_start_sub_system(handle, "HideTasks");
+		trace_filter_save_tasks(handle, ginfo->hide_tasks);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	tracecmd_xml_end_system(handle);
 
 	return 0;
 }
