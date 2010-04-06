@@ -2503,6 +2503,24 @@ int trace_graph_save_filters(struct graph_info *ginfo,
 	return 0;
 }
 
+static void set_label_a(GtkWidget *widget)
+{
+	gtk_widget_set_tooltip_text(widget, "Click left mouse on graph\n"
+				    "to set Marker A");
+}
+
+static void set_label_b(GtkWidget *widget)
+{
+	gtk_widget_set_tooltip_text(widget, "Shift and click left mouse on graph\n"
+				    "to set Marker B");
+}
+
+static void set_label_cursor(GtkWidget *widget)
+{
+	gtk_widget_set_tooltip_text(widget, "Double click Left mouse on graph\n"
+				    "to set Cursor");
+}
+
 struct graph_info *
 trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs)
@@ -2562,10 +2580,12 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	/* --- Cursor --- */
 
 	label = gtk_label_new("Cursor:");
+	set_label_cursor(label);
 	gtk_table_attach(GTK_TABLE(table), label, 4, 5, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(label);
 
 	ginfo->cursor_label = gtk_label_new("0.0");
+	set_label_cursor(ginfo->cursor_label);
 	eventbox = gtk_event_box_new();
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
@@ -2581,10 +2601,13 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(hbox);
 
 	label = gtk_label_new("Marker");
+	set_label_a(label);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
 
+
 	label = gtk_label_new("A:");
+	set_label_a(label);
 
 	colorAB.red = 0;
 	colorAB.green = (0xff) *(65535/255);
@@ -2601,6 +2624,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_table_attach(GTK_TABLE(table), hbox, 9, 10, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
 
 	ginfo->marka_label = gtk_label_new("0.0");
+	set_label_a(ginfo->marka_label);
 	eventbox = gtk_event_box_new();
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
@@ -2616,10 +2640,12 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(hbox);
 
 	label = gtk_label_new("Marker");
+	set_label_b(label);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
 
 	label = gtk_label_new("B:");
+	set_label_b(label);
 
 	colorAB.red = (0xff) *(65535/255);
 	colorAB.green = 0;
@@ -2637,6 +2663,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(label);
 
 	ginfo->markb_label = gtk_label_new("0.0");
+	set_label_b(ginfo->markb_label);
 	eventbox = gtk_event_box_new();
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
