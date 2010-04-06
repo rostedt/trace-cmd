@@ -358,7 +358,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 			g_assert(text);
 
 			if (filter_task_find_pid(info->task_filter, pid))
-				snprintf(text, len, "Remove %s-%d to filter", comm, pid);
+				snprintf(text, len, "Remove %s-%d from filter", comm, pid);
 			else
 				snprintf(text, len, "Add %s-%d to filter", comm, pid);
 
