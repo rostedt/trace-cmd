@@ -145,14 +145,14 @@ static void _print_flag(struct trace_seq *s, struct event_format *event,
 
 		found = 0;
 		for (j = 0; j < n_names; j++) {
-			if (j == names[i].value) {
-				trace_seq_puts(s, names[i].name);
+			if (i == names[j].value) {
+				trace_seq_puts(s, names[j].name);
 				found = 1;
 				break;
 			}
 		}
 		if (!found)
-			trace_seq_printf(s, "b%d", i);
+			trace_seq_printf(s, "flag_%d", i);
 	}
 }
 
@@ -203,7 +203,9 @@ static int drv_config(struct trace_seq *s, struct record *record,
 	print_flag(s, event, "flags", data,
 		{ 0, "MONITOR" },
 		{ 1, "PS" },
-		{ 2, "IDLE" });
+		{ 2, "IDLE" },
+		{ 3, "QOS"},
+	);
 	print_field(s, " chan:%d/", event, "center_freq", data);
 	print_enum(s, event, "channel_type", data,
 		{ 0, "noht" },
