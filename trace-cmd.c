@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <sched.h>
 #include <errno.h>
 #include <glob.h>
 
@@ -53,6 +54,8 @@
 
 int silence_warnings;
 int show_status;
+
+static int rt_prio;
 
 static int use_tcp;
 
@@ -963,6 +966,16 @@ static void connect_port(int cpu)
 	client_ports[cpu] = sfd;
 }
 
+static void set_prio(int prio)
+{
+	struct sched_param sp;
+
+	memset(&sp, 0, sizeof(sp));
+	sp.sched_priority = prio;
+	if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0)
+		warning("failed to set priority");
+}
+
 static int create_recorder(int cpu)
 {
 	char *file;
@@ -977,6 +990,9 @@ static int create_recorder(int cpu)
 
 	signal(SIGINT, finish);
 	signal(SIGUSR1, flush);
+
+	if (rt_prio)
+		set_prio(rt_prio);
 
 	/* do not kill tasks on error */
 	cpu_count = 0;
@@ -1325,7 +1341,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:vg:l:n:P:N:tb:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:r:vg:l:n:P:N:tb:")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1417,6 +1433,9 @@ int main (int argc, char **argv)
 				if (extract)
 					usage(argv);
 				sleep_time = atoi(optarg);
+				break;
+			case 'r':
+				rt_prio = atoi(optarg);
 				break;
 			case 'N':
 				if (!record)

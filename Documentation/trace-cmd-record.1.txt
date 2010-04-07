@@ -125,6 +125,13 @@ OPTIONS
     This is the time each recording process will sleep before waking up to
     record any new data that was written to the ring buffer.
 
+*-r* 'priority'::
+    The priority to run the capture threads at. In a busy system the trace
+    capturing threads may be staved and events can be lost. This increases
+    the priority of those threads to the real time (FIFO) priority.
+    But use this option with care, it can also change the behaviour of
+    the system being traced.
+
 *-b* 'size'::
     This sets the ring buffer size to 'size' kilobytes. Because the Ftrace
     ring buffer is per CPU, this size is the size of each per CPU ring buffer
