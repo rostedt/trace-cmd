@@ -309,6 +309,9 @@ cpus_clicked (gpointer data)
 	gboolean all_cpus;
 	guint64 *cpu_mask;
 
+	if (!info->handle)
+		return;
+
 	store = TRACE_VIEW_STORE(gtk_tree_view_get_model(trace_tree));
 
 	all_cpus = trace_view_store_get_all_cpus(store);

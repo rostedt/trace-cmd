@@ -717,6 +717,9 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	GtkWidget *view;
 	GtkWidget *event_box;
 
+	if (!handle)
+		return;
+
 	helper = g_malloc(sizeof(*helper));
 	g_assert(helper);
 
@@ -1761,6 +1764,9 @@ void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
 {
 	gchar **systems;
 	gint *event_ids;
+
+	if (!handle)
+		return;
 
 	trace_filter_convert_filter_to_names(filter, &systems, &event_ids);
 
