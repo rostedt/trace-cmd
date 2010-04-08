@@ -827,6 +827,7 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	/* check for double click */
 	if (event->type == GDK_2BUTTON_PRESS) {
+		stop_zoom_tip(ginfo);
 		if (ginfo->line_active) {
 			ginfo->line_active = FALSE;
 			clear_line(ginfo, ginfo->last_x);
