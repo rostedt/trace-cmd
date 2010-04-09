@@ -23,8 +23,13 @@ bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 man_dir = $(prefix)/share/man
 man_dir_SQ = '$(subst ','\'',$(man_dir))'
+html_install = $(prefix)/share/kernelshark/html
+html_install_SQ = '$(subst ','\'',$(html_install))'
+img_install = $(prefix)/share/kernelshark/html/images
+img_install_SQ = '$(subst ','\'',$(img_install))'
 
-export man_dir man_dir_SQ INSTALL
+export man_dir man_dir_SQ html_install html_install_SQ INSTALL
+export img_install img_install_SQ
 
 ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
@@ -33,6 +38,9 @@ plugin_dir = $(prefix)/share/trace-cmd/plugins
 PLUGIN_DIR = -DPLUGIN_DIR=$(plugin_dir)
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
 endif
+
+HELP_DIR = -DHELP_DIR=$(html_install)
+HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
 # copy a bit from Linux kbuild
 
@@ -124,6 +132,7 @@ REBUILD_GUI	= /bin/true
 G		=
 N 		= @/bin/true ||
 
+CONFIG_FLAGS	+= $(HELP_DIR_SQ)
 else
 
 CONFIG_INCLUDES = 

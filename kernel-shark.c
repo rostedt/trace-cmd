@@ -36,6 +36,9 @@
 #include "kernel-shark.h"
 #include "version.h"
 
+#define ___stringify(X) #X
+#define __stringify(X) ___stringify(X)
+
 #define DEBUG_LEVEL	0
 #if DEBUG_LEVEL > 0
 # define dprintf(l, x...)			\
@@ -422,7 +425,7 @@ help_content_clicked (gpointer data)
 	GError *error = NULL;
 	gchar *link;
 
-	link = "http://www.google.com";
+	link = "file://" __stringify(HELP_DIR) "/index.html";
 
 	trace_show_help(info->window, link, &error);
 }

@@ -85,7 +85,25 @@ $(MAN1_INSTALL): %.1.install : %.1 force
 $(MAN5_INSTALL): %.5.install : %.5 force
 	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man5')
 
-install: $(MAN1_INSTALL) $(MAN5_INSTALL)
+html_dir = $(src)/HTML
+image_dir = $(html_dir)/images
+
+HTML = $(wildcard $(html_dir)/*.html)
+IMGS = $(wildcard $(image_dir)/*.png)
+
+HTML_INSTALL = $(subst .html,.html.install,$(HTML))
+IMGS_INSTALL = $(subst .png,.png.install,$(IMGS))
+
+$(HTML_INSTALL): %.html.install : %.html force
+	$(Q)$(call do_install, $<, '$(html_install_SQ)')
+
+$(IMGS_INSTALL): %.png.install : %.png force
+	$(Q)$(call do_install, $<, '$(img_install_SQ)')
+
+
+GUI_INSTALL = $(HTML_INSTALL) $(IMGS_INSTALL)
+
+install: $(MAN1_INSTALL) $(MAN5_INSTALL) $(GUI_INSTALL)
 
 clean:
 	(cd $(obj); \
