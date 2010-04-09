@@ -38,7 +38,7 @@ do_xsltproc_build =				\
 # asciidoc requires a synopsis, but file format man pages (5) do
 # not require them. This removes it from the file in the final step.
 define remove_synopsis
-	(sed -e '/^\.SH "SYNOPSIS"/,/^\.sp/d' $1 > $1.tmp;\
+	(sed -e '/^\.SH "SYNOPSIS"/,/ignore/d' $1 > $1.tmp;\
 	 mv $1.tmp $1)
 endef
 
