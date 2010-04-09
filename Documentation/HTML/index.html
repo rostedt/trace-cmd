@@ -133,13 +133,13 @@ zoom into a specific location.
 The area that you selected will now become the new width of the viewable area.
 The smaller the selection, the deeper the zoom. Note, that you must select 10
 pixels to zoom in. Less than 10 pixels will cancel the zoom. You can continue zooming
-in until you get mor details.
+in until you get more details.
 </p>
 
 <img src="images/kshark-zoom-in-3.png">
 
 <p>
-If a plot contains no events within the zoomed in raidus, then the line will be empty,
+If a plot contains no events within the zoomed in radius, then the line will be empty,
 as CPU 1 is in the above image. CPU 0 shows two tasks that were running. One task
 is given a pink/red color and the other a green color. The colored box represents
 a task other than idle was running. The small lines that jet out of the box are
@@ -200,7 +200,7 @@ between the two. All timestamps are in seconds, with a resolution of microsecond
 <p>
 Double clicking on the graph will set the cursor. The cursor is a blue line, and when
 it is set, it will also select the event in the list view that is the closest event at the
-timeline of where the cursor was selected at.
+timeline of where the cursor was selected.
 </p>
 
 <img src="images/kshark-cursor-1.png">
@@ -227,10 +227,10 @@ in the plot title area.
 
 <p>
 By default, all the CPUs within the loaded trace.dat file are plotted.
-There's two ways to plot a process. One way is to right mouse click over a
+There are two ways to plot a process. One way is to right mouse click over a
 displayed process in the graph and select the plot option. This will add the
 process plot directly underneath the CPU plot that the process was on where
-the right mouse click took place. The other way is to use the plot menu.
+the right mouse click took place. The other way is to use the Plots menu.
 </p>
 
 <img src="images/kshark-plot-menu.png">
@@ -238,8 +238,8 @@ the right mouse click took place. The other way is to use the plot menu.
 <h3><a name="graph-plot-task">Process Plots</a></h3>
 
 <p>
-Selecting the "Task" menu will bring up a dialog with all the processes (also referred
-to as tasks) that was found in the trace data.
+Selecting the "Tasks" menu item will bring up a dialog with all the processes (also referred
+to as tasks) that were found in the trace data.
 </p>
 
 <img src="images/kshark-plot-task-select.png">
@@ -287,7 +287,7 @@ latency. The same can be done with the preemption latency.
 <h3><a name="graph-plot-cpu">CPU Plots</a></h2>
 
 <p>
-Selecting the CPU plot menu pops up a dialog that shows the available CPUs that
+Selecting the "CPUs" plot menu item pops up a dialog that shows the available CPUs that
 can be plotted.
 <p>
 
@@ -314,7 +314,7 @@ with the paned handle.
 
 <p>
 The top of the list view contains the <a href="#list-area">list area</a> which has the list page, list
-search, and graph follow toggle button. If more than a million events are stored in the
+search, and "graph follows" toggle button. If more than a million events are stored in the
 list, then each set of million will be on a different page.
 </p>
 
@@ -330,10 +330,10 @@ resolution.
 <li><b>PID</b> - The process ID of the task that was running when the event occurred.
 <li><b><a name="latency">Latency</a></b> -  The latency is broken into 5 fields:
   <ol>
-    <li>Interrupts disabled - 'd' if interrupts are enabled, otherwise '.'
+    <li>Interrupts disabled - 'd' if interrupts are disabled, otherwise '.'
     <li>Need reschedule - 'N' if the kernel was notified that a schedule is needed, otherwise '.'
     <li>In IRQ - 'h' if in a hard IRQ (hardware triggerred), 's' if in a soft IRQ
-      (context where the kernel initiated a the irq handler) or if soft IRQs
+      (context where the kernel initiated a the IRQ handler) or if soft IRQs
       are disabled, 'H' if in a hard IRQ and soft IRQs are disabled or the hard IRQ
       triggerred while processing a soft IRQ, otherwise '.'
     <li>Preemption counter - The index of the preemption counter. If it is other
@@ -341,7 +341,7 @@ resolution.
       if a schedule has been requested by some event. If the counter is zero,
       then '.' is shown.
     <li>Lock depth - The depth of the big kernel lock being held. The big kernel
-      lock is recusive (same task may acquire it multiple times). On the first
+      lock is recursive (same task may acquire it multiple times). On the first
       acquisition, the depth is zero. This field will be zero or greater, or
       '.' if the big kernel lock is not held. When the big kernel lock is
       finally removed from the kernel, this field will go away as well.
@@ -352,8 +352,8 @@ resolution.
 
 <p>
 The list search can find an event based on the contents in a row. Select a column, a
-match criteria and the content to match will find the next row that matches the
-search. The match criteria is one of the following:
+match criteria and the content to match to find the next row that matches the
+search. The match criterion is one of the following:
 </p>
 
 <ul>
@@ -371,7 +371,7 @@ The search will find the next event that has the matching data within the column
 <p>
 A single click on a row will select the row, but a double click on a row will select
 that row as well as set the graph cursor to the location of that event. If the plot
-that the event is on is not visible then the graph will adjust it vertical view area
+that the event is on is not visible then the graph will adjust its vertical view area
 to show the plot with the selected event. This has no effect on
 <a href="#graph-marker">graph markers</a>.
 <p>
@@ -392,7 +392,7 @@ cursor.
 <h1><a name="filters">Filters</a></h1>
 
 <p>
-The amount of data that can be stored in a trace.dat file can be enourmous.
+The amount of data that can be stored in a trace.dat file can be enormous.
 To make any sense out of some traces, it may be required to only display various
 events. The same can be true about processes.
 Kernelshark has filters for tasks as well as for events. The task filter
@@ -459,13 +459,13 @@ dialog with the events that are visible selected.
 <p>
 Note: these do not mean that the events exist in the trace.dat file. They are
 selected if the events are not to be hidden. Events that do not exist in the trace
-and will not be displayed regardless of whether or not they are filtered.
+will not be displayed regardless of whether or not they are filtered.
 </p>
 
 <img src="images/kshark-filter-events.png">
 
 <p>
-By clicking on "All" or any of the systems will either deselect all events underneath
+Clicking on "All" or any of the systems will either deselect all events underneath
 or select all events underneath depending on the previous state of the box being
 selected. By deselecting all events, it makes it easier to enable just a few individual events.
 <p>
@@ -487,13 +487,13 @@ as what is in the list filter.
 as what is in the graph filter.
 </ul>
 
-<h3><a name="filter-adv-event">Advance Event Filter</a></h3>
+<h3><a name="filter-adv-event">Advanced Event Filter</a></h3>
 
 <p>
 Filtering on events may not be enough. The ability to filter on the content
 of individual events may be needed. In order to accomplish this, the advanced event
 filtering is used. Selecting the "list advanced event" or "graph advanced event"
-from the filter menu will pop up the advanced event filtering dialog.
+from the Filter menu will pop up the advanced event filtering dialog.
 The graph and list view each have their own advanced event filter.
 </p>
 
@@ -570,7 +570,7 @@ the above filters would be equivalent to:
 </pre>
 
 <p>
-By letting the filters contain fields that do not belong to an event be valid,
+Letting filters contain fields that do not belong to an event be valid
 allows for various tricks where two events can share the same
 filter.
 </p>
@@ -587,7 +587,7 @@ part of the <tt>||</tt>
 </p>
 
 <p>
-Notice: that event names in the filter can be regular expressions.
+Notice that event names in the filter can be regular expressions.
 </p>
 
 <p>
@@ -600,28 +600,28 @@ String fields can have regular expressions used in their comparing if
 </pre>
 
 <p>
-Note: When adding an advanced filter, all non advanced filters
+Note: When adding an advanced filter, all non-advanced filters
 (added by the event filter dialog box) will be removed, and only the advanced
-filters will stay. But non advanced filters may be added after advanced
-filters have been. The events that have advanced filters will be shadowed
+filters will stay. But non-advanced filters may be added after advanced
+filters have been. The events that have advanced filters will be shaded
 in the event filter dialog:
 <p>
 
 <img src="images/kshark-filter-event-adv-list.png">
 
 <p>
-Just do not click on the adavanced filter box and hit "Apply" unless you want to remove
-the adavanced filter. Non advanced filters can now be selected without affecting
+Just do not click on the advanced filter box and hit "Apply" unless you want to remove
+the advanced filter. Non-advanced filters can now be selected without affecting
 the advanced filters.
 </p>
 
 <img src="images/kshark-filter-list-adv-irq.png">
 
 <p>
-When adavanced filters already exist when the advanced filter dialog box pops up,
+When advanced filters already exist when the advanced filter dialog box pops up,
 they will be listed in the area at the top of the dialog. Although
 one filter may have been written, the list will be per event. A check box
-is to the left of the filter, when checked, the filter will be deleted if
+is to the left of the filter. When checked, the filter will be deleted if
 the "Apply" button is selected.
 </p>
 
