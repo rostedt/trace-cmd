@@ -79,8 +79,8 @@ and the plot area:
 
 <p>
 The plot area contains the data of the given plot, where plots can be per CPU or
-per task. The top of the plot area shows a time line. The numbers in the time
-line are seconds. The time in the time line is taken from the timestamps within
+per task. The top of the plot area shows a timeline. The numbers in the timeline
+are seconds. The time in the timeline is taken from the timestamps within
 the trace.dat file which are architecture dependent. The time usually is the timestamp
 from when the system started.
 </p>
@@ -224,9 +224,9 @@ Note that setting the cursor with double click will also set Marker A.
 
 <p>
 The graph data is represented by plots. The data on the plots is either CPU specific or
-task specific. If it is CPU specific, then the data is the time line of events that
+task specific. If it is CPU specific, then the data is the timeline of events that
 happened on a given CPU (which CPU is shown in the <a href="#graph-plot-title">plot title area</a>).
-If the plot is task specific, then the time line of events is for the given
+If the plot is task specific, then the timeline of events is for the given
 task regardless of what CPU it was on at the time. The task name is also shown
 in the plot title area.
 </p>
@@ -331,7 +331,7 @@ The columns of the list are:
 <ul>
 <li><b>#</b> - the index into the list.
 <li><b>CPU</b> - the CPU that the event occurred on.
-<li><b>Time Stamp</b> - The time stamp of the event. This is in seconds with microsecond
+<li><b>Time Stamp</b> - The timestamp of the event. This is in seconds with microsecond
 resolution.
 <li><b>PID</b> - The process ID of the task that was running when the event occurred.
 <li><b><a name="latency">Latency</a></b> -  The latency is broken into 5 fields:
