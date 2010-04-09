@@ -16,7 +16,7 @@
 <li><a name="ToC_2_4" href="#graph-cursor">Graph Cursor</a>
 <li><a name="ToC_2_5" href="#graph-plots">Graph Plots</a>
 <menu>
-<li><a name="ToC_2_5_1" href="#graph-plot-task">Process Plots</a>
+<li><a name="ToC_2_5_1" href="#graph-plot-task">Task Plots</a>
 <li><a name="ToC_2_5_2" href="#graph-plot-cpu">CPU Plots</a>
 </menu>
 </menu>
@@ -27,7 +27,7 @@
 </menu>
 <p><b><a name="ToC_4" href="#filters">Filters</a></b></br>
 <menu>
-<li><a name="ToC_4_1" href="#filter-task">Task Filter (filtering processes)</a>
+<li><a name="ToC_4_1" href="#filter-task">Task Filter</a>
 <li><a name="ToC_4_2" href="#filter-event">Event Filter</a>
 <menu>
 <li><a name="ToC_4_2_1" href="#filter-adv-event">Advance Event Filter</a>
@@ -79,7 +79,7 @@ and the plot area:
 
 <p>
 The plot area contains the data of the given plot, where plots can be per CPU or
-per process. The top of the plot area shows a time line. The numbers in the time
+per task. The top of the plot area shows a time line. The numbers in the time
 line are seconds. The time in the time line is taken from the timestamps within
 the trace.dat file which are architecture dependent. The time usually is the timestamp
 from when the system started.
@@ -108,7 +108,7 @@ list.
 
 <p>
 The graph view of kernelshark shows graphical plots of the data stored in
-the trace.dat file. The data plots are per CPU or per process.
+the trace.dat file. The data plots are per CPU or per task.
 When there are too many events within the resolution of the graph,
 the plots will appear as a rainbow colored bar. To make more sense out of
 the graphs, you need to zoom into a given location to see the details of
@@ -139,11 +139,17 @@ in until you get more details.
 <img src="images/kshark-zoom-in-3.png">
 
 <p>
-If a plot contains no events within the zoomed in radius, then the line will be empty,
-as CPU 1 is in the above image. CPU 0 shows two tasks that were running. One task
-is given a pink/red color and the other a green color. The colored box represents
-a task other than idle was running. The small lines that jet out of the box are
-where events occur.
+To save on resources, when zooming in, the beginning
+and end of the full trace may not be reachable with the horizontal scroll bar.
+If a plot contains no events within the reachable area, then the line will be empty,
+as CPU 1 is in the above image.
+</p>
+
+<p>
+CPU 0 shows two tasks that were running. One task
+is given a pink/red color and the other a green color. The think colored
+horizontal bar represents a task other than idle was running. The small
+lines that jet out of the bar are where events occur.
 </p>
 
 <p>
@@ -165,8 +171,8 @@ Zoom out will stop at the width of the full trace.
 
 <p>
 When the mouse is over an event, a tool tip will appear showing the event name,
-the <a href="#latency">latency data</a>, the event info, the timestamp and the process
-name and process ID.
+the <a href="#latency">latency data</a>, the event info, the timestamp and the task
+name and task process ID.
 </p>
 
 <img src="images/kshark-zoom-in-2.png">
@@ -218,60 +224,60 @@ Note that setting the cursor with double click will also set Marker A.
 
 <p>
 The graph data is represented by plots. The data on the plots is either CPU specific or
-process specific. If it is CPU specific, then the data is the time line of events that
+task specific. If it is CPU specific, then the data is the time line of events that
 happened on a given CPU (which CPU is shown in the <a href="#graph-plot-title">plot title area</a>).
-If the plot is process specific, then the time line of events is for the given
-process regardless of what CPU it was on at the time. The process name is also shown
+If the plot is task specific, then the time line of events is for the given
+task regardless of what CPU it was on at the time. The task name is also shown
 in the plot title area.
 </p>
 
 <p>
 By default, all the CPUs within the loaded trace.dat file are plotted.
-There are two ways to plot a process. One way is to right mouse click over a
-displayed process in the graph and select the plot option. This will add the
-process plot directly underneath the CPU plot that the process was on where
+There are two ways to plot a task. One way is to right mouse click over a
+displayed task in the graph and select the plot option. This will add the
+task plot directly underneath the CPU plot that the task was on where
 the right mouse click took place. The other way is to use the Plots menu.
 </p>
 
 <img src="images/kshark-plot-menu.png">
 
-<h3><a name="graph-plot-task">Process Plots</a></h3>
+<h3><a name="graph-plot-task">Task Plots</a></h3>
 
 <p>
-Selecting the "Tasks" menu item will bring up a dialog with all the processes (also referred
-to as tasks) that were found in the trace data.
+Selecting the "Tasks" menu item will bring up a dialog with all the tasks
+that were found in the trace data.
 </p>
 
 <img src="images/kshark-plot-task-select.png">
 
 <p>
-Selecting a process in this dialog will add the task plot to the bottom of the graph
-area. Unselecting a process in this dialog will remove the plot.
+Selecting a task in this dialog will add the task plot to the bottom of the graph
+area. Unselecting a task in this dialog will remove the plot.
 </p>
 
 <img src="images/kshark-plot-task-result.png">
 
 <p>
-The colors in the process plots are different depending on what CPU the process
-was on at the time. The CPU plots change colors as different processes run
-on the CPU, and the process plots change color depending on what CPU the process
-is running on at a time. This makes it easy to see how much a process
-bounces around the CPUs. Zooming in on a process plot also shows some more
-characteristics of the process.
+The colors in the task plots are different depending on which CPU the task
+was on at the time. The CPU plots change colors as different tasks run
+on the CPU, and the task plots change color depending on what CPU the task
+is running on. This makes it easy to see how much a task
+bounces around the CPUs. Zooming in on a task plot also shows some more
+characteristics of the task.
 </p>
 
 <img src="images/kshark-plot-task-zoom-1.png">
 
 <p>
-The hollow green box that is shown in front of some events in the process
+The hollow green bar that is shown in front of some events in the task
 plot represents when the task was woken up from a sleeping state to
-when it actually ran. The hollow red box between some events shows that
-the process was preempted by another process even though that process
+when it actually ran. The hollow red bar between some events shows that
+the task was preempted by another task even though that task
 was still runnable.
 </p>
 
 <p>
-Since the hollow green box shows the wake up latency of the task, the
+Since the hollow green bar shows the wake up latency of the task, the
 <a href="#graph-marker">A,B markers</a> can be used to measure that time.
 </p>
 
@@ -284,7 +290,7 @@ latency. The same can be done with the preemption latency.
 
 <img src="images/kshark-plot-task-measure-preempt.png">
 
-<h3><a name="graph-plot-cpu">CPU Plots</a></h2>
+<h3><a name="graph-plot-cpu">CPU Plots</a></h3>
 
 <p>
 Selecting the "CPUs" plot menu item pops up a dialog that shows the available CPUs that
@@ -332,12 +338,12 @@ resolution.
   <ol>
     <li>Interrupts disabled - 'd' if interrupts are disabled, otherwise '.'
     <li>Need reschedule - 'N' if the kernel was notified that a schedule is needed, otherwise '.'
-    <li>In IRQ - 'h' if in a hard IRQ (hardware triggerred), 's' if in a soft IRQ
+    <li>In IRQ - 'h' if in a hard IRQ (hardware triggered), 's' if in a soft IRQ
       (context where the kernel initiated a the IRQ handler) or if soft IRQs
       are disabled, 'H' if in a hard IRQ and soft IRQs are disabled or the hard IRQ
-      triggerred while processing a soft IRQ, otherwise '.'
+      triggered while processing a soft IRQ, otherwise '.'
     <li>Preemption counter - The index of the preemption counter. If it is other
-      than zero, then the kernel will not preempt the running processes, even
+      than zero, then the kernel will not preempt the running tasks, even
       if a schedule has been requested by some event. If the counter is zero,
       then '.' is shown.
     <li>Lock depth - The depth of the big kernel lock being held. The big kernel
@@ -394,16 +400,16 @@ cursor.
 <p>
 The amount of data that can be stored in a trace.dat file can be enormous.
 To make any sense out of some traces, it may be required to only display various
-events. The same can be true about processes.
+events. The same can be true about tasks.
 Kernelshark has filters for tasks as well as for events. The task filter
 affects both the graph and the list, but the graph and list each have a separate
 event filter.
 <p>
 
-<h2><a name="filter-task">Task Filter (filtering processes)</a></h2>
+<h2><a name="filter-task">Task Filter</a></h2>
 
 <p>
-The task (process) filter is currently set by a right mouse click over
+The task filter is currently set by a right mouse click over
 an event on either the graph or the list view, and by selecting the option to add or remove the
 task to/from the task filter. The tasks within the task filter are the same for
 both the graph and list, but each can be enabled separately.
@@ -431,6 +437,18 @@ When either filter contains a task, the filter can be enabled.
 </p>
 
 <img src="images/kshark-list-enable-filter-1.png">
+
+<p>
+When a task is not in the "Task Filter", the pop up will show the
+menu item "Add task". When a task is in the "Task Filter" the
+pop up will show "Remove task".
+</p>
+
+<p>
+When a task is not in the "Hide Tasks", the pop up will show the
+menu item "Hide task". When a task is in the "Hide Tasks", the
+pop up will show "Show task".
+</p>
 
 <h4>The scheduling events</h4>
 
@@ -598,6 +616,10 @@ String fields can have regular expressions used in their comparing if
 <pre>
    sched_switch : next_comm =~ "^events/[23]$"
 </pre>
+
+<p>
+The available regular expressions are described in <b>regex(7)</b>.
+</p>
 
 <p>
 Note: When adding an advanced filter, all non-advanced filters
