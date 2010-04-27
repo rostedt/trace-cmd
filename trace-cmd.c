@@ -86,6 +86,13 @@ static struct func_list *filter_funcs;
 static struct func_list *notrace_funcs;
 static struct func_list *graph_funcs;
 
+struct opt_list {
+	struct opt_list *next;
+	const char	*option;
+};
+
+static struct opt_list *options;
+
 struct event_list {
 	struct event_list *next;
 	const char *event;
@@ -480,6 +487,16 @@ static void show_options(void)
 	fclose(fp);
 }
 
+static void save_option(const char *option)
+{
+	struct opt_list *opt;
+
+	opt = malloc_or_die(sizeof(*opt));
+	opt->next = options;
+	options = opt;
+	opt->option = option;
+}
+
 static void set_option(const char *option)
 {
 	FILE *fp;
@@ -493,6 +510,18 @@ static void set_option(const char *option)
 
 	fwrite(option, 1, strlen(option), fp);
 	fclose(fp);
+}
+
+static void set_options(void)
+{
+	struct opt_list *opt;
+
+	while (options) {
+		opt = options;
+		options = opt->next;
+		set_option(opt->option);
+		free(opt);
+	}
 }
 
 static void old_update_events(const char *name, char update)
@@ -1427,7 +1456,7 @@ int main (int argc, char **argv)
 				break;
 			case 'O':
 				option = optarg;
-				set_option(option);
+				save_option(option);
 				break;
 			case 's':
 				if (extract)
@@ -1565,6 +1594,8 @@ int main (int argc, char **argv)
 		if (!extract)
 			set_plugin(plugin);
 	}
+
+	set_options();
 
 	if (record || extract) {
 		if (!latency)
