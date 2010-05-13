@@ -118,6 +118,8 @@ struct format_field {
 	char			*name;
 	int			offset;
 	int			size;
+	unsigned int		arraylen;
+	unsigned int		elementsize;
 	unsigned long		flags;
 };
 

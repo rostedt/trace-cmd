@@ -1248,6 +1248,12 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 			field->flags |= FIELD_IS_ARRAY;
 
 			type = read_token(&token);
+
+			if (type == EVENT_ITEM)
+				field->arraylen = strtoul(token, NULL, 0);
+			else
+				field->arraylen = 0;
+
 		        while (strcmp(token, "]") != 0) {
 				if (last_type == EVENT_ITEM &&
 				    type == EVENT_ITEM)
@@ -1262,6 +1268,8 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				if (len == 2)
 					strcat(brackets, " ");
 				strcat(brackets, token);
+				/* We only care about the last token */
+				field->arraylen = strtoul(token, NULL, 0);
 				free_token(token);
 				type = read_token(&token);
 				if (type == EVENT_NONE) {
@@ -1366,6 +1374,14 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		}
 
 		free_token(token);
+
+		if (field->flags & FIELD_IS_ARRAY) {
+			if (field->arraylen)
+				field->elementsize = field->size / field->arraylen;
+			else
+				field->elementsize = event->pevent->long_size;
+		} else
+			field->elementsize = field->size;
 
 		*fields = field;
 		fields = &field->next;
@@ -2889,13 +2905,13 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 						die("field %s not found", larg->field.name);
 				}
 				offset = larg->field.field->offset +
-					right * pevent->long_size;
+					right * larg->field.field->elementsize;
 				break;
 			default:
 				goto default_op; /* oops, all bets off */
 			}
 			val = pevent_read_number(pevent,
-						 data + offset, pevent->long_size);
+						 data + offset, larg->field.field->elementsize);
 			if (typearg)
 				val = eval_type(val, typearg, 1);
 			break;
@@ -4269,6 +4285,9 @@ int pevent_parse_event(struct pevent *pevent,
 
 	event->system = strdup(sys);
 
+	/* Add pevent to event so that it can be referenced */
+	event->pevent = pevent;
+
 	ret = event_read_format(event);
 	if (ret < 0) {
 		do_warning("failed to read event format for %s", event->name);
@@ -4282,8 +4301,6 @@ int pevent_parse_event(struct pevent *pevent,
 	if (find_event_handle(pevent, event))
 		show_warning = 0;
 
-	/* Add pevent to event so that function list can be referenced */
-	event->pevent = pevent;
 	ret = event_read_print(event);
 	if (ret < 0) {
 		do_warning("failed to read event print fmt for %s",
