@@ -1,6 +1,10 @@
 // tracecmd.i
 %module ctracecmd
-%include typemaps.i
+%include "typemaps.i"
+%include "constraints.i"
+
+%apply Pointer NONNULL { struct tracecmd_input *handle };
+%apply Pointer NONNULL { struct pevent *pevent };
 
 /* return a (rec,cpu) tuple in python */
 extern struct record *tracecmd_read_at(struct tracecmd_input *handle, 
