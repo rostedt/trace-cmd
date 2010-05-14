@@ -75,6 +75,9 @@ class Event(object):
         return val
 
 
+class FileFormatError(Exception):
+    pass
+
 class Trace(object):
     """
     Trace object represents the trace file it is created with.
@@ -83,18 +86,15 @@ class Trace(object):
     used to manage the trace and extract events from it.
     """
     def __init__(self, filename):
-        self.handle = None
-        self.pe = None
+        self.handle = tracecmd_open(filename)
 
-        try:
-            self.handle = tracecmd_open(filename)
-            #FIXME: check if these throw exceptions automatically or if we have
-            #       to check return codes manually
-            tracecmd_read_headers(self.handle)
-            tracecmd_init_data(self.handle)
-            self.pe = tracecmd_get_pevent(self.handle)
-        except:
-            return None
+        if tracecmd_read_headers(self.handle):
+            raise FileFormatError("Invalid headers")
+
+        if tracecmd_init_data(self.handle):
+            raise FileFormatError("Failed to init data")
+
+        self.pe = tracecmd_get_pevent(self.handle)
 
     @property
     def cpus(self):
