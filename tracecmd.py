@@ -32,12 +32,12 @@ TODO: consider a complete class hierarchy of ftrace events...
 """
 
 class Event(object):
-    def __init__(self, trace, record, cpu):
-        self.trace = trace
+    def __init__(self, pevent, record, cpu):
+        self.pevent = pevent
         self.rec = record
         self.cpu = cpu
-        type = pevent_data_type(trace.pe, record)
-        self.format = pevent_data_event_from_type(trace.pe, type)
+        type = pevent_data_type(pevent, record)
+        self.format = pevent_data_event_from_type(pevent, type)
 
     def __str__(self):
         return "%d.%d CPU%d %s: pid=%d comm=%s type=%d" % \
@@ -51,7 +51,7 @@ class Event(object):
     # TODO: consider caching the results of the properties
     @property
     def comm(self):
-        return self.trace.comm_from_pid(self.pid)
+        return pevent_data_comm_from_pid(self.pevent, self.pid)
 
     @property
     def name(self):
@@ -59,7 +59,7 @@ class Event(object):
 
     @property
     def pid(self):
-        return pevent_data_pid(self.trace.pe, self.rec)
+        return pevent_data_pid(self.pevent, self.rec)
 
     @property
     def ts(self):
@@ -67,7 +67,7 @@ class Event(object):
 
     @property
     def type(self):
-        return pevent_data_type(self.trace.pe, self.rec)
+        return pevent_data_type(self.pevent, self.rec)
 
     def num_field(self, name):
         f = pevent_find_any_field(self.format, name)
@@ -105,7 +105,7 @@ class Trace(object):
         if rec:
             #rec.acquire()
             #rec.thisown = 1
-            return Event(self, rec, cpu)
+            return Event(self.pe, rec, cpu)
         return None
 
     def read_event_at(self, offset):
@@ -116,14 +116,11 @@ class Trace(object):
         rec,cpu = res
         #rec.acquire()
         #rec.thisown = 1
-        ev = Event(self, rec, cpu)
+        ev = Event(self.pe, rec, cpu)
         return ev
 
     def peek_event(self, cpu):
         pass
-
-    def comm_from_pid(self, pid):
-        return pevent_data_comm_from_pid(self.pe, pid)
 
 
 # Basic builtin test, execute module directly
