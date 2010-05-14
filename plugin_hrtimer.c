@@ -52,7 +52,7 @@ static void print_field(struct trace_seq *s, const char *fmt,
 }
 
 static int timer_expire_handler(struct trace_seq *s, struct record *record,
-				struct event_format *event)
+				struct event_format *event, void *context)
 {
 	void *data = record->data;
 
@@ -69,7 +69,7 @@ static int timer_expire_handler(struct trace_seq *s, struct record *record,
 }
 
 static int timer_start_handler(struct trace_seq *s, struct record *record,
-			       struct event_format *event)
+			       struct event_format *event, void *context)
 {
 	struct pevent *pevent = event->pevent;
 	struct format_field *fn = pevent_find_field(event, "function");
@@ -106,10 +106,10 @@ static int timer_start_handler(struct trace_seq *s, struct record *record,
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "timer", "hrtimer_expire_entry",
-				      timer_expire_handler);
+				      timer_expire_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "timer", "hrtimer_start",
-				      timer_start_handler);
+				      timer_start_handler, NULL);
 
 	return 0;
 }

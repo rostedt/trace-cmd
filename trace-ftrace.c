@@ -49,7 +49,7 @@ static int get_field_val(struct trace_seq *s, void *data,
 }
 
 static int function_handler(struct trace_seq *s, struct record *record,
-			    struct event_format *event)
+			    struct event_format *event, void *context)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long function;
@@ -241,7 +241,7 @@ static int print_graph_nested(struct trace_seq *s,
 
 static int
 fgraph_ent_handler(struct trace_seq *s, struct record *record,
-		   struct event_format *event)
+		   struct event_format *event, void *context)
 {
 	struct record *rec;
 	unsigned long long val, pid;
@@ -273,7 +273,7 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 
 static int
 fgraph_ret_handler(struct trace_seq *s, struct record *record,
-		   struct event_format *event)
+		   struct event_format *event, void *context)
 {
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
@@ -308,7 +308,7 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 
 static int
 trace_stack_handler(struct trace_seq *s, struct record *record,
-		    struct event_format *event)
+		    struct event_format *event, void *context)
 {
 	struct format_field *field;
 	unsigned long long addr;
@@ -350,16 +350,16 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
 	pevent = tracecmd_get_pevent(handle);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "function",
-				      function_handler);
+				      function_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_entry",
-				      fgraph_ent_handler);
+				      fgraph_ent_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
-				      fgraph_ret_handler);
+				      fgraph_ret_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
-				      trace_stack_handler);
+				      trace_stack_handler, NULL);
 
 	/* Store the func ret id and event for later use */
 	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");

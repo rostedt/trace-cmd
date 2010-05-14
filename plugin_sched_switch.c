@@ -68,7 +68,7 @@ static void write_state(struct trace_seq *s, int val)
 }
 
 static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
-				struct event_format *event)
+				struct event_format *event, void *context)
 {
 	struct format_field *field;
 	unsigned long long val;
@@ -126,7 +126,7 @@ static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
 }
 
 static int sched_switch_handler(struct trace_seq *s, struct record *record,
-				struct event_format *event)
+				struct event_format *event, void *context)
 {
 	struct format_field *field;
 	unsigned long long val;
@@ -175,13 +175,13 @@ static int sched_switch_handler(struct trace_seq *s, struct record *record,
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "sched", "sched_switch",
-				      sched_switch_handler);
+				      sched_switch_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "sched", "sched_wakeup",
-				      sched_wakeup_handler);
+				      sched_wakeup_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "sched", "sched_wakeup_new",
-				      sched_wakeup_handler);
+				      sched_wakeup_handler, NULL);
 
 	return 0;
 }

@@ -59,6 +59,7 @@ struct event_handler {
 	const char			*sys_name;
 	const char			*event_name;
 	pevent_event_handler_func	func;
+	void				*context;
 };
 
 struct pevent_func_params {
@@ -3780,7 +3781,8 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 	else {
 
 		if (event->handler)
-			print_pretty = event->handler(s, record, event);
+			print_pretty = event->handler(s, record, event,
+						      event->context);
 
 		if (print_pretty)
 			pretty_print(s, record->data, record->size, event);
@@ -4234,6 +4236,7 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
 		event->id, event->system, event->name);
 
 	event->handler = handle->func;
+	event->context = handle->context;
 
 	*next = handle->next;
 	free_handler(handle);
@@ -4454,7 +4457,8 @@ int pevent_register_print_function(struct pevent *pevent,
  */
 int pevent_register_event_handler(struct pevent *pevent,
 				  int id, char *sys_name, char *event_name,
-				  pevent_event_handler_func func)
+				  pevent_event_handler_func func,
+				  void *context)
 {
 	struct event_format *event;
 	struct event_handler *handle;
@@ -4478,6 +4482,7 @@ int pevent_register_event_handler(struct pevent *pevent,
 		event->id, event->system, event->name);
 
 	event->handler = func;
+	event->context = context;
 	return 0;
 
  not_found:
@@ -4493,6 +4498,7 @@ int pevent_register_event_handler(struct pevent *pevent,
 	handle->func = func;
 	handle->next = pevent->handlers;
 	pevent->handlers = handle;
+	handle->context = context;
 
 	return -1;
 }

@@ -87,7 +87,8 @@ struct event_format;
 
 typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 					 struct record *record,
-					 struct event_format *event);
+					 struct event_format *event,
+					 void *context);
 
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
 typedef int (*pevent_plugin_unload_func)(void);
@@ -230,6 +231,7 @@ struct event_format {
 	struct print_fmt	print_fmt;
 	char			*system;
 	pevent_event_handler_func handler;
+	void			*context;
 };
 
 enum {
@@ -428,7 +430,7 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 int pevent_parse_event(struct pevent *pevent, char *buf, unsigned long size, char *sys);
 
 int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
-				  pevent_event_handler_func func);
+				  pevent_event_handler_func func, void *context);
 int pevent_register_print_function(struct pevent *pevent,
 				   pevent_func_handler func,
 				   enum pevent_func_arg_type ret_type,

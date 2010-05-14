@@ -25,7 +25,7 @@
 #include "trace-cmd.h"
 
 static int call_site_handler(struct trace_seq *s, struct record *record,
-			     struct event_format *event)
+			     struct event_format *event, void *context)
 {
 	struct format_field *field;
 	unsigned long long val, addr;
@@ -52,25 +52,25 @@ static int call_site_handler(struct trace_seq *s, struct record *record,
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "kmem", "kfree",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kmem", "kmalloc",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kmem", "kmalloc_node",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kmem", "kmem_cache_alloc",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kmem", "kmem_cache_alloc_node",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kmem", "kfree",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kmem", "kmem_cache_free",
-				      call_site_handler);
+				      call_site_handler, NULL);
 
 	return 0;
 }

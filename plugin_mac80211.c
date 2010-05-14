@@ -166,7 +166,7 @@ static void _print_flag(struct trace_seq *s, struct event_format *event,
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
-				struct event_format *event)
+				struct event_format *event, void *context)
 {
 	void *data = record->data;
 
@@ -194,7 +194,7 @@ static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
 }
 
 static int drv_config(struct trace_seq *s, struct record *record,
-		      struct event_format *event)
+		      struct event_format *event, void *context)
 {
 	void *data = record->data;
 
@@ -221,9 +221,9 @@ static int drv_config(struct trace_seq *s, struct record *record,
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "mac80211", "drv_bss_info_changed",
-				      drv_bss_info_changed);
+				      drv_bss_info_changed, NULL);
 	pevent_register_event_handler(pevent, -1, "mac80211", "drv_config",
-				      drv_config);
+				      drv_config, NULL);
 
 	return 0;
 }
