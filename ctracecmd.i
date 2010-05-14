@@ -33,6 +33,7 @@ PyObject *pevent_read_number_field_py(struct format_field *f, void *data)
 }
 %}
 
+%ignore trace_seq_vprintf;
 
 /* SWIG can't grok these, define them to nothing */
 #define __trace
