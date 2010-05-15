@@ -86,7 +86,7 @@ class Trace(object):
     used to manage the trace and extract events from it.
     """
     def __init__(self, filename):
-        self.handle = tracecmd_open(filename)
+        self.handle = tracecmd_alloc(filename)
 
         if tracecmd_read_headers(self.handle):
             raise FileFormatError("Invalid headers")
