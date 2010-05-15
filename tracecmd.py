@@ -18,6 +18,7 @@
 # 2009-Dec-17:	Initial version by Darren Hart <dvhltc@us.ibm.com>
 #
 
+from functools import update_wrapper
 from ctracecmd import *
 
 """
@@ -30,6 +31,24 @@ and it is recommended applications not use it directly.
 
 TODO: consider a complete class hierarchy of ftrace events...
 """
+
+def cached_property(func, name=None):
+    if name is None:
+        name = func.__name__
+    def _get(self):
+        try:
+            return self.__cached_properties[name]
+        except AttributeError:
+            self.__cached_properties = {}
+        except KeyError:
+            pass
+        value = func(self)
+        self.__cached_properties[name] = value
+        return value
+    update_wrapper(_get, func)
+    def _del(self):
+        self.__cached_properties.pop(name, None)
+    return property(_get, None, _del)
 
 class Event(object):
     """
@@ -58,28 +77,27 @@ class Event(object):
     def keys(self):
         return py_format_get_keys(self._format)
 
-    # TODO: consider caching the results of the properties
-    @property
+    @cached_property
     def comm(self):
         return pevent_data_comm_from_pid(self._pevent, self.pid)
 
-    @property
+    @cached_property
     def cpu(self):
         return record_cpu_get(self._record)
 
-    @property
+    @cached_property
     def name(self):
         return event_format_name_get(self._format)
 
-    @property
+    @cached_property
     def pid(self):
         return pevent_data_pid(self._pevent, self._record)
 
-    @property
+    @cached_property
     def ts(self):
         return record_ts_get(self._record)
 
-    @property
+    @cached_property
     def type(self):
         return pevent_data_type(self._pevent, self._record)
 
@@ -108,7 +126,7 @@ class Field(object):
         self._record = record
         self._field = field
 
-    @property
+    @cached_property
     def data(self):
         return py_field_get_data(self._field, self._record)
 
@@ -133,7 +151,7 @@ class PEvent(object):
         py_pevent_register_event_handler(
                   self._pevent, -1, subsys, event_name, l)
 
-    @property
+    @cached_property
     def file_endian(self):
         if pevent_is_file_bigendian(self._pevent):
             return '>'
@@ -161,7 +179,7 @@ class Trace(object):
 
         self._pevent = tracecmd_get_pevent(self._handle)
 
-    @property
+    @cached_property
     def cpus(self):
         return tracecmd_cpus(self._handle)
 
