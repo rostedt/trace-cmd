@@ -71,7 +71,9 @@ class Event(object):
 
     def num_field(self, name):
         f = pevent_find_any_field(self._format, name)
-        val = pevent_read_number_field_py(f, record_data_get(self._record))
+        ret, val = pevent_read_number_field(f, record_data_get(self._record))
+        if ret:
+            return None
         return val
 
 
