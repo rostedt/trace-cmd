@@ -441,6 +441,10 @@ void trace_split (int argc, char **argv)
 			if (count <= 0)
 				die("Units must be greater than 0");
 			split_type = type;
+
+			/* Spliting by pages only makes sense per cpu */
+			if (type == SPLIT_PAGES)
+				percpu = 1;
 			break;
 		case 'r':
 			repeat = 1;

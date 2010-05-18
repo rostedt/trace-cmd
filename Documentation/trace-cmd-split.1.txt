@@ -60,6 +60,8 @@ OPTIONS
 
    Note: only one of *-p*, *-e*, *-u*, *-m*, *-s* may be specified at a time.
 
+   If *-p* is specified, then *-c* is automatically set.
+
 *-r*::
     This option causes the break up to repeat until end-time is reached (or
     end of the input if end-time is not specified).
