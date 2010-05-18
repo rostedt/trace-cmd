@@ -228,7 +228,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 	while (record && (!end || record->ts <= end)) {
 		if (cpu_data[cpu].index + record->record_size > page_size) {
 
-			if (type == SPLIT_PAGES && pages++ > count_limit)
+			if (type == SPLIT_PAGES && ++pages > count_limit)
 				break;
 
 			if (cpu_data[cpu].page)
