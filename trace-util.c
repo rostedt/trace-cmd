@@ -171,7 +171,8 @@ void parse_proc_kallsyms(struct pevent *pevent,
 	}
 }
 
-void parse_ftrace_printk(char *file, unsigned int size __unused)
+void parse_ftrace_printk(struct pevent *pevent,
+			 char *file, unsigned int size __unused)
 {
 	unsigned long long addr;
 	char *printk;
@@ -191,6 +192,7 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 		/* fmt still has a space, skip it */
 		printk = strdup(fmt+1);
 		line = strtok_r(NULL, "\n", &next);
+		pevent_register_print_string(pevent, printk, addr);
 	}
 }
 
