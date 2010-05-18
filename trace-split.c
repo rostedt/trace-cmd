@@ -438,6 +438,8 @@ void trace_split (int argc, char **argv)
 			if (split_type != SPLIT_NONE)
 				die("Only one type of split is allowed");
 			count = atoi(optarg);
+			if (count <= 0)
+				die("Units must be greater than 0");
 			split_type = type;
 			break;
 		case 'r':
