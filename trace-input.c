@@ -440,7 +440,7 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 		return -1;
 	}
 
-	parse_ftrace_printk(buf, size);
+	parse_ftrace_printk(handle->pevent, buf, size);
 
 	free(buf);
 
