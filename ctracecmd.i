@@ -69,6 +69,32 @@ static PyObject *py_field_get_data(struct format_field *f, struct record *r)
 	return PyBuffer_FromMemory((char *)r->data + f->offset, f->size);
 }
 
+static PyObject *py_field_get_str(struct format_field *f, struct record *r)
+{
+	if (!strncmp(f->type, "__data_loc ", 11)) {
+		unsigned long long val;
+		int offset;
+
+		if (pevent_read_number_field(f, r->data, &val)) {
+			PyErr_SetString(PyExc_TypeError,
+					"Field is not a valid number");
+			return NULL;
+		}
+
+		/*
+		 * The actual length of the dynamic array is stored
+		 * in the top half of the field, and the offset
+		 * is in the bottom half of the 32 bit field.
+		 */
+		offset = val & 0xffff;
+
+		return PyString_FromString((char *)r->data + offset);
+	}
+
+	return PyString_FromStringAndSize((char *)r->data + f->offset,
+				strnlen((char *)r->data + f->offset, f->size));
+}
+
 static PyObject *py_format_get_keys(struct event_format *ef)
 {
 	PyObject *list;

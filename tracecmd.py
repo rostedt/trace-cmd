@@ -110,6 +110,11 @@ class Event(object):
             return None
         return val
 
+    def str_field(self, name):
+        f = pevent_find_any_field(self._format, name)
+        if f is None:
+            return None
+        return py_field_get_str(f, self._record)
 
 class TraceSeq(object):
     def __init__(self, trace_seq):
@@ -137,6 +142,9 @@ class Field(object):
             raise FieldError("Not a number field")
         return val
     __int__ = __long__
+
+    def __str__(self):
+        return py_field_get_str(self._field, self._record)
 
 class PEvent(object):
     def __init__(self, pevent):
