@@ -32,12 +32,14 @@ TODO: consider a complete class hierarchy of ftrace events...
 """
 
 class Event(object):
-    def __init__(self, pevent, record, cpu):
+    """
+    This class can be used to access event data
+    according to an event's record and format.
+    """
+    def __init__(self, pevent, record, format):
         self._pevent = pevent
         self._record = record
-        self.cpu = cpu
-        type = pevent_data_type(pevent, record)
-        self._format = pevent_data_event_from_type(pevent, type)
+        self._format = format
 
     def __str__(self):
         return "%d.%d CPU%d %s: pid=%d comm=%s type=%d" % \
@@ -45,13 +47,25 @@ class Event(object):
                 self.num_field("common_pid"), self.comm, self.type)
 
     def __del__(self):
-        free_record(self._record);
+        free_record(self._record)
 
+    def __getitem__(self, n):
+        f = pevent_find_field(self._format, n)
+        if f is None:
+            raise KeyError("no field '%s'" % n)
+        return Field(self._record, f)
+
+    def keys(self):
+        return py_format_get_keys(self._format)
 
     # TODO: consider caching the results of the properties
     @property
     def comm(self):
         return pevent_data_comm_from_pid(self._pevent, self.pid)
+
+    @property
+    def cpu(self):
+        return record_cpu_get(self._record)
 
     @property
     def name(self):
@@ -77,6 +91,53 @@ class Event(object):
         if ret:
             return None
         return val
+
+
+class TraceSeq(object):
+    def __init__(self, trace_seq):
+        self._trace_seq = trace_seq
+
+    def puts(self, s):
+        return trace_seq_puts(self._trace_seq, s)
+
+class FieldError(Exception):
+    pass
+
+class Field(object):
+    def __init__(self, record, field):
+        self._record = record
+        self._field = field
+
+    @property
+    def data(self):
+        return py_field_get_data(self._field, self._record)
+
+    def __long__(self):
+        ret, val =  pevent_read_number_field(self._field,
+                                             record_data_get(self._record))
+        if ret:
+            raise FieldError("Not a number field")
+        return val
+    __int__ = __long__
+
+class PEvent(object):
+    def __init__(self, pevent):
+        self._pevent = pevent
+
+    def _handler(self, cb, s, record, event_fmt):
+        return cb(TraceSeq(s), Event(self._pevent, record, event_fmt))
+
+    def register_event_handler(self, subsys, event_name, callback):
+        l = lambda s, r, e: self._handler(callback, s, r, e)
+
+        py_pevent_register_event_handler(
+                  self._pevent, -1, subsys, event_name, l)
+
+    @property
+    def file_endian(self):
+        if pevent_is_file_bigendian(self._pevent):
+            return '>'
+        return '<'
 
 
 class FileFormatError(Exception):
@@ -107,9 +168,10 @@ class Trace(object):
     def read_event(self, cpu):
         rec = tracecmd_read_data(self._handle, cpu)
         if rec:
-            #rec.acquire()
-            #rec.thisown = 1
-            return Event(self._pevent, rec, cpu)
+            type = pevent_data_type(self._pevent, rec)
+            format = pevent_data_event_from_type(self._pevent, type)
+            # rec ownership goes over to Event instance
+            return Event(self._pevent, rec, format)
         return None
 
     def read_event_at(self, offset):
@@ -117,11 +179,11 @@ class Trace(object):
         # SWIG only returns the CPU if the record is None for some reason
         if isinstance(res, int):
             return None
-        rec,cpu = res
-        #rec.acquire()
-        #rec.thisown = 1
-        ev = Event(self._pevent, rec, cpu)
-        return ev
+        rec, cpu = res
+        type = pevent_data_type(self._pevent, rec)
+        format = pevent_data_event_from_type(self._pevent, type)
+        # rec ownership goes over to Event instance
+        return Event(self._pevent, rec, format)
 
     def peek_event(self, cpu):
         pass
