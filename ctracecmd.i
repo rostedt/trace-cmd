@@ -5,6 +5,7 @@
 
 %apply Pointer NONNULL { struct tracecmd_input *handle };
 %apply Pointer NONNULL { struct pevent *pevent };
+%apply Pointer NONNULL { struct format_field * };
 %apply unsigned long long *OUTPUT {unsigned long long *}
 %apply int *OUTPUT {int *}
 
