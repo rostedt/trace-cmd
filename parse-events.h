@@ -403,7 +403,13 @@ __data2host8(struct pevent *pevent, unsigned long long data)
 
 #define data2host2(pevent, ptr)		__data2host2(pevent, *(unsigned short *)(ptr))
 #define data2host4(pevent, ptr)		__data2host4(pevent, *(unsigned int *)(ptr))
-#define data2host8(pevent, ptr)		__data2host8(pevent, *(unsigned long long *)(ptr))
+#define data2host8(pevent, ptr)					\
+({								\
+	unsigned long long __val;				\
+								\
+	memcpy(&__val, (ptr), sizeof(unsigned long long));	\
+	__data2host8(pevent, __val);				\
+})
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {
