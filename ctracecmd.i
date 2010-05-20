@@ -34,6 +34,12 @@ static int python_callback(struct trace_seq *s,
 			   struct event_format *event,
 			   void *context);
 
+PyObject *convert_pevent(unsigned long pevent)
+{
+	void *pev = (void *)pevent;
+	return SWIG_NewPointerObj(SWIG_as_voidptr(pev), SWIGTYPE_p_pevent, 0);
+}
+
 void py_pevent_register_event_handler(struct pevent *pevent, int id,
 				      char *subsys, char *evname,
 				      PyObject *pyfunc)
