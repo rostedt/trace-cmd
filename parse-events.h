@@ -43,7 +43,7 @@ struct record {
 	int			size;		/* size of data */
 	void			*data;
 	int			cpu;
-	int			locked;		/* Do not allow freeing */
+	int			ref_count;
 	void			*private;
 };
 

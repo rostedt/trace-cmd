@@ -660,8 +660,13 @@ void free_record(struct record *record)
 	if (!record)
 		return;
 
-	if (record->locked)
-		die("freeing record when it is locked!");
+	if (!record->ref_count)
+		die("record ref count is zero!");
+
+	record->ref_count--;
+	if (record->ref_count)
+		return;
+
 	record->data = NULL;
 
 	__free_record(record);
@@ -675,7 +680,8 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 		return;
 
 	handle->cpu_data[cpu].next = NULL;
-	__free_record(record);
+
+	free_record(record);
 }
 
 /*
@@ -870,6 +876,7 @@ read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 		return NULL;
 	memset(data, 0, sizeof(*data));
 
+	data->ref_count = 1;
 	data->ts = handle->cpu_data[cpu].timestamp;
 	data->size = length;
 	data->data = *ptr;
@@ -902,11 +909,12 @@ peek_event(struct tracecmd_input *handle, unsigned long long offset,
 	free_next(handle, cpu);
 
 	do {
-		free_record(record);
 		record = tracecmd_peek_data(handle, cpu);
 		if (record && (record->offset + record->record_size) > offset)
 			break;
-		record = tracecmd_read_data(handle, cpu);
+		free_record(record);
+
+		free_next(handle, cpu);
         } while (record);
 
 	return record;
@@ -919,8 +927,10 @@ read_event(struct tracecmd_input *handle, unsigned long long offset,
 	struct record *record;
 
 	record = peek_event(handle, offset, cpu);
-	if (record)
+	if (record) {
+		free_record(record);
 		record = tracecmd_read_data(handle, cpu);
+	}
 	return record;
 }
 
@@ -1301,7 +1311,7 @@ int tracecmd_set_cursor(struct tracecmd_input *handle,
 	if (get_page(handle, cpu, page_offset) < 0)
 		return -1;
 
-	peek_event(handle, offset, cpu);
+	free_record(peek_event(handle, offset, cpu));
 
 	return 0;
 }
@@ -1429,6 +1439,7 @@ tracecmd_translate_data(struct tracecmd_input *handle,
 		return NULL;
 	memset(record, 0, sizeof(*record));
 
+	record->ref_count = 1;
 	record->data = ptr;
 	type_len = translate_data(handle, &record->data, &record->ts, &record->size);
 	switch (type_len) {
@@ -1451,8 +1462,6 @@ tracecmd_translate_data(struct tracecmd_input *handle,
  *
  * This returns the record at the current location of the CPU
  * iterator. It does not increment the CPU iterator.
- *
- * NOTE: Do not free the record returned, it is stored in the @handle.
  */
 struct record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
@@ -1479,8 +1488,10 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 		if (!record->data)
 			die("Something freed the record");
 
-		if (handle->cpu_data[cpu].timestamp == record->ts)
+		if (handle->cpu_data[cpu].timestamp == record->ts) {
+			record->ref_count++;
 			return record;
+		}
 
 		/*
 		 * The timestamp changed, which means the cached
@@ -1553,6 +1564,7 @@ read_again:
 	record->data = ptr;
 	record->offset = handle->cpu_data[cpu].offset + index;
 	record->missed_events = missed_events;
+	record->ref_count = 2; /* will be returned and stored in page */
 
 	ptr += length;
 
@@ -1561,7 +1573,6 @@ read_again:
 
 	record->record_size = handle->cpu_data[cpu].index - index;
 	record->private = page;
-	record->locked = 1;
 	page->ref_count++;
 
 	return record;
@@ -1585,7 +1596,7 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
 	if (record)
-		record->locked = 0;
+		record->ref_count--;
 
 	return record;
 }
@@ -1627,6 +1638,7 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 			ts = record->ts;
 			next = cpu;
 		}
+		free_record(record);
 	}
 
 	if (next >= 0) {
@@ -1647,12 +1659,11 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
  * @record is the first record, NULL is returned. The cursor is set
  * as if the previous record was read by tracecmd_read_data().
  *
- * @record can not be NULL, otherwise NULL is returned.
+ * @record can not be NULL, otherwise NULL is returned; the
+ * record ownership goes to this function.
  *
  * Note, this is not that fast of an algorithm, since it needs
  * to build the timestamp for the record.
- *
- * Note 2: This may free any record allocoted with tracecmd_peek_data().
  *
  * The record returned must be freed with free_record().
  */
@@ -1674,7 +1685,7 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
 	page_offset = calc_page_offset(handle, offset);
 	index = offset - page_offset;
 
-	/* Note, the record passed in could have been a peek */
+	free_record(record);
 	free_next(handle, cpu);
 
 	/* Reset the cursor */

@@ -137,7 +137,7 @@ static int cpu_plot_display_last_event(struct graph_info *ginfo,
 	record = tracecmd_peek_data(ginfo->handle, cpu);
 	if (record)
 		offset = record->offset;
-	/* Don't need to free a peek */
+	free_record(record);
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 

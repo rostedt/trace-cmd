@@ -183,6 +183,7 @@ static struct offset_cache *save_offsets(struct graph_info *ginfo)
 		record = tracecmd_peek_data(ginfo->handle, cpu);
 		if (record)
 			offsets->offsets[cpu] = record->offset;
+		free_record(record);
 	}
 
 	return offsets;
