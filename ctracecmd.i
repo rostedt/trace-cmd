@@ -3,6 +3,9 @@
 %include "typemaps.i"
 %include "constraints.i"
 
+%nodefaultctor record;
+%nodefaultdtor record;
+
 %apply Pointer NONNULL { struct tracecmd_input *handle };
 %apply Pointer NONNULL { struct pevent *pevent };
 %apply Pointer NONNULL { struct format_field * };
