@@ -439,12 +439,14 @@ clean:
 ##### PYTHON STUFF #####
 
 PYTHON_INCLUDES = `python-config --includes`
+PYTHON_LDFLAGS = `python-config --ldflags` \
+		$(shell python -c "import distutils.sysconfig; print distutils.sysconfig.get_config_var('LINKFORSHARED')")
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
-ctracecmd.so: $(TCMD_LIB_OBJS)
+ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
 	swig -Wall -python -noproxy ctracecmd.i
 	gcc -fpic -c $(PYTHON_INCLUDES)  ctracecmd_wrap.c
-	$(CC) --shared $^ ctracecmd_wrap.o -o ctracecmd.so
+	$(CC) --shared $(TCMD_LIB_OBJS) ctracecmd_wrap.o -o ctracecmd.so
 
 ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	swig -Wall -python -noproxy ctracecmdgui.i
@@ -456,6 +458,23 @@ python: ctracecmd.so
 
 PHONY += python-gui
 python-gui: ctracecmd.so ctracecmdgui.so 
+
+PHONY += python-plugin
+python-plugin: plugin_python.so python
+
+do_compile_python_plugin_obj =			\
+	($(print_plugin_obj_compile)		\
+	$(CC) -c $(CFLAGS) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
+
+do_python_plugin_build =			\
+	($(print_plugin_build)			\
+	$(CC) -shared $(PYTHON_LDFLAGS) -o $@ $<)
+
+plugin_python.o: %.o : $(src)/%.c
+	$(Q)$(do_compile_python_plugin_obj)
+
+plugin_python.so: %.so: %.o
+	$(Q)$(do_python_plugin_build)
 
 endif # skip-makefile
 

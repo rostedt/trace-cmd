@@ -212,7 +212,7 @@ load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
 	strcat(plugin, "/");
 	strcat(plugin, file);
 
-	handle = dlopen(plugin, RTLD_NOW);
+	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
 		warning("cound not load plugin '%s'\n%s\n",
 			plugin, dlerror());
