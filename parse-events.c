@@ -4327,7 +4327,7 @@ int pevent_parse_event(struct pevent *pevent,
 			*list = arg;
 			list = &arg->next;
 			arg->type = PRINT_FIELD;
-			arg->field.name = field->name;
+			arg->field.name = strdup(field->name);
 			arg->field.field = field;
 		}
 		return 0;
