@@ -4542,6 +4542,7 @@ void pevent_free(struct pevent *pevent)
 	struct cmdline_list *cmdlist = pevent->cmdlist, *cmdnext;
 	struct func_list *funclist = pevent->funclist, *funcnext;
 	struct printk_list *printklist = pevent->printklist, *printknext;
+	struct pevent_function_handler *func_handler;
 	struct event_handler *handle;
 	int i;
 
@@ -4576,6 +4577,12 @@ void pevent_free(struct pevent *pevent)
 		free(funclist->mod);
 		free(funclist);
 		funclist = funcnext;
+	}
+
+	while (pevent->func_handlers) {
+		func_handler = pevent->func_handlers;
+		pevent->func_handlers = func_handler->next;
+		free_func_handle(func_handler);
 	}
 
 	if (pevent->printk_map) {
