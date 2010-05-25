@@ -2839,6 +2839,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 	struct print_arg *typearg = NULL;
 	struct print_arg *larg;
 	unsigned long offset;
+	unsigned int field_size;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -2885,6 +2886,9 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				larg = larg->typecast.item;
 			}
 
+			/* Default to long size */
+			field_size = pevent->long_size;
+
 			switch (larg->type) {
 			case PRINT_DYNAMIC_ARRAY:
 				offset = pevent_read_number(pevent,
@@ -2905,6 +2909,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 					if (!larg->field.field)
 						die("field %s not found", larg->field.name);
 				}
+				field_size = larg->field.field->elementsize;
 				offset = larg->field.field->offset +
 					right * larg->field.field->elementsize;
 				break;
@@ -2912,7 +2917,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				goto default_op; /* oops, all bets off */
 			}
 			val = pevent_read_number(pevent,
-						 data + offset, larg->field.field->elementsize);
+						 data + offset, field_size);
 			if (typearg)
 				val = eval_type(val, typearg, 1);
 			break;
