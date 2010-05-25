@@ -1379,6 +1379,8 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		if (field->flags & FIELD_IS_ARRAY) {
 			if (field->arraylen)
 				field->elementsize = field->size / field->arraylen;
+			else if (field->flags & FIELD_IS_STRING)
+				field->elementsize = 1;
 			else
 				field->elementsize = event->pevent->long_size;
 		} else
@@ -2894,6 +2896,8 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				offset = pevent_read_number(pevent,
 						   data + larg->dynarray.field->offset,
 						   larg->dynarray.field->size);
+				if (larg->dynarray.field->elementsize)
+					field_size = larg->dynarray.field->elementsize;
 				/*
 				 * The actual length of the dynamic array is stored
 				 * in the top half of the field, and the offset
