@@ -20,6 +20,7 @@
 
 from functools import update_wrapper
 from ctracecmd import *
+from UserDict import DictMixin
 
 """
 Python interface to the tracecmd library for parsing ftrace traces
@@ -50,7 +51,7 @@ def cached_property(func, name=None):
         self.__cached_properties.pop(name, None)
     return property(_get, None, _del)
 
-class Event(object):
+class Event(object, DictMixin):
     """
     This class can be used to access event data
     according to an event's record and format.
