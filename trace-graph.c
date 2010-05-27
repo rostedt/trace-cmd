@@ -728,9 +728,9 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 					text);
 
 		if (trace_graph_hide_task_find_pid(ginfo, pid))
-			snprintf(text, len, "Show %s-%d to filter", comm, pid);
+			snprintf(text, len, "Show %s-%d", comm, pid);
 		else
-			snprintf(text, len, "Hide %s-%d to filter", comm, pid);
+			snprintf(text, len, "Hide %s-%d", comm, pid);
 
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
 					text);
@@ -752,7 +752,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_widget_set_sensitive(menu_filter_add_task, FALSE);
 
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
-					"Hide task to filter");
+					"Hide task");
 		gtk_widget_set_sensitive(menu_filter_hide_task, FALSE);
 
 		gtk_widget_hide(menu_plot_task);
