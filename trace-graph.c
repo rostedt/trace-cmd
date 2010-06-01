@@ -548,6 +548,20 @@ void trace_graph_clear_tasks(struct graph_info *ginfo)
 		redraw_graph(ginfo);
 }
 
+void trace_graph_update_filters(struct graph_info *ginfo,
+				struct filter_task *task_filter,
+				struct filter_task *hide_tasks)
+{
+	filter_task_hash_free(ginfo->task_filter);
+	filter_task_hash_free(ginfo->hide_tasks);
+
+	ginfo->task_filter = filter_task_hash_copy(task_filter);
+	ginfo->hide_tasks = filter_task_hash_copy(hide_tasks);
+
+	if (ginfo->filter_enabled)
+		redraw_graph(ginfo);
+}
+
 static void
 filter_clear_tasks_clicked (gpointer data)
 {

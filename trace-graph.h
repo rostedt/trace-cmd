@@ -311,6 +311,9 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 			     struct tracecmd_xml_handle *handle);
 int trace_graph_save_filters(struct graph_info *ginfo,
 			     struct tracecmd_xml_handle *handle);
+void trace_graph_update_filters(struct graph_info *ginfo,
+				struct filter_task *task_filter,
+				struct filter_task *hide_tasks);
 
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);
