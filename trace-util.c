@@ -324,6 +324,10 @@ static int load_plugins(struct pevent *pevent, struct plugin_list **list,
 		    strcmp(name, "..") == 0)
 			continue;
 
+		/* Only load plugins that end in '.so' */
+		if (strcmp(name + (strlen(name) - 3), ".so") != 0)
+			continue;
+
 		*list = load_plugin(pevent, *list, path, name);
 	}
 
