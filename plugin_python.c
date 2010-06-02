@@ -1,10 +1,5 @@
 #include <Python.h>
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <stdio.h>
-#include <dirent.h>
-#include <fnmatch.h>
 #include "trace-cmd.h"
 
 static const char pyload[] =
@@ -17,8 +12,10 @@ static const char pyload[] =
 "finally:\n"
 "   file.close()\n";
 
-static void load_plugin(PyObject *globals, char *path, const char *name)
+static void load_plugin(struct pevent *pevent, const char *path,
+			const char *name, void *data)
 {
+	PyObject *globals = data;
 	int len = strlen(path) + strlen(name) + 2;
 	int nlen = strlen(name) + 1;
 	char *full = malloc(len);
@@ -50,50 +47,9 @@ static void load_plugin(PyObject *globals, char *path, const char *name)
 	free(load);
 }
 
-static int load_plugins(PyObject *globals, char *path)
-{
-	struct dirent *dent;
-	struct stat st;
-	DIR *dir;
-	int ret;
-
-	ret = stat(path, &st);
-	if (ret < 0)
-		return -1;
-
-	if (!S_ISDIR(st.st_mode))
-		return -1;
-
-	dir = opendir(path);
-	if (!dir)
-		return -1;
-
-	while ((dent = readdir(dir))) {
-		const char *name = dent->d_name;
-
-		if (fnmatch("*.py", name, FNM_PERIOD))
-			continue;
-
-		load_plugin(globals, path, name);
-	}
-
-	closedir(dir);
-
-	return 0;
-}
-
-#define LOCAL_PLUGIN_DIR	".trace-cmd/python"
-
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
-	char *home;
-	char *path;
-	int ret;
 	PyObject *globals, *m, *py_pevent, *str;
-
-	home = getenv("HOME");
-	if (!home)
-		return 0;
 
 	Py_Initialize();
 
@@ -114,19 +70,9 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	Py_DECREF(py_pevent);
 	Py_DECREF(str);
 
-	path = malloc(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
-	if (!path)
-		return -1;
+	trace_util_load_plugins(pevent, ".py", load_plugin, globals);
 
-	strcpy(path, home);
-	strcat(path, "/");
-	strcat(path, LOCAL_PLUGIN_DIR);
-
-	ret = load_plugins(globals, path);
-
-	free(path);
-
-	return ret;
+	return 0;
 }
 
 int PEVENT_PLUGIN_UNLOADER(void)

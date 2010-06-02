@@ -196,15 +196,14 @@ void parse_ftrace_printk(struct pevent *pevent,
 	}
 }
 
-static struct plugin_list *
-load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
-	    const char *path, const char *file)
+static void load_plugin(struct pevent *pevent, const char *path,
+			const char *file, void *data)
 {
+	struct plugin_list **plugin_list = data;
 	pevent_plugin_load_func func;
 	struct plugin_list *list;
 	char *plugin;
 	void *handle;
-	int ret = -1;
 
 	plugin = malloc_or_die(strlen(path) + strlen(file) + 2);
 
@@ -227,20 +226,17 @@ load_plugin(struct pevent *pevent, struct plugin_list *plugin_list,
 	}
 
 	list = malloc_or_die(sizeof(*list));
-	list->next = plugin_list;
+	list->next = *plugin_list;
 	list->handle = handle;
 	list->name = plugin;
-	plugin_list = list;
+	*plugin_list = list;
 
 	pr_stat("registering plugin: %s", plugin);
-	ret = func(pevent);
-
-	return plugin_list;
+	func(pevent);
+	return;
 
  out_free:
 	free(plugin);
-
-	return plugin_list;
 }
 
 static int mount_debugfs(void)
@@ -298,8 +294,14 @@ char *tracecmd_find_tracing_dir(void)
 	return tracing_dir;
 }
 
-static int load_plugins(struct pevent *pevent, struct plugin_list **list,
-			char *path)
+static void
+trace_util_load_plugins_dir(struct pevent *pevent, const char *suffix,
+			    const char *path,
+			    void (*load_plugin)(struct pevent *pevent,
+						const char *path,
+						const char *name,
+						void *data),
+			    void *data)
 {
 	struct dirent *dent;
 	struct stat st;
@@ -308,14 +310,14 @@ static int load_plugins(struct pevent *pevent, struct plugin_list **list,
 
 	ret = stat(path, &st);
 	if (ret < 0)
-		return -1;
+		return;
 
 	if (!S_ISDIR(st.st_mode))
-		return -1;
+		return;
 
 	dir = opendir(path);
 	if (!dir)
-		return -1;
+		return;
 
 	while ((dent = readdir(dir))) {
 		const char *name = dent->d_name;
@@ -324,38 +326,43 @@ static int load_plugins(struct pevent *pevent, struct plugin_list **list,
 		    strcmp(name, "..") == 0)
 			continue;
 
-		/* Only load plugins that end in '.so' */
-		if (strcmp(name + (strlen(name) - 3), ".so") != 0)
+		/* Only load plugins that end in suffix */
+		if (strcmp(name + (strlen(name) - strlen(suffix)), suffix) != 0)
 			continue;
 
-		*list = load_plugin(pevent, *list, path, name);
+		load_plugin(pevent, path, name, data);
 	}
 
 	closedir(dir);
 
-	return 0;
+	return;
 }
 
-struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
+void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
+			     void (*load_plugin)(struct pevent *pevent,
+						 const char *path,
+						 const char *name,
+						 void *data),
+			     void *data)
 {
-	struct plugin_list *list = NULL;
 	char *home;
 	char *path;
 
 	if (tracecmd_disable_plugins)
-		return NULL;
+		return;
 
 /* If a system plugin directory was defined, check that first */
 #ifdef PLUGIN_DIR
 	if (!tracecmd_disable_sys_plugins)
-		load_plugins(pevent, &list, MAKE_STR(PLUGIN_DIR));
+		trace_util_load_plugins_dir(pevent, suffix, MAKE_STR(PLUGIN_DIR),
+					    load_plugin, data);
 #endif
 
 	/* Now let the home directory override the system defaults */
 	home = getenv("HOME");
 
 	if (!home)
-		return list;
+		return;
 
 	path = malloc_or_die(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
 
@@ -363,9 +370,16 @@ struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
 	strcat(path, "/");
 	strcat(path, LOCAL_PLUGIN_DIR);
 
-	load_plugins(pevent, &list, path);
+	trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
 
 	free(path);
+}
+
+struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
+{
+	struct plugin_list *list = NULL;
+
+	trace_util_load_plugins(pevent, ".so", load_plugin, &list);
 
 	return list;
 }
