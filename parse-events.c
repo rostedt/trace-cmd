@@ -4280,8 +4280,11 @@ int pevent_parse_event(struct pevent *pevent,
 		return -ENOMEM;
 
 	event->name = event_read_name();
-	if (!event->name)
-		die("failed to read event name");
+	if (!event->name) {
+		/* Bad event? */
+		free(event);
+		return -1;
+	}
 
 	if (strcmp(sys, "ftrace") == 0) {
 
