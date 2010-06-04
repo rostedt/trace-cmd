@@ -43,6 +43,11 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
+# Can build python?
+ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
+	BUILD_PYTHON := python python-plugin
+endif
+
 ifeq ("$(origin O)", "command line")
   BUILD_OUTPUT := $(O)
 endif
@@ -234,7 +239,8 @@ PLUGINS := $(PLUGIN_OBJS:.o=.so)
 ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) \
 	$(TRACE_GRAPH_MAIN_OBJS) $(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
 
-CMD_TARGETS = trace_plugin_dir tc_version.h libparsevent.a $(LIB_FILE) trace-cmd  $(PLUGINS)
+CMD_TARGETS = trace_plugin_dir tc_version.h libparsevent.a $(LIB_FILE) \
+	trace-cmd  $(PLUGINS) $(BUILD_PYTHON)
 
 GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
 
