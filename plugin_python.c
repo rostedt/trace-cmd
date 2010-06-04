@@ -2,7 +2,13 @@
 #include <stdio.h>
 #include "trace-cmd.h"
 
+#ifndef PYTHON_DIR
+#define PYTHON_DIR .
+#endif
+
 static const char pyload[] =
+"import sys\n"
+"sys.path.append(\"" MAKE_STR(PYTHON_DIR) "\")\n"
 "import imp, tracecmd, ctracecmd\n"
 "fn = r'%s'\n"
 "file = open(fn, 'r')\n"

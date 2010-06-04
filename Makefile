@@ -487,15 +487,17 @@ python-gui: ctracecmd.so ctracecmdgui.so
 PHONY += python-plugin
 python-plugin: plugin_python.so python
 
+CFLAGS_plugin_python.o += $(PYTHON_DIR_SQ)
+
 do_compile_python_plugin_obj =			\
 	($(print_plugin_obj_compile)		\
-	$(CC) -c $(CFLAGS) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
+	$(CC) -c $(CFLAGS) $(CFLAGS_$@) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
 
 do_python_plugin_build =			\
 	($(print_plugin_build)			\
 	$(CC) -shared $(PYTHON_LDFLAGS) -o $@ $<)
 
-plugin_python.o: %.o : $(src)/%.c
+plugin_python.o: %.o : $(src)/%.c trace_python_dir
 	$(Q)$(do_compile_python_plugin_obj)
 
 plugin_python.so: %.so: %.o
