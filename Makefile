@@ -28,10 +28,14 @@ export man_dir man_dir_SQ INSTALL
 
 ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
+python_dir = $(HOME)/.trace-cmd/python
 else
 plugin_dir = $(prefix)/share/trace-cmd/plugins
+python_dir = $(prefix)/share/trace-cmd/python
 PLUGIN_DIR = -DPLUGIN_DIR=$(plugin_dir)
+PYTHON_DIR = -DPYTHON_DIR=$(python_dir)
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
+PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
 endif
 
 # copy a bit from Linux kbuild
@@ -98,6 +102,7 @@ export prefix bindir src obj
 bindir_SQ = $(subst ','\'',$(bindir))
 bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
+python_dir_SQ = $(subst ','\'',$(python_dir))
 
 LIBS = -L. -ltracecmd -ldl
 LIB_FILE = libtracecmd.a
@@ -240,7 +245,7 @@ PLUGINS := $(PLUGIN_OBJS:.o=.so)
 ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) \
 	$(TRACE_GRAPH_MAIN_OBJS) $(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
 
-CMD_TARGETS = trace_plugin_dir tc_version.h libparsevent.a $(LIB_FILE) \
+CMD_TARGETS = trace_plugin_dir trace_python_dir tc_version.h libparsevent.a $(LIB_FILE) \
 	trace-cmd  $(PLUGINS) $(BUILD_PYTHON)
 
 GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
@@ -335,8 +340,8 @@ ks_version.h: force
 tc_version.h: force
 	$(Q)$(N)$(call update_version.h)
 
-define update_plugin_dir
-	(echo 'PLUGIN_DIR=$(PLUGIN_DIR)' > $@.tmp;	\
+define update_dir
+	(echo $1 > $@.tmp;	\
 	if [ -r $@ ] && cmp -s $@ $@.tmp; then		\
 		rm -f $@.tmp;				\
 	else						\
@@ -346,7 +351,10 @@ define update_plugin_dir
 endef
 
 trace_plugin_dir: force
-	$(Q)$(N)$(call update_plugin_dir)
+	$(Q)$(N)$(call update_dir, 'PLUGIN_DIR=$(PLUGIN_DIR)')
+
+trace_python_dir: force
+	$(Q)$(N)$(call update_dir, 'PYTHON_DIR=$(PYTHON_DIR)')
 
 ## make deps
 
