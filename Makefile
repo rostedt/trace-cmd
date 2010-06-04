@@ -45,6 +45,7 @@ endif
 
 # Can build python?
 ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
+	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := python python-plugin
 endif
 
@@ -402,7 +403,7 @@ TAGS:	force
 	$(RM) TAGS
 	find . -name '*.[ch]' | xargs etags
 
-PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
+PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS)) $(subst .so,.install,$(PYTHON_PLUGINS))
 
 define do_install
 	$(print_install)			\
