@@ -32,6 +32,7 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -553,6 +554,12 @@ struct tracecmd_input *read_trace_header(void)
 	return tracecmd_alloc_fd(input_fd);
 }
 
+static void sig_end(int sig)
+{
+	fprintf(stderr, "trace-cmd: Received SIGINT\n");
+	exit(0);
+}
+
 void trace_report (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
@@ -573,6 +580,8 @@ void trace_report (int argc, char **argv)
 
 	if (strcmp(argv[1], "report") != 0)
 		usage(argv);
+
+	signal(SIGINT, sig_end);
 
 	for (;;) {
 		int option_index = 0;
