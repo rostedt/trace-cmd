@@ -51,6 +51,8 @@ endif
 ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := python python-plugin
+	PYTHON_SO_INSTALL := ctracecmd.install
+	PYTHON_PY_INSTALL := event-viewer.install tracecmd.install tracecmdgui.install
 endif
 
 ifeq ("$(origin O)", "command line")
@@ -426,7 +428,15 @@ $(PLUGINS_INSTALL): %.install : %.so force
 
 install_plugins: $(PLUGINS_INSTALL)
 
-install_cmd: all_cmd install_plugins
+$(PYTHON_SO_INSTALL): %.install : %.so force
+	$(Q)$(call do_install, $<, '$(python_dir_SQ)')
+
+$(PYTHON_PY_INSTALL): %.install : %.py force
+	$(Q)$(call do_install, $<, '$(python_dir_SQ)')
+
+install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_INSTALL)
+
+install_cmd: all_cmd install_plugins install_python
 	$(Q)$(call do_install, trace-cmd, '$(bindir_SQ)')
 
 install: install_cmd
