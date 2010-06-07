@@ -461,7 +461,7 @@ install_doc:
 
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
-	$(RM) tags TAGS trace_plugin_dir
+	$(RM) tags TAGS
 
 
 ##### PYTHON STUFF #####
