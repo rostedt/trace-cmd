@@ -18,3 +18,4 @@ ctracecmdgui_wrap.c
 tags
 TAGS
 trace_plugin_dir
+trace_python_dir
