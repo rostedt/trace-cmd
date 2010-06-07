@@ -47,10 +47,13 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
+PYTHON		:= ctracecmd.so
+PYTHON_GUI	:= ctracecmd.so ctracecmdgui.so
+
 # Can build python?
 ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PLUGINS := plugin_python.so
-	BUILD_PYTHON := python python-plugin
+	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
 	PYTHON_SO_INSTALL := ctracecmd.install
 	PYTHON_PY_INSTALL := event-viewer.install tracecmd.install tracecmdgui.install
 endif
@@ -479,13 +482,13 @@ ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	$(CC) --shared $^ $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
 
 PHONY += python
-python: ctracecmd.so
+python: $(PYTHON)
 
 PHONY += python-gui
-python-gui: ctracecmd.so ctracecmdgui.so 
+python-gui: $(PYTHON_GUI)
 
 PHONY += python-plugin
-python-plugin: plugin_python.so python
+python-plugin: $(PYTHON_PLUGINs)
 
 CFLAGS_plugin_python.o += $(PYTHON_DIR_SQ)
 
