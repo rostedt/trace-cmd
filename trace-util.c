@@ -354,7 +354,7 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 /* If a system plugin directory was defined, check that first */
 #ifdef PLUGIN_DIR
 	if (!tracecmd_disable_sys_plugins)
-		trace_util_load_plugins_dir(pevent, suffix, MAKE_STR(PLUGIN_DIR),
+		trace_util_load_plugins_dir(pevent, suffix, PLUGIN_DIR,
 					    load_plugin, data);
 #endif
 

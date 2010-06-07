@@ -3,12 +3,12 @@
 #include "trace-cmd.h"
 
 #ifndef PYTHON_DIR
-#define PYTHON_DIR .
+#define PYTHON_DIR "."
 #endif
 
 static const char pypath[] =
 "import sys\n"
-"sys.path.append(\"" MAKE_STR(PYTHON_DIR) "\")\n";
+"sys.path.append(\"" PYTHON_DIR "\")\n";
 
 static const char pyload[] =
 "import imp, tracecmd, ctracecmd\n"
