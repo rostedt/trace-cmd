@@ -488,7 +488,7 @@ PHONY += python-gui
 python-gui: $(PYTHON_GUI)
 
 PHONY += python-plugin
-python-plugin: $(PYTHON_PLUGINs)
+python-plugin: $(PYTHON_PLUGINS)
 
 CFLAGS_plugin_python.o += $(PYTHON_DIR_SQ)
 
