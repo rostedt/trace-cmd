@@ -6,9 +6,11 @@
 #define PYTHON_DIR .
 #endif
 
-static const char pyload[] =
+static const char pypath[] =
 "import sys\n"
-"sys.path.append(\"" MAKE_STR(PYTHON_DIR) "\")\n"
+"sys.path.append(\"" MAKE_STR(PYTHON_DIR) "\")\n";
+
+static const char pyload[] =
 "import imp, tracecmd, ctracecmd\n"
 "fn = r'%s'\n"
 "file = open(fn, 'r')\n"
@@ -55,12 +57,19 @@ static void load_plugin(struct pevent *pevent, const char *path,
 
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
-	PyObject *globals, *m, *py_pevent, *str;
+	PyObject *globals, *m, *py_pevent, *str, *res;
 
 	Py_Initialize();
 
 	m = PyImport_AddModule("__main__");
 	globals = PyModule_GetDict(m);
+
+	res = PyRun_String(pypath, Py_file_input, globals, globals);
+	if (!res) {
+		PyErr_Print();
+		return -1;
+	} else
+		Py_DECREF(res);
 
 	str = PyString_FromString("pevent");
 	if (!str)
