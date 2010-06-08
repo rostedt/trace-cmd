@@ -667,6 +667,9 @@ void free_record(struct record *record)
 	if (record->ref_count)
 		return;
 
+	if (record->locked)
+		die("freeing record when it is locked!");
+
 	record->data = NULL;
 
 	__free_record(record);
@@ -681,6 +684,7 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 
 	handle->cpu_data[cpu].next = NULL;
 
+	record->locked = 0;
 	free_record(record);
 }
 
@@ -913,7 +917,6 @@ peek_event(struct tracecmd_input *handle, unsigned long long offset,
 		if (record && (record->offset + record->record_size) > offset)
 			break;
 		free_record(record);
-
 		free_next(handle, cpu);
         } while (record);
 
@@ -1565,6 +1568,7 @@ read_again:
 	record->offset = handle->cpu_data[cpu].offset + index;
 	record->missed_events = missed_events;
 	record->ref_count = 2; /* will be returned and stored in page */
+	record->locked = 1;
 
 	ptr += length;
 
@@ -1595,8 +1599,10 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
-	if (record)
+	if (record) {
 		record->ref_count--;
+		record->locked = 0;
+	}
 
 	return record;
 }

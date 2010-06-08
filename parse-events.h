@@ -44,6 +44,7 @@ struct record {
 	void			*data;
 	int			cpu;
 	int			ref_count;
+	int			locked;		/* Do not free, even if ref_count is zero */
 	void			*private;
 };
 
