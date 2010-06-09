@@ -464,7 +464,9 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 	gint sched_pid;
 	int count = 0;
 
-	if (!last_record)
+	if (last_record)
+		last_record->ref_count++;
+	else
 		last_record = tracecmd_read_cpu_last(ginfo->handle, cpu);
 
 	while ((record = tracecmd_read_prev(ginfo->handle, last_record))) {
@@ -475,8 +477,7 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 		if (match)
 			break;
 
-		if (last_record != start_record)
-			free_record(last_record);
+		free_record(last_record);
 
 		if (count > MAX_SEARCH) {
 			free_record(record);
@@ -485,8 +486,7 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 		last_record = record;
 	}
 
-	if (last_record != start_record)
-		free_record(last_record);
+	free_record(last_record);
 
 	return record;
 }
