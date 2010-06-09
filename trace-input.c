@@ -1683,7 +1683,7 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
 	page_offset = calc_page_offset(handle, offset);
 	index = offset - page_offset;
 
-	free_record(record);
+	/* Note, the record passed in could have been a peek */
 	free_next(handle, cpu);
 
 	/* Reset the cursor */
