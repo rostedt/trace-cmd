@@ -666,8 +666,6 @@ void free_record(struct record *record)
 	record->ref_count--;
 
 	if (record->ref_count)
-		breakpoint();
-	if (record->ref_count)
 		return;
 
 	if (record->locked)
