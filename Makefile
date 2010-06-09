@@ -18,6 +18,13 @@ AR = $(CROSS_COMPILE)ar
 EXT = -std=gnu99
 INSTALL = install
 
+# Use DESTDIR for installing into a different root directory.
+# This is useful for building a package. The program will be
+# installed in this directory as if it was the root directory.
+# Then the build tool can move it later.
+DESTDIR ?=
+DESTDIR_SQ = '$(subst ','\'',$(DESTDIR))'
+
 prefix ?= /usr/local
 bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
@@ -25,6 +32,7 @@ man_dir = $(prefix)/share/man
 man_dir_SQ = '$(subst ','\'',$(man_dir))'
 
 export man_dir man_dir_SQ INSTALL
+export DESTDIR DESTDIR_SQ
 
 ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
@@ -170,7 +178,7 @@ else
   print_plugin_obj_compile =	echo '  $(GUI)COMPILE PLUGIN OBJ '$(GOBJ);
   print_plugin_build =		echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
   print_static_lib_build =	echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
-  print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	'$2;
+  print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	$(DESTDIR_SQ)$2';
 endif
 
 do_fpic_compile =					\
@@ -399,28 +407,28 @@ TAGS:	force
 PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
 
 define do_install
-	$(print_install)			\
-	if [ ! -d $2 ]; then 			\
-		$(INSTALL) -d -m 755 $2 ;	\
-	fi;					\
-	$(INSTALL) $1 $2;
+	$(print_install)				\
+	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
+	fi;						\
+	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
 endef
 
 $(PLUGINS_INSTALL): %.install : %.so force
-	$(Q)$(call do_install, $<, '$(plugin_dir_SQ)')
+	$(Q)$(call do_install,$<,$(plugin_dir_SQ))
 
 install_plugins: $(PLUGINS_INSTALL)
 
 install_cmd: all_cmd install_plugins
-	$(Q)$(call do_install, trace-cmd, '$(bindir_SQ)')
+	$(Q)$(call do_install,trace-cmd,$(bindir_SQ))
 
 install: install_cmd
 	@echo "Note: to install the gui, type \"make install_gui\""
 
 install_gui: install_cmd gui
-	$(Q)$(call do_install, trace-view, '$(bindir_SQ)')
-	$(Q)$(call do_install, trace-graph, '$(bindir_SQ)')
-	$(Q)$(call do_install, kernelshark, '$(bindir_SQ)')
+	$(Q)$(call do_install,trace-view,$(bindir_SQ))
+	$(Q)$(call do_install,trace-graph,$(bindir_SQ))
+	$(Q)$(call do_install,kernelshark,$(bindir_SQ))
 
 doc:
 	$(MAKE) -C $(src)/Documentation all

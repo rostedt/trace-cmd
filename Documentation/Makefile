@@ -12,7 +12,7 @@ else
   Q = @
   print_asciidoc =		echo '      ASCIIDOC            '`basename $@`;
   print_xsltproc =		echo '      XSLTPROC            '`basename $@`;
-  print_install =		echo '      INSTALL             '`basename $1`'	to	'$2;
+  print_install =		echo '      INSTALL             '`basename $1`'	to	$(DESTDIR_SQ)'$2;
   hide_xsltproc_output = 2> /dev/null
 endif
 
@@ -69,21 +69,23 @@ MAN5 = $(patsubst %.5.txt,$(obj)/%.5, ${TEXT5})
 
 all: $(MAN1) $(MAN5)
 
+# Need to find out how to export a macro instead of
+# copying this from the main Makefile.
 define do_install
-	$(print_install)			\
-	if [ ! -d $2 ]; then 			\
-		$(INSTALL) -d -m 755 $2 ;	\
-	fi;					\
-	$(INSTALL) $1 $2;
+	$(print_install)				\
+	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
+	fi;						\
+	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
 endef
 
 MAN1_INSTALL = $(MAN1:%.1=%.1.install)
 MAN5_INSTALL = $(MAN5:%.5=%.5.install)
 
 $(MAN1_INSTALL): %.1.install : %.1 force
-	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man1')
+	$(Q)$(call do_install,$<,$(man_dir_SQ)/man1)
 $(MAN5_INSTALL): %.5.install : %.5 force
-	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man5')
+	$(Q)$(call do_install,$<,$(man_dir_SQ)/man5)
 
 install: $(MAN1_INSTALL) $(MAN5_INSTALL)
 
