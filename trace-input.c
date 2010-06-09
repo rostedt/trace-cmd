@@ -664,6 +664,9 @@ void free_record(struct record *record)
 		die("record ref count is zero!");
 
 	record->ref_count--;
+
+	if (record->ref_count)
+		breakpoint();
 	if (record->ref_count)
 		return;
 
@@ -910,14 +913,12 @@ peek_event(struct tracecmd_input *handle, unsigned long long offset,
 	 * tracecmd_read_at.
 	 */
 	update_page_info(handle, cpu);
-	free_next(handle, cpu);
 
 	do {
+		free_next(handle, cpu);
 		record = tracecmd_peek_data(handle, cpu);
 		if (record && (record->offset + record->record_size) > offset)
 			break;
-		free_record(record);
-		free_next(handle, cpu);
         } while (record);
 
 	return record;
@@ -930,10 +931,8 @@ read_event(struct tracecmd_input *handle, unsigned long long offset,
 	struct record *record;
 
 	record = peek_event(handle, offset, cpu);
-	if (record) {
-		free_record(record);
+	if (record)
 		record = tracecmd_read_data(handle, cpu);
-	}
 	return record;
 }
 
@@ -1314,7 +1313,7 @@ int tracecmd_set_cursor(struct tracecmd_input *handle,
 	if (get_page(handle, cpu, page_offset) < 0)
 		return -1;
 
-	free_record(peek_event(handle, offset, cpu));
+	peek_event(handle, offset, cpu);
 
 	return 0;
 }
@@ -1491,10 +1490,8 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 		if (!record->data)
 			die("Something freed the record");
 
-		if (handle->cpu_data[cpu].timestamp == record->ts) {
-			record->ref_count++;
+		if (handle->cpu_data[cpu].timestamp == record->ts)
 			return record;
-		}
 
 		/*
 		 * The timestamp changed, which means the cached
@@ -1567,7 +1564,7 @@ read_again:
 	record->data = ptr;
 	record->offset = handle->cpu_data[cpu].offset + index;
 	record->missed_events = missed_events;
-	record->ref_count = 2; /* will be returned and stored in page */
+	record->ref_count = 1;
 	record->locked = 1;
 
 	ptr += length;
@@ -1599,10 +1596,8 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
-	if (record) {
-		record->ref_count--;
+	if (record)
 		record->locked = 0;
-	}
 
 	return record;
 }
@@ -1644,7 +1639,6 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 			ts = record->ts;
 			next = cpu;
 		}
-		free_record(record);
 	}
 
 	if (next >= 0) {

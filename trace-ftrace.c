@@ -255,13 +255,8 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 		return trace_seq_putc(s, '!');
 
 	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
-	if (rec) {
-		struct record *tmp;
-
-		tmp = get_return_for_leaf(s, cpu, pid, val, rec);
-		free_record(rec);
-		rec = tmp;
-	}
+	if (rec)
+		rec = get_return_for_leaf(s, cpu, pid, val, rec);
 
 	if (rec) {
 		/*
