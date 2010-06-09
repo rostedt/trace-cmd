@@ -1530,9 +1530,9 @@ static gint update_system_events(GtkTreeModel *model,
 	return size;
 }
 
-static void accept_events(struct event_filter_helper *event_helper)
+static void accept_events(GtkTreeView *view,
+			  trace_filter_event_cb_func func, gpointer data)
 {
-	GtkTreeView *view = event_helper->view;
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	gboolean active;
@@ -1558,8 +1558,7 @@ static void accept_events(struct event_filter_helper *event_helper)
 				     &systems, systems_size,
 				     &events, &events_size);
 
-	event_helper->func(TRUE, active, systems, events,
-			   event_helper->data);
+	func(TRUE, active, systems, events, data);
 
 	if (systems) {
 		for (i = 0; systems[i]; i++)
@@ -1570,31 +1569,6 @@ static void accept_events(struct event_filter_helper *event_helper)
 	g_free(events);
 }
 
-/* Callback for the clicked signal of the Events filter button */
-static void
-event_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct event_filter_helper *event_helper = helper->data;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-		accept_events(event_helper);
-		break;
-	case GTK_RESPONSE_REJECT:
-		event_helper->func(FALSE, FALSE, NULL, NULL,
-				   event_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	g_free(event_helper);
-	g_free(helper);
-}
-
 static void filter_event_dialog(struct tracecmd_input *handle,
 				struct event_filter *filter,
 				gboolean all_events,
@@ -1602,13 +1576,10 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 				trace_filter_event_cb_func func,
 				gpointer data)
 {
-	struct dialog_helper *helper;
-	struct event_filter_helper *event_helper;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *view;
-
-	helper = g_malloc(sizeof(*helper));
+	int result;
 
 	/* --- Make dialog window --- */
 
@@ -1621,26 +1592,11 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	event_helper = g_new0(typeof(*event_helper), 1);
-	g_assert(event_helper);
-
-	helper->dialog = dialog;
-	helper->data = event_helper;
-
-	event_helper->func = func;
-	event_helper->data = data;
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (event_dialog_response),
-				  (gpointer) helper);
-
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	view = create_event_list_view(handle, filter, all_events, systems, events);
-	event_helper->view = GTK_TREE_VIEW(view);
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
@@ -1649,6 +1605,20 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		accept_events(GTK_TREE_VIEW(view), func, data);
+		break;
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, FALSE, NULL, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
 }
 
 /**
