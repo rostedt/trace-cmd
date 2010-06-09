@@ -97,14 +97,7 @@ struct event_combo_info {
 	GtkWidget		*event_combo;
 	GtkWidget		*op_combo;
 	GtkWidget		*field_combo;
-};
-
-struct adv_event_filter_helper {
-	trace_adv_filter_cb_func	func;
-	GtkTreeView			*view;
-	GtkWidget			*entry;
-	struct event_combo_info		combo_info;
-	gpointer			data;
+	GtkWidget		*entry;
 };
 
 static GtkTreeModel *create_event_combo_model(struct pevent *pevent)
@@ -319,7 +312,6 @@ static void event_combo_changed(GtkComboBox *combo, gpointer data)
 static void insert_combo_text(struct event_combo_info *info,
 			      GtkComboBox *combo)
 {
-	struct adv_event_filter_helper *event_helper;
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	GtkWidget *entry;
@@ -337,8 +329,7 @@ static void insert_combo_text(struct event_combo_info *info,
 			   0, &text,
 			   -1);
 
-	event_helper = container_of(info, typeof(*event_helper), combo_info);
-	entry = event_helper->entry;
+	entry = info->entry;
 
 	pos = gtk_editable_get_position(GTK_EDITABLE(entry));
 	gtk_editable_insert_text(GTK_EDITABLE(entry), text, strlen(text), &pos);
@@ -504,35 +495,6 @@ static gint *get_event_ids(GtkTreeView *treeview)
 	}
 
 	return ids;
-}
-
-/* Callback for the clicked signal of the advanced filter button */
-static void
-adv_filter_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct adv_event_filter_helper *event_helper = helper->data;
-	const gchar *text;
-	gint *event_ids;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-		text = gtk_entry_get_text(GTK_ENTRY(event_helper->entry));
-		event_ids = get_event_ids(event_helper->view);
-		event_helper->func(TRUE, text, event_ids, event_helper->data);
-		free(event_ids);
-		break;
-	case GTK_RESPONSE_REJECT:
-		event_helper->func(FALSE, NULL, NULL, event_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	g_free(event_helper);
-	g_free(helper);
 }
 
 static GtkTreeModel *
@@ -706,9 +668,8 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			       trace_adv_filter_cb_func func,
 			       gpointer data)
 {
+	struct event_combo_info combo_info;
 	struct pevent *pevent;
-	struct dialog_helper *helper;
-	struct adv_event_filter_helper *event_helper;
 	GtkWidget *dialog;
 	GtkWidget *hbox;
 	GtkWidget *label;
@@ -716,12 +677,12 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	GtkWidget *scrollwin;
 	GtkWidget *view;
 	GtkWidget *event_box;
+	const gchar *text;
+	gint *event_ids;
+	int result;
 
 	if (!handle)
 		return;
-
-	helper = g_malloc(sizeof(*helper));
-	g_assert(helper);
 
 	/* --- Make dialog window --- */
 
@@ -734,26 +695,11 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	event_helper = g_new0(typeof(*event_helper), 1);
-	g_assert(event_helper);
-
-	helper->dialog = dialog;
-	helper->data = event_helper;
-
-	event_helper->func = func;
-	event_helper->data = data;
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (adv_filter_dialog_response),
-				  (gpointer) helper);
-
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	view = create_adv_filter_view(handle, event_filter);
-	event_helper->view = GTK_TREE_VIEW(view);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 
@@ -769,9 +715,9 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 
 	pevent = tracecmd_get_pevent(handle);
 
-	event_helper->combo_info.pevent = pevent;
+	combo_info.pevent = pevent;
 
-	event_box = event_info_box(&event_helper->combo_info);
+	event_box = event_info_box(&combo_info);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), event_box, FALSE, FALSE, 0);
 	gtk_widget_show(event_box);
 
@@ -787,12 +733,29 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, 0);
 	gtk_widget_show(entry);
 
-	event_helper->entry = entry;
+	combo_info.entry = entry;
 
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
 				    TEXT_DIALOG_WIDTH, TEXT_DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		text = gtk_entry_get_text(GTK_ENTRY(entry));
+		event_ids = get_event_ids(GTK_TREE_VIEW(view));
+		func(TRUE, text, event_ids, data);
+		free(event_ids);
+		break;
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, NULL, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
 }
 
 /* --- task list dialog --- */
