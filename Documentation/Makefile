@@ -77,8 +77,8 @@ define do_install
 	$(INSTALL) $1 $2;
 endef
 
-MAN1_INSTALL = $(subst .1,.1.install,$(MAN1))
-MAN5_INSTALL = $(subst .5,.5.install,$(MAN5))
+MAN1_INSTALL = $(MAN1:%.1=%.1.install)
+MAN5_INSTALL = $(MAN5:%.5=%.5.install)
 
 $(MAN1_INSTALL): %.1.install : %.1 force
 	$(Q)$(call do_install, $<, '$(man_dir_SQ)/man1')
