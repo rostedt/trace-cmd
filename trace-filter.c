@@ -58,11 +58,6 @@ int id_cmp(const void *a, const void *b)
 	return 0;
 }
 
-struct dialog_helper {
-	GtkWidget		*dialog;
-	gpointer		data;
-};
-
 /**
  * trace_array_add - allocate and add an int to an array.
  * @array: address of array to allocate
@@ -1675,8 +1670,6 @@ struct cpu_filter_helper {
 	guint64				*cpu_mask;
 	GtkWidget			**buttons;
 	int				cpus;
-	trace_filter_cpu_cb_func	func;
-	gpointer			data;
 };
 
 static void destroy_cpu_helper(struct cpu_filter_helper *cpu_helper)
@@ -1684,40 +1677,6 @@ static void destroy_cpu_helper(struct cpu_filter_helper *cpu_helper)
 	g_free(cpu_helper->cpu_mask);
 	g_free(cpu_helper->buttons);
 	g_free(cpu_helper);
-}
-
-/* Callback for the clicked signal of the CPUS filter button */
-static void
-cpu_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct cpu_filter_helper *cpu_helper = helper->data;
-	guint64 *cpu_mask = NULL;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-
-		if (!cpu_helper->allcpus) {
-			cpu_mask = cpu_helper->cpu_mask;
-			cpu_helper->cpu_mask = NULL;
-		}
-
-		cpu_helper->func(TRUE, cpu_helper->allcpus, cpu_mask, cpu_helper->data);
-		break;
-
-	case GTK_RESPONSE_REJECT:
-		cpu_helper->func(FALSE, FALSE, NULL, cpu_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	g_free(cpu_mask);
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	destroy_cpu_helper(helper->data);
-	g_free(helper);
 }
 
 #define CPU_ALL_CPUS_STR "All CPUs"
@@ -1771,8 +1730,8 @@ void cpu_toggle(gpointer data, GtkWidget *widget)
 void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpus,
 			     trace_filter_cpu_cb_func func, gpointer data)
 {
-	struct dialog_helper *helper;
 	struct cpu_filter_helper *cpu_helper;
+	guint64 *cpu_mask = NULL;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *viewport;
@@ -1784,14 +1743,10 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 	gint width, height;
 	gint allset;
 	gint cpu;
-
-	helper = g_malloc(sizeof(*helper));
-	g_assert(helper != NULL);
+	int result;
 
 	cpu_helper = g_new0(typeof(*cpu_helper), 1);
 	g_assert(cpu_helper != NULL);
-
-	helper->data = cpu_helper;
 
 	/* --- Make dialog window --- */
 
@@ -1804,18 +1759,9 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	helper->dialog = dialog;
-
 	cpu_helper->cpus = cpus;
 	cpu_helper->buttons = g_new0(GtkWidget *, cpus + 1);
 	g_assert(cpu_helper->buttons);
-
-	cpu_helper->func = func;
-	cpu_helper->data = data;
-
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (cpu_dialog_response),
-				  (gpointer) helper);
 
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
@@ -1908,6 +1854,31 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 				    width, height);
 
 	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+
+		if (!cpu_helper->allcpus) {
+			cpu_mask = cpu_helper->cpu_mask;
+			cpu_helper->cpu_mask = NULL;
+		}
+
+		func(TRUE, cpu_helper->allcpus, cpu_mask, data);
+		break;
+
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, FALSE, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	g_free(cpu_mask);
+
+	gtk_widget_destroy(dialog);
+
+	destroy_cpu_helper(cpu_helper);
 }
 
 static void add_system_str(gchar ***systems, char *system, int count)
