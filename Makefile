@@ -1,7 +1,7 @@
 # trace-cmd version
 TC_VERSION = 1
 TC_PATCHLEVEL = 0
-TC_EXTRAVERSION = .1
+TC_EXTRAVERSION = 1
 
 # Kernel Shark version
 KS_VERSION = 0
@@ -307,7 +307,7 @@ define make_version.h
 	echo \#define VERSION_CODE $(shell						\
 	expr $(VERSION) \* 256 + $(PATCHLEVEL));					\
 	echo '#define EXTRAVERSION ' $(EXTRAVERSION);					\
-	echo '#define VERSION_STRING "'$(VERSION).$(PATCHLEVEL)$(EXTRAVERSION)'"';	\
+	echo '#define VERSION_STRING "'$(VERSION).$(PATCHLEVEL).$(EXTRAVERSION)'"';	\
 	echo '#define FILE_VERSION '$(FILE_VERSION);					\
 	) > $1
 endef
