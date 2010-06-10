@@ -1682,23 +1682,6 @@ void kernel_shark(int argc, char **argv)
 	gtk_widget_show(sub_item);
 
 
-	/* --- Filter - List Tasks Option --- */
-
-	sub_item = gtk_menu_item_new_with_label("list tasks");
-
-	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (list_tasks_clicked),
-				  (gpointer) info);
-
-	info->list_task_menu = sub_item;
-
-	/* Only show this item when list and graph tasks are not synced */
-
-
 	/* --- Filter - Graph Tasks Option --- */
 
 	sub_item = gtk_menu_item_new_with_label("tasks");
@@ -1715,23 +1698,6 @@ void kernel_shark(int argc, char **argv)
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
-
-
-	/* --- Filter - List Hide Tasks Option --- */
-
-	sub_item = gtk_menu_item_new_with_label("list hide tasks");
-
-	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (list_hide_tasks_clicked),
-				  (gpointer) info);
-
-	info->list_hide_task_menu = sub_item;
-
-	/* Only show this item when list and graph tasks are not synced */
 
 
 	/* --- Filter - Graph Hide Tasks Option --- */
@@ -1751,22 +1717,6 @@ void kernel_shark(int argc, char **argv)
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
 
-
-	/* --- Filter - List Events Option --- */
-
-	sub_item = gtk_menu_item_new_with_label("list events");
-
-	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (list_events_clicked),
-				  (gpointer) info);
-
-	info->list_events_menu = sub_item;
-
-	/* We do not show this menu (yet) */
 
 
 	/* --- Filter - Events Option --- */
@@ -1788,22 +1738,6 @@ void kernel_shark(int argc, char **argv)
 	gtk_widget_show(sub_item);
 
 
-	/* --- Filter - List Advanced Events Option --- */
-
-	sub_item = gtk_menu_item_new_with_label("list advanced event");
-
-	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (adv_list_filter_clicked),
-				  (gpointer) info);
-
-	info->list_adv_events_menu = sub_item;
-	/* We do not show this menu (yet) */
-
-
 	/* --- Filter - Graph Advanced Events Option --- */
 
 	/* The list and graph events start off in sync */
@@ -1821,6 +1755,71 @@ void kernel_shark(int argc, char **argv)
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
+
+	/* --- Filter - List Tasks Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("list tasks");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (list_tasks_clicked),
+				  (gpointer) info);
+
+	info->list_task_menu = sub_item;
+
+	/* Only show this item when list and graph tasks are not synced */
+
+
+	/* --- Filter - List Hide Tasks Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("list hide tasks");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (list_hide_tasks_clicked),
+				  (gpointer) info);
+
+	info->list_hide_task_menu = sub_item;
+
+	/* Only show this item when list and graph tasks are not synced */
+
+	/* --- Filter - List Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("list events");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (list_events_clicked),
+				  (gpointer) info);
+
+	info->list_events_menu = sub_item;
+
+	/* We do not show this menu (yet) */
+
+
+	/* --- Filter - List Advanced Events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("list advanced event");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (adv_list_filter_clicked),
+				  (gpointer) info);
+
+	info->list_adv_events_menu = sub_item;
+	/* We do not show this menu (yet) */
 
 
 	/* --- Filter - CPUs Option --- */
