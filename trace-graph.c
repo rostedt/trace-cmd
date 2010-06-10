@@ -569,6 +569,15 @@ void trace_graph_update_filters(struct graph_info *ginfo,
 
 	if (ginfo->filter_enabled)
 		redraw_graph(ginfo);
+
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
+		ginfo->filter_available = 1;
+	else {
+		ginfo->filter_enabled = 0;
+		ginfo->filter_available = 0;
+	}
+
 }
 
 void trace_graph_refresh_filters(struct graph_info *ginfo)
