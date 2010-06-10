@@ -552,11 +552,16 @@ void trace_graph_update_filters(struct graph_info *ginfo,
 				struct filter_task *task_filter,
 				struct filter_task *hide_tasks)
 {
-	filter_task_hash_free(ginfo->task_filter);
-	filter_task_hash_free(ginfo->hide_tasks);
+	/* Make sure the filter passed in is not the filter we use */
+	if (task_filter != ginfo->task_filter) {
+		filter_task_hash_free(ginfo->task_filter);
+		ginfo->task_filter = filter_task_hash_copy(task_filter);
+	}
 
-	ginfo->task_filter = filter_task_hash_copy(task_filter);
-	ginfo->hide_tasks = filter_task_hash_copy(hide_tasks);
+	if (hide_tasks != ginfo->hide_tasks) {
+		filter_task_hash_free(ginfo->hide_tasks);
+		ginfo->hide_tasks = filter_task_hash_copy(hide_tasks);
+	}
 
 	if (ginfo->filter_enabled)
 		redraw_graph(ginfo);
