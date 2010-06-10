@@ -241,6 +241,19 @@ static void unsync_task_filters(struct shark_info *info)
 	info->list_hide_tasks = filter_task_hash_copy(info->ginfo->hide_tasks);
 }
 
+static void sync_task_filters(struct shark_info *info)
+{
+	info->sync_task_filters = 1;
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->task_sync_menu),
+				"Unsync Graph and List Task Filters");
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_task_menu),
+				"tasks");
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_hide_task_menu),
+				"hide tasks");
+	gtk_widget_hide(info->list_task_menu);
+	gtk_widget_hide(info->list_hide_task_menu);
+}
+
 static void unsync_event_filters(struct shark_info *info)
 {
 	info->sync_event_filters = 0;
@@ -253,6 +266,19 @@ static void unsync_event_filters(struct shark_info *info)
 				"graph advanced events");
 	gtk_widget_show(info->list_events_menu);
 	gtk_widget_show(info->list_adv_events_menu);
+}
+
+static void sync_event_filters(struct shark_info *info)
+{
+	info->sync_event_filters = 1;
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->events_sync_menu),
+				"Unsync Graph and List Event Filters");
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_events_menu),
+				"events");
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_adv_events_menu),
+				"advanced events");
+	gtk_widget_hide(info->list_events_menu);
+	gtk_widget_hide(info->list_adv_events_menu);
 }
 
 static void
@@ -340,6 +366,16 @@ load_filters_clicked (gpointer data)
 	ret = trace_view_load_filters(handle, trace_tree);
 
 	tracecmd_xml_close(handle);
+
+	/*
+	 * If the events or tasks filters are the same for both
+	 * the list and graph, then sync them back.
+	 */
+	if (filter_task_compare(ginfo->task_filter,
+				info->list_task_filter) &&
+	    filter_task_compare(ginfo->hide_tasks,
+				info->list_hide_tasks))
+		sync_task_filters(info);
 
  out:
 	g_free(filename);
@@ -442,9 +478,17 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 
 	store = TRACE_VIEW_STORE(model);
 
-	/* Ask user which way to sync */
-	result = trace_sync_select_menu("Sync Task Filters",
-					selections, &keep);
+	/* If they are already equal, then just perminently sync them */
+	if (filter_task_compare(info->ginfo->task_filter,
+				info->list_task_filter) &&
+	    filter_task_compare(info->ginfo->hide_tasks,
+				info->list_hide_tasks))
+		result = 2;
+
+	else
+		/* Ask user which way to sync */
+		result = trace_sync_select_menu("Sync Task Filters",
+						selections, &keep);
 
 	switch (result) {
 	case 0:
@@ -480,21 +524,15 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 			info->list_hide_tasks = NULL;
 		}
 		break;
+	case 2:
+		keep = 1;
+		break;
 	default:
 		keep = 0;
 	}
 
-	if (keep) {
-		info->sync_task_filters = 1;
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->task_sync_menu),
-					"Unsync Graph and List Task Filters");
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_task_menu),
-					"tasks");
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_hide_task_menu),
-					"hide tasks");
-		gtk_widget_hide(info->list_task_menu);
-		gtk_widget_hide(info->list_hide_task_menu);
-	}
+	if (keep)
+		sync_task_filters(info);
 }
 
 /* Callback for the clicked signal of the events sync filter button */
@@ -550,17 +588,8 @@ sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
 		keep = 0;
 	}
 
-	if (keep) {
-		info->sync_event_filters = 1;
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->events_sync_menu),
-					"Unsync Graph and List Event Filters");
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_events_menu),
-					"events");
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_adv_events_menu),
-					"advanced events");
-		gtk_widget_hide(info->list_events_menu);
-		gtk_widget_hide(info->list_adv_events_menu);
-	}
+	if (keep)
+		sync_event_filters(info);
 }
 
 static void filter_list_enable_clicked (gpointer data);

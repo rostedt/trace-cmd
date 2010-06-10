@@ -182,3 +182,39 @@ int *filter_task_pids(struct filter_task *hash)
 
 	return pids;
 }
+
+/**
+ * filter_task_compare - compare two task hashs to see if they are equal
+ * @hash1: one hash to compare
+ * @hash2: another hash to compare to @hash1
+ *
+ * Returns 1 if the two hashes are the same, 0 otherwise.
+ */
+int filter_task_compare(struct filter_task *hash1, struct filter_task *hash2)
+{
+	int *pids;
+	int ret = 0;
+	int i;
+
+	/* If counts don't match, then they obviously are not the same */
+	if (hash1->count != hash2->count)
+		return 0;
+
+	/* If both hashes are empty, they are the same */
+	if (!hash1->count && !hash2->count)
+		return 1;
+
+	/* Now compare the pids of one hash with the other */
+	pids = filter_task_pids(hash1);
+	for (i = 0; pids[i] >= 0; i++) {
+		if (!filter_task_find_pid(hash2, pids[i]))
+			break;
+	}
+
+	if (pids[i] == -1)
+		ret = 1;
+
+	free(pids);
+
+	return ret;
+}
