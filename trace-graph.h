@@ -314,6 +314,7 @@ int trace_graph_save_filters(struct graph_info *ginfo,
 void trace_graph_update_filters(struct graph_info *ginfo,
 				struct filter_task *task_filter,
 				struct filter_task *hide_tasks);
+void trace_graph_refresh_filters(struct graph_info *ginfo);
 
 /* plots */
 void trace_graph_plot_free(struct graph_info *ginfo);

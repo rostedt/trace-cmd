@@ -567,6 +567,12 @@ void trace_graph_update_filters(struct graph_info *ginfo,
 		redraw_graph(ginfo);
 }
 
+void trace_graph_refresh_filters(struct graph_info *ginfo)
+{
+	trace_graph_update_filters(ginfo, ginfo->task_filter,
+				   ginfo->hide_tasks);
+}
+
 static void
 filter_clear_tasks_clicked (gpointer data)
 {
