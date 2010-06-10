@@ -347,10 +347,20 @@ struct pevent {
 	struct event_format *last_event;
 };
 
+/* Can be overridden */
 void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
 void warning(char *fmt, ...);
 void pr_stat(char *fmt, ...);
+
+/* Always available */
+void __die(char *fmt, ...);
+void __warning(char *fmt, ...);
+void __pr_stat(char *fmt, ...);
+
+void __vdie(char *fmt, ...);
+void __vwarning(char *fmt, ...);
+void __vpr_stat(char *fmt, ...);
 
 static inline unsigned short
 __data2host2(struct pevent *pevent, unsigned short data)
@@ -701,5 +711,7 @@ int pevent_filter_copy(struct event_filter *dest, struct event_filter *source);
 
 int pevent_update_trivial(struct event_filter *dest, struct event_filter *source,
 			  enum filter_trivial_type type);
+
+int pevent_filter_compare(struct event_filter *filter1, struct event_filter *filter2);
 
 #endif /* _PARSE_EVENTS_H */

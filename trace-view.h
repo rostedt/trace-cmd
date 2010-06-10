@@ -23,6 +23,7 @@
 
 #include "trace-view-store.h"
 #include "trace-filter.h"
+#include "trace-xml.h"
 
 void
 trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
@@ -64,5 +65,10 @@ void trace_view_copy_filter(GtkWidget *treeview,
 void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview);
 
 gint trace_view_get_selected_row(GtkWidget *treeview);
+
+int trace_view_save_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *treeview);
+int trace_view_load_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *treeview);
 
 #endif /* _TRACE_VIEW_H */

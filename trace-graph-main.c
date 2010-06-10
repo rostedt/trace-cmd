@@ -29,6 +29,9 @@
 #include "trace-cmd.h"
 #include "trace-graph.h"
 #include "trace-filter.h"
+#include "trace-gui.h"
+
+#include "version.h"
 
 #define version "0.1.1"
 
@@ -52,26 +55,19 @@ load_clicked (gpointer data)
 {
 	struct graph_info *ginfo = data;
 	struct tracecmd_input *handle;
-	GtkWidget *dialog;
 	gchar *filename;
 
-	dialog = gtk_file_chooser_dialog_new("Load File",
-					     NULL,
-					     GTK_FILE_CHOOSER_ACTION_OPEN,
-					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-					     NULL);
-	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		handle = tracecmd_open(filename);
-		if (handle) {
-			trace_graph_load_handle(ginfo, handle);
-			/* Free handle when freeing graph */
-			tracecmd_close(handle);
-		}
-		g_free(filename);
+	filename = trace_get_file_dialog("Load File");
+	if (!filename)
+		return;
+
+	handle = tracecmd_open(filename);
+	if (handle) {
+		trace_graph_load_handle(ginfo, handle);
+		/* Free handle when freeing graph */
+		tracecmd_close(handle);
 	}
-	gtk_widget_destroy(dialog);
+	g_free(filename);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -158,6 +154,60 @@ plot_tasks_clicked (gpointer data)
 	free(selected);
 }
 
+/* Callback for the clicked signal of the Load Filters button */
+static void
+load_filters_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct tracecmd_xml_handle *handle;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Load Filters");
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_open(filename);
+	if (!handle)
+		warning("Could not open %s", filename);
+	g_free(filename);
+
+	trace_filter_load_filters(handle,
+				  "GraphTaskFilter",
+				  ginfo->task_filter,
+				  ginfo->hide_tasks);
+
+	trace_graph_load_filters(ginfo, handle);
+
+	tracecmd_xml_close(handle);
+}
+
+/* Callback for the clicked signal of the Save Filters button */
+static void
+save_filters_clicked (gpointer data)
+{
+	struct graph_info *ginfo = data;
+	struct tracecmd_xml_handle *handle;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Save Filters");
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_create(filename, VERSION_STRING);
+	if (!handle)
+		warning("Could not create %s", filename);
+	g_free(filename);
+
+	trace_filter_save_filters(handle,
+				  "GraphTaskFilter",
+				  ginfo->task_filter,
+				  ginfo->hide_tasks);
+
+	trace_graph_save_filters(ginfo, handle);
+
+	tracecmd_xml_close(handle);
+}
+
 void trace_graph(int argc, char **argv)
 {
 	struct tracecmd_input *handle = NULL;
@@ -170,6 +220,7 @@ void trace_graph(int argc, char **argv)
 	GtkWidget *menu_item;
 	GtkWidget *sub_item;
 	GtkWidget *widget;
+	GtkWidget *statusbar;
 	int c;
 	int ret;
 
@@ -215,6 +266,8 @@ void trace_graph(int argc, char **argv)
 
 	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
+	trace_dialog_register_window(window);
+
 	/* --- Top Level Vbox --- */
 
 	vbox = gtk_vbox_new(FALSE, 0);
@@ -252,6 +305,35 @@ void trace_graph(int argc, char **argv)
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
 
+
+	/* --- File - Load Filter Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Load filters");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (load_filters_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- File - Save Filter Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Save filters");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (save_filters_clicked),
+				  (gpointer) ginfo);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
 
 	/* --- File - Quit Option --- */
 
@@ -378,6 +460,14 @@ void trace_graph(int argc, char **argv)
 	widget = trace_graph_get_window(ginfo);
 	gtk_box_pack_start(GTK_BOX (hbox), widget, TRUE, TRUE, 0);
 	gtk_widget_show(widget);
+
+
+	/* --- Set up Status Bar --- */
+
+	statusbar = trace_status_bar_new();
+
+	gtk_box_pack_start(GTK_BOX(vbox), statusbar, FALSE, FALSE, 0);
+	gtk_widget_show(statusbar);
 
 
 	/**********************************************

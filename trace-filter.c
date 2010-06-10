@@ -58,11 +58,6 @@ int id_cmp(const void *a, const void *b)
 	return 0;
 }
 
-struct dialog_helper {
-	GtkWidget		*dialog;
-	gpointer		data;
-};
-
 /**
  * trace_array_add - allocate and add an int to an array.
  * @array: address of array to allocate
@@ -97,14 +92,7 @@ struct event_combo_info {
 	GtkWidget		*event_combo;
 	GtkWidget		*op_combo;
 	GtkWidget		*field_combo;
-};
-
-struct adv_event_filter_helper {
-	trace_adv_filter_cb_func	func;
-	GtkTreeView			*view;
-	GtkWidget			*entry;
-	struct event_combo_info		combo_info;
-	gpointer			data;
+	GtkWidget		*entry;
 };
 
 static GtkTreeModel *create_event_combo_model(struct pevent *pevent)
@@ -319,7 +307,6 @@ static void event_combo_changed(GtkComboBox *combo, gpointer data)
 static void insert_combo_text(struct event_combo_info *info,
 			      GtkComboBox *combo)
 {
-	struct adv_event_filter_helper *event_helper;
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	GtkWidget *entry;
@@ -337,8 +324,7 @@ static void insert_combo_text(struct event_combo_info *info,
 			   0, &text,
 			   -1);
 
-	event_helper = container_of(info, typeof(*event_helper), combo_info);
-	entry = event_helper->entry;
+	entry = info->entry;
 
 	pos = gtk_editable_get_position(GTK_EDITABLE(entry));
 	gtk_editable_insert_text(GTK_EDITABLE(entry), text, strlen(text), &pos);
@@ -504,35 +490,6 @@ static gint *get_event_ids(GtkTreeView *treeview)
 	}
 
 	return ids;
-}
-
-/* Callback for the clicked signal of the advanced filter button */
-static void
-adv_filter_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct adv_event_filter_helper *event_helper = helper->data;
-	const gchar *text;
-	gint *event_ids;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-		text = gtk_entry_get_text(GTK_ENTRY(event_helper->entry));
-		event_ids = get_event_ids(event_helper->view);
-		event_helper->func(TRUE, text, event_ids, event_helper->data);
-		free(event_ids);
-		break;
-	case GTK_RESPONSE_REJECT:
-		event_helper->func(FALSE, NULL, NULL, event_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	g_free(event_helper);
-	g_free(helper);
 }
 
 static GtkTreeModel *
@@ -706,9 +663,8 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			       trace_adv_filter_cb_func func,
 			       gpointer data)
 {
+	struct event_combo_info combo_info;
 	struct pevent *pevent;
-	struct dialog_helper *helper;
-	struct adv_event_filter_helper *event_helper;
 	GtkWidget *dialog;
 	GtkWidget *hbox;
 	GtkWidget *label;
@@ -716,12 +672,12 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	GtkWidget *scrollwin;
 	GtkWidget *view;
 	GtkWidget *event_box;
+	const gchar *text;
+	gint *event_ids;
+	int result;
 
 	if (!handle)
 		return;
-
-	helper = g_malloc(sizeof(*helper));
-	g_assert(helper);
 
 	/* --- Make dialog window --- */
 
@@ -734,26 +690,11 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	event_helper = g_new0(typeof(*event_helper), 1);
-	g_assert(event_helper);
-
-	helper->dialog = dialog;
-	helper->data = event_helper;
-
-	event_helper->func = func;
-	event_helper->data = data;
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (adv_filter_dialog_response),
-				  (gpointer) helper);
-
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	view = create_adv_filter_view(handle, event_filter);
-	event_helper->view = GTK_TREE_VIEW(view);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 
@@ -769,9 +710,9 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 
 	pevent = tracecmd_get_pevent(handle);
 
-	event_helper->combo_info.pevent = pevent;
+	combo_info.pevent = pevent;
 
-	event_box = event_info_box(&event_helper->combo_info);
+	event_box = event_info_box(&combo_info);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), event_box, FALSE, FALSE, 0);
 	gtk_widget_show(event_box);
 
@@ -787,22 +728,32 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, 0);
 	gtk_widget_show(entry);
 
-	event_helper->entry = entry;
+	combo_info.entry = entry;
 
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
 				    TEXT_DIALOG_WIDTH, TEXT_DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		text = gtk_entry_get_text(GTK_ENTRY(entry));
+		event_ids = get_event_ids(GTK_TREE_VIEW(view));
+		func(TRUE, text, event_ids, data);
+		free(event_ids);
+		break;
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, NULL, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
 }
 
 /* --- task list dialog --- */
-
-struct task_helper {
-	trace_task_cb_func		func;
-	GtkTreeView			*view;
-	gboolean			start;
-	gpointer			data;
-};
 
 enum {
 	TASK_COL_SELECT,
@@ -848,35 +799,6 @@ static void get_tasks(GtkTreeView *treeview,
 
 	*selected = pids;
 	*non_selected = non_pids;
-}
-
-/* Callback for the clicked signal of the task filter button */
-static void
-task_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct task_helper *event_helper = helper->data;
-	gint *selected;
-	gint *non_select;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-		get_tasks(event_helper->view, &selected, &non_select);
-		event_helper->func(TRUE, selected, non_select, event_helper->data);
-		free(selected);
-		free(non_select);
-		break;
-	case GTK_RESPONSE_REJECT:
-		event_helper->func(FALSE, NULL, NULL, event_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	g_free(event_helper);
-	g_free(helper);
 }
 
 static GtkTreeModel *
@@ -960,14 +882,14 @@ create_task_model(struct tracecmd_input *handle,
 
 static void task_cursor_changed(gpointer data, GtkTreeView *treeview)
 {
-	struct task_helper *event_helper = data;
+	gboolean *start = data;
 	GtkTreeModel *model;
 	GtkTreePath *path;
 	GtkTreeIter iter;
 	gboolean active;
 
-	if (!event_helper->start) {
-		event_helper->start = TRUE;
+	if (!*start) {
+		*start = TRUE;
 		return;
 	}
 
@@ -999,7 +921,7 @@ static void task_cursor_changed(gpointer data, GtkTreeView *treeview)
 static GtkWidget *
 create_task_view(struct tracecmd_input *handle,
 		 gint *tasks, gint *selected,
-		 struct task_helper *event_helper)
+		 gboolean *start)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
@@ -1061,7 +983,7 @@ create_task_view(struct tracecmd_input *handle,
 
 	g_signal_connect_swapped (view, "cursor-changed",
 				  G_CALLBACK (task_cursor_changed),
-				  (gpointer) event_helper);
+				  (gpointer)start);
 
 	return view;
 }
@@ -1080,14 +1002,12 @@ void trace_task_dialog(struct tracecmd_input *handle,
 		       trace_task_cb_func func,
 		       gpointer data)
 {
-	struct dialog_helper *helper;
-	struct task_helper *event_helper;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *view;
-
-	helper = g_malloc(sizeof(*helper));
-	g_assert(helper);
+	gboolean start = FALSE;
+	gint *non_select;
+	int result;
 
 	/* --- Make dialog window --- */
 
@@ -1100,27 +1020,11 @@ void trace_task_dialog(struct tracecmd_input *handle,
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	event_helper = g_new0(typeof(*event_helper), 1);
-	g_assert(event_helper);
-
-	helper->dialog = dialog;
-	helper->data = event_helper;
-
-	event_helper->func = func;
-	event_helper->data = data;
-	event_helper->start = FALSE;
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (task_dialog_response),
-				  (gpointer) helper);
-
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_task_view(handle, tasks, selected, event_helper);
-	event_helper->view = GTK_TREE_VIEW(view);
+	view = create_task_view(handle, tasks, selected, &start);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 
@@ -1128,6 +1032,25 @@ void trace_task_dialog(struct tracecmd_input *handle,
 				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
+
+	selected = NULL;
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		get_tasks(GTK_TREE_VIEW(view), &selected, &non_select);
+		func(TRUE, selected, non_select, data);
+		free(selected);
+		free(non_select);
+		break;
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, NULL, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
 }
 
 enum {
@@ -1602,9 +1525,9 @@ static gint update_system_events(GtkTreeModel *model,
 	return size;
 }
 
-static void accept_events(struct event_filter_helper *event_helper)
+static void accept_events(GtkTreeView *view,
+			  trace_filter_event_cb_func func, gpointer data)
 {
-	GtkTreeView *view = event_helper->view;
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	gboolean active;
@@ -1630,8 +1553,7 @@ static void accept_events(struct event_filter_helper *event_helper)
 				     &systems, systems_size,
 				     &events, &events_size);
 
-	event_helper->func(TRUE, active, systems, events,
-			   event_helper->data);
+	func(TRUE, active, systems, events, data);
 
 	if (systems) {
 		for (i = 0; systems[i]; i++)
@@ -1642,33 +1564,6 @@ static void accept_events(struct event_filter_helper *event_helper)
 	g_free(events);
 }
 
-/* Callback for the clicked signal of the Events filter button */
-static void
-event_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct event_filter_helper *event_helper = helper->data;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-		printf("accept!\n");
-		accept_events(event_helper);
-		break;
-	case GTK_RESPONSE_REJECT:
-		printf("reject!\n");
-		event_helper->func(FALSE, FALSE, NULL, NULL,
-				   event_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	g_free(event_helper);
-	g_free(helper);
-}
-
 static void filter_event_dialog(struct tracecmd_input *handle,
 				struct event_filter *filter,
 				gboolean all_events,
@@ -1676,13 +1571,10 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 				trace_filter_event_cb_func func,
 				gpointer data)
 {
-	struct dialog_helper *helper;
-	struct event_filter_helper *event_helper;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *view;
-
-	helper = g_malloc(sizeof(*helper));
+	int result;
 
 	/* --- Make dialog window --- */
 
@@ -1695,26 +1587,11 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	event_helper = g_new0(typeof(*event_helper), 1);
-	g_assert(event_helper);
-
-	helper->dialog = dialog;
-	helper->data = event_helper;
-
-	event_helper->func = func;
-	event_helper->data = data;
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (event_dialog_response),
-				  (gpointer) helper);
-
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
 	view = create_event_list_view(handle, filter, all_events, systems, events);
-	event_helper->view = GTK_TREE_VIEW(view);
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
@@ -1723,6 +1600,20 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		accept_events(GTK_TREE_VIEW(view), func, data);
+		break;
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, FALSE, NULL, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
 }
 
 /**
@@ -1779,8 +1670,6 @@ struct cpu_filter_helper {
 	guint64				*cpu_mask;
 	GtkWidget			**buttons;
 	int				cpus;
-	trace_filter_cpu_cb_func	func;
-	gpointer			data;
 };
 
 static void destroy_cpu_helper(struct cpu_filter_helper *cpu_helper)
@@ -1788,40 +1677,6 @@ static void destroy_cpu_helper(struct cpu_filter_helper *cpu_helper)
 	g_free(cpu_helper->cpu_mask);
 	g_free(cpu_helper->buttons);
 	g_free(cpu_helper);
-}
-
-/* Callback for the clicked signal of the CPUS filter button */
-static void
-cpu_dialog_response (gpointer data, gint response_id)
-{
-	struct dialog_helper *helper = data;
-	struct cpu_filter_helper *cpu_helper = helper->data;
-	guint64 *cpu_mask = NULL;
-
-	switch (response_id) {
-	case GTK_RESPONSE_ACCEPT:
-
-		if (!cpu_helper->allcpus) {
-			cpu_mask = cpu_helper->cpu_mask;
-			cpu_helper->cpu_mask = NULL;
-		}
-
-		cpu_helper->func(TRUE, cpu_helper->allcpus, cpu_mask, cpu_helper->data);
-		break;
-
-	case GTK_RESPONSE_REJECT:
-		cpu_helper->func(FALSE, FALSE, NULL, cpu_helper->data);
-		break;
-	default:
-		break;
-	};
-
-	g_free(cpu_mask);
-
-	gtk_widget_destroy(GTK_WIDGET(helper->dialog));
-
-	destroy_cpu_helper(helper->data);
-	g_free(helper);
 }
 
 #define CPU_ALL_CPUS_STR "All CPUs"
@@ -1875,8 +1730,8 @@ void cpu_toggle(gpointer data, GtkWidget *widget)
 void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpus,
 			     trace_filter_cpu_cb_func func, gpointer data)
 {
-	struct dialog_helper *helper;
 	struct cpu_filter_helper *cpu_helper;
+	guint64 *cpu_mask = NULL;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *viewport;
@@ -1888,14 +1743,10 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 	gint width, height;
 	gint allset;
 	gint cpu;
-
-	helper = g_malloc(sizeof(*helper));
-	g_assert(helper != NULL);
+	int result;
 
 	cpu_helper = g_new0(typeof(*cpu_helper), 1);
 	g_assert(cpu_helper != NULL);
-
-	helper->data = cpu_helper;
 
 	/* --- Make dialog window --- */
 
@@ -1908,18 +1759,9 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 					     GTK_RESPONSE_REJECT,
 					     NULL);
 
-	helper->dialog = dialog;
-
 	cpu_helper->cpus = cpus;
 	cpu_helper->buttons = g_new0(GtkWidget *, cpus + 1);
 	g_assert(cpu_helper->buttons);
-
-	cpu_helper->func = func;
-	cpu_helper->data = data;
-
-	g_signal_connect_swapped (dialog, "response",
-				  G_CALLBACK (cpu_dialog_response),
-				  (gpointer) helper);
 
 	scrollwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
@@ -2012,6 +1854,31 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 				    width, height);
 
 	gtk_widget_show_all(dialog);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+
+		if (!cpu_helper->allcpus) {
+			cpu_mask = cpu_helper->cpu_mask;
+			cpu_helper->cpu_mask = NULL;
+		}
+
+		func(TRUE, cpu_helper->allcpus, cpu_mask, data);
+		break;
+
+	case GTK_RESPONSE_REJECT:
+		func(FALSE, FALSE, NULL, data);
+		break;
+	default:
+		break;
+	};
+
+	g_free(cpu_mask);
+
+	gtk_widget_destroy(dialog);
+
+	destroy_cpu_helper(cpu_helper);
 }
 
 static void add_system_str(gchar ***systems, char *system, int count)
@@ -2157,4 +2024,237 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 	pevent_update_trivial(filter, copy, FILTER_TRIVIAL_BOTH);
 
 	pevent_filter_free(copy);
+}
+
+int trace_filter_save_events(struct tracecmd_xml_handle *handle,
+			     struct event_filter *filter)
+{
+	struct event_format *event;
+	char **systems;
+	gint *event_ids;
+	char *str;
+	int i;
+
+	trace_filter_convert_filter_to_names(filter, &systems,
+					     &event_ids);
+
+	for (i = 0; systems && systems[i]; i++)
+		tracecmd_xml_write_element(handle, "System", systems[i]);
+
+	for (i = 0; event_ids && event_ids[i] > 0; i++) {
+		str = pevent_filter_make_string(filter, event_ids[i]);
+		if (!str)
+			continue;
+
+		event = pevent_find_event(filter->pevent, event_ids[i]);
+		if (event) {
+
+			/* skip not filtered items */
+			if (strcmp(str, "FALSE") == 0) {
+				free(str);
+				continue;
+			}
+
+			tracecmd_xml_start_sub_system(handle, "Event");
+			tracecmd_xml_write_element(handle, "System", event->system);
+			tracecmd_xml_write_element(handle, "Name", event->name);
+			/* If this is has an advanced filter, include that too */
+			if (strcmp(str, "TRUE") != 0) {
+				tracecmd_xml_write_element(handle, "Advanced",
+							   str);
+			}
+			tracecmd_xml_end_sub_system(handle);
+		}
+		free(str);
+	}
+
+	return 0;
+}
+
+int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
+			    struct filter_task *filter)
+{
+	char buffer[100];
+	int *pids;
+	int i;
+
+	pids = filter_task_pids(filter);
+	if (!pids)
+		return -1;
+
+	for (i = 0; pids[i] >= 0; i++) {
+		snprintf(buffer, 100, "%d", pids[i]);
+		tracecmd_xml_write_element(handle, "Task", buffer);
+	}
+
+	free(pids);
+
+	return 0;
+}
+
+int trace_filter_load_events(struct event_filter *event_filter,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	const char *name;
+	const char *system;
+	const char *event;
+	const char *value;
+	char *buffer;
+
+	while (node) {
+		name = tracecmd_xml_node_type(node);
+
+		if (strcmp(name, "System") == 0) {
+			system = tracecmd_xml_node_value(handle, node);
+			pevent_filter_add_filter_str(event_filter,
+						     system, NULL);
+		} else if (strcmp(name, "Event") == 0) {
+			system = NULL;
+			event = NULL;
+			value = NULL;
+			child = tracecmd_xml_node_child(node);
+			if (!child)
+				return -1;
+			do {
+				name = tracecmd_xml_node_type(child);
+				if (strcmp(name, "System") == 0)
+					system = tracecmd_xml_node_value(handle, child);
+				else if (strcmp(name, "Name") == 0)
+					event = tracecmd_xml_node_value(handle, child);
+				else if (strcmp(name, "Advanced") == 0)
+					value = tracecmd_xml_node_value(handle, child);
+				child = tracecmd_xml_node_next(child);
+			} while (child);
+
+			if (event || system) {
+				if (event && system) {
+					if (value) {
+						buffer = malloc_or_die(strlen(event) +
+								       strlen(system) +
+								       strlen(value) + 3);
+						sprintf(buffer, "%s/%s:%s",
+							system, event, value);
+					} else {
+						buffer = malloc_or_die(strlen(event) +
+								       strlen(system) + 2);
+						sprintf(buffer, "%s/%s",
+							system, event);
+					}
+				} else {
+					if (!event)
+						event = system;
+					if (value) {
+						buffer = malloc_or_die(strlen(event) +
+								       strlen(value) + 2);
+						sprintf(buffer, "%s:%s",
+							event, value);
+					} else {
+						buffer = malloc_or_die(strlen(event) + 1);
+						sprintf(buffer, "%s", event);
+					}
+				}
+				pevent_filter_add_filter_str(event_filter,
+							     buffer, NULL);
+				free(buffer);
+			}
+		}
+
+		node = tracecmd_xml_node_next(node);
+	}
+
+	return 0;
+}
+
+int trace_filter_load_task_filter(struct filter_task *filter,
+				  struct tracecmd_xml_handle *handle,
+				  struct tracecmd_xml_system_node *node)
+{
+	const char *name;
+	const char *task;
+	int pid;
+
+	if (!filter)
+		return 0;
+
+	node = tracecmd_xml_node_child(node);
+
+	while (node) {
+		name = tracecmd_xml_node_type(node);
+
+		if (strcmp(name, "Task") == 0) {
+			task = tracecmd_xml_node_value(handle, node);
+			pid = atoi(task);
+			if (!filter_task_find_pid(filter, pid))
+				filter_task_add_pid(filter, pid);
+		}
+		node = tracecmd_xml_node_next(node);
+	}
+
+	return 0;
+}
+
+int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
+			      const char *system_name,
+			      struct filter_task *task_filter,
+			      struct filter_task *hide_tasks)
+{
+	struct tracecmd_xml_system *system;
+	struct tracecmd_xml_system_node *syschild;
+	const char *name;
+
+	system = tracecmd_xml_find_system(handle, system_name);
+	if (!system)
+		return -1;
+
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+
+		if (strcmp(name, "TaskFilter") == 0)
+			trace_filter_load_task_filter(task_filter, handle, syschild);
+
+		else if (strcmp(name, "HideTasks") == 0)
+			trace_filter_load_task_filter(hide_tasks, handle, syschild);
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	tracecmd_xml_free_system(system);
+
+	return 0;
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+	return -1;
+}
+
+int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
+			      const char *system_name,
+			      struct filter_task *task_filter,
+			      struct filter_task *hide_tasks)
+{
+
+	tracecmd_xml_start_system(handle, system_name);
+
+	if (task_filter && filter_task_count(task_filter)) {
+		tracecmd_xml_start_sub_system(handle, "TaskFilter");
+		trace_filter_save_tasks(handle, task_filter);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	if (hide_tasks && filter_task_count(hide_tasks)) {
+		tracecmd_xml_start_sub_system(handle, "HideTasks");
+		trace_filter_save_tasks(handle, hide_tasks);
+		tracecmd_xml_end_sub_system(handle);
+	}
+
+	tracecmd_xml_end_system(handle);
+
+	return 0;
 }

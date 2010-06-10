@@ -548,6 +548,44 @@ void trace_graph_clear_tasks(struct graph_info *ginfo)
 		redraw_graph(ginfo);
 }
 
+void trace_graph_update_filters(struct graph_info *ginfo,
+				struct filter_task *task_filter,
+				struct filter_task *hide_tasks)
+{
+	/* Make sure the filter passed in is not the filter we use */
+	if (task_filter != ginfo->task_filter) {
+		filter_task_hash_free(ginfo->task_filter);
+		ginfo->task_filter = filter_task_hash_copy(task_filter);
+	}
+
+	if (hide_tasks != ginfo->hide_tasks) {
+		filter_task_hash_free(ginfo->hide_tasks);
+		ginfo->hide_tasks = filter_task_hash_copy(hide_tasks);
+	}
+
+	if (ginfo->callbacks && ginfo->callbacks->filter)
+		ginfo->callbacks->filter(ginfo, ginfo->task_filter,
+					 ginfo->hide_tasks);
+
+	if (ginfo->filter_enabled)
+		redraw_graph(ginfo);
+
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
+		ginfo->filter_available = 1;
+	else {
+		ginfo->filter_enabled = 0;
+		ginfo->filter_available = 0;
+	}
+
+}
+
+void trace_graph_refresh_filters(struct graph_info *ginfo)
+{
+	trace_graph_update_filters(ginfo, ginfo->task_filter,
+				   ginfo->hide_tasks);
+}
+
 static void
 filter_clear_tasks_clicked (gpointer data)
 {
@@ -718,7 +756,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		g_assert(text);
 
 		if (trace_graph_filter_task_find_pid(ginfo, pid))
-			snprintf(text, len, "Remove %s-%d to filter", comm, pid);
+			snprintf(text, len, "Remove %s-%d from filter", comm, pid);
 		else
 			snprintf(text, len, "Add %s-%d to filter", comm, pid);
 
@@ -728,9 +766,9 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 					text);
 
 		if (trace_graph_hide_task_find_pid(ginfo, pid))
-			snprintf(text, len, "Show %s-%d to filter", comm, pid);
+			snprintf(text, len, "Show %s-%d", comm, pid);
 		else
-			snprintf(text, len, "Hide %s-%d to filter", comm, pid);
+			snprintf(text, len, "Hide %s-%d", comm, pid);
 
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
 					text);
@@ -752,7 +790,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_widget_set_sensitive(menu_filter_add_task, FALSE);
 
 		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_hide_task),
-					"Hide task to filter");
+					"Hide task");
 		gtk_widget_set_sensitive(menu_filter_hide_task, FALSE);
 
 		gtk_widget_hide(menu_plot_task);
@@ -766,7 +804,25 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return TRUE;
 }
 
-static void button_press(struct graph_info *ginfo, gint x, guint state)
+static void draw_info_box(struct graph_info *ginfo, const gchar *buffer,
+			  gint x, gint y);
+
+static void stop_zoom_tip(struct graph_info *ginfo)
+{
+	clear_info_box(ginfo);
+}
+
+static void show_zoom_tip(struct graph_info *ginfo, gint x, gint y)
+{
+	clear_info_box(ginfo);
+
+	draw_info_box(ginfo,
+		      "Click and hold left mouse and drag right to zoom in\n"
+		      "Click and hold left mouse and drag left to zoom out",
+		      x, y);
+}
+
+static void button_press(struct graph_info *ginfo, gint x, gint y, guint state)
 {
 	ginfo->press_x = x;
 	ginfo->last_x = 0;
@@ -785,8 +841,10 @@ static void button_press(struct graph_info *ginfo, gint x, guint state)
 			clear_line(ginfo, convert_time_to_x(ginfo, ginfo->marka_time));
 			update_marka(ginfo, x);
 		}
-	} else
+	} else {
 		ginfo->zoom = TRUE;
+		show_zoom_tip(ginfo, x, y);
+	}
 
 	return;
 }
@@ -807,6 +865,7 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 	/* check for double click */
 	if (event->type == GDK_2BUTTON_PRESS) {
+		stop_zoom_tip(ginfo);
 		if (ginfo->line_active) {
 			ginfo->line_active = FALSE;
 			clear_line(ginfo, ginfo->last_x);
@@ -826,7 +885,7 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		return TRUE;
 	}
 
-	button_press(ginfo, event->x, event->state);
+	button_press(ginfo, event->x, event->y, event->state);
 
 	return TRUE;
 }
@@ -838,6 +897,9 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 static void motion_plot(struct graph_info *ginfo, gint x, gint y)
 {
 	struct graph_plot *plot;
+
+	if (ginfo->zoom)
+		stop_zoom_tip(ginfo);
 
 	if (!ginfo->curr_pixmap)
 		return;
@@ -876,7 +938,7 @@ info_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (event->type == GDK_2BUTTON_PRESS)
 		return FALSE;
 
-	button_press(ginfo, gtk_adjustment_get_value(ginfo->hadj), event->state);
+	button_press(ginfo, gtk_adjustment_get_value(ginfo->hadj), event->y, event->state);
 
 	return FALSE;
 }
@@ -1500,7 +1562,8 @@ static void button_release(struct graph_info *ginfo, gint x)
 		ginfo->show_marka = TRUE;
 		ginfo->show_markb = TRUE;
 		update_markb(ginfo, x);
-	}
+	} else
+		stop_zoom_tip(ginfo);
 
 	clear_line(ginfo, ginfo->last_x);
 	clear_line(ginfo, ginfo->press_x);
@@ -2395,6 +2458,132 @@ int trace_graph_load_handle(struct graph_info *ginfo,
 	return 0;
 }
 
+static int load_event_filter(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	struct event_filter *event_filter;
+	const char *name;
+	const char *value;
+
+	event_filter = ginfo->event_filter;
+
+	child = tracecmd_xml_node_child(node);
+	name = tracecmd_xml_node_type(child);
+	if (strcmp(name, "FilterType") != 0)
+		return -1;
+
+	value = tracecmd_xml_node_value(handle, child);
+	/* Do nothing with all events enabled */
+	if (strcmp(value, "all events") == 0)
+		return 0;
+
+	node = tracecmd_xml_node_next(child);
+	if (!node)
+		return -1;
+
+	pevent_filter_clear_trivial(event_filter, FILTER_TRIVIAL_BOTH);
+	ginfo->all_events = FALSE;
+
+	trace_filter_load_events(event_filter, handle, node);
+
+	return 0;
+}
+
+int trace_graph_load_filters(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle)
+{
+	struct tracecmd_xml_system *system;
+	struct tracecmd_xml_system_node *syschild;
+	const char *name;
+
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
+		ginfo->filter_available = 1;
+	else
+		ginfo->filter_available = 0;
+
+	system = tracecmd_xml_find_system(handle, "TraceGraph");
+	if (!system)
+		return -1;
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+
+		if (strcmp(name, "EventFilter") == 0)
+			load_event_filter(ginfo, handle, syschild);
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	if (filter_task_count(ginfo->task_filter) ||
+	    filter_task_count(ginfo->hide_tasks))
+		ginfo->filter_available = 1;
+	else
+		ginfo->filter_available = 0;
+
+	tracecmd_xml_free_system(system);
+
+	trace_graph_refresh(ginfo);
+
+	return 0;
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+	if (ginfo->filter_enabled)
+		trace_graph_refresh(ginfo);
+
+	return -1;
+}
+
+int trace_graph_save_filters(struct graph_info *ginfo,
+			     struct tracecmd_xml_handle *handle)
+{
+	struct event_filter *event_filter;
+
+	tracecmd_xml_start_system(handle, "TraceGraph");
+
+	event_filter = ginfo->event_filter;
+
+	tracecmd_xml_start_sub_system(handle, "EventFilter");
+
+	if (ginfo->all_events || !event_filter)
+		tracecmd_xml_write_element(handle, "FilterType", "all events");
+	else {
+		tracecmd_xml_write_element(handle, "FilterType", "filter");
+		trace_filter_save_events(handle, event_filter);
+	}
+
+	tracecmd_xml_end_sub_system(handle);
+
+	tracecmd_xml_end_system(handle);
+
+	return 0;
+}
+
+static void set_label_a(GtkWidget *widget)
+{
+	gtk_widget_set_tooltip_text(widget, "Click left mouse on graph\n"
+				    "to set Marker A");
+}
+
+static void set_label_b(GtkWidget *widget)
+{
+	gtk_widget_set_tooltip_text(widget, "Shift and click left mouse on graph\n"
+				    "to set Marker B");
+}
+
+static void set_label_cursor(GtkWidget *widget)
+{
+	gtk_widget_set_tooltip_text(widget, "Double click Left mouse on graph\n"
+				    "to set Cursor");
+}
+
 struct graph_info *
 trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 				  struct graph_callbacks *cbs)
@@ -2454,11 +2643,13 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	/* --- Cursor --- */
 
 	label = gtk_label_new("Cursor:");
+	set_label_cursor(label);
 	gtk_table_attach(GTK_TABLE(table), label, 4, 5, 0, 1, GTK_EXPAND, GTK_EXPAND, 3, 3);
 	gtk_widget_show(label);
 
 	ginfo->cursor_label = gtk_label_new("0.0");
 	eventbox = gtk_event_box_new();
+	set_label_cursor(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
 	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->cursor_label);
@@ -2473,8 +2664,10 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(hbox);
 
 	label = gtk_label_new("Marker");
+	set_label_a(label);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
+
 
 	label = gtk_label_new("A:");
 
@@ -2483,6 +2676,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	colorAB.blue = 0;
 
 	eventbox = gtk_event_box_new();
+	set_label_a(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &colorAB);
 	gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -2494,6 +2688,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo->marka_label = gtk_label_new("0.0");
 	eventbox = gtk_event_box_new();
+	set_label_a(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
 	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->marka_label);
@@ -2508,6 +2703,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	gtk_widget_show(hbox);
 
 	label = gtk_label_new("Marker");
+	set_label_b(label);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
 
@@ -2518,6 +2714,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 	colorAB.blue = 0;
 
 	eventbox = gtk_event_box_new();
+	set_label_b(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &colorAB);
 	gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -2530,6 +2727,7 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo->markb_label = gtk_label_new("0.0");
 	eventbox = gtk_event_box_new();
+	set_label_b(eventbox);
 	gtk_widget_show(eventbox);
 	gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL, &color);
 	gtk_container_add(GTK_CONTAINER(eventbox), ginfo->markb_label);

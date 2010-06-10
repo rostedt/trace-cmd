@@ -870,3 +870,112 @@ void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
 				  G_CALLBACK (search_tree),
 				  (gpointer) info);
 }
+
+int trace_view_save_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *trace_tree)
+{
+	struct event_filter *event_filter;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gboolean all_events;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return -1;
+
+	store = TRACE_VIEW_STORE(model);
+
+	tracecmd_xml_start_system(handle, "TraceView");
+
+	all_events = trace_view_store_get_all_events_enabled(store);
+	event_filter = trace_view_store_get_event_filter(store);
+
+	tracecmd_xml_start_sub_system(handle, "EventFilter");
+
+	if (all_events || !event_filter)
+		tracecmd_xml_write_element(handle, "FilterType", "all events");
+	else {
+		tracecmd_xml_write_element(handle, "FilterType", "filter");
+		trace_filter_save_events(handle, event_filter);
+	}
+
+	tracecmd_xml_end_sub_system(handle);
+
+	tracecmd_xml_end_system(handle);
+
+	return 0;
+}
+
+static int load_event_filter(TraceViewStore *store,
+			     struct tracecmd_xml_handle *handle,
+			     struct tracecmd_xml_system_node *node)
+{
+	struct tracecmd_xml_system_node *child;
+	struct event_filter *event_filter;
+	const char *name;
+	const char *value;
+
+	event_filter = trace_view_store_get_event_filter(store);
+
+	child = tracecmd_xml_node_child(node);
+	name = tracecmd_xml_node_type(child);
+	if (strcmp(name, "FilterType") != 0)
+		return -1;
+
+	value = tracecmd_xml_node_value(handle, child);
+	/* Do nothing with all events enabled */
+	if (strcmp(value, "all events") == 0)
+		return 0;
+
+	node = tracecmd_xml_node_next(child);
+	if (!node)
+		return -1;
+
+	trace_view_store_clear_all_events_enabled(store);
+
+	trace_filter_load_events(event_filter, handle, node);
+
+	return 0;
+}
+
+int trace_view_load_filters(struct tracecmd_xml_handle *handle,
+			    GtkTreeView *trace_tree)
+{
+	struct tracecmd_xml_system *system;
+	struct tracecmd_xml_system_node *syschild;
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	const char *name;
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return -1;
+
+	store = TRACE_VIEW_STORE(model);
+
+	system = tracecmd_xml_find_system(handle, "TraceView");
+	if (!system)
+		return -1;
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+
+		if (strcmp(name, "EventFilter") == 0)
+			load_event_filter(store, handle, syschild);
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	tracecmd_xml_free_system(system);
+
+	update_rows(trace_tree, store);
+	return 0;
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+	return -1;
+}

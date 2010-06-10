@@ -30,8 +30,13 @@ bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 man_dir = $(prefix)/share/man
 man_dir_SQ = '$(subst ','\'',$(man_dir))'
+html_install = $(prefix)/share/kernelshark/html
+html_install_SQ = '$(subst ','\'',$(html_install))'
+img_install = $(prefix)/share/kernelshark/html/images
+img_install_SQ = '$(subst ','\'',$(img_install))'
 
-export man_dir man_dir_SQ INSTALL
+export man_dir man_dir_SQ html_install html_install_SQ INSTALL
+export img_install img_install_SQ
 export DESTDIR DESTDIR_SQ
 
 ifeq ($(prefix),$(HOME))
@@ -45,6 +50,9 @@ PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
 PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
 endif
+
+HELP_DIR = -DHELP_DIR=$(html_install)
+HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
 # copy a bit from Linux kbuild
 
@@ -120,7 +128,7 @@ python_dir_SQ = $(subst ','\'',$(python_dir))
 LIBS = -L. -ltracecmd -ldl
 LIB_FILE = libtracecmd.a
 
-PACKAGES= gtk+-2.0
+PACKAGES= gtk+-2.0 libxml-2.0
 
 ifndef BUILDGUI
  BUILDGUI = 0
@@ -148,6 +156,7 @@ REBUILD_GUI	= /bin/true
 G		=
 N 		= @/bin/true ||
 
+CONFIG_FLAGS	+= $(HELP_DIR_SQ)
 else
 
 CONFIG_INCLUDES = 
@@ -237,16 +246,17 @@ $(obj)/%.o: $(src)/%.c
 %.o: $(src)/%.c
 	$(Q)$(call check_gui)
 
+TRACE_GUI_OBJS = trace-filter.o trace-compat.o trace-hash.o trace-dialog.o \
+		trace-xml.o
 TRACE_CMD_OBJS = trace-cmd.o trace-usage.o trace-read.o trace-split.o trace-listen.o
-TRACE_VIEW_OBJS = trace-view.o trace-view-store.o trace-filter.o trace-compat.o \
-	trace-hash.o
-TRACE_GRAPH_OBJS = trace-graph.o trace-compat.o trace-hash.o trace-filter.o \
-		trace-plot.o trace-plot-cpu.o trace-plot-task.o
-TRACE_VIEW_MAIN_OBJS = trace-view-main.o $(TRACE_VIEW_OBJS)
-TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS)
-KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) kernel-shark.o
+TRACE_VIEW_OBJS = trace-view.o trace-view-store.o
+TRACE_GRAPH_OBJS = trace-graph.o trace-plot.o trace-plot-cpu.o trace-plot-task.o
+TRACE_VIEW_MAIN_OBJS = trace-view-main.o $(TRACE_VIEW_OBJS) $(TRACE_GUI_OBJS)
+TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS)
+KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS) \
+	kernel-shark.o
 
-PEVENT_LIB_OBJS = parse-events.o trace-seq.o parse-filter.o
+PEVENT_LIB_OBJS = parse-events.o trace-seq.o parse-filter.o parse-utils.o
 TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
 			trace-output.o trace-record.o
 

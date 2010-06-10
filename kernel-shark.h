@@ -30,10 +30,25 @@ struct shark_info {
 	struct tracecmd_input  		*handle;
 	GtkWidget			*treeview;
 	GtkWidget			*spin;
+	GtkWidget			*task_sync_menu;
+	GtkWidget			*events_sync_menu;
+	GtkWidget			*list_task_menu;
+	GtkWidget			*graph_task_menu;
+	GtkWidget			*list_hide_task_menu;
+	GtkWidget			*graph_hide_task_menu;
+	GtkWidget			*list_events_menu;
+	GtkWidget			*graph_events_menu;
+	GtkWidget			*list_adv_events_menu;
+	GtkWidget			*graph_adv_events_menu;
 	struct graph_callbacks		graph_cbs;
 	gint				selected_task;
 	gboolean			list_filter_enabled;
+	gboolean			list_filter_available;
 	gboolean			graph_follows;
+	gboolean			sync_task_filters;
+	gboolean			sync_event_filters;
+	struct filter_task		*list_task_filter;
+	struct filter_task		*list_hide_tasks;
 };
 
 #define offset_of(type, field)		(long)(&((type *)0)->field)

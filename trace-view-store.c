@@ -1330,7 +1330,6 @@ void trace_view_store_assign_filters(TraceViewStore *store,
 
 	if (store->task_filter != task_filter)
 		store->task_filter = filter_task_hash_copy(task_filter);
-
 }
 
 

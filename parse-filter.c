@@ -2026,3 +2026,60 @@ pevent_filter_make_string(struct event_filter *filter, int event_id)
 	return arg_to_str(filter, filter_type->filter);
 }
 
+/**
+ * pevent_filter_compare - compare two filters and return if they are the same
+ * @filter1: Filter to compare with @filter2
+ * @filter2: Filter to compare with @filter1
+ *
+ * Returns:
+ *  1 if the two filters hold the same content.
+ *  0 if they do not.
+ */
+int pevent_filter_compare(struct event_filter *filter1, struct event_filter *filter2)
+{
+	struct filter_type *filter_type1;
+	struct filter_type *filter_type2;
+	char *str1, *str2;
+	int result;
+	int i;
+
+	/* Do the easy checks first */
+	if (filter1->filters != filter2->filters)
+		return 0;
+	if (!filter1->filters && !filter2->filters)
+		return 1;
+
+	/*
+	 * Now take a look at each of the events to see if they have the same
+	 * filters to them.
+	 */
+	for (i = 0; i < filter1->filters; i++) {
+		filter_type1 = &filter1->event_filters[i];
+		filter_type2 = find_filter_type(filter2, filter_type1->event_id);
+		if (!filter_type2)
+			break;
+		if (filter_type1->filter->type != filter_type2->filter->type)
+			break;
+		switch (filter_type1->filter->type) {
+		case FILTER_TRIVIAL_FALSE:
+		case FILTER_TRIVIAL_TRUE:
+			/* trivial types just need the type compared */
+			continue;
+		default:
+			break;
+		}
+		/* The best way to compare complex filters is with strings */
+		str1 = arg_to_str(filter1, filter_type1->filter);
+		str2 = arg_to_str(filter2, filter_type2->filter);
+		result = strcmp(str1, str2) != 0;
+		free(str1);
+		free(str2);
+		if (result)
+			break;
+	}
+
+	if (i < filter1->filters)
+		return 0;
+	return 1;
+}
+

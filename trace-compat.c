@@ -22,6 +22,10 @@
  *  Linux Kernel that were written by Frederic Weisbecker.
  */
 #include "trace-compat.h"
+#include "trace-gui.h"
+#include "trace-cmd.h"
+
+#include <gdk/gdk.h>
 
 #if GTK_VERSION < CALC_GTK_VERSION(2,18,0)
 
@@ -70,6 +74,24 @@ gdouble gtk_adjustment_get_lower(GtkAdjustment *adj)
 	return adj->lower;
 }
 
+gboolean gtk_show_uri(GdkScreen *screen, const gchar *uri,
+		      guint32 timestamp, GError **error)
+{
+	return FALSE;
+}
+
+void g_string_vprintf(GString *string, const gchar *format, va_list args)
+{
+	char buf[1024];
+	gint len;
+
+	len = vsnprintf(buf, 1024, format, args);
+	if (len >= 1024)
+		die("compat g_string_vprintf can not process length of %d\n", len);
+
+	g_string_printf(string, "%s", buf);
+}
+
 #endif /* version < 2.14.0 */
 
 #if GTK_VERSION < CALC_GTK_VERSION(2,12,0)
@@ -77,6 +99,22 @@ gdouble gtk_adjustment_get_lower(GtkAdjustment *adj)
 GtkWidget *gtk_tree_view_column_get_tree_view(GtkTreeViewColumn *col)
 {
 	return col->tree_view;
+}
+
+void gtk_widget_set_tooltip_text(GtkWidget *widget, const gchar *text)
+{
+	static GtkTooltips *tooltips;
+
+	/* Only works for widgets with windows, sorry */
+	if (GTK_WIDGET_NO_WINDOW(widget))
+		return;
+
+	if (!tooltips) {
+		tooltips = gtk_tooltips_new();
+		gtk_tooltips_enable(tooltips);
+	}
+
+	gtk_tooltips_set_tip(GTK_TOOLTIPS(tooltips), widget, text, text);
 }
 
 #endif /* version < 2.12.0 */

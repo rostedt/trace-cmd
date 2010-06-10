@@ -18,36 +18,27 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-#ifndef _TRACE_HASH_H
-#define _TRACE_HASH_H
+#ifndef _TRACE_GUI
+#define _TRACE_GUI
 
-#include <glib.h>
-#include "trace-hash-local.h"
+#include <gtk/gtk.h>
 
-struct filter_task_item {
-	struct filter_task_item	*next;
-	gint			pid;
+enum trace_dialog_type {
+	TRACE_GUI_INFO,
+	TRACE_GUI_WARNING,
+	TRACE_GUI_ERROR,
 };
 
-struct filter_task {
-	struct filter_task_item **hash;
-	gint			count;
-};
+GtkWidget *trace_status_bar_new(void);
 
-struct filter_task_item *
-filter_task_find_pid(struct filter_task *hash, gint pid);
-void filter_task_add_pid(struct filter_task *hash, gint pid);
-void filter_task_remove_pid(struct filter_task *hash, gint pid);
-void filter_task_clear(struct filter_task *hash);
-struct filter_task *filter_task_hash_alloc(void);
-void filter_task_hash_free(struct filter_task *hash);
-struct filter_task *filter_task_hash_copy(struct filter_task *hash);
-int *filter_task_pids(struct filter_task *hash);
-int filter_task_compare(struct filter_task *hash1, struct filter_task *hash2);
+void trace_dialog_register_window(GtkWidget *window);
 
-static inline gint filter_task_count(struct filter_task *hash)
-{
-	return hash->count;
-}
+void trace_show_help(GtkWidget *window, const gchar *link, GError **error);
 
-#endif /* _TRACE_HASH_H */
+void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
+		  gchar *message, ...);
+
+gchar *trace_get_file_dialog(const gchar *title);
+
+
+#endif /* _TRACE_GUI */
