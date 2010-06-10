@@ -1435,8 +1435,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		else
 			gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
 
-		set_menu_label(menu_filter_clear_tasks, comm, pid,
-			       "Clear Task Filter");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_clear_tasks),
+					"Clear Task Filter");
 		gtk_widget_hide(menu_filter_graph_clear_tasks);
 	} else {
 		if (filter_task_count(ginfo->task_filter) ||
@@ -1451,8 +1451,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		else
 			gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
 
-		set_menu_label(menu_filter_clear_tasks, comm, pid,
-			       "Clear List Task Filter");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_clear_tasks),
+					"Clear List Task Filter");
 		gtk_widget_show(menu_filter_graph_clear_tasks);
 	}
 		
