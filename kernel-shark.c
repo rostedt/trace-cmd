@@ -311,9 +311,12 @@ load_filters_clicked (gpointer data)
 	struct shark_info *info = data;
 	struct graph_info *ginfo = info->ginfo;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	GtkTreeModel *model;
+	TraceViewStore *store;
 	struct tracecmd_xml_handle *handle;
 	struct filter_task *task_filter;
 	struct filter_task *hide_tasks;
+	struct event_filter *event_filter;
 	gchar *filename;
 	int ret;
 
@@ -349,7 +352,6 @@ load_filters_clicked (gpointer data)
 	ret = tracecmd_xml_system_exists(handle,
 					 "ListTaskFilter");
 	if (ret) {
-
 		task_filter = info->list_task_filter;
 		hide_tasks = info->list_hide_tasks;
 		filter_task_clear(task_filter);
@@ -376,6 +378,16 @@ load_filters_clicked (gpointer data)
 	    filter_task_compare(ginfo->hide_tasks,
 				info->list_hide_tasks))
 		sync_task_filters(info);
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		goto out;
+
+	store = TRACE_VIEW_STORE(model);
+	event_filter = trace_view_store_get_event_filter(store);
+
+	if (pevent_filter_compare(event_filter, ginfo->event_filter))
+		sync_event_filters(info);
 
  out:
 	g_free(filename);
@@ -563,10 +575,15 @@ sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
 		return;
 
 	store = TRACE_VIEW_STORE(model);
+	event_filter = trace_view_store_get_event_filter(store);
 
-	/* Ask user which way to sync */
-	result = trace_sync_select_menu("Sync Event Filters",
-					selections, &keep);
+	/* If they are already equal, then just perminently sync them */
+	if (pevent_filter_compare(event_filter, ginfo->event_filter))
+		result = 2;
+	else
+		/* Ask user which way to sync */
+		result = trace_sync_select_menu("Sync Event Filters",
+						selections, &keep);
 
 	switch (result) {
 	case 0:
@@ -579,10 +596,12 @@ sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
 	case 1:
 		/* Sync Graph Filter with List Filter */
 		all_events = trace_view_store_get_all_events_enabled(store);
-		event_filter = trace_view_store_get_event_filter(store);
 
 		trace_graph_copy_filter(info->ginfo, all_events,
 					event_filter);
+		break;
+	case 2:
+		keep = 1;
 		break;
 	default:
 		keep = 0;
