@@ -33,6 +33,8 @@ struct shark_info {
 	GtkWidget			*task_sync_menu;
 	GtkWidget			*list_task_menu;
 	GtkWidget			*graph_task_menu;
+	GtkWidget			*list_hide_task_menu;
+	GtkWidget			*graph_hide_task_menu;
 	struct graph_callbacks		graph_cbs;
 	gint				selected_task;
 	gboolean			list_filter_enabled;

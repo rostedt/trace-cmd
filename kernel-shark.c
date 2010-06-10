@@ -350,8 +350,11 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 					"Sync Graph and List Task Filters");
 
 		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_task_menu),
-					"graph task filter");
+					"graph tasks");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_hide_task_menu),
+					"graph hide tasks");
 		gtk_widget_show(info->list_task_menu);
+		gtk_widget_show(info->list_hide_task_menu);
 
 		/* The list now uses its own hash */
 		info->list_task_filter = filter_task_hash_copy(info->ginfo->task_filter);
@@ -412,20 +415,22 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 		gtk_menu_item_set_label(GTK_MENU_ITEM(info->task_sync_menu),
 					"Unsync Graph and List Task Filters");
 		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_task_menu),
-					"task filter");
+					"tasks");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_hide_task_menu),
+					"hide tasks");
 		gtk_widget_hide(info->list_task_menu);
+		gtk_widget_hide(info->list_hide_task_menu);
 	}
 }
 
 static void filter_list_enable_clicked (gpointer data);
 
 static void
-update_list_task_filter_callback(gboolean accept,
-				  gint *selected,
-				  gint *non_select,
-				  gpointer data)
+__update_list_task_filter_callback(struct shark_info *info,
+				   gboolean accept,
+				   gint *selected,
+				   struct filter_task *task_filter)
 {
-	struct shark_info *info = data;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -440,11 +445,11 @@ update_list_task_filter_callback(gboolean accept,
 
 	store = TRACE_VIEW_STORE(model);
 
-	filter_task_clear(info->list_task_filter);
+	filter_task_clear(task_filter);
 
 	if (selected) {
 		for (i = 0; selected[i] >= 0; i++)
-			filter_task_add_pid(info->list_task_filter, selected[i]);
+			filter_task_add_pid(task_filter, selected[i]);
 	}
 
 	update_tree_view_filters(info, info->list_task_filter, info->list_hide_tasks);
@@ -456,11 +461,36 @@ update_list_task_filter_callback(gboolean accept,
 		filter_list_enable_clicked(info);
 }
 
-/* Callback for the clicked signal of the List Tasks filter button */
 static void
-list_tasks_clicked (gpointer data)
+update_list_task_filter_callback(gboolean accept,
+				 gint *selected,
+				 gint *non_select,
+				 gpointer data)
 {
 	struct shark_info *info = data;
+
+	__update_list_task_filter_callback(info, accept, selected,
+					   info->list_task_filter);
+}
+
+static void
+update_list_hide_task_filter_callback(gboolean accept,
+				      gint *selected,
+				      gint *non_select,
+				      gpointer data)
+{
+	struct shark_info *info = data;
+
+	__update_list_task_filter_callback(info, accept, selected,
+					   info->list_hide_tasks);
+}
+
+/* Callback for the clicked signal of the List Tasks filter button */
+static void
+__list_tasks_clicked (struct shark_info *info,
+		      struct filter_task *task_filter,
+		      trace_task_cb_func func)
+{
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	struct graph_info *ginfo = info->ginfo;
 	GtkTreeModel *model;
@@ -478,33 +508,49 @@ list_tasks_clicked (gpointer data)
 	store = TRACE_VIEW_STORE(model);
 
 	tasks = trace_graph_task_list(ginfo);
-	selected = filter_task_pids(info->list_task_filter);
+	selected = filter_task_pids(task_filter);
 
-	trace_task_dialog(info->handle, tasks, selected,
-			  update_list_task_filter_callback, info);
+	trace_task_dialog(info->handle, tasks, selected, func, info);
 
 	free(tasks);
 	free(selected);
 }
 
 static void
-update_graph_task_filter_callback(gboolean accept,
-				  gint *selected,
-				  gint *non_select,
-				  gpointer data)
+list_tasks_clicked (gpointer data)
 {
 	struct shark_info *info = data;
+
+	__list_tasks_clicked(info, info->list_task_filter,
+			     update_list_task_filter_callback);
+}
+
+static void
+list_hide_tasks_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+
+	__list_tasks_clicked(info, info->list_hide_tasks,
+			     update_list_hide_task_filter_callback);
+}
+
+static void
+__update_graph_task_filter_callback(struct shark_info *info,
+				  gboolean accept,
+				  gint *selected,
+				  struct filter_task *task_filter)
+{
 	struct graph_info *ginfo = info->ginfo;
 	int i;
 
 	if (!accept)
 		return;
 
-	filter_task_clear(ginfo->task_filter);
+	filter_task_clear(task_filter);
 
 	if (selected) {
 		for (i = 0; selected[i] >= 0; i++)
-			filter_task_add_pid(ginfo->task_filter, selected[i]);
+			filter_task_add_pid(task_filter, selected[i]);
 	}
 
 	trace_graph_refresh_filters(ginfo);
@@ -521,11 +567,38 @@ update_graph_task_filter_callback(gboolean accept,
 	}
 }
 
-/* Callback for the clicked signal of the Tasks filter button */
 static void
-graph_tasks_clicked (gpointer data)
+update_graph_task_filter_callback(gboolean accept,
+				  gint *selected,
+				  gint *non_select,
+				  gpointer data)
 {
 	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+
+	__update_graph_task_filter_callback(info, accept, selected,
+					    ginfo->task_filter);
+}
+
+static void
+update_graph_hide_task_filter_callback(gboolean accept,
+				       gint *selected,
+				       gint *non_select,
+				       gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+
+	__update_graph_task_filter_callback(info, accept, selected,
+					    ginfo->hide_tasks);
+}
+
+/* Callback for the clicked signal of the Tasks filter button */
+static void
+__graph_tasks_clicked (struct shark_info *info,
+		       struct filter_task *task_filter,
+		       trace_task_cb_func func)
+{
 	struct graph_info *ginfo = info->ginfo;
 	gint *selected;
 	gint *tasks;
@@ -534,13 +607,32 @@ graph_tasks_clicked (gpointer data)
 		return;
 
 	tasks = trace_graph_task_list(ginfo);
-	selected = filter_task_pids(ginfo->task_filter);
+	selected = filter_task_pids(task_filter);
 
-	trace_task_dialog(ginfo->handle, tasks, selected,
-			  update_graph_task_filter_callback, info);
+	trace_task_dialog(ginfo->handle, tasks, selected, func, info);
 
 	free(tasks);
 	free(selected);
+}
+
+static void
+graph_tasks_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+
+	__graph_tasks_clicked(info, ginfo->task_filter,
+			      update_graph_task_filter_callback);
+}
+
+static void
+graph_hide_tasks_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+
+	__graph_tasks_clicked(info, ginfo->hide_tasks,
+			      update_graph_hide_task_filter_callback);
 }
 
 /* Callback for the clicked signal of the Events filter button */
@@ -1380,7 +1472,7 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Filter - List Tasks Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("list task filter");
+	sub_item = gtk_menu_item_new_with_label("list tasks");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
@@ -1397,7 +1489,7 @@ void kernel_shark(int argc, char **argv)
 
 	/* --- Filter - Graph Tasks Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("task filter");
+	sub_item = gtk_menu_item_new_with_label("tasks");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
@@ -1408,6 +1500,41 @@ void kernel_shark(int argc, char **argv)
 				  (gpointer) info);
 
 	info->graph_task_menu = sub_item;
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
+	/* --- Filter - List Hide Tasks Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("list hide tasks");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (list_hide_tasks_clicked),
+				  (gpointer) info);
+
+	info->list_hide_task_menu = sub_item;
+
+	/* Only show this item when list and graph tasks are not synced */
+
+
+	/* --- Filter - Graph Hide Tasks Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("hide tasks");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (graph_hide_tasks_clicked),
+				  (gpointer) info);
+
+	info->graph_hide_task_menu = sub_item;
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
