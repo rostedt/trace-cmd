@@ -563,6 +563,10 @@ void trace_graph_update_filters(struct graph_info *ginfo,
 		ginfo->hide_tasks = filter_task_hash_copy(hide_tasks);
 	}
 
+	if (ginfo->callbacks && ginfo->callbacks->filter)
+		ginfo->callbacks->filter(ginfo, ginfo->task_filter,
+					 ginfo->hide_tasks);
+
 	if (ginfo->filter_enabled)
 		redraw_graph(ginfo);
 }
