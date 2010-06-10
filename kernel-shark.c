@@ -326,7 +326,7 @@ delete_event (GtkWidget *widget, GdkEvent *event, gpointer data)
 	return TRUE;
 }
 
-/* Callback for the clicked signal of the Events filter button */
+/* Callback for the clicked signal of the tasks sync filter button */
 static void
 sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 {
@@ -420,6 +420,83 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 					"hide tasks");
 		gtk_widget_hide(info->list_task_menu);
 		gtk_widget_hide(info->list_hide_task_menu);
+	}
+}
+
+/* Callback for the clicked signal of the events sync filter button */
+static void
+sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+	struct event_filter *event_filter;
+	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	GtkTreeModel *model;
+	TraceViewStore *store;
+	gboolean keep;
+	gboolean all_events;
+	gchar *selections[] = { "Sync List Filter with Graph Filter",
+				"Sync Graph Filter with List Filter",
+				NULL };
+	int result;
+
+	if (info->sync_event_filters) {
+		/* Separate the List and Graph filters */
+
+		info->sync_event_filters = 0;
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->events_sync_menu),
+					"Sync Graph and List Event Filters");
+
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_events_menu),
+					"graph events");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_adv_events_menu),
+					"graph advanced events");
+		gtk_widget_show(info->list_events_menu);
+		gtk_widget_show(info->list_adv_events_menu);
+
+		return;
+	}
+
+	model = gtk_tree_view_get_model(trace_tree);
+	if (!model)
+		return;
+
+	store = TRACE_VIEW_STORE(model);
+
+	/* Ask user which way to sync */
+	result = trace_sync_select_menu("Sync Event Filters",
+					selections, &keep);
+
+	switch (result) {
+	case 0:
+		/* Sync List Filter with Graph Filter */
+		all_events = ginfo->all_events;
+
+		trace_view_copy_filter(info->treeview, all_events,
+				       ginfo->event_filter);
+		break;
+	case 1:
+		/* Sync Graph Filter with List Filter */
+		all_events = trace_view_store_get_all_events_enabled(store);
+		event_filter = trace_view_store_get_event_filter(store);
+
+		trace_graph_copy_filter(info->ginfo, all_events,
+					event_filter);
+		break;
+	default:
+		keep = 0;
+	}
+
+	if (keep) {
+		info->sync_event_filters = 1;
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->events_sync_menu),
+					"Unsync Graph and List Event Filters");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_events_menu),
+					"events");
+		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_adv_events_menu),
+					"advanced events");
+		gtk_widget_hide(info->list_events_menu);
+		gtk_widget_hide(info->list_adv_events_menu);
 	}
 }
 
@@ -655,10 +732,32 @@ list_events_clicked (gpointer data)
 	all_events = trace_view_store_get_all_events_enabled(store);
 	event_filter = trace_view_store_get_event_filter(store);
 
+	/*
+	 * This menu is not available when in sync, so we
+	 * can call the treeview callback directly.
+	 */
 	trace_filter_event_filter_dialog(store->handle, event_filter,
 					 all_events,
 					 trace_view_event_filter_callback,
 					 info->treeview);
+}
+
+static void
+graph_event_filter_callback(gboolean accept,
+			    gboolean all_events,
+			    gchar **systems,
+			    gint *events,
+			    gpointer data)
+{
+	struct shark_info *info = data;
+
+	trace_graph_event_filter_callback(accept, all_events,
+					  systems, events,
+					  info->ginfo);
+
+	if (info->sync_event_filters)
+		trace_view_event_filter_callback(accept, all_events, systems,
+						 events, info->treeview);
 }
 
 static void
@@ -673,8 +772,8 @@ graph_events_clicked (gpointer data)
 	trace_filter_event_filter_dialog(info->handle,
 					 ginfo->event_filter,
 					 all_events,
-					 trace_graph_event_filter_callback,
-					 ginfo);
+					 graph_event_filter_callback,
+					 info);
 }
 
 /* Callback for the clicked signal of the List advanced filter button */
@@ -695,8 +794,28 @@ adv_list_filter_clicked (gpointer data)
 
 	event_filter = trace_view_store_get_event_filter(store);
 
+	/*
+	 * This menu is not available when in sync, so we
+	 * can call the treeview callback directly.
+	 */
 	trace_adv_filter_dialog(store->handle, event_filter,
 				trace_view_adv_filter_callback, trace_tree);
+}
+
+static void
+graph_adv_filter_callback(gboolean accept,
+			  const gchar *text,
+			  gint *event_ids,
+			  gpointer data)
+{
+	struct shark_info *info = data;
+	struct graph_info *ginfo = info->ginfo;
+
+	trace_graph_adv_filter_callback(accept, text, event_ids, ginfo);
+
+	if (info->sync_event_filters)
+		trace_view_adv_filter_callback(accept, text, event_ids,
+					       info->treeview);
 }
 
 /* Callback for the clicked signal of the Graph advanced filter button */
@@ -707,44 +826,7 @@ adv_graph_filter_clicked (gpointer data)
 	struct graph_info *ginfo = info->ginfo;
 
 	trace_adv_filter_dialog(ginfo->handle, ginfo->event_filter,
-				trace_graph_adv_filter_callback, ginfo);
-}
-
-static void
-sync_graph_events_to_list_clicked (gpointer data)
-{
-	struct shark_info *info = data;
-	struct event_filter *event_filter;
-	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
-	GtkTreeModel *model;
-	TraceViewStore *store;
-	gboolean all_events;
-
-	model = gtk_tree_view_get_model(trace_tree);
-	if (!model)
-		return;
-
-	store = TRACE_VIEW_STORE(model);
-
-	all_events = trace_view_store_get_all_events_enabled(store);
-	event_filter = trace_view_store_get_event_filter(store);
-
-	trace_graph_copy_filter(info->ginfo, all_events,
-				event_filter);
-}
-
-
-static void
-sync_list_events_to_graph_clicked (gpointer data)
-{
-	struct shark_info *info = data;
-	struct graph_info *ginfo = info->ginfo;
-	gboolean all_events;
-
-	all_events = ginfo->all_events;
-
-	trace_view_copy_filter(info->treeview, all_events,
-			       ginfo->event_filter);
+				graph_adv_filter_callback, info);
 }
 
 /* Callback for the clicked signal of the CPUs filter button */
@@ -1345,6 +1427,7 @@ void kernel_shark(int argc, char **argv)
 
 	info->handle = handle;
 	info->sync_task_filters = TRUE;
+	info->sync_event_filters = TRUE;
 
 	/* --- Main window --- */
 
@@ -1470,6 +1553,24 @@ void kernel_shark(int argc, char **argv)
 	gtk_widget_show(sub_item);
 
 
+	/* --- Filter - Sync events Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Unsync Graph and List Event Filters");
+
+	info->events_sync_menu = sub_item;
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect (G_OBJECT (sub_item), "activate",
+			  G_CALLBACK (sync_events_filter_clicked),
+			  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+
 	/* --- Filter - List Tasks Option --- */
 
 	sub_item = gtk_menu_item_new_with_label("list tasks");
@@ -1552,13 +1653,15 @@ void kernel_shark(int argc, char **argv)
 				  G_CALLBACK (list_events_clicked),
 				  (gpointer) info);
 
-	/* We do need to show menu items */
-	gtk_widget_show(sub_item);
+	info->list_events_menu = sub_item;
+
+	/* We do not show this menu (yet) */
 
 
 	/* --- Filter - Events Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("graph events");
+	/* The list and graph events start off insync */
+	sub_item = gtk_menu_item_new_with_label("events");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
@@ -1568,37 +1671,7 @@ void kernel_shark(int argc, char **argv)
 				  G_CALLBACK (graph_events_clicked),
 				  (gpointer) info);
 
-	/* We do need to show menu items */
-	gtk_widget_show(sub_item);
-
-
-	/* --- Filter - Events Option --- */
-
-	sub_item = gtk_menu_item_new_with_label("sync graph events with list");
-
-	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (sync_graph_events_to_list_clicked),
-				  (gpointer) info);
-
-	/* We do need to show menu items */
-	gtk_widget_show(sub_item);
-
-
-	/* --- Filter - Events Option --- */
-
-	sub_item = gtk_menu_item_new_with_label("sync list events with graph");
-
-	/* Add them to the menu */
-	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
-
-	/* We can attach the Quit menu item to our exit function */
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (sync_list_events_to_graph_clicked),
-				  (gpointer) info);
+	info->graph_events_menu = sub_item;
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
@@ -1616,13 +1689,14 @@ void kernel_shark(int argc, char **argv)
 				  G_CALLBACK (adv_list_filter_clicked),
 				  (gpointer) info);
 
-	/* We do need to show menu items */
-	gtk_widget_show(sub_item);
+	info->list_adv_events_menu = sub_item;
+	/* We do not show this menu (yet) */
 
 
 	/* --- Filter - Graph Advanced Events Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("graph advanced event");
+	/* The list and graph events start off in sync */
+	sub_item = gtk_menu_item_new_with_label("advanced events");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
@@ -1631,6 +1705,8 @@ void kernel_shark(int argc, char **argv)
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
 				  G_CALLBACK (adv_graph_filter_clicked),
 				  (gpointer) info);
+
+	info->graph_adv_events_menu = sub_item;
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
