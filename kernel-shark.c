@@ -223,6 +223,38 @@ static void update_title(GtkWidget *window, const gchar *file)
 	g_free(str);
 }
 
+static void unsync_task_filters(struct shark_info *info)
+{
+	info->sync_task_filters = 0;
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->task_sync_menu),
+				"Sync Graph and List Task Filters");
+
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_task_menu),
+				"graph tasks");
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_hide_task_menu),
+				"graph hide tasks");
+	gtk_widget_show(info->list_task_menu);
+	gtk_widget_show(info->list_hide_task_menu);
+
+	/* The list now uses its own hash */
+	info->list_task_filter = filter_task_hash_copy(info->ginfo->task_filter);
+	info->list_hide_tasks = filter_task_hash_copy(info->ginfo->hide_tasks);
+}
+
+static void unsync_event_filters(struct shark_info *info)
+{
+	info->sync_event_filters = 0;
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->events_sync_menu),
+				"Sync Graph and List Event Filters");
+
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_events_menu),
+				"graph events");
+	gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_adv_events_menu),
+				"graph advanced events");
+	gtk_widget_show(info->list_events_menu);
+	gtk_widget_show(info->list_adv_events_menu);
+}
+
 static void
 /* Callback for the clicked signal of the Load button */
 load_clicked (gpointer data)
@@ -254,24 +286,64 @@ load_filters_clicked (gpointer data)
 	struct graph_info *ginfo = info->ginfo;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	struct tracecmd_xml_handle *handle;
+	struct filter_task *task_filter;
+	struct filter_task *hide_tasks;
 	gchar *filename;
+	int ret;
 
 	filename = trace_get_file_dialog("Load Filters");
 	if (!filename)
 		return;
 
 	handle = tracecmd_xml_open(filename);
-	if (!handle)
+	if (!handle) {
 		warning("Could not open %s", filename);
-	g_free(filename);
+		goto out;
+	}
 
-	trace_filter_load_filters(handle, ginfo->task_filter,
-				  ginfo->hide_tasks);
+	/* Unsync the list and graph filters */
+	if (info->sync_task_filters)
+		unsync_task_filters(info);
+	if (info->sync_event_filters)
+		unsync_event_filters(info);
 
-	trace_view_load_filters(handle, trace_tree);
+	ret = tracecmd_xml_system_exists(handle,
+					 "GraphTaskFilter");
+	if (ret) {
+		filter_task_clear(ginfo->task_filter);
+		filter_task_clear(ginfo->hide_tasks);
+
+		trace_filter_load_filters(handle,
+					  "GraphTaskFilter",
+					  ginfo->task_filter,
+					  ginfo->hide_tasks);
+		trace_graph_refresh_filters(ginfo);
+	}
+
+	ret = tracecmd_xml_system_exists(handle,
+					 "ListTaskFilter");
+	if (ret) {
+
+		task_filter = info->list_task_filter;
+		hide_tasks = info->list_hide_tasks;
+		filter_task_clear(task_filter);
+		filter_task_clear(hide_tasks);
+
+		trace_filter_load_filters(handle,
+					  "ListTaskFilter",
+					  task_filter,
+					  hide_tasks);
+		update_tree_view_filters(info, task_filter, hide_tasks);
+	}
+
 	trace_graph_load_filters(ginfo, handle);
+	ret = trace_view_load_filters(handle, trace_tree);
 
 	tracecmd_xml_close(handle);
+
+ out:
+	g_free(filename);
+
 }
 
 /* Callback for the clicked signal of the Save Filters button */
@@ -282,6 +354,8 @@ save_filters_clicked (gpointer data)
 	struct graph_info *ginfo = info->ginfo;
 	struct tracecmd_xml_handle *handle;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
+	struct filter_task *task_filter;
+	struct filter_task *hide_tasks;
 	gchar *filename;
 
 	filename = trace_get_file_dialog("Save Filters");
@@ -294,11 +368,24 @@ save_filters_clicked (gpointer data)
 	g_free(filename);
 
 	trace_view_save_filters(handle, trace_tree);
-
 	trace_graph_save_filters(ginfo, handle);
 
-	trace_filter_save_filters(handle, ginfo->task_filter,
+	trace_filter_save_filters(handle,
+				  "GraphTaskFilter",
+				  ginfo->task_filter,
 				  ginfo->hide_tasks);
+
+	if (info->sync_task_filters) {
+		task_filter = ginfo->task_filter;
+		hide_tasks = ginfo->hide_tasks;
+	} else {
+		task_filter = info->list_task_filter;
+		hide_tasks = info->list_hide_tasks;
+	}
+
+	trace_filter_save_filters(handle,
+				  "ListTaskFilter",
+				  task_filter, hide_tasks);
 
 	tracecmd_xml_close(handle);
 }
@@ -345,20 +432,7 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 	if (info->sync_task_filters) {
 		/* Separate the List and Graph filters */
 
-		info->sync_task_filters = 0;
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->task_sync_menu),
-					"Sync Graph and List Task Filters");
-
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_task_menu),
-					"graph tasks");
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_hide_task_menu),
-					"graph hide tasks");
-		gtk_widget_show(info->list_task_menu);
-		gtk_widget_show(info->list_hide_task_menu);
-
-		/* The list now uses its own hash */
-		info->list_task_filter = filter_task_hash_copy(info->ginfo->task_filter);
-		info->list_hide_tasks = filter_task_hash_copy(info->ginfo->hide_tasks);
+		unsync_task_filters(info);
 		return;
 	}
 
@@ -442,18 +516,7 @@ sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
 
 	if (info->sync_event_filters) {
 		/* Separate the List and Graph filters */
-
-		info->sync_event_filters = 0;
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->events_sync_menu),
-					"Sync Graph and List Event Filters");
-
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_events_menu),
-					"graph events");
-		gtk_menu_item_set_label(GTK_MENU_ITEM(info->graph_adv_events_menu),
-					"graph advanced events");
-		gtk_widget_show(info->list_events_menu);
-		gtk_widget_show(info->list_adv_events_menu);
-
+		unsync_event_filters(info);
 		return;
 	}
 

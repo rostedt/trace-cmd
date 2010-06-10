@@ -2196,6 +2196,7 @@ int trace_filter_load_task_filter(struct filter_task *filter,
 }
 
 int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
+			      const char *system_name,
 			      struct filter_task *task_filter,
 			      struct filter_task *hide_tasks)
 {
@@ -2203,7 +2204,7 @@ int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
 	struct tracecmd_xml_system_node *syschild;
 	const char *name;
 
-	system = tracecmd_xml_find_system(handle, "TraceFilter");
+	system = tracecmd_xml_find_system(handle, system_name);
 	if (!system)
 		return -1;
 
@@ -2234,11 +2235,12 @@ int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
 }
 
 int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
+			      const char *system_name,
 			      struct filter_task *task_filter,
 			      struct filter_task *hide_tasks)
 {
 
-	tracecmd_xml_start_system(handle, "TraceFilter");
+	tracecmd_xml_start_system(handle, system_name);
 
 	if (task_filter && filter_task_count(task_filter)) {
 		tracecmd_xml_start_sub_system(handle, "TaskFilter");

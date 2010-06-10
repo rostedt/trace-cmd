@@ -102,7 +102,9 @@ load_filters_clicked (gpointer data)
 	}
 	g_free(filename);
 
-	trace_filter_load_filters(handle, info->task_filter,
+	trace_filter_load_filters(handle,
+				  "ListTaskFilter",
+				  info->task_filter,
 				  info->hide_tasks);
 
 	trace_view_load_filters(handle, trace_tree);
@@ -128,7 +130,9 @@ save_filters_clicked (gpointer data)
 		warning("Could not create %s", filename);
 	g_free(filename);
 
-	trace_filter_save_filters(handle, info->task_filter, info->hide_tasks);
+	trace_filter_save_filters(handle,
+				  "ListTaskFilter",
+				  info->task_filter, info->hide_tasks);
 	trace_view_save_filters(handle, trace_tree);
 
 	tracecmd_xml_close(handle);

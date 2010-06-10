@@ -171,7 +171,9 @@ load_filters_clicked (gpointer data)
 		warning("Could not open %s", filename);
 	g_free(filename);
 
-	trace_filter_load_filters(handle, ginfo->task_filter,
+	trace_filter_load_filters(handle,
+				  "GraphTaskFilter",
+				  ginfo->task_filter,
 				  ginfo->hide_tasks);
 
 	trace_graph_load_filters(ginfo, handle);
@@ -196,7 +198,9 @@ save_filters_clicked (gpointer data)
 		warning("Could not create %s", filename);
 	g_free(filename);
 
-	trace_filter_save_filters(handle, ginfo->task_filter,
+	trace_filter_save_filters(handle,
+				  "GraphTaskFilter",
+				  ginfo->task_filter,
 				  ginfo->hide_tasks);
 
 	trace_graph_save_filters(ginfo, handle);

@@ -230,3 +230,19 @@ void tracecmd_xml_free_system(struct tracecmd_xml_system *system)
 	xmlXPathFreeObject(system->result);
 	free(system);
 }
+
+int tracecmd_xml_system_exists(struct tracecmd_xml_handle *handle,
+			       const char *system)
+{
+	struct tracecmd_xml_system *sys;
+	int exists = 0;
+
+	sys = tracecmd_xml_find_system(handle, system);
+	if (sys) {
+		exists = 1;
+		tracecmd_xml_free_system(sys);
+	}
+
+	return exists;
+}
+

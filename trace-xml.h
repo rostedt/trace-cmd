@@ -56,5 +56,7 @@ struct tracecmd_xml_system_node *
 tracecmd_xml_node_next(struct tracecmd_xml_system_node *tnode);
 const char *tracecmd_xml_node_value(struct tracecmd_xml_handle *handle,
 				    struct tracecmd_xml_system_node *tnode);
+int tracecmd_xml_system_exists(struct tracecmd_xml_handle *handle,
+			       const char *system);
 
 #endif /* __TRACE_XML_H */
