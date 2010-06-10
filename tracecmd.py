@@ -213,7 +213,13 @@ class Trace(object):
         return Event(self._pevent, rec, format)
 
     def peek_event(self, cpu):
-        pass
+        rec = tracecmd_peek_data_ref(self._handle, cpu)
+        if rec is None:
+            return None
+        type = pevent_data_type(self._pevent, rec)
+        format = pevent_data_event_from_type(self._pevent, type)
+        # rec ownership goes over to Event instance
+        return Event(self._pevent, rec, format)
 
 
 # Basic builtin test, execute module directly

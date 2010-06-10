@@ -87,6 +87,15 @@ int tracecmd_init_data(struct tracecmd_input *handle);
 struct record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
 
+static inline struct record *
+tracecmd_peek_data_ref(struct tracecmd_input *handle, int cpu)
+{
+	struct record *rec = tracecmd_peek_data(handle, cpu);
+	if (rec)
+		rec->ref_count++;
+	return rec;
+}
+
 struct record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu);
 
