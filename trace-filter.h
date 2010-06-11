@@ -102,6 +102,12 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       trace_filter_event_cb_func func,
 			       gpointer data);
 
+void trace_filter_pevent_dialog(struct pevent *pevent,
+				gboolean all_events,
+				gchar **systems, gint *events,
+				trace_filter_event_cb_func func,
+				gpointer data);
+
 void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
 			       struct event_filter *filter,
 			       gboolean all_events,

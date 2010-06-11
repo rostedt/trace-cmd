@@ -493,17 +493,14 @@ static gint *get_event_ids(GtkTreeView *treeview)
 }
 
 static GtkTreeModel *
-create_tree_filter_model(struct tracecmd_input *handle,
+create_tree_filter_model(struct pevent *pevent,
 		       struct event_filter *event_filter)
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_events;
-	struct pevent *pevent;
 	struct event_format **events;
 	char *str;
 	gint i;
-
-	pevent = tracecmd_get_pevent(handle);
 
 	treestore = gtk_tree_store_new(NUM_ADV_FILTER_COLS, G_TYPE_BOOLEAN,
 				       G_TYPE_STRING, G_TYPE_STRING,
@@ -582,7 +579,7 @@ static void adv_filter_cursor_changed(GtkTreeView *treeview, gpointer data)
 }
 
 static GtkWidget *
-create_adv_filter_view(struct tracecmd_input *handle,
+create_adv_filter_view(struct pevent *pevent,
 		       struct event_filter *event_filter)
 {
 	GtkTreeViewColumn *col;
@@ -634,7 +631,7 @@ create_adv_filter_view(struct tracecmd_input *handle,
 	gtk_tree_view_column_add_attribute(col, renderer, "text", ADV_COL_FILTER);
 
 
-	model = create_tree_filter_model(handle, event_filter);
+	model = create_tree_filter_model(pevent, event_filter);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
@@ -679,6 +676,10 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	if (!handle)
 		return;
 
+	pevent = tracecmd_get_pevent(handle);
+	if (!pevent)
+		return;
+
 	/* --- Make dialog window --- */
 
 	dialog = gtk_dialog_new_with_buttons("Advanced Filters",
@@ -694,7 +695,7 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_adv_filter_view(handle, event_filter);
+	view = create_adv_filter_view(pevent, event_filter);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 
@@ -707,8 +708,6 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			      "   .* : common_pid == 1234");
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, FALSE, 0);
 	gtk_widget_show(label);
-
-	pevent = tracecmd_get_pevent(handle);
 
 	combo_info.pevent = pevent;
 
@@ -802,13 +801,12 @@ static void get_tasks(GtkTreeView *treeview,
 }
 
 static GtkTreeModel *
-create_task_model(struct tracecmd_input *handle,
+create_task_model(struct pevent *pevent,
 		  gint *tasks,
 		  gint *selected)
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter;
-	struct pevent *pevent;
 	const char *comm;
 	gboolean select;
 	gint *ret;
@@ -818,8 +816,6 @@ create_task_model(struct tracecmd_input *handle,
 
 	if (!tasks)
 		return NULL;
-
-	pevent = tracecmd_get_pevent(handle);
 
 	treestore = gtk_tree_store_new(NUM_TASK_COLS, G_TYPE_BOOLEAN,
 				       G_TYPE_INT, G_TYPE_STRING);
@@ -919,7 +915,7 @@ static void task_cursor_changed(gpointer data, GtkTreeView *treeview)
 }
 
 static GtkWidget *
-create_task_view(struct tracecmd_input *handle,
+create_task_view(struct pevent *pevent,
 		 gint *tasks, gint *selected,
 		 gboolean *start)
 {
@@ -972,7 +968,7 @@ create_task_view(struct tracecmd_input *handle,
 	gtk_tree_view_column_add_attribute(col, renderer, "text", TASK_COL_COMM);
 
 
-	model = create_task_model(handle, tasks, selected);
+	model = create_task_model(pevent, tasks, selected);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
@@ -1002,12 +998,20 @@ void trace_task_dialog(struct tracecmd_input *handle,
 		       trace_task_cb_func func,
 		       gpointer data)
 {
+	struct pevent *pevent;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *view;
 	gboolean start = FALSE;
 	gint *non_select;
 	int result;
+
+	if (!handle)
+		return;
+
+	pevent = tracecmd_get_pevent(handle);
+	if (!pevent)
+		return;
 
 	/* --- Make dialog window --- */
 
@@ -1024,7 +1028,7 @@ void trace_task_dialog(struct tracecmd_input *handle,
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_task_view(handle, tasks, selected, &start);
+	view = create_task_view(pevent, tasks, selected, &start);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 
@@ -1093,14 +1097,13 @@ gboolean event_is_enabled(gint *events, gint events_size, gint event)
 }
 
 static GtkTreeModel *
-create_tree_event_model(struct tracecmd_input *handle,
+create_tree_event_model(struct pevent *pevent,
 			struct event_filter *filter,
 			gboolean all_events, gchar **systems_set,
 			gint *event_ids_set)
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_all, iter_sys, iter_events;
-	struct pevent *pevent;
 	struct event_format **events;
 	struct event_format *event;
 	char *last_system = NULL;
@@ -1111,8 +1114,6 @@ create_tree_event_model(struct tracecmd_input *handle,
 	gint systems_size;
 	gint event_ids_size;
 	gint i;
-
-	pevent = tracecmd_get_pevent(handle);
 
 	treestore = gtk_tree_store_new(NUM_EVENT_COLS, G_TYPE_STRING,
 				       G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
@@ -1381,7 +1382,7 @@ static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
 }
 
 static GtkWidget *
-create_event_list_view(struct tracecmd_input *handle,
+create_event_list_view(struct pevent *pevent,
 		       struct event_filter *filter,
 		       gboolean all_events, gchar **systems,
 		       gint *events)
@@ -1414,7 +1415,7 @@ create_event_list_view(struct tracecmd_input *handle,
 	gtk_tree_view_column_add_attribute(col, renderer, "text", COL_EVENT);
 	gtk_tree_view_column_add_attribute(col, renderer, "sensitive", COL_NORMAL);
 
-	model = create_tree_event_model(handle, filter, all_events, systems, events);
+	model = create_tree_event_model(pevent, filter, all_events, systems, events);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(view), model);
 
@@ -1564,7 +1565,7 @@ static void accept_events(GtkTreeView *view,
 	g_free(events);
 }
 
-static void filter_event_dialog(struct tracecmd_input *handle,
+static void filter_event_dialog(struct pevent *pevent,
 				struct event_filter *filter,
 				gboolean all_events,
 				gchar **systems, gint *events,
@@ -1591,7 +1592,7 @@ static void filter_event_dialog(struct tracecmd_input *handle,
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_event_list_view(handle, filter, all_events, systems, events);
+	view = create_event_list_view(pevent, filter, all_events, systems, events);
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);
@@ -1633,9 +1634,32 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       trace_filter_event_cb_func func,
 			       gpointer data)
 {
-	filter_event_dialog(handle, NULL, all_events, systems,
+	struct pevent *pevent;
+
+	if (!handle)
+		return;
+
+	pevent = tracecmd_get_pevent(handle);
+	if (!pevent)
+		return;
+
+	filter_event_dialog(pevent, NULL, all_events, systems,
 			    events, func, data);
 }
+
+void trace_filter_pevent_dialog(struct pevent *pevent,
+				gboolean all_events,
+				gchar **systems, gint *events,
+				trace_filter_event_cb_func func,
+				gpointer data)
+{
+	if (!pevent)
+		return;
+
+	filter_event_dialog(pevent, NULL, all_events, systems,
+			    events, func, data);
+}
+
 
 /**
  * trace_filter_event_filter_dialog - make dialog with event listing
@@ -1653,15 +1677,20 @@ void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
 				      trace_filter_event_cb_func func,
 				      gpointer data)
 {
+	struct pevent *pevent;
 	gchar **systems;
 	gint *event_ids;
 
 	if (!handle)
 		return;
 
+	pevent = tracecmd_get_pevent(handle);
+	if (!pevent)
+		return;
+
 	trace_filter_convert_filter_to_names(filter, &systems, &event_ids);
 
-	filter_event_dialog(handle, filter, all_events, systems,
+	filter_event_dialog(pevent, filter, all_events, systems,
 			    event_ids, func, data);
 }
 
