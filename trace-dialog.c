@@ -302,3 +302,52 @@ gchar *trace_get_file_dialog(const gchar *title)
 
 	return filename;
 }
+
+/**
+ * trace_create_combo_box - helper function to create a label and combo box
+ * @hbox: The hbox to add the label and combo box to
+ * @text: The text of the label
+ * @combo_model_create: The function used to create the combo model
+ * @data: data to pass to the combo_model_create.
+ *
+ * Returns the combo box in the hbox.
+ */
+GtkWidget *
+trace_create_combo_box(GtkWidget *hbox, const gchar *text,
+		       GtkTreeModel *(*combo_model_create)(gpointer data),
+		       gpointer data)
+{
+	GtkCellRenderer *renderer;
+	GtkTreeModel *model;
+	GtkWidget *label;
+	GtkWidget *combo;
+
+	label = gtk_label_new(text);
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	/* --- Set up the selection combo box --- */
+
+	model = combo_model_create(data);
+
+	renderer = gtk_cell_renderer_text_new();
+
+	combo = gtk_combo_box_new_with_model(model);
+	gtk_box_pack_start(GTK_BOX(hbox), combo, FALSE, FALSE, 0);
+	gtk_widget_show(combo);
+
+	/* Free model with combobox */
+	g_object_unref(model);
+
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo),
+				   renderer,
+				   TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo),
+				       renderer,
+				       "text", 0,
+				       NULL);
+
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+
+	return combo;
+}

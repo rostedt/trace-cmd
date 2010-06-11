@@ -41,5 +41,9 @@ void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 
 gchar *trace_get_file_dialog(const gchar *title);
 
+GtkWidget *
+trace_create_combo_box(GtkWidget *hbox, const gchar *text,
+		       GtkTreeModel *(*combo_model_create)(gpointer data),
+		       gpointer data);
 
 #endif /* _TRACE_GUI */

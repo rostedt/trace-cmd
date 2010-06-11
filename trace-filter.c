@@ -27,6 +27,7 @@
 #include "trace-local.h"
 #include "trace-view-store.h"
 #include "trace-view.h"
+#include "trace-gui.h"
 
 #include "cpu.h"
 #include "util.h"
@@ -95,8 +96,9 @@ struct event_combo_info {
 	GtkWidget		*entry;
 };
 
-static GtkTreeModel *create_event_combo_model(struct pevent *pevent)
+static GtkTreeModel *create_event_combo_model(gpointer data)
 {
+	struct pevent *pevent = data;
 	GtkTreeStore *tree;
 	GtkTreeIter sys_iter;
 	GtkTreeIter iter;
@@ -131,7 +133,7 @@ static GtkTreeModel *create_event_combo_model(struct pevent *pevent)
 	return GTK_TREE_MODEL(tree);
 }
 
-static GtkTreeModel *create_op_combo_model(struct pevent *pevent)
+static GtkTreeModel *create_op_combo_model(gpointer data)
 {
 	GtkListStore *list;
 	GtkTreeIter iter;
@@ -153,8 +155,9 @@ static GtkTreeModel *create_op_combo_model(struct pevent *pevent)
 	return GTK_TREE_MODEL(list);
 }
 
-static GtkTreeModel *create_field_combo_model(struct pevent *pevent)
+static GtkTreeModel *create_field_combo_model(gpointer data)
 {
+	struct pevent *pevent = data;
 	GtkListStore *list;
 	GtkTreeIter iter;
 	struct event_format **events;
@@ -361,12 +364,9 @@ static void field_insert_pressed(GtkButton *button,
 
 static GtkWidget *
 create_combo_box(struct event_combo_info *info, GtkWidget *hbox, const gchar *text,
-		 GtkTreeModel *(*combo_model_create)(struct pevent *pevent),
+		 GtkTreeModel *(*combo_model_create)(gpointer data),
 		 void (*insert_pressed)(GtkButton *button, gpointer data))
 {
-	GtkCellRenderer *renderer;
-	GtkTreeModel *model;
-	GtkWidget *label;
 	GtkWidget *hbox2;
 	GtkWidget *combo;
 	GtkWidget *button;
@@ -375,33 +375,7 @@ create_combo_box(struct event_combo_info *info, GtkWidget *hbox, const gchar *te
 	gtk_box_pack_start(GTK_BOX(hbox), hbox2, TRUE, TRUE, 0);
 	gtk_widget_show(hbox2);
 
-	label = gtk_label_new(text);
-	gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-	gtk_widget_show(label);
-
-	/* --- Set up the selection combo box --- */
-
-	model = combo_model_create(info->pevent);
-
-	renderer = gtk_cell_renderer_text_new();
-
-	combo = gtk_combo_box_new_with_model(model);
-	gtk_box_pack_start(GTK_BOX(hbox2), combo, FALSE, FALSE, 0);
-	gtk_widget_show(combo);
-
-	/* Free model with combobox */
-	g_object_unref(model);
-
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo),
-				   renderer,
-				   TRUE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo),
-				       renderer,
-				       "text", 0,
-				       NULL);
-
-	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
-
+	combo = trace_create_combo_box(hbox, text, combo_model_create, info->pevent);
 
 	/* --- add insert button --- */
 
