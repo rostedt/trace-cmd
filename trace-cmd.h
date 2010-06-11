@@ -38,6 +38,7 @@ void tracecmd_unload_plugins(struct plugin_list *list);
 char **tracecmd_event_systems(const char *tracing_dir);
 char **tracecmd_system_events(const char *tracing_dir, const char *system);
 struct pevent *tracecmd_local_events(const char *tracing_dir);
+char **tracecmd_local_plugins(const char *tracing_dir);
 
 enum {
 	RINGBUF_TYPE_PADDING		= 29,

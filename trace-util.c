@@ -425,11 +425,11 @@ static int read_file(const char *file, char **buffer)
 	if (fd < 0)
 		return -1;
 
-	buf = malloc_or_die(BUFSIZ);
+	buf = malloc_or_die(BUFSIZ + 1);
 
 	while ((r = read(fd, buf + len, BUFSIZ)) > 0) {
 		len += r;
-		buf = realloc(buf, len + BUFSIZ);
+		buf = realloc(buf, len + BUFSIZ + 1);
 		if (!buf) {
 			len = -1;
 			goto out;
@@ -437,7 +437,7 @@ static int read_file(const char *file, char **buffer)
 	}
 
 	*buffer = buf;
-
+	buf[len] = 0;
  out:
 	close(fd);
 
@@ -592,6 +592,67 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
 	free(events_dir);
 
 	return pevent;
+}
+
+/**
+ * tracecmd_local_plugins - returns an array of available tracer plugins
+ * @tracing_dir: The directory that contains the tracing directory
+ *
+ * Returns an allocate list of plugins. The array ends with NULL.
+ * Both the plugin names and array must be freed with free().
+ */
+char **tracecmd_local_plugins(const char *tracing_dir)
+{
+	char *available_tracers;
+	struct stat st;
+	char **plugins = NULL;
+	char *buf;
+	char *str, *saveptr;
+	char *plugin;
+	int slen;
+	int len;
+	int ret;
+
+	if (!tracing_dir)
+		return NULL;
+
+	available_tracers = append_file(tracing_dir, "available_tracers");
+	if (!available_tracers)
+		return NULL;
+
+	ret = stat(available_tracers, &st);
+	if (ret < 0)
+		goto out_free;
+
+	len = read_file(available_tracers, &buf);
+	if (len < 0)
+		goto out_free;
+
+	len = 0;
+	for (str = buf; ; str = NULL) {
+		plugin = strtok_r(str, " ", &saveptr);
+		if (!plugin)
+			break;
+		if (!(slen = strlen(plugin)))
+			continue;
+
+		/* chop off any newlines */
+		if (plugin[slen - 1] == '\n')
+			plugin[slen - 1] = '\0';
+
+		/* Skip the non tracers */
+		if (strcmp(plugin, "nop") == 0 ||
+		    strcmp(plugin, "none") == 0)
+			continue;
+
+		plugins = add_list(plugins, plugin, len++);
+	}
+	free(buf);
+
+ out_free:
+	free(available_tracers);
+
+	return plugins;
 }
 
 static void
