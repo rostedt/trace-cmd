@@ -1558,6 +1558,8 @@ int main (int argc, char **argv)
 		    strcmp(plugin, "wakeup") == 0 ||
 		    strcmp(plugin, "wakeup_rt") == 0) {
 			latency = 1;
+			if (host)
+				die("Network tracing not available with latency tracer plugins");
 		}
 		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
 				 strcmp(plugin, "function_graph") == 0))

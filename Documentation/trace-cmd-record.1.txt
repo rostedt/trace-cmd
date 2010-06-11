@@ -145,6 +145,9 @@ OPTIONS
     embedded machines with little storage, or having a single machine that
     will keep all the data in a single repository.
 
+    Note: This option is not supported with latency tracer plugins:
+      wakeup, wakeup_rt, irqsoff, preemptoff and preemptirqsoff
+
 *-t*::
     This option is used with *-N*, when there's a need to send the live data
     with TCP packets instead of UDP. Although TCP is not nearly as fast as
