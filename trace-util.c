@@ -26,6 +26,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -410,6 +412,186 @@ char **tracecmd_system_events(const char *tracing_dir, const char *system)
 	free(events_dir);
 
 	return events;
+}
+
+static int read_file(const char *file, char **buffer)
+{
+	char *buf;
+	int len = 0;
+	int fd;
+	int r;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return -1;
+
+	buf = malloc_or_die(BUFSIZ);
+
+	while ((r = read(fd, buf + len, BUFSIZ)) > 0) {
+		len += r;
+		buf = realloc(buf, len + BUFSIZ);
+		if (!buf) {
+			len = -1;
+			goto out;
+		}
+	}
+
+	*buffer = buf;
+
+ out:
+	close(fd);
+
+	return len;
+}
+
+static void load_events(struct pevent *pevent, const char *system,
+			const char *sys_dir)
+{
+	struct dirent *dent;
+	struct stat st;
+	DIR *dir;
+	int len = 0;
+	int ret;
+
+	ret = stat(sys_dir, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		return;
+
+	dir = opendir(sys_dir);
+	if (!dir)
+		return;
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		char *event;
+		char *format;
+		char *buf;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		event = append_file(sys_dir, name);
+		ret = stat(event, &st);
+		if (ret < 0 || !S_ISDIR(st.st_mode))
+			goto free_event;
+
+		format = append_file(event, "format");
+		ret = stat(format, &st);
+		if (ret < 0)
+			goto free_format;
+
+		len = read_file(format, &buf);
+		if (len < 0)
+			goto free_format;
+
+		pevent_parse_event(pevent, buf, len, system);
+		free(buf);
+ free_format:
+		free(format);
+ free_event:
+		free(event);
+	}
+
+	closedir(dir);
+}
+
+static int read_header(struct pevent *pevent, const char *events_dir)
+{
+	struct stat st;
+	char *header;
+	char *buf;
+	int len;
+	int ret = -1;
+
+	header = append_file(events_dir, "header_page");
+
+	ret = stat(header, &st);
+	if (ret < 0)
+		goto out;
+
+	len = read_file(header, &buf);
+	if (len < 0)
+		goto out;
+
+	pevent_parse_header_page(pevent, buf, len, sizeof(long));
+
+	free(buf);
+
+	ret = 0;
+ out:
+	free(header);
+	return ret;
+}
+
+/**
+ * tracecmd_local_events - create a pevent from the events on system
+ * @tracing_dir: The directory that contains the events.
+ *
+ * Returns a pevent structure that contains the pevents local to
+ * the system.
+ */
+struct pevent *tracecmd_local_events(const char *tracing_dir)
+{
+	struct pevent *pevent = NULL;
+	struct dirent *dent;
+	char *events_dir;
+	struct stat st;
+	DIR *dir;
+	int ret;
+
+	if (!tracing_dir)
+		return NULL;
+
+	events_dir = append_file(tracing_dir, "events");
+	if (!events_dir)
+		return NULL;
+
+	ret = stat(events_dir, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out_free;
+
+	dir = opendir(events_dir);
+	if (!dir)
+		goto out_free;
+
+	pevent = pevent_alloc();
+	if (!pevent)
+		goto out_free;
+
+	ret = read_header(pevent, events_dir);
+	if (ret < 0) {
+		pevent_free(pevent);
+		pevent = NULL;
+		goto out_free;
+	}
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		char *sys;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		sys = append_file(events_dir, name);
+		ret = stat(sys, &st);
+		if (ret < 0 || !S_ISDIR(st.st_mode)) {
+			free(sys);
+			continue;
+		}
+
+		load_events(pevent, name, sys);
+
+		free(sys);
+	}
+
+	closedir(dir);
+
+ out_free:
+	free(events_dir);
+
+	return pevent;
 }
 
 static void
