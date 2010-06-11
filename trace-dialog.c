@@ -38,6 +38,8 @@ static GString *statusstr;
 
 static GtkWidget *parent_window;
 
+static void (*alt_warning)(const char *fmt, va_list ap);
+
 void pr_stat(char *fmt, ...)
 {
 	GString *str;
@@ -79,10 +81,29 @@ void trace_dialog_register_window(GtkWidget *window)
 	parent_window = window;
 }
 
+/**
+ * trace_dialog_register_alt_warning - register an alternate function for warning()
+ * @alt: the function to be called instead of warning.
+ *
+ * Add an alternate warning function to be called instead of a popup.
+ * To go back to the popup, simply call this again with NULL.
+ */
+void trace_dialog_register_alt_warning(void (*alt)(const char *fmt, va_list ap))
+{
+	alt_warning = alt;
+}
+
 void warning(char *fmt, ...)
 {
 	GString *str;
 	va_list ap;
+
+	if (alt_warning) {
+		va_start(ap, fmt);
+		alt_warning(fmt, ap);
+		va_end(ap);
+		return;
+	}
 
 	if (!parent_window) {
 		va_start(ap, fmt);
