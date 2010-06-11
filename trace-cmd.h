@@ -35,6 +35,9 @@ struct plugin_list;
 struct plugin_list *tracecmd_load_plugins(struct pevent *pevent);
 void tracecmd_unload_plugins(struct plugin_list *list);
 
+char **tracecmd_event_systems(const char *tracing_dir);
+char **tracecmd_system_events(const char *tracing_dir, const char *system);
+
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
 	RINGBUF_TYPE_TIME_EXTEND	= 30,

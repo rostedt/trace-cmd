@@ -227,6 +227,191 @@ char *tracecmd_find_tracing_dir(void)
 	return tracing_dir;
 }
 
+static char *append_file(const char *dir, const char *name)
+{
+	char *file;
+
+	file = malloc_or_die(strlen(dir) + strlen(name) + 2);
+	if (!file)
+		return NULL;
+
+	sprintf(file, "%s/%s", dir, name);
+	return file;
+}
+
+static char **add_list(char **list, const char *name, int len)
+{
+	if (!list)
+		list = malloc_or_die(sizeof(*list) * 2);
+	else {
+		list = realloc(list, sizeof(*list) * (len + 2));
+		if (!list)
+			die("Can not allocate list");
+	}
+
+	list[len] = strdup(name);
+	if (!list[len])
+		die("Can not allocate list");
+
+	list[len + 1] = NULL;
+
+	return list;
+}
+
+/**
+ * tracecmd_event_systems - return list of systems for tracing
+ * @tracing_dir: directory holding the "events" directory
+ *
+ * Returns an allocated list of system names. Both the names and
+ * the list must be freed with free().
+ * The list returned ends with a "NULL" pointer.
+ */
+char **tracecmd_event_systems(const char *tracing_dir)
+{
+	struct dirent *dent;
+	char **systems = NULL;
+	char *events_dir;
+	struct stat st;
+	DIR *dir;
+	int len = 0;
+	int ret;
+
+	if (!tracing_dir)
+		return NULL;
+
+	events_dir = append_file(tracing_dir, "events");
+	if (!events_dir)
+		return NULL;
+
+	/*
+	 * Search all the directories in the events directory,
+ 	 * and collect the ones that have the "enable" file.
+	 */
+	ret = stat(events_dir, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out_free;
+
+	dir = opendir(events_dir);
+	if (!dir)
+		goto out_free;
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		char *enable;
+		char *sys;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		sys = append_file(events_dir, name);
+		ret = stat(sys, &st);
+		if (ret < 0 || !S_ISDIR(st.st_mode)) {
+			free(sys);
+			continue;
+		}
+
+		enable = append_file(sys, "enable");
+
+		ret = stat(enable, &st);
+		if (ret >= 0)
+			systems = add_list(systems, name, len++);
+
+		free(enable);
+		free(sys);
+	}
+
+	closedir(dir);
+
+ out_free:
+	free(events_dir);
+	return systems;
+}
+
+/**
+ * tracecmd_system_events - return list of events for system
+ * @tracing_dir: directory holding the "events" directory
+ * @system: the system to return the events for
+ *
+ * Returns an allocated list of event names. Both the names and
+ * the list must be freed with free().
+ * The list returned ends with a "NULL" pointer.
+ */
+char **tracecmd_system_events(const char *tracing_dir, const char *system)
+{
+	struct dirent *dent;
+	char **events = NULL;
+	char *events_dir;
+	char *system_dir;
+	struct stat st;
+	DIR *dir;
+	int len = 0;
+	int ret;
+
+	if (!tracing_dir || !system)
+		return NULL;
+
+	events_dir = append_file(tracing_dir, "events");
+	if (!events_dir)
+		return NULL;
+
+	/*
+	 * Search all the directories in the systems directory,
+	 * and collect the ones that have the "enable" file.
+	 */
+	ret = stat(events_dir, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out_free;
+
+	system_dir = append_file(events_dir, system);
+	if (!system_dir)
+		goto out_free;
+
+	ret = stat(system_dir, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out_free_sys;
+
+	dir = opendir(system_dir);
+	if (!dir)
+		goto out_free_sys;
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		char *enable;
+		char *event;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		event = append_file(system_dir, name);
+		ret = stat(event, &st);
+		if (ret < 0 || !S_ISDIR(st.st_mode)) {
+			free(event);
+			continue;
+		}
+
+		enable = append_file(event, "enable");
+
+		ret = stat(enable, &st);
+		if (ret >= 0)
+			events = add_list(events, name, len++);
+
+		free(enable);
+		free(event);
+	}
+
+	closedir(dir);
+
+ out_free_sys:
+	free(system_dir);
+
+ out_free:
+	free(events_dir);
+
+	return events;
+}
+
 static void
 trace_util_load_plugins_dir(struct pevent *pevent, const char *suffix,
 			    const char *path,
