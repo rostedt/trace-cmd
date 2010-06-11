@@ -4268,7 +4268,8 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
  * /sys/kernel/debug/tracing/events/.../.../format
  */
 int pevent_parse_event(struct pevent *pevent,
-		       char *buf, unsigned long size, char *sys)
+		       const char *buf, unsigned long size,
+		       const char *sys)
 {
 	struct event_format *event;
 	int ret;

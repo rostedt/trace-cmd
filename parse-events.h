@@ -444,7 +444,8 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
 			     int long_size);
 
-int pevent_parse_event(struct pevent *pevent, char *buf, unsigned long size, char *sys);
+int pevent_parse_event(struct pevent *pevent, const char *buf,
+		       unsigned long size, const char *sys);
 
 int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func, void *context);
