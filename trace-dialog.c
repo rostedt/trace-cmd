@@ -40,10 +40,9 @@ static GtkWidget *parent_window;
 
 static void (*alt_warning)(const char *fmt, va_list ap);
 
-void pr_stat(char *fmt, ...)
+void vpr_stat(const char *fmt, va_list ap)
 {
 	GString *str;
-	va_list ap;
 
 	if (!statusstr) {
 		statusstr = g_string_new("");
@@ -53,9 +52,7 @@ void pr_stat(char *fmt, ...)
 
 	str = g_string_new("");
 
-	va_start(ap, fmt);
 	g_string_vprintf(str, fmt, ap);
-	va_end(ap);
 
 	g_string_append_printf(statusstr, "%s\n", str->str);
 
@@ -65,6 +62,15 @@ void pr_stat(char *fmt, ...)
 	}
 
 	g_string_free(str, TRUE);
+}
+
+void pr_stat(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vpr_stat(fmt, ap);
+	va_end(ap);
 }
 
 /**
@@ -93,7 +99,7 @@ void trace_dialog_register_alt_warning(void (*alt)(const char *fmt, va_list ap))
 	alt_warning = alt;
 }
 
-void warning(char *fmt, ...)
+void warning(const char *fmt, ...)
 {
 	GString *str;
 	va_list ap;

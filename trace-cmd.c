@@ -197,7 +197,7 @@ static void flush_threads(void)
 	}
 }
 
-void die(char *fmt, ...)
+void die(const char *fmt, ...)
 {
 	va_list ap;
 	int ret = errno;
@@ -217,7 +217,7 @@ void die(char *fmt, ...)
 	exit(ret);
 }
 
-void warning(char *fmt, ...)
+void warning(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -236,7 +236,7 @@ void warning(char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
-void pr_stat(char *fmt, ...)
+void pr_stat(const char *fmt, ...)
 {
 	va_list ap;
 

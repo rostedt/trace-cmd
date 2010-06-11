@@ -348,20 +348,20 @@ struct pevent {
 };
 
 /* Can be overridden */
-void die(char *fmt, ...);
+void die(const char *fmt, ...);
 void *malloc_or_die(unsigned int size);
-void warning(char *fmt, ...);
-void pr_stat(char *fmt, ...);
-void vpr_stat(char *fmt, va_list ap);
+void warning(const char *fmt, ...);
+void pr_stat(const char *fmt, ...);
+void vpr_stat(const char *fmt, va_list ap);
 
 /* Always available */
-void __die(char *fmt, ...);
-void __warning(char *fmt, ...);
-void __pr_stat(char *fmt, ...);
+void __die(const char *fmt, ...);
+void __warning(const char *fmt, ...);
+void __pr_stat(const char *fmt, ...);
 
-void __vdie(char *fmt, ...);
-void __vwarning(char *fmt, ...);
-void __vpr_stat(char *fmt, ...);
+void __vdie(const char *fmt, ...);
+void __vwarning(const char *fmt, ...);
+void __vpr_stat(const char *fmt, ...);
 
 static inline unsigned short
 __data2host2(struct pevent *pevent, unsigned short data)
