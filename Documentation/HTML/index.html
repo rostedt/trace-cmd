@@ -401,19 +401,32 @@ cursor.
 The amount of data that can be stored in a trace.dat file can be enormous.
 To make any sense out of some traces, it may be required to only display various
 events. The same can be true about tasks.
-Kernelshark has filters for tasks as well as for events. The task filter
-affects both the graph and the list, but the graph and list each have a separate
-event filter.
+Kernelshark has filters for tasks as well as for events.
+</p>
+
 <p>
+On start up of KernelShark, the task and event filters for the list and graph
+are kept synchronized. That is, any modification to the list filters will
+also update the graph filters, and vice versa. By selecting
+<b>Filter->Unsync Graph and List Task Filters</b> or
+<b>Filter->Unsync Graph and List Event Filters</b> will make the graph
+and list have their own task or event filters respectively.
+</b>
 
 <h2><a name="filter-task">Task Filter</a></h2>
 
 <p>
-The task filter is currently set by a right mouse click over
-an event on either the graph or the list view, and by selecting the option to add or remove the
-task to/from the task filter. The tasks within the task filter are the same for
-both the graph and list, but each can be enabled separately.
+The task filter can be set by either a right mouse click over an event
+on either the graph or the list view, and by selecting the option to add or remove the
+task to/from the task filter. A set of tasks may be added to the filters
+via the <b>Filter</b> menu in the menu bar.
 </p>
+
+<p>
+When tasks are selected from the menu bar the filter will be enabled
+automatically. When they are selected via the pop up menu, the filter needs to
+be enabled by the <b>Enable</b> menu also in the pop up menu.
+</b>
 
 <p>
 There are two types of task filters:
@@ -463,11 +476,24 @@ This may seem confusing when an event that is hidden shows up in the Task column
 <h2><a name="filter-event">Event Filter</a></h2>
 
 <p>
-The graph and list view each have their own event filter. The event filters
+Like the task filter, the graph and list event filters start off synchronized.
+To make the list and graph have their own filter, just select the
+<b>Filter->Unsync Graph and List Event Filters</b>.  The same can be done
+for task filters.
+</p>
+
+<img src="images/kshark-unsync-events.png">
+
+<p>
+Now the graph and list view will each have their own event filter. The event filters
 are enabled through the Filter menu on the top menu-bar.
 </p>
 
 <img src="images/kshark-filter.png">
+
+<p>
+Notice that the menu changed after selecting <b>Unsync Graph and List Event Filters</b>.
+The <b>events</b> option was replaced by <b>graph events</b> and <b>list events</b>.
 
 <p>
 Selecting either the "list events" or "graph events" will bring up the event
@@ -491,19 +517,32 @@ selected. By deselecting all events, it makes it easier to enable just a few ind
 <img src="images/kshark-filter-events-sched.png">
 
 <p>
-If it is desired that the graph and list view have the same events filtered, then just
-set up the desired filtering in one and then synchronize the other through
-the filter menu.
+To sync back the graph and list events, just select the <b>Sync Graph and List Event Filters</b>.
 </p>
 
 <img src="images/kshark-filter-sync-graph-1.png">
 
+<p>
+If the selected events for the graph and list event filters are the same, then
+the two will become in-sync again. If not, a dialog will pop up asking how you
+want to sync the filters.
+</p>
+
+<img src="images/kshark-filter-sync-dialog.png">
+
 <ul>
-<li><b>sync graph events with list</b> - will set the graph event filter to be the same
-as what is in the list filter.
-<li><b>sync list events with graph</b> - will set the list event filter to be the same
+<li><b>Sync List Filter with Graph Filter</b> - will set the list event filter to be the same
 as what is in the graph filter.
+<li><b>Sync Graph Filter with List Filter</b> - will set the graph event filter to be the same
+as what is in the list filter.
 </ul>
+
+<p>
+By default the <b>Keep the filters in sync</b> is selected. If this is selected when
+<b>OK</b> is clicked, the graph and list filters will stay synchronized when one is
+changed. By unselecting the <b>Keep</b> option, the filters will by synchronized by the
+selected method, but a change to one of the filters will not affect the other.
+</p>
 
 <h3><a name="filter-adv-event">Advanced Event Filter</a></h3>
 
