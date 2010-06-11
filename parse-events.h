@@ -352,6 +352,7 @@ void die(char *fmt, ...);
 void *malloc_or_die(unsigned int size);
 void warning(char *fmt, ...);
 void pr_stat(char *fmt, ...);
+void vpr_stat(char *fmt, va_list ap);
 
 /* Always available */
 void __die(char *fmt, ...);
