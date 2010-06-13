@@ -183,7 +183,11 @@ KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 INCLUDES = -I. -I/usr/local/include $(CONFIG_INCLUDES)
 
-CFLAGS = -g -Wall $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
+# Set compile option CFLAGS if not set elsewhere
+CFLAGS ?= -g -Wall
+
+# Append required CFLAGS
+override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
 
 ifeq ($(VERBOSE),1)
   Q =
