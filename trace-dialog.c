@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 #include "trace-compat.h"
 #include "trace-cmd.h"
@@ -306,6 +307,7 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 gchar *trace_get_file_dialog(const gchar *title, const char *open,
 			     gboolean warn)
 {
+	struct stat st;
 	GtkWidget *dialog;
 	GtkResponseType ret;
 	gchar *filename = NULL;
@@ -325,7 +327,7 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 
 	if (ret == GTK_RESPONSE_ACCEPT) {
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		if (warn) {
+		if (filename && warn && (stat(filename, &st) >= 0)) {
 			ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
 					   "The file '%s' already exists.\n"
 					   "Are you sure you want to replace it",
