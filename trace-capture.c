@@ -554,7 +554,7 @@ file_clicked (GtkWidget *widget, gpointer data)
 	struct trace_capture *cap = data;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Trace File");
+	filename = trace_get_file_dialog("Trace File", "Save", TRUE);
 	if (!filename)
 		return;
 

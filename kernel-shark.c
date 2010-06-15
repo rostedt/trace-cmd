@@ -290,7 +290,7 @@ load_clicked (gpointer data)
 	struct tracecmd_input *handle;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Load File");
+	filename = trace_get_file_dialog("Load File", NULL, FALSE);
 	if (!filename)
 		return;
 
@@ -321,7 +321,7 @@ load_filters_clicked (gpointer data)
 	gchar *filename;
 	int ret;
 
-	filename = trace_get_file_dialog("Load Filters");
+	filename = trace_get_file_dialog("Load Filters", NULL, FALSE);
 	if (!filename)
 		return;
 
@@ -407,7 +407,7 @@ save_filters_clicked (gpointer data)
 	struct filter_task *hide_tasks;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Save Filters");
+	filename = trace_get_file_dialog("Save Filters", "Save", TRUE);
 	if (!filename)
 		return;
 

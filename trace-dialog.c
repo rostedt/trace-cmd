@@ -250,13 +250,15 @@ void trace_show_help(GtkWidget *window, const gchar *link, GError **error)
 #endif
 }
 
-void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
-		  gchar *message, ...)
+GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
+			     gchar *message, ...)
 {
 	GtkWidget *dialog;
 	GtkMessageType mtype;
+	GtkButtonsType btype = GTK_BUTTONS_CLOSE;
 	gchar *str;
 	va_list ap;
+	int result;
 
 	switch (type) {
 	case TRACE_GUI_INFO:
@@ -268,6 +270,10 @@ void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 	case TRACE_GUI_ERROR:
 		mtype = GTK_MESSAGE_ERROR;
 		break;
+	case TRACE_GUI_ASK:
+		mtype = GTK_MESSAGE_WARNING;
+		btype = GTK_BUTTONS_YES_NO;
+		break;
 	}
 
 	va_start(ap, message);
@@ -277,26 +283,56 @@ void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 	dialog = gtk_message_dialog_new(parent,
 					GTK_DIALOG_DESTROY_WITH_PARENT,
 					mtype,
-					GTK_BUTTONS_CLOSE,
+					btype,
 					"%s", str);
 	g_free(str);
-	gtk_dialog_run(GTK_DIALOG(dialog));
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
 	gtk_widget_destroy(dialog);
+
+	return result;
 }
 
-gchar *trace_get_file_dialog(const gchar *title)
+/**
+ * trace_get_file_dialog - pop up a file dialog to get a file
+ * @title: the title of the dialog
+ * @open: the text for the "open" button (NULL for default)
+ * @warn: if the file exists, warn and let them choose again.
+ *
+ * Returns: the filename if it should be used. NULL otherwise.
+ *  The filename needs to be freed with g_free().
+ */
+gchar *trace_get_file_dialog(const gchar *title, const char *open,
+			     gboolean warn)
 {
 	GtkWidget *dialog;
+	GtkResponseType ret;
 	gchar *filename = NULL;
+
+	if (!open)
+		open = GTK_STOCK_OPEN;
 
 	dialog = gtk_file_chooser_dialog_new(title,
 					     NULL,
 					     GTK_FILE_CHOOSER_ACTION_OPEN,
 					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					     GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+					     open, GTK_RESPONSE_ACCEPT,
 					     NULL);
-	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+
+ again:
+	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+		if (warn) {
+			ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
+					   "The file '%s' already exists.\n"
+					   "Are you sure you want to replace it",
+					   filename);
+			if (ret == GTK_RESPONSE_NO) {
+				g_free(filename);
+				filename = NULL;
+				goto again;
+			}
+		}
+	}
 
 	gtk_widget_destroy(dialog);
 

@@ -27,6 +27,7 @@ enum trace_dialog_type {
 	TRACE_GUI_INFO,
 	TRACE_GUI_WARNING,
 	TRACE_GUI_ERROR,
+	TRACE_GUI_ASK,
 };
 
 GtkWidget *trace_status_bar_new(void);
@@ -36,10 +37,11 @@ void trace_dialog_register_alt_warning(void (*alt)(const char *fmt, va_list ap))
 
 void trace_show_help(GtkWidget *window, const gchar *link, GError **error);
 
-void trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
-		  gchar *message, ...);
+GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
+			     gchar *message, ...);
 
-gchar *trace_get_file_dialog(const gchar *title);
+gchar *trace_get_file_dialog(const gchar *title, const char *open,
+			     gboolean warn);
 
 GtkWidget *
 trace_create_combo_box(GtkWidget *hbox, const gchar *text,
