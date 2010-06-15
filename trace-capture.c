@@ -28,7 +28,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <sys/select.h>
+#include <signal.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <gtk/gtk.h>
@@ -58,6 +60,7 @@ struct trace_capture {
 	gchar			*plugin;
 	int			command_input_fd;
 	int			command_output_fd;
+	int			command_pid;
 };
 
 static int is_just_ws(const char *str)
@@ -90,10 +93,24 @@ static void clear_capture_events(struct trace_capture *cap)
 
 void end_capture(struct trace_capture *cap)
 {
+	int pid;
+
 	cap->capture_done = TRUE;
 
-	if (cap->kill_thread)
+	pid = cap->command_pid;
+	cap->command_pid = 0;
+	if (pid) {
+		kill(pid, SIGINT);
+		gdk_threads_leave();
+		waitpid(pid, NULL, 0);
+		gdk_threads_enter();
+	}
+
+	if (cap->kill_thread) {
+		gdk_threads_leave();
 		pthread_join(cap->thread, NULL);
+		gdk_threads_enter();
+	}
 
 	if (cap->command_input_fd)
 		close(cap->command_input_fd);
@@ -330,21 +347,22 @@ static void execute_command(struct trace_capture *cap)
 
 	ccommand = gtk_entry_get_text(GTK_ENTRY(cap->command_entry));
 	if (!ccommand || !strlen(ccommand) || is_just_ws(ccommand)) {
-		write(1, "hello cruel world!!!", 21);
-		return;
-	}
+		words = 0;
+		command = NULL;
+	} else {
 
-	command = strdup(ccommand);
+		command = strdup(ccommand);
 
-	space = TRUE;
-	words = 0;
-	for (i = 0; command[i]; i++) {
-		if (isspace(command[i]))
-			space = TRUE;
-		else {
-			if (space)
-				words++;
-			space = FALSE;
+		space = TRUE;
+		words = 0;
+		for (i = 0; command[i]; i++) {
+			if (isspace(command[i]))
+				space = TRUE;
+			else {
+				if (space)
+					words++;
+				space = FALSE;
+			}
 		}
 	}
 
@@ -356,7 +374,7 @@ static void execute_command(struct trace_capture *cap)
 
 	words = tc_words;
 	space = TRUE;
-	for (i = 0; command[i]; i++) {
+	for (i = 0; command && command[i]; i++) {
 		if (isspace(command[i])) {
 			space = TRUE;
 			command[i] = 0;
@@ -410,9 +428,11 @@ static void *monitor_pipes(void *data)
 		while ((r = read(cap->command_input_fd, buf, BUFSIZ)) > 0) {
 			eof = FALSE;
 			buf[r] = 0;
+			gdk_threads_enter();
 			gtk_text_buffer_get_end_iter(cap->output_buffer,
 						     &iter);
 			gtk_text_buffer_insert(cap->output_buffer, &iter, buf, -1);
+			gdk_threads_leave();
 		}
 	} while (!cap->capture_done && !eof);
 
@@ -440,6 +460,8 @@ static void run_command(struct trace_capture *cap)
 		goto fail_fork;
 	}
 
+	cap->command_pid = pid;
+
 	if (!pid) {
 		close(brass[0]);
 		close(copper[1]);
@@ -466,10 +488,13 @@ static void run_command(struct trace_capture *cap)
 	cap->command_input_fd = brass[0];
 	cap->command_output_fd = copper[1];
 
+	/* Do not create a thread under the gdk lock */
+	gdk_threads_leave();
 	if (pthread_create(&cap->thread, NULL, monitor_pipes, cap) < 0)
 		warning("Failed to create thread");
 	else
 		cap->kill_thread = 1;
+	gdk_threads_enter();
 
 	return;
 

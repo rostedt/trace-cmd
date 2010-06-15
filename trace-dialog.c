@@ -286,7 +286,9 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 					btype,
 					"%s", str);
 	g_free(str);
+
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
+
 	gtk_widget_destroy(dialog);
 
 	return result;
@@ -319,7 +321,9 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 					     NULL);
 
  again:
-	if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+	ret = gtk_dialog_run(GTK_DIALOG(dialog));
+
+	if (ret == GTK_RESPONSE_ACCEPT) {
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 		if (warn) {
 			ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
