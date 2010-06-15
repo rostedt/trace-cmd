@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 
 #include "trace-cmd.h"
 
@@ -148,7 +149,7 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 
 	/* Print nsecs (we don't want to exceed 7 numbers) */
 	if ((s->len - len) < 7) {
-		snprintf(nsecs_str, 8 - (s->len - len), "%03lu", nsecs_rem);
+		snprintf(nsecs_str, MIN(sizeof(nsecs_str), 8 - len), "%03lu", nsecs_rem);
 		trace_seq_printf(s, ".%s", nsecs_str);
 	}
 
