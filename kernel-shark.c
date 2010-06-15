@@ -31,6 +31,7 @@
 #include <getopt.h>
 
 #include "trace-compat.h"
+#include "trace-capture.h"
 #include "trace-cmd.h"
 #include "trace-gui.h"
 #include "kernel-shark.h"
@@ -1494,6 +1495,9 @@ void kernel_shark(int argc, char **argv)
 	int ret;
 	int c;
 
+	g_thread_init(NULL);
+	gdk_threads_init();
+
 	gtk_init(&argc, &argv);
 
 	while ((c = getopt(argc, argv, "hvi:")) != -1) {
@@ -1889,6 +1893,36 @@ void kernel_shark(int argc, char **argv)
 
 
 
+	/* --- Capture Option --- */
+
+	menu_item = gtk_menu_item_new_with_label("Capture");
+	gtk_widget_show(menu_item);
+
+	gtk_menu_bar_append(GTK_MENU_BAR (menu_bar), menu_item);
+
+	menu = gtk_menu_new();    /* Don't need to show menus */
+
+
+
+	/* --- Capture - Record Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Record");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We can attach the Quit menu item to our exit function */
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (tracecmd_capture_clicked),
+				  (gpointer) info);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+	/* --- End Capture Options --- */
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item), menu);
+
+
 	/* --- Help Option --- */
 
 	menu_item = gtk_menu_item_new_with_label("Help");
@@ -2049,7 +2083,10 @@ void kernel_shark(int argc, char **argv)
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
 
 	gtk_widget_show (window);
+
+	gdk_threads_enter();
 	gtk_main ();
+	gdk_threads_leave();
 }
 
 int main(int argc, char **argv)
