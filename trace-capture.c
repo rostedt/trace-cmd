@@ -51,6 +51,7 @@ struct trace_capture {
 	GtkTextBuffer		*output_buffer;
 	GtkWidget		*output_dialog;
 	GtkWidget		*plugin_combo;
+	GtkWidget		*stop_dialog;
 	pthread_t		thread;
 	gboolean		all_events;
 	gboolean		kill_thread;
@@ -153,6 +154,7 @@ static void close_command_display(struct trace_capture *cap)
 {
 	gtk_widget_destroy(cap->output_dialog);
 	cap->output_dialog = NULL;
+	cap->stop_dialog = NULL;
 }
 
 static void display_command_close(GtkWidget *widget, gint id, gpointer data)
@@ -404,6 +406,36 @@ static void execute_command(struct trace_capture *cap)
 	g_free(cap->plugin);
 }
 
+static gint
+delete_stop_dialog(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+	struct trace_capture *cap = data;
+	GtkWidget *dialog = cap->stop_dialog;
+
+	cap->stop_dialog = NULL;
+	if (!dialog)
+		return TRUE;
+
+	end_capture(cap);
+	gtk_widget_destroy(dialog);
+
+	return TRUE;
+}
+
+void end_stop_dialog(struct trace_capture *cap)
+{
+	GdkEvent dummy_event;
+	gboolean dummy_retval;
+	guint sigid;
+
+	if (!cap->stop_dialog)
+		return;
+
+	sigid = g_signal_lookup("delete-event", G_OBJECT_TYPE(cap->stop_dialog));
+	g_signal_emit(cap->stop_dialog, sigid, 0,
+		      cap->stop_dialog, &dummy_event , cap, &dummy_retval);
+}
+
 static void *monitor_pipes(void *data)
 {
 	struct trace_capture *cap = data;
@@ -435,6 +467,12 @@ static void *monitor_pipes(void *data)
 			gdk_threads_leave();
 		}
 	} while (!cap->capture_done && !eof);
+
+	if (eof) {
+		gdk_threads_enter();
+		end_stop_dialog(cap);
+		gdk_threads_leave();
+	}
 
 	pthread_exit(NULL);
 }
@@ -602,15 +640,20 @@ static void execute_button_clicked(GtkWidget *widget, gpointer data)
 					     "Stop",
 					     GTK_RESPONSE_ACCEPT,
 					     NULL);
+
+	cap->stop_dialog = dialog;
+
 	label = gtk_label_new("Hit Stop to end execution");
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
 	gtk_widget_show(label);
 
+	gtk_signal_connect(GTK_OBJECT (dialog), "delete_event",
+			   (GtkSignalFunc)delete_stop_dialog,
+			   (gpointer)cap);
+
 	gtk_dialog_run(GTK_DIALOG(dialog));
 
-	end_capture(cap);
-
-	gtk_widget_destroy(dialog);
+	end_stop_dialog(cap);
 }
 
 static GtkTreeModel *create_plugin_combo_model(gpointer data)
