@@ -45,6 +45,7 @@
 
 struct trace_capture {
 	struct pevent		*pevent;
+	struct shark_info	*info;
 	GtkWidget		*main_dialog;
 	GtkWidget		*command_entry;
 	GtkWidget		*file_entry;
@@ -57,6 +58,7 @@ struct trace_capture {
 	gboolean		all_events;
 	gboolean		kill_thread;
 	gboolean		capture_done;
+	gboolean		load_file;
 	gchar			**systems;
 	int			*events;
 	gchar			*plugin;
@@ -95,6 +97,7 @@ static void clear_capture_events(struct trace_capture *cap)
 
 void end_capture(struct trace_capture *cap)
 {
+	const char *filename;
 	int pid;
 
 	cap->capture_done = TRUE;
@@ -112,13 +115,24 @@ void end_capture(struct trace_capture *cap)
 		gdk_threads_leave();
 		pthread_join(cap->thread, NULL);
 		gdk_threads_enter();
+		cap->kill_thread = FALSE;
 	}
 
-	if (cap->command_input_fd)
+	if (cap->command_input_fd) {
 		close(cap->command_input_fd);
+		cap->command_input_fd = 0;
+	}
 
-	if (cap->command_output_fd)
+	if (cap->command_output_fd) {
 		close(cap->command_output_fd);
+		cap->command_output_fd = 0;
+	}
+
+	if (cap->load_file) {
+		filename = gtk_entry_get_text(GTK_ENTRY(cap->file_entry));
+		kernelshark_load_file(cap->info, filename);
+		cap->load_file = FALSE;
+	}
 }
 
 static char *get_tracing_dir(void)
@@ -531,8 +545,10 @@ static void run_command(struct trace_capture *cap)
 	gdk_threads_leave();
 	if (pthread_create(&cap->thread, NULL, monitor_pipes, cap) < 0)
 		warning("Failed to create thread");
-	else
-		cap->kill_thread = 1;
+	else {
+		cap->kill_thread = TRUE;
+		cap->load_file = TRUE;
+	}
 	gdk_threads_enter();
 
 	return;
@@ -710,6 +726,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	memset(&cap, 0, sizeof(cap));
 
+	cap.info = info;
 	plugins = tracecmd_local_plugins(tracing);
 
 	/* Skip latency plugins */

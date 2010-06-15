@@ -54,4 +54,6 @@ struct shark_info {
 #define offset_of(type, field)		(long)(&((type *)0)->field)
 #define container_of(p, type, field)	(type *)((long)p - offset_of(type, field))
 
+int kernelshark_load_file(struct shark_info *info, const char *file);
+
 #endif /* _KERNEL_SHARK_H */

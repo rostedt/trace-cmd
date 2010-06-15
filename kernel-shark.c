@@ -282,26 +282,42 @@ static void sync_event_filters(struct shark_info *info)
 	gtk_widget_hide(info->list_adv_events_menu);
 }
 
+/**
+ * kernelshark_load_file - load a new file into kernelshark
+ * @info: the kernelshark descriptor
+ * @file: the file to load
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int kernelshark_load_file(struct shark_info *info, const char *file)
+{
+	struct tracecmd_input *handle;
+
+	handle = tracecmd_open(file);
+	if (!handle)
+		return -1;
+
+	tracecmd_close(info->handle);
+	info->handle = handle;
+	trace_graph_load_handle(info->ginfo, handle);
+	trace_view_reload(info->treeview, handle, info->spin);
+	update_title(info->window, file);
+	return 0;
+}
+
 static void
 /* Callback for the clicked signal of the Load button */
 load_clicked (gpointer data)
 {
 	struct shark_info *info = data;
-	struct tracecmd_input *handle;
 	gchar *filename;
 
 	filename = trace_get_file_dialog("Load File", NULL, FALSE);
 	if (!filename)
 		return;
 
-	handle = tracecmd_open(filename);
-	if (handle) {
-		tracecmd_close(info->handle);
-		info->handle = handle;
-		trace_graph_load_handle(info->ginfo, handle);
-		trace_view_reload(info->treeview, handle, info->spin);
-		update_title(info->window, filename);
-	}
+	kernelshark_load_file(info, filename);
+
 	g_free(filename);
 }
 
