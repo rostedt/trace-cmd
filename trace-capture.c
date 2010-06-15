@@ -912,6 +912,7 @@ static void load_settings_clicked(GtkWidget *widget, gpointer data)
 	if (!handle) {
 		warning("Could not open %s", filename);
 		g_free(filename);
+		return;
 	}
 
 	g_free(filename);
