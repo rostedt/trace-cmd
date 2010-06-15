@@ -241,7 +241,7 @@ static char *append_file(const char *dir, const char *name)
 	return file;
 }
 
-static char **add_list(char **list, const char *name, int len)
+char **tracecmd_add_list(char **list, const char *name, int len)
 {
 	if (!list)
 		list = malloc_or_die(sizeof(*list) * 2);
@@ -258,6 +258,19 @@ static char **add_list(char **list, const char *name, int len)
 	list[len + 1] = NULL;
 
 	return list;
+}
+
+void tracecmd_free_list(char **list)
+{
+	int i;
+
+	if (!list)
+		return;
+
+	for (i = 0; list[i]; i++)
+		free(list[i]);
+
+	free(list);
 }
 
 /**
@@ -317,7 +330,7 @@ char **tracecmd_event_systems(const char *tracing_dir)
 
 		ret = stat(enable, &st);
 		if (ret >= 0)
-			systems = add_list(systems, name, len++);
+			systems = tracecmd_add_list(systems, name, len++);
 
 		free(enable);
 		free(sys);
@@ -397,7 +410,7 @@ char **tracecmd_system_events(const char *tracing_dir, const char *system)
 
 		ret = stat(enable, &st);
 		if (ret >= 0)
-			events = add_list(events, name, len++);
+			events = tracecmd_add_list(events, name, len++);
 
 		free(enable);
 		free(event);
@@ -645,7 +658,7 @@ char **tracecmd_local_plugins(const char *tracing_dir)
 		    strcmp(plugin, "none") == 0)
 			continue;
 
-		plugins = add_list(plugins, plugin, len++);
+		plugins = tracecmd_add_list(plugins, plugin, len++);
 	}
 	free(buf);
 

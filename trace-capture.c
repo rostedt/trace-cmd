@@ -40,6 +40,7 @@
 #include "trace-cmd.h"
 #include "trace-gui.h"
 #include "kernel-shark.h"
+#include "version.h"
 
 #define default_output_file "trace.dat"
 
@@ -77,17 +78,10 @@ static int is_just_ws(const char *str)
 
 static void ks_clear_capture_events(struct shark_info *info)
 {
-	int i;
-
 	info->cap_all_events = FALSE;
 
-	if (info->cap_systems) {
-		for (i = 0; info->cap_systems[i]; i++)
-			free(info->cap_systems[i]);
-
-		free(info->cap_systems);
-		info->cap_systems = NULL;
-	}
+	tracecmd_free_list(info->cap_systems);
+	info->cap_systems = NULL;
 
 	free(info->cap_events);
 	info->cap_events = NULL;
@@ -158,16 +152,6 @@ static char *get_tracing_dir(void)
 
 	tracing_dir = tracecmd_find_tracing_dir();
 	return tracing_dir;
-}
-
-static void free_list(char **list)
-{
-	int i;
-
-	for (i = 0; list[i]; i++)
-		free(list[i]);
-
-	free(list);
 }
 
 static int is_latency(char *plugin)
@@ -760,6 +744,246 @@ static void execute_button_clicked(GtkWidget *widget, gpointer data)
 	end_stop_dialog(cap);
 }
 
+static int load_events(struct trace_capture *cap,
+			   struct tracecmd_xml_handle *handle,
+			   struct tracecmd_xml_system_node *node)
+{
+	struct shark_info *info = cap->info;
+	struct tracecmd_xml_system_node *event_node;
+	struct event_format *event;
+	struct pevent *pevent = cap->pevent;
+	const char *name;
+	int *events = NULL;
+	int event_len = 0;
+	const char *system;
+	const char *event_name;
+
+	for (node = tracecmd_xml_node_child(node); node;
+	     node = tracecmd_xml_node_next(node)) {
+		name = tracecmd_xml_node_type(node);
+
+		if (strcmp(name, "Event") != 0)
+			continue;
+
+		event_node = tracecmd_xml_node_child(node);
+		if (!event_node)
+			continue;
+
+		name = tracecmd_xml_node_type(event_node);
+		if (strcmp(name, "System") != 0)
+			continue;
+		system = tracecmd_xml_node_value(handle, event_node);
+
+		event_node = tracecmd_xml_node_next(event_node);
+		if (!event_node)
+			continue;
+
+		name = tracecmd_xml_node_type(event_node);
+		if (strcmp(name, "Name") != 0)
+			continue;
+		event_name = tracecmd_xml_node_value(handle, event_node);
+
+		event = pevent_find_event_by_name(pevent, system, event_name);
+
+		if (!event)
+			continue;
+
+		if (!events)
+			events = malloc_or_die(sizeof(*events) * 2);
+		else
+			events = realloc(events, sizeof(*events) * (event_len + 2));
+		events[event_len++] = event->id;
+		events[event_len] = -1;
+	}
+
+	info->cap_events = events;
+	return 0;
+}
+
+static int load_cap_events(struct trace_capture *cap,
+			   struct tracecmd_xml_handle *handle,
+			   struct tracecmd_xml_system_node *node)
+{
+	struct shark_info *info = cap->info;
+	const char *name;
+	char **systems = NULL;
+	int sys_len = 0;
+
+	ks_clear_capture_events(info);
+
+	for (node = tracecmd_xml_node_child(node); node;
+	     node = tracecmd_xml_node_next(node)) {
+
+		name = tracecmd_xml_node_type(node);
+
+		if (strcmp(name, "CaptureType") == 0) {
+			name = tracecmd_xml_node_value(handle, node);
+			if (strcmp(name, "all events") == 0) {
+				info->cap_all_events = TRUE;
+				break;
+			}
+			continue;
+
+		} else if (strcmp(name, "System") == 0) {
+			name = tracecmd_xml_node_value(handle, node);
+			systems = tracecmd_add_list(systems, name, sys_len++);
+
+		} else if (strcmp(name, "Events") == 0)
+			load_events(cap, handle, node);
+	}
+
+	info->cap_systems = systems;
+
+	return 0;
+}
+
+static void load_settings_clicked(GtkWidget *widget, gpointer data)
+{
+	struct trace_capture *cap = data;
+	struct shark_info *info = cap->info;
+	struct tracecmd_xml_system_node *syschild;
+	struct tracecmd_xml_handle *handle;
+	struct tracecmd_xml_system *system;
+	const char *plugin;
+	const char *name;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Load Filters", NULL, FALSE);
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_open(filename);
+	if (!handle) {
+		warning("Could not open %s", filename);
+		g_free(filename);
+	}
+
+	g_free(filename);
+
+	system = tracecmd_xml_find_system(handle, "CaptureSettings");
+	if (!system)
+		goto out;
+
+	syschild = tracecmd_xml_system_node(system);
+	if (!syschild)
+		goto out_free_sys;
+
+	g_free(info->cap_plugin);
+	info->cap_plugin = NULL;
+
+	do {
+		name = tracecmd_xml_node_type(syschild);
+		if (strcmp(name, "Events") == 0)
+			load_cap_events(cap, handle, syschild);
+
+		else if (strcmp(name, "Plugin") == 0) {
+			plugin = tracecmd_xml_node_value(handle, syschild);
+			info->cap_plugin = g_strdup(plugin);
+
+		} else if (strcmp(name, "Command") == 0) {
+			name = tracecmd_xml_node_value(handle, syschild);
+			gtk_entry_set_text(GTK_ENTRY(cap->command_entry), name);
+
+		} else if (strcmp(name, "File") == 0) {
+			name = tracecmd_xml_node_value(handle, syschild);
+			gtk_entry_set_text(GTK_ENTRY(cap->file_entry), name);
+		}
+
+		syschild = tracecmd_xml_node_next(syschild);
+	} while (syschild);
+
+	set_plugin(cap);
+
+ out_free_sys:
+	tracecmd_xml_free_system(system);
+
+ out:
+	tracecmd_xml_close(handle);
+}
+
+static void save_events(struct trace_capture *cap,
+			struct tracecmd_xml_handle *handle)
+{
+	struct pevent *pevent = cap->pevent;
+	struct event_format *event;
+	char **systems = cap->info->cap_systems;
+	int *events = cap->info->cap_events;
+	int i;
+
+	tracecmd_xml_write_element(handle, "CaptureType", "Events");
+
+	for (i = 0; systems && systems[i]; i++)
+		tracecmd_xml_write_element(handle, "System", systems[i]);
+
+	if (!events || events[0] < 0)
+		return;
+
+	tracecmd_xml_start_sub_system(handle, "Events");
+	for (i = 0; events[i] > 0; i++) {
+		event = pevent_find_event(pevent, events[i]);
+		if (event) {
+			tracecmd_xml_start_sub_system(handle, "Event");
+			tracecmd_xml_write_element(handle, "System", event->system);
+			tracecmd_xml_write_element(handle, "Name", event->name);
+			tracecmd_xml_end_sub_system(handle);
+		}
+	}
+
+	tracecmd_xml_end_sub_system(handle);
+}
+
+static void save_settings_clicked(GtkWidget *widget, gpointer data)
+{
+	struct trace_capture *cap = data;
+	struct shark_info *info = cap->info;
+	struct tracecmd_xml_handle *handle;
+	gchar *filename;
+	const char *file;
+	const char *command;
+
+	filename = trace_get_file_dialog("Save Settings", "Save", TRUE);
+	if (!filename)
+		return;
+
+	handle = tracecmd_xml_create(filename, VERSION_STRING);
+	if (!handle) {
+		warning("Could not create %s", filename);
+		g_free(filename);
+		return;
+	}
+
+	g_free(filename);
+
+	tracecmd_xml_start_system(handle, "CaptureSettings");
+
+	tracecmd_xml_start_sub_system(handle, "Events");
+
+	if (info->cap_all_events)
+		tracecmd_xml_write_element(handle, "CaptureType", "all events");
+	else if ((info->cap_systems && info->cap_systems[0]) ||
+		 (info->cap_events && info->cap_events[0] >= 0)) {
+		save_events(cap, handle);
+	}
+
+	tracecmd_xml_end_sub_system(handle);
+
+	update_plugin(cap);
+	if (info->cap_plugin)
+		tracecmd_xml_write_element(handle, "Plugin", info->cap_plugin);
+
+	command = gtk_entry_get_text(GTK_ENTRY(cap->command_entry));
+	if (command && strlen(command) && !is_just_ws(command))
+		tracecmd_xml_write_element(handle, "Command", command);
+
+	file = gtk_entry_get_text(GTK_ENTRY(cap->file_entry));
+	if (file && strlen(file) && !is_just_ws(file))
+		tracecmd_xml_write_element(handle, "File", file);
+
+	tracecmd_xml_end_system(handle);
+
+	tracecmd_xml_close(handle);
+}
+
 static GtkTreeModel *create_plugin_combo_model(gpointer data)
 {
 	char **plugins = data;
@@ -807,7 +1031,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	/* Skip latency plugins */
 	nr_plugins = trim_plugins(plugins);
 	if (!nr_plugins && plugins) {
-		free_list(plugins);
+		tracecmd_free_list(plugins);
 		plugins = NULL;
 	}
 
@@ -899,6 +1123,24 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 			  G_CALLBACK (execute_button_clicked),
 			  (gpointer)&cap);
 
+
+	button = gtk_button_new_with_label("Load Settings");
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), button, TRUE, TRUE, 0);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (load_settings_clicked),
+			  (gpointer)&cap);
+
+
+	button = gtk_button_new_with_label("Save Settings");
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), button, TRUE, TRUE, 0);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (save_settings_clicked),
+			  (gpointer)&cap);
+
 	gtk_widget_show(dialog);
 	gtk_dialog_run(GTK_DIALOG(dialog));
 
@@ -926,7 +1168,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 		pevent_free(pevent);
 
 	if (plugins)
-		free_list(plugins);
+		tracecmd_free_list(plugins);
 }
 
 void tracecmd_capture_clicked(gpointer data)
