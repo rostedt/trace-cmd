@@ -274,6 +274,51 @@ static int calculate_trace_cmd_words(struct trace_capture *cap)
 	return words;
 }
 
+static char *find_tracecmd(void)
+{
+	struct stat st;
+	char *path = getenv("PATH");
+	char *saveptr;
+	char *str;
+	char *loc;
+	char *tracecmd = NULL;
+	int len;
+	int ret;
+
+	if (!path)
+		return NULL;
+
+	path = strdup(path);
+
+	for (str = path; ; str = NULL) {
+		loc = strtok_r(str, ":", &saveptr);
+		if (!loc)
+			break;
+		len = strlen(loc) + 11;
+		tracecmd = malloc_or_die(len);
+		snprintf(tracecmd, len, "%s/trace-cmd", loc);
+		ret = stat(tracecmd, &st);
+
+		if (ret >= 0 && S_ISREG(st.st_mode)) {
+			/* Do we have execute permissions */
+			if (st.st_uid == geteuid() &&
+			    st.st_mode & S_IXUSR)
+				break;
+			if (st.st_gid == getegid() &&
+			    st.st_mode & S_IXGRP)
+				break;
+			if (st.st_mode & S_IXOTH)
+				break;
+		}
+
+		free(tracecmd);
+		tracecmd = NULL;
+	}
+	free(path);
+
+	return tracecmd;
+}
+
 static int add_trace_cmd_words(struct trace_capture *cap, char **args)
 {
 	struct event_format *event;
@@ -286,7 +331,10 @@ static int add_trace_cmd_words(struct trace_capture *cap, char **args)
 
 	output = gtk_entry_get_text(GTK_ENTRY(cap->file_entry));
 
-	args[words++] = strdup("trace-cmd");
+	args[words++] = find_tracecmd();
+	if (!args[0])
+		return -1;
+
 	args[words++] = strdup("record");
 	args[words++] = strdup("-o");
 	args[words++] = strdup(output);
@@ -706,6 +754,14 @@ static void execute_button_clicked(GtkWidget *widget, gpointer data)
 	GtkWidget *dialog;
 	GtkWidget *label;
 	const char *filename;
+	char *tracecmd;
+
+	tracecmd = find_tracecmd();
+	if (!tracecmd) {
+		warning("trace-cmd not found in path");
+		return;
+	}
+	free(tracecmd);
 
 	filename = gtk_entry_get_text(GTK_ENTRY(cap->file_entry));
 
