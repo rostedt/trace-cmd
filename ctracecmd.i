@@ -163,6 +163,7 @@ static int python_callback(struct trace_seq *s,
 
 
 %ignore trace_seq_vprintf;
+%ignore vpr_stat;
 
 /* SWIG can't grok these, define them to nothing */
 #define __trace
