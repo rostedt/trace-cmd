@@ -207,6 +207,8 @@ static void free_info(struct shark_info *info)
 	filter_task_hash_free(info->list_task_filter);
 	filter_task_hash_free(info->list_hide_tasks);
 
+	kernel_shark_clear_capture(info);
+
 	free(info->ginfo);
 	free(info);
 }

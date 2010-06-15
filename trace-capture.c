@@ -43,6 +43,8 @@
 
 #define default_output_file "trace.dat"
 
+#define PLUGIN_NONE "NONE"
+
 struct trace_capture {
 	struct pevent		*pevent;
 	struct shark_info	*info;
@@ -55,13 +57,9 @@ struct trace_capture {
 	GtkWidget		*plugin_combo;
 	GtkWidget		*stop_dialog;
 	pthread_t		thread;
-	gboolean		all_events;
 	gboolean		kill_thread;
 	gboolean		capture_done;
 	gboolean		load_file;
-	gchar			**systems;
-	int			*events;
-	gchar			*plugin;
 	int			command_input_fd;
 	int			command_output_fd;
 	int			command_pid;
@@ -77,25 +75,41 @@ static int is_just_ws(const char *str)
 	return !str[i];
 }
 
-static void clear_capture_events(struct trace_capture *cap)
+static void ks_clear_capture_events(struct shark_info *info)
 {
 	int i;
 
-	cap->all_events = FALSE;
+	info->cap_all_events = FALSE;
 
-	if (cap->systems) {
-		for (i = 0; cap->systems[i]; i++)
-			free(cap->systems[i]);
+	if (info->cap_systems) {
+		for (i = 0; info->cap_systems[i]; i++)
+			free(info->cap_systems[i]);
 
-		free(cap->systems);
-		cap->systems = NULL;
+		free(info->cap_systems);
+		info->cap_systems = NULL;
 	}
 
-	free(cap->events);
-	cap->events = NULL;
+	free(info->cap_events);
+	info->cap_events = NULL;
 }
 
-void end_capture(struct trace_capture *cap)
+static void clear_capture_events(struct trace_capture *cap)
+{
+	ks_clear_capture_events(cap->info);
+}
+
+void kernel_shark_clear_capture(struct shark_info *info)
+{
+	ks_clear_capture_events(info);
+
+	g_free(info->cap_plugin);
+	info->cap_plugin = NULL;
+
+	free(info->cap_file);
+	info->cap_file = NULL;
+}
+
+static void end_capture(struct trace_capture *cap)
 {
 	const char *filename;
 	int pid;
@@ -257,20 +271,20 @@ static int calculate_trace_cmd_words(struct trace_capture *cap)
 	int words = 4;		/* trace-cmd record -o file */
 	int i;
 
-	if (cap->all_events)
+	if (cap->info->cap_all_events)
 		words += 2;
 	else {
-		if (cap->systems) {
-			for (i = 0; cap->systems[i]; i++)
+		if (cap->info->cap_systems) {
+			for (i = 0; cap->info->cap_systems[i]; i++)
 				words += 2;
 		}
 
-		if (cap->events)
-			for (i = 0; cap->events[i] >= 0; i++)
+		if (cap->info->cap_events)
+			for (i = 0; cap->info->cap_events[i] >= 0; i++)
 				words += 2;
 	}
 
-	if (cap->plugin)
+	if (cap->info->cap_plugin)
 		words += 2;
 
 	return words;
@@ -279,9 +293,9 @@ static int calculate_trace_cmd_words(struct trace_capture *cap)
 static int add_trace_cmd_words(struct trace_capture *cap, char **args)
 {
 	struct event_format *event;
-	char **systems = cap->systems;
+	char **systems = cap->info->cap_systems;
 	const gchar *output;
-	int *events = cap->events;
+	int *events = cap->info->cap_events;
 	int words = 0;
 	int len;
 	int i;
@@ -293,12 +307,12 @@ static int add_trace_cmd_words(struct trace_capture *cap, char **args)
 	args[words++] = strdup("-o");
 	args[words++] = strdup(output);
 
-	if (cap->plugin) {
+	if (cap->info->cap_plugin) {
 		args[words++] = strdup("-p");
-		args[words++] = strdup(cap->plugin);
+		args[words++] = strdup(cap->info->cap_plugin);
 	}
 
-	if (cap->all_events) {
+	if (cap->info->cap_all_events) {
 		args[words++] = strdup("-e");
 		args[words++] = strdup("all");
 	} else {
@@ -346,6 +360,67 @@ static gchar *get_combo_text(GtkComboBox *combo)
 	return text;
 }
 
+static void update_plugin(struct trace_capture *cap)
+{
+	cap->info->cap_plugin = get_combo_text(GTK_COMBO_BOX(cap->plugin_combo));
+	if (strcmp(cap->info->cap_plugin, PLUGIN_NONE) == 0) {
+		g_free(cap->info->cap_plugin);
+		cap->info->cap_plugin = NULL;
+	}
+
+}
+
+static void set_plugin(struct trace_capture *cap)
+{
+	GtkComboBox *combo = GTK_COMBO_BOX(cap->plugin_combo);
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gchar *text;
+	const gchar *plugin = cap->info->cap_plugin;
+	gboolean ret = TRUE;
+
+	if (!plugin)
+		plugin = PLUGIN_NONE;
+
+	model = gtk_combo_box_get_model(combo);
+	if (!model)
+		return;
+
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return;
+
+	do {
+		gtk_tree_model_get(model, &iter,
+				   0, &text,
+				   -1);
+		if (strcmp(text, plugin) == 0) {
+			g_free(text);
+			break;
+		}
+
+		g_free(text);
+
+		ret = gtk_tree_model_iter_next(model, &iter);
+	} while (ret);
+
+	if (ret) {
+		gtk_combo_box_set_active_iter(GTK_COMBO_BOX(combo),
+					      &iter);
+		return;
+	}
+
+	/* Not found? */
+	g_free(cap->info->cap_plugin);
+	cap->info->cap_plugin = NULL;
+
+	/* set to NONE */
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return;
+
+	gtk_combo_box_set_active_iter(GTK_COMBO_BOX(combo),
+				      &iter);
+}
+
 static void execute_command(struct trace_capture *cap)
 {
 	const gchar *ccommand;
@@ -356,11 +431,7 @@ static void execute_command(struct trace_capture *cap)
 	int tc_words;
 	int i;
 
-	cap->plugin = get_combo_text(GTK_COMBO_BOX(cap->plugin_combo));
-	if (strcmp(cap->plugin, "NONE") == 0) {
-		g_free(cap->plugin);
-		cap->plugin = NULL;
-	}
+	update_plugin(cap);
 
 	ccommand = gtk_entry_get_text(GTK_ENTRY(cap->command_entry));
 	if (!ccommand || !strlen(ccommand) || is_just_ws(ccommand)) {
@@ -418,7 +489,7 @@ static void execute_command(struct trace_capture *cap)
 	for (i = 0; args[i]; i++)
 		free(args[i]);
 	free(args);
-	g_free(cap->plugin);
+	g_free(cap->info->cap_plugin);
 }
 
 static gint
@@ -595,26 +666,28 @@ static void event_filter_callback(gboolean accept,
 	clear_capture_events(cap);
 
 	if (all_events) {
-		cap->all_events = TRUE;
+		cap->info->cap_all_events = TRUE;
 		return;
 	}
 
 	if (systems) {
 		for (nr_sys = 0; systems[nr_sys]; nr_sys++)
 			;
-		cap->systems = malloc_or_die(sizeof(*cap->systems) * (nr_sys + 1));
+		cap->info->cap_systems = malloc_or_die(sizeof(*cap->info->cap_systems) *
+						       (nr_sys + 1));
 		for (i = 0; i < nr_sys; i++)
-			cap->systems[i] = strdup(systems[i]);
-		cap->systems[i] = NULL;
+			cap->info->cap_systems[i] = strdup(systems[i]);
+		cap->info->cap_systems[i] = NULL;
 	}
 
 	if (events) {
 		for (nr_events = 0; events[nr_events] >= 0; nr_events++)
 			;
-		cap->events = malloc_or_die(sizeof(*cap->events) * (nr_events + 1));
+		cap->info->cap_events = malloc_or_die(sizeof(*cap->info->cap_events) *
+						      (nr_events + 1));
 		for (i = 0; i < nr_events; i++)
-			cap->events[i] = events[i];
-		cap->events[i] = -1;
+			cap->info->cap_events[i] = events[i];
+		cap->info->cap_events[i] = -1;
 	}
 }
 
@@ -623,8 +696,8 @@ static void event_button_clicked(GtkWidget *widget, gpointer data)
 	struct trace_capture *cap = data;
 	struct pevent *pevent = cap->pevent;
 
-	trace_filter_pevent_dialog(pevent, cap->all_events,
-				   cap->systems, cap->events,
+	trace_filter_pevent_dialog(pevent, cap->info->cap_all_events,
+				   cap->info->cap_systems, cap->info->cap_events,
 				   event_filter_callback, cap);
 }
 
@@ -698,7 +771,7 @@ static GtkTreeModel *create_plugin_combo_model(gpointer data)
 
 	gtk_list_store_append(list, &iter);
 	gtk_list_store_set(list, &iter,
-			   0, "NONE",
+			   0, PLUGIN_NONE,
 			   -1);
 
 	for (i = 0; plugins && plugins[i]; i++) {
@@ -723,6 +796,8 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	char **plugins;
 	int nr_plugins;
 	struct trace_capture cap;
+	const gchar *file;
+	const char *command;
 
 	memset(&cap, 0, sizeof(cap));
 
@@ -776,6 +851,9 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	combo = trace_create_combo_box(hbox, "Plugin: ", create_plugin_combo_model, plugins);
 	cap.plugin_combo = combo;
 
+	if (cap.info->cap_plugin)
+		set_plugin(&cap);
+
 	label = gtk_label_new("Command:");
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
 	gtk_widget_show(label);
@@ -785,6 +863,9 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_widget_show(entry);
 
 	cap.command_entry = entry;
+
+	if (cap.info->cap_command)
+		gtk_entry_set_text(GTK_ENTRY(entry), cap.info->cap_command);
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
@@ -802,7 +883,12 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, 0);
 	gtk_widget_show(entry);
 
-	gtk_entry_set_text(GTK_ENTRY(entry), default_output_file);
+	if (cap.info->cap_file)
+		file = cap.info->cap_file;
+	else
+		file = default_output_file;
+
+	gtk_entry_set_text(GTK_ENTRY(entry), file);
 	cap.file_entry = entry;
 
 	button = gtk_button_new_with_label("Execute");
@@ -816,6 +902,19 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_widget_show(dialog);
 	gtk_dialog_run(GTK_DIALOG(dialog));
 
+	/* save the plugin and file to reuse if we come back */
+	update_plugin(&cap);
+
+	free(info->cap_file);
+	cap.info->cap_file = strdup(gtk_entry_get_text(GTK_ENTRY(cap.file_entry)));
+
+	free(info->cap_command);
+	command = gtk_entry_get_text(GTK_ENTRY(cap.command_entry));
+	if (command && strlen(command) && !is_just_ws(command))
+		cap.info->cap_command = strdup(command);
+	else
+		cap.info->cap_command = NULL;
+
 	gtk_widget_destroy(dialog);
 
 	end_capture(&cap);
@@ -828,8 +927,6 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	if (plugins)
 		free_list(plugins);
-
-	clear_capture_events(&cap);
 }
 
 void tracecmd_capture_clicked(gpointer data)

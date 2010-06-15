@@ -49,11 +49,20 @@ struct shark_info {
 	gboolean			sync_event_filters;
 	struct filter_task		*list_task_filter;
 	struct filter_task		*list_hide_tasks;
+
+	/* Save capture state. */
+	gboolean			cap_all_events;
+	gchar				**cap_systems;
+	int				*cap_events;
+	gchar				*cap_plugin;
+	gchar				*cap_command;
+	gchar				*cap_file;
 };
 
 #define offset_of(type, field)		(long)(&((type *)0)->field)
 #define container_of(p, type, field)	(type *)((long)p - offset_of(type, field))
 
 int kernelshark_load_file(struct shark_info *info, const char *file);
+void kernel_shark_clear_capture(struct shark_info *info);
 
 #endif /* _KERNEL_SHARK_H */
