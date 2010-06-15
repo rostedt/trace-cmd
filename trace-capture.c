@@ -45,6 +45,7 @@
 
 struct trace_capture {
 	struct pevent		*pevent;
+	GtkWidget		*main_dialog;
 	GtkWidget		*command_entry;
 	GtkWidget		*file_entry;
 	GtkWidget		*output_text;
@@ -617,7 +618,7 @@ file_clicked (GtkWidget *widget, gpointer data)
 	struct trace_capture *cap = data;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Trace File", "Save", TRUE);
+	filename = trace_get_file_dialog("Trace File", "Save", FALSE);
 	if (!filename)
 		return;
 
@@ -627,8 +628,22 @@ file_clicked (GtkWidget *widget, gpointer data)
 static void execute_button_clicked(GtkWidget *widget, gpointer data)
 {
 	struct trace_capture *cap = data;
+	struct stat st;
+	GtkResponseType ret;
 	GtkWidget *dialog;
 	GtkWidget *label;
+	const char *filename;
+
+	filename = gtk_entry_get_text(GTK_ENTRY(cap->file_entry));
+
+	if (stat(filename, &st) >= 0) {
+		ret = trace_dialog(GTK_WINDOW(cap->main_dialog), TRACE_GUI_ASK,
+				   "The file '%s' already exists.\n"
+				   "Are you sure you want to replace it",
+				   filename);
+		if (ret == GTK_RESPONSE_NO)
+			return;
+	}
 
 	display_command(cap);
 
@@ -723,6 +738,8 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 					     "Done",
 					     GTK_RESPONSE_ACCEPT,
 					     NULL);
+
+	cap.main_dialog = dialog;
 
 	if (pevent) {
 		button = gtk_button_new_with_label("Select Events");
