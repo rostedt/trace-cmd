@@ -141,6 +141,7 @@ static int cpu_plot_display_last_event(struct graph_info *ginfo,
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 
+again:
 	/* find the non filtered event */
 	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
 		if (!filter_record(ginfo, record, &pid, &sched_pid, &is_sched_switch) &&
@@ -159,6 +160,10 @@ static int cpu_plot_display_last_event(struct graph_info *ginfo,
 	/* Must have the record we want */
 	type = pevent_data_type(ginfo->pevent, record);
 	event = pevent_data_event_from_type(ginfo->pevent, type);
+	/* Unlikely that the event was not saved */
+	if (!event)
+		goto again;
+
 	if (is_sched_switch)
 		pid = sched_pid;
 	trace_seq_printf(s, "%s-%d\n%s\n",
