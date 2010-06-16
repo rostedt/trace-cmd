@@ -759,6 +759,28 @@ static void update_event(const char *name, const char *filter,
 
 }
 
+/*
+ * The debugfs file tracing_enabled needs to be deprecated.
+ * But just in case anyone fiddled with it. If it exists,
+ * make sure it is one.
+ * No error checking needed here.
+ */
+static void check_tracing_enabled(void)
+{
+	static int fd = -1;
+	char *path;
+
+	if (fd < 0) {
+		path = get_tracing_file("tracing_enabled");
+		fd = open(path, O_WRONLY);
+		put_tracing_file(path);
+
+		if (fd < 0)
+			return;
+	}
+	write(fd, "1", 1);
+}
+
 static void write_tracing_on(int on)
 {
 	static int fd = -1;
@@ -784,6 +806,8 @@ static void write_tracing_on(int on)
 
 static void enable_tracing(void)
 {
+	check_tracing_enabled();
+
 	write_tracing_on(1);
 
 	if (latency)
