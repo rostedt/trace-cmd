@@ -127,8 +127,10 @@ void warning(const char *fmt, ...)
 
 	g_string_append(str, "\n");
 
-	if (errno)
+	if (errno) {
+		g_string_prepend(str, "\n");
 		g_string_prepend(str, strerror(errno));
+	}
 
 	errno = 0;
 
