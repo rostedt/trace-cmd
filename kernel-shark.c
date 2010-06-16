@@ -65,6 +65,8 @@ void usage(char *prog)
 	printf("  -i	input_file, default is %s\n", default_input_file);
 }
 
+static gboolean display_warnings;
+
 /*
  * trace_sync_select_menu - helper function to the syncing of list and graph filters
  *
@@ -284,6 +286,12 @@ static void sync_event_filters(struct shark_info *info)
 	gtk_widget_hide(info->list_adv_events_menu);
 }
 
+static void alt_warn(const char *fmt, va_list ap)
+{
+	display_warnings = TRUE;
+	vpr_stat(fmt, ap);
+}
+
 /**
  * kernelshark_load_file - load a new file into kernelshark
  * @info: the kernelshark descriptor
@@ -295,7 +303,20 @@ int kernelshark_load_file(struct shark_info *info, const char *file)
 {
 	struct tracecmd_input *handle;
 
+	/*
+	 * Have warnings go into the status bar. If we had any
+	 * warnings, pop up a message at the end.
+	 */
+	display_warnings = 0;
+	pr_stat("\nLoading file %s", file);
+	trace_dialog_register_alt_warning(alt_warn);
 	handle = tracecmd_open(file);
+	trace_dialog_register_alt_warning(NULL);
+	if (display_warnings) {
+		errno = 0;
+		warning("Warnings occurred on loading.\n"
+			"See display status for details");
+	}
 	if (!handle)
 		return -1;
 
