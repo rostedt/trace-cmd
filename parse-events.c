@@ -3066,7 +3066,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 				die("field %s not found", arg->field.name);
 		}
 		/* Zero sized fields, mean the rest of the data */
-		len = arg->field.field->size ? : size;
+		len = arg->field.field->size ? : size - arg->field.field->offset;
 
 		/*
 		 * Some events pass in pointers. If this is not an array
