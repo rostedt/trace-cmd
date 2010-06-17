@@ -29,35 +29,14 @@ static struct event_format *fgraph_ret_event;
 static int fgraph_ret_id;
 static int long_size;
 
-static int get_field_val(struct trace_seq *s, void *data,
-			 struct event_format *event, const char *name,
-			 unsigned long long *val)
-{
-	struct format_field *field;
-
-	field = pevent_find_any_field(event, name);
-	if (!field) {
-		trace_seq_printf(s, "<CANT FIND FIELD %s>", name);
-		return -1;
-	}
-
-	if (pevent_read_number_field(field, data, val)) {
-		trace_seq_printf(s, " %s=INVALID", name);
-		return -1;
-	}
-
-	return 0;
-}
-
 static int function_handler(struct trace_seq *s, struct record *record,
 			    struct event_format *event, void *context)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long function;
 	const char *func;
-	void *data = record->data;
 
-	if (get_field_val(s, data, event, "ip", &function))
+	if (pevent_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
 	func = pevent_find_function(pevent, function);
@@ -66,7 +45,7 @@ static int function_handler(struct trace_seq *s, struct record *record,
 	else
 		trace_seq_printf(s, "0x%llx", function);
 
-	if (get_field_val(s, data, event, "parent_ip", &function))
+	if (pevent_get_field_val(s, event, "parent_ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
 	func = pevent_find_function(pevent, function);
@@ -89,20 +68,20 @@ get_return_for_leaf(struct trace_seq *s, int cpu, int cur_pid,
 	unsigned long long pid;
 
 	/* Searching a common field, can use any event */
-	if (get_field_val(s, next->data, fgraph_ret_event, "common_type", &type))
+	if (pevent_get_common_field_val(s, fgraph_ret_event, "common_type", next, &type, 1))
 		return NULL;
 
 	if (type != fgraph_ret_id)
 		return NULL;
 
-	if (get_field_val(s, next->data, fgraph_ret_event, "common_pid", &pid))
+	if (pevent_get_common_field_val(s, fgraph_ret_event, "common_pid", next, &pid, 1))
 		return NULL;
 
 	if (cur_pid != pid)
 		return NULL;
 
 	/* We aleady know this is a funcgraph_ret_event */
-	if (get_field_val(s, next->data, fgraph_ret_event, "func", &val))
+	if (pevent_get_field_val(s, fgraph_ret_event, "func", next, &val, 1))
 		return NULL;
 
 	if (cur_func != val)
@@ -166,7 +145,8 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 
 static int
 print_graph_entry_leaf(struct trace_seq *s,
-		       struct event_format *event, void *data, struct record *ret_rec)
+		       struct event_format *event,
+		       struct record *record, struct record *ret_rec)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long rettime, calltime;
@@ -176,10 +156,10 @@ print_graph_entry_leaf(struct trace_seq *s,
 	int i;
 
 
-	if (get_field_val(s, ret_rec->data, fgraph_ret_event, "rettime", &rettime))
+	if (pevent_get_field_val(s, fgraph_ret_event, "rettime", ret_rec, &rettime, 1))
 		return trace_seq_putc(s, '!');
 
-	if (get_field_val(s, ret_rec->data, fgraph_ret_event, "calltime", &calltime))
+	if (pevent_get_field_val(s, fgraph_ret_event, "calltime", ret_rec, &calltime, 1))
 		return trace_seq_putc(s, '!');
 
 	duration = rettime - calltime;
@@ -190,14 +170,14 @@ print_graph_entry_leaf(struct trace_seq *s,
 	/* Duration */
 	print_graph_duration(s, duration);
 
-	if (get_field_val(s, data, event, "depth", &depth))
+	if (pevent_get_field_val(s, event, "depth", record, &depth, 1))
 		return trace_seq_putc(s, '!');
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
 		trace_seq_putc(s, ' ');
 
-	if (get_field_val(s, data, event, "func", &val))
+	if (pevent_get_field_val(s, event, "func", record, &val, 1))
 		return trace_seq_putc(s, '!');
 	func = pevent_find_function(pevent, val);
 
@@ -208,7 +188,8 @@ print_graph_entry_leaf(struct trace_seq *s,
 }
 
 static int print_graph_nested(struct trace_seq *s,
-			      struct event_format *event, void *data)
+			      struct event_format *event,
+			      struct record *record)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long depth;
@@ -222,14 +203,14 @@ static int print_graph_nested(struct trace_seq *s,
 	/* No time */
 	trace_seq_puts(s, "           |  ");
 
-	if (get_field_val(s, data, event, "depth", &depth))
+	if (pevent_get_field_val(s, event, "depth", record, &depth, 1))
 		return trace_seq_putc(s, '!');
 
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
 		trace_seq_putc(s, ' ');
 
-	if (get_field_val(s, data, event, "func", &val))
+	if (pevent_get_field_val(s, event, "func", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	func = pevent_find_function(pevent, val);
@@ -246,13 +227,12 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 {
 	struct record *rec;
 	unsigned long long val, pid;
-	void *data = record->data;
 	int cpu = record->cpu;
 
-	if (get_field_val(s, data, event, "common_pid", &pid))
+	if (pevent_get_common_field_val(s, event, "common_pid", record, &pid, 1))
 		return trace_seq_putc(s, '!');
 
-	if (get_field_val(s, data, event, "func", &val))
+	if (pevent_get_field_val(s, event, "func", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
@@ -264,10 +244,10 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 		 * If this is a leaf function, then get_return_for_leaf
 		 * returns the return of the function
 		 */
-		print_graph_entry_leaf(s, event, data, rec);
+		print_graph_entry_leaf(s, event, record, rec);
 		free_record(rec);
 	} else
-		print_graph_nested(s, event, data);
+		print_graph_nested(s, event, record);
 
 	return 0;
 }
@@ -278,13 +258,12 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 {
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
-	void *data = record->data;
 	int i;
 
-	if (get_field_val(s, data, event, "rettime", &rettime))
+	if (pevent_get_field_val(s, event, "rettime", record, &rettime, 1))
 		return trace_seq_putc(s, '!');
 
-	if (get_field_val(s, data, event, "calltime", &calltime))
+	if (pevent_get_field_val(s, event, "calltime", record, &calltime, 1))
 		return trace_seq_putc(s, '!');
 
 	duration = rettime - calltime;
@@ -295,7 +274,7 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 	/* Duration */
 	print_graph_duration(s, duration);
 
-	if (get_field_val(s, data, event, "depth", &depth))
+	if (pevent_get_field_val(s, event, "depth", record, &depth, 1))
 		return trace_seq_putc(s, '!');
 
 	/* Function */

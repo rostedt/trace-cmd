@@ -24,28 +24,6 @@
 
 #include "trace-cmd.h"
 
-static int get_field_val(struct trace_seq *s, void *data,
-			 struct event_format *event, const char *name,
-			 unsigned long long *val, int fail)
-{
-	struct format_field *field;
-
-	field = pevent_find_any_field(event, name);
-	if (!field) {
-		if (fail)
-			trace_seq_printf(s, "<CANT FIND FIELD %s>", name);
-		return -1;
-	}
-
-	if (pevent_read_number_field(field, data, val)) {
-		if (fail)
-			trace_seq_printf(s, " %s=INVALID", name);
-		return -1;
-	}
-
-	return 0;
-}
-
 static void write_state(struct trace_seq *s, int val)
 {
 	const char states[] = "SDTtZXxW";
@@ -72,54 +50,53 @@ static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
 {
 	struct format_field *field;
 	unsigned long long val;
-	void *data = record->data;
 
-	if (get_field_val(s, data, event, "common_pid", &val, 1))
+	if (pevent_get_common_field_val(s, event, "common_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "prev_prio", &val, 0))
+	if (pevent_get_field_val(s, event, "prev_prio", record, &val, 0))
 		trace_seq_puts(s, "?:");
 	else
 		trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "prev_state", &val, 0))
+	if (pevent_get_field_val(s, event, "prev_state", record, &val, 0))
 		trace_seq_putc(s, '?');
 	else
 		write_state(s, val);
 
 	trace_seq_puts(s, " +   ");
 
-	if (get_field_val(s, data, event, "pid", &val, 1))
+	if (pevent_get_field_val(s, event, "pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "prio", &val, 1))
+	if (pevent_get_field_val(s, event, "prio", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "state", &val, 0))
+	if (pevent_get_field_val(s, event, "state", record, &val, 0))
 		trace_seq_putc(s, '?');
 	else
 		write_state(s, val);
 
 	trace_seq_putc(s, ' ');
 
-	field = pevent_find_any_field(event, "comm");
+	field = pevent_find_field(event, "comm");
 	if (!field) {
 		trace_seq_printf(s, "<CANT FIND FIELD %s>", "next_comm");
 		return trace_seq_putc(s, '!');
 	}
 
-	trace_seq_printf(s, "%.*s", field->size, (char *)(data + field->offset));
+	trace_seq_printf(s, "%.*s", field->size, (char *)(record->data + field->offset));
 
-	if (get_field_val(s, data, event, "target_cpu", &val, 0) == 0)
+	if (pevent_get_field_val(s, event, "target_cpu", record, &val, 0) == 0)
 		trace_seq_printf(s, " [%03llu]", val);
 
-	if (get_field_val(s, data, event, "success", &val, 0) == 0)
+	if (pevent_get_field_val(s, event, "success", record, &val, 0) == 0)
 		trace_seq_puts(s, val ? " Success" : " Failed");
 
 	return 0;
@@ -130,31 +107,30 @@ static int sched_switch_handler(struct trace_seq *s, struct record *record,
 {
 	struct format_field *field;
 	unsigned long long val;
-	void *data = record->data;
 
-	if (get_field_val(s, data, event, "prev_pid", &val, 1))
+	if (pevent_get_field_val(s, event, "prev_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "prev_prio", &val, 1))
+	if (pevent_get_field_val(s, event, "prev_prio", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "prev_state", &val, 1))
+	if (pevent_get_field_val(s,  event, "prev_state", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	write_state(s, val);
 
 	trace_seq_puts(s, " ==> ");
 
-	if (get_field_val(s, data, event, "next_pid", &val, 1))
+	if (pevent_get_field_val(s, event, "next_pid", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
 
-	if (get_field_val(s, data, event, "next_prio", &val, 1))
+	if (pevent_get_field_val(s, event, "next_prio", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
 	trace_seq_printf(s, "%lld:", val);
@@ -167,7 +143,7 @@ static int sched_switch_handler(struct trace_seq *s, struct record *record,
 		return trace_seq_putc(s, '!');
 	}
 
-	trace_seq_printf(s, "%.*s", field->size, (char *)(data + field->offset));
+	trace_seq_printf(s, "%.*s", field->size, (char *)(record->data + field->offset));
 
 	return 0;
 }

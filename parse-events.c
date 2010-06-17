@@ -4421,6 +4421,91 @@ int pevent_parse_event(struct pevent *pevent,
 	return -1;
 }
 
+int get_field_val(struct trace_seq *s, struct format_field *field,
+		  const char *name, struct record *record,
+		  unsigned long long *val, int err)
+{
+	if (!field) {
+		if (err)
+			trace_seq_printf(s, "<CANT FIND FIELD %s>", name);
+		return -1;
+	}
+
+	if (pevent_read_number_field(field, record->data, val)) {
+		if (err)
+			trace_seq_printf(s, " %s=INVALID", name);
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * pevent_get_field_val - find a field and return its value
+ * @s: The seq to print to on error
+ * @event: the event that the field is for
+ * @name: The name of the field
+ * @record: The record with the field name.
+ * @val: place to store the value of the field.
+ * @err: print default error if failed.
+ *
+ * Returns 0 on success -1 on field not found.
+ */
+int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
+			 const char *name, struct record *record,
+			 unsigned long long *val, int err)
+{
+	struct format_field *field;
+
+	field = pevent_find_field(event, name);
+
+	return get_field_val(s, field, name, record, val, err);
+}
+
+/**
+ * pevent_get_common_field_val - find a common field and return its value
+ * @s: The seq to print to on error
+ * @event: the event that the field is for
+ * @name: The name of the field
+ * @record: The record with the field name.
+ * @val: place to store the value of the field.
+ * @err: print default error if failed.
+ *
+ * Returns 0 on success -1 on field not found.
+ */
+int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
+				const char *name, struct record *record,
+				unsigned long long *val, int err)
+{
+	struct format_field *field;
+
+	field = pevent_find_common_field(event, name);
+
+	return get_field_val(s, field, name, record, val, err);
+}
+
+/**
+ * pevent_get_any_field_val - find a any field and return its value
+ * @s: The seq to print to on error
+ * @event: the event that the field is for
+ * @name: The name of the field
+ * @record: The record with the field name.
+ * @val: place to store the value of the field.
+ * @err: print default error if failed.
+ *
+ * Returns 0 on success -1 on field not found.
+ */
+int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
+			     const char *name, struct record *record,
+			     unsigned long long *val, int err)
+{
+	struct format_field *field;
+
+	field = pevent_find_any_field(event, name);
+
+	return get_field_val(s, field, name, record, val, err);
+}
+
 /**
  * pevent_print_num_field - print a field and a format
  * @s: The seq to print to
