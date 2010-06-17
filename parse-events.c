@@ -3042,12 +3042,14 @@ static unsigned long long eval_flag(const char *flag)
 }
 
 static void print_str_arg(struct trace_seq *s, void *data, int size,
-			  struct event_format *event, struct print_arg *arg)
+			  struct event_format *event,
+			  int len_arg, struct print_arg *arg)
 {
 	struct pevent *pevent = event->pevent;
 	struct print_flag_sym *flag;
 	unsigned long long val, fval;
 	unsigned long addr;
+	int len_as_arg = len_arg >= 0;
 	char *str;
 	int print;
 	int len;
@@ -3082,7 +3084,10 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		str = malloc_or_die(len + 1);
 		memcpy(str, data + arg->field.field->offset, len);
 		str[len] = 0;
-		trace_seq_puts(s, str);
+		if (len_as_arg)
+			trace_seq_printf(s, "%.*s", len_arg, str);
+		else
+			trace_seq_puts(s, str);
 		free(str);
 		break;
 	case PRINT_FLAGS:
@@ -3091,13 +3096,19 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		for (flag = arg->flags.flags; flag; flag = flag->next) {
 			fval = eval_flag(flag->value);
 			if (!val && !fval) {
-				trace_seq_puts(s, flag->str);
+				if (len_as_arg)
+					trace_seq_printf(s, "%.*s", len_arg, flag->str);
+				else
+					trace_seq_puts(s, flag->str);
 				break;
 			}
 			if (fval && (val & fval) == fval) {
 				if (print && arg->flags.delim)
 					trace_seq_puts(s, arg->flags.delim);
-				trace_seq_puts(s, flag->str);
+				if (len_as_arg)
+					trace_seq_printf(s, "%.*s", len_arg, flag->str);
+				else
+					trace_seq_puts(s, flag->str);
 				print = 1;
 				val &= ~fval;
 			}
@@ -3108,7 +3119,10 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		for (flag = arg->symbol.symbols; flag; flag = flag->next) {
 			fval = eval_flag(flag->value);
 			if (val == fval) {
-				trace_seq_puts(s, flag->str);
+				if (len_as_arg)
+					trace_seq_printf(s, "%.*s", len_arg, flag->str);
+				else
+					trace_seq_puts(s, flag->str);
 				break;
 			}
 		}
@@ -3127,7 +3141,10 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		}
 		str_offset = data2host4(pevent, data + arg->string.offset);
 		str_offset &= 0xffff;
-		trace_seq_puts(s, ((char *)data) + str_offset);
+		if (len_as_arg)
+			trace_seq_printf(s, "%.*s", len_arg, ((char *)data) + str_offset);
+		else
+			trace_seq_puts(s, ((char *)data) + str_offset);
 		break;
 	}
 	case PRINT_OP:
@@ -3138,9 +3155,9 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			return;
 		val = eval_num_arg(data, size, event, arg->op.left);
 		if (val)
-			print_str_arg(s, data, size, event, arg->op.right->op.left);
+			print_str_arg(s, data, size, event, len_arg, arg->op.right->op.left);
 		else
-			print_str_arg(s, data, size, event, arg->op.right->op.right);
+			print_str_arg(s, data, size, event, len_arg, arg->op.right->op.right);
 		break;
 	case PRINT_FUNC:
 		process_defined_func(s, data, size, event, arg);
@@ -3185,7 +3202,7 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			break;
 		case PEVENT_FUNC_ARG_STRING:
 			trace_seq_init(&str);
-			print_str_arg(&str, data, size, event, farg);
+			print_str_arg(&str, data, size, event, -1, farg);
 			trace_seq_terminate(&str);
 			string = malloc_or_die(sizeof(*string));
 			string->next = strings;
@@ -3494,6 +3511,8 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 	char *bprint_fmt = NULL;
 	char format[32];
 	int show_func;
+	int len_as_arg;
+	int len_arg;
 	int len;
 	int ls;
 
@@ -3535,6 +3554,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 		} else if (*ptr == '%') {
 			saveptr = ptr;
 			show_func = 0;
+			len_as_arg = 0;
  cont_process:
 			ptr++;
 			switch (*ptr) {
@@ -3549,6 +3569,14 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				goto cont_process;
 			case 'L':
 				ls = 2;
+				goto cont_process;
+			case '*':
+				/* The argument is the length. */
+				if (!arg)
+					die("no argument match");
+				len_arg = eval_num_arg(data, size, event, arg);
+				len_as_arg = 1;
+				arg = arg->next;
 				goto cont_process;
 			case '.':
 			case 'z':
@@ -3617,13 +3645,23 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				}
 				switch (ls) {
 				case 0:
-					trace_seq_printf(s, format, (int)val);
+					if (len_as_arg)
+						trace_seq_printf(s, format, len_arg, (int)val);
+					else
+						trace_seq_printf(s, format, (int)val);
 					break;
 				case 1:
-					trace_seq_printf(s, format, (long)val);
+					if (len_as_arg)
+						trace_seq_printf(s, format, len_arg, (long)val);
+					else
+						trace_seq_printf(s, format, (long)val);
 					break;
 				case 2:
-					trace_seq_printf(s, format, (long long)val);
+					if (len_as_arg)
+						trace_seq_printf(s, format, len_arg,
+								 (long long)val);
+					else
+						trace_seq_printf(s, format, (long long)val);
 					break;
 				default:
 					die("bad count (%d)", ls);
@@ -3633,7 +3671,9 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				if (!arg)
 					die("no matching argument");
 
-				print_str_arg(s, data, size, event, arg);
+				if (!len_as_arg)
+					len_arg = -1;
+				print_str_arg(s, data, size, event, len_arg, arg);
 				arg = arg->next;
 				break;
 			default:
