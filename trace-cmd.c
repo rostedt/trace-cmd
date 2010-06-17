@@ -55,6 +55,8 @@
 int silence_warnings;
 int show_status;
 
+static int tracing_on_init_val;
+
 static int rt_prio;
 
 static int use_tcp;
@@ -781,19 +783,34 @@ static void check_tracing_enabled(void)
 	write(fd, "1", 1);
 }
 
+static int tracing_on_fd = -1;
+
+static int open_tracing_on(void)
+{
+	int fd = tracing_on_fd;
+	char *path;
+
+	if (fd >= 0)
+		return fd;
+
+	path = get_tracing_file("tracing_on");
+	fd = open(path, O_RDWR);
+	if (fd < 0)
+		die("opening '%s'", path);
+	put_tracing_file(path);
+	tracing_on_fd = fd;
+
+	return fd;
+}
+
 static void write_tracing_on(int on)
 {
-	static int fd = -1;
-	char *path;
 	int ret;
+	int fd;
 
-	if (fd < 0) {
-		path = get_tracing_file("tracing_on");
-		fd = open(path, O_WRONLY);
-		if (fd < 0)
-			die("opening '%s'", path);
-		put_tracing_file(path);
-	}
+	fd = open_tracing_on();
+	if (fd < 0)
+		return;
 
 	if (on)
 		ret = write(fd, "1", 1);
@@ -802,6 +819,25 @@ static void write_tracing_on(int on)
 
 	if (ret < 0)
 		die("writing 'tracing_on'");
+}
+
+static int read_tracing_on(void)
+{
+	int fd;
+	char buf[10];
+	int ret;
+
+	fd = open_tracing_on();
+	if (fd < 0)
+		return 0;
+
+	ret = read(fd, buf, 10);
+	if (ret <= 0)
+		die("Reading 'tracing_on'");
+	buf[9] = 0;
+	ret = atoi(buf);
+
+	return ret;
 }
 
 static void enable_tracing(void)
@@ -1590,6 +1626,8 @@ int main (int argc, char **argv)
 	if (output)
 		output_file = output;
 
+	tracing_on_init_val = read_tracing_on();
+
 	if (!extract) {
 		fset = set_ftrace(!disable);
 		disable_all();
@@ -1657,6 +1695,13 @@ int main (int argc, char **argv)
 
 	record_data();
 	delete_thread_data();
+
+	/* Turn off everything */
+	disable_all();
+
+	/* If tracing_on was enabled before we started, set it on now */
+	if (tracing_on_init_val)
+		write_tracing_on(tracing_on_init_val);
 
 	printf("Kernel buffer statistics:\n"
 	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
