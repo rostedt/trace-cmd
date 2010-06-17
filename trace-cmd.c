@@ -1696,13 +1696,6 @@ int main (int argc, char **argv)
 	record_data();
 	delete_thread_data();
 
-	/* Turn off everything */
-	disable_all();
-
-	/* If tracing_on was enabled before we started, set it on now */
-	if (tracing_on_init_val)
-		write_tracing_on(tracing_on_init_val);
-
 	printf("Kernel buffer statistics:\n"
 	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
 	       "        recorded in the trace data. They should all be zero.\n\n");
@@ -1713,6 +1706,14 @@ int main (int argc, char **argv)
 		trace_seq_do_printf(&s);
 		printf("\n");
 	}
+
+	/* Turn off everything */
+	disable_all();
+
+	/* If tracing_on was enabled before we started, set it on now */
+	if (tracing_on_init_val)
+		write_tracing_on(tracing_on_init_val);
+
 
 	exit(0);
 
