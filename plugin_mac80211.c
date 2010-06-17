@@ -26,32 +26,6 @@
 
 #define INDENT 65
 
-/* return -1 (field not found/not valid number), 0 (ok), 1 (buffer full) */
-static int _print_field(struct trace_seq *s, const char *fmt,
-			struct event_format *event, const char *name, const void *data)
-{
-	struct format_field *f = pevent_find_field(event, name);
-	unsigned long long val;
-
-	if (!f)
-		return -1;
-
-	if (pevent_read_number_field(f, data, &val))
-		return -1;
-
-	return trace_seq_printf(s, fmt, val);
-}
-
-/* return 0 (ok), 1 (buffer full) */
-static void print_field(struct trace_seq *s, const char *fmt,
-			struct event_format *event, const char *name, const void *data)
-{
-	int ret = _print_field(s, fmt, event, name, data);
-
-	if (ret == -1)
-		trace_seq_printf(s, "NOTFOUND:%s", name);
-}
-
 static void print_string(struct trace_seq *s, struct event_format *event,
 			 const char *name, const void *data)
 {
@@ -161,8 +135,8 @@ static void _print_flag(struct trace_seq *s, struct event_format *event,
 	_print_flag(s, ev, name, data, __n, sizeof(__n)/sizeof(__n[0]));	\
 	})
 
-#define SF(fn)	_print_field(s, fn ":%d", event, fn, data)
-#define SFX(fn)	_print_field(s, fn ":%#x", event, fn, data)
+#define SF(fn)	pevent_print_num_field(s, fn ":%d", event, fn, record, 0)
+#define SFX(fn)	pevent_print_num_field(s, fn ":%#x", event, fn, record, 0)
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
@@ -173,7 +147,7 @@ static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_printf(s, " vif:");
 	print_string(s, event, "vif_name", data);
-	print_field(s, "(%d)", event, "vif_type", data);
+	pevent_print_num_field(s, "(%d)", event, "vif_type", record, 1);
 
 	trace_seq_printf(s, "\n%*s", INDENT, "");
 	SF("assoc"); SP();
@@ -206,7 +180,7 @@ static int drv_config(struct trace_seq *s, struct record *record,
 		{ 2, "IDLE" },
 		{ 3, "QOS"},
 	);
-	print_field(s, " chan:%d/", event, "center_freq", data);
+	pevent_print_num_field(s, " chan:%d/", event, "center_freq", record, 1);
 	print_enum(s, event, "channel_type", data,
 		{ 0, "noht" },
 		{ 1, "ht20" },

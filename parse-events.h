@@ -448,6 +448,10 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 int pevent_parse_event(struct pevent *pevent, const char *buf,
 		       unsigned long size, const char *sys);
 
+int pevent_print_num_field(struct trace_seq *s, const char *fmt,
+			   struct event_format *event, const char *name,
+			   struct record *record, int err);
+
 int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func, void *context);
 int pevent_register_print_function(struct pevent *pevent,

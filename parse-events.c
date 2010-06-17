@@ -4421,6 +4421,38 @@ int pevent_parse_event(struct pevent *pevent,
 	return -1;
 }
 
+/**
+ * pevent_print_num_field - print a field and a format
+ * @s: The seq to print to
+ * @fmt: The printf format to print the field with.
+ * @event: the event that the field is for
+ * @name: The name of the field
+ * @record: The record with the field name.
+ * @err: print default error if failed.
+ *
+ * Returns: 0 on success, -1 field not fould, or 1 if buffer is full.
+ */
+int pevent_print_num_field(struct trace_seq *s, const char *fmt,
+			   struct event_format *event, const char *name,
+			   struct record *record, int err)
+{
+	struct format_field *field = pevent_find_field(event, name);
+	unsigned long long val;
+
+	if (!field)
+		goto failed;
+
+	if (pevent_read_number_field(field, record->data, &val))
+		goto failed;
+
+	return trace_seq_printf(s, fmt, val);
+
+ failed:
+	if (err)
+		trace_seq_printf(s, "CAN'T FIND FIELD \"%s\"", name);
+	return -1;
+}
+
 static void free_func_handle(struct pevent_function_handler *func)
 {
 	struct pevent_func_params *params;
