@@ -834,6 +834,7 @@ static enum event_type __read_token(char **tok)
 		i--;
 		quote_ch = ch;
 		last_ch = 0;
+ concat:
 		do {
 			if (i == (BUFSIZ - 1)) {
 				buf[i] = 0;
@@ -859,6 +860,22 @@ static enum event_type __read_token(char **tok)
 		} while (ch != quote_ch || last_ch == '\\');
 		/* remove the last quote */
 		i--;
+
+		/*
+		 * For strings (double quotes) check the next token.
+		 * If it is another string, concatinate the two.
+		 */
+		if (type == EVENT_DQUOTE) {
+			unsigned long long save_input_buf_ptr = input_buf_ptr;
+
+			do {
+				ch = __read_char();
+			} while (isspace(ch));
+			if (ch == '"')
+				goto concat;
+			input_buf_ptr = save_input_buf_ptr;
+		}
+
 		goto out;
 
 	case EVENT_ERROR ... EVENT_SPACE:
