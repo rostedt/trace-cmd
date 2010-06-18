@@ -1158,6 +1158,7 @@ create_tree_event_model(struct pevent *pevent,
 				   -1);
 	}
 
+	/* These are copies of the sets, using glib allocation */
 	g_free(systems);
 	g_free(event_ids);
 
@@ -1418,21 +1419,6 @@ trace_create_event_list_view(struct pevent *pevent,
 	return view;
 }
 
-static gint *add_event(gint *events, gint size, gint event)
-{
-	if (!events) {
-		events = g_new0(gint, 2);
-		size = 0;
-	} else {
-		events = g_realloc(events,
-				   sizeof(*events) * (size + 2));
-	}
-	events[size] = event;
-	events[size+1] = -1;
-
-	return events;
-}
-
 static gint update_events(GtkTreeModel *model,
 			  GtkTreeIter *parent,
 			  gint **events, gint size)
@@ -1452,7 +1438,7 @@ static gint update_events(GtkTreeModel *model,
 				   -1);
 
 		if (active)
-			*events = add_event(*events, size++, id);
+			*events = tracecmd_add_id(*events, id, size++);
 
 		if (!gtk_tree_model_iter_next(model, &event))
 			break;
@@ -1546,7 +1532,7 @@ static void accept_events(GtkWidget *view,
 	func(TRUE, all_events, systems, events, data);
 
 	tracecmd_free_list(systems);
-	g_free(events);
+	free(events);
 }
 
 static void filter_event_dialog(struct pevent *pevent,
@@ -1894,22 +1880,6 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 	destroy_cpu_helper(cpu_helper);
 }
 
-static void add_event_int(gint **events, gint event, int count)
-{
-	if (!events)
-		return;
-
-	if (!count)
-		*events = malloc_or_die(sizeof(gint) * 2);
-	else
-		*events = realloc(*events, sizeof(gint) * (count + 2));
-	if (!*events)
-		die("Can't allocate events");
-
-	(*events)[count] = event;
-	(*events)[count+1] = -1;
-}
-
 /* -- Helper functions -- */
 
 /**
@@ -1959,11 +1929,11 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 		if (pevent_filter_event_has_trivial(filter, event->id,
 						    FILTER_TRIVIAL_TRUE)) {
 			if (!all_selected || !systems)
-				add_event_int(event_ids, event->id, event_count++);
+				*event_ids = tracecmd_add_id(*event_ids, event->id, event_count++);
 		} else {
 			if (all_selected && event_ids) {
 				for (x = start_sys; x < i; x++) {
-					add_event_int(event_ids,
+					*event_ids = tracecmd_add_id(*event_ids,
 						      events[x]->id, event_count++);
 				}
 			}
@@ -1971,7 +1941,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 
 			/* If this event is filtered, still add it */
 			if (pevent_event_filtered(filter, event->id))
-				add_event_int(event_ids, event->id, event_count++);
+				*event_ids = tracecmd_add_id(*event_ids, event->id, event_count++);
 		}
 		last_system = event->system;
 	}
