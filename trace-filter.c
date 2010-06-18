@@ -1418,21 +1418,6 @@ trace_create_event_list_view(struct pevent *pevent,
 	return view;
 }
 
-static gchar **add_system(gchar **systems, gint size, gchar *system)
-{
-	if (!systems) {
-		systems = g_new0(gchar *, 2);
-		size = 0;
-	} else {
-		systems = g_realloc(systems,
-				    sizeof(*systems) * (size + 2));
-	}
-	systems[size] = g_strdup(system);
-	systems[size+1] = NULL;
-
-	return systems;
-}
-
 static gint *add_event(gint *events, gint size, gint event)
 {
 	if (!events) {
@@ -1498,7 +1483,7 @@ static void update_system_events(GtkTreeModel *model,
 				   -1);
 
 		if (active)
-			*systems = add_system(*systems, sys_size++, system);
+			*systems = tracecmd_add_list(*systems, system, sys_size++);
 		else
 			event_size = update_events(model, &sys, events, event_size);
 
@@ -1550,7 +1535,6 @@ static void accept_events(GtkWidget *view,
 	gboolean all_events;
 	gchar **systems = NULL;
 	gint *events = NULL;
-	gint i;
 
 	if (trace_extract_event_list_view(view, &all_events,
 					  &systems, &events) < 0) {
@@ -1561,12 +1545,7 @@ static void accept_events(GtkWidget *view,
 
 	func(TRUE, all_events, systems, events, data);
 
-	if (systems) {
-		for (i = 0; systems[i]; i++)
-			g_free(systems[i]);
-
-		g_free(systems);
-	}
+	tracecmd_free_list(systems);
 	g_free(events);
 }
 
@@ -1915,22 +1894,6 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
 	destroy_cpu_helper(cpu_helper);
 }
 
-static void add_system_str(gchar ***systems, char *system, int count)
-{
-	if (!systems)
-		return;
-
-	if (!count)
-		*systems = malloc_or_die(sizeof(char *) * 2);
-	else
-		*systems = realloc(*systems, sizeof(char *) * (count + 2));
-	if (!*systems)
-		die("Can't allocate systems");
-
-	(*systems)[count] = system;
-	(*systems)[count+1] = NULL;
-}
-
 static void add_event_int(gint **events, gint event, int count)
 {
 	if (!events)
@@ -1988,7 +1951,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 		if (systems && last_system &&
 		    strcmp(last_system, events[i]->system) != 0) {
 			if (all_selected)
-				add_system_str(systems, last_system, sys_count++);
+				*systems = tracecmd_add_list(*systems, last_system, sys_count++);
 			start_sys = i;
 			all_selected = 1;
 		}
@@ -2014,7 +1977,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 	}
 
 	if (systems && last_system && all_selected)
-		add_system_str(systems, last_system, sys_count++);
+		*systems = tracecmd_add_list(*systems, last_system, sys_count++);
 }
 
 /**
