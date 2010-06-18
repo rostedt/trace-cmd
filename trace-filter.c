@@ -1357,13 +1357,45 @@ static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
 }
 
 /**
- * trace_create_event_list_view - create a list view of events in pevent
+ * trace_update_event_view - update the events of an existing event view
+ * @event_view: event view to update
  * @pevent: The parse event descriptor
  * @filter: Event filter to determine what events have advanced filters
  *          May be NULL.
  * @all_events: True if all should be selected,
  * @systems: Array of system names of systems that should be selected.
  * @events: Array of event ids of events that should be selecetd.
+ */
+int trace_update_event_view(GtkWidget *event_view,
+			    struct pevent *pevent,
+			    struct event_filter *filter,
+			    gboolean all_events,
+			    gchar **systems, gint *events)
+{
+	GtkTreeView *view = GTK_TREE_VIEW(event_view);
+	GtkTreeModel *model;
+
+	model = create_tree_event_model(pevent, filter,
+					all_events, systems, events);
+	if (!model)
+		return -1;
+
+	gtk_tree_view_set_model(view, model);
+	g_object_unref(model);
+
+	expand_rows(view, model, all_events, systems, events);
+
+	return 0;
+}
+
+/**
+ * trace_create_event_list_view - create a list view of events in pevent
+ * @pevent: The parse event descriptor
+ * @filter: Event filter to determine what events have advanced filters
+ *          May be NULL.
+ * @all_events: True if all should be selected,
+ * @systems: Array of system names of systems that should be selected.
+ * @events: Array of event ids of events that should be selected.
  *
  * Returns a tree view widget of the events.
  */
