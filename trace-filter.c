@@ -1355,11 +1355,22 @@ static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
 	}
 }
 
-static GtkWidget *
-create_event_list_view(struct pevent *pevent,
-		       struct event_filter *filter,
-		       gboolean all_events, gchar **systems,
-		       gint *events)
+/**
+ * trace_create_event_list_view - create a list view of events in pevent
+ * @pevent: The parse event descriptor
+ * @filter: Event filter to determine what events have advanced filters
+ *          May be NULL.
+ * @all_events: True if all should be selected,
+ * @systems: Array of system names of systems that should be selected.
+ * @events: Array of event ids of events that should be selecetd.
+ *
+ * Returns a tree view widget of the events.
+ */
+GtkWidget *
+trace_create_event_list_view(struct pevent *pevent,
+			     struct event_filter *filter,
+			     gboolean all_events, gchar **systems,
+			     gint *events)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
@@ -1566,7 +1577,7 @@ static void filter_event_dialog(struct pevent *pevent,
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
-	view = create_event_list_view(pevent, filter, all_events, systems, events);
+	view = trace_create_event_list_view(pevent, filter, all_events, systems, events);
 
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(scrollwin), view);

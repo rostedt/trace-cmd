@@ -163,6 +163,11 @@ int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
 			      struct filter_task *task_filter,
 			      struct filter_task *hide_tasks);
 
+GtkWidget *trace_create_event_list_view(struct pevent *pevent,
+					struct event_filter *filter,
+					gboolean all_events, gchar **systems,
+					gint *events);
+
 /* put here because there's no other place */
 
 int str_cmp(const void *a, const void *b);
