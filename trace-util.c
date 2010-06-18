@@ -241,6 +241,19 @@ static char *append_file(const char *dir, const char *name)
 	return file;
 }
 
+/**
+ * tracecmd_add_list - add an new string to a string list.
+ * @list: list to add the string to (may be NULL)
+ * @name: the string to add
+ * @len: current length of list of strings.
+ *
+ * The typical usage is:
+ *
+ *    systems = tracecmd_add_list(systems, name, len++);
+ *
+ * Returns the new allocated list with an allocated name added.
+ * The list will end with NULL.
+ */
 char **tracecmd_add_list(char **list, const char *name, int len)
 {
 	if (!list)
@@ -260,6 +273,12 @@ char **tracecmd_add_list(char **list, const char *name, int len)
 	return list;
 }
 
+/**
+ * tracecmd_free_list - free a list created with tracecmd_add_list.
+ * @list: The list to free.
+ *
+ * Frees the list as well as the names within the list.
+ */
 void tracecmd_free_list(char **list)
 {
 	int i;
@@ -271,6 +290,37 @@ void tracecmd_free_list(char **list)
 		free(list[i]);
 
 	free(list);
+}
+
+/**
+ * tracecmd_add_id - add an int to the event id list
+ * @list: list to add the id to
+ * @id: id to add
+ * @len: current length of list of ids.
+ *
+ * The typical usage is:
+ *
+ *    events = tracecmd_add_id(events, id, len++);
+ *
+ * Returns the new allocated list with the id included.
+ * the list will contain a '-1' at the end.
+ *
+ * The returned list should be freed with free().
+ */
+int *tracecmd_add_id(int *list, int id, int len)
+{
+	if (!list)
+		list = malloc_or_die(sizeof(*list) * 2);
+	else {
+		list = realloc(list, sizeof(*list) * (len + 2));
+		if (!list)
+			die("Can ont allocate list");
+	}
+
+	list[len++] = id;
+	list[len] = -1;
+
+	return list;
 }
 
 /**

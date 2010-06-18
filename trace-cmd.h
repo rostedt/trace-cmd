@@ -42,6 +42,7 @@ char **tracecmd_local_plugins(const char *tracing_dir);
 
 char **tracecmd_add_list(char **list, const char *name, int len);
 void tracecmd_free_list(char **list);
+int *tracecmd_add_id(int *list, int id, int len);
 
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
