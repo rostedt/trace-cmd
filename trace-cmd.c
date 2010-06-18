@@ -1407,6 +1407,7 @@ int main (int argc, char **argv)
 	int extract = 0;
 	int run_command = 0;
 	int neg_event = 0;
+	int keep = 0;
 	int fset;
 	int cpu;
 
@@ -1430,7 +1431,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:r:vg:l:n:P:N:tb:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:r:vg:l:n:P:N:tb:k")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1538,6 +1539,9 @@ int main (int argc, char **argv)
 				break;
 			case 'b':
 				buffer_size = atoi(optarg);
+				break;
+			case 'k':
+				keep = 1;
 				break;
 			}
 		}
@@ -1707,13 +1711,15 @@ int main (int argc, char **argv)
 		printf("\n");
 	}
 
+	if (keep)
+		exit(0);
+
 	/* Turn off everything */
 	disable_all();
 
 	/* If tracing_on was enabled before we started, set it on now */
 	if (tracing_on_init_val)
 		write_tracing_on(tracing_on_init_val);
-
 
 	exit(0);
 

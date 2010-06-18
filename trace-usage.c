@@ -36,6 +36,7 @@ static struct usage_help usage_help[] = {
 		"          -N host:port to connect to (see listen)\n"
 		"          -t used with -N, forces use of tcp in live trace\n"
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
+		"          -k do not reset the buffers after tracing.\n"
 	},
 	{
 		"start",
