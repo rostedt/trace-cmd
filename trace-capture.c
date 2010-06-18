@@ -844,12 +844,7 @@ static int load_events(struct trace_capture *cap,
 		if (!event)
 			continue;
 
-		if (!events)
-			events = malloc_or_die(sizeof(*events) * 2);
-		else
-			events = realloc(events, sizeof(*events) * (event_len + 2));
-		events[event_len++] = event->id;
-		events[event_len] = -1;
+		events = tracecmd_add_id(events, event->id, event_len++);
 	}
 
 	info->cap_events = events;
