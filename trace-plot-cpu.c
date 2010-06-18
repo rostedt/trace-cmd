@@ -237,10 +237,12 @@ static int cpu_plot_event(struct graph_info *ginfo,
 				cpu_info->last_pid = orig_pid;
 			else
 				cpu_info->last_pid = pid;
-		}
 
-		/* Box should always use the original pid (prev in sched_switch) */
-		box_filter = trace_graph_filter_on_task(ginfo, orig_pid);
+			/* Box should always use the original pid (prev in sched_switch) */
+			box_filter = trace_graph_filter_on_task(ginfo, orig_pid);
+		} else
+			box_filter = trace_graph_filter_on_task(ginfo, cpu_info->last_pid);
+
 
 		if (!box_filter && cpu_info->last_pid) {
 			info->bcolor = hash_pid(cpu_info->last_pid);
