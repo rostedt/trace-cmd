@@ -46,6 +46,9 @@
 
 #define PLUGIN_NONE "NONE"
 
+#define DIALOG_WIDTH	600
+#define DIALOG_HEIGHT	600
+
 struct trace_capture {
 	struct pevent		*pevent;
 	struct shark_info	*info;
@@ -55,6 +58,7 @@ struct trace_capture {
 	GtkWidget		*output_text;
 	GtkTextBuffer		*output_buffer;
 	GtkWidget		*output_dialog;
+	GtkWidget		*event_view;
 	GtkWidget		*plugin_combo;
 	GtkWidget		*stop_dialog;
 	pthread_t		thread;
@@ -453,6 +457,21 @@ static void set_plugin(struct trace_capture *cap)
 				      &iter);
 }
 
+static void update_events(struct trace_capture *cap)
+{
+	struct shark_info *info = cap->info;
+
+	if (!cap->event_view)
+		return;
+
+	clear_capture_events(cap);
+
+	trace_extract_event_list_view(cap->event_view,
+				      &info->cap_all_events,
+				      &info->cap_systems,
+				      &info->cap_events);
+}
+
 static void execute_command(struct trace_capture *cap)
 {
 	const gchar *ccommand;
@@ -464,6 +483,7 @@ static void execute_command(struct trace_capture *cap)
 	int i;
 
 	update_plugin(cap);
+	update_events(cap);
 
 	ccommand = gtk_entry_get_text(GTK_ENTRY(cap->command_entry));
 	if (!ccommand || !strlen(ccommand) || is_just_ws(ccommand)) {
@@ -682,57 +702,6 @@ static int trim_plugins(char **plugins)
 	return len;
 }
 
-static void event_filter_callback(gboolean accept,
-				  gboolean all_events,
-				  gchar **systems,
-				  gint *events,
-				  gpointer data)
-{
-	struct trace_capture *cap = data;
-	int nr_sys, nr_events;
-	int i;
-
-	if (!accept)
-		return;
-
-	clear_capture_events(cap);
-
-	if (all_events) {
-		cap->info->cap_all_events = TRUE;
-		return;
-	}
-
-	if (systems) {
-		for (nr_sys = 0; systems[nr_sys]; nr_sys++)
-			;
-		cap->info->cap_systems = malloc_or_die(sizeof(*cap->info->cap_systems) *
-						       (nr_sys + 1));
-		for (i = 0; i < nr_sys; i++)
-			cap->info->cap_systems[i] = strdup(systems[i]);
-		cap->info->cap_systems[i] = NULL;
-	}
-
-	if (events) {
-		for (nr_events = 0; events[nr_events] >= 0; nr_events++)
-			;
-		cap->info->cap_events = malloc_or_die(sizeof(*cap->info->cap_events) *
-						      (nr_events + 1));
-		for (i = 0; i < nr_events; i++)
-			cap->info->cap_events[i] = events[i];
-		cap->info->cap_events[i] = -1;
-	}
-}
-
-static void event_button_clicked(GtkWidget *widget, gpointer data)
-{
-	struct trace_capture *cap = data;
-	struct pevent *pevent = cap->pevent;
-
-	trace_filter_pevent_dialog(pevent, cap->info->cap_all_events,
-				   cap->info->cap_systems, cap->info->cap_events,
-				   event_filter_callback, cap);
-}
-
 static void
 file_clicked (GtkWidget *widget, gpointer data)
 {
@@ -788,7 +757,7 @@ static void execute_button_clicked(GtkWidget *widget, gpointer data)
 	cap->stop_dialog = dialog;
 
 	label = gtk_label_new("Hit Stop to end execution");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, FALSE, 0);
 	gtk_widget_show(label);
 
 	gtk_signal_connect(GTK_OBJECT (dialog), "delete_event",
@@ -925,8 +894,15 @@ static void load_settings_clicked(GtkWidget *widget, gpointer data)
 
 	do {
 		name = tracecmd_xml_node_type(syschild);
-		if (strcmp(name, "Events") == 0)
+		if (strcmp(name, "Events") == 0) {
 			load_cap_events(cap, handle, syschild);
+			trace_update_event_view(cap->event_view,
+						cap->pevent,
+						NULL,
+						info->cap_all_events,
+						info->cap_systems,
+						info->cap_events);
+		}
 
 		else if (strcmp(name, "Plugin") == 0) {
 			plugin = tracecmd_xml_node_value(handle, syschild);
@@ -1006,6 +982,8 @@ static void save_settings_clicked(GtkWidget *widget, gpointer data)
 
 	g_free(filename);
 
+	update_events(cap);
+
 	tracecmd_xml_start_system(handle, "CaptureSettings");
 
 	tracecmd_xml_start_sub_system(handle, "Events");
@@ -1060,15 +1038,37 @@ static GtkTreeModel *create_plugin_combo_model(gpointer data)
 	return GTK_TREE_MODEL(list);
 }
 
+/*
+ * Trace Capture Dialog Window
+ *
+ *    +--------------------------------------------------------------------+
+ *    |  Dialog Window                                                     |
+ *    |  +-------------------------------+-------------------------------+ |
+ *    |  | Paned Window                  | +---------------------------+ | |
+ *    |  | +---------------------------+ | | Scroll window             | | |
+ *    |  | | Hbox                      | | | +-----------------------+ | | |
+ *    |  | |  Label   Plugin Combo     | | | | Event Tree            | | | |
+ *    |  | +---------------------------+ | | |                       | | | |
+ *    |  |                               | | |                       | | | |
+ *    |  |                               | | +-----------------------+ | | |
+ *    |  |                               | +---------------------------+ | |
+ *    |  +-------------------------------+-------------------------------+ |
+ *    +--------------------------------------------------------------------+
+ */
 static void tracing_dialog(struct shark_info *info, const char *tracing)
 {
 	struct pevent *pevent;
 	GtkWidget *dialog;
+	GtkWidget *vbox;
+	GtkWidget *vbox2;
 	GtkWidget *button;
 	GtkWidget *hbox;
 	GtkWidget *combo;
 	GtkWidget *label;
 	GtkWidget *entry;
+	GtkWidget *hpaned;
+	GtkWidget *scrollwin;
+	GtkWidget *event_tree;
 	char **plugins;
 	int nr_plugins;
 	struct trace_capture cap;
@@ -1109,19 +1109,46 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	cap.main_dialog = dialog;
 
-	if (pevent) {
-		button = gtk_button_new_with_label("Select Events");
-		gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox),
-				   button, TRUE, TRUE, 0);
-		gtk_widget_show(button);
+	/* --- Top Level Hpaned --- */
 
-		g_signal_connect (button, "clicked",
-				  G_CALLBACK (event_button_clicked),
-				  (gpointer)&cap);
+	hpaned = gtk_hpaned_new();
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hpaned, TRUE, TRUE, 0);
+	gtk_widget_show(hpaned);
+
+	/* It is possible that no pevents exist. */
+	if (pevent) {
+		scrollwin = gtk_scrolled_window_new(NULL, NULL);
+		gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+					       GTK_POLICY_AUTOMATIC,
+					       GTK_POLICY_AUTOMATIC);
+
+		gtk_paned_add2(GTK_PANED(hpaned), scrollwin);
+		gtk_widget_show(scrollwin);
+
+		event_tree = trace_create_event_list_view(pevent, NULL,
+							  cap.info->cap_all_events,
+							  cap.info->cap_systems,
+							  cap.info->cap_events);
+
+		gtk_container_add(GTK_CONTAINER(scrollwin), event_tree);
+		gtk_widget_show(event_tree);
+
+		cap.event_view = event_tree;
+
+	} else {
+		/* No events */
+		label = gtk_label_new("No events enabled on system");
+		gtk_paned_add2(GTK_PANED(hpaned), label);
+		gtk_widget_show(label);
+		cap.event_view = NULL;
 	}
 
+	vbox = gtk_vbox_new(TRUE, 0);
+	gtk_paned_add1(GTK_PANED(hpaned), vbox);
+	gtk_widget_show(vbox);
+
 	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 	gtk_widget_show(hbox);
 
 	combo = trace_create_combo_box(hbox, "Plugin: ", create_plugin_combo_model, plugins);
@@ -1130,12 +1157,16 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	if (cap.info->cap_plugin)
 		set_plugin(&cap);
 
+	vbox2 = gtk_vbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), vbox2, FALSE, FALSE, 0);
+	gtk_widget_show(vbox2);
+
 	label = gtk_label_new("Command:");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
 
 	entry = gtk_entry_new();
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), entry, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), entry, FALSE, FALSE, 0);
 	gtk_widget_show(entry);
 
 	cap.command_entry = entry;
@@ -1144,7 +1175,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 		gtk_entry_set_text(GTK_ENTRY(entry), cap.info->cap_command);
 
 	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), hbox, TRUE, FALSE, 0);
 	gtk_widget_show(hbox);
 
 	button = gtk_button_new_with_label("Save file: ");
@@ -1167,8 +1198,9 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_entry_set_text(GTK_ENTRY(entry), file);
 	cap.file_entry = entry;
 
+
 	button = gtk_button_new_with_label("Execute");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), button, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
 	gtk_widget_show(button);
 
 	g_signal_connect (button, "clicked",
@@ -1176,8 +1208,12 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 			  (gpointer)&cap);
 
 
+	vbox2 = gtk_vbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), vbox2, FALSE, FALSE, 0);
+	gtk_widget_show(vbox2);
+
 	button = gtk_button_new_with_label("Load Settings");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), button, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
 	gtk_widget_show(button);
 
 	g_signal_connect (button, "clicked",
@@ -1186,12 +1222,15 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 
 	button = gtk_button_new_with_label("Save Settings");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), button, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
 	gtk_widget_show(button);
 
 	g_signal_connect (button, "clicked",
 			  G_CALLBACK (save_settings_clicked),
 			  (gpointer)&cap);
+
+	gtk_widget_set_size_request(GTK_WIDGET(dialog),
+				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show(dialog);
 	gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1208,6 +1247,8 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 		cap.info->cap_command = strdup(command);
 	else
 		cap.info->cap_command = NULL;
+
+	update_events(&cap);
 
 	gtk_widget_destroy(dialog);
 
