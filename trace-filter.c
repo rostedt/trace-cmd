@@ -1476,19 +1476,19 @@ static gint update_events(GtkTreeModel *model,
 	return size;
 }
 
-static gint update_system_events(GtkTreeModel *model,
+static void update_system_events(GtkTreeModel *model,
 				 GtkTreeIter *parent,
 				 gchar ***systems,
-				 gint size,
-				 gint **events,
-				 gint *events_size)
+				 gint **events)
 {
 	GtkTreeIter sys;
 	gboolean active;
 	gchar *system;
+	gint sys_size = 0;
+	gint event_size = 0;
 
 	if (!gtk_tree_model_iter_children(model, &sys, parent))
-		return size;
+		return;
 
 	for (;;) {
 
@@ -1498,48 +1498,68 @@ static gint update_system_events(GtkTreeModel *model,
 				   -1);
 
 		if (active)
-			*systems = add_system(*systems, size++, system);
+			*systems = add_system(*systems, sys_size++, system);
 		else
-			*events_size = update_events(model, &sys, events, *events_size);
+			event_size = update_events(model, &sys, events, event_size);
 
 		g_free(system);
 
 		if (!gtk_tree_model_iter_next(model, &sys))
 			break;
 	}
-
-	return size;
 }
 
-static void accept_events(GtkTreeView *view,
-			  trace_filter_event_cb_func func, gpointer data)
+/**
+ * trace_extract_event_list_view - extract selected events from event view
+ * @event_view: the event list view widget to extract from
+ * @all_events: Set if all events are set (@systems and @events are left as is)
+ * @systems: Set to the selected systems (if @all_events is FALSE)
+ * @events: Set to the selected events (not in selected systems and if @all_events is FALSE)
+ *
+ * Returns 0 on success, -1 otherwise.
+ */
+gint trace_extract_event_list_view(GtkWidget *event_view,
+				   gboolean *all_events,
+				   gchar ***systems,
+				   gint **events)
 {
+	GtkTreeView *view = GTK_TREE_VIEW(event_view);
 	GtkTreeModel *model;
 	GtkTreeIter iter;
-	gboolean active;
-	gchar **systems = NULL;
-	gint *events = NULL;
-	gint events_size = 0;
-	gint systems_size = 0;
-	gint i;
 
 	model = gtk_tree_view_get_model(view);
 	if (!model)
-		return;
+		return -1;
 
 	if (!gtk_tree_model_get_iter_first(model, &iter))
-		return;
+		return -1;
 
 	gtk_tree_model_get(model, &iter,
-			   COL_ACTIVE, &active,
+			   COL_ACTIVE, all_events,
 			   -1);
 
-	if (!active)
-		update_system_events(model, &iter,
-				     &systems, systems_size,
-				     &events, &events_size);
+	if (!*all_events)
+		update_system_events(model, &iter, systems, events);
 
-	func(TRUE, active, systems, events, data);
+	return 0;
+}
+
+static void accept_events(GtkWidget *view,
+			  trace_filter_event_cb_func func, gpointer data)
+{
+	gboolean all_events;
+	gchar **systems = NULL;
+	gint *events = NULL;
+	gint i;
+
+	if (trace_extract_event_list_view(view, &all_events,
+					  &systems, &events) < 0) {
+		/* Failed to extract ? */
+		func(FALSE, FALSE, NULL, NULL, data);
+		return;
+	}
+
+	func(TRUE, all_events, systems, events, data);
 
 	if (systems) {
 		for (i = 0; systems[i]; i++)
@@ -1590,7 +1610,7 @@ static void filter_event_dialog(struct pevent *pevent,
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
 	switch (result) {
 	case GTK_RESPONSE_ACCEPT:
-		accept_events(GTK_TREE_VIEW(view), func, data);
+		accept_events(view, func, data);
 		break;
 	case GTK_RESPONSE_REJECT:
 		func(FALSE, FALSE, NULL, NULL, data);

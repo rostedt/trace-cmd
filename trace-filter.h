@@ -167,6 +167,10 @@ GtkWidget *trace_create_event_list_view(struct pevent *pevent,
 					struct event_filter *filter,
 					gboolean all_events, gchar **systems,
 					gint *events);
+gint trace_extract_event_list_view(GtkWidget *event_view,
+				   gboolean *all_events,
+				   gchar ***systems,
+				   gint **events);
 
 /* put here because there's no other place */
 
