@@ -138,8 +138,7 @@ static int write_record(struct tracecmd_input *handle,
 	index = 4;
 
 	if (!len) {
-		len = record->size / 4;
-		len += 4;
+		len = record->size + 4;
 		*(unsigned *)ptr = __data2host4(pevent, len);
 		ptr += 4;
 		index += 4;
