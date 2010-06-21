@@ -1369,7 +1369,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	dialog = gtk_dialog_new_with_buttons("Capture",
 					     NULL,
 					     GTK_DIALOG_MODAL,
-					     "Done",
+					     "Close",
 					     GTK_RESPONSE_ACCEPT,
 					     NULL);
 
