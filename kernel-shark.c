@@ -362,7 +362,7 @@ load_filters_clicked (gpointer data)
 	int ret;
 
 	filename = trace_get_file_dialog_filter("Load Filters", NULL,
-					 TRACE_DIALOG_FILTER_SETTING, FALSE);
+					 TRACE_DIALOG_FILTER_FILTER, FALSE);
 	if (!filename)
 		return;
 
@@ -449,7 +449,7 @@ save_filters_clicked (gpointer data)
 	gchar *filename;
 
 	filename = trace_get_file_dialog_filter("Save Filters", "Save",
-					 TRACE_DIALOG_FILTER_SETTING, TRUE);
+					 TRACE_DIALOG_FILTER_FILTER, TRUE);
 	if (!filename)
 		return;
 

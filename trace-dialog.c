@@ -345,6 +345,14 @@ gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
 		setfilter = filter;
 
 	filter = gtk_file_filter_new();
+	gtk_file_filter_set_name(filter, "KernelShark filter files");
+	gtk_file_filter_add_pattern(filter, "*.ksf");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+
+	if (ftype == TRACE_DIALOG_FILTER_FILTER)
+		setfilter = filter;
+
+	filter = gtk_file_filter_new();
 	gtk_file_filter_set_name(filter, "KernelShark setting files");
 	gtk_file_filter_add_pattern(filter, "*.kss");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);

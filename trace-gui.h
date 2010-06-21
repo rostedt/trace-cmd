@@ -35,6 +35,7 @@ GtkWidget *trace_status_bar_new(void);
 enum trace_dialog_filter {
 	TRACE_DIALOG_FILTER_NONE,
 	TRACE_DIALOG_FILTER_DATA,
+	TRACE_DIALOG_FILTER_FILTER,
 	TRACE_DIALOG_FILTER_SETTING,
 };
 
