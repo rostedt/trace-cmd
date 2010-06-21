@@ -861,7 +861,8 @@ file_clicked (GtkWidget *widget, gpointer data)
 	struct trace_capture *cap = data;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Trace File", "Save", FALSE);
+	filename = trace_get_file_dialog_filter("Trace File", "Save",
+					 TRACE_DIALOG_FILTER_DATA, FALSE);
 	if (!filename)
 		return;
 
@@ -1102,7 +1103,8 @@ static void import_settings_clicked(GtkWidget *widget, gpointer data)
 	struct trace_capture *cap = data;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Import Settings", NULL, FALSE);
+	filename = trace_get_file_dialog_filter("Import Settings", NULL,
+					 TRACE_DIALOG_FILTER_SETTING, FALSE);
 	if (!filename)
 		return;
 
@@ -1270,7 +1272,8 @@ static void export_settings_clicked(GtkWidget *widget, gpointer data)
 	struct trace_capture *cap = data;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Save Settings", "Save", TRUE);
+	filename = trace_get_file_dialog_filter("Save Settings", "Save",
+					 TRACE_DIALOG_FILTER_SETTING, TRUE);
 	if (!filename)
 		return;
 

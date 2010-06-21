@@ -335,7 +335,8 @@ load_clicked (gpointer data)
 	struct shark_info *info = data;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Load File", NULL, FALSE);
+	filename = trace_get_file_dialog_filter("Load File", NULL,
+					TRACE_DIALOG_FILTER_DATA, FALSE);
 	if (!filename)
 		return;
 
@@ -360,7 +361,8 @@ load_filters_clicked (gpointer data)
 	gchar *filename;
 	int ret;
 
-	filename = trace_get_file_dialog("Load Filters", NULL, FALSE);
+	filename = trace_get_file_dialog_filter("Load Filters", NULL,
+					 TRACE_DIALOG_FILTER_SETTING, FALSE);
 	if (!filename)
 		return;
 
@@ -446,7 +448,8 @@ save_filters_clicked (gpointer data)
 	struct filter_task *hide_tasks;
 	gchar *filename;
 
-	filename = trace_get_file_dialog("Save Filters", "Save", TRUE);
+	filename = trace_get_file_dialog_filter("Save Filters", "Save",
+					 TRACE_DIALOG_FILTER_SETTING, TRUE);
 	if (!filename)
 		return;
 
