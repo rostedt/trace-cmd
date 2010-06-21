@@ -868,9 +868,8 @@ file_clicked (GtkWidget *widget, gpointer data)
 	gtk_entry_set_text(GTK_ENTRY(cap->file_entry), filename);
 }
 
-static void execute_button_clicked(GtkWidget *widget, gpointer data)
+static void execute_button_clicked(struct trace_capture *cap)
 {
-	struct trace_capture *cap = data;
 	struct stat st;
 	GtkResponseType ret;
 	GtkWidget *dialog;
@@ -1340,6 +1339,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	struct trace_capture cap;
 	const gchar *file;
 	const char *command;
+	gint result;
 
 	memset(&cap, 0, sizeof(cap));
 
@@ -1369,8 +1369,10 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	dialog = gtk_dialog_new_with_buttons("Capture",
 					     NULL,
 					     GTK_DIALOG_MODAL,
-					     "Close",
+					     "Execute",
 					     GTK_RESPONSE_ACCEPT,
+					     GTK_STOCK_CANCEL,
+					     GTK_RESPONSE_REJECT,
 					     NULL);
 
 	cap.main_dialog = dialog;
@@ -1465,15 +1467,6 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	cap.file_entry = entry;
 
 
-	button = gtk_button_new_with_label("Execute");
-	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
-	gtk_widget_show(button);
-
-	g_signal_connect (button, "clicked",
-			  G_CALLBACK (execute_button_clicked),
-			  (gpointer)&cap);
-
-
 	vbox2 = gtk_vbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), vbox2, FALSE, FALSE, 0);
 	gtk_widget_show(vbox2);
@@ -1524,7 +1517,14 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
 	gtk_widget_show(dialog);
-	gtk_dialog_run(GTK_DIALOG(dialog));
+
+ cont:
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+
+	if (result == GTK_RESPONSE_ACCEPT) {
+		execute_button_clicked(&cap);
+		goto cont;
+	}
 
 	/* save the plugin and file to reuse if we come back */
 	update_plugin(&cap);
