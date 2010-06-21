@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -60,6 +61,7 @@ struct trace_capture {
 	GtkWidget		*output_dialog;
 	GtkWidget		*event_view;
 	GtkWidget		*plugin_combo;
+	GtkWidget		*settings_combo;
 	GtkWidget		*stop_dialog;
 	pthread_t		thread;
 	gboolean		kill_thread;
@@ -78,6 +80,124 @@ static int is_just_ws(const char *str)
 		if (!isspace(str[i]))
 			break;
 	return !str[i];
+}
+
+static gboolean settings_saved;
+
+static GString *get_home_settings_new(void)
+{
+	char *path = getenv("HOME");
+	GString *str;
+
+	str = g_string_new(path);
+	g_string_append(str, "/.trace-cmd/settings/");
+	return str;
+}
+
+static int create_home_settings(void)
+{
+	char *path = getenv("HOME");
+	GString *str;
+	struct stat st;
+	int ret;
+
+	str = g_string_new(path);
+	g_string_append(str, "/.trace-cmd");
+	ret = stat(str->str, &st);
+	if (ret < 0) {
+		ret = mkdir(str->str, 0755);
+		if (ret < 0) {
+			warning("Can not create %s", str->str);
+			goto out;
+		}
+	}
+
+	g_string_append(str, "/settings");
+	ret = stat(str->str, &st);
+	if (ret < 0) {
+		ret = mkdir(str->str, 0755);
+		if (ret < 0) {
+			warning("Can not create %s", str->str);
+			goto out;
+		}
+	}
+
+	ret = 0;
+ out:
+	g_string_free(str, TRUE);
+	return ret;
+}
+
+static GtkTreeModel *create_settings_model(gpointer data)
+{
+	struct dirent *dent;
+	GtkListStore *list;
+	GtkTreeIter iter;
+	struct stat st;
+	GString *str;
+	DIR *dir;
+	int ret;
+
+	list = gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+
+	gtk_list_store_append(list, &iter);
+	gtk_list_store_set(list, &iter,
+			   0, "Current",
+			   1, "",
+			   -1);
+
+	/* Search for user settings first */
+	str = get_home_settings_new();
+	ret = stat(str->str, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto read_system;
+
+	dir = opendir(str->str);
+	if (!dir)
+		goto read_system;
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		GString *file;
+		gchar *item;
+
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		if (strcmp(name + strlen(name) - 4, ".kss") != 0)
+			continue;
+
+		file = g_string_new(str->str);
+		g_string_append_printf(file, "/%s", name);
+
+		/* Save the file name but remove the .kss extention */
+		item = g_strdup(name);
+		item[strlen(name) - 4] = 0;
+
+		gtk_list_store_append(list, &iter);
+		gtk_list_store_set(list, &iter,
+				   0, item,
+				   1, file->str,
+				   -1);
+		g_free(item);
+		g_string_free(file, TRUE);
+	}
+
+read_system:
+	g_string_free(str, TRUE);
+
+	return GTK_TREE_MODEL(list);
+}
+
+static void refresh_settings(struct trace_capture *cap)
+{
+	GtkTreeModel *model;
+
+	model = create_settings_model(NULL);
+	gtk_combo_box_set_model(GTK_COMBO_BOX(cap->settings_combo), model);
+	g_object_unref(model);
 }
 
 static void ks_clear_capture_events(struct shark_info *info)
@@ -102,6 +222,9 @@ void kernel_shark_clear_capture(struct shark_info *info)
 
 	g_free(info->cap_plugin);
 	info->cap_plugin = NULL;
+
+	g_free(info->cap_settings_name);
+	info->cap_settings_name = NULL;
 
 	free(info->cap_file);
 	info->cap_file = NULL;
@@ -406,30 +529,31 @@ static void update_plugin(struct trace_capture *cap)
 
 }
 
-static void set_plugin(struct trace_capture *cap)
+/*
+ * The plugin and settings combo's are set by the first item
+ * in the model. The can share the same code to set the model.
+ *
+ * Return TRUE if set, FALSE if name was not found.
+ */
+static int set_combo(GtkComboBox *combo, const char *name)
 {
-	GtkComboBox *combo = GTK_COMBO_BOX(cap->plugin_combo);
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	gchar *text;
-	const gchar *plugin = cap->info->cap_plugin;
-	gboolean ret = TRUE;
-
-	if (!plugin)
-		plugin = PLUGIN_NONE;
+	gboolean ret;
 
 	model = gtk_combo_box_get_model(combo);
 	if (!model)
-		return;
+		return FALSE;
 
 	if (!gtk_tree_model_get_iter_first(model, &iter))
-		return;
+		return FALSE;
 
 	do {
 		gtk_tree_model_get(model, &iter,
 				   0, &text,
 				   -1);
-		if (strcmp(text, plugin) == 0) {
+		if (strcmp(text, name) == 0) {
 			g_free(text);
 			break;
 		}
@@ -440,21 +564,50 @@ static void set_plugin(struct trace_capture *cap)
 	} while (ret);
 
 	if (ret) {
+		/* Found */
 		gtk_combo_box_set_active_iter(GTK_COMBO_BOX(combo),
 					      &iter);
-		return;
+		return TRUE;
 	}
+
+	/* set to first item (default) */
+	gtk_tree_model_get_iter_first(model, &iter);
+	gtk_combo_box_set_active_iter(GTK_COMBO_BOX(combo),
+				      &iter);
+
+	return FALSE;
+}
+
+static void set_plugin(struct trace_capture *cap)
+{
+	GtkComboBox *combo = GTK_COMBO_BOX(cap->plugin_combo);
+	const gchar *plugin = cap->info->cap_plugin;
+
+	if (!plugin)
+		plugin = PLUGIN_NONE;
+
+	if (set_combo(combo, plugin))
+		return;
 
 	/* Not found? */
 	g_free(cap->info->cap_plugin);
 	cap->info->cap_plugin = NULL;
+}
 
-	/* set to NONE */
-	if (!gtk_tree_model_get_iter_first(model, &iter))
+static void set_settings(struct trace_capture *cap)
+{
+	GtkComboBox *combo = GTK_COMBO_BOX(cap->settings_combo);
+	const gchar *name = cap->info->cap_settings_name;
+
+	if (!name)
+		name = "";
+
+	if (set_combo(combo, name))
 		return;
 
-	gtk_combo_box_set_active_iter(GTK_COMBO_BOX(combo),
-				      &iter);
+	/* Not found? */
+	g_free(cap->info->cap_settings_name);
+	cap->info->cap_settings_name = NULL;
 }
 
 static void update_events(struct trace_capture *cap)
@@ -857,29 +1010,20 @@ static int load_cap_events(struct trace_capture *cap,
 	return 0;
 }
 
-static void load_settings_clicked(GtkWidget *widget, gpointer data)
+static void load_settings(struct trace_capture *cap, gchar *filename)
 {
-	struct trace_capture *cap = data;
 	struct shark_info *info = cap->info;
 	struct tracecmd_xml_system_node *syschild;
 	struct tracecmd_xml_handle *handle;
 	struct tracecmd_xml_system *system;
 	const char *plugin;
 	const char *name;
-	gchar *filename;
-
-	filename = trace_get_file_dialog("Load Filters", NULL, FALSE);
-	if (!filename)
-		return;
 
 	handle = tracecmd_xml_open(filename);
 	if (!handle) {
 		warning("Could not open %s", filename);
-		g_free(filename);
 		return;
 	}
-
-	g_free(filename);
 
 	system = tracecmd_xml_find_system(handle, "CaptureSettings");
 	if (!system)
@@ -929,6 +1073,45 @@ static void load_settings_clicked(GtkWidget *widget, gpointer data)
 	tracecmd_xml_close(handle);
 }
 
+static void settings_changed(GtkComboBox *combo,
+			     gpointer data)
+{
+	struct trace_capture *cap = data;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	gchar *text;
+
+	model = gtk_combo_box_get_model(combo);
+	if (!model)
+		return;
+
+	if (!gtk_combo_box_get_active_iter(combo, &iter))
+		return;
+
+	gtk_tree_model_get(model, &iter,
+			   1, &text,
+			   -1);
+
+	if (text && strlen(text))
+		load_settings(cap, text);
+
+	g_free(text);
+}
+
+static void import_settings_clicked(GtkWidget *widget, gpointer data)
+{
+	struct trace_capture *cap = data;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Import Settings", NULL, FALSE);
+	if (!filename)
+		return;
+
+	load_settings(cap, filename);
+
+	g_free(filename);
+}
+
 static void save_events(struct trace_capture *cap,
 			struct tracecmd_xml_handle *handle)
 {
@@ -960,27 +1143,18 @@ static void save_events(struct trace_capture *cap,
 	tracecmd_xml_end_sub_system(handle);
 }
 
-static void save_settings_clicked(GtkWidget *widget, gpointer data)
+static void save_settings(struct trace_capture *cap, const char *filename)
 {
-	struct trace_capture *cap = data;
 	struct shark_info *info = cap->info;
 	struct tracecmd_xml_handle *handle;
-	gchar *filename;
 	const char *file;
 	const char *command;
-
-	filename = trace_get_file_dialog("Save Settings", "Save", TRUE);
-	if (!filename)
-		return;
 
 	handle = tracecmd_xml_create(filename, VERSION_STRING);
 	if (!handle) {
 		warning("Could not create %s", filename);
-		g_free(filename);
 		return;
 	}
-
-	g_free(filename);
 
 	update_events(cap);
 
@@ -1012,6 +1186,98 @@ static void save_settings_clicked(GtkWidget *widget, gpointer data)
 	tracecmd_xml_end_system(handle);
 
 	tracecmd_xml_close(handle);
+}
+
+static void save_settings_clicked(GtkWidget *widget, gpointer data)
+{
+	struct trace_capture *cap = data;
+	struct stat st;
+	GtkWidget *dialog;
+	GtkWidget *hbox;
+	GtkWidget *label;
+	GtkWidget *entry;
+	GString *file;
+	const char *name;
+	gint result;
+	int ret;
+
+	dialog = gtk_dialog_new_with_buttons("Save Settings",
+					     NULL,
+					     GTK_DIALOG_MODAL,
+					     GTK_STOCK_OK,
+					     GTK_RESPONSE_ACCEPT,
+					     GTK_STOCK_CANCEL,
+					     GTK_RESPONSE_REJECT,
+					     NULL);
+
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 0);
+	gtk_widget_show(hbox);
+
+	label = gtk_label_new("Settings Name: ");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	entry = gtk_entry_new();
+	gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
+	gtk_widget_show(entry);
+
+ again:
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		name = gtk_entry_get_text(GTK_ENTRY(entry));
+		if (!name || is_just_ws(name)) {
+			warning("Must enter a name");
+			goto again;
+		}
+		/* Make sure home settings exists */
+		if (create_home_settings() < 0)
+			break;
+		file = get_home_settings_new();
+		g_string_append_printf(file, "/%s.kss", name);
+		ret = stat(file->str, &st);
+		if (ret >= 0) {
+			ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
+					   "The setting '%s' already exists.\n"
+					   "Are you sure you want to replace it",
+					   name);
+			if (ret == GTK_RESPONSE_NO) {
+				g_string_free(file, TRUE);
+				goto again;
+			}
+		}
+		save_settings(cap, file->str);
+
+		refresh_settings(cap);
+		g_free(cap->info->cap_settings_name);
+		cap->info->cap_settings_name = g_strdup(name);
+		set_settings(cap);
+
+		g_string_free(file, TRUE);
+		break;
+
+	case GTK_RESPONSE_REJECT:
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
+}
+
+static void export_settings_clicked(GtkWidget *widget, gpointer data)
+{
+	struct trace_capture *cap = data;
+	gchar *filename;
+
+	filename = trace_get_file_dialog("Save Settings", "Save", TRUE);
+	if (!filename)
+		return;
+
+	save_settings(cap, filename);
+
+	g_free(filename);
 }
 
 static GtkTreeModel *create_plugin_combo_model(gpointer data)
@@ -1212,21 +1478,46 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_box_pack_start(GTK_BOX(vbox), vbox2, FALSE, FALSE, 0);
 	gtk_widget_show(vbox2);
 
-	button = gtk_button_new_with_label("Load Settings");
-	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
-	gtk_widget_show(button);
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
+	gtk_widget_show(hbox);
 
-	g_signal_connect (button, "clicked",
-			  G_CALLBACK (load_settings_clicked),
+	combo = trace_create_combo_box(hbox, "Available Settings: ",
+				       create_settings_model, NULL);
+
+	cap.settings_combo = combo;
+
+	g_signal_connect (combo, "changed",
+			  G_CALLBACK (settings_changed),
 			  (gpointer)&cap);
-
 
 	button = gtk_button_new_with_label("Save Settings");
 	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
 	gtk_widget_show(button);
 
+	if (cap.info->cap_settings_name)
+		set_settings(&cap);
+
 	g_signal_connect (button, "clicked",
 			  G_CALLBACK (save_settings_clicked),
+			  (gpointer)&cap);
+
+
+	button = gtk_button_new_with_label("Import Settings");
+	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (import_settings_clicked),
+			  (gpointer)&cap);
+
+
+	button = gtk_button_new_with_label("Export Settings");
+	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (export_settings_clicked),
 			  (gpointer)&cap);
 
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
