@@ -316,6 +316,7 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 	struct stat st;
 	GtkWidget *dialog;
 	GtkResponseType ret;
+	GtkFileFilter *filter;
 	gchar *filename = NULL;
 
 	if (!open)
@@ -327,6 +328,24 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 					     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 					     open, GTK_RESPONSE_ACCEPT,
 					     NULL);
+
+	filter = gtk_file_filter_new();
+	gtk_file_filter_set_name(filter, "All Files");
+	gtk_file_filter_add_pattern(filter, "*");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+
+	filter = gtk_file_filter_new();
+	gtk_file_filter_set_name(filter, "trace-cmd .dat files");
+	gtk_file_filter_add_pattern(filter, "*.dat");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+
+	filter = gtk_file_filter_new();
+	gtk_file_filter_set_name(filter, "KernelShark setting files");
+	gtk_file_filter_add_pattern(filter, "*.kss");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+
+	if (warn)
+		gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
 
  again:
 	ret = gtk_dialog_run(GTK_DIALOG(dialog));
