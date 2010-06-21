@@ -32,6 +32,12 @@ enum trace_dialog_type {
 
 GtkWidget *trace_status_bar_new(void);
 
+enum trace_dialog_filter {
+	TRACE_DIALOG_FILTER_NONE,
+	TRACE_DIALOG_FILTER_DATA,
+	TRACE_DIALOG_FILTER_SETTING,
+};
+
 void trace_dialog_register_window(GtkWidget *window);
 void trace_dialog_register_alt_warning(void (*alt)(const char *fmt, va_list ap));
 
@@ -40,6 +46,8 @@ void trace_show_help(GtkWidget *window, const gchar *link, GError **error);
 GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 			     gchar *message, ...);
 
+gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
+			     enum trace_dialog_filter, gboolean warn);
 gchar *trace_get_file_dialog(const gchar *title, const char *open,
 			     gboolean warn);
 

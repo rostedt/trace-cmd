@@ -305,18 +305,20 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
  * trace_get_file_dialog - pop up a file dialog to get a file
  * @title: the title of the dialog
  * @open: the text for the "open" button (NULL for default)
+ * @ftype: What extension the dialog should default filter on.
  * @warn: if the file exists, warn and let them choose again.
  *
  * Returns: the filename if it should be used. NULL otherwise.
  *  The filename needs to be freed with g_free().
  */
-gchar *trace_get_file_dialog(const gchar *title, const char *open,
-			     gboolean warn)
+gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
+			     enum trace_dialog_filter ftype, gboolean warn)
 {
 	struct stat st;
 	GtkWidget *dialog;
 	GtkResponseType ret;
 	GtkFileFilter *filter;
+	GtkFileFilter *setfilter;
 	gchar *filename = NULL;
 
 	if (!open)
@@ -329,7 +331,7 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 					     open, GTK_RESPONSE_ACCEPT,
 					     NULL);
 
-	filter = gtk_file_filter_new();
+	setfilter = filter = gtk_file_filter_new();
 	gtk_file_filter_set_name(filter, "All Files");
 	gtk_file_filter_add_pattern(filter, "*");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
@@ -339,13 +341,21 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 	gtk_file_filter_add_pattern(filter, "*.dat");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
 
+	if (ftype == TRACE_DIALOG_FILTER_DATA)
+		setfilter = filter;
+
 	filter = gtk_file_filter_new();
 	gtk_file_filter_set_name(filter, "KernelShark setting files");
 	gtk_file_filter_add_pattern(filter, "*.kss");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
 
+	if (ftype == TRACE_DIALOG_FILTER_SETTING)
+		setfilter = filter;
+
 	if (warn)
 		gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+	gtk_file_chooser_set_filter(GTK_FILE_CHOOSER(dialog), setfilter);
 
  again:
 	ret = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -368,6 +378,12 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 	gtk_widget_destroy(dialog);
 
 	return filename;
+}
+
+gchar *trace_get_file_dialog(const gchar *title, const char *open,
+			     gboolean warn)
+{
+	return trace_get_file_dialog_filter(title, open, TRACE_DIALOG_FILTER_NONE, warn);
 }
 
 /**
