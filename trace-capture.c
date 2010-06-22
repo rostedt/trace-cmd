@@ -47,7 +47,7 @@
 
 #define PLUGIN_NONE "NONE"
 
-#define DIALOG_WIDTH	620
+#define DIALOG_WIDTH	820
 #define DIALOG_HEIGHT	600
 
 struct trace_capture {
@@ -1306,8 +1306,8 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 					       GTK_POLICY_AUTOMATIC,
 					       GTK_POLICY_AUTOMATIC);
 
-		gtk_table_attach_defaults(GTK_TABLE(table), scrollwin,
-					  0, 1, 1, 2);
+		gtk_table_attach(GTK_TABLE(table), scrollwin, 0, 1, 1, 2,
+				 GTK_FILL, GTK_FILL|GTK_EXPAND, 0, 0);
 		gtk_widget_show(scrollwin);
 
 		event_tree = trace_create_event_list_view(pevent, NULL,
@@ -1324,7 +1324,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 		/* No events */
 		label = gtk_label_new("No events enabled on system");
 		gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
-				 GTK_EXPAND|GTK_FILL, GTK_EXPAND|GTK_FILL,
+				 GTK_FILL, GTK_EXPAND|GTK_FILL,
 				 0, 10);
 		gtk_widget_show(label);
 		cap.event_view = NULL;
@@ -1337,7 +1337,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	frame = gtk_frame_new("Settings");
 	gtk_table_attach(GTK_TABLE(table), frame, 0, 1, 0, 1,
-			 GTK_EXPAND|GTK_FILL, 0, 0, 10);
+			 GTK_FILL, 0, 0, 10);
 	gtk_widget_show(frame);
 
 	table2 = gtk_table_new(2, 3, FALSE);
@@ -1394,7 +1394,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	frame = gtk_frame_new("Execute");
 	gtk_table_attach(GTK_TABLE(table), frame, 0, 1, 3, 4,
-			 GTK_EXPAND|GTK_FILL, 0, 0, 10);
+			 GTK_FILL, 0, 0, 10);
 	gtk_widget_show(frame);
 
 	table2 = gtk_table_new(3, 3, FALSE);
@@ -1457,7 +1457,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	vbox = gtk_vbox_new(FALSE, 0);
 	gtk_table_attach_defaults(GTK_TABLE(table), vbox, 1, 2, 0, 4);
 	gtk_widget_show(vbox);
-	gtk_widget_set_size_request(GTK_WIDGET(vbox), 300, 0);
+	gtk_widget_set_size_request(GTK_WIDGET(vbox), 500, 0);
 
 
 	label = gtk_label_new("Command Output:");
