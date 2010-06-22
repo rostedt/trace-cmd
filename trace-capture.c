@@ -50,6 +50,8 @@
 #define DIALOG_WIDTH	820
 #define DIALOG_HEIGHT	600
 
+#define CAP_STOP	"Stop"
+
 struct trace_capture {
 	struct pevent		*pevent;
 	struct shark_info	*info;
@@ -61,7 +63,7 @@ struct trace_capture {
 	GtkWidget		*event_view;
 	GtkWidget		*plugin_combo;
 	GtkWidget		*settings_combo;
-	GtkWidget		*stop_dialog;
+	GtkWidget		*run_button;
 	pthread_t		thread;
 	gboolean		kill_thread;
 	gboolean		capture_done;
@@ -229,10 +231,17 @@ void kernel_shark_clear_capture(struct shark_info *info)
 	info->cap_file = NULL;
 }
 
-static void end_capture(struct trace_capture *cap)
+static gboolean end_capture(struct trace_capture *cap)
 {
 	const char *filename;
+	const char *val;
 	int pid;
+
+	val = gtk_button_get_label(GTK_BUTTON(cap->run_button));
+	if (strcmp(val, CAP_STOP) != 0)
+		return FALSE;
+
+	gtk_button_set_label(GTK_BUTTON(cap->run_button), "Run");
 
 	cap->capture_done = TRUE;
 
@@ -267,6 +276,8 @@ static void end_capture(struct trace_capture *cap)
 		kernelshark_load_file(cap->info, filename);
 		cap->load_file = FALSE;
 	}
+
+	return TRUE;
 }
 
 static char *get_tracing_dir(void)
@@ -609,36 +620,6 @@ static void execute_command(struct trace_capture *cap)
 	g_free(cap->info->cap_plugin);
 }
 
-static gint
-delete_stop_dialog(GtkWidget *widget, GdkEvent *event, gpointer data)
-{
-	struct trace_capture *cap = data;
-	GtkWidget *dialog = cap->stop_dialog;
-
-	cap->stop_dialog = NULL;
-	if (!dialog)
-		return TRUE;
-
-	end_capture(cap);
-	gtk_widget_destroy(dialog);
-
-	return TRUE;
-}
-
-void end_stop_dialog(struct trace_capture *cap)
-{
-	GdkEvent dummy_event;
-	gboolean dummy_retval;
-	guint sigid;
-
-	if (!cap->stop_dialog)
-		return;
-
-	sigid = g_signal_lookup("delete-event", G_OBJECT_TYPE(cap->stop_dialog));
-	g_signal_emit(cap->stop_dialog, sigid, 0,
-		      cap->stop_dialog, &dummy_event , cap, &dummy_retval);
-}
-
 static void *monitor_pipes(void *data)
 {
 	struct trace_capture *cap = data;
@@ -673,7 +654,7 @@ static void *monitor_pipes(void *data)
 
 	if (eof) {
 		gdk_threads_enter();
-		end_stop_dialog(cap);
+		end_capture(cap);
 		gdk_threads_leave();
 	}
 
@@ -785,10 +766,11 @@ static void execute_button_clicked(struct trace_capture *cap)
 {
 	struct stat st;
 	GtkResponseType ret;
-	GtkWidget *dialog;
-	GtkWidget *label;
 	const char *filename;
 	char *tracecmd;
+
+	if (end_capture(cap))
+		return;
 
 	tracecmd = find_tracecmd();
 	if (!tracecmd) {
@@ -808,28 +790,8 @@ static void execute_button_clicked(struct trace_capture *cap)
 			return;
 	}
 
+	gtk_button_set_label(GTK_BUTTON(cap->run_button), CAP_STOP);
 	run_command(cap);
-
-	dialog = gtk_dialog_new_with_buttons("Stop Execution",
-					     NULL,
-					     GTK_DIALOG_MODAL,
-					     "Stop",
-					     GTK_RESPONSE_ACCEPT,
-					     NULL);
-
-	cap->stop_dialog = dialog;
-
-	label = gtk_label_new("Hit Stop to end execution");
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), label, TRUE, FALSE, 0);
-	gtk_widget_show(label);
-
-	gtk_signal_connect(GTK_OBJECT (dialog), "delete_event",
-			   (GtkSignalFunc)delete_stop_dialog,
-			   (gpointer)cap);
-
-	gtk_dialog_run(GTK_DIALOG(dialog));
-
-	end_stop_dialog(cap);
 }
 
 static int load_events(struct trace_capture *cap,
@@ -1290,6 +1252,8 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 				       GTK_RESPONSE_ACCEPT);
 	gtk_widget_show(button);
 
+	cap.run_button = button;
+
 	gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_CANCEL,
 			      GTK_RESPONSE_REJECT);
 
@@ -1500,6 +1464,9 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 		goto cont;
 	}
 
+	/* Make sure no capture is running */
+	end_capture(&cap);
+
 	/* save the plugin and file to reuse if we come back */
 	update_plugin(&cap);
 
@@ -1516,8 +1483,6 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	update_events(&cap);
 
 	gtk_widget_destroy(dialog);
-
-	end_capture(&cap);
 
 	if (pevent)
 		pevent_free(pevent);
