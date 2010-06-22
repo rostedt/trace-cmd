@@ -47,7 +47,7 @@
 
 #define PLUGIN_NONE "NONE"
 
-#define DIALOG_WIDTH	600
+#define DIALOG_WIDTH	320
 #define DIALOG_HEIGHT	600
 
 struct trace_capture {
@@ -1327,15 +1327,14 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 {
 	struct pevent *pevent;
 	GtkWidget *dialog;
-	GtkWidget *vbox;
-	GtkWidget *vbox2;
 	GtkWidget *button;
-	GtkWidget *hbox;
 	GtkWidget *combo;
 	GtkWidget *label;
 	GtkWidget *entry;
-	GtkWidget *hpaned;
+	GtkWidget *frame;
 	GtkWidget *scrollwin;
+	GtkWidget *table;
+	GtkWidget *table2;
 	GtkWidget *event_tree;
 	char **plugins;
 	int nr_plugins;
@@ -1369,31 +1368,32 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 		return;
 	}
 
-	dialog = gtk_dialog_new_with_buttons("Capture",
-					     NULL,
-					     GTK_DIALOG_MODAL,
-					     "Execute",
-					     GTK_RESPONSE_ACCEPT,
-					     GTK_STOCK_CANCEL,
-					     GTK_RESPONSE_REJECT,
-					     NULL);
+	dialog = gtk_dialog_new();
+	gtk_window_set_title(GTK_WINDOW(dialog), "Capture");
+
+	button = gtk_button_new_with_label("Run");
+	gtk_dialog_add_action_widget(GTK_DIALOG(dialog), button,
+				       GTK_RESPONSE_ACCEPT);
+	gtk_widget_show(button);
+
+	gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_CANCEL,
+			      GTK_RESPONSE_REJECT);
 
 	cap.main_dialog = dialog;
 
 	/* --- Top Level Hpaned --- */
-
-	hpaned = gtk_hpaned_new();
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hpaned, TRUE, TRUE, 0);
-	gtk_widget_show(hpaned);
+	table = gtk_table_new(4, 1, FALSE);
 
 	/* It is possible that no pevents exist. */
 	if (pevent) {
+
 		scrollwin = gtk_scrolled_window_new(NULL, NULL);
 		gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
 					       GTK_POLICY_AUTOMATIC,
 					       GTK_POLICY_AUTOMATIC);
 
-		gtk_paned_add2(GTK_PANED(hpaned), scrollwin);
+		gtk_table_attach_defaults(GTK_TABLE(table), scrollwin,
+					  0, 1, 1, 2);
 		gtk_widget_show(scrollwin);
 
 		event_tree = trace_create_event_list_view(pevent, NULL,
@@ -1409,35 +1409,103 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	} else {
 		/* No events */
 		label = gtk_label_new("No events enabled on system");
-		gtk_paned_add2(GTK_PANED(hpaned), label);
+		gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
+				 GTK_EXPAND|GTK_FILL, GTK_EXPAND|GTK_FILL,
+				 0, 10);
 		gtk_widget_show(label);
 		cap.event_view = NULL;
 	}
 
-	vbox = gtk_vbox_new(TRUE, 0);
-	gtk_paned_add1(GTK_PANED(hpaned), vbox);
-	gtk_widget_show(vbox);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), table, TRUE, TRUE, 0);
+	gtk_widget_show(table);
 
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-	gtk_widget_show(hbox);
+	/*------------------ Frame Settings --------------------------- */
 
-	combo = trace_create_combo_box(hbox, "Plugin: ", create_plugin_combo_model, plugins);
+	frame = gtk_frame_new("Settings");
+	gtk_table_attach(GTK_TABLE(table), frame, 0, 1, 0, 1,
+			 GTK_EXPAND|GTK_FILL, 0, 0, 10);
+	gtk_widget_show(frame);
+
+	table2 = gtk_table_new(2, 3, FALSE);
+	gtk_container_add(GTK_CONTAINER(frame), table2);
+	gtk_widget_show(table2);
+
+	gtk_table_set_col_spacings(GTK_TABLE(table2), 5);
+
+	button = gtk_button_new_with_label("Save Settings");
+	gtk_table_attach_defaults(GTK_TABLE(table2), button, 0, 1, 0, 1);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (save_settings_clicked),
+			  (gpointer)&cap);
+
+	button = gtk_button_new_with_label("Import Settings");
+	gtk_table_attach_defaults(GTK_TABLE(table2), button, 1, 2, 0, 1);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (import_settings_clicked),
+			  (gpointer)&cap);
+
+
+	button = gtk_button_new_with_label("Export Settings");
+	gtk_table_attach_defaults(GTK_TABLE(table2), button, 2, 3, 0, 1);
+	gtk_widget_show(button);
+
+	g_signal_connect (button, "clicked",
+			  G_CALLBACK (export_settings_clicked),
+			  (gpointer)&cap);
+
+	if (cap.info->cap_settings_name)
+		set_settings(&cap);
+
+	label = gtk_label_new("Available Settings: ");
+	gtk_table_attach_defaults(GTK_TABLE(table2), label, 0, 1, 1, 2);
+	gtk_widget_show(label);
+
+	combo = trace_create_combo_box(NULL, NULL,
+				       create_settings_model, NULL);
+	gtk_table_attach_defaults(GTK_TABLE(table2), combo, 1, 3, 1, 2);
+
+	cap.settings_combo = combo;
+
+	g_signal_connect (combo, "changed",
+			  G_CALLBACK (settings_changed),
+			  (gpointer)&cap);
+
+
+
+	/*------------------ Frame Settings --------------------------- */
+
+	frame = gtk_frame_new("Execute");
+	gtk_table_attach(GTK_TABLE(table), frame, 0, 1, 3, 4,
+			 GTK_EXPAND|GTK_FILL, 0, 0, 10);
+	gtk_widget_show(frame);
+
+	table2 = gtk_table_new(3, 3, FALSE);
+	gtk_container_add(GTK_CONTAINER(frame), table2);
+	gtk_widget_show(table2);
+
+	label = gtk_label_new("Plugin: ");
+	gtk_table_attach_defaults(GTK_TABLE(table2), label, 0, 1, 0, 1);
+	gtk_widget_show(label);
+
+	combo = trace_create_combo_box(NULL, NULL, create_plugin_combo_model, plugins);
 	cap.plugin_combo = combo;
+
+	gtk_table_attach_defaults(GTK_TABLE(table2), combo, 1, 3, 0, 1);
 
 	if (cap.info->cap_plugin)
 		set_plugin(&cap);
 
-	vbox2 = gtk_vbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), vbox2, FALSE, FALSE, 0);
-	gtk_widget_show(vbox2);
 
 	label = gtk_label_new("Command:");
-	gtk_box_pack_start(GTK_BOX(vbox2), label, FALSE, FALSE, 0);
+	gtk_table_attach_defaults(GTK_TABLE(table2), label, 0, 1, 1, 2);
 	gtk_widget_show(label);
 
 	entry = gtk_entry_new();
-	gtk_box_pack_start(GTK_BOX(vbox2), entry, FALSE, FALSE, 0);
+	gtk_table_attach_defaults(GTK_TABLE(table2), entry, 1, 3, 1, 2);
 	gtk_widget_show(entry);
 
 	cap.command_entry = entry;
@@ -1445,20 +1513,12 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	if (cap.info->cap_command)
 		gtk_entry_set_text(GTK_ENTRY(entry), cap.info->cap_command);
 
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox2), hbox, TRUE, FALSE, 0);
-	gtk_widget_show(hbox);
-
-	button = gtk_button_new_with_label("Save file: ");
-	gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
-	gtk_widget_show(button);
-
-	g_signal_connect (button, "clicked",
-			  G_CALLBACK (file_clicked),
-			  (gpointer)&cap);
+	label = gtk_label_new("Output file: ");
+	gtk_table_attach_defaults(GTK_TABLE(table2), label, 0, 1, 2, 3);
+	gtk_widget_show(label);
 
 	entry = gtk_entry_new();
-	gtk_box_pack_start(GTK_BOX(hbox), entry, TRUE, TRUE, 0);
+	gtk_table_attach_defaults(GTK_TABLE(table2), entry, 1, 2, 2, 3);
 	gtk_widget_show(entry);
 
 	if (cap.info->cap_file)
@@ -1469,51 +1529,12 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_entry_set_text(GTK_ENTRY(entry), file);
 	cap.file_entry = entry;
 
-
-	vbox2 = gtk_vbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), vbox2, FALSE, FALSE, 0);
-	gtk_widget_show(vbox2);
-
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
-	gtk_widget_show(hbox);
-
-	combo = trace_create_combo_box(hbox, "Available Settings: ",
-				       create_settings_model, NULL);
-
-	cap.settings_combo = combo;
-
-	g_signal_connect (combo, "changed",
-			  G_CALLBACK (settings_changed),
-			  (gpointer)&cap);
-
-	button = gtk_button_new_with_label("Save Settings");
-	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
-	gtk_widget_show(button);
-
-	if (cap.info->cap_settings_name)
-		set_settings(&cap);
-
-	g_signal_connect (button, "clicked",
-			  G_CALLBACK (save_settings_clicked),
-			  (gpointer)&cap);
-
-
-	button = gtk_button_new_with_label("Import Settings");
-	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
+	button = gtk_button_new_with_label("Browse");
+	gtk_table_attach_defaults(GTK_TABLE(table2), button, 2, 3, 2, 3);
 	gtk_widget_show(button);
 
 	g_signal_connect (button, "clicked",
-			  G_CALLBACK (import_settings_clicked),
-			  (gpointer)&cap);
-
-
-	button = gtk_button_new_with_label("Export Settings");
-	gtk_box_pack_start(GTK_BOX(vbox2), button, TRUE, FALSE, 0);
-	gtk_widget_show(button);
-
-	g_signal_connect (button, "clicked",
-			  G_CALLBACK (export_settings_clicked),
+			  G_CALLBACK (file_clicked),
 			  (gpointer)&cap);
 
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
