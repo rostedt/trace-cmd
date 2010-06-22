@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -35,6 +36,7 @@
 #include "trace-cmd.h"
 #include "trace-gui.h"
 #include "kernel-shark.h"
+#include "util.h"
 #include "version.h"
 
 #define ___stringify(X) #X
@@ -211,6 +213,7 @@ static void free_info(struct shark_info *info)
 
 	kernel_shark_clear_capture(info);
 
+	free(info->current_filter);
 	free(info->ginfo);
 	free(info);
 }
@@ -345,11 +348,52 @@ load_clicked (gpointer data)
 	g_free(filename);
 }
 
-/* Callback for the clicked signal of the Load Filters button */
-static void
-load_filters_clicked (gpointer data)
+static GString *get_home_filters_new(void)
 {
-	struct shark_info *info = data;
+	char *path = getenv("HOME");
+	GString *str;
+
+	str = g_string_new(path);
+	g_string_append(str, "/.trace-cmd/filters/");
+	return str;
+}
+
+static int create_home_filters(void)
+{
+	char *path = getenv("HOME");
+	GString *str;
+	struct stat st;
+	int ret;
+
+	str = g_string_new(path);
+	g_string_append(str, "/.trace-cmd");
+	ret = stat(str->str, &st);
+	if (ret < 0) {
+		ret = mkdir(str->str, 0755);
+		if (ret < 0) {
+			warning("Can not create %s", str->str);
+			goto out;
+		}
+	}
+
+	g_string_append(str, "/filters");
+	ret = stat(str->str, &st);
+	if (ret < 0) {
+		ret = mkdir(str->str, 0755);
+		if (ret < 0) {
+			warning("Can not create %s", str->str);
+			goto out;
+		}
+	}
+
+	ret = 0;
+ out:
+	g_string_free(str, TRUE);
+	return ret;
+}
+
+static void load_filter(struct shark_info *info, const char *filename)
+{
 	struct graph_info *ginfo = info->ginfo;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
@@ -358,18 +402,12 @@ load_filters_clicked (gpointer data)
 	struct filter_task *task_filter;
 	struct filter_task *hide_tasks;
 	struct event_filter *event_filter;
-	gchar *filename;
 	int ret;
-
-	filename = trace_get_file_dialog_filter("Load Filters", NULL,
-					 TRACE_DIALOG_FILTER_FILTER, FALSE);
-	if (!filename)
-		return;
 
 	handle = tracecmd_xml_open(filename);
 	if (!handle) {
 		warning("Could not open %s", filename);
-		goto out;
+		return;
 	}
 
 	/* Unsync the list and graph filters */
@@ -423,40 +461,61 @@ load_filters_clicked (gpointer data)
 
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
-		goto out;
+		return;
 
 	store = TRACE_VIEW_STORE(model);
 	event_filter = trace_view_store_get_event_filter(store);
 
 	if (pevent_filter_compare(event_filter, ginfo->event_filter))
 		sync_event_filters(info);
-
- out:
-	g_free(filename);
-
 }
 
-/* Callback for the clicked signal of the Save Filters button */
-static void
-save_filters_clicked (gpointer data)
+static void load_filter_clicked(GtkMenuItem *item, gpointer data)
 {
 	struct shark_info *info = data;
+	const char *name;
+	GString *path;
+
+	name = gtk_menu_item_get_label(item);
+
+	path = get_home_filters_new();
+	g_string_append_printf(path, "/%s.ksf", name);
+
+	load_filter(info, path->str);
+	g_string_free(path, TRUE);
+
+	free(info->current_filter);
+	info->current_filter = strdup(name);
+}
+
+/* Callback for the clicked signal of the Load Filters button */
+static void
+import_filters_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	gchar *filename;
+
+	filename = trace_get_file_dialog_filter("Load Filters", NULL,
+					 TRACE_DIALOG_FILTER_FILTER, FALSE);
+	if (!filename)
+		return;
+
+	load_filter(info, filename);
+}
+
+static void save_filters(struct shark_info *info, const char *filename)
+{
 	struct graph_info *ginfo = info->ginfo;
 	struct tracecmd_xml_handle *handle;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	struct filter_task *task_filter;
 	struct filter_task *hide_tasks;
-	gchar *filename;
-
-	filename = trace_get_file_dialog_filter("Save Filters", "Save",
-					 TRACE_DIALOG_FILTER_FILTER, TRUE);
-	if (!filename)
-		return;
 
 	handle = tracecmd_xml_create(filename, VERSION_STRING);
-	if (!handle)
+	if (!handle) {
 		warning("Could not create %s", filename);
-	g_free(filename);
+		return;
+	}
 
 	trace_view_save_filters(handle, trace_tree);
 	trace_graph_save_filters(ginfo, handle);
@@ -479,6 +538,178 @@ save_filters_clicked (gpointer data)
 				  task_filter, hide_tasks);
 
 	tracecmd_xml_close(handle);
+}
+
+/* Callback for the clicked signal of the Save Filters button */
+static void
+export_filters_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	gchar *filename;
+
+	filename = trace_get_file_dialog_filter("Save Filters", "Save",
+					 TRACE_DIALOG_FILTER_FILTER, TRUE);
+	if (!filename)
+		return;
+
+	save_filters(info, filename);
+	g_free(filename);
+}
+
+static void update_load_filter(struct shark_info *info)
+{
+	struct dirent *dent;
+	struct stat st;
+	DIR *dir;
+	GtkWidget *menu;
+	GtkWidget *sub_item;
+	GString *path;
+	int ret;
+
+	path = get_home_filters_new();
+
+	menu = gtk_menu_new();
+
+	ret = stat(path->str, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto update_rest;
+
+	dir = opendir(path->str);
+	if (!dir)
+		goto update_rest;
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		GString *file;
+		gchar *item;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		if (strcmp(name + strlen(name) - 4, ".ksf") != 0)
+			continue;
+
+		file = g_string_new(path->str);
+		g_string_append_printf(file, "/%s", name);
+
+		/* Save the file name but remove the .kss extention */
+		item = g_strdup(name);
+		item[strlen(name) - 4] = 0;
+
+		sub_item = gtk_menu_item_new_with_label(item);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+		gtk_widget_show(sub_item);
+
+		g_signal_connect(G_OBJECT (sub_item), "activate",
+				 G_CALLBACK (load_filter_clicked),
+				 (gpointer) info);
+
+		g_free(item);
+		g_string_free(file, TRUE);
+	}
+
+ update_rest:
+	g_string_free(path, TRUE);
+
+	/* --- File - Load Filter - Filters --- */
+
+	sub_item = gtk_menu_item_new_with_label("Import Filter");
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (import_filters_clicked),
+				  (gpointer) info);
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM (info->load_filter_menu), menu);
+
+}
+
+/* Callback for the clicked signal of the Save Filters button */
+static void
+save_filter_clicked (gpointer data)
+{
+	struct shark_info *info = data;
+	struct stat st;
+	GtkWidget *dialog;
+	GtkWidget *hbox;
+	GtkWidget *label;
+	GtkWidget *entry;
+	GString *file;
+	const char *name;
+	gint result;
+	int ret;
+
+	dialog = gtk_dialog_new_with_buttons("Save Filter",
+					     NULL,
+					     GTK_DIALOG_MODAL,
+					     GTK_STOCK_OK,
+					     GTK_RESPONSE_ACCEPT,
+					     GTK_STOCK_CANCEL,
+					     GTK_RESPONSE_REJECT,
+					     NULL);
+
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox, FALSE, FALSE, 0);
+	gtk_widget_show(hbox);
+
+	label = gtk_label_new("Filter Name: ");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	entry = gtk_entry_new();
+	gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
+	gtk_widget_show(entry);
+
+	if (info->current_filter)
+		gtk_entry_set_text(GTK_ENTRY(entry), info->current_filter);
+
+ again:
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_ACCEPT:
+		name = gtk_entry_get_text(GTK_ENTRY(entry));
+		if (!name || !has_text(name)) {
+			warning("Must enter a name");
+			goto again;
+		}
+		/* Make sure home settings exists */
+		if (create_home_filters() < 0)
+			break;
+		file = get_home_filters_new();
+		g_string_append_printf(file, "/%s.ksf", name);
+		ret = stat(file->str, &st);
+		if (ret >= 0) {
+			ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
+					   "The Filter '%s' already exists.\n"
+					   "Are you sure you want to replace it",
+					   name);
+			if (ret == GTK_RESPONSE_NO) {
+				g_string_free(file, TRUE);
+				goto again;
+			}
+		}
+		save_filters(info, file->str);
+
+		free(info->current_filter);
+		info->current_filter = strdup(name);
+
+		update_load_filter(info);
+		g_string_free(file, TRUE);
+		break;
+
+	case GTK_RESPONSE_REJECT:
+		break;
+	default:
+		break;
+	};
+
+	gtk_widget_destroy(dialog);
 }
 
 /* Callback for the clicked signal of the Exit button */
@@ -1633,30 +1864,45 @@ void kernel_shark(int argc, char **argv)
 	gtk_widget_show(sub_item);
 
 
-	/* --- File - Load Filter Option --- */
+	/* --- File - Load Filter --- */
 
-	sub_item = gtk_menu_item_new_with_label("Load filters");
+	sub_item = gtk_menu_item_new_with_label("Load filter");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
 
-	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (load_filters_clicked),
-				  (gpointer) info);
+	info->load_filter_menu = sub_item;
 
 	/* We do need to show menu items */
 	gtk_widget_show(sub_item);
 
+	update_load_filter(info);
+
 
 	/* --- File - Save Filter Option --- */
 
-	sub_item = gtk_menu_item_new_with_label("Save filters");
+	sub_item = gtk_menu_item_new_with_label("Save filter");
+
+	/* Add them to the menu */
+	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
+
+	/* We do need to show menu items */
+	gtk_widget_show(sub_item);
+
+	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
+				  G_CALLBACK (save_filter_clicked),
+				  (gpointer) info);
+
+
+	/* --- File - Export Filter Option --- */
+
+	sub_item = gtk_menu_item_new_with_label("Export filters");
 
 	/* Add them to the menu */
 	gtk_menu_shell_append(GTK_MENU_SHELL (menu), sub_item);
 
 	g_signal_connect_swapped (G_OBJECT (sub_item), "activate",
-				  G_CALLBACK (save_filters_clicked),
+				  G_CALLBACK (export_filters_clicked),
 				  (gpointer) info);
 
 	/* We do need to show menu items */

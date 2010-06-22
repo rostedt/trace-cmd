@@ -30,6 +30,7 @@ struct shark_info {
 	struct tracecmd_input  		*handle;
 	GtkWidget			*treeview;
 	GtkWidget			*spin;
+	GtkWidget			*load_filter_menu;
 	GtkWidget			*task_sync_menu;
 	GtkWidget			*events_sync_menu;
 	GtkWidget			*list_task_menu;
@@ -40,6 +41,7 @@ struct shark_info {
 	GtkWidget			*graph_events_menu;
 	GtkWidget			*list_adv_events_menu;
 	GtkWidget			*graph_adv_events_menu;
+	gchar				*current_filter;
 	struct graph_callbacks		graph_cbs;
 	gint				selected_task;
 	gboolean			list_filter_enabled;
