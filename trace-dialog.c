@@ -320,6 +320,7 @@ gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
 	GtkFileFilter *filter;
 	GtkFileFilter *setfilter;
 	gchar *filename = NULL;
+	gchar *ext = NULL;
 
 	if (!open)
 		open = GTK_STOCK_OPEN;
@@ -341,27 +342,30 @@ gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
 	gtk_file_filter_add_pattern(filter, "*.dat");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
 
-	if (ftype == TRACE_DIALOG_FILTER_DATA)
+	if (ftype == TRACE_DIALOG_FILTER_DATA) {
 		setfilter = filter;
+		ext = ".dat";
+	}
 
 	filter = gtk_file_filter_new();
 	gtk_file_filter_set_name(filter, "KernelShark filter files");
 	gtk_file_filter_add_pattern(filter, "*.ksf");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
 
-	if (ftype == TRACE_DIALOG_FILTER_FILTER)
+	if (ftype == TRACE_DIALOG_FILTER_FILTER) {
 		setfilter = filter;
+		ext = ".ksf";
+	}
 
 	filter = gtk_file_filter_new();
 	gtk_file_filter_set_name(filter, "KernelShark setting files");
 	gtk_file_filter_add_pattern(filter, "*.kss");
 	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
 
-	if (ftype == TRACE_DIALOG_FILTER_SETTING)
+	if (ftype == TRACE_DIALOG_FILTER_SETTING) {
 		setfilter = filter;
-
-	if (warn)
-		gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+		ext = ".kss";
+	}
 
 	gtk_file_chooser_set_filter(GTK_FILE_CHOOSER(dialog), setfilter);
 
@@ -370,15 +374,29 @@ gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
 
 	if (ret == GTK_RESPONSE_ACCEPT) {
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		if (filename && warn && (stat(filename, &st) >= 0)) {
-			ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
-					   "The file '%s' already exists.\n"
-					   "Are you sure you want to replace it",
-					   filename);
-			if (ret == GTK_RESPONSE_NO) {
-				g_free(filename);
-				filename = NULL;
-				goto again;
+		if (filename && warn) {
+			if (ext) {
+				int len = strlen(filename);
+				gchar *tmp;
+
+				/* Add extension if not already there */
+				if (strcmp(filename + (len - 4), ext) != 0) {
+					tmp = filename;
+					filename = g_strdup_printf("%s%s",
+								   tmp, ext);
+					g_free(tmp);
+				}
+			}
+			if (stat(filename, &st) >= 0) {
+				ret = trace_dialog(GTK_WINDOW(dialog), TRACE_GUI_ASK,
+						   "The file '%s' already exists.\n"
+						   "Are you sure you want to replace it",
+						   filename);
+				if (ret == GTK_RESPONSE_NO) {
+					g_free(filename);
+					filename = NULL;
+					goto again;
+				}
 			}
 		}
 	}
