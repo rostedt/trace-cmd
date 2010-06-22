@@ -419,6 +419,9 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
  * @combo_model_create: The function used to create the combo model
  * @data: data to pass to the combo_model_create.
  *
+ * If no @hbox is given, the @text is ignored, and only the combo box
+ * is created.
+ *
  * Returns the combo box in the hbox.
  */
 GtkWidget *
@@ -431,9 +434,11 @@ trace_create_combo_box(GtkWidget *hbox, const gchar *text,
 	GtkWidget *label;
 	GtkWidget *combo;
 
-	label = gtk_label_new(text);
-	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-	gtk_widget_show(label);
+	if (hbox) {
+		label = gtk_label_new(text);
+		gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+		gtk_widget_show(label);
+	}
 
 	/* --- Set up the selection combo box --- */
 
@@ -442,7 +447,8 @@ trace_create_combo_box(GtkWidget *hbox, const gchar *text,
 	renderer = gtk_cell_renderer_text_new();
 
 	combo = gtk_combo_box_new_with_model(model);
-	gtk_box_pack_start(GTK_BOX(hbox), combo, FALSE, FALSE, 0);
+	if (hbox)
+		gtk_box_pack_start(GTK_BOX(hbox), combo, FALSE, FALSE, 0);
 	gtk_widget_show(combo);
 
 	/* Free model with combobox */
