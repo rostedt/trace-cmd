@@ -47,7 +47,7 @@
 
 #define PLUGIN_NONE "NONE"
 
-#define DIALOG_WIDTH	320
+#define DIALOG_WIDTH	620
 #define DIALOG_HEIGHT	600
 
 struct trace_capture {
@@ -58,7 +58,6 @@ struct trace_capture {
 	GtkWidget		*file_entry;
 	GtkWidget		*output_text;
 	GtkTextBuffer		*output_buffer;
-	GtkWidget		*output_dialog;
 	GtkWidget		*event_view;
 	GtkWidget		*plugin_combo;
 	GtkWidget		*settings_combo;
@@ -288,93 +287,6 @@ static int is_latency(char *plugin)
 		strcmp(plugin, "irqsoff") == 0 ||
 		strcmp(plugin, "preemptoff") == 0 ||
 		strcmp(plugin, "preemptirqsoff") == 0;
-}
-
-static void close_command_display(struct trace_capture *cap)
-{
-	gtk_widget_destroy(cap->output_dialog);
-	cap->output_dialog = NULL;
-	cap->stop_dialog = NULL;
-}
-
-static void display_command_close(GtkWidget *widget, gint id, gpointer data)
-{
-	struct trace_capture *cap = data;
-
-	close_command_display(cap);
-}
-
-static void display_command_destroy(GtkWidget *widget, gpointer data)
-{
-	struct trace_capture *cap = data;
-
-	close_command_display(cap);
-}
-
-static void display_command(struct trace_capture *cap)
-{
-	GtkWidget *dialog;
-	GtkWidget *scrollwin;
-	GtkWidget *viewport;
-	GtkWidget *textview;
-	GtkTextBuffer *buffer;
-	const gchar *command;
-	GString *str;
-
-	command = gtk_entry_get_text(GTK_ENTRY(cap->command_entry));
-
-	if (!command || !strlen(command) || is_just_ws(command))
-		command = "trace-cmd";
-
-	str = g_string_new("");
-
-	g_string_printf(str, "(%s)", command);
-
-	dialog = gtk_dialog_new_with_buttons(str->str,
-					     NULL,
-					     GTK_DIALOG_MODAL,
-					     "Close",
-					     GTK_RESPONSE_ACCEPT,
-					     NULL);
-
-	g_string_free(str, TRUE);
-
-	g_signal_connect(dialog, "response",
-			 G_CALLBACK(display_command_close),
-			 (gpointer)cap);
-
-	gtk_signal_connect (GTK_OBJECT(dialog), "delete_event",
-			    (GtkSignalFunc) display_command_destroy,
-			    (gpointer)cap);
-
-	scrollwin = gtk_scrolled_window_new(NULL, NULL);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
-				       GTK_POLICY_AUTOMATIC,
-				       GTK_POLICY_AUTOMATIC);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), scrollwin, TRUE, TRUE, 0);
-	gtk_widget_show(scrollwin);
-
-	viewport = gtk_viewport_new(NULL, NULL);
-	gtk_widget_show(viewport);
-
-	gtk_container_add(GTK_CONTAINER(scrollwin), viewport);
-
-	textview = gtk_text_view_new();
-	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
-
-	gtk_container_add(GTK_CONTAINER(viewport), textview);
-	gtk_widget_show(textview);
-
-	cap->output_text = textview;
-	cap->output_buffer = buffer;
-
-	gtk_widget_set_size_request(GTK_WIDGET(dialog),
-				    500, 600);
-
-	gtk_widget_show(dialog);
-
-	cap->output_dialog = dialog;
-
 }
 
 static int calculate_trace_cmd_words(struct trace_capture *cap)
@@ -896,8 +808,6 @@ static void execute_button_clicked(struct trace_capture *cap)
 			return;
 	}
 
-	display_command(cap);
-
 	run_command(cap);
 
 	dialog = gtk_dialog_new_with_buttons("Stop Execution",
@@ -1332,10 +1242,14 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	GtkWidget *label;
 	GtkWidget *entry;
 	GtkWidget *frame;
+	GtkWidget *vbox;
 	GtkWidget *scrollwin;
 	GtkWidget *table;
 	GtkWidget *table2;
 	GtkWidget *event_tree;
+	GtkWidget *viewport;
+	GtkWidget *textview;
+	GtkTextBuffer *buffer;
 	char **plugins;
 	int nr_plugins;
 	struct trace_capture cap;
@@ -1382,7 +1296,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	cap.main_dialog = dialog;
 
 	/* --- Top Level Hpaned --- */
-	table = gtk_table_new(4, 1, FALSE);
+	table = gtk_table_new(4, 2, FALSE);
 
 	/* It is possible that no pevents exist. */
 	if (pevent) {
@@ -1537,6 +1451,42 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 			  G_CALLBACK (file_clicked),
 			  (gpointer)&cap);
 
+
+	/*------------------ Command Output ------------------ */
+
+	vbox = gtk_vbox_new(FALSE, 0);
+	gtk_table_attach_defaults(GTK_TABLE(table), vbox, 1, 2, 0, 4);
+	gtk_widget_show(vbox);
+	gtk_widget_set_size_request(GTK_WIDGET(vbox), 300, 0);
+
+
+	label = gtk_label_new("Command Output:");
+	gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	scrollwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollwin),
+				       GTK_POLICY_AUTOMATIC,
+				       GTK_POLICY_AUTOMATIC);
+	gtk_box_pack_start(GTK_BOX(vbox), scrollwin, TRUE, TRUE, 0);
+	gtk_widget_show(scrollwin);
+
+	viewport = gtk_viewport_new(NULL, NULL);
+	gtk_widget_show(viewport);
+
+	gtk_container_add(GTK_CONTAINER(scrollwin), viewport);
+
+	textview = gtk_text_view_new();
+	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
+
+	gtk_container_add(GTK_CONTAINER(viewport), textview);
+	gtk_widget_show(textview);
+
+	cap.output_text = textview;
+	cap.output_buffer = buffer;
+
+
+
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
 				    DIALOG_WIDTH, DIALOG_HEIGHT);
 
@@ -1568,9 +1518,6 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_widget_destroy(dialog);
 
 	end_capture(&cap);
-
-	if (cap.output_dialog)
-		gtk_widget_destroy(cap.output_dialog);
 
 	if (pevent)
 		pevent_free(pevent);
