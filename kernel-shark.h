@@ -60,6 +60,8 @@ struct shark_info {
 	gchar				*cap_command;
 	gchar				*cap_file;
 	gchar				*cap_settings_name;
+	int				cap_max_buf_size;
+	gchar				*cap_buffer_output;
 };
 
 #define offset_of(type, field)		(long)(&((type *)0)->field)

@@ -71,7 +71,6 @@ struct trace_capture {
 	gboolean		kill_thread;
 	gboolean		capture_done;
 	gboolean		load_file;
-	gint			max_buffer_size;
 	int			command_input_fd;
 	int			command_output_fd;
 	int			command_pid;
@@ -233,6 +232,9 @@ void kernel_shark_clear_capture(struct shark_info *info)
 
 	free(info->cap_file);
 	info->cap_file = NULL;
+
+	g_free(info->cap_buffer_output);
+	info->cap_buffer_output = NULL;
 }
 
 static gboolean end_capture(struct trace_capture *cap)
@@ -1267,11 +1269,14 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	GtkWidget *textview;
 	GtkWidget *hbox;
 	GtkTextBuffer *buffer;
+	GtkTextIter start_iter;
+	GtkTextIter end_iter;
 	char **plugins;
 	int nr_plugins;
 	struct trace_capture cap;
 	const gchar *file;
 	const char *command;
+	const char *val;
 	GString *str;
 	gint result;
 
@@ -1294,7 +1299,6 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	trace_dialog_register_alt_warning(NULL);
 
 	cap.pevent = pevent;
-	cap.max_buffer_size = DEFAULT_MAX_BUF_SIZE;
 
 	if (!pevent && !nr_plugins) {
 		warning("No events or plugins found");
@@ -1506,6 +1510,10 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	cap.output_text = textview;
 	cap.output_buffer = buffer;
 
+	/* set the buffer from its previous setting */
+	if (info->cap_buffer_output)
+		gtk_text_buffer_set_text(buffer, info->cap_buffer_output,
+					 strlen(info->cap_buffer_output));
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
@@ -1521,8 +1529,11 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	cap.max_num_entry = entry;
 
+	if (!info->cap_max_buf_size)
+		info->cap_max_buf_size = DEFAULT_MAX_BUF_SIZE;
+
 	str = g_string_new("");
-	g_string_append_printf(str, "%d", cap.max_buffer_size);
+	g_string_append_printf(str, "%d", info->cap_max_buf_size);
 	gtk_entry_set_text(GTK_ENTRY(entry), str->str);
 	g_string_free(str, TRUE);
 
@@ -1546,6 +1557,19 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	/* Make sure no capture is running */
 	end_capture(&cap);
+
+	/* Get the max buffer size */
+	val = gtk_entry_get_text(GTK_ENTRY(entry));
+	info->cap_max_buf_size = atoi(val);
+
+	gtk_text_buffer_get_start_iter(cap.output_buffer, &start_iter);
+	gtk_text_buffer_get_end_iter(cap.output_buffer, &end_iter);
+
+	g_free(info->cap_buffer_output);
+	info->cap_buffer_output = gtk_text_buffer_get_text(cap.output_buffer,
+							   &start_iter,
+							   &end_iter,
+							   FALSE);
 
 	/* save the plugin and file to reuse if we come back */
 	update_plugin(&cap);
