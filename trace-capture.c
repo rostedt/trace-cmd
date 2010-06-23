@@ -1254,7 +1254,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 
 	cap.run_button = button;
 
-	gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_CANCEL,
+	gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_CLOSE,
 			      GTK_RESPONSE_REJECT);
 
 	cap.main_dialog = dialog;
