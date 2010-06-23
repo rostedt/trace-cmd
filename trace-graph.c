@@ -1113,6 +1113,8 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 		pevent_read_number_field(ginfo->ftrace_pid_field, record->data, &val);
 		if (comm && ginfo->ftrace_comm_field)
 			*comm = record->data + ginfo->ftrace_comm_field->offset;
+		else
+			comm = NULL;
 		if (pid)
 			*pid = val;
 		goto out;
