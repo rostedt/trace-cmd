@@ -52,6 +52,8 @@
 
 #define CAP_STOP	"Stop"
 
+#define DEFAULT_MAX_BUF_SIZE 1000000
+
 struct trace_capture {
 	struct pevent		*pevent;
 	struct shark_info	*info;
@@ -68,6 +70,7 @@ struct trace_capture {
 	gboolean		kill_thread;
 	gboolean		capture_done;
 	gboolean		load_file;
+	gint			max_buffer_size;
 	int			command_input_fd;
 	int			command_output_fd;
 	int			command_pid;
@@ -623,13 +626,25 @@ static void execute_command(struct trace_capture *cap)
 static void *monitor_pipes(void *data)
 {
 	struct trace_capture *cap = data;
+	GtkTextIter start_iter;
+	GtkTextIter cut_iter;
 	GtkTextIter iter;
 	gchar buf[BUFSIZ+1];
 	struct timeval tv;
 	fd_set fds;
 	gboolean eof;
+	int total;
+	int del;
 	int ret;
 	int r;
+
+	/* Clear the buffer */
+	gdk_threads_enter();
+	gtk_text_buffer_get_start_iter(cap->output_buffer, &start_iter);
+	gtk_text_buffer_get_end_iter(cap->output_buffer, &cut_iter);
+	gtk_text_buffer_delete(cap->output_buffer, &start_iter, &cut_iter);
+	total = 0;
+	gdk_threads_leave();
 
 	do {
 		FD_ZERO(&fds);
@@ -644,7 +659,19 @@ static void *monitor_pipes(void *data)
 		while ((r = read(cap->command_input_fd, buf, BUFSIZ)) > 0) {
 			eof = FALSE;
 			buf[r] = 0;
+			total += r;
+			if (total > cap->max_buffer_size)
+				del = total - cap->max_buffer_size;
+			else
+				del = 0;
 			gdk_threads_enter();
+			if (del) {
+				gtk_text_buffer_get_start_iter(cap->output_buffer, &start_iter);
+				gtk_text_buffer_get_start_iter(cap->output_buffer, &cut_iter);
+				gtk_text_iter_forward_chars(&cut_iter, del);
+				gtk_text_buffer_delete(cap->output_buffer, &start_iter, &cut_iter);
+				total -= del;
+			}
 			gtk_text_buffer_get_end_iter(cap->output_buffer,
 						     &iter);
 			gtk_text_buffer_insert(cap->output_buffer, &iter, buf, -1);
@@ -1238,6 +1265,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	trace_dialog_register_alt_warning(NULL);
 
 	cap.pevent = pevent;
+	cap.max_buffer_size = DEFAULT_MAX_BUF_SIZE;
 
 	if (!pevent && !nr_plugins) {
 		warning("No events or plugins found");
@@ -1424,7 +1452,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_widget_set_size_request(GTK_WIDGET(vbox), 500, 0);
 
 
-	label = gtk_label_new("Command Output:");
+	label = gtk_label_new("Output Display:");
 	gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
 	gtk_widget_show(label);
 
