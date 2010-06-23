@@ -66,6 +66,7 @@ struct trace_capture {
 	GtkWidget		*plugin_combo;
 	GtkWidget		*settings_combo;
 	GtkWidget		*run_button;
+	GtkWidget		*max_num_entry;
 	pthread_t		thread;
 	gboolean		kill_thread;
 	gboolean		capture_done;
@@ -631,15 +632,21 @@ static void *monitor_pipes(void *data)
 	GtkTextIter iter;
 	gchar buf[BUFSIZ+1];
 	struct timeval tv;
+	const char *val;
 	fd_set fds;
 	gboolean eof;
+	int max_size;
 	int total;
 	int del;
 	int ret;
 	int r;
 
-	/* Clear the buffer */
 	gdk_threads_enter();
+	/* get the max size */
+	val = gtk_entry_get_text(GTK_ENTRY(cap->max_num_entry));
+	max_size = atoi(val);
+
+	/* Clear the buffer */
 	gtk_text_buffer_get_start_iter(cap->output_buffer, &start_iter);
 	gtk_text_buffer_get_end_iter(cap->output_buffer, &cut_iter);
 	gtk_text_buffer_delete(cap->output_buffer, &start_iter, &cut_iter);
@@ -660,8 +667,8 @@ static void *monitor_pipes(void *data)
 			eof = FALSE;
 			buf[r] = 0;
 			total += r;
-			if (total > cap->max_buffer_size)
-				del = total - cap->max_buffer_size;
+			if (total > max_size)
+				del = total - max_size;
 			else
 				del = 0;
 			gdk_threads_enter();
@@ -1205,6 +1212,26 @@ static GtkTreeModel *create_plugin_combo_model(gpointer data)
 	return GTK_TREE_MODEL(list);
 }
 
+static void insert_text(GtkEditable *buffer,
+			gchar *new_text,
+			gint new_text_length,
+			gint *position,
+			gpointer data)
+{
+	int i;
+	guint sigid;
+
+	/* Only allow 0-9 to be written to the entry */
+	for (i = 0; i < new_text_length; i++) {
+		if (new_text[i] < '0' || new_text[i] > '9') {
+			sigid = g_signal_lookup("insert-text",
+						G_OBJECT_TYPE(buffer));
+			g_signal_stop_emission(buffer, sigid, 0);
+			return;
+		}
+	}
+}
+
 /*
  * Trace Capture Dialog Window
  *
@@ -1238,12 +1265,14 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	GtkWidget *event_tree;
 	GtkWidget *viewport;
 	GtkWidget *textview;
+	GtkWidget *hbox;
 	GtkTextBuffer *buffer;
 	char **plugins;
 	int nr_plugins;
 	struct trace_capture cap;
 	const gchar *file;
 	const char *command;
+	GString *str;
 	gint result;
 
 	memset(&cap, 0, sizeof(cap));
@@ -1477,6 +1506,29 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	cap.output_text = textview;
 	cap.output_buffer = buffer;
 
+
+	hbox = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+	gtk_widget_show(hbox);
+
+	label = gtk_label_new("Max # of characters in output display: ");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	gtk_widget_show(label);
+
+	entry = gtk_entry_new();
+	gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
+	gtk_widget_show(entry);
+
+	cap.max_num_entry = entry;
+
+	str = g_string_new("");
+	g_string_append_printf(str, "%d", cap.max_buffer_size);
+	gtk_entry_set_text(GTK_ENTRY(entry), str->str);
+	g_string_free(str, TRUE);
+
+	g_signal_connect (entry, "insert-text",
+			  G_CALLBACK (insert_text),
+			  (gpointer)&cap);
 
 
 	gtk_widget_set_size_request(GTK_WIDGET(dialog),
