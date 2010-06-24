@@ -479,9 +479,6 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	if (ret < 0)
 		return -1;
 
-	/* register default ftrace functions first */
-	tracecmd_ftrace_overrides(handle);
-
 	return 0;
 }
 
@@ -1977,6 +1974,9 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 	handle->pevent = pevent_alloc();
 	if (!handle->pevent)
 		goto failed_read;
+
+	/* register default ftrace functions first */
+	tracecmd_ftrace_overrides(handle);
 
 	handle->plugin_list = tracecmd_load_plugins(handle->pevent);
 
