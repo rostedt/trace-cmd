@@ -140,4 +140,6 @@ void PEVENT_PLUGIN_UNLOADER(void)
 	}
 
 	free(fstack);
+	fstack = NULL;
+	cpus = -1;
 }
