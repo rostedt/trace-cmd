@@ -432,7 +432,7 @@ PHONY += show_gui_make
 
 tags:	force
 	$(RM) tags
-	find . -name '*.[ch]' | xargs ctags
+	find . -name '*.[ch]' | xargs ctags --extra=+f --c-kinds=+px
 
 TAGS:	force
 	$(RM) TAGS
