@@ -113,6 +113,8 @@ struct events {
 
 static struct tracecmd_recorder *recorder;
 
+static int ignore_event_not_found = 0;
+
 static char *get_temp_file(int cpu)
 {
 	char *file = NULL;
@@ -738,7 +740,7 @@ static void update_event(const char *name, const char *filter,
 
 		ret = update_glob(str, filter, filter_only, update);
 		free(str);
-		if (!ret)
+		if (!ret && !ignore_event_not_found)
 			die("No events enabled with %s", name);
 		return;
 	}
@@ -752,7 +754,7 @@ static void update_event(const char *name, const char *filter,
 	ret2 = update_glob(str, filter, filter_only, update);
 	free(str);
 
-	if (!ret && !ret2)
+	if (!ret && !ret2 && !ignore_event_not_found)
 		goto fail;
 
 	return;
@@ -1431,7 +1433,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:r:vg:l:n:P:N:tb:k")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1542,6 +1544,9 @@ int main (int argc, char **argv)
 				break;
 			case 'k':
 				keep = 1;
+				break;
+			case 'i':
+				ignore_event_not_found = 1;
 				break;
 			}
 		}
