@@ -147,6 +147,11 @@ OPTIONS
     Note: usually trace-cmd will set the "tracing_on" file back to what it
     was before it was called. This option will leave that file set to zero.
 
+*-i*::
+    By default, if an event is listed that trace-cmd does not find, it
+    will exit with an error. This option will just ignore events that are
+    listed on the command line but are not found on the system.
+
 *-N* 'host:port'::
     If another machine is running "trace-cmd listen", this option is used to
     have the data sent to that machine with UDP packets. Instead of writing

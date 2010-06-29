@@ -37,6 +37,7 @@ static struct usage_help usage_help[] = {
 		"          -t used with -N, forces use of tcp in live trace\n"
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
 		"          -k do not reset the buffers after tracing.\n"
+		"          -i do not fail if an event is not found\n"
 	},
 	{
 		"start",
