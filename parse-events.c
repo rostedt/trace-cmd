@@ -3314,6 +3314,8 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 						~3);
 				switch (ls) {
 				case 0:
+					ls = 4;
+					break;
 				case 1:
 					ls = pevent->long_size;
 					break;
