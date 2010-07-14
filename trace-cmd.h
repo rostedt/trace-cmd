@@ -77,6 +77,13 @@ enum {
 	TRACECMD_OPTION_DONE,
 };
 
+struct tracecmd_ftrace {
+	struct tracecmd_input		*handle;
+	struct event_format *fgraph_ret_event;
+	int fgraph_ret_id;
+	int long_size;
+};
+
 struct tracecmd_input *tracecmd_alloc(const char *file);
 struct tracecmd_input *tracecmd_alloc_fd(int fd);
 struct tracecmd_input *tracecmd_open(const char *file);
@@ -138,7 +145,7 @@ int tracecmd_set_cursor(struct tracecmd_input *handle,
 unsigned long long
 tracecmd_get_cursor(struct tracecmd_input *handle, int cpu);
 
-int tracecmd_ftrace_overrides(struct tracecmd_input *handle);
+int tracecmd_ftrace_overrides(struct tracecmd_input *handle, struct tracecmd_ftrace *finfo);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 
 #ifndef SWIG

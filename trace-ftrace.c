@@ -25,9 +25,36 @@
 
 #include "trace-cmd.h"
 
-static struct event_format *fgraph_ret_event;
-static int fgraph_ret_id;
-static int long_size;
+static void find_long_size(struct tracecmd_ftrace *finfo)
+{
+	finfo->long_size = tracecmd_long_size(finfo->handle);
+}
+
+#define long_size_check(handle)				\
+	do {						\
+		if (!finfo->long_size)				\
+			find_long_size(finfo);		\
+	} while (0)
+
+static int find_ret_event(struct tracecmd_ftrace *finfo, struct pevent *pevent)
+{
+	struct event_format *event;
+
+	/* Store the func ret id and event for later use */
+	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
+	if (!event)
+		return -1;
+
+	finfo->fgraph_ret_id = event->id;
+	finfo->fgraph_ret_event = event;
+	return 0;
+}
+
+#define ret_event_check(finfo, pevent)					\
+	do {								\
+		if (!finfo->fgraph_ret_event && find_ret_event(finfo, pevent) < 0) \
+			return -1;					\
+	} while (0)
 
 static int function_handler(struct trace_seq *s, struct record *record,
 			    struct event_format *event, void *context)
@@ -61,27 +88,28 @@ static int function_handler(struct trace_seq *s, struct record *record,
 
 static struct record *
 get_return_for_leaf(struct trace_seq *s, int cpu, int cur_pid,
-		    unsigned long long cur_func, struct record *next)
+		    unsigned long long cur_func, struct record *next,
+		    struct tracecmd_ftrace *finfo)
 {
 	unsigned long long val;
 	unsigned long long type;
 	unsigned long long pid;
 
 	/* Searching a common field, can use any event */
-	if (pevent_get_common_field_val(s, fgraph_ret_event, "common_type", next, &type, 1))
+	if (pevent_get_common_field_val(s, finfo->fgraph_ret_event, "common_type", next, &type, 1))
 		return NULL;
 
-	if (type != fgraph_ret_id)
+	if (type != finfo->fgraph_ret_id)
 		return NULL;
 
-	if (pevent_get_common_field_val(s, fgraph_ret_event, "common_pid", next, &pid, 1))
+	if (pevent_get_common_field_val(s, finfo->fgraph_ret_event, "common_pid", next, &pid, 1))
 		return NULL;
 
 	if (cur_pid != pid)
 		return NULL;
 
 	/* We aleady know this is a funcgraph_ret_event */
-	if (pevent_get_field_val(s, fgraph_ret_event, "func", next, &val, 1))
+	if (pevent_get_field_val(s, finfo->fgraph_ret_event, "func", next, &val, 1))
 		return NULL;
 
 	if (cur_func != val)
@@ -146,7 +174,8 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 static int
 print_graph_entry_leaf(struct trace_seq *s,
 		       struct event_format *event,
-		       struct record *record, struct record *ret_rec)
+		       struct record *record, struct record *ret_rec,
+		       struct tracecmd_ftrace *finfo)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long rettime, calltime;
@@ -155,11 +184,10 @@ print_graph_entry_leaf(struct trace_seq *s,
 	const char *func;
 	int i;
 
-
-	if (pevent_get_field_val(s, fgraph_ret_event, "rettime", ret_rec, &rettime, 1))
+	if (pevent_get_field_val(s, finfo->fgraph_ret_event, "rettime", ret_rec, &rettime, 1))
 		return trace_seq_putc(s, '!');
 
-	if (pevent_get_field_val(s, fgraph_ret_event, "calltime", ret_rec, &calltime, 1))
+	if (pevent_get_field_val(s, finfo->fgraph_ret_event, "calltime", ret_rec, &calltime, 1))
 		return trace_seq_putc(s, '!');
 
 	duration = rettime - calltime;
@@ -225,9 +253,12 @@ static int
 fgraph_ent_handler(struct trace_seq *s, struct record *record,
 		   struct event_format *event, void *context)
 {
+	struct tracecmd_ftrace *finfo = context;
 	struct record *rec;
 	unsigned long long val, pid;
 	int cpu = record->cpu;
+
+	ret_event_check(finfo, event->pevent);
 
 	if (pevent_get_common_field_val(s, event, "common_pid", record, &pid, 1))
 		return trace_seq_putc(s, '!');
@@ -237,14 +268,14 @@ fgraph_ent_handler(struct trace_seq *s, struct record *record,
 
 	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
 	if (rec)
-		rec = get_return_for_leaf(s, cpu, pid, val, rec);
+		rec = get_return_for_leaf(s, cpu, pid, val, rec, finfo);
 
 	if (rec) {
 		/*
 		 * If this is a leaf function, then get_return_for_leaf
 		 * returns the return of the function
 		 */
-		print_graph_entry_leaf(s, event, record, rec);
+		print_graph_entry_leaf(s, event, record, rec, finfo);
 		free_record(rec);
 	} else
 		print_graph_nested(s, event, record);
@@ -256,9 +287,12 @@ static int
 fgraph_ret_handler(struct trace_seq *s, struct record *record,
 		   struct event_format *event, void *context)
 {
+	struct tracecmd_ftrace *finfo = context;
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
 	int i;
+
+	ret_event_check(finfo, event->pevent);
 
 	if (pevent_get_field_val(s, event, "rettime", record, &rettime, 1))
 		return trace_seq_putc(s, '!');
@@ -290,6 +324,7 @@ static int
 trace_stack_handler(struct trace_seq *s, struct record *record,
 		    struct event_format *event, void *context)
 {
+	struct tracecmd_ftrace *finfo = context;
 	struct format_field *field;
 	unsigned long long addr;
 	const char *func;
@@ -304,11 +339,13 @@ trace_stack_handler(struct trace_seq *s, struct record *record,
 
 	trace_seq_puts(s, "<stack trace>\n");
 
-	for (i = 0; i < field->size; i += long_size) {
-		addr = pevent_read_number(event->pevent,
-					  data + field->offset + i, long_size);
+	long_size_check(finfo);
 
-		if ((long_size == 8 && addr == (unsigned long long)-1) ||
+	for (i = 0; i < field->size; i += finfo->long_size) {
+		addr = pevent_read_number(event->pevent,
+					  data + field->offset + i, finfo->long_size);
+
+		if ((finfo->long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
 			break;
 
@@ -322,7 +359,8 @@ trace_stack_handler(struct trace_seq *s, struct record *record,
 	return 0;
 }
 
-int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
+int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
+	struct tracecmd_ftrace *finfo)
 {
 	struct pevent *pevent;
 	struct event_format *event;
@@ -333,23 +371,23 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle)
 				      function_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_entry",
-				      fgraph_ent_handler, NULL);
+				      fgraph_ent_handler, finfo);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
-				      fgraph_ret_handler, NULL);
+				      fgraph_ret_handler, finfo);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
-				      trace_stack_handler, NULL);
+				      trace_stack_handler, finfo);
 
 	/* Store the func ret id and event for later use */
 	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
 	if (!event)
 		return 0;
 
-	long_size = tracecmd_long_size(handle);
+	finfo->long_size = tracecmd_long_size(handle);
 
-	fgraph_ret_id = event->id;
-	fgraph_ret_event = event;
+	finfo->fgraph_ret_id = event->id;
+	finfo->fgraph_ret_event = event;
 
 	return 0;
 }

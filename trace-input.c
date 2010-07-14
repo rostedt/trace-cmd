@@ -82,6 +82,8 @@ struct tracecmd_input {
 	int			ref;
 	struct cpu_data 	*cpu_data;
 
+	struct tracecmd_ftrace	finfo;
+
 	/* file information */
 	size_t			header_files_start;
 	size_t			ftrace_files_start;
@@ -1976,7 +1978,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 		goto failed_read;
 
 	/* register default ftrace functions first */
-	tracecmd_ftrace_overrides(handle);
+	tracecmd_ftrace_overrides(handle, &handle->finfo);
 
 	handle->plugin_list = tracecmd_load_plugins(handle->pevent);
 
