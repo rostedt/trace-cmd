@@ -365,6 +365,8 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	struct pevent *pevent;
 	struct event_format *event;
 
+	finfo->handle = handle;
+
 	pevent = tracecmd_get_pevent(handle);
 
 	pevent_register_event_handler(pevent, -1, "ftrace", "function",
