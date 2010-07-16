@@ -45,6 +45,15 @@ void gtk_cell_renderer_get_padding(GtkCellRenderer *cell,
 
 #if GTK_VERSION < CALC_GTK_VERSION(2,16,0)
 
+const gchar *gtk_menu_item_get_label(GtkMenuItem *menu_item)
+{
+	g_return_val_if_fail(GTK_IS_MENU_ITEM(menu_item), NULL);
+
+	if (GTK_IS_LABEL(GTK_BIN(menu_item)->child))
+		return gtk_label_get_label(GTK_LABEL(GTK_BIN(menu_item)->child));
+	return NULL;
+}
+
 void gtk_menu_item_set_label(GtkMenuItem *menu_item, const gchar *label)
 {
 	g_return_if_fail(GTK_IS_MENU_ITEM(menu_item));
