@@ -1513,7 +1513,8 @@ read_again:
 	if (index < 0)
 		die("negative index on cpu record %d", cpu);
 
-	if (index >= handle->cpu_data[cpu].page_size + pevent->header_page_data_offset) {
+	if (index + (pevent->old_format ? 0 : 4) >=
+	    handle->cpu_data[cpu].page_size + pevent->header_page_data_offset) {
 		if (get_next_page(handle, cpu))
 			return NULL;
 		return tracecmd_peek_data(handle, cpu);

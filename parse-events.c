@@ -3881,6 +3881,11 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	usecs = record->ts - secs * NSECS_PER_SEC;
 	usecs = (usecs + 500) / NSECS_PER_USEC;
 
+	if (record->size < 0) {
+		do_warning("ug! negative record size %d", record->size);
+		return;
+	}
+
 	type = trace_parse_common_type(pevent, data);
 
 	event = pevent_find_event(pevent, type);
