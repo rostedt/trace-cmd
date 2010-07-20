@@ -2413,6 +2413,8 @@ static int load_handle(struct graph_info *ginfo,
 
 		free_record(record);
 		record = tracecmd_read_cpu_last(handle, cpu);
+		if (!record)
+			continue;
 
 		if (record->ts > ginfo->end_time)
 			ginfo->end_time = record->ts;
