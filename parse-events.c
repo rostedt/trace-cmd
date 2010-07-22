@@ -4464,6 +4464,9 @@ int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
 {
 	struct format_field *field;
 
+	if (!event)
+		return -1;
+
 	field = pevent_find_field(event, name);
 
 	return get_field_val(s, field, name, record, val, err);
@@ -4486,6 +4489,9 @@ int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
 {
 	struct format_field *field;
 
+	if (!event)
+		return -1;
+
 	field = pevent_find_common_field(event, name);
 
 	return get_field_val(s, field, name, record, val, err);
@@ -4507,6 +4513,9 @@ int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
 			     unsigned long long *val, int err)
 {
 	struct format_field *field;
+
+	if (!event)
+		return -1;
 
 	field = pevent_find_any_field(event, name);
 
