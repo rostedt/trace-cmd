@@ -448,6 +448,10 @@ int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long siz
 int pevent_parse_event(struct pevent *pevent, const char *buf,
 		       unsigned long size, const char *sys);
 
+void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
+			   const char *name, struct record *record,
+			   int *len, int err);
+
 int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
 			 const char *name, struct record *record,
 			 unsigned long long *val, int err);

@@ -4448,6 +4448,56 @@ int get_field_val(struct trace_seq *s, struct format_field *field,
 }
 
 /**
+ * pevent_get_field_raw - return the raw pointer into the data field
+ * @s: The seq to print to on error
+ * @event: the event that the field is for
+ * @name: The name of the field
+ * @record: The record with the field name.
+ * @len: place to store the field length.
+ * @err: print default error if failed.
+ *
+ * Returns a pointer into record->data of the field and places
+ * the length of the field in @len.
+ *
+ * On failure, it returns NULL.
+ */
+void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
+			   const char *name, struct record *record,
+			   int *len, int err)
+{
+	struct format_field *field;
+	void *data = record->data;
+	unsigned offset;
+	int dummy;
+
+	if (!event)
+		return NULL;
+
+	field = pevent_find_field(event, name);
+
+	if (!field) {
+		if (err)
+			trace_seq_printf(s, "<CANT FIND FIELD %s>", name);
+		return NULL;
+	}
+
+	/* Allow @len to be NULL */
+	if (!len)
+		len = &dummy;
+
+	offset = field->offset;
+	if (field->flags & FIELD_IS_DYNAMIC) {
+		offset = pevent_read_number(event->pevent,
+					    data + offset, field->size);
+		*len = offset >> 16;
+		offset &= 0xffff;
+	} else
+		*len = field->size;
+
+	return data + offset;
+}
+
+/**
  * pevent_get_field_val - find a field and return its value
  * @s: The seq to print to on error
  * @event: the event that the field is for
