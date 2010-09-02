@@ -56,6 +56,8 @@ const char *default_input_file = "trace.dat";
 const char *input_file;
 
 static int filter_cpu = -1;
+static int *filter_cpus;
+static int nr_filter_cpus;
 
 static int show_wakeup;
 static int wakeup_id;
@@ -519,7 +521,26 @@ static void read_data_info(struct tracecmd_input *handle)
 	do {
 		next = -1;
 		ts = 0;
-		if (filter_cpu >= 0) {
+		if (filter_cpus) {
+			unsigned long long last_stamp = 0;
+			struct record *precord;
+			int next_cpu = -1;
+			int i;
+
+			for (i = 0; (cpu = filter_cpus[i]) >= 0; i++) {
+				precord = tracecmd_peek_data(handle, cpu);
+				if (precord &&
+				    (!last_stamp || precord->ts < last_stamp)) {
+					next_cpu = cpu;
+					last_stamp = precord->ts;
+				}
+			}
+			if (last_stamp)
+				record = tracecmd_read_data(handle, next_cpu);
+			else
+				record = NULL;
+
+		} else if (filter_cpu >= 0) {
 			cpu = filter_cpu;
 			record = tracecmd_read_data(handle, cpu);
 		} else
@@ -558,6 +579,82 @@ static void sig_end(int sig)
 {
 	fprintf(stderr, "trace-cmd: Received SIGINT\n");
 	exit(0);
+}
+
+static const char *inc_and_test_char(const char *p, const char *cpu_str)
+{
+	p++;
+	while (isspace(*p))
+		p++;
+	if (!isdigit(*p))
+		die("invalid character '%c' in cpu string '%s'",
+		    *p, cpu_str);
+	return p;
+}
+
+static void __add_cpu(int cpu)
+{
+	filter_cpus = tracecmd_add_id(filter_cpus, cpu, nr_filter_cpus++);
+}
+
+static int process_cpu_str(const char *cpu_str)
+{
+	const char *p = cpu_str;
+	int cpu, ncpu, ret_cpu = 1;
+
+	do {
+		while (isspace(*p))
+			p++;
+
+		cpu = atoi(p);
+		__add_cpu(cpu);
+
+ again:
+		while (isdigit(*p))
+			p++;
+		while (isspace(*p))
+			p++;
+
+		if (*p) {
+			ret_cpu = 0;
+			switch (*p) {
+			case '-':
+				p = inc_and_test_char(p, cpu_str);
+				ncpu = atoi(p);
+				if (ncpu < cpu)
+					die("range of cpu numbers must be lower to greater");
+				for (; cpu <= ncpu; cpu++)
+					__add_cpu(cpu);
+				break;
+
+			case ',':
+			case ':':
+				p = inc_and_test_char(p, cpu_str);
+				ncpu = atoi(p);
+				__add_cpu(ncpu);
+				break;
+			default:
+				die("invalid character '%c' in cpu string '%s'",
+				    *p, cpu_str);
+			}
+			goto again;
+		}
+	} while (*p);
+
+	if (ret_cpu)
+		return cpu;
+
+	/* Return -1 if we added more than one CPU */
+	return -1;
+}
+
+static void add_cpu(const char *cpu_str)
+{
+	int cpu;
+
+	cpu = process_cpu_str(cpu_str);
+	if (cpu >= 0)
+		__add_cpu(cpu);
 }
 
 void trace_report (int argc, char **argv)
@@ -650,7 +747,10 @@ void trace_report (int argc, char **argv)
 		case 0:
 			switch(option_index) {
 			case 0:
-				filter_cpu = atoi(optarg);
+				if (filter_cpu)
+					add_cpu(optarg);
+				else
+					filter_cpu = atoi(optarg);
 				break;
 			case 1:
 				print_events = 1;
