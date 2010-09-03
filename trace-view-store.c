@@ -500,6 +500,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 			trace_seq_init(&s);
 			pevent_data_lat_fmt(pevent, &s, data);
 			g_value_set_string(value, s.buffer);
+			trace_seq_destroy(&s);
 			break;
 
 		case TRACE_VIEW_STORE_COL_EVENT:
@@ -515,6 +516,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 			trace_seq_init(&s);
 			pevent_event_info(&s, event, data);
 			g_value_set_string(value, s.buffer);
+			trace_seq_destroy(&s);
 			break;
 		}
 		free_record(data);

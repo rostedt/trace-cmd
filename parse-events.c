@@ -2887,7 +2887,9 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 	case PRINT_FUNC: {
 		struct trace_seq s;
 		trace_seq_init(&s);
-		return process_defined_func(&s, data, size, event, arg);
+		val = process_defined_func(&s, data, size, event, arg);
+		trace_seq_destroy(&s);
+		return val;
 	}
 	case PRINT_OP:
 		if (strcmp(arg->op.op, "[") == 0) {
@@ -3220,6 +3222,7 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			string->next = strings;
 			string->str = strdup(str.buffer);
 			strings = string;
+			trace_seq_destroy(&str);
 			break;
 		default:
 			/*
@@ -4097,6 +4100,7 @@ static void print_args(struct print_arg *args)
 		trace_seq_init(&s);
 		print_fields(&s, args->flags.flags);
 		trace_seq_do_printf(&s);
+		trace_seq_destroy(&s);
 		printf(")");
 		break;
 	case PRINT_SYMBOL:
@@ -4106,6 +4110,7 @@ static void print_args(struct print_arg *args)
 		trace_seq_init(&s);
 		print_fields(&s, args->symbol.symbols);
 		trace_seq_do_printf(&s);
+		trace_seq_destroy(&s);
 		printf(")");
 		break;
 	case PRINT_STRING:

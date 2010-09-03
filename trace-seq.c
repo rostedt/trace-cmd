@@ -25,6 +25,52 @@
 
 #include "parse-events.h"
 
+/*
+ * The TRACE_SEQ_POISON is to catch the use of using
+ * a trace_seq structure after it was destroyed.
+ */
+#define TRACE_SEQ_POISON	((void *)0xdeadbeef)
+#define TRACE_SEQ_CHECK(s)						\
+do {									\
+	if ((s)->buffer == TRACE_SEQ_POISON)			\
+		die("Usage of trace_seq after it was destroyed");	\
+} while (0)
+
+/**
+ * trace_seq_init - initialize the trace_seq structure
+ * @s: a pointer to the trace_seq structure to initialize
+ */
+void trace_seq_init(struct trace_seq *s)
+{
+	s->len = 0;
+	s->readpos = 0;
+	s->buffer_size = TRACE_SEQ_BUF_SIZE;
+	s->buffer = malloc_or_die(s->buffer_size);
+}
+
+/**
+ * trace_seq_destroy - free up memory of a trace_seq
+ * @s: a pointer to the trace_seq to free the buffer
+ *
+ * Only frees the buffer, not the trace_seq struct itself.
+ */
+void trace_seq_destroy(struct trace_seq *s)
+{
+	if (!s)
+		return;
+	TRACE_SEQ_CHECK(s);
+	free(s->buffer);
+	s->buffer = TRACE_SEQ_POISON;
+}
+
+static void expand_buffer(struct trace_seq *s)
+{
+	s->buffer_size += TRACE_SEQ_BUF_SIZE;
+	s->buffer = realloc(s->buffer, s->buffer_size);
+	if (!s->buffer)
+		die("Can't allocate trace_seq buffer memory");
+}
+
 /**
  * trace_seq_printf - sequence printing of trace information
  * @s: trace sequence descriptor
@@ -42,21 +88,22 @@
 int
 trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
-	int len = (TRACE_SEQ_SIZE - 1) - s->len;
 	va_list ap;
+	int len;
 	int ret;
 
-	if (s->full || !len)
-		return 0;
+	TRACE_SEQ_CHECK(s);
+
+ try_again:
+	len = (s->buffer_size - 1) - s->len;
 
 	va_start(ap, fmt);
 	ret = vsnprintf(s->buffer + s->len, len, fmt, ap);
 	va_end(ap);
 
-	/* If we can't write it all, don't bother writing anything */
 	if (ret >= len) {
-		s->full = 1;
-		return 0;
+		expand_buffer(s);
+		goto try_again;
 	}
 
 	s->len += ret;
@@ -78,18 +125,19 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 int
 trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 {
-	int len = (TRACE_SEQ_SIZE - 1) - s->len;
+	int len;
 	int ret;
 
-	if (s->full || !len)
-		return 0;
+	TRACE_SEQ_CHECK(s);
+
+ try_again:
+	len = (s->buffer_size - 1) - s->len;
 
 	ret = vsnprintf(s->buffer + s->len, len, fmt, args);
 
-	/* If we can't write it all, don't bother writing anything */
 	if (ret >= len) {
-		s->full = 1;
-		return 0;
+		expand_buffer(s);
+		goto try_again;
 	}
 
 	s->len += ret;
@@ -109,15 +157,14 @@ trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
  */
 int trace_seq_puts(struct trace_seq *s, const char *str)
 {
-	int len = strlen(str);
+	int len;
 
-	if (s->full)
-		return 0;
+	TRACE_SEQ_CHECK(s);
 
-	if (len > ((TRACE_SEQ_SIZE - 1) - s->len)) {
-		s->full = 1;
-		return 0;
-	}
+	len = strlen(str);
+
+	while (len > ((s->buffer_size - 1) - s->len))
+		expand_buffer(s);
 
 	memcpy(s->buffer + s->len, str, len);
 	s->len += len;
@@ -127,13 +174,10 @@ int trace_seq_puts(struct trace_seq *s, const char *str)
 
 int trace_seq_putc(struct trace_seq *s, unsigned char c)
 {
-	if (s->full)
-		return 0;
+	TRACE_SEQ_CHECK(s);
 
-	if (s->len >= (TRACE_SEQ_SIZE - 1)) {
-		s->full = 1;
-		return 0;
-	}
+	while (s->len >= (s->buffer_size - 1))
+		expand_buffer(s);
 
 	s->buffer[s->len++] = c;
 
@@ -142,12 +186,14 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 
 void trace_seq_terminate(struct trace_seq *s)
 {
-	if (!s->full)
-		s->buffer[s->len] = 0;
+	TRACE_SEQ_CHECK(s);
+
+	/* There's always one character left on the buffer */
+	s->buffer[s->len] = 0;
 }
 
 int trace_seq_do_printf(struct trace_seq *s)
 {
-	return printf("%.*s%s", s->len, s->buffer,
-			s->full ? "[truncated]" : "");
+	TRACE_SEQ_CHECK(s);
+	return printf("%.*s", s->len, s->buffer);
 }

@@ -108,6 +108,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
+	trace_seq_destroy(&s);
 	printf("\n");
 
 	free_record(record);
@@ -154,6 +155,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
+	trace_seq_destroy(&s);
 	printf("\n");
 
 	free_record(record);
@@ -194,6 +196,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
+	trace_seq_destroy(&s);
 	printf("\n");
 
 	free_record(record);
@@ -209,6 +212,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_init(&s);
 	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
+	trace_seq_destroy(&s);
 	printf("\n");
 
 	free_record(record);
@@ -473,6 +477,7 @@ static void show_data(struct tracecmd_input *handle,
 				 record->cpu);
 	pevent_print_event(pevent, &s, record);
 	trace_seq_do_printf(&s);
+	trace_seq_destroy(&s);
 
 	process_wakeup(pevent, record);
 

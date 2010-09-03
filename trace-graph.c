@@ -326,6 +326,7 @@ static void update_label_time(GtkWidget *label, gint64 time)
 	trace_seq_printf(&s, "%s%lu.%06lu", min, sec, usec);
 
 	gtk_label_set_text(GTK_LABEL(label), s.buffer);
+	trace_seq_destroy(&s);
 }
 
 static void update_cursor(struct graph_info *ginfo)
@@ -1225,6 +1226,7 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 
 	if (!trace_graph_plot_display_info(ginfo, plot, &s, time)) {
 		/* Just display the current time */
+		trace_seq_destroy(&s);
 		trace_seq_init(&s);
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
 	}
@@ -1232,6 +1234,7 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 	trace_seq_putc(&s, 0);
 
 	draw_info_box(ginfo, s.buffer, x, y);
+	trace_seq_destroy(&s);
 }
 
 static void draw_latency(struct graph_info *ginfo, gint x, gint y)
@@ -1261,6 +1264,7 @@ static void draw_latency(struct graph_info *ginfo, gint x, gint y)
 	trace_seq_printf(&s, "Diff: %s%ld.%06lu secs", neg ? "-":"", sec, usec);
 
 	draw_info_box(ginfo, s.buffer, x, y);
+	trace_seq_destroy(&s);
 }
 
 static gboolean
@@ -1662,6 +1666,7 @@ static gint draw_event_label(struct graph_info *ginfo, gint i,
 	 */
 	ret = trace_graph_plot_display_last_event(ginfo, plot, &s,
 						  convert_x_to_time(ginfo, p2-1));
+	trace_seq_destroy(&s);
 	if (!ret)
 		return p2;
 
@@ -1935,6 +1940,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			1, height+10, layout);
 	g_object_unref(layout);
+	trace_seq_destroy(&s);
 
 
 	/* --- draw ending time --- */
@@ -1948,6 +1954,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 	gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			width - (w + 2), height+10, layout);
 	g_object_unref(layout);
+	trace_seq_destroy(&s);
 
 
 	/* --- draw time at intervals --- */
@@ -1960,6 +1967,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 		convert_nano(time, &sec, &usec);
 		trace_seq_init(&s);
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
+		trace_seq_destroy(&s);
 
 		gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			      mid, height, mid, height + 5);

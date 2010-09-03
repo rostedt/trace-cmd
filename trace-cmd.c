@@ -1713,6 +1713,7 @@ int main (int argc, char **argv)
 		trace_seq_printf(&s, "CPU: %d\n", cpu);
 		tracecmd_stat_cpu(&s, cpu);
 		trace_seq_do_printf(&s);
+		trace_seq_destroy(&s);
 		printf("\n");
 	}
 

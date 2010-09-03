@@ -31,8 +31,8 @@
 /* ----------------------- trace_seq ----------------------- */
 
 
-#ifndef TRACE_SEQ_SIZE
-#define TRACE_SEQ_SIZE 4096
+#ifndef TRACE_SEQ_BUF_SIZE
+#define TRACE_SEQ_BUF_SIZE 4096
 #endif
 
 struct record {
@@ -54,19 +54,14 @@ struct record {
  */
 
 struct trace_seq {
-	char			buffer[TRACE_SEQ_SIZE];
+	char			*buffer;
+	unsigned int		buffer_size;
 	unsigned int		len;
 	unsigned int		readpos;
-	int			full;
 };
 
-static inline void
-trace_seq_init(struct trace_seq *s)
-{
-	s->len = 0;
-	s->readpos = 0;
-	s->full = 0;
-}
+void trace_seq_init(struct trace_seq *s);
+void trace_seq_destroy(struct trace_seq *s);
 
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
