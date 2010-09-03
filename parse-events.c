@@ -2180,6 +2180,7 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 	if (read_expected(EVENT_DELIM, ")") < 0)
 		goto out_free;
 
+	free_token(token);
 	type = read_token_item(&token);
 	*tok = token;
 	if (type != EVENT_OP || strcmp(token, "[") != 0)
