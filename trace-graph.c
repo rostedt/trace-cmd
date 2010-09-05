@@ -1666,13 +1666,16 @@ static gint draw_event_label(struct graph_info *ginfo, gint i,
 	 */
 	ret = trace_graph_plot_display_last_event(ginfo, plot, &s,
 						  convert_x_to_time(ginfo, p2-1));
-	trace_seq_destroy(&s);
-	if (!ret)
+	if (!ret) {
+		trace_seq_destroy(&s);
 		return p2;
+	}
 
 	layout = gtk_widget_create_pango_layout(ginfo->draw, s.buffer);
 	pango_layout_set_font_description(layout, font);
 	pango_layout_get_pixel_size(layout, &text_width, &text_height);
+
+	trace_seq_destroy(&s);
 
 	/* Lets see if we can print this info */
 	if (p2 < text_width)
@@ -1967,7 +1970,6 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 		convert_nano(time, &sec, &usec);
 		trace_seq_init(&s);
 		trace_seq_printf(&s, "%lu.%06lu", sec, usec);
-		trace_seq_destroy(&s);
 
 		gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			      mid, height, mid, height + 5);
@@ -1978,6 +1980,7 @@ static void draw_timeline(struct graph_info *ginfo, gint width)
 		gdk_draw_layout(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 				mid - (w / 2), height+10, layout);
 		g_object_unref(layout);
+		trace_seq_destroy(&s);
 	}
 }
 
