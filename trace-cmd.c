@@ -1429,6 +1429,9 @@ int main (int argc, char **argv)
 	} else if (strcmp(argv[1], "split") == 0) {
 		trace_split(argc, argv);
 		exit(0);
+	} else if (strcmp(argv[1], "restore") == 0) {
+		trace_restore(argc, argv);
+		exit(0);
 	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {

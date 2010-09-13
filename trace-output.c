@@ -860,16 +860,14 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 	return handle;
 }
 
-struct tracecmd_output *
-tracecmd_create_init_fd(int fd)
+struct tracecmd_output *tracecmd_create_init_fd(int fd)
 {
-	struct tracecmd_output *handle;
+	return create_file_fd(fd, NULL);
+}
 
-	handle = create_file_fd(fd, NULL);
-	if (!handle)
-		return NULL;
-
-	return handle;
+struct tracecmd_output *tracecmd_create_init_file(const char *output_file)
+{
+	return create_file(output_file, NULL);
 }
 
 /**

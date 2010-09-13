@@ -123,6 +123,14 @@ static struct usage_help usage_help[] = {
 		"          -o list available options\n"
 	},
 	{
+		"restore",
+		"restore a crashed record",
+		" %s restore [-c][-o file][-i file] cpu-file [cpu-file ...]\n"
+		"          -c create a partial trace.dat file only\n"
+		"          -o output file\n"
+		"          -i parital trace.dat file for input\n"
+	},
+	{
 		NULL, NULL, NULL
 	}
 };
