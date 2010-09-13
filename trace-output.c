@@ -521,7 +521,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 }
 
 static struct tracecmd_output *
-create_file_fd(int fd, int cpus, struct tracecmd_input *ihandle)
+create_file_fd(int fd, struct tracecmd_input *ihandle)
 {
 	struct tracecmd_output *handle;
 	unsigned long long endian8;
@@ -629,7 +629,7 @@ create_file_fd(int fd, int cpus, struct tracecmd_input *ihandle)
 	return NULL;
 }
 
-static struct tracecmd_output *create_file(const char *output_file, int cpus,
+static struct tracecmd_output *create_file(const char *output_file,
 					   struct tracecmd_input *ihandle)
 {
 	struct tracecmd_output *handle;
@@ -639,7 +639,7 @@ static struct tracecmd_output *create_file(const char *output_file, int cpus,
 	if (fd < 0)
 		return NULL;
 
-	handle = create_file_fd(fd, cpus, ihandle);
+	handle = create_file_fd(fd, ihandle);
 	if (!handle) {
 		close(fd);
 		unlink(output_file);
@@ -673,7 +673,7 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	struct tracecmd_output *handle;
 	char *path;
 
-	handle = create_file(output_file, cpus, NULL);
+	handle = create_file(output_file, NULL);
 	if (!handle)
 		return NULL;
 
@@ -850,7 +850,7 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file(output_file, cpus, NULL);
+	handle = create_file(output_file, NULL);
 	if (!handle)
 		return NULL;
 
@@ -861,11 +861,11 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 }
 
 struct tracecmd_output *
-tracecmd_create_init_fd(int fd, int cpus)
+tracecmd_create_init_fd(int fd)
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file_fd(fd, cpus, NULL);
+	handle = create_file_fd(fd, NULL);
 	if (!handle)
 		return NULL;
 
@@ -886,7 +886,7 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file(file, tracecmd_cpus(ihandle), ihandle);
+	handle = create_file(file, ihandle);
 	if (!handle)
 		return NULL;
 

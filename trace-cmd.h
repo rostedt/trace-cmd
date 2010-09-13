@@ -159,7 +159,7 @@ extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus);
 struct tracecmd_output *tracecmd_create_file(const char *output_file,
 					     int cpus, char * const *cpu_data_files);
-struct tracecmd_output *tracecmd_create_init_fd(int fd, int cpus);
+struct tracecmd_output *tracecmd_create_init_fd(int fd);
 void tracecmd_output_close(struct tracecmd_output *handle);
 struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);
