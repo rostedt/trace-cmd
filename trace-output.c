@@ -705,9 +705,9 @@ out_free:
 int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			     int cpus, char * const *cpu_data_files)
 {
-	unsigned long long *offsets = NULL;
+	off64_t *offsets = NULL;
 	unsigned long long *sizes = NULL;
-	unsigned long long offset;
+	off64_t offset;
 	unsigned long long endian8;
 	off64_t check_size;
 	char *file;
@@ -733,7 +733,7 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 	if (!sizes)
 		goto out_free;
 
-	offset = lseek(handle->fd, 0, SEEK_CUR);
+	offset = lseek64(handle->fd, 0, SEEK_CUR);
 
 	/* hold any extra data for data */
 	offset += cpus * (16);
@@ -761,8 +761,8 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 
 	for (i = 0; i < cpus; i++) {
 		fprintf(stderr, "offset=%llx\n", offsets[i]);
-		ret = lseek64(handle->fd, offsets[i], SEEK_SET);
-		if (ret < 0) {
+		offset = lseek64(handle->fd, offsets[i], SEEK_SET);
+		if (offset == (off64_t)-1) {
 			warning("could not seek to %lld\n", offsets[i]);
 			goto out_free;
 		}
