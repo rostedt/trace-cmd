@@ -46,15 +46,10 @@ static void convert_nano(unsigned long long time, unsigned long *sec,
 	*usec = (time / 1000) % 1000000;
 }
 
-static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot,
-			       unsigned long long time)
+static struct record *get_record_from_time(struct graph_info *ginfo, int cpu,
+					   unsigned long long time)
 {
-	struct cpu_plot_info *cpu_info = plot->private;
 	struct record *record;
-	long cpu;
-	int ret = 0;
-
-	cpu = cpu_info->cpu;
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 	record = tracecmd_read_data(ginfo->handle, cpu);
@@ -62,6 +57,18 @@ static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot
 		free_record(record);
 		record = tracecmd_read_data(ginfo->handle, cpu);
 	}
+
+	return record;
+}
+
+static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot,
+			       unsigned long long time)
+{
+	struct cpu_plot_info *cpu_info = plot->private;
+	struct record *record;
+	int ret = 0;
+
+	record = get_record_from_time(ginfo, cpu_info->cpu, time);
 	if (record && record->ts == time)
 		ret = 1;
 	free_record(record);
@@ -196,13 +203,46 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 	cpu_info->last_record = NULL;
 }
 
+static void update_last_record(struct graph_info *ginfo,
+			       struct cpu_plot_info *cpu_info,
+			       struct record *record)
+{
+	struct tracecmd_input *handle = ginfo->handle;
+	struct record *trecord;
+	int filter;
+	int sched_pid;
+	int orig_pid;
+	int is_sched_switch;
+
+	if (record)
+		tracecmd_record_ref(record);
+	else
+		record = get_record_from_time(ginfo, cpu_info->cpu,
+					      ginfo->view_end_time);
+
+	trecord = tracecmd_read_prev(handle, record);
+	free_record(record);
+
+	if (!trecord)
+		return;
+
+	filter = filter_record(ginfo, trecord,
+			       &orig_pid, &sched_pid,
+			       &is_sched_switch);
+	cpu_info->last_pid = is_sched_switch ? sched_pid : orig_pid;
+	cpu_info->last_record = trecord;
+	cpu_info->last_time = trecord->ts;
+	/* We moved the cursor, put it back */
+	trecord = tracecmd_read_data(handle, cpu_info->cpu);
+	free_record(trecord);
+}
+
 static int cpu_plot_event(struct graph_info *ginfo,
 			  struct graph_plot *plot,
 			  struct record *record,
 			  struct plot_info *info)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	struct tracecmd_input *handle = ginfo->handle;
 	int sched_pid;
 	int orig_pid;
 	int is_sched_switch;
@@ -215,10 +255,8 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	cpu = cpu_info->cpu;
 
 	if (!record) {
-		if (cpu_info->last_record) {
-			free_record(cpu_info->last_record);
-			cpu_info->last_record = NULL;
-		}
+		if (!cpu_info->last_record)
+			update_last_record(ginfo, cpu_info, record);
 
 		/* Finish a box if the last record was not idle */
 		if (cpu_info->last_pid > 0) {
@@ -227,6 +265,10 @@ static int cpu_plot_event(struct graph_info *ginfo,
 			info->bend = ginfo->view_end_time;
 			info->bcolor = hash_pid(cpu_info->last_pid);
 		}
+		if (cpu_info->last_record) {
+			free_record(cpu_info->last_record);
+			cpu_info->last_record = NULL;
+		}
 		return 0;
 	}
 
@@ -234,21 +276,8 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	 * If last record is NULL, then it may exist off the
 	 * viewable range. Search to see if one exists.
 	 */
-	if (!cpu_info->last_record) {
-		struct record *trecord;
-
-		trecord = tracecmd_read_prev(handle, record);
-		if (trecord) {
-			filter = filter_record(ginfo, trecord,
-					       &orig_pid, &sched_pid,
-					       &is_sched_switch);
-			cpu_info->last_pid = is_sched_switch ? sched_pid : orig_pid;
-		}
-		cpu_info->last_record = trecord;
-		/* We moved the cursor, put it back */
-		trecord = tracecmd_read_data(handle, record->cpu);
-		free_record(trecord);
-	}
+	if (!cpu_info->last_record)
+		update_last_record(ginfo, cpu_info, record);
 
 	free_record(cpu_info->last_record);
 	cpu_info->last_record = record;
