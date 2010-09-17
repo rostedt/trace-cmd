@@ -329,13 +329,90 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 	task_info->display_wake_time = 0ULL;
 }
 
+static void update_last_record(struct graph_info *ginfo,
+			       struct task_plot_info *task_info,
+			       struct record *record)
+{
+	struct tracecmd_input *handle = ginfo->handle;
+	struct record *trecord, *t2record;
+	struct record *saved;
+	unsigned long long ts;
+	int sched_pid;
+	int pid;
+	int rec_pid;
+	int is_wakeup;
+	int is_sched;
+	int this_cpu;
+	int cpu;
+
+	pid = task_info->pid;
+
+	if (record) {
+		ts = record->ts;
+		this_cpu = record->cpu;
+	} else {
+		ts = ginfo->view_end_time;
+		this_cpu = -1;
+	}
+
+	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+
+		if (task_info->last_records[cpu])
+			continue;
+
+		if (cpu == this_cpu) {
+			static int once;
+
+			trecord = tracecmd_read_prev(handle, record);
+			/* Set cpu cursor back to what it was  */
+			saved = tracecmd_read_data(handle, cpu);
+			if (!once && saved->offset != record->offset) {
+				once++;
+				warning("failed to reset cursor!");
+			}
+			free_record(saved);
+		} else {
+			static int once;
+
+			saved = tracecmd_peek_data(handle, cpu);
+			set_cpu_to_time(cpu, ginfo, ts);
+			t2record = tracecmd_read_data(handle, cpu);
+			trecord = tracecmd_read_prev(handle, t2record);
+			free_record(t2record);
+			/* reset cursor back to what it was */
+			if (saved)
+				tracecmd_set_cursor(handle, cpu, saved->offset);
+			else {
+				saved = tracecmd_read_data(handle, cpu);
+				if (!once && saved) {
+					once++;
+					warning("failed to reset cursor to end!");
+				}
+			}
+		}
+		if (!trecord)
+			continue;
+
+		if (record_matches_pid(ginfo, trecord, pid, &rec_pid,
+				       &sched_pid, &is_sched, &is_wakeup) &&
+		    !is_wakeup &&
+		    (!is_sched || (is_sched && sched_pid == pid))) {
+			task_info->last_records[cpu] = trecord;
+			task_info->last_cpu = trecord->cpu;
+			task_info->last_time = trecord->ts;
+			break;
+		}
+
+		free_record(trecord);
+	}
+}
+
 static int task_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
 			   struct record *record,
 			   struct plot_info *info)
 {
 	struct task_plot_info *task_info = plot->private;
-	struct tracecmd_input *handle = ginfo->handle;
 	gboolean match;
 	int sched_pid;
 	int rec_pid;
@@ -347,16 +424,17 @@ static int task_plot_event(struct graph_info *ginfo,
 	pid = task_info->pid;
 
 	if (!record) {
-		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-			free_record(task_info->last_records[cpu]);
-			task_info->last_records[cpu] = NULL;
-		}
+		update_last_record(ginfo, task_info, record);
 		/* no more records, finish a box if one was started */
 		if (task_info->last_cpu >= 0) {
 			info->box = TRUE;
 			info->bstart = task_info->last_time;
 			info->bend = ginfo->view_end_time;
 			info->bcolor = hash_cpu(task_info->last_cpu);
+		}
+		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+			free_record(task_info->last_records[cpu]);
+			task_info->last_records[cpu] = NULL;
 		}
 		return 0;
 	}
@@ -385,63 +463,7 @@ static int task_plot_event(struct graph_info *ginfo,
 		 * viewable range. Search to see if one exists, and if
 		 * it is the record we want to match.
 		 */
-		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-			struct record *trecord, *t2record;
-			struct record *saved;
-			int this_cpu = record->cpu;
-			int tsched_pid;
-			int tpid;
-			int tis_wakeup;
-			int tis_sched;
-
-			if (task_info->last_records[cpu])
-				continue;
-
-			if (cpu == this_cpu) {
-				static int once;
-
-				trecord = tracecmd_read_prev(handle, record);
-				/* Set cpu cursor back to what it was  */
-				saved = tracecmd_read_data(handle, cpu);
-				if (!once && saved->offset != record->offset) {
-					once++;
-					warning("failed to reset cursor!");
-				}
-				free_record(saved);
-			} else {
-				static int once;
-
-				saved = tracecmd_peek_data(handle, cpu);
-				set_cpu_to_time(cpu, ginfo, record->ts);
-				t2record = tracecmd_read_data(handle, cpu);
-				trecord = tracecmd_read_prev(handle, t2record);
-				free_record(t2record);
-				/* reset cursor back to what it was */
-				if (saved)
-					tracecmd_set_cursor(handle, cpu, saved->offset);
-				else {
-					saved = tracecmd_read_data(handle, cpu);
-					if (!once && saved) {
-						once++;
-						warning("failed to reset cursor to end!");
-					}
-				}
-			}
-			if (!trecord)
-				continue;
-
-			if (record_matches_pid(ginfo, trecord, pid, &tpid,
-					       &tsched_pid, &tis_sched, &tis_wakeup) &&
-			    !tis_wakeup &&
-			    (!is_sched || (is_sched && sched_pid == pid))) {
-				task_info->last_records[cpu] = trecord;
-				task_info->last_cpu = trecord->cpu;
-				task_info->last_time = trecord->ts;
-				break;
-			}
-
-			free_record(trecord);
-		}
+		update_last_record(ginfo, task_info, record);
 
 		if (is_wakeup) {
 			/* Wake up but not task */
