@@ -675,6 +675,11 @@ void free_record(struct record *record)
 	__free_record(record);
 }
 
+void tracecmd_record_ref(struct record *record)
+{
+	record->ref_count++;
+}
+
 static void free_next(struct tracecmd_input *handle, int cpu)
 {
 	struct record *record = handle->cpu_data[cpu].next;

@@ -54,6 +54,7 @@ enum {
 #define TS_SHIFT		27
 #endif
 
+void tracecmd_record_ref(struct record *record);
 void free_record(struct record *record);
 
 struct tracecmd_input;
