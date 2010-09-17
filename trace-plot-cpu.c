@@ -27,6 +27,7 @@ struct cpu_plot_info {
 	int			cpu;
 	unsigned long long	last_time;
 	int			last_pid;
+	struct record		*last_record;
 };
 
 static gint hash_pid(gint val)
@@ -192,6 +193,7 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 	cpu = cpu_info->cpu;
 	cpu_info->last_time = 0ULL;
 	cpu_info->last_pid = -1;
+	cpu_info->last_record = NULL;
 }
 
 static int cpu_plot_event(struct graph_info *ginfo,
@@ -200,6 +202,7 @@ static int cpu_plot_event(struct graph_info *ginfo,
 			  struct plot_info *info)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
+	struct tracecmd_input *handle = ginfo->handle;
 	int sched_pid;
 	int orig_pid;
 	int is_sched_switch;
@@ -212,6 +215,11 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	cpu = cpu_info->cpu;
 
 	if (!record) {
+		if (cpu_info->last_record) {
+			free_record(cpu_info->last_record);
+			cpu_info->last_record = NULL;
+		}
+
 		/* Finish a box if the last record was not idle */
 		if (cpu_info->last_pid > 0) {
 			info->box = TRUE;
@@ -221,6 +229,30 @@ static int cpu_plot_event(struct graph_info *ginfo,
 		}
 		return 0;
 	}
+
+	/*
+	 * If last record is NULL, then it may exist off the
+	 * viewable range. Search to see if one exists.
+	 */
+	if (!cpu_info->last_record) {
+		struct record *trecord;
+
+		trecord = tracecmd_read_prev(handle, record);
+		if (trecord) {
+			filter = filter_record(ginfo, trecord,
+					       &orig_pid, &sched_pid,
+					       &is_sched_switch);
+			cpu_info->last_pid = is_sched_switch ? sched_pid : orig_pid;
+		}
+		cpu_info->last_record = trecord;
+		/* We moved the cursor, put it back */
+		trecord = tracecmd_read_data(handle, record->cpu);
+		free_record(trecord);
+	}
+
+	free_record(cpu_info->last_record);
+	cpu_info->last_record = record;
+	tracecmd_record_ref(record);
 
 	cpu = cpu_info->cpu;
 

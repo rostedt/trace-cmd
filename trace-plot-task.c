@@ -29,6 +29,7 @@
 struct task_plot_info {
 	int			pid;
 	struct cpu_data		*cpu_data;
+	struct record		**last_records;
 	unsigned long long	last_time;
 	unsigned long long	wake_time;
 	unsigned long long	display_wake_time;
@@ -104,26 +105,31 @@ static gboolean record_matches_pid(struct graph_info *ginfo,
 	return FALSE;
 }
 
-static void set_cpus_to_time(struct graph_info *ginfo, unsigned long long time)
+static void set_cpu_to_time(int cpu, struct graph_info *ginfo, unsigned long long time)
 {
 	struct record *record;
+
+	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+
+	while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
+		if (record->ts >= time)
+			break;
+
+		free_record(record);
+	}
+	if (record) {
+		tracecmd_set_cursor(ginfo->handle, cpu, record->offset);
+		free_record(record);
+	} else
+		tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
+}
+
+static void set_cpus_to_time(struct graph_info *ginfo, unsigned long long time)
+{
 	int cpu;
 
-	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
-		tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-
-		while ((record = tracecmd_read_data(ginfo->handle, cpu))) {
-			if (record->ts >= time)
-				break;
-
-			free_record(record);
-		}
-		if (record) {
-			tracecmd_set_cursor(ginfo->handle, cpu, record->offset);
-			free_record(record);
-		} else
-			tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
-	}
+	for (cpu = 0; cpu < ginfo->cpus; cpu++)
+		set_cpu_to_time(cpu, ginfo, time);
 }
 
 static int task_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot,
@@ -315,6 +321,8 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 {
 	struct task_plot_info *task_info = plot->private;
 
+	memset(task_info->last_records, 0, sizeof(struct record *) * ginfo->cpus);
+
 	task_info->last_time = 0ULL;
 	task_info->last_cpu = -1;
 	task_info->wake_time = 0ULL;
@@ -327,16 +335,22 @@ static int task_plot_event(struct graph_info *ginfo,
 			   struct plot_info *info)
 {
 	struct task_plot_info *task_info = plot->private;
+	struct tracecmd_input *handle = ginfo->handle;
 	gboolean match;
 	int sched_pid;
 	int rec_pid;
 	int is_wakeup;
 	int is_sched;
 	int pid;
+	int cpu;
 
 	pid = task_info->pid;
 
 	if (!record) {
+		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+			free_record(task_info->last_records[cpu]);
+			task_info->last_records[cpu] = NULL;
+		}
 		/* no more records, finish a box if one was started */
 		if (task_info->last_cpu >= 0) {
 			info->box = TRUE;
@@ -350,13 +364,84 @@ static int task_plot_event(struct graph_info *ginfo,
 	match = record_matches_pid(ginfo, record, pid, &rec_pid,
 				   &sched_pid, &is_sched, &is_wakeup);
 
-	if (!match && record->cpu != task_info->last_cpu)
+
+	if (!match && record->cpu != task_info->last_cpu) {
+		if (!task_info->last_records[record->cpu]) {
+			task_info->last_records[record->cpu] = record;
+			tracecmd_record_ref(record);
+		}
 		return 0;
+	}
 
 	if (match) {
 		info->line = TRUE;
 		info->lcolor = hash_pid(rec_pid);
 		info->ltime = record->ts;
+
+		/*
+		 * Is this our first match?
+		 *
+		 * If last record is NULL, then it may exist off the
+		 * viewable range. Search to see if one exists, and if
+		 * it is the record we want to match.
+		 */
+		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
+			struct record *trecord, *t2record;
+			struct record *saved;
+			int this_cpu = record->cpu;
+			int tsched_pid;
+			int tpid;
+			int tis_wakeup;
+			int tis_sched;
+
+			if (task_info->last_records[cpu])
+				continue;
+
+			if (cpu == this_cpu) {
+				static int once;
+
+				trecord = tracecmd_read_prev(handle, record);
+				/* Set cpu cursor back to what it was  */
+				saved = tracecmd_read_data(handle, cpu);
+				if (!once && saved->offset != record->offset) {
+					once++;
+					warning("failed to reset cursor!");
+				}
+				free_record(saved);
+			} else {
+				static int once;
+
+				saved = tracecmd_peek_data(handle, cpu);
+				set_cpu_to_time(cpu, ginfo, record->ts);
+				t2record = tracecmd_read_data(handle, cpu);
+				trecord = tracecmd_read_prev(handle, t2record);
+				free_record(t2record);
+				/* reset cursor back to what it was */
+				if (saved)
+					tracecmd_set_cursor(handle, cpu, saved->offset);
+				else {
+					saved = tracecmd_read_data(handle, cpu);
+					if (!once && saved) {
+						once++;
+						warning("failed to reset cursor to end!");
+					}
+				}
+			}
+			if (!trecord)
+				continue;
+
+			if (record_matches_pid(ginfo, trecord, pid, &tpid,
+					       &tsched_pid, &tis_sched, &tis_wakeup) &&
+			    !tis_wakeup &&
+			    (!is_sched || (is_sched && sched_pid == pid))) {
+				task_info->last_records[cpu] = trecord;
+				task_info->last_cpu = trecord->cpu;
+				task_info->last_time = trecord->ts;
+				break;
+			}
+
+			free_record(trecord);
+		}
 
 		if (is_wakeup) {
 			/* Wake up but not task */
@@ -424,6 +509,12 @@ static int task_plot_event(struct graph_info *ginfo,
 		return 1;
 	}
 
+	cpu = record->cpu;
+
+	if (!task_info->last_records[cpu]) {
+		free_record(task_info->last_records[cpu]);
+		task_info->last_records[cpu] = record;
+	}
 	/* not a match, and on the last CPU, scheduled out? */
 	if (task_info->last_cpu >= 0) {
 		info->box = TRUE;
@@ -622,6 +713,7 @@ void task_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
 
 	trace_graph_plot_remove_all_recs(ginfo, plot);
 
+	free(task_info->last_records);
 	free(task_info);
 }
 
@@ -740,6 +832,8 @@ void graph_plot_init_tasks(struct graph_info *ginfo)
 	}
 
 	task_info = malloc_or_die(sizeof(*task_info));
+	task_info->last_records =
+		malloc_or_die(sizeof(struct record *) * ginfo->cpus);
 	task_info->pid = pid;
 
 	snprintf(label, 100, "TASK %d", pid);
@@ -756,6 +850,8 @@ void graph_plot_task(struct graph_info *ginfo, int pid, int pos)
 	int len;
 
 	task_info = malloc_or_die(sizeof(*task_info));
+	task_info->last_records =
+		malloc_or_die(sizeof(struct record *) * ginfo->cpus);
 	task_info->pid = pid;
 	comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 
