@@ -55,7 +55,9 @@ static gint hash_pid(gint val)
 
 static int hash_cpu(int cpu)
 {
-	return trace_hash(cpu + 124);
+	cpu = (cpu << 3) + cpu * 21;
+ 
+	return trace_hash(cpu);
 }
 
 static gboolean is_running(struct graph_info *ginfo, struct record *record)
