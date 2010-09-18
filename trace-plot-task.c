@@ -684,7 +684,9 @@ int task_plot_display_info(struct graph_info *ginfo,
 	struct pevent *pevent;
 	unsigned long sec, usec;
 	const char *comm;
+	int cpu;
 	int type;
+	int sched_pid = -1;
 	int pid;
 
 	pid = task_info->pid;
@@ -695,7 +697,7 @@ int task_plot_display_info(struct graph_info *ginfo,
 	pevent = ginfo->pevent;
 
 	pid = pevent_data_pid(ginfo->pevent, record);
-	comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+	cpu = record->cpu;
 
 	convert_nano(record->ts, &sec, &usec);
 
@@ -713,16 +715,12 @@ int task_plot_display_info(struct graph_info *ginfo,
 			trace_seq_putc(s, '\n');
 		} else
 			trace_seq_printf(s, "UNKNOW EVENT %d\n", type);
-	} else {
-		if (record->ts < time)
-			trace_graph_check_sched_switch(ginfo, record, &pid, &comm);
 	}
+	trace_graph_check_sched_switch(ginfo, record, &sched_pid, &comm);
 
 	trace_seq_printf(s, "%lu.%06lu", sec, usec);
-	if (pid)
-		trace_seq_printf(s, " %s-%d", comm, pid);
-	else
-		trace_seq_puts(s, " <idle>");
+	if (pid == task_info->pid || sched_pid == task_info->pid)
+		trace_seq_printf(s, " CPU: %03d", cpu);
 
 	free_record(record);
 
