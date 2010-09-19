@@ -21,8 +21,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "parse-events.h"
+
+#ifdef HAVE_UDIS86
+
+#include <udis86.h>
+
+static ud_t ud;
+
+static void init_disassembler(void)
+{
+	ud_init(&ud);
+	ud_set_syntax(&ud, UD_SYN_ATT);
+}
+
+static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
+			       int cr0_pe, int eflags_vm,
+			       int cs_d, int cs_l)
+{
+	int mode;
+
+	if (!cr0_pe)
+		mode = 16;
+	else if (eflags_vm)
+		mode = 16;
+	else if (cs_l)
+		mode = 64;
+	else if (cs_d)
+		mode = 32;
+	else
+		mode = 16;
+
+	ud_set_pc(&ud, rip);
+	ud_set_mode(&ud, mode);
+	ud_set_input_buffer(&ud, insn, len);
+	ud_disassemble(&ud);
+	return ud_insn_asm(&ud);
+}
+
+#else
+
+static void init_disassembler(void)
+{
+}
+
+static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
+			       int cr0_pe, int eflags_vm,
+			       int cs_d, int cs_l)
+{
+	static char out[15*3+1];
+	int i;
+
+	for (i = 0; i < len; ++i)
+		sprintf(out + i * 3, "%02x ", insn[i]);
+	out[len*3-1] = '\0';
+	return out;
+}
+
+#endif
+
 
 #define VMX_EXIT_REASONS			\
 	_ER(EXCEPTION_NMI,	0)		\
@@ -98,6 +157,53 @@ static int kvm_exit_handler(struct trace_seq *s, struct record *record,
 
 	return 0;
 }
+
+#define KVM_EMUL_INSN_F_CR0_PE (1 << 0)
+#define KVM_EMUL_INSN_F_EFL_VM (1 << 1)
+#define KVM_EMUL_INSN_F_CS_D   (1 << 2)
+#define KVM_EMUL_INSN_F_CS_L   (1 << 3)
+
+static int kvm_emulate_insn_handler(struct trace_seq *s, struct record *record,
+				    struct event_format *event, void *context)
+{
+	unsigned long long rip, csbase, len, flags, failed;
+	int llen;
+	uint8_t *insn;
+	const char *disasm;
+
+	if (pevent_get_field_val(s, event, "rip", record, &rip, 1) < 0)
+		return -1;
+
+	if (pevent_get_field_val(s, event, "csbase", record, &csbase, 1) < 0)
+		return -1;
+
+	if (pevent_get_field_val(s, event, "len", record, &len, 1) < 0)
+		return -1;
+
+	if (pevent_get_field_val(s, event, "flags", record, &flags, 1) < 0)
+		return -1;
+
+	if (pevent_get_field_val(s, event, "failed", record, &failed, 1) < 0)
+		return -1;
+
+	insn = pevent_get_field_raw(s, event, "insn", record, &llen, 1);
+	if (!insn)
+		return -1;
+
+	disasm = disassemble(insn, len, rip,
+			     flags & KVM_EMUL_INSN_F_CR0_PE,
+			     flags & KVM_EMUL_INSN_F_EFL_VM,
+			     flags & KVM_EMUL_INSN_F_CS_D,
+			     flags & KVM_EMUL_INSN_F_CS_L);
+
+	trace_seq_printf(s, "%llx:%llx: %s%s", csbase, rip, disasm,
+			 failed ? " FAIL" : "");
+
+	pevent_print_num_field(s, " rip %0xlx", event, "guest_rip", record, 1);
+
+	return 0;
+}
+
 
 static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct record *record,
 					    struct event_format *event, void *context)
@@ -199,8 +305,13 @@ static int kvm_mmu_get_page_handler(struct trace_seq *s, struct record *record,
 
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
+	init_disassembler();
+
 	pevent_register_event_handler(pevent, -1, "kvm", "kvm_exit",
 				      kvm_exit_handler, NULL);
+
+	pevent_register_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
+				      kvm_emulate_insn_handler, NULL);
 
 	pevent_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
 				      kvm_nested_vmexit_handler, NULL);

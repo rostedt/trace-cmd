@@ -74,6 +74,14 @@ ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PY_INSTALL := event-viewer.install tracecmd.install tracecmdgui.install
 endif
 
+# $(call test-build, snippet, ret) -> ret if snippet compiles
+#                                  -> empty otherwise
+test-build = $(if $(shell $(CC) -o /dev/null -c -x c - > /dev/null 2>&1 \
+	                  <<<'$1' && echo y), $2)
+
+# have udis86 disassembler library?
+udis86-flags := $(call test-build,\#include <udis86.h>,-DHAVE_UDIS86 -ludis86)
+
 ifeq ("$(origin O)", "command line")
   BUILD_OUTPUT := $(O)
 endif
@@ -188,6 +196,7 @@ CFLAGS ?= -g -Wall
 
 # Append required CFLAGS
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
+override CFLAGS += $(udis86-flags)
 
 ifeq ($(VERBOSE),1)
   Q =
@@ -228,7 +237,7 @@ do_compile_plugin_obj =				\
 
 do_plugin_build =				\
 	($(print_plugin_build)			\
-	$(CC) -shared -nostartfiles -o $@ $<)
+	$(CC) $(CFLAGS) -shared -nostartfiles -o $@ $<)
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
