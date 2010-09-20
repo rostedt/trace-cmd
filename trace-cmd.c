@@ -981,6 +981,13 @@ static int count_cpus(void)
 	size_t n;
 	int r;
 
+	cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	if (cpus > 0)
+		return cpus;
+
+	warning("sysconf could not determine number of CPUS");
+
+	/* Do the hack to figure out # of CPUS */
 	n = 1024;
 	pn = &n;
 	pbuf = buf;
