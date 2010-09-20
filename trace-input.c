@@ -1472,13 +1472,19 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
 	struct record *record;
-	struct page *page = handle->cpu_data[cpu].page;
-	int index = handle->cpu_data[cpu].index;
+	struct page *page;
+	int index;
 	void *ptr;
 	unsigned long long extend;
 	unsigned int type_len;
 	long long missed_events = 0;
 	int length;
+
+	if (cpu >= handle->cpus)
+		return NULL;
+
+	page = handle->cpu_data[cpu].page;
+	index = handle->cpu_data[cpu].index;
 
 	if (index < 0)
 		die("negative index on cpu iterator %d", cpu);
