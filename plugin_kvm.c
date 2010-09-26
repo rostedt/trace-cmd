@@ -199,8 +199,6 @@ static int kvm_emulate_insn_handler(struct trace_seq *s, struct record *record,
 	trace_seq_printf(s, "%llx:%llx: %s%s", csbase, rip, disasm,
 			 failed ? " FAIL" : "");
 
-	pevent_print_num_field(s, " rip %0xlx", event, "guest_rip", record, 1);
-
 	return 0;
 }
 
