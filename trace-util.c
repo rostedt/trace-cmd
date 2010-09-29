@@ -771,6 +771,7 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 {
 	char *home;
 	char *path;
+        char *envdir;
 
 	if (tracecmd_disable_plugins)
 		return;
@@ -782,7 +783,12 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 					    load_plugin, data);
 #endif
 
-	/* Now let the home directory override the system defaults */
+	/* Next let the environment-set plugin directory override the system defaults */
+	envdir = getenv("TRACE_CMD_PLUGIN_DIR");
+	if (envdir)
+		trace_util_load_plugins_dir(pevent, suffix, envdir, load_plugin, data);
+
+	/* Now let the home directory override the environment or system defaults */
 	home = getenv("HOME");
 
 	if (!home)
