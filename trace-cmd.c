@@ -55,6 +55,19 @@
 int silence_warnings;
 int show_status;
 
+static char *get_tracing_file(const char *name);
+static void put_tracing_file(char *file);
+
+char *tracecmd_get_tracing_file(const char *name)
+{
+	return get_tracing_file(name);
+}
+
+void tracecmd_put_tracing_file(char *name)
+{
+	put_tracing_file(name);
+}
+
 static int tracing_on_init_val;
 
 static int rt_prio;
@@ -285,9 +298,6 @@ static int set_ftrace(int set)
 
 	return 0;
 }
-
-static char *get_tracing_file(const char *name);
-static void put_tracing_file(char *file);
 
 static void clear_trace(void)
 {
@@ -1438,6 +1448,9 @@ int main (int argc, char **argv)
 		exit(0);
 	} else if (strcmp(argv[1], "restore") == 0) {
 		trace_restore(argc, argv);
+		exit(0);
+	} else if (strcmp(argv[1], "stack") == 0) {
+		trace_stack(argc, argv);
 		exit(0);
 	} else if ((record = (strcmp(argv[1], "record") == 0)) ||
 		   (strcmp(argv[1], "start") == 0) ||

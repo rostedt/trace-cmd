@@ -44,4 +44,6 @@ void trace_listen(int argc, char **argv);
 
 void trace_restore(int argc, char **argv);
 
+void trace_stack(int argc, char **argv);
+
 #endif /* __TRACE_LOCAL_H */

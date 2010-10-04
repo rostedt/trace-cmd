@@ -149,6 +149,9 @@ tracecmd_get_cursor(struct tracecmd_input *handle, int cpu);
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle, struct tracecmd_ftrace *finfo);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 
+char *tracecmd_get_tracing_file(const char *name);
+void tracecmd_put_tracing_file(char *name);
+
 #ifndef SWIG
 /* hack for function graph work around */
 extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;

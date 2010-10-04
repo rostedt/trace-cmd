@@ -131,6 +131,14 @@ static struct usage_help usage_help[] = {
 		"          -i parital trace.dat file for input\n"
 	},
 	{
+		"stack",
+		"output, enable or disable kernel stack tracing",
+		" %s stack [--start][--stop][--reset]\n"
+		"          --start  enable the stack tracer\n"
+		"          --stop   disable the stack tracer\n"
+		"          --reset  reset the maximum stack found\n"
+	},
+	{
 		NULL, NULL, NULL
 	}
 };
