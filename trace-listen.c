@@ -231,13 +231,13 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 #define MAX_PORT_SEARCH 6000
 
 static int open_udp(const char *node, const char *port, int *pid,
-		    int cpu, int pagesize)
+		    int cpu, int pagesize, int start_port)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, s;
 	char buf[BUFSIZ];
-	int num_port = START_PORT_SEARCH;
+	int num_port = start_port;
 
  again:
 	snprintf(buf, BUFSIZ, "%d", num_port);
@@ -293,6 +293,7 @@ static void process_client(const char *node, const char *port, int fd)
 	int *port_array;
 	int *pid_array;
 	int pagesize;
+	int start_port;
 	int udp_port;
 	int options;
 	int size;
@@ -379,13 +380,17 @@ static void process_client(const char *node, const char *port, int fd)
 	pid_array = malloc_or_die(sizeof(int) * cpus);
 	memset(pid_array, 0, sizeof(int) * cpus);
 
+	start_port = START_PORT_SEARCH;
+
 	/* Now create a UDP port for each CPU */
 	for (cpu = 0; cpu < cpus; cpu++) {
-		udp_port = open_udp(node, port, &pid, cpu, pagesize);
+		udp_port = open_udp(node, port, &pid, cpu, pagesize, start_port);
 		if (udp_port < 0)
 			goto out_free;
 		port_array[cpu] = udp_port;
 		pid_array[cpu] = pid;
+		/* due to some bugging finding ports, force search after last port */
+		start_port = udp_port+1;
 	}
 
 	/* send the client a comma deliminated set of port numbers */
