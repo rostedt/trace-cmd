@@ -153,7 +153,7 @@ static int kvm_exit_handler(struct trace_seq *s, struct record *record,
 
 	trace_seq_printf(s, "reason %s", find_vmx_reason(val));
 
-	pevent_print_num_field(s, " rip %0xlx", event, "guest_rip", record, 1);
+	pevent_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
 
 	return 0;
 }
