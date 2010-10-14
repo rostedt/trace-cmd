@@ -507,12 +507,17 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		case TRACE_VIEW_STORE_COL_INFO:
 			val = pevent_data_type(pevent, data);
 			event = pevent_data_event_from_type(pevent, val);
+			if (!event) {
+				if (column == TRACE_VIEW_STORE_COL_EVENT)
+					g_value_set_string(value, "[UNKNOWN EVENT]");
+				break;
+			}
+
 			if (column == TRACE_VIEW_STORE_COL_EVENT) {
 				g_value_set_string(value, event->name);
 				break;
 			}
 
-			
 			trace_seq_init(&s);
 			pevent_event_info(&s, event, data);
 			g_value_set_string(value, s.buffer);
