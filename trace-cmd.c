@@ -1089,15 +1089,14 @@ static int create_recorder(int cpu)
 	char *file;
 	int pid;
 
+	signal(SIGUSR1, flush);
+
 	pid = fork();
 	if (pid < 0)
 		die("fork");
 
 	if (pid)
 		return pid;
-
-	signal(SIGINT, finish);
-	signal(SIGUSR1, flush);
 
 	if (rt_prio)
 		set_prio(rt_prio);
@@ -1694,9 +1693,9 @@ int main (int argc, char **argv)
 	set_options();
 
 	if (record || extract) {
+		signal(SIGINT, finish);
 		if (!latency)
 			start_threads();
-		signal(SIGINT, finish);
 	}
 
 	if (extract) {
