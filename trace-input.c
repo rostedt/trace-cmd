@@ -1722,6 +1722,9 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
 		/* we found our record */
 		return tracecmd_read_at(handle, page_offset + index, NULL);
 
+	/* reset the index to start at the beginning of the page */
+	update_page_info(handle, cpu);
+
 	/* The previous record is on the previous page */
 	for (;;) {
 		/* check if this is the first page */
