@@ -39,12 +39,21 @@
 #include "trace-cmd-local.h"
 #include "version.h"
 
+struct tracecmd_option {
+	unsigned short	id;
+	int		size;
+	void		*data;
+};
+
 struct tracecmd_output {
 	int		fd;
 	int		page_size;
 	int		cpus;
 	struct pevent	*pevent;
 	char		*tracing_dir;
+	int		options_written;
+	int		nr_options;
+	struct tracecmd_option *options;
 };
 
 static int
@@ -72,6 +81,8 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 
 void tracecmd_output_close(struct tracecmd_output *handle)
 {
+	int i;
+
 	if (!handle)
 		return;
 
@@ -85,6 +96,12 @@ void tracecmd_output_close(struct tracecmd_output *handle)
 
 	if (handle->pevent)
 		pevent_unref(handle->pevent);
+
+	if (handle->options) {
+		for (i = 0; i < handle->nr_options; i++)
+			free(handle->options[i].data);
+		free(handle->options);
+	}
 
 	free(handle);
 }
@@ -648,22 +665,74 @@ static struct tracecmd_output *create_file(const char *output_file,
 	return handle;
 }
 
+/**
+ * tracecmd_add_option - add options to the file
+ * @handle: the output file handle name
+ * @id: the id of the option
+ * @size: the size of the option data
+ * @data: the data to write to the file.
+ */
+int tracecmd_add_option(struct tracecmd_output *handle,
+			unsigned short id,
+			int size, void *data)
+{
+	int index = handle->nr_options;
+
+	/*
+	 * We can only add options before they were written.
+	 * This may change in the future.
+	 */
+	if (handle->options_written)
+		return -EBUSY;
+
+	handle->nr_options++;
+
+	if (!handle->options)
+		handle->options = malloc_or_die(sizeof(*handle->options));
+	else {
+		handle->options = realloc(handle->options,
+					  sizeof(*handle->options) * handle->nr_options);
+		if (!handle->options)
+			die("Could not reallocate space for options");
+	}
+
+	handle->options[index].id = id;
+	handle->options[index].size = size;
+	handle->options[index].data = malloc_or_die(size);
+	memcpy(handle->options[index].data, data, size);
+
+	return 0;
+}
+
 static int add_options(struct tracecmd_output *handle)
 {
 	unsigned short option;
+	int i;
+
+	if (handle->options_written)
+		die("options already written?");
 
 	if (do_write_check(handle, "options  ", 10))
 		return -1;
 
-	/*
-	 * Right now we have no options, but this is where options
-	 * will be added in the future.
-	 */
+	for (i = 0; i < handle->nr_options; i++) {
+		if (do_write_check(handle, &handle->options[i].id, 2))
+			return -1;
+
+		if (do_write_check(handle, &handle->options[i].size, 4))
+			return -1;
+
+		if (do_write_check(handle, &handle->options[i].data,
+				   handle->options[i].size))
+			return -1;
+	}
 
 	option = TRACECMD_OPTION_DONE;
 
 	if (do_write_check(handle, &option, 2))
 		return -1;
+
+	handle->options_written = 1;
 
 	return 0;
 }
