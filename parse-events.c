@@ -682,6 +682,7 @@ static void free_arg(struct print_arg *arg)
 		free_arg(arg->typecast.item);
 		break;
 	case PRINT_STRING:
+	case PRINT_BSTRING:
 		free(arg->string.string);
 		break;
 	case PRINT_DYNAMIC_ARRAY:
@@ -1983,6 +1984,7 @@ static long long arg_num_eval(struct print_arg *arg)
 	case PRINT_NULL:
 	case PRINT_FIELD ... PRINT_SYMBOL:
 	case PRINT_STRING:
+	case PRINT_BSTRING:
 	default:
 		die("invalid eval type %d", arg->type);
 
@@ -2008,6 +2010,7 @@ static char *arg_eval (struct print_arg *arg)
 	case PRINT_NULL:
 	case PRINT_FIELD ... PRINT_SYMBOL:
 	case PRINT_STRING:
+	case PRINT_BSTRING:
 	default:
 		die("invalid eval type %d", arg->type);
 		break;
@@ -2884,6 +2887,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		val = eval_num_arg(data, size, event, arg->typecast.item);
 		return eval_type(val, arg, 0);
 	case PRINT_STRING:
+	case PRINT_BSTRING:
 		return 0;
 	case PRINT_FUNC: {
 		struct trace_seq s;
@@ -3160,6 +3164,9 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		print_str_to_seq(s, format, len_arg, ((char *)data) + str_offset);
 		break;
 	}
+	case PRINT_BSTRING:
+		trace_seq_printf(s, format, arg->string.string);
+		break;
 	case PRINT_OP:
 		/*
 		 * The only op for string should be ? :
@@ -3341,7 +3348,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 			case 's':
 				arg = alloc_arg();
 				arg->next = NULL;
-				arg->type = PRINT_STRING;
+				arg->type = PRINT_BSTRING;
 				arg->string.string = strdup(bptr);
 				bptr += strlen(bptr) + 1;
 				*next = arg;
@@ -4115,6 +4122,7 @@ static void print_args(struct print_arg *args)
 		printf(")");
 		break;
 	case PRINT_STRING:
+	case PRINT_BSTRING:
 		printf("__get_str(%s)", args->string.string);
 		break;
 	case PRINT_TYPE:
