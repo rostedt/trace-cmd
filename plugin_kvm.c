@@ -244,6 +244,7 @@ static int kvm_exit_handler(struct trace_seq *s, struct record *record,
 {
 	unsigned long long isa;
 	unsigned long long val;
+	unsigned long long info1 = 0, info2 = 0;
 
 	if (pevent_get_field_val(s, event, "exit_reason", record, &val, 1) < 0)
 		return -1;
@@ -254,6 +255,10 @@ static int kvm_exit_handler(struct trace_seq *s, struct record *record,
 	trace_seq_printf(s, "reason %s", find_exit_reason(isa, val));
 
 	pevent_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
+
+	if (pevent_get_field_val(s, event, "info1", record, &info1, 1) >= 0
+	    && pevent_get_field_val(s, event, "info2", record, &info2, 1) >= 0)
+		trace_seq_printf(s, " info %llx %llx\n", info1, info2);
 
 	return 0;
 }
