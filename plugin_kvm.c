@@ -236,7 +236,7 @@ static const char *find_exit_reason(unsigned isa, int val)
 			break;
 	if (strings[i].str)
 		return strings[i].str;
-	return "UNKOWN";
+	return "UNKNOWN";
 }
 
 static int kvm_exit_handler(struct trace_seq *s, struct record *record,
