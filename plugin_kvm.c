@@ -120,6 +120,80 @@ static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
 	_ER(EPT_MISCONFIG,	49)		\
 	_ER(WBINVD,		54)
 
+#define SVM_EXIT_REASONS \
+	_ER(EXIT_READ_CR0,	0x000)		\
+	_ER(EXIT_READ_CR3,	0x003)		\
+	_ER(EXIT_READ_CR4,	0x004)		\
+	_ER(EXIT_READ_CR8,	0x008)		\
+	_ER(EXIT_WRITE_CR0,	0x010)		\
+	_ER(EXIT_WRITE_CR3,	0x013)		\
+	_ER(EXIT_WRITE_CR4,	0x014)		\
+	_ER(EXIT_WRITE_CR8,	0x018)		\
+	_ER(EXIT_READ_DR0,	0x020)		\
+	_ER(EXIT_READ_DR1,	0x021)		\
+	_ER(EXIT_READ_DR2,	0x022)		\
+	_ER(EXIT_READ_DR3,	0x023)		\
+	_ER(EXIT_READ_DR4,	0x024)		\
+	_ER(EXIT_READ_DR5,	0x025)		\
+	_ER(EXIT_READ_DR6,	0x026)		\
+	_ER(EXIT_READ_DR7,	0x027)		\
+	_ER(EXIT_WRITE_DR0,	0x030)		\
+	_ER(EXIT_WRITE_DR1,	0x031)		\
+	_ER(EXIT_WRITE_DR2,	0x032)		\
+	_ER(EXIT_WRITE_DR3,	0x033)		\
+	_ER(EXIT_WRITE_DR4,	0x034)		\
+	_ER(EXIT_WRITE_DR5,	0x035)		\
+	_ER(EXIT_WRITE_DR6,	0x036)		\
+	_ER(EXIT_WRITE_DR7,	0x037)		\
+	_ER(EXIT_EXCP_BASE,     0x040)		\
+	_ER(EXIT_INTR,		0x060)		\
+	_ER(EXIT_NMI,		0x061)		\
+	_ER(EXIT_SMI,		0x062)		\
+	_ER(EXIT_INIT,		0x063)		\
+	_ER(EXIT_VINTR,		0x064)		\
+	_ER(EXIT_CR0_SEL_WRITE,	0x065)		\
+	_ER(EXIT_IDTR_READ,	0x066)		\
+	_ER(EXIT_GDTR_READ,	0x067)		\
+	_ER(EXIT_LDTR_READ,	0x068)		\
+	_ER(EXIT_TR_READ,	0x069)		\
+	_ER(EXIT_IDTR_WRITE,	0x06a)		\
+	_ER(EXIT_GDTR_WRITE,	0x06b)		\
+	_ER(EXIT_LDTR_WRITE,	0x06c)		\
+	_ER(EXIT_TR_WRITE,	0x06d)		\
+	_ER(EXIT_RDTSC,		0x06e)		\
+	_ER(EXIT_RDPMC,		0x06f)		\
+	_ER(EXIT_PUSHF,		0x070)		\
+	_ER(EXIT_POPF,		0x071)		\
+	_ER(EXIT_CPUID,		0x072)		\
+	_ER(EXIT_RSM,		0x073)		\
+	_ER(EXIT_IRET,		0x074)		\
+	_ER(EXIT_SWINT,		0x075)		\
+	_ER(EXIT_INVD,		0x076)		\
+	_ER(EXIT_PAUSE,		0x077)		\
+	_ER(EXIT_HLT,		0x078)		\
+	_ER(EXIT_INVLPG,	0x079)		\
+	_ER(EXIT_INVLPGA,	0x07a)		\
+	_ER(EXIT_IOIO,		0x07b)		\
+	_ER(EXIT_MSR,		0x07c)		\
+	_ER(EXIT_TASK_SWITCH,	0x07d)		\
+	_ER(EXIT_FERR_FREEZE,	0x07e)		\
+	_ER(EXIT_SHUTDOWN,	0x07f)		\
+	_ER(EXIT_VMRUN,		0x080)		\
+	_ER(EXIT_VMMCALL,	0x081)		\
+	_ER(EXIT_VMLOAD,	0x082)		\
+	_ER(EXIT_VMSAVE,	0x083)		\
+	_ER(EXIT_STGI,		0x084)		\
+	_ER(EXIT_CLGI,		0x085)		\
+	_ER(EXIT_SKINIT,	0x086)		\
+	_ER(EXIT_RDTSCP,	0x087)		\
+	_ER(EXIT_ICEBP,		0x088)		\
+	_ER(EXIT_WBINVD,	0x089)		\
+	_ER(EXIT_MONITOR,	0x08a)		\
+	_ER(EXIT_MWAIT,		0x08b)		\
+	_ER(EXIT_MWAIT_COND,	0x08c)		\
+	_ER(EXIT_NPF, 		0x400)		\
+	_ER(EXIT_ERR,		-1)
+
 #define _ER(reason, val)	{ #reason, val },
 struct str_values {
 	const char	*str;
@@ -131,27 +205,53 @@ static struct str_values vmx_exit_reasons[] = {
 	{ NULL, -1}
 };
 
-static const char *find_vmx_reason(int val)
+static struct str_values svm_exit_reasons[] = {
+	SVM_EXIT_REASONS
+	{ NULL, -1}
+};
+
+static struct isa_exit_reasons {
+	unsigned isa;
+	struct str_values *strings;
+} isa_exit_reasons[] = {
+	{ .isa = 1, .strings = vmx_exit_reasons },
+	{ .isa = 2, .strings = svm_exit_reasons },
+	{ }
+};
+
+static const char *find_exit_reason(unsigned isa, int val)
 {
+	struct str_values *strings = NULL;
 	int i;
 
-	for (i = 0; vmx_exit_reasons[i].val >= 0; i++)
-		if (vmx_exit_reasons[i].val == val)
+	for (i = 0; isa_exit_reasons[i].strings; ++i)
+		if (isa_exit_reasons[i].isa == isa) {
+			strings = isa_exit_reasons[i].strings;
 			break;
-	if (vmx_exit_reasons[i].str)
-		return vmx_exit_reasons[i].str;
+		}
+	if (!strings)
+		return "UNKNOWN-ISA";
+	for (i = 0; strings[i].val >= 0; i++)
+		if (strings[i].val == val)
+			break;
+	if (strings[i].str)
+		return strings[i].str;
 	return "UNKOWN";
 }
 
 static int kvm_exit_handler(struct trace_seq *s, struct record *record,
 			    struct event_format *event, void *context)
 {
+	unsigned long long isa;
 	unsigned long long val;
 
 	if (pevent_get_field_val(s, event, "exit_reason", record, &val, 1) < 0)
 		return -1;
 
-	trace_seq_printf(s, "reason %s", find_vmx_reason(val));
+	if (pevent_get_field_val(s, event, "isa", record, &isa, 1) < 0)
+		isa = 1;
+
+	trace_seq_printf(s, "reason %s", find_exit_reason(isa, val));
 
 	pevent_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
 
@@ -213,7 +313,7 @@ static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct record *
 	if (pevent_get_field_val(s, event, "exit_code", record, &val, 1) < 0)
 		return -1;
 
-	trace_seq_printf(s, "reason %s", find_vmx_reason(val));
+	trace_seq_printf(s, "reason %s", find_exit_reason(2, val));
 
 	pevent_print_num_field(s, " ext_inf1: %0x016llx", event, "exit_info1", record, 1);
 	pevent_print_num_field(s, " ext_inf2: %0x016llx", event, "exit_info2", record, 1);
