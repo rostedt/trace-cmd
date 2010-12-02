@@ -300,9 +300,6 @@ static void init_wakeup(struct tracecmd_input *handle)
 	if (!wakeup_task)
 		goto fail;
 	wakeup_success = pevent_find_field(event, "success");
-	if (!wakeup_success)
-		goto fail;
-
 
 	event = pevent_find_event_by_name(pevent, "sched", "sched_switch");
 	if (!event)
@@ -323,8 +320,6 @@ static void init_wakeup(struct tracecmd_input *handle)
 	if (!wakeup_new_task)
 		goto fail;
 	wakeup_new_success = pevent_find_field(event, "success");
-	if (!wakeup_new_success)
-		goto fail;
 
  skip:
 	return;
@@ -410,18 +405,18 @@ static void process_wakeup(struct pevent *pevent, struct record *record)
 
 	id = pevent_data_type(pevent, record);
 	if (id == wakeup_id) {
-		if (pevent_read_number_field(wakeup_success, record->data, &val))
-			return;
-		if (!val)
-			return;
+		if (pevent_read_number_field(wakeup_success, record->data, &val) == 0) {
+			if (!val)
+				return;
+		}
 		if (pevent_read_number_field(wakeup_task, record->data, &val))
 			return;
 		add_wakeup(val, record->ts);
 	} else if (id == wakeup_new_id) {
-		if (pevent_read_number_field(wakeup_new_success, record->data, &val))
-			return;
-		if (!val)
-			return;
+		if (pevent_read_number_field(wakeup_new_success, record->data, &val) == 0) {
+			if (!val)
+				return;
+		}
 		if (pevent_read_number_field(wakeup_new_task, record->data, &val))
 			return;
 		add_wakeup(val, record->ts);
