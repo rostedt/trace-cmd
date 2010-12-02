@@ -1041,9 +1041,11 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 
 	if (id == ginfo->event_wakeup_id) {
 		/* We only want those that actually woke up the task */
-		pevent_read_number_field(ginfo->wakeup_success_field, record->data, &val);
-		if (!val)
-			return 0;
+		if (ginfo->wakeup_success_field) {
+			pevent_read_number_field(ginfo->wakeup_success_field, record->data, &val);
+			if (!val)
+				return 0;
+		}
 		pevent_read_number_field(ginfo->wakeup_pid_field, record->data, &val);
 		if (pid)
 			*pid = val;
@@ -1052,9 +1054,11 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 
 	if (id == ginfo->event_wakeup_new_id) {
 		/* We only want those that actually woke up the task */
-		pevent_read_number_field(ginfo->wakeup_new_success_field, record->data, &val);
-		if (!val)
-			return 0;
+		if (ginfo->wakeup_new_success_field) {
+			pevent_read_number_field(ginfo->wakeup_new_success_field, record->data, &val);
+			if (!val)
+				return 0;
+		}
 		pevent_read_number_field(ginfo->wakeup_new_pid_field, record->data, &val);
 		if (pid)
 			*pid = val;
