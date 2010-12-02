@@ -2693,6 +2693,8 @@ unsigned long long pevent_read_number(struct pevent *pevent,
 int pevent_read_number_field(struct format_field *field, const void *data,
 			     unsigned long long *value)
 {
+	if (!field)
+		return -1;
 	switch (field->size) {
 	case 1:
 	case 2:
