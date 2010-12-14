@@ -366,6 +366,11 @@ static void add_wakeup(unsigned int val, unsigned long long start)
 	wakeup_hash[key] = info;
 }
 
+static unsigned long long max_lat = 0;
+static unsigned long long max_time;
+static unsigned long long min_lat = -1;
+static unsigned long long min_time;
+
 static void add_sched(unsigned int val, unsigned long long end)
 {
 	unsigned int key = calc_wakeup_key(val);
@@ -378,6 +383,15 @@ static void add_sched(unsigned int val, unsigned long long end)
 		return;
 
 	cal = end - info->start;
+
+	if (cal > max_lat) {
+		max_lat = cal;
+		max_time = end;
+	}
+	if (cal < min_lat) {
+		min_lat = cal;
+		min_time = end;
+	}
 
 	printf(" Latency: %llu.%03llu usecs", cal / 1000, cal % 1000);
 
@@ -437,9 +451,15 @@ static void finish_wakeup(void)
 
 	total_wakeup_lat /= wakeup_lat_count;
 
-	printf("\nAverage wakeup latency: %llu.%03llu usecs\n\n",
+	printf("\nAverage wakeup latency: %llu.%03llu usecs\n",
 	       total_wakeup_lat / 1000,
 	       total_wakeup_lat % 1000);
+	printf("Maximum Latency: %llu.%03llu usecs at ", max_lat / 1000, max_lat % 1000);
+	printf("timestamp: %llu.%06llu\n",
+	       max_time / 1000000000, ((max_time + 500) % 1000000000) / 1000);
+	printf("Minimum Latency: %llu.%03llu usecs at ", min_lat / 1000, min_lat % 1000);
+	printf("timestamp: %llu.%06llu\n\n", min_time / 1000000000,
+	       ((min_time + 500) % 1000000000) / 1000);
 
 	for (i = 0; i < WAKEUP_HASH_SIZE; i++) {
 		while (wakeup_hash[i]) {
