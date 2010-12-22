@@ -829,7 +829,8 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 	}
 
 	for (i = 0; i < cpus; i++) {
-		fprintf(stderr, "offset=%llx\n", offsets[i]);
+		fprintf(stderr, "offset=%llx\n",
+			(unsigned long long) offsets[i]);
 		offset = lseek64(handle->fd, offsets[i], SEEK_SET);
 		if (offset == (off64_t)-1) {
 			warning("could not seek to %lld\n", offsets[i]);
