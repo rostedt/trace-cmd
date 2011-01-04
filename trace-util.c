@@ -830,3 +830,27 @@ void tracecmd_unload_plugins(struct plugin_list *plugin_list)
 		free(list);
 	}
 }
+
+char *tracecmd_get_tracing_file(const char *name)
+{
+	static const char *tracing;
+	char *file;
+
+	if (!tracing) {
+		tracing = tracecmd_find_tracing_dir();
+		if (!tracing)
+			die("Can't find tracing dir");
+	}
+
+	file = malloc_or_die(strlen(tracing) + strlen(name) + 2);
+	if (!file)
+		return NULL;
+
+	sprintf(file, "%s/%s", tracing, name);
+	return file;
+}
+
+void tracecmd_put_tracing_file(char *name)
+{
+	free(name);
+}

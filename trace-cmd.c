@@ -55,19 +55,6 @@
 int silence_warnings;
 int show_status;
 
-static char *get_tracing_file(const char *name);
-static void put_tracing_file(char *file);
-
-char *tracecmd_get_tracing_file(const char *name)
-{
-	return get_tracing_file(name);
-}
-
-void tracecmd_put_tracing_file(char *name)
-{
-	put_tracing_file(name);
-}
-
 static int tracing_on_init_val;
 
 static int rt_prio;
@@ -306,11 +293,11 @@ static void clear_trace(void)
 	char *path;
 
 	/* reset the trace */
-	path = get_tracing_file("trace");
+	path = tracecmd_get_tracing_file("trace");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 	fwrite("0", 1, 1, fp);
 	fclose(fp);
 }
@@ -321,11 +308,11 @@ static void reset_max_latency(void)
 	char *path;
 
 	/* reset the trace */
-	path = get_tracing_file("tracing_max_latency");
+	path = tracecmd_get_tracing_file("tracing_max_latency");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 	fwrite("0", 1, 1, fp);
 	fclose(fp);
 }
@@ -336,7 +323,7 @@ static void update_ftrace_pid(const char *pid)
 	int ret;
 	int fd;
 
-	path = get_tracing_file("set_ftrace_pid");
+	path = tracecmd_get_tracing_file("set_ftrace_pid");
 	if (!path)
 		return;
 
@@ -400,30 +387,6 @@ void run_cmd(int argc, char **argv)
 	waitpid(pid, &status, 0);
 }
 
-static char *get_tracing_file(const char *name)
-{
-	static const char *tracing;
-	char *file;
-
-	if (!tracing) {
-		tracing = tracecmd_find_tracing_dir();
-		if (!tracing)
-			die("Can't find tracing dir");
-	}
-
-	file = malloc_or_die(strlen(tracing) + strlen(name) + 2);
-	if (!file)
-		return NULL;
-
-	sprintf(file, "%s/%s", tracing, name);
-	return file;
-}
-
-static void put_tracing_file(char *file)
-{
-	free(file);
-}
-
 static void show_events(void)
 {
 	char buf[BUFSIZ];
@@ -431,11 +394,11 @@ static void show_events(void)
 	FILE *fp;
 	size_t n;
 
-	path = get_tracing_file("available_events");
+	path = tracecmd_get_tracing_file("available_events");
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	do {
 		n = fread(buf, 1, BUFSIZ, fp);
@@ -452,11 +415,11 @@ static void show_plugins(void)
 	FILE *fp;
 	size_t n;
 
-	path = get_tracing_file("available_tracers");
+	path = tracecmd_get_tracing_file("available_tracers");
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	do {
 		n = fread(buf, 1, BUFSIZ, fp);
@@ -471,11 +434,11 @@ static void set_plugin(const char *name)
 	FILE *fp;
 	char *path;
 
-	path = get_tracing_file("current_tracer");
+	path = tracecmd_get_tracing_file("current_tracer");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	fwrite(name, 1, strlen(name), fp);
 	fclose(fp);
@@ -488,11 +451,11 @@ static void show_options(void)
 	FILE *fp;
 	size_t n;
 
-	path = get_tracing_file("trace_options");
+	path = tracecmd_get_tracing_file("trace_options");
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	do {
 		n = fread(buf, 1, BUFSIZ, fp);
@@ -517,11 +480,11 @@ static void set_option(const char *option)
 	FILE *fp;
 	char *path;
 
-	path = get_tracing_file("trace_options");
+	path = tracecmd_get_tracing_file("trace_options");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	fwrite(option, 1, strlen(option), fp);
 	fclose(fp);
@@ -549,11 +512,11 @@ static void old_update_events(const char *name, char update)
 		name = "*:*";
 
 	/* need to use old way */
-	path = get_tracing_file("set_event");
+	path = tracecmd_get_tracing_file("set_event");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("opening '%s'", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	/* Disable the event with "!" */
 	if (update == '0')
@@ -612,13 +575,13 @@ static int update_glob(const char *name, const char *filter,
 	len = strlen(name) + strlen("events//enable") + 1;
 	str = malloc_or_die(len);
 	snprintf(str, len, "events/%s/enable", name);
-	path = get_tracing_file(str);
+	path = tracecmd_get_tracing_file(str);
 	free(str);
 
 	globbuf.gl_offs = 0;
 	printf("path = %s\n", path);
 	ret = glob(path, GLOB_ONLYDIR, NULL, &globbuf);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 	if (ret < 0)
 		return 0;
 
@@ -661,11 +624,11 @@ static void filter_all_systems(const char *filter)
 	int ret;
 	int i;
 
-	path = get_tracing_file("events/*/filter");
+	path = tracecmd_get_tracing_file("events/*/filter");
 
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 	if (ret < 0)
 		die("No filters found");
 
@@ -690,12 +653,12 @@ static void update_event(const char *name, const char *filter,
 	int ret2;
 
 	/* Check if the kernel has the events/enable file */
-	path = get_tracing_file("events/enable");
+	path = tracecmd_get_tracing_file("events/enable");
 	ret = stat(path, &st);
 	if (ret < 0) {
 		if (filter_only)
 			return;
-		put_tracing_file(path);
+		tracecmd_put_tracing_file(path);
 		/* old kernel */
 		old_update_events(name, update);
 		return;
@@ -714,14 +677,14 @@ static void update_event(const char *name, const char *filter,
 			filter_all_systems("0");
 
 		if (filter_only) {
-			put_tracing_file(path);
+			tracecmd_put_tracing_file(path);
 			return;
 		}
 
 		fp = fopen(path, "w");
 		if (!fp)
 			die("writing to '%s'", path);
-		put_tracing_file(path);
+		tracecmd_put_tracing_file(path);
 		ret = fwrite(&update, 1, 1, fp);
 		fclose(fp);
 		if (ret < 0)
@@ -741,7 +704,7 @@ static void update_event(const char *name, const char *filter,
 		if (!strlen(ptr) || strcmp(ptr, "*") == 0) {
 			ret = update_glob(str, filter, filter_only, update);
 			free(str);
-			put_tracing_file(path);
+			tracecmd_put_tracing_file(path);
 			if (!ret)
 				goto fail;
 			return;
@@ -786,9 +749,9 @@ static void check_tracing_enabled(void)
 	char *path;
 
 	if (fd < 0) {
-		path = get_tracing_file("tracing_enabled");
+		path = tracecmd_get_tracing_file("tracing_enabled");
 		fd = open(path, O_WRONLY);
-		put_tracing_file(path);
+		tracecmd_put_tracing_file(path);
 
 		if (fd < 0)
 			return;
@@ -806,11 +769,11 @@ static int open_tracing_on(void)
 	if (fd >= 0)
 		return fd;
 
-	path = get_tracing_file("tracing_on");
+	path = tracecmd_get_tracing_file("tracing_on");
 	fd = open(path, O_RDWR);
 	if (fd < 0)
 		die("opening '%s'", path);
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 	tracing_on_fd = fd;
 
 	return fd;
@@ -893,7 +856,7 @@ static void update_filter(const char *event_name, const char *field,
 				    strlen("events//filter") + 1);
 	sprintf(filter_name, "events/%s/filter", event_name);
 
-	path = get_tracing_file(filter_name);
+	path = tracecmd_get_tracing_file(filter_name);
 	free(filter_name);
 
 	/* Ignore if file does not exist */
@@ -929,7 +892,7 @@ static void update_filter(const char *event_name, const char *field,
 	free(filter);
 
  out:
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 }
 
 static void update_pid_event_filters(const char *pid)
@@ -1323,7 +1286,7 @@ static int trace_empty(void)
 	 * that is without a '#' the trace is not empty.
 	 * Otherwise it is.
 	 */
-	path = get_tracing_file("trace");
+	path = tracecmd_get_tracing_file("trace");
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading '%s'", path);
@@ -1336,7 +1299,7 @@ static int trace_empty(void)
 		}
 	} while (line && n > 0);
 
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 
 	fclose(fp);
 
@@ -1349,7 +1312,7 @@ static void write_func_file(const char *file, struct func_list **list)
 	char *path;
 	int fd;
 
-	path = get_tracing_file(file);
+	path = tracecmd_get_tracing_file(file);
 
 	fd = open(path, O_WRONLY | O_TRUNC);
 	if (fd < 0)
@@ -1365,7 +1328,7 @@ static void write_func_file(const char *file, struct func_list **list)
 	close(fd);
 
  free:
-	put_tracing_file(path);
+	tracecmd_put_tracing_file(path);
 }
 
 static void set_funcs(void)
@@ -1400,7 +1363,7 @@ void set_buffer_size(void)
 
 	snprintf(buf, BUFSIZ, "%d", buffer_size);
 
-	path = get_tracing_file("buffer_size_kb");
+	path = tracecmd_get_tracing_file("buffer_size_kb");
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
 		die("can't open %s", path);
