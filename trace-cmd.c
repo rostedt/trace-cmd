@@ -1420,6 +1420,7 @@ int main (int argc, char **argv)
 	struct event_list *last_event;
 	struct tracecmd_event_list *list;
 	struct trace_seq s;
+	int record_all = 0;
 	int disable = 0;
 	int plug = 0;
 	int events = 0;
@@ -1458,10 +1459,23 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+he:f:Fp:do:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+hae:f:Fp:do:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
+				break;
+			case 'a':
+				record_all = 1;
+				while (listed_events) {
+					list = listed_events;
+					listed_events = list->next;
+					free(list);
+				}
+				list = malloc_or_die(sizeof(*list));
+				list->next = NULL;
+				list->glob = "*/*";
+				listed_events = list;
+						
 				break;
 			case 'e':
 				if (extract)
@@ -1475,10 +1489,12 @@ int main (int argc, char **argv)
 				event->filter = NULL;
 				last_event = event;
 
-				list = malloc_or_die(sizeof(*list));
-				list->next = listed_events;
-				list->glob = optarg;
-				listed_events = list;
+				if (!record_all) {
+					list = malloc_or_die(sizeof(*list));
+					list->next = listed_events;
+					list->glob = optarg;
+					listed_events = list;
+				}
 
 				break;
 			case 'f':

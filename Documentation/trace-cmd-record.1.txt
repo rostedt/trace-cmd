@@ -47,6 +47,14 @@ OPTIONS
 
     The keyword 'all' can be used to enable all events.
 
+*-a*::
+    Every event that is being recorded has its output format file saved
+    in the output file to be able to display it later. But if other
+    events are enabled in the trace without trace-cmd's knowledge, the
+    formats of those events will not be recorded and trace-cmd report will
+    not be able to display them. If this is the case, then specify the
+    *-a* option and the format for all events in the system will be saved.
+
 *-f* 'filter'::
     Specify a filter for the previous event. This must come after a *-e*. This
     will filter what events get recorded based on the content of the event.
