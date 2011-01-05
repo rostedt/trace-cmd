@@ -160,9 +160,18 @@ extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;
 
 /* --- Creating and Writing the trace.dat file --- */
 
+struct tracecmd_event_list {
+	struct tracecmd_event_list	*next;
+	const char			*glob;
+};
+
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus);
 struct tracecmd_output *tracecmd_create_file(const char *output_file,
 					     int cpus, char * const *cpu_data_files);
+struct tracecmd_output *
+tracecmd_create_file_glob(const char *output_file,
+			  int cpus, char * const *cpu_data_files,
+			  struct tracecmd_event_list *event_globs);
 struct tracecmd_output *tracecmd_create_init_fd(int fd);
 struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
 void tracecmd_output_close(struct tracecmd_output *handle);

@@ -35,9 +35,15 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <glob.h>
 
 #include "trace-cmd-local.h"
 #include "version.h"
+
+static struct tracecmd_event_list all_event_list = {
+	.next = NULL,
+	.glob = "all"
+};
 
 struct tracecmd_option {
 	unsigned short	id;
@@ -54,6 +60,18 @@ struct tracecmd_output {
 	int		options_written;
 	int		nr_options;
 	struct tracecmd_option *options;
+};
+
+struct list_event {
+	struct list_event		*next;
+	char				*name;
+	char				*file;
+};
+
+struct list_event_system {
+	struct list_event_system	*next;
+	struct list_event		*events;
+	char				*name;
 };
 
 static int
@@ -309,51 +327,26 @@ static int read_header_files(struct tracecmd_output *handle)
 	return -1;
 }
 
-static int copy_event_system(struct tracecmd_output *handle, const char *sys)
+static int copy_event_system(struct tracecmd_output *handle,
+			     struct list_event_system *slist)
 {
+	struct list_event *elist;
 	unsigned long long size, check_size, endian8;
-	struct dirent *dent;
 	struct stat st;
 	char *format;
-	DIR *dir;
 	int endian4;
 	int count = 0;
 	int ret;
 
-	dir = opendir(sys);
-	if (!dir) {
-		warning("can't read directory '%s'", sys);
-		return -1;
-	}
-
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
-			continue;
-		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
-		if (!format)
-			return -1;
-		sprintf(format, "%s/%s/format", sys, dent->d_name);
-		ret = stat(format, &st);
-		free(format);
-		if (ret < 0)
-			continue;
+	for (elist = slist->events; elist; elist = elist->next)
 		count++;
-	}
 
 	endian4 = convert_endian_4(handle, count);
 	if (do_write_check(handle, &endian4, 4))
 		return -1;
 
-	rewinddir(dir);
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
-			continue;
-		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
-		if (!format)
-			return -1;
-		sprintf(format, "%s/%s/format", sys, dent->d_name);
+	for (elist = slist->events; elist; elist = elist->next) {
+		format = elist->file;
 		ret = stat(format, &st);
 
 		if (ret >= 0) {
@@ -361,115 +354,248 @@ static int copy_event_system(struct tracecmd_output *handle, const char *sys)
 			size = get_size(format);
 			endian8 = convert_endian_8(handle, size);
 			if (do_write_check(handle, &endian8, 8))
-				goto out_free;
+				return -1;
 			check_size = copy_file(handle, format);
 			if (size != check_size) {
 				warning("error in size of file '%s'", format);
-				goto out_free;
+				return -1;
 			}
 		}
-
-		free(format);
 	}
 
 	return 0;
+}
 
- out_free:
-	free(format);
-	return -1;
+static void add_list_event_system(struct list_event_system **systems,
+				  const char *system,
+				  const char *event,
+				  const char *path)
+{
+	struct list_event_system *slist;
+	struct list_event *elist;
+
+	for (slist = *systems; slist; slist = slist->next)
+		if (strcmp(slist->name, system) == 0)
+			break;
+
+	if (!slist) {
+		slist = malloc_or_die(sizeof(*slist));
+		slist->name = strdup(system);
+		slist->next = *systems;
+		slist->events = NULL;
+		*systems = slist;
+	}
+
+	for (elist = slist->events; elist; elist = elist->next)
+		if (strcmp(elist->name, event) == 0)
+			break;
+
+	if (!elist) {
+		elist = malloc_or_die(sizeof(*elist));
+		elist->name = strdup(event);
+		elist->file = strdup(path);
+		elist->next = slist->events;
+		slist->events = elist;
+	}
+}
+
+static void free_list_events(struct list_event_system *list)
+{
+	struct list_event_system *slist;
+	struct list_event *elist;
+
+	while (list) {
+		slist = list;
+		list = list->next;
+		while (slist->events) {
+			elist = slist->events;
+			slist->events = elist->next;
+			free(elist->name);
+			free(elist->file);
+			free(elist);
+		}
+		free(slist->name);
+		free(slist);
+	}
+}
+
+static void glob_events(struct tracecmd_output *handle,
+			struct list_event_system **systems,
+			const char *str)
+{
+	glob_t globbuf;
+	char *events_path;
+	char *system;
+	char *event;
+	char *path;
+	char *file;
+	char *ptr;
+	int do_ftrace = 0;
+	int events_len;
+	int ret;
+	int i;
+
+	if (strncmp(str, "ftrace/", 7) == 0)
+		do_ftrace = 1;
+
+	events_path = get_tracing_file(handle, "events");
+	events_len = strlen(events_path);
+
+	path = malloc_or_die(events_len + strlen(str) +
+			     strlen("/format") + 2);
+	path[0] = '\0';
+	strcat(path, events_path);
+	strcat(path, "/");
+	strcat(path, str);
+	strcat(path, "/format");
+
+	globbuf.gl_offs = 0;
+	ret = glob(path, 0, NULL, &globbuf);
+	if (ret < 0)
+		return;
+
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		file = globbuf.gl_pathv[i];
+		system = strdup(file + events_len + 1);
+		system = strtok_r(system, "/", &ptr);
+		if (!ptr) {
+			/* ?? should we warn? */
+			free(system);
+			continue;
+		}
+
+		if (!do_ftrace && strcmp(system, "ftrace") == 0) {
+			free(system);
+			continue;
+		}
+
+		event = strtok_r(NULL, "/", &ptr);
+		if (!ptr) {
+			/* ?? should we warn? */
+			free(system);
+			continue;
+		}
+
+		add_list_event_system(systems, system, event, file);
+		free(system);
+	}
+}
+
+static void
+create_event_list_item(struct tracecmd_output *handle,
+		       struct list_event_system **systems,
+		       struct tracecmd_event_list *list)
+{
+	char *ptr;
+	char *str;
+
+	str = strdup(list->glob);
+	if (!str)
+		die("strdup - no memory");
+
+	/* system and event names are separated by a ':' */
+	ptr = strchr(str, ':');
+	if (ptr)
+		*ptr = '/';
+	else
+		/* system and event may also be separated by a '/' */
+		ptr = strchr(str, '/');
+
+	if (ptr) {
+		glob_events(handle, systems, str);
+		free(str);
+		return;
+	}
+
+	ptr = str;
+	str = malloc_or_die(strlen(ptr) + 3);
+	str[0] = '\0';
+	strcat(str, ptr);
+	strcat(str, "/*");
+	glob_events(handle, systems, str);
+
+	str[0] = '\0';
+	strcat(str, "*/");
+	strcat(str, ptr);
+	glob_events(handle, systems, str);
+
+	free(str);
 }
 
 static int read_ftrace_files(struct tracecmd_output *handle)
 {
-	char *path;
+	struct list_event_system *systems = NULL;
+	struct tracecmd_event_list list = { .glob = "ftrace/*" };
 	int ret;
 
-	path = get_tracing_file(handle, "events/ftrace");
-	if (!path)
-		return -1;
+	create_event_list_item(handle, &systems, &list);
 
-	ret = copy_event_system(handle, path);
+	ret = copy_event_system(handle, systems);
 
-	put_tracing_file(path);
+	free_list_events(systems);
 
 	return ret;
 }
 
-static int read_event_files(struct tracecmd_output *handle)
+static struct list_event_system *
+create_event_list(struct tracecmd_output *handle,
+		  struct tracecmd_event_list *event_list)
 {
-	struct dirent *dent;
-	struct stat st;
-	char *path;
-	char *sys;
-	DIR *dir;
+	struct list_event_system *systems = NULL;
+	struct tracecmd_event_list *list;
+
+	for (list = event_list; list; list = list->next)
+		create_event_list_item(handle, &systems, list);
+
+	return systems;
+}
+
+static int read_event_files(struct tracecmd_output *handle,
+			    struct tracecmd_event_list *event_list)
+{
+	struct list_event_system *systems;
+	struct list_event_system *slist;
+	struct tracecmd_event_list *list;
+	struct tracecmd_event_list all_events = { .glob = "*/*" };
 	int count = 0;
 	int endian4;
 	int ret;
 
-	path = get_tracing_file(handle, "events");
-	if (!path)
-		return -1;
-
-	dir = opendir(path);
-	if (!dir)
-		die("can't read directory '%s'", path);
-
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0)
-			continue;
-		ret = -1;
-		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
-		if (!sys)
-			goto out_close_dir;
-		sprintf(sys, "%s/%s", path, dent->d_name);
-		ret = stat(sys, &st);
-		free(sys);
-		if (ret < 0)
-			continue;
-		if (S_ISDIR(st.st_mode))
-			count++;
+	/*
+	 * If any of the list is the special keyword "all" then
+	 * just do all files.
+	 */
+	for (list = event_list; list; list = list->next) {
+		if (strcmp(list->glob, "all") == 0)
+			break;
 	}
+	/* all events are listed, use a global glob */
+	if (list)
+		event_list = &all_events;
+
+	systems = create_event_list(handle, event_list);
+
+	for (slist = systems; slist; slist = slist->next)
+		count++;
 
 	ret = -1;
 	endian4 = convert_endian_4(handle, count);
 	if (do_write_check(handle, &endian4, 4))
-		goto out_close_dir;
-
-	rewinddir(dir);
-	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0 ||
-		    strcmp(dent->d_name, "ftrace") == 0)
-			continue;
-		ret = -1;
-		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
-		if (!sys)
-			goto out_close_dir;
-
-		sprintf(sys, "%s/%s", path, dent->d_name);
-		ret = stat(sys, &st);
-		if (ret >= 0) {
-			if (S_ISDIR(st.st_mode)) {
-				if (do_write_check(handle, dent->d_name,
-						   strlen(dent->d_name) + 1)) {
-					free(sys);
-					ret = -1;
-					goto out_close_dir;
-				}
-				copy_event_system(handle, sys);
-			}
-		}
-		free(sys);
-	}
-
-	put_tracing_file(path);
+		goto out_free;
 
 	ret = 0;
+	for (slist = systems; !ret && slist; slist = slist->next) {
+		if (do_write_check(handle, slist->name,
+				   strlen(slist->name) + 1)) {
+			ret = -1;
+			continue;
+		}
+		ret = copy_event_system(handle, slist);
+	}
 
- out_close_dir:
-	closedir(dir);
+ out_free:
+	free_list_events(systems);
+
 	return ret;
 }
 
@@ -538,7 +664,8 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 }
 
 static struct tracecmd_output *
-create_file_fd(int fd, struct tracecmd_input *ihandle)
+create_file_fd(int fd, struct tracecmd_input *ihandle,
+	       struct tracecmd_event_list *list)
 {
 	struct tracecmd_output *handle;
 	unsigned long long endian8;
@@ -607,7 +734,7 @@ create_file_fd(int fd, struct tracecmd_input *ihandle)
 		goto out_free;
 	if (read_ftrace_files(handle))
 		goto out_free;
-	if (read_event_files(handle))
+	if (read_event_files(handle, list))
 		goto out_free;
 	if (read_proc_kallsyms(handle))
 		goto out_free;
@@ -647,7 +774,8 @@ create_file_fd(int fd, struct tracecmd_input *ihandle)
 }
 
 static struct tracecmd_output *create_file(const char *output_file,
-					   struct tracecmd_input *ihandle)
+					   struct tracecmd_input *ihandle,
+					   struct tracecmd_event_list *list)
 {
 	struct tracecmd_output *handle;
 	int fd;
@@ -656,7 +784,7 @@ static struct tracecmd_output *create_file(const char *output_file,
 	if (fd < 0)
 		return NULL;
 
-	handle = create_file_fd(fd, ihandle);
+	handle = create_file_fd(fd, ihandle, list);
 	if (!handle) {
 		close(fd);
 		unlink(output_file);
@@ -742,7 +870,7 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	struct tracecmd_output *handle;
 	char *path;
 
-	handle = create_file(output_file, NULL);
+	handle = create_file(output_file, NULL, &all_event_list);
 	if (!handle)
 		return NULL;
 
@@ -915,12 +1043,14 @@ int tracecmd_attach_cpu_data(char *file, int cpus, char * const *cpu_data_files)
 	return tracecmd_attach_cpu_data_fd(fd, cpus, cpu_data_files);
 }
 
-struct tracecmd_output *tracecmd_create_file(const char *output_file,
-					     int cpus, char * const *cpu_data_files)
+struct tracecmd_output *
+tracecmd_create_file_glob(const char *output_file,
+			  int cpus, char * const *cpu_data_files,
+			  struct tracecmd_event_list *list)
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file(output_file, NULL);
+	handle = create_file(output_file, NULL, list);
 	if (!handle)
 		return NULL;
 
@@ -930,14 +1060,21 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 	return handle;
 }
 
+struct tracecmd_output *tracecmd_create_file(const char *output_file,
+					     int cpus, char * const *cpu_data_files)
+{
+	return tracecmd_create_file_glob(output_file, cpus,
+					 cpu_data_files, &all_event_list);
+}
+
 struct tracecmd_output *tracecmd_create_init_fd(int fd)
 {
-	return create_file_fd(fd, NULL);
+	return create_file_fd(fd, NULL, &all_event_list);
 }
 
 struct tracecmd_output *tracecmd_create_init_file(const char *output_file)
 {
-	return create_file(output_file, NULL);
+	return create_file(output_file, NULL, &all_event_list);
 }
 
 /**
@@ -954,7 +1091,7 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file(file, ihandle);
+	handle = create_file(file, ihandle, &all_event_list);
 	if (!handle)
 		return NULL;
 

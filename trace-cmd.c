@@ -116,6 +116,7 @@ struct event_list {
 };
 
 static struct event_list *event_selection;
+struct tracecmd_event_list *listed_events;
 
 struct events {
 	struct events *sibling;
@@ -1292,7 +1293,8 @@ static void record_data(void)
 		for (i = 0; i < cpu_count; i++)
 			temp_files[i] = get_temp_file(i);
 
-		handle = tracecmd_create_file(output_file, cpu_count, temp_files);
+		handle = tracecmd_create_file_glob(output_file, cpu_count,
+						   temp_files, listed_events);
 
 		for (i = 0; i < cpu_count; i++)
 			put_temp_file(temp_files[i]);
@@ -1416,6 +1418,7 @@ int main (int argc, char **argv)
 	const char *option;
 	struct event_list *event;
 	struct event_list *last_event;
+	struct tracecmd_event_list *list;
 	struct trace_seq s;
 	int disable = 0;
 	int plug = 0;
@@ -1471,6 +1474,12 @@ int main (int argc, char **argv)
 				event_selection = event;
 				event->filter = NULL;
 				last_event = event;
+
+				list = malloc_or_die(sizeof(*list));
+				list->next = listed_events;
+				list->glob = optarg;
+				listed_events = list;
+
 				break;
 			case 'f':
 				if (!last_event)
