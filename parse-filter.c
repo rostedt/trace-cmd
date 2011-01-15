@@ -28,6 +28,12 @@
 #include "parse-events.h"
 #include "util.h"
 
+#define COMM "COMM"
+
+static struct format_field comm = {
+	.name = "COMM",
+};
+
 struct event_list {
 	struct event_list	*next;
 	struct event_format	*event;
@@ -539,13 +545,18 @@ process_value_token(struct event_format *event, struct filter_arg **parg,
 		}
 		/* Consider this a field */
 		field = pevent_find_any_field(event, token);
-		free_token(token);
 		if (!field) {
-			/* not a field, so NULL it up */
-			free_arg(arg);
-			arg = NULL;
-			break;
+			if (strcmp(token, COMM) != 0) {
+				/* not a field, so NULL it up */
+				free_token(token);
+				free_arg(arg);
+				arg = NULL;
+				break;
+			}
+			/* If token is 'COMM' then it is special */
+			field = &comm;
 		}
+		free_token(token);
 
 		arg->type = FILTER_ARG_FIELD;
 		arg->field.field = field;
@@ -1414,10 +1425,30 @@ int pevent_filter_event_has_trivial(struct event_filter *filter,
 static int test_filter(struct event_format *event,
 		       struct filter_arg *arg, struct record *record);
 
+static const char *
+get_comm(struct event_format *event, struct record *record)
+{
+	const char *comm;
+	int pid;
+
+	pid = pevent_data_pid(event->pevent, record);
+	comm = pevent_data_comm_from_pid(event->pevent, pid);
+	return comm;
+}
+
 static unsigned long long
-get_value(struct format_field *field, struct record *record)
+get_value(struct event_format *event,
+	  struct format_field *field, struct record *record)
 {
 	unsigned long long val;
+
+	/* Handle our dummy "comm" field */
+	if (field == &comm) {
+		const char *name;
+
+		name = get_comm(event, record);
+		return (unsigned long long)name;
+	}
 
 	pevent_read_number_field(field, record->data, &val);
 
@@ -1491,7 +1522,7 @@ get_arg_value(struct event_format *event, struct filter_arg *arg, struct record 
 {
 	switch (arg->type) {
 	case FILTER_ARG_FIELD:
-		return get_value(arg->field.field, record);
+		return get_value(event, arg->field.field, record);
 
 	case FILTER_ARG_VALUE:
 		if (arg->value.type != FILTER_NUMBER)
@@ -1540,11 +1571,9 @@ static int test_num(struct event_format *event,
 	}
 }
 
-static int test_str(struct event_format *event,
-		    struct filter_arg *arg, struct record *record)
+static const char *get_field_str(struct filter_arg *arg, struct record *record)
 {
 	const char *val = record->data + arg->str.field->offset;
-	const char *buffer;
 
 	/*
 	 * We need to copy the data since we can't be sure the field
@@ -1554,24 +1583,34 @@ static int test_str(struct event_format *event,
 		/* copy it */
 		memcpy(arg->str.buffer, val, arg->str.field->size);
 		/* the buffer is already NULL terminated */
-		buffer = arg->str.buffer;
-	} else
-		/* OK, it's NULL terminated */
-		buffer = val;
+		val = arg->str.buffer;
+	}
+	return val;
+}
+
+static int test_str(struct event_format *event,
+		    struct filter_arg *arg, struct record *record)
+{
+	const char *val;
+
+	if (arg->str.field == &comm)
+		val = get_comm(event, record);
+	else
+		val = get_field_str(arg, record);
 
 	switch (arg->str.type) {
 	case FILTER_CMP_MATCH:
-		return strcmp(buffer, arg->str.val) == 0;
+		return strcmp(val, arg->str.val) == 0;
 
 	case FILTER_CMP_NOT_MATCH:
-		return strcmp(buffer, arg->str.val) != 0;
+		return strcmp(val, arg->str.val) != 0;
 
 	case FILTER_CMP_REGEX:
 		/* Returns zero on match */
-		return !regexec(&arg->str.reg, buffer, 0, NULL, 0);
+		return !regexec(&arg->str.reg, val, 0, NULL, 0);
 
 	case FILTER_CMP_NOT_REGEX:
-		return regexec(&arg->str.reg, buffer, 0, NULL, 0);
+		return regexec(&arg->str.reg, val, 0, NULL, 0);
 
 	default:
 		/* ?? */

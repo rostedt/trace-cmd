@@ -98,6 +98,14 @@ OPTIONS
 
     Although the output displays 'R', having 'prev_stat=="R"' will not work.
 
+    Note: You can also specify 'COMM' as an EVENT_FIELD. This will use the
+    task name (or comm) of the record to compare. For example, to filter out
+    all of the "trace-cmd" tasks:
+
+------------------------------------------
+    -F '.*:COMM != "trace-cmd"'
+------------------------------------------
+
 *-v*::
     This causes the following filters of *-F* to filter out the matching
     events.
