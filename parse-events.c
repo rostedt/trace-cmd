@@ -3128,7 +3128,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		 * is a pointer.
 		 */
 		if (!(arg->field.field->flags & FIELD_IS_ARRAY) &&
-		    len == pevent->long_size) {
+		    arg->field.field->size == pevent->long_size) {
 			addr = *(unsigned long *)(data + arg->field.field->offset);
 			trace_seq_printf(s, "%lx", addr);
 			break;
