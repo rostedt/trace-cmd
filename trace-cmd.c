@@ -317,19 +317,37 @@ static void reset_max_latency(void)
 	fclose(fp);
 }
 
-static void update_ftrace_pid(const char *pid)
+static void update_ftrace_pid(const char *pid, int reset)
 {
-	char *path;
+	static char *path;
 	int ret;
-	int fd;
+	static int fd = -1;
 
-	path = tracecmd_get_tracing_file("set_ftrace_pid");
-	if (!path)
+	if (!pid) {
+		if (fd >= 0)
+			close(fd);
+		if (path)
+			tracecmd_put_tracing_file(path);
+		fd = -1;
+		path = NULL;
 		return;
+	}
 
-	fd = open(path, O_WRONLY | O_TRUNC);
-	if (fd < 0)
-		return;
+	/* Force reopen on reset */
+	if (reset && fd >= 0) {
+		close(fd);
+		fd = -1;
+	}
+
+	if (fd < 0) {
+		if (!path)
+			path = tracecmd_get_tracing_file("set_ftrace_pid");
+		if (!path)
+			return;
+		fd = open(path, O_WRONLY | (reset ? O_TRUNC : 0));
+		if (fd < 0)
+			return;
+	}
 
 	ret = write(fd, pid, strlen(pid));
 
@@ -342,7 +360,8 @@ static void update_ftrace_pid(const char *pid)
 	if (ret < 0)
 		die("error writing to %s", path);
 
-	close(fd);
+	/* add whitespace in case another pid is written */
+	write(fd, " ", 1);
 }
 
 static void update_pid_event_filters(const char *pid);
@@ -354,7 +373,7 @@ static void update_task_filter(void)
 	char spid[100];
 
 	if (!filter_task && filter_pid < 0) {
-		update_ftrace_pid("");
+		update_ftrace_pid("", 1);
 		enable_tracing();
 		return;
 	}
@@ -364,7 +383,7 @@ static void update_task_filter(void)
 
 	snprintf(spid, 100, "%d", pid);
 
-	update_ftrace_pid(spid);
+	update_ftrace_pid(spid, 1);
 
 	update_pid_event_filters(spid);
 
@@ -837,7 +856,10 @@ static void disable_all(void)
 
 	set_plugin("nop");
 	update_event("all", "0", 0, '0');
-	update_ftrace_pid("");
+
+	/* Force close and reset of ftrace pid file */
+	update_ftrace_pid("", 1);
+	update_ftrace_pid(NULL, 0);
 
 	clear_trace();
 }
