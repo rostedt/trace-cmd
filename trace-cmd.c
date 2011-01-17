@@ -891,6 +891,11 @@ static void update_filter(const char *event_name, const char *field,
 		die("Can't read %s", path);
 	close(fd);
 
+	if (ret >= BUFSIZ)
+		ret = BUFSIZ - 1;
+
+	buf[ret] = 0;
+
 	/* append unless there is currently no filter */
 	if (strncmp(buf, "none", 4) == 0) {
 		filter = malloc_or_die(strlen(pid) + strlen(field) +
@@ -902,14 +907,7 @@ static void update_filter(const char *event_name, const char *field,
 		sprintf(filter, "(%s)||(%s==%s)", buf, field, pid);
 	}
 
-	fd = open(path, O_WRONLY);
-	if (fd < 0)
-		die("can't open %s", path);
-
-	ret = write(fd, filter, strlen(filter));
-	if (ret < 0)
-		warning("Can't write to %s", path);
-	close(fd);
+	write_filter(path, filter);
 
 	free(filter);
 
