@@ -99,6 +99,8 @@ struct event_list {
 	struct event_list *next;
 	const char *event;
 	char *filter;
+	char *filter_file;
+	char *enable_file;
 	int neg;
 };
 
@@ -521,6 +523,29 @@ static void set_options(void)
 	}
 }
 
+static int use_old_event_method(void)
+{
+	static int old_event_method;
+	static int processed;
+	struct stat st;
+	char *path;
+	int ret;
+
+	if (processed)
+		return old_event_method;
+
+	/* Check if the kernel has the events/enable file */
+	path = tracecmd_get_tracing_file("events/enable");
+	ret = stat(path, &st);
+	tracecmd_put_tracing_file(path);
+	if (ret < 0)
+		old_event_method = 1;
+
+	processed = 1;
+
+	return old_event_method;
+}
+
 static void old_update_events(const char *name, char update)
 {
 	char *path;
@@ -554,6 +579,47 @@ static void old_update_events(const char *name, char update)
 	return;
 }
 
+static void reset_events()
+{
+	glob_t globbuf;
+	char *path;
+	char c;
+	int fd;
+	int i;
+	int ret;
+
+	if (use_old_event_method()) {
+		old_update_events("all", '0');
+		return;
+	}
+
+	c = '0';
+	path = tracecmd_get_tracing_file("events/enable");
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		die("opening to '%s'", path);
+	ret = write(fd, &c, 1);
+	close(fd);
+	tracecmd_put_tracing_file(path);
+
+	path = tracecmd_get_tracing_file("events/*/filter");
+	globbuf.gl_offs = 0;
+	ret = glob(path, 0, NULL, &globbuf);
+	tracecmd_put_tracing_file(path);
+	if (ret < 0)
+		return;
+
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		path = globbuf.gl_pathv[i];
+		fd = open(path, O_WRONLY);
+		if (fd < 0)
+			die("opening to '%s'", path);
+		ret = write(fd, &c, 1);
+		close(fd);
+	}
+	globfree(&globbuf);
+}
+
 static void write_filter(const char *file, const char *filter)
 {
 	char buf[BUFSIZ];
@@ -578,182 +644,35 @@ static void write_filter(const char *file, const char *filter)
 	}
 }
 
-static int update_glob(const char *name, const char *filter,
-		       int filter_only, char update)
+static void
+update_event(struct event_list *event, const char *filter,
+	     int filter_only, char update)
 {
-	glob_t globbuf;
-	FILE *fp;
-	char *filter_file;
-	char *path;
-	char *str;
-	int len;
-	int ret;
-	int i;
-	int count = 0;
-
-	len = strlen(name) + strlen("events//enable") + 1;
-	str = malloc_or_die(len);
-	snprintf(str, len, "events/%s/enable", name);
-	path = tracecmd_get_tracing_file(str);
-	free(str);
-
-	globbuf.gl_offs = 0;
-	printf("path = %s\n", path);
-	ret = glob(path, GLOB_ONLYDIR, NULL, &globbuf);
-	tracecmd_put_tracing_file(path);
-	if (ret < 0)
-		return 0;
-
-	for (i = 0; i < globbuf.gl_pathc; i++) {
-		path = globbuf.gl_pathv[i];
-
-		filter_file = strdup(path);
-		if (!filter_file)
-			die("Allocating memory");
-
-		/* s/enable/filter/ */
-		memcpy(filter_file + strlen(filter_file) - 6,
-		       "filter", 6);
-		if (filter)
-			write_filter(filter_file, filter);
-		else if (update == '1')
-			write_filter(filter_file, "0");
-		free(filter_file);
-		count++;
-
-		if (filter_only)
-			continue;
-
-		fp = fopen(path, "w");
-		if (!fp)
-			die("writing to '%s'", path);
-		ret = fwrite(&update, 1, 1, fp);
-		fclose(fp);
-		if (ret < 0)
-			die("writing to '%s'", path);
-	}
-	globfree(&globbuf);
-	return count;
-}
-
-static void filter_all_systems(const char *filter)
-{
-	glob_t globbuf;
-	char *path;
-	int ret;
-	int i;
-
-	path = tracecmd_get_tracing_file("events/*/filter");
-
-	globbuf.gl_offs = 0;
-	ret = glob(path, 0, NULL, &globbuf);
-	tracecmd_put_tracing_file(path);
-	if (ret < 0)
-		die("No filters found");
-
-	for (i = 0; i < globbuf.gl_pathc; i++) {
-		path = globbuf.gl_pathv[i];
-
-		write_filter(path, filter);
-	}
-	globfree(&globbuf);
-}
-
-static void update_event(const char *name, const char *filter,
-			 int filter_only, char update)
-{
-	struct stat st;
+	const char *name = event->event;
 	FILE *fp;
 	char *path;
-	char *str;
-	char *ptr;
-	int len;
 	int ret;
-	int ret2;
 
-	/* Check if the kernel has the events/enable file */
-	path = tracecmd_get_tracing_file("events/enable");
-	ret = stat(path, &st);
-	if (ret < 0) {
-		if (filter_only)
-			return;
-		tracecmd_put_tracing_file(path);
-		/* old kernel */
+	if (use_old_event_method()) {
 		old_update_events(name, update);
 		return;
 	}
 
-	if (!filter_only)
-		fprintf(stderr, "%s %s\n",
-			update == '1' ? "enable" : "disable", name);
+	if (filter && event->filter_file)
+		write_filter(event->filter_file, filter);
 
-	/* We allow the user to use "all" to enable all events */
-
-	if (strcmp(name, "all") == 0) {
-		if (filter)
-			filter_all_systems(filter);
-		else if (update == '1')
-			filter_all_systems("0");
-
-		if (filter_only) {
-			tracecmd_put_tracing_file(path);
-			return;
-		}
-
-		fp = fopen(path, "w");
-		if (!fp)
-			die("writing to '%s'", path);
-		tracecmd_put_tracing_file(path);
-		ret = fwrite(&update, 1, 1, fp);
-		fclose(fp);
-		if (ret < 0)
-			die("writing to '%s'", path);
+	if (filter_only || !event->enable_file)
 		return;
-	}
 
-	ptr = strchr(name, ':');
+	path = event->enable_file;
 
-	if (ptr) {
-		len = ptr - name;
-		str = strdup(name);
-		if (!str)
-			die("could not allocate memory");
-		str[len] = 0;
-		ptr++;
-		if (!strlen(ptr) || strcmp(ptr, "*") == 0) {
-			ret = update_glob(str, filter, filter_only, update);
-			free(str);
-			tracecmd_put_tracing_file(path);
-			if (!ret)
-				goto fail;
-			return;
-		}
-
-		str[len] = '/';
-
-		ret = update_glob(str, filter, filter_only, update);
-		free(str);
-		if (!ret && !ignore_event_not_found)
-			die("No events enabled with %s", name);
-		return;
-	}
-
-	/* No ':' so enable all matching systems and events */
-	ret = update_glob(name, filter, filter_only, update);
-
-	len = strlen(name) + strlen("*/") + 1;
-	str = malloc_or_die(len);
-	snprintf(str, len, "*/%s", name);
-	ret2 = update_glob(str, filter, filter_only, update);
-	free(str);
-
-	if (!ret && !ret2 && !ignore_event_not_found)
-		goto fail;
-
-	return;
- fail:
-	die("No events enabled with %s", name);
-
+	fp = fopen(path, "w");
+	if (!fp)
+		die("writing to '%s'", path);
+	ret = fwrite(&update, 1, 1, fp);
+	fclose(fp);
+	if (ret < 0)
+		die("writing to '%s'", path);
 }
 
 /*
@@ -855,7 +774,7 @@ static void disable_all(void)
 	disable_tracing();
 
 	set_plugin("nop");
-	update_event("all", "0", 0, '0');
+	reset_events();
 
 	/* Force close and reset of ftrace pid file */
 	update_ftrace_pid("", 1);
@@ -935,7 +854,7 @@ static void update_pid_event_filters(const char *pid)
 					strcat(event->filter, filter);
 			} else
 				event->filter = strdup(filter);
-			update_event(event->event, event->filter, 1, '1');
+			update_event(event, event->filter, 1, '1');
 		}
 	}
 
@@ -955,13 +874,138 @@ static void enable_events(void)
 
 	for (event = event_selection; event; event = event->next) {
 		if (!event->neg)
-			update_event(event->event, event->filter, 0, '1');
+			update_event(event, event->filter, 0, '1');
 	}
 
 	/* Now disable any events */
 	for (event = event_selection; event; event = event->next) {
 		if (event->neg)
-			update_event(event->event, NULL, 0, '0');
+			update_event(event, NULL, 0, '0');
+	}
+}
+
+static int expand_event_files(const char *file, struct event_list *old_event)
+{
+	struct event_list *save_events = event_selection;
+	struct event_list *event;
+	glob_t globbuf;
+	struct stat st;
+	char *path;
+	char *p;
+	int ret;
+	int i;
+
+	p = malloc_or_die(strlen(file) + strlen("events//filter") + 1);
+	sprintf(p, "events/%s/filter", file);
+
+	path = tracecmd_get_tracing_file(p);
+	printf("%s\n", path);
+
+	globbuf.gl_offs = 0;
+	ret = glob(path, 0, NULL, &globbuf);
+	tracecmd_put_tracing_file(path);
+	free(p);
+
+	if (ret < 0)
+		die("No filters found");
+
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		path = globbuf.gl_pathv[i];
+
+		event = malloc_or_die(sizeof(*event));
+		*event = *old_event;
+		event->next = event_selection;
+		event_selection = event;
+		if (event->filter || filter_task || filter_pid) {
+			event->filter_file = strdup(path);
+			if (!event->filter_file)
+				die("malloc filter file");
+		}
+		for (p = path + strlen(path) - 1; p > path; p--)
+			if (*p == '/')
+				break;
+		*p = '\0';
+		p = malloc_or_die(strlen(path) + strlen("/enable") + 1);
+		sprintf(p, "%s/enable", path);
+		ret = stat(p, &st);
+		if (ret >= 0)
+			event->enable_file = p;
+		else
+			free(p);
+	}
+	globfree(&globbuf);
+
+	return save_events == event_selection;
+}
+
+static void expand_event(struct event_list *event)
+{
+	const char *name = event->event;
+	char *str;
+	char *ptr;
+	int len;
+	int ret;
+	int ret2;
+
+	/*
+	 * We allow the user to use "all" to enable all events.
+	 * Expand event_selection to all systems.
+	 */
+	if (strcmp(name, "all") == 0) {
+		expand_event_files("*", event);
+		return;
+	}
+
+	ptr = strchr(name, ':');
+
+	if (ptr) {
+		len = ptr - name;
+		str = malloc_or_die(strlen(name) + 1); /* may add '*' */
+		strcpy(str, name);
+		str[len] = '/';
+		ptr++;
+		if (!strlen(ptr)) {
+			str[len + 1] = '*';
+			str[len + 2] = '\0';
+		}
+
+		ret = expand_event_files(str, event);
+		if (!ignore_event_not_found && ret)
+			die("No events enabled with %s", name);
+		free(str);
+		return;
+	}
+
+	/* No ':' so enable all matching systems and events */
+	ret = expand_event_files(name, event);
+
+	len = strlen(name) + strlen("*/") + 1;
+	str = malloc_or_die(len);
+	snprintf(str, len, "*/%s", name);
+	ret2 = expand_event_files(str, event);
+	free(str);
+
+	if (!ignore_event_not_found && ret && ret2)
+		die("No events enabled with %s", name);
+
+	return;
+}
+
+static void expand_event_list(void)
+{
+	struct event_list *compressed_list = event_selection;
+	struct event_list *event;
+
+	if (use_old_event_method())
+		return;
+
+	event_selection = NULL;
+
+	while (compressed_list) {
+		event = compressed_list;
+		compressed_list = event->next;
+		expand_event(event);
+		free(event);
 	}
 }
 
@@ -1465,6 +1509,7 @@ int main (int argc, char **argv)
 					usage(argv);
 				events = 1;
 				event = malloc_or_die(sizeof(*event));
+				memset(event, 0, sizeof(*event));
 				event->event = optarg;
 				event->next = event_selection;
 				event->neg = neg_event;
@@ -1666,6 +1711,9 @@ int main (int argc, char **argv)
 		output_file = output;
 
 	tracing_on_init_val = read_tracing_on();
+
+	if (event_selection)
+		expand_event_list();
 
 	if (!extract) {
 		fset = set_ftrace(!disable);
