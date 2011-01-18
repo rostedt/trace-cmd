@@ -104,6 +104,11 @@ struct event_list {
 	int neg;
 };
 
+static struct event_list *sched_switch_event;
+static struct event_list *sched_wakeup_event;
+static struct event_list *sched_wakeup_new_event;
+static struct event_list *sched_event;
+
 static struct event_list *event_selection;
 struct tracecmd_event_list *listed_events;
 
@@ -783,55 +788,53 @@ static void disable_all(void)
 	clear_trace();
 }
 
-static void update_filter(const char *event_name, const char *field,
-			  const char *pid)
+static void
+update_sched_event(struct event_list **event, const char *file,
+		   const char *field, const char *pid)
 {
-	char buf[BUFSIZ];
-	char *filter_name;
-	char *path;
 	char *filter;
-	int fd;
-	int ret;
+	char *path;
+	char *buf;
+	char *p;
 
-	filter_name = malloc_or_die(strlen(event_name) +
-				    strlen("events//filter") + 1);
-	sprintf(filter_name, "events/%s/filter", event_name);
+	if (!*event) {
+		/* No sched events are being processed, ignore */
+		if (!sched_event)
+			return;
+		*event = malloc_or_die(sizeof(**event));
+		memset(*event, 0, sizeof(**event));
+		(*event)->event = file;
+		p = malloc_or_die(strlen(file) + strlen("events//filter") + 1);
+		sprintf(p, "events/%s/filter", file);
+		path = tracecmd_get_tracing_file(p);
+		free(p);
+		(*event)->filter_file = strdup(path);
+		if (sched_event->filter)
+			(*event)->filter = strdup(sched_event->filter);
+		tracecmd_put_tracing_file(path);
+	}
 
-	path = tracecmd_get_tracing_file(filter_name);
-	free(filter_name);
+	path = (*event)->filter_file;
+	if (!path)
+		return;
 
-	/* Ignore if file does not exist */
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		goto out;
+	filter = (*event)->filter;
 
-	ret = read(fd, buf, BUFSIZ);
-	if (ret < 0)
-		die("Can't read %s", path);
-	close(fd);
-
-	if (ret >= BUFSIZ)
-		ret = BUFSIZ - 1;
-
-	buf[ret] = 0;
-
-	/* append unless there is currently no filter */
-	if (strncmp(buf, "none", 4) == 0) {
+	if (!filter) {
 		filter = malloc_or_die(strlen(pid) + strlen(field) +
 				       strlen("(==)") + 1);
 		sprintf(filter, "(%s==%s)", field, pid);
 	} else {
+		buf = filter;
 		filter = malloc_or_die(strlen(pid) + strlen(field) +
 				       strlen(buf) + strlen("()||(==)") + 1);
 		sprintf(filter, "(%s)||(%s==%s)", buf, field, pid);
+		free(buf);
 	}
 
+	(*event)->filter = filter;
+
 	write_filter(path, filter);
-
-	free(filter);
-
- out:
-	tracecmd_put_tracing_file(path);
 }
 
 static void update_pid_event_filters(const char *pid)
@@ -863,9 +866,11 @@ static void update_pid_event_filters(const char *pid)
 	/*
 	 * Also make sure that the sched_switch to this pid
 	 * and wakeups of this pid are also traced.
+	 * Only need to do this if the events are active.
 	 */
-	update_filter("sched/sched_switch", "next_pid", pid);
-	update_filter("sched/sched_wakeup", "pid", pid);
+	update_sched_event(&sched_switch_event, "sched/sched_switch", "next_pid", pid);
+	update_sched_event(&sched_wakeup_event, "sched/sched_wakeup", "pid", pid);
+	update_sched_event(&sched_wakeup_new_event, "sched/sched_wakeup_new", "pid", pid);
 }
 
 static void enable_events(void)
@@ -882,6 +887,17 @@ static void enable_events(void)
 		if (event->neg)
 			update_event(event, NULL, 0, '0');
 	}
+}
+
+static void test_event(struct event_list *event, const char *path,
+		       const char *name, struct event_list **save, int len)
+{
+	path += len - strlen(name);
+
+	if (strcmp(path, name) != 0)
+		return;
+
+	*save = event;
 }
 
 static int expand_event_files(const char *file, struct event_list *old_event)
@@ -910,6 +926,8 @@ static int expand_event_files(const char *file, struct event_list *old_event)
 		die("No filters found");
 
 	for (i = 0; i < globbuf.gl_pathc; i++) {
+		int len;
+
 		path = globbuf.gl_pathv[i];
 
 		event = malloc_or_die(sizeof(*event));
@@ -932,6 +950,13 @@ static int expand_event_files(const char *file, struct event_list *old_event)
 			event->enable_file = p;
 		else
 			free(p);
+
+		len = strlen(path);
+
+		test_event(event, path, "sched/sched_switch", &sched_switch_event, len);
+		test_event(event, path, "sched/sched_wakeup_new", &sched_wakeup_new_event, len);
+		test_event(event, path, "sched/sched_wakeup", &sched_wakeup_event, len);
+		test_event(event, path, "sched", &sched_event, len);
 	}
 	globfree(&globbuf);
 
