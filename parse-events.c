@@ -225,8 +225,13 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
 	const struct cmdline *cmdline;
 	struct cmdline key;
 
-	if (!pid)
+	if (!comm)
+		die("malloc comm");
+
+	if (!pid) {
+		free(comm);
 		return 0;
+	}
 
 	/* avoid duplicates */
 	key.pid = pid;
@@ -246,6 +251,7 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
 
 	cmdlines[pevent->cmdline_count].pid = pid;
 	cmdlines[pevent->cmdline_count].comm = comm;
+	if (cmdlines[pevent->cmdline_count].comm)
 	pevent->cmdline_count++;
 
 	qsort(cmdlines, pevent->cmdline_count, sizeof(*cmdlines), cmdline_cmp);
@@ -263,15 +269,17 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
  * This adds a mapping to search for command line names with
  * a given pid. The comm is duplicated.
  */
-int pevent_register_comm(struct pevent *pevent, char *comm, int pid)
+int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
 {
 	struct cmdline_list *item;
 
 	if (pevent->cmdlines)
-		return add_new_comm(pevent, comm, pid);
+		return add_new_comm(pevent, strdup(comm), pid);
 
 	item = malloc_or_die(sizeof(*item));
 	item->comm = strdup(comm);
+	if (!item->comm)
+		die("malloc comm");
 	item->pid = pid;
 	item->next = pevent->cmdlist;
 

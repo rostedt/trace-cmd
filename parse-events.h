@@ -428,7 +428,7 @@ enum trace_flag_type {
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 };
 
-int pevent_register_comm(struct pevent *pevent, char *comm, int pid);
+int pevent_register_comm(struct pevent *pevent, const char *comm, int pid);
 int pevent_register_function(struct pevent *pevent, char *name,
 			     unsigned long long addr, char *mod);
 int pevent_register_print_string(struct pevent *pevent, char *fmt,

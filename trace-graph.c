@@ -1134,7 +1134,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 		 */
 		if (!pevent_pid_is_registered(ginfo->pevent, *pid))
 			pevent_register_comm(ginfo->pevent,
-					     strdup(*comm), *pid);
+					     *comm, *pid);
 	}
 
 	return ret;
