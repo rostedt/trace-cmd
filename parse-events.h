@@ -645,6 +645,12 @@ struct filter_arg_op {
 	struct filter_arg	*right;
 };
 
+struct filter_arg_exp {
+	enum filter_exp_type	type;
+	struct filter_arg	*left;
+	struct filter_arg	*right;
+};
+
 struct filter_arg_num {
 	enum filter_cmp_type	type;
 	struct filter_arg	*left;
@@ -666,6 +672,7 @@ struct filter_arg {
 		struct filter_arg_field		field;
 		struct filter_arg_value		value;
 		struct filter_arg_op		op;
+		struct filter_arg_exp		exp;
 		struct filter_arg_num		num;
 		struct filter_arg_str		str;
 	};

@@ -776,9 +776,9 @@ process_exp(struct event_format *event, enum filter_exp_type etype,
 
 	arg = allocate_arg();
 	arg->type = FILTER_ARG_EXP;
-	arg->op.type = etype;
-	arg->op.left = larg;
-	arg->op.right = rarg;
+	arg->exp.type = etype;
+	arg->exp.left = larg;
+	arg->exp.right = rarg;
 
  cont:
 	/* still need a cmp */
@@ -1476,10 +1476,10 @@ get_exp_value(struct event_format *event, struct filter_arg *arg, struct record 
 {
 	unsigned long long lval, rval;
 
-	lval = get_arg_value(event, arg->op.left, record);
-	rval = get_arg_value(event, arg->op.right, record);
+	lval = get_arg_value(event, arg->exp.left, record);
+	rval = get_arg_value(event, arg->exp.right, record);
 
-	switch (arg->op.type) {
+	switch (arg->exp.type) {
 	case FILTER_EXP_ADD:
 		return lval + rval;
 
@@ -1867,10 +1867,10 @@ static char *exp_to_str(struct event_filter *filter, struct filter_arg *arg)
 	char *str;
 	int len;
 
-	lstr = arg_to_str(filter, arg->op.left);
-	rstr = arg_to_str(filter, arg->op.right);
+	lstr = arg_to_str(filter, arg->exp.left);
+	rstr = arg_to_str(filter, arg->exp.right);
 
-	switch (arg->op.type) {
+	switch (arg->exp.type) {
 	case FILTER_EXP_ADD:
 		op = "+";
 		break;
