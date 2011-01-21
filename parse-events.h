@@ -620,7 +620,8 @@ enum filter_arg_type {
 
 enum filter_value_type {
 	FILTER_NUMBER,
-	FILTER_STRING
+	FILTER_STRING,
+	FILTER_CHAR
 };
 
 struct fliter_arg;
