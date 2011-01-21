@@ -688,6 +688,7 @@ void trace_report (int argc, char **argv)
 	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
+	int test_filters = 0;
 	int raw = 0;
 	int neg = 0;
 	int c;
@@ -705,11 +706,12 @@ void trace_report (int argc, char **argv)
 		static struct option long_options[] = {
 			{"cpu", required_argument, NULL, 0},
 			{"events", no_argument, NULL, 0},
+			{"filter-test", no_argument, NULL, 'T'},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:feprPNLlEwF:Vvq",
+		c = getopt_long (argc-1, argv+1, "+hi:feprPNLlEwF:VvTq",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -722,6 +724,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'F':
 			add_filter(optarg, neg);
+			break;
+		case 'T':
+			test_filters = 1;
 			break;
 		case 'f':
 			show_funcs = 1;
@@ -810,6 +815,9 @@ void trace_report (int argc, char **argv)
 
 	if (raw)
 		pevent->print_raw = 1;
+
+	if (test_filters)
+		pevent->test_filters = 1;
 
 	if (show_endian) {
 		printf("file is %s endian and host is %s endian\n",

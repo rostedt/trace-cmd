@@ -117,6 +117,14 @@ OPTIONS
     Will not display any sched_switch events that have a prev_state of 0.
     Removing the *-v* will only print out those events.
 
+*-T*::
+    Test the filters of -F. After processing a filter string, the
+    resulting filter will be displayed for each event. This is useful
+    for using a filter for more than one event where a field may not
+    exist in all events. Also it can be used to make sure there are no
+    misspelled event field names, as they will simply be ignored.
+    *-T* is ignored if *-F* is not specified.
+
 *-V*::
     Show the plugins that are loaded.
 

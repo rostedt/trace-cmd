@@ -71,7 +71,7 @@ static struct usage_help usage_help[] = {
 		"report",
 		"read out the trace stored in a trace.dat file",
 		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-r][-E]\\\n"
-		"           [-F filter][-v][-V]\n"
+		"           [-F filter][-v][-V][-T]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
 		"          -f show function list\n"
@@ -80,6 +80,7 @@ static struct usage_help usage_help[] = {
 		"          -F filter to filter output on\n"
 		"          -r raw format: ignore print format and only show field data\n"
 		"          -v will negate all -F after it (Not show matches)\n"
+		"          -T print out the filter strings created and exit\n"
 		"          -V verbose (shows plugins being loaded)\n"
 		"          -L load only local (~/.trace-cmd/plugins) plugins\n"
 		"          -N do not load any plugins\n"
