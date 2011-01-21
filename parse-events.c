@@ -53,6 +53,16 @@ static void init_input_buf(const char *buf, unsigned long long size)
 	input_buf_ptr = 0;
 }
 
+const char *pevent_get_input_buf(void)
+{
+	return input_buf;
+}
+
+unsigned long long pevent_get_input_buf_ptr(void)
+{
+	return input_buf_ptr;
+}
+
 struct event_handler {
 	struct event_handler		*next;
 	int				id;

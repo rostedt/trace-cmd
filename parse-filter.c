@@ -43,16 +43,37 @@ struct event_list {
 
 static void show_error(char **error_str, const char *fmt, ...)
 {
+	unsigned long long index;
+	const char *input;
+	char *error;
 	va_list ap;
+	int len;
+	int i;
 
 	if (!error_str)
 		return;
 
-	*error_str = malloc_or_die(MAX_ERR_STR_SIZE);
+	input = pevent_get_input_buf();
+	index = pevent_get_input_buf_ptr();
+	len = input ? strlen(input) : 0;
+
+	error = malloc_or_die(MAX_ERR_STR_SIZE + (len*2) + 3);
+
+	if (len) {
+		strcpy(error, input);
+		error[len] = '\n';
+		for (i = 1; i < len && i < index; i++)
+			error[len+i] = ' ';
+		error[len + i] = '^';
+		error[len + i + 1] = '\n';
+		len += i+2;
+	}
 
 	va_start(ap, fmt);
-	vsnprintf(*error_str, MAX_ERR_STR_SIZE, fmt, ap);
+	vsnprintf(error + len, MAX_ERR_STR_SIZE, fmt, ap);
 	va_end(ap);
+
+	*error_str = error;
 }
 
 static void free_token(char *token)
@@ -1054,6 +1075,9 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 	int rtn = 0;
 	int len;
 	int ret;
+
+	/* clear buffer to reset show error */
+	pevent_buffer_init("", 0);
 
 	if (error_str)
 		*error_str = NULL;

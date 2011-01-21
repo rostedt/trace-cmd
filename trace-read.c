@@ -269,7 +269,7 @@ static void process_filters(struct tracecmd_input *handle)
 						   filter->filter,
 						   &errstr);
 		if (ret < 0)
-			die("Error filtering: %s\n   %s",
+			die("Error filtering: %s\n%s",
 			    filter->filter, errstr);
 		free(errstr);
 		free(filter);

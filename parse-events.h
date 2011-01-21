@@ -558,6 +558,8 @@ void pevent_buffer_init(const char *buf, unsigned long long size);
 enum event_type pevent_read_token(char **tok);
 void pevent_free_token(char *token);
 int pevent_peek_char(void);
+const char *pevent_get_input_buf(void);
+unsigned long long pevent_get_input_buf_ptr(void);
 
 /* for debugging */
 void pevent_print_funcs(struct pevent *pevent);
