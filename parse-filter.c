@@ -1252,9 +1252,19 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 		/* Failures are returned if a parse error happened */
 		if (ret < 0)
 			rtn = ret;
+
+		if (ret >= 0 && pevent->test_filters) {
+			char *test;
+			test = pevent_filter_make_string(filter, event->event->id);
+			printf(" '%s: %s'\n", event->event->name, test);
+			free(test);
+		}
 	}
 
 	free_events(events);
+
+	if (rtn >= 0 && pevent->test_filters)
+		exit(0);
 
 	return rtn;
 }

@@ -332,6 +332,8 @@ struct pevent {
 
 	int print_raw;
 
+	int test_filters;
+
 	struct format_field *bprint_ip_field;
 	struct format_field *bprint_fmt_field;
 	struct format_field *bprint_buf_field;
