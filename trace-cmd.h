@@ -174,6 +174,9 @@ tracecmd_create_file_glob(const char *output_file,
 			  struct tracecmd_event_list *event_globs);
 struct tracecmd_output *tracecmd_create_init_fd(int fd);
 struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
+struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
+							   const char *tracing_dir,
+							   const char *kallsyms);
 void tracecmd_output_close(struct tracecmd_output *handle);
 struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);

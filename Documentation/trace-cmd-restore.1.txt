@@ -42,6 +42,21 @@ OPTIONS
     'trace-partial.dat'. This is because the file is not a full version
     of something that trace-cmd-report(1) could use.
 
+*-t* tracing_dir::
+    Used with *-c*, it overrides the location to read the events from.
+    By default, tracing information is read from the debugfs/tracing
+    directory. *-t* will use that location instead. This can be useful
+    if the trace.dat file to create is from another machine.
+    Just tar -cvf events.tar debugfs/tracing and copy and untar that
+    file locally, and use that directory instead.
+
+*-k* kallsyms::
+    Used with *-c*, it overrides where to read the kallsyms file from.
+    By default, /proc/kallsyms is used. *-k* will override the file to
+    read the kallsyms from. This can be useful if the trace.dat file
+    to create is from another machine. Just copy the /proc/kallsyms
+    file locally, and use *-k* to point to that file.
+
 *-o* output'::
     By default, trace-cmd restore will create a 'trace.dat' file
     (or 'trace-partial.dat' if *-c* is specified). You can

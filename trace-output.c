@@ -599,12 +599,16 @@ static int read_event_files(struct tracecmd_output *handle,
 	return ret;
 }
 
-static int read_proc_kallsyms(struct tracecmd_output *handle)
+static int read_proc_kallsyms(struct tracecmd_output *handle,
+			      const char *kallsyms)
 {
 	unsigned int size, check_size, endian4;
 	const char *path = "/proc/kallsyms";
 	struct stat st;
 	int ret;
+
+	if (kallsyms)
+		path = kallsyms;
 
 	ret = stat(path, &st);
 	if (ret < 0) {
@@ -665,6 +669,8 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 
 static struct tracecmd_output *
 create_file_fd(int fd, struct tracecmd_input *ihandle,
+	       const char *tracing_dir,
+	       const char *kallsyms,
 	       struct tracecmd_event_list *list)
 {
 	struct tracecmd_output *handle;
@@ -684,6 +690,11 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	memset(handle, 0, sizeof(*handle));
 
 	handle->fd = fd;
+	if (tracing_dir) {
+		handle->tracing_dir = strdup(tracing_dir);
+		if (!handle->tracing_dir)
+			goto out_free;
+	}
 
 	buf[0] = 23;
 	buf[1] = 8;
@@ -736,7 +747,7 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 		goto out_free;
 	if (read_event_files(handle, list))
 		goto out_free;
-	if (read_proc_kallsyms(handle))
+	if (read_proc_kallsyms(handle, kallsyms))
 		goto out_free;
 	if (read_ftrace_printk(handle))
 		goto out_free;
@@ -775,6 +786,8 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 
 static struct tracecmd_output *create_file(const char *output_file,
 					   struct tracecmd_input *ihandle,
+					   const char *tracing_dir,
+					   const char *kallsyms,
 					   struct tracecmd_event_list *list)
 {
 	struct tracecmd_output *handle;
@@ -784,7 +797,7 @@ static struct tracecmd_output *create_file(const char *output_file,
 	if (fd < 0)
 		return NULL;
 
-	handle = create_file_fd(fd, ihandle, list);
+	handle = create_file_fd(fd, ihandle, tracing_dir, kallsyms, list);
 	if (!handle) {
 		close(fd);
 		unlink(output_file);
@@ -870,7 +883,7 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	struct tracecmd_output *handle;
 	char *path;
 
-	handle = create_file(output_file, NULL, &all_event_list);
+	handle = create_file(output_file, NULL, NULL, NULL, &all_event_list);
 	if (!handle)
 		return NULL;
 
@@ -1050,7 +1063,7 @@ tracecmd_create_file_glob(const char *output_file,
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file(output_file, NULL, list);
+	handle = create_file(output_file, NULL, NULL, NULL, list);
 	if (!handle)
 		return NULL;
 
@@ -1069,12 +1082,19 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 
 struct tracecmd_output *tracecmd_create_init_fd(int fd)
 {
-	return create_file_fd(fd, NULL, &all_event_list);
+	return create_file_fd(fd, NULL, NULL, NULL, &all_event_list);
 }
 
 struct tracecmd_output *tracecmd_create_init_file(const char *output_file)
 {
-	return create_file(output_file, NULL, &all_event_list);
+	return create_file(output_file, NULL, NULL, NULL, &all_event_list);
+}
+
+struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
+							   const char *tracing_dir,
+							   const char *kallsyms)
+{
+	return create_file(output_file, NULL, tracing_dir, kallsyms, &all_event_list);
 }
 
 /**
@@ -1091,7 +1111,7 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 {
 	struct tracecmd_output *handle;
 
-	handle = create_file(file, ihandle, &all_event_list);
+	handle = create_file(file, ihandle, NULL, NULL, &all_event_list);
 	if (!handle)
 		return NULL;
 

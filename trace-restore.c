@@ -45,6 +45,8 @@ void trace_restore (int argc, char **argv)
 	const char *output_file = "trace.dat";
 	const char *output = NULL;
 	const char *input = NULL;
+	const char *tracing_dir = NULL;
+	const char *kallsyms = NULL;
 	struct stat st1;
 	struct stat st2;
 	int first_arg;
@@ -58,7 +60,7 @@ void trace_restore (int argc, char **argv)
 	if (strcmp(argv[1], "restore") != 0)
 		usage(argv);
 
-	while ((c = getopt(argc-1, argv+1, "+hco:i:")) >= 0) {
+	while ((c = getopt(argc-1, argv+1, "+hco:i:t:k:")) >= 0) {
 		switch (c) {
 		case 'h':
 			usage(argv);
@@ -71,6 +73,12 @@ void trace_restore (int argc, char **argv)
 			output_file = "trace-partial.dat";
 			break;
 
+		case 't':
+			tracing_dir = optarg;
+			break;
+		case 'k':
+			kallsyms = optarg;
+			break;
 		case 'o':
 			if (output)
 				die("only one output file allowed");
@@ -99,7 +107,8 @@ void trace_restore (int argc, char **argv)
 			usage(argv);
 		}
 
-		handle = tracecmd_create_init_file(output);
+		handle = tracecmd_create_init_file_override(output, tracing_dir,
+							    kallsyms);
 		if (!handle)
 			die("Unabled to create output file %s", output);
 		tracecmd_output_close(handle);
