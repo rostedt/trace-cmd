@@ -350,7 +350,7 @@ create_arg_item(struct event_format *event,
 		if (isdigit(token[0])) {
 			arg->type = FILTER_ARG_VALUE;
 			arg->value.type = FILTER_NUMBER;
-			arg->value.val = strtoll(token, NULL, 0);
+			arg->value.val = strtoull(token, NULL, 0);
 			break;
 		}
 		/* Consider this a field */
