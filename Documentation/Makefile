@@ -17,7 +17,7 @@ else
 endif
 
 define manpage.xsl
-	if [ ! -f ${MANPAGE_DOCBOOK_XSL} ]; then 		\
+	if [ -z ${MANPAGE_DOCBOOK_XSL} ]; then 			\
 		echo "*********************************";	\
 		echo "** No docbook.xsl is installed **";	\
 		echo "** Can't make man pages        **";	\
