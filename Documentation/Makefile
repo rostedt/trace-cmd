@@ -97,10 +97,10 @@ HTML_INSTALL = $(subst .html,.html.install,$(HTML))
 IMGS_INSTALL = $(subst .png,.png.install,$(IMGS))
 
 $(HTML_INSTALL): %.html.install : %.html force
-	$(Q)$(call do_install, $<, '$(html_install_SQ)')
+	$(Q)$(call do_install,$<,'$(html_install_SQ)')
 
 $(IMGS_INSTALL): %.png.install : %.png force
-	$(Q)$(call do_install, $<, '$(img_install_SQ)')
+	$(Q)$(call do_install,$<,'$(img_install_SQ)')
 
 
 GUI_INSTALL = $(HTML_INSTALL) $(IMGS_INSTALL)
