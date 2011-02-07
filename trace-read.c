@@ -491,6 +491,8 @@ static void show_data(struct tracecmd_input *handle,
 		trace_seq_printf(&s, "CPU:%d [EVENTS DROPPED]\n",
 				 record->cpu);
 	pevent_print_event(pevent, &s, record);
+	if (s.len && *(s.buffer + s.len - 1) == '\n')
+		s.len--;
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 
