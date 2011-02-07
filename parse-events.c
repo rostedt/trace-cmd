@@ -3410,7 +3410,6 @@ get_bprint_format(void *data, int size __unused, struct event_format *event)
 		field = pevent_find_field(event, "fmt");
 		if (!field)
 			die("can't find format field for binary printk");
-		printf("field->offset = %d size=%d\n", field->offset, field->size);
 		pevent->bprint_fmt_field = field;
 	}
 
