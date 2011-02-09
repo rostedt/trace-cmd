@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+#include <sys/ptrace.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -76,8 +77,12 @@ static char *host;
 static int *client_ports;
 static int sfd;
 
+static int do_ptrace;
+
 static int filter_task;
 static int filter_pid = -1;
+
+static int finished;
 
 struct func_list {
 	struct func_list *next;
@@ -397,6 +402,89 @@ static void update_task_filter(void)
 	enable_tracing();
 }
 
+static void ptrace_attach(int pid)
+{
+	int ret;
+
+	ret = ptrace(PTRACE_ATTACH, pid, NULL, 0);
+	if (ret < 0) {
+		warning("Unable to trace process %d children", pid);
+		do_ptrace = 0;
+		return;
+	}
+}
+
+static void enable_ptrace(void)
+{
+	if (!do_ptrace || !filter_task)
+		return;
+
+	ptrace(PTRACE_TRACEME, 0, NULL, 0);
+}
+
+static void ptrace_wait(int main_pid)
+{
+	unsigned long send_sig;
+	unsigned long child;
+	siginfo_t sig;
+	int cstatus;
+	int status;
+	int event;
+	int pid;
+	int ret;
+
+	do {
+		ret = waitpid(-1, &status, WSTOPPED | __WALL);
+		if (ret < 0)
+			continue;
+
+		pid = ret;
+
+		if (WIFSTOPPED(status)) {
+			event = (status >> 16) & 0xff;
+			ptrace(PTRACE_GETSIGINFO, pid, NULL, &sig);
+			send_sig = sig.si_signo;
+			/* Don't send ptrace sigs to child */
+			if (send_sig == SIGTRAP || send_sig == SIGSTOP)
+				send_sig = 0;
+			switch (event) {
+			case PTRACE_EVENT_FORK:
+			case PTRACE_EVENT_VFORK:
+			case PTRACE_EVENT_CLONE:
+				/* forked a child */
+				ptrace(PTRACE_GETEVENTMSG, pid, NULL, &child);
+				ptrace(PTRACE_SETOPTIONS, child, NULL,
+				       PTRACE_O_TRACEFORK |
+				       PTRACE_O_TRACEVFORK |
+				       PTRACE_O_TRACECLONE |
+				       PTRACE_O_TRACEEXIT);
+				ptrace(PTRACE_CONT, child, NULL, 0);
+				break;
+
+			case PTRACE_EVENT_EXIT:
+				ptrace(PTRACE_GETEVENTMSG, pid, NULL, &cstatus);
+				ptrace(PTRACE_DETACH, pid, NULL, NULL);
+				break;
+			}
+			ptrace(PTRACE_SETOPTIONS, pid, NULL,
+			       PTRACE_O_TRACEFORK |
+			       PTRACE_O_TRACEVFORK |
+			       PTRACE_O_TRACECLONE |
+			       PTRACE_O_TRACEEXIT);
+			ptrace(PTRACE_CONT, pid, NULL, send_sig);
+		}
+	} while (!finished && ret > 0 &&
+		 (!WIFEXITED(status) || pid != main_pid));
+}
+
+void trace_or_sleep(void)
+{
+	if (do_ptrace && filter_pid >= 0)
+		ptrace_wait(filter_pid);
+	else
+		sleep(10);
+}
+
 void run_cmd(int argc, char **argv)
 {
 	int status;
@@ -407,10 +495,14 @@ void run_cmd(int argc, char **argv)
 	if (!pid) {
 		/* child */
 		update_task_filter();
+		enable_ptrace();
 		if (execvp(argv[0], argv))
 			exit(-1);
 	}
-	waitpid(pid, &status, 0);
+	if (do_ptrace)
+		ptrace_wait(pid);
+	else
+		waitpid(pid, &status, 0);
 }
 
 static void show_events(void)
@@ -1074,8 +1166,6 @@ static int count_cpus(void)
 	return cpus;
 }
 
-static int finished;
-
 static void finish(int sig)
 {
 	/* all done */
@@ -1511,7 +1601,7 @@ int main (int argc, char **argv)
 		   (strcmp(argv[1], "start") == 0) ||
 		   ((extract = strcmp(argv[1], "extract") == 0))) {
 
-		while ((c = getopt(argc-1, argv+1, "+hae:f:Fp:do:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -1581,6 +1671,9 @@ int main (int argc, char **argv)
 				if (filter_pid >= 0)
 					die("only one -P pid can be filtered at a time");
 				filter_pid = atoi(optarg);
+				break;
+			case 'c':
+				do_ptrace = 1;
 				break;
 			case 'v':
 				if (extract)
@@ -1719,6 +1812,9 @@ int main (int argc, char **argv)
 		usage(argv);
 	}
 
+	if (do_ptrace && !filter_task && (filter_pid < 0))
+		die(" -c can only be used with -F or -P");
+
 	if ((argc - optind) >= 2) {
 		if (!record)
 			die("Command start does not take any commands\n"
@@ -1794,10 +1890,13 @@ int main (int argc, char **argv)
 			run_cmd((argc - optind) - 1, &argv[optind + 1]);
 		else {
 			update_task_filter();
+			/* We don't ptrace ourself */
+			if (do_ptrace && filter_pid >= 0)
+				ptrace_attach(filter_pid);
 			/* sleep till we are woken with Ctrl^C */
 			printf("Hit Ctrl^C to stop recording\n");
 			while (!finished)
-				sleep(10);
+				trace_or_sleep();
 		}
 
 		disable_tracing();

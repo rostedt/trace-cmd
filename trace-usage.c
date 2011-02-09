@@ -24,6 +24,7 @@ static struct usage_help usage_help[] = {
 		"          -p run command with plugin enabled\n"
 		"          -F filter only on the given process\n"
 		"          -P trace the given pid like -F for the command\n"
+		"          -c also trace the childen of -F or -P\n"
 		"          -l filter function name\n"
 		"          -g set graph function\n"
 		"          -n do not trace function\n"
