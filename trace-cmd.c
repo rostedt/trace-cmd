@@ -93,6 +93,15 @@ static struct func_list *filter_funcs;
 static struct func_list *notrace_funcs;
 static struct func_list *graph_funcs;
 
+struct filter_pids {
+	struct filter_pids *next;
+	int pid;
+};
+
+static struct filter_pids *filter_pids;
+static int nr_filter_pids;
+static int len_filter_pids;
+
 struct opt_list {
 	struct opt_list *next;
 	const char	*option;
@@ -329,6 +338,20 @@ static void reset_max_latency(void)
 	fclose(fp);
 }
 
+static void add_filter_pid(int pid)
+{
+	struct filter_pids *p;
+	char buf[100];
+
+	p = malloc_or_die(sizeof(*p));
+	p->next = filter_pids;
+	p->pid = pid;
+	filter_pids = p;
+	nr_filter_pids++;
+
+	len_filter_pids += sprintf(buf, "%d", pid);
+}
+
 static void update_ftrace_pid(const char *pid, int reset)
 {
 	static char *path;
@@ -376,8 +399,72 @@ static void update_ftrace_pid(const char *pid, int reset)
 	write(fd, " ", 1);
 }
 
+static void update_event_filters(const char *pid_filter);
 static void update_pid_event_filters(const char *pid);
 static void enable_tracing(void);
+static void
+update_sched_event(struct event_list **event, const char *file,
+		   const char *pid_filter, const char *field_filter);
+
+static char *make_pid_filter(const char *field)
+{
+	struct filter_pids *p;
+	char *filter;
+	char *orit;
+	char *str;
+	int len;
+
+	filter = malloc_or_die(len_filter_pids +
+		       (strlen(field) + strlen("(==)||")) * nr_filter_pids);
+	/* Last '||' that is not used will cover the \0 */
+	str = filter;
+
+	for (p = filter_pids; p; p = p->next) {
+		if (p == filter_pids)
+			orit = "";
+		else
+			orit = "||";
+		len = sprintf(str, "%s(%s==%d)", orit, field, p->pid);
+		str += len;
+	}
+
+	return filter;
+}
+
+static void add_new_filter_pid(int pid)
+{
+	char *pid_filter;
+	char *filter;
+	char buf[100];
+
+	add_filter_pid(pid);
+	sprintf(buf, "%d", pid);
+	update_ftrace_pid(buf, 0);
+
+	pid_filter = make_pid_filter("common_pid");
+	update_event_filters(pid_filter);
+
+	if (!sched_event && !sched_switch_event
+	    && !sched_wakeup_event && !sched_wakeup_new_event)
+		return;
+
+	/*
+	 * Also make sure that the sched_switch to this pid
+	 * and wakeups of this pid are also traced.
+	 * Only need to do this if the events are active.
+	 */
+	filter = make_pid_filter("next_pid");
+	update_sched_event(&sched_switch_event, "sched/sched_switch", pid_filter, filter);
+	free(filter);
+
+	filter = make_pid_filter("pid");
+	update_sched_event(&sched_wakeup_event, "sched/sched_wakeup",
+			   pid_filter, filter);
+	update_sched_event(&sched_wakeup_new_event, "sched/sched_wakeup_new",
+			   pid_filter, filter);
+	free(pid_filter);
+	free(filter);
+}
 
 static void update_task_filter(void)
 {
@@ -412,6 +499,7 @@ static void ptrace_attach(int pid)
 		do_ptrace = 0;
 		return;
 	}
+	add_filter_pid(pid);
 }
 
 static void enable_ptrace(void)
@@ -458,6 +546,7 @@ static void ptrace_wait(int main_pid)
 				       PTRACE_O_TRACEVFORK |
 				       PTRACE_O_TRACECLONE |
 				       PTRACE_O_TRACEEXIT);
+				add_new_filter_pid(child);
 				ptrace(PTRACE_CONT, child, NULL, 0);
 				break;
 
@@ -499,9 +588,10 @@ void run_cmd(int argc, char **argv)
 		if (execvp(argv[0], argv))
 			exit(-1);
 	}
-	if (do_ptrace)
+	if (do_ptrace) {
+		add_filter_pid(pid);
 		ptrace_wait(pid);
-	else
+	} else
 		waitpid(pid, &status, 0);
 }
 
@@ -751,6 +841,8 @@ update_event(struct event_list *event, const char *filter,
 	int ret;
 
 	if (use_old_event_method()) {
+		if (filter_only)
+			return;
 		old_update_events(name, update);
 		return;
 	}
@@ -882,11 +974,11 @@ static void disable_all(void)
 
 static void
 update_sched_event(struct event_list **event, const char *file,
-		   const char *field, const char *pid)
+		   const char *pid_filter, const char *field_filter)
 {
+	char *event_filter;
 	char *filter;
 	char *path;
-	char *buf;
 	char *p;
 
 	if (!*event) {
@@ -912,57 +1004,77 @@ update_sched_event(struct event_list **event, const char *file,
 
 	filter = (*event)->filter;
 
-	if (!filter) {
-		filter = malloc_or_die(strlen(pid) + strlen(field) +
-				       strlen("(==)") + 1);
-		sprintf(filter, "(%s==%s)", field, pid);
+	if (filter) {
+		event_filter = malloc_or_die(strlen(pid_filter) +
+					     strlen(field_filter) +
+					     strlen(filter) +
+				       strlen("(()||())&&()") + 1);
+		sprintf(event_filter, "((%s)||(%s))&&(%s)",
+			pid_filter, field_filter, filter);
 	} else {
-		buf = filter;
-		filter = malloc_or_die(strlen(pid) + strlen(field) +
-				       strlen(buf) + strlen("()||(==)") + 1);
-		sprintf(filter, "(%s)||(%s==%s)", buf, field, pid);
-		free(buf);
+		event_filter = malloc_or_die(strlen(pid_filter) +
+					     strlen(field_filter) +
+					     strlen("(()||())") + 1);
+		sprintf(event_filter, "((%s)||(%s))",
+			pid_filter, field_filter);
 	}
+	write_filter(path, event_filter);
+	free(event_filter);
+}
 
-	(*event)->filter = filter;
+static void update_event_filters(const char *pid_filter)
+{
+	struct event_list *event;
+	char *event_filter;
+	int free_it;
+	int len;
 
-	write_filter(path, filter);
+	len = strlen(pid_filter);
+	for (event = event_selection; event; event = event->next) {
+		if (!event->neg) {
+			free_it = 0;
+			if (event->filter) {
+				event_filter = malloc_or_die(len +
+				     strlen(event->filter) + strlen("()&&()" + 1));
+				free_it = 1;
+				sprintf(event_filter, "(%s)&&(%s)",
+					pid_filter, event->filter);
+			} else
+				event_filter = (char *)pid_filter;
+			update_event(event, event_filter, 1, '1');
+			if (free_it)
+				free(event_filter);
+		}
+	}
 }
 
 static void update_pid_event_filters(const char *pid)
 {
-	struct event_list *event;
+	char *pid_filter;
 	char *filter;
 
-	filter = malloc_or_die(strlen(pid) + strlen("(common_pid==)") + 1);
-	sprintf(filter, "(common_pid==%s)", pid);
-
-	for (event = event_selection; event; event = event->next) {
-		if (!event->neg) {
-			if (event->filter) {
-				event->filter =
-					realloc(event->filter,
-						strlen(event->filter) +
-						strlen("&&") +
-						strlen(filter) + 1);
-					strcat(event->filter, "&&");
-					strcat(event->filter, filter);
-			} else
-				event->filter = strdup(filter);
-			update_event(event, event->filter, 1, '1');
-		}
-	}
-
-	free(filter);
+	pid_filter = malloc_or_die(strlen(pid) + strlen("common_pid==") + 1);
+	sprintf(pid_filter, "common_pid==%s", pid);
+	update_event_filters(pid_filter);
 
 	/*
 	 * Also make sure that the sched_switch to this pid
 	 * and wakeups of this pid are also traced.
 	 * Only need to do this if the events are active.
 	 */
-	update_sched_event(&sched_switch_event, "sched/sched_switch", "next_pid", pid);
-	update_sched_event(&sched_wakeup_event, "sched/sched_wakeup", "pid", pid);
-	update_sched_event(&sched_wakeup_new_event, "sched/sched_wakeup_new", "pid", pid);
+	filter = malloc_or_die(strlen(pid) + strlen("next_pid==") + 1);
+	sprintf(filter, "next_pid==%s", pid);
+	update_sched_event(&sched_switch_event, "sched/sched_switch", pid_filter, filter);
+	free(filter);
+
+	filter = malloc_or_die(strlen(pid) + strlen("pid==") + 1);
+	sprintf(filter, "pid==%s", pid);
+	update_sched_event(&sched_wakeup_event, "sched/sched_wakeup",
+			   pid_filter, filter);
+	update_sched_event(&sched_wakeup_new_event, "sched/sched_wakeup_new",
+			   pid_filter, filter);
+	free(pid_filter);
+	free(filter);
 }
 
 static void enable_events(void)
