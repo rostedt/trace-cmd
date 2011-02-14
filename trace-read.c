@@ -679,10 +679,47 @@ static void add_cpu(const char *cpu_str)
 		__add_cpu(cpu);
 }
 
+static void read_file_fd(int fd, char *dst, int len)
+{
+	size_t size = 0;
+	int r;
+
+	do {
+		r = read(fd, dst+size, len);
+		if (r > 0) {
+			size += r;
+			len -= r;
+		}
+	} while (r > 0);
+}
+
+static void add_functions(struct pevent *pevent, const char *file)
+{
+	struct stat st;
+	char *buf;
+	int ret;
+	int fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		die("Can't read file %s", file);
+
+	ret = fstat(fd, &st);
+	if (ret < 0)
+		die("Can't stat file %s", file);
+
+	buf = malloc_or_die(st.st_size);
+	read_file_fd(fd, buf, st.st_size);
+	close(fd);
+	parse_proc_kallsyms(pevent, buf, st.st_size);
+	free(buf);
+}
+
 void trace_report (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
 	struct pevent *pevent;
+	const char *functions = NULL;
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
@@ -709,6 +746,7 @@ void trace_report (int argc, char **argv)
 			{"cpu", required_argument, NULL, 0},
 			{"events", no_argument, NULL, 0},
 			{"filter-test", no_argument, NULL, 'T'},
+			{"kallsyms", required_argument, NULL, 0},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -785,6 +823,9 @@ void trace_report (int argc, char **argv)
 			case 2: /* filter-test */
 				test_filters = 1;
 				break;
+			case 3: /* kallsyms */
+				functions = optarg;
+				break;
 			default:
 				usage(argv);
 			}
@@ -823,6 +864,9 @@ void trace_report (int argc, char **argv)
 
 	if (test_filters)
 		pevent->test_filters = 1;
+
+	if (functions)
+		add_functions(pevent, functions);
 
 	if (show_endian) {
 		printf("file is %s endian and host is %s endian\n",
