@@ -773,14 +773,17 @@ void trace_report (int argc, char **argv)
 			break;
 		case 0:
 			switch(option_index) {
-			case 0:
+			case 0: /* cpu */
 				if (filter_cpu)
 					add_cpu(optarg);
 				else
 					filter_cpu = atoi(optarg);
 				break;
-			case 1:
+			case 1: /* events */
 				print_events = 1;
+				break;
+			case 2: /* filter-test */
+				test_filters = 1;
 				break;
 			default:
 				usage(argv);
