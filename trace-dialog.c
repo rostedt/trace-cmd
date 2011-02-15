@@ -267,6 +267,9 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 	va_list ap;
 	int result;
 
+	if (!parent)
+		parent = GTK_WINDOW(parent_window);
+
 	switch (type) {
 	case TRACE_GUI_INFO:
 		mtype = GTK_MESSAGE_INFO;
