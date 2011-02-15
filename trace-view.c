@@ -772,7 +772,6 @@ static void search_tree(gpointer data)
 			break;
 	}
 
-
 	if (!found) {
 		printf("NOT FOUND!\n");
 		/* show pop up */

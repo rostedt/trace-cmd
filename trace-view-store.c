@@ -387,18 +387,18 @@ trace_view_store_get_path (GtkTreeModel *tree_model,
 {
 	GtkTreePath	*path;
 	TraceViewRecord *record;
-	TraceViewStore	*trace_view_store;
+	TraceViewStore	*store;
 
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST(tree_model), NULL);
 	g_return_val_if_fail (iter != NULL,	NULL);
 	g_return_val_if_fail (iter->user_data != NULL,	NULL);
 
-	trace_view_store = TRACE_VIEW_STORE(tree_model);
+	store = TRACE_VIEW_STORE(tree_model);
 
 	record = (TraceViewRecord*) iter->user_data;
 
 	path = gtk_tree_path_new();
-	gtk_tree_path_append_index(path, record->pos);
+	gtk_tree_path_append_index(path, record->pos - store->start_row);
 
 	return path;
 }
@@ -1106,8 +1106,9 @@ gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts)
 static TraceViewRecord *get_row(TraceViewStore *store, gint row)
 {
 	TraceViewRecord *record;
+	gint index = row - store->start_row;
 
-	g_return_val_if_fail(row >= store->start_row && row < store->visible_rows, NULL);
+	g_return_val_if_fail(index >= 0 && index < store->visible_rows, NULL);
 
 	record = store->rows[row];
 	g_assert(record != NULL);
