@@ -38,6 +38,7 @@ static GtkWidget *statuspix;
 static GString *statusstr;
 
 static GtkWidget *parent_window;
+static GdkCursor *parent_cursor;
 
 static void (*alt_warning)(const char *fmt, va_list ap);
 
@@ -86,6 +87,37 @@ void pr_stat(const char *fmt, ...)
 void trace_dialog_register_window(GtkWidget *window)
 {
 	parent_window = window;
+}
+
+void trace_set_cursor(GdkCursorType type)
+{
+	GdkWindow *window = GTK_WIDGET(parent_window)->window;
+	GdkCursor *cursor;
+
+	if (!parent_cursor)
+		parent_cursor = gdk_window_get_cursor(window);
+	else {
+		/* destroy the old one */
+		cursor = gdk_window_get_cursor(window);
+		if (cursor && cursor != parent_cursor)
+			gdk_cursor_unref(cursor);
+	}
+	
+	cursor = gdk_cursor_new(type);
+	if (!cursor)
+		die("Can't create cursor");
+	gdk_window_set_cursor(window, cursor);
+}
+
+void trace_put_cursor(void)
+{
+	GdkWindow *window = GTK_WIDGET(parent_window)->window;
+	GdkCursor *cursor;
+	
+	cursor = gdk_window_get_cursor(window);
+	if (cursor && cursor != parent_cursor)
+		gdk_cursor_unref(cursor);
+	gdk_window_set_cursor(window, parent_cursor);
 }
 
 /**

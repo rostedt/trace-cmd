@@ -52,6 +52,9 @@ gchar *trace_get_file_dialog_filter(const gchar *title, const char *open,
 gchar *trace_get_file_dialog(const gchar *title, const char *open,
 			     gboolean warn);
 
+void trace_set_cursor(GdkCursorType type);
+void trace_put_cursor(void);
+
 GtkWidget *
 trace_create_combo_box(GtkWidget *hbox, const gchar *text,
 		       GtkTreeModel *(*combo_model_create)(gpointer data),
