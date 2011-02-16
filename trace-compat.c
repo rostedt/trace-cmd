@@ -17,9 +17,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  The parts for function graph printing was taken and modified from the
- *  Linux Kernel that were written by Frederic Weisbecker.
  */
 #include "trace-compat.h"
 #include "trace-gui.h"
