@@ -1140,6 +1140,25 @@ trace_view_store_get_visible_row(TraceViewStore *store, gint row)
 	return get_row(store, row);
 }
 
+TraceViewRecord *
+trace_view_store_get_actual_row(TraceViewStore *store, gint row)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), NULL);
+	g_return_val_if_fail (row >= 0, NULL);
+	g_return_val_if_fail (row < store->actual_rows, NULL);
+
+	if (!store->rows)
+		return NULL;
+
+	return store->rows[row];
+}
+
+gint trace_view_store_get_num_actual_rows(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), -1);
+	return store->actual_rows;
+}
+
 gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct record *record)
 {
 	unsigned long long val;
@@ -1339,7 +1358,6 @@ void trace_view_store_assign_filters(TraceViewStore *store,
 	if (store->task_filter != task_filter)
 		store->task_filter = filter_task_hash_copy(task_filter);
 }
-
 
 /*****************************************************************************
  *

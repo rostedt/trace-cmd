@@ -154,6 +154,10 @@ TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 
 TraceViewRecord *trace_view_store_get_visible_row(TraceViewStore *store, gint row);
 
+TraceViewRecord *trace_view_store_get_actual_row(TraceViewStore *store, gint row);
+
+gint trace_view_store_get_num_actual_rows(TraceViewStore *store);
+
 gboolean trace_view_store_event_enabled(TraceViewStore *store, gint event_id);
 
 void trace_view_store_set_all_events_enabled(TraceViewStore *store);
@@ -246,4 +250,5 @@ trace_view_store_get_event_filter(TraceViewStore *store)
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);
 	return store->event_filter;
 }
+
 #endif /* _trace_view_store_h_included_ */
