@@ -226,6 +226,12 @@ static inline gint trace_view_store_get_page(TraceViewStore *store)
 	return store->page;
 }
 
+static inline gint trace_view_store_get_pages(TraceViewStore *store)
+{
+	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), -1);
+	return store->pages;
+}
+
 static inline gint trace_view_store_visible_rows(TraceViewStore *store)
 {
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), 0);
