@@ -28,6 +28,7 @@
 #include "trace-cmd.h"
 #include "trace-local.h"
 #include "trace-view.h"
+#include "trace-gui.h"
 #include "trace-compat.h"
 #include "cpu.h"
 #include "util.h"
@@ -773,8 +774,7 @@ static void search_tree(gpointer data)
 	}
 
 	if (!found) {
-		printf("NOT FOUND!\n");
-		/* show pop up */
+		trace_dialog(NULL, TRACE_GUI_INFO, "Not found");
 		return;
 	}
 
