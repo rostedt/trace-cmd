@@ -54,6 +54,8 @@ gchar *trace_get_file_dialog(const gchar *title, const char *open,
 
 void trace_set_cursor(GdkCursorType type);
 void trace_put_cursor(void);
+void trace_freeze_all(void);
+void trace_unfreeze_all(void);
 
 GtkWidget *
 trace_create_combo_box(GtkWidget *hbox, const gchar *text,

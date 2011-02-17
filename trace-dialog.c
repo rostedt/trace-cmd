@@ -120,6 +120,16 @@ void trace_put_cursor(void)
 	gdk_window_set_cursor(window, parent_cursor);
 }
 
+void trace_freeze_all(void)
+{
+	gtk_widget_set_sensitive(GTK_WIDGET(parent_window), FALSE);
+}
+
+void trace_unfreeze_all(void)
+{
+	gtk_widget_set_sensitive(GTK_WIDGET(parent_window), TRUE);
+}
+
 /**
  * trace_dialog_register_alt_warning - register an alternate function for warning()
  * @alt: the function to be called instead of warning.
