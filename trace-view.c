@@ -738,8 +738,15 @@ static void search_tree(gpointer data)
 	if (!gtk_tree_model_iter_nth_child(model, &iter, NULL, start_row))
 		return;
 
+	trace_set_cursor(GDK_WATCH);
+	trace_freeze_all();
+
 	search_val = atoi(search_text);
 	while (gtk_tree_model_iter_next(model, &iter)) {
+
+		/* Needed to process the cursor change */
+		gtk_main_iteration_do(FALSE);
+
 		switch (col_num) {
 		case TRACE_VIEW_STORE_COL_INDEX:
 		case TRACE_VIEW_STORE_COL_CPU:
@@ -772,6 +779,8 @@ static void search_tree(gpointer data)
 		if (found)
 			break;
 	}
+	trace_unfreeze_all();
+	trace_put_cursor();
 
 	if (!found) {
 		trace_dialog(NULL, TRACE_GUI_INFO, "Not found");
