@@ -744,7 +744,7 @@ static void search_next_pages(GtkTreeView *tree,
 	for (; row < total_rows; row++) {
 
 		/* Needed to process the cursor change */
-		if (row & (1 << 5))
+		if (!(row & ((1 << 5)-1)))
 			gtk_main_iteration_do(FALSE);
 
 		rec = trace_view_store_get_actual_row(store, row);
@@ -782,6 +782,7 @@ static void search_tree(gpointer data)
 	gint search_val;
 	gint start_row;
 	gboolean found = FALSE;
+	gint i = 0;
 
 	col_num = gtk_combo_box_get_active(col_combo);
 	sel = gtk_combo_box_get_active(sel_combo);
@@ -822,9 +823,9 @@ static void search_tree(gpointer data)
 
 	search_val = atoi(search_text);
 	while (gtk_tree_model_iter_next(model, &iter)) {
-
 		/* Needed to process the cursor change */
-		gtk_main_iteration_do(FALSE);
+		if (!(i++ & ((1 << 5)-1)))
+		    gtk_main_iteration_do(FALSE);
 
 		found = test_row(model, &iter, sel, col_num, search_val, search_text);
 		if (found)
