@@ -426,7 +426,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	const gchar *comm;
 	gchar *str;
 	guint64 secs, usecs;
-	gint val, pos;
+	gint val;
 	int cpu;
 
 	g_return_if_fail (TRACE_VIEW_IS_LIST (tree_model));
@@ -442,11 +442,6 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	record = (TraceViewRecord*)iter->user_data;
 
 	g_return_if_fail ( record != NULL );
-
-	pos = record->pos - trace_view_store->start_row;
-
-	if(pos >= trace_view_store->num_rows)
-		g_return_if_reached();
 
 	column = get_visible_column(TRACE_VIEW_STORE(tree_model), column);
 

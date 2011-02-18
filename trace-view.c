@@ -683,6 +683,87 @@ static gboolean test_text(const gchar *text, const gchar *search_text, enum sele
 	return FALSE;
 }
 
+static gboolean test_row(GtkTreeModel *model, GtkTreeIter *iter, gint sel,
+			 gint col_num, gint search_val, const gchar *search_text)
+{
+	gchar *text = NULL;
+	gboolean found = FALSE;
+	gint val;
+
+	switch (col_num) {
+	case TRACE_VIEW_STORE_COL_INDEX:
+	case TRACE_VIEW_STORE_COL_CPU:
+	case TRACE_VIEW_STORE_COL_PID:
+		/* integers */
+
+		gtk_tree_model_get(model, iter,
+				   col_num, &val,
+				   -1);
+		if (test_int(val, search_val, sel))
+			found = TRUE;
+		break;
+
+	case TRACE_VIEW_STORE_COL_TS:
+	case TRACE_VIEW_STORE_COL_COMM:
+	case TRACE_VIEW_STORE_COL_LAT:
+	case TRACE_VIEW_STORE_COL_EVENT:
+	case TRACE_VIEW_STORE_COL_INFO:
+		/* strings */
+
+		gtk_tree_model_get(model, iter,
+				   col_num, &text,
+				   -1);
+
+		if (test_text(text, search_text, sel))
+			found = TRUE;
+		break;
+	}
+
+	return found;
+}
+
+static void search_next_pages(GtkTreeView *tree,
+			      TraceViewStore *store, gint sel, gint col_num,
+			      gint search_val, const char *search_text)
+{
+	GtkTreeModel *model;
+	TraceViewRecord *rec;
+	GtkTreeIter iter;
+	gint row;
+	gint total_rows;
+	gboolean found = FALSE;
+
+	model = (GtkTreeModel *)store;
+
+	row = store->start_row + store->num_rows;
+	total_rows = trace_view_store_get_num_actual_rows(store);
+
+	trace_set_cursor(GDK_WATCH);
+	trace_freeze_all();
+
+	for (; row < total_rows; row++) {
+
+		/* Needed to process the cursor change */
+		if (row & (1 << 5))
+			gtk_main_iteration_do(FALSE);
+
+		rec = trace_view_store_get_actual_row(store, row);
+		iter.user_data = rec;
+		found = test_row(model, &iter, sel, col_num, search_val, search_text);
+		if (found)
+			break;
+	}
+	trace_unfreeze_all();
+	trace_put_cursor();
+
+	if (!found) {
+		trace_dialog(NULL, TRACE_GUI_INFO, "Not found");
+		return;
+	}
+
+	trace_view_select(GTK_WIDGET(tree), rec->timestamp);
+}
+
 static void search_tree(gpointer data)
 {
 	struct search_info *info = data;
@@ -695,8 +776,6 @@ static void search_tree(gpointer data)
 	GtkComboBox *col_combo = GTK_COMBO_BOX(info->column);
 	GtkComboBox *sel_combo = GTK_COMBO_BOX(info->selection);
 	const gchar *title;
-	gint val;
-	gchar *text = NULL;
 	const gchar *search_text;
 	gint col_num;
 	gint sel;
@@ -747,35 +826,7 @@ static void search_tree(gpointer data)
 		/* Needed to process the cursor change */
 		gtk_main_iteration_do(FALSE);
 
-		switch (col_num) {
-		case TRACE_VIEW_STORE_COL_INDEX:
-		case TRACE_VIEW_STORE_COL_CPU:
-		case TRACE_VIEW_STORE_COL_PID:
-		/* integers */
-
-			gtk_tree_model_get(model, &iter,
-					   col_num, &val,
-					   -1);
-			if (test_int(val, search_val, sel))
-				found = TRUE;
-			break;
-
-		case TRACE_VIEW_STORE_COL_TS:
-		case TRACE_VIEW_STORE_COL_COMM:
-		case TRACE_VIEW_STORE_COL_LAT:
-		case TRACE_VIEW_STORE_COL_EVENT:
-		case TRACE_VIEW_STORE_COL_INFO:
-			/* strings */
-
-			gtk_tree_model_get(model, &iter,
-					   col_num, &text,
-					   -1);
-
-			if (test_text(text, search_text, sel))
-				found = TRUE;
-			break;
-		}
-
+		found = test_row(model, &iter, sel, col_num, search_val, search_text);
 		if (found)
 			break;
 	}
@@ -783,6 +834,19 @@ static void search_tree(gpointer data)
 	trace_put_cursor();
 
 	if (!found) {
+		GtkResponseType ret;
+		gint pages = trace_view_store_get_pages(store);
+		gint page = trace_view_store_get_page(store);
+
+		if (page < pages) {
+			ret = trace_dialog(NULL, TRACE_GUI_ASK,
+					   "Not found on this page\n"
+					   "Search next pages?");
+			if (ret == GTK_RESPONSE_YES)
+				search_next_pages(info->treeview, store, sel,
+						  col_num, search_val, search_text);
+			return;
+		}
 		trace_dialog(NULL, TRACE_GUI_INFO, "Not found");
 		return;
 	}
