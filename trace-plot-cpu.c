@@ -449,6 +449,7 @@ static void cpu_plot_destroy(struct graph_info *ginfo, struct graph_plot *plot)
 	struct cpu_plot_info *cpu_info = plot->private;
 
 	trace_graph_plot_remove_cpu(ginfo, plot, cpu_info->cpu);
+	free_record(cpu_info->last_record);
 	free(cpu_info);
 }
 
