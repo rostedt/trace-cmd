@@ -38,7 +38,6 @@ static GtkWidget *statuspix;
 static GString *statusstr;
 
 static GtkWidget *parent_window;
-static GdkCursor *parent_cursor;
 
 static void (*alt_warning)(const char *fmt, va_list ap);
 
@@ -89,6 +88,36 @@ void trace_dialog_register_window(GtkWidget *window)
 	parent_window = window;
 }
 
+static struct cursor_stack {
+	struct cursor_stack	*next;
+	GdkCursor		*cursor;
+} *cursor_stack;
+
+static void push_cursor(GdkCursor *cursor)
+{
+	struct cursor_stack *item;
+
+	item = malloc_or_die(sizeof(item));
+	item->next = cursor_stack;
+	cursor_stack = item;
+	item->cursor = cursor;
+}
+
+static GdkCursor *pop_cursor(void)
+{
+	struct cursor_stack *item;
+	GdkCursor *cursor;
+
+	item = cursor_stack;
+	if (!item)
+		return NULL;
+
+	cursor_stack = item->next;
+	cursor = item->cursor;
+	free(item);
+	return cursor;
+}
+
 void trace_set_cursor(GdkCursorType type)
 {
 	GdkWindow *window;
@@ -99,15 +128,10 @@ void trace_set_cursor(GdkCursorType type)
 
 	window = GTK_WIDGET(parent_window)->window;
 
-	if (!parent_cursor)
-		parent_cursor = gdk_window_get_cursor(window);
-	else {
-		/* destroy the old one */
-		cursor = gdk_window_get_cursor(window);
-		if (cursor && cursor != parent_cursor)
-			gdk_cursor_unref(cursor);
-	}
-	
+	/* save the previous cursor */
+	cursor = gdk_window_get_cursor(window);
+	push_cursor(cursor);
+
 	cursor = gdk_cursor_new(type);
 	if (!cursor)
 		die("Can't create cursor");
@@ -124,9 +148,11 @@ void trace_put_cursor(void)
 
 	window = GTK_WIDGET(parent_window)->window;
 	cursor = gdk_window_get_cursor(window);
-	if (cursor && cursor != parent_cursor)
+	if (cursor)
 		gdk_cursor_unref(cursor);
-	gdk_window_set_cursor(window, parent_cursor);
+
+	cursor = pop_cursor();
+	gdk_window_set_cursor(window, cursor);
 }
 
 void trace_freeze_all(void)
