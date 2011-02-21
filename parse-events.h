@@ -35,6 +35,10 @@
 #define TRACE_SEQ_BUF_SIZE 4096
 #endif
 
+#ifndef DEBUG_RECORD
+#define DEBUG_RECORD 0
+#endif
+
 struct record {
 	unsigned long long	ts;
 	unsigned long long	offset;
@@ -46,6 +50,11 @@ struct record {
 	int			ref_count;
 	int			locked;		/* Do not free, even if ref_count is zero */
 	void			*private;
+#if DEBUG_RECORD
+	struct record		*prev;
+	struct record		*next;
+	long			alloc_addr;
+#endif
 };
 
 /*

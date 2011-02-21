@@ -54,6 +54,9 @@ struct page {
 	void			*map;
 	int			ref_count;
 	long long		lost_events;
+#if DEBUG_RECORD
+	struct record		*records;
+#endif
 };
 
 struct cpu_data {
@@ -91,6 +94,53 @@ struct tracecmd_input {
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
+
+#if DEBUG_RECORD
+static void remove_record(struct page *page, struct record *record)
+{
+	if (record->prev)
+		record->prev->next = record->next;
+	else
+		page->records = record->next;
+	if (record->next)
+		record->next->prev = record->prev;
+}
+static void add_record(struct page *page, struct record *record)
+{
+	if (page->records)
+		page->records->prev = record;
+	record->next = page->records;
+	record->prev = NULL;
+	page->records = record;
+}
+static const char *show_records(struct list_head *pages)
+{
+	static char buf[BUFSIZ + 1];
+	struct record *record;
+	struct page *page;
+	int len;
+
+	memset(buf, 0, sizeof(buf));
+	len = 0;
+	list_for_each_entry(page, pages, struct page, list) {
+		for (record = page->records; record; record = record->next) {
+			int n;
+			n = snprintf(buf+len, BUFSIZ - len, " 0x%lx", record->alloc_addr);
+			len += n;
+			if (len >= BUFSIZ)
+				break;
+		}
+	}
+	return buf;
+}
+#else
+static inline void remove_record(struct page *page, struct record *record) {}
+static inline void add_record(struct page *page, struct record *record) {}
+static const char *show_records(struct list_head *pages)
+{
+	return "";
+}
+#endif
 
 static int init_cpu(struct tracecmd_input *handle, int cpu);
 
@@ -648,6 +698,7 @@ static void __free_record(struct record *record)
 {
 	if (record->private) {
 		struct page *page = record->private;
+		remove_record(page, record);
 		__free_page(page->handle, page);
 	}
 
@@ -678,6 +729,10 @@ void free_record(struct record *record)
 void tracecmd_record_ref(struct record *record)
 {
 	record->ref_count++;
+#if DEBUG_RECORD
+	/* Update locating of last reference */
+	record->alloc_addr = (unsigned long)__builtin_return_address(0);
+#endif
 }
 
 static void free_next(struct tracecmd_input *handle, int cpu)
@@ -1583,6 +1638,7 @@ read_again:
 
 	record->record_size = handle->cpu_data[cpu].index - index;
 	record->private = page;
+	add_record(page, record);
 	page->ref_count++;
 
 	return record;
@@ -1605,9 +1661,12 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
-	if (record)
+	if (record) {
 		record->locked = 0;
-
+#if DEBUG_RECORD
+		record->alloc_addr = (unsigned long)__builtin_return_address(0);
+#endif
+	}
 	return record;
 }
 
@@ -2124,7 +2183,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 		free_next(handle, cpu);
 		free_page(handle, cpu);
 		if (!list_empty(&handle->cpu_data[cpu].pages))
-			warning("pages still allocated on cpu %d", cpu);
+			warning("pages still allocated on cpu %d%s",
+				cpu, show_records(&handle->cpu_data[cpu].pages));
 	}
 
 	free(handle->cpu_data);
