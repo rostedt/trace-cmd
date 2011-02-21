@@ -1894,7 +1894,8 @@ out:
 		plot = ginfo->plot_array[i];
 		draw_plot(ginfo, plot, NULL);
 		trace_graph_plot_end(ginfo, plot);
-		gdk_gc_unref(plot->gc);
+		if (plot->gc)
+			gdk_gc_unref(plot->gc);
 		plot->gc = NULL;
 	}
 }
