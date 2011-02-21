@@ -91,8 +91,13 @@ void trace_dialog_register_window(GtkWidget *window)
 
 void trace_set_cursor(GdkCursorType type)
 {
-	GdkWindow *window = GTK_WIDGET(parent_window)->window;
+	GdkWindow *window;
 	GdkCursor *cursor;
+
+	if (!parent_window)
+		return;
+
+	window = GTK_WIDGET(parent_window)->window;
 
 	if (!parent_cursor)
 		parent_cursor = gdk_window_get_cursor(window);
@@ -111,9 +116,13 @@ void trace_set_cursor(GdkCursorType type)
 
 void trace_put_cursor(void)
 {
-	GdkWindow *window = GTK_WIDGET(parent_window)->window;
+	GdkWindow *window;
 	GdkCursor *cursor;
-	
+
+	if (!parent_window)
+		return;
+
+	window = GTK_WIDGET(parent_window)->window;
 	cursor = gdk_window_get_cursor(window);
 	if (cursor && cursor != parent_cursor)
 		gdk_cursor_unref(cursor);
@@ -122,12 +131,14 @@ void trace_put_cursor(void)
 
 void trace_freeze_all(void)
 {
-	gtk_widget_set_sensitive(GTK_WIDGET(parent_window), FALSE);
+	if (parent_window)
+		gtk_widget_set_sensitive(GTK_WIDGET(parent_window), FALSE);
 }
 
 void trace_unfreeze_all(void)
 {
-	gtk_widget_set_sensitive(GTK_WIDGET(parent_window), TRUE);
+	if (parent_window)
+		gtk_widget_set_sensitive(GTK_WIDGET(parent_window), TRUE);
 }
 
 /**
