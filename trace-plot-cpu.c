@@ -200,6 +200,7 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 	cpu = cpu_info->cpu;
 	cpu_info->last_time = 0ULL;
 	cpu_info->last_pid = -1;
+	free_record(cpu_info->last_record);
 	cpu_info->last_record = NULL;
 }
 
@@ -470,6 +471,7 @@ static void add_cpu_plot(struct graph_info *ginfo, gint cpu)
 	char label[100];
 
 	cpu_info = malloc_or_die(sizeof(*cpu_info));
+	memset(cpu_info, 0, sizeof(*cpu_info));
 	cpu_info->cpu = cpu;
 
 	snprintf(label, 100, "CPU %d", cpu);
