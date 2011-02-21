@@ -2370,9 +2370,9 @@ void kernel_shark(int argc, char **argv)
 
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
 
+	gdk_threads_enter();
 	gtk_widget_show (window);
 
-	gdk_threads_enter();
 	gtk_main ();
 	gdk_threads_leave();
 }
