@@ -31,6 +31,7 @@
 #include "trace-graph.h"
 #include "trace-hash.h"
 #include "trace-filter.h"
+#include "trace-gui.h"
 
 #include "util.h"
 
@@ -1840,6 +1841,8 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 	tracecmd_set_all_cpus_to_timestamp(ginfo->handle,
 					   ginfo->view_start_time);
 
+	trace_set_cursor(GDK_WATCH);
+
 	/* Shortcut if we don't have any task plots */
 	if (!ginfo->nr_task_hash && !ginfo->all_recs) {
 		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
@@ -1898,6 +1901,7 @@ out:
 			gdk_gc_unref(plot->gc);
 		plot->gc = NULL;
 	}
+	trace_put_cursor();
 }
 
 
