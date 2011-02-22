@@ -624,7 +624,7 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 	struct page *page;
 	int ret;
 
-	list_for_each_entry(page, &cpu_data->pages, struct page, list) {
+	list_for_each_entry(page, &cpu_data->pages, list) {
 		if (page->offset == offset) {
 			page->ref_count++;
 			return page;

@@ -45,6 +45,16 @@ static inline void list_add(struct list_head *p, struct list_head *head)
 	head->next = p;
 }
 
+static inline void list_add_tail(struct list_head *p, struct list_head *head)
+{
+	struct list_head *prev = head->prev;
+
+	p->prev = prev;
+	p->next = head;
+	prev->next = p;
+	head->prev = p;
+}
+
 static inline void list_del(struct list_head *p)
 {
 	struct list_head *next = p->next;
@@ -59,9 +69,9 @@ static inline int list_empty(struct list_head *list)
 	return list->next == list;
 }
 
-#define list_for_each_entry(p, list, type, field)		\
-	for (p = container_of((list)->next, type, field);	\
+#define list_for_each_entry(p, list, field)		\
+	for (p = container_of((list)->next, typeof(*p), field);	\
 	     &(p)->field != list;				\
-	     p = container_of((p)->field.next, type, field))
+	     p = container_of((p)->field.next, typeof(*p), field))
 
 #endif /* __LIST_H */
