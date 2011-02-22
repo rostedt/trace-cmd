@@ -250,6 +250,7 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
 		       sizeof(*pevent->cmdlines), cmdline_cmp);
 	if (cmdline) {
 		errno = EEXIST;
+		free(comm);
 		return -1;
 	}
 
