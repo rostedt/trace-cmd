@@ -229,19 +229,14 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid)
  * we must add this pid. This is much slower than when cmdlines
  * are added before the array is initialized.
  */
-static int add_new_comm(struct pevent *pevent, char *comm, int pid)
+static int add_new_comm(struct pevent *pevent, const char *comm, int pid)
 {
 	struct cmdline *cmdlines = pevent->cmdlines;
 	const struct cmdline *cmdline;
 	struct cmdline key;
 
-	if (!comm)
-		die("malloc comm");
-
-	if (!pid) {
-		free(comm);
+	if (!pid)
 		return 0;
-	}
 
 	/* avoid duplicates */
 	key.pid = pid;
@@ -250,7 +245,6 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
 		       sizeof(*pevent->cmdlines), cmdline_cmp);
 	if (cmdline) {
 		errno = EEXIST;
-		free(comm);
 		return -1;
 	}
 
@@ -261,7 +255,10 @@ static int add_new_comm(struct pevent *pevent, char *comm, int pid)
 	}
 
 	cmdlines[pevent->cmdline_count].pid = pid;
-	cmdlines[pevent->cmdline_count].comm = comm;
+	cmdlines[pevent->cmdline_count].comm = strdup(comm);
+	if (!cmdlines[pevent->cmdline_count].comm)
+		die("malloc comm");
+		
 	if (cmdlines[pevent->cmdline_count].comm)
 	pevent->cmdline_count++;
 
@@ -285,7 +282,7 @@ int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
 	struct cmdline_list *item;
 
 	if (pevent->cmdlines)
-		return add_new_comm(pevent, strdup(comm), pid);
+		return add_new_comm(pevent, comm, pid);
 
 	item = malloc_or_die(sizeof(*item));
 	item->comm = strdup(comm);
