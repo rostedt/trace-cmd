@@ -39,6 +39,7 @@
 
 #include "trace-local.h"
 #include "trace-hash-local.h"
+#include "list.h"
 
 static struct filter {
 	struct filter		*next;
@@ -47,13 +48,30 @@ static struct filter {
 } *filter_strings;
 static struct filter **filter_next = &filter_strings;
 
-static struct event_filter *event_filters;
-static struct event_filter *event_filter_out;
+struct handle_list {
+	struct list_head	list;
+	struct tracecmd_input	*handle;
+	const char		*file;
+	int			cpus;
+	int			done;
+	struct record		*record;
+	struct event_filter	*event_filters;
+	struct event_filter	*event_filter_out;
+};
+static struct list_head handle_list;
+
+struct input_files {
+	struct list_head	list;
+	const char		*file;
+};
+static struct list_head input_files;
 
 static unsigned int page_size;
 static int input_fd;
-const char *default_input_file = "trace.dat";
-const char *input_file;
+static const char *default_input_file = "trace.dat";
+static const char *input_file;
+static int multi_inputs;
+static int max_file_size;
 
 static int filter_cpu = -1;
 static int *filter_cpus;
@@ -231,6 +249,55 @@ static void test_save(struct record *record, int cpu)
 }
 #endif
 
+static void add_input(const char *file)
+{
+	struct input_files *item;
+
+	item = malloc_or_die(sizeof(*item));
+	item->file = file;
+	list_add_tail(&item->list, &input_files);
+}
+
+static void add_handle(struct tracecmd_input *handle, const char *file)
+{
+	struct handle_list *item;
+
+	item = malloc_or_die(sizeof(*item));
+	memset(item, 0, sizeof(*item));
+	item->handle = handle;
+	item->file = file + strlen(file);
+	/* we want just the base name */
+	while (*item->file != '/' && item->file >= file)
+		item->file--;
+	item->file++;
+	if (strlen(item->file) > max_file_size)
+		max_file_size = strlen(item->file);
+
+	list_add_tail(&item->list, &handle_list);
+}
+
+static void free_inputs(void)
+{
+	struct input_files *item;
+
+	while (!list_empty(&input_files)) {
+		item = container_of(input_files.next, struct input_files, list);
+		list_del(&item->list);
+		free(item);
+	}
+}
+
+static void free_handles(void)
+{
+	struct handle_list *item;
+
+	while (!list_empty(&handle_list)) {
+		item = container_of(handle_list.next, struct handle_list, list);
+		list_del(&item->list);
+		free(item);
+	}
+}
+
 static void add_filter(const char *filter, int neg)
 {
 	struct filter *ftr;
@@ -245,7 +312,7 @@ static void add_filter(const char *filter, int neg)
 	filter_next = &ftr->next;
 }
 
-static void process_filters(struct tracecmd_input *handle)
+static void process_filters(struct handle_list *handles)
 {
 	struct event_filter *event_filter;
 	struct pevent *pevent;
@@ -253,17 +320,17 @@ static void process_filters(struct tracecmd_input *handle)
 	char *errstr;
 	int ret;
 
-	pevent = tracecmd_get_pevent(handle);
-	event_filters = pevent_filter_alloc(pevent);
-	event_filter_out = pevent_filter_alloc(pevent);
+	pevent = tracecmd_get_pevent(handles->handle);
+	handles->event_filters = pevent_filter_alloc(pevent);
+	handles->event_filter_out = pevent_filter_alloc(pevent);
 
 	while (filter_strings) {
 		filter = filter_strings;
 		filter_strings = filter->next;
 		if (filter->neg)
-			event_filter = event_filter_out;
+			event_filter = handles->event_filter_out;
 		else
-			event_filter = event_filters;
+			event_filter = handles->event_filters;
 
 		ret = pevent_filter_add_filter_str(event_filter,
 						   filter->filter,
@@ -515,30 +582,21 @@ static void read_rest(void)
 	} while (r > 0);
 }
 
-static void read_data_info(struct tracecmd_input *handle)
+static struct record *
+get_next_record(struct handle_list *handles, int *next_cpu)
 {
 	unsigned long long ts;
 	struct record *record;
-	int cpus;
+	int found = 0;
 	int next;
 	int cpu;
 	int ret;
 
-	ret = tracecmd_init_data(handle);
-	if (ret < 0)
-		die("failed to init data");
+	if (handles->record)
+		return handles->record;
 
-	cpus = tracecmd_cpus(handle);
-	printf("cpus=%d\n", cpus);
-
-	/* Latency trace is just all ASCII */
-	if (ret > 0) {
-		read_rest();
-		return;
-	}
-
-	init_wakeup(handle);
-	process_filters(handle);
+	if (handles->done)
+		return NULL;
 
 	do {
 		next = -1;
@@ -550,7 +608,7 @@ static void read_data_info(struct tracecmd_input *handle)
 			int i;
 
 			for (i = 0; (cpu = filter_cpus[i]) >= 0; i++) {
-				precord = tracecmd_peek_data(handle, cpu);
+				precord = tracecmd_peek_data(handles->handle, cpu);
 				if (precord &&
 				    (!last_stamp || precord->ts < last_stamp)) {
 					next_cpu = cpu;
@@ -558,41 +616,123 @@ static void read_data_info(struct tracecmd_input *handle)
 				}
 			}
 			if (last_stamp)
-				record = tracecmd_read_data(handle, next_cpu);
+				record = tracecmd_read_data(handles->handle, next_cpu);
 			else
 				record = NULL;
 
 		} else if (filter_cpu >= 0) {
 			cpu = filter_cpu;
-			record = tracecmd_read_data(handle, cpu);
+			record = tracecmd_read_data(handles->handle, cpu);
 		} else
-			record = tracecmd_read_next_data(handle, &cpu);
+			record = tracecmd_read_next_data(handles->handle, &cpu);
 
 		if (record) {
-			ret = pevent_filter_match(event_filters, record);
+			ret = pevent_filter_match(handles->event_filters, record);
 			switch (ret) {
 			case FILTER_NONE:
 			case FILTER_MATCH:
-				ret = pevent_filter_match(event_filter_out, record);
-				if (ret != FILTER_MATCH)
-					show_data(handle, record, next);
-				break;
+				ret = pevent_filter_match(handles->event_filter_out, record);
+				if (ret != FILTER_MATCH) {
+					found = 1;
+					break;
+				}
+				free_record(record);
 			}
-			free_record(record);
 		}
-	} while (record);
+	} while (record && !found);
 
-	pevent_filter_free(event_filters);
-	pevent_filter_free(event_filter_out);
+	handles->record = record;
+	if (!record)
+		handles->done = 1;
+	*next_cpu = next;
 
-	show_test(handle);
+	return record;
 }
 
-struct tracecmd_input *read_trace_header(void)
+static void free_handle_record(struct handle_list *handles)
 {
-	input_fd = open(input_file, O_RDONLY);
+	if (!handles->record)
+		return;
+
+	free_record(handles->record);
+	handles->record = NULL;
+}
+
+static void print_handle_file(struct handle_list *handles)
+{
+	/* Only print file names if more than one file is read */
+	if (!multi_inputs)
+		return;
+	printf("%*s: ", max_file_size, handles->file);
+}
+
+static void read_data_info(struct list_head *handle_list)
+{
+	struct handle_list *handles;
+	struct handle_list *last_handle;
+	struct record *record;
+	struct record *last_record;
+	int last_cpu;
+	int cpus;
+	int next;
+	int ret;
+
+	list_for_each_entry(handles, handle_list, list) {
+
+		ret = tracecmd_init_data(handles->handle);
+		if (ret < 0)
+			die("failed to init data");
+
+		cpus = tracecmd_cpus(handles->handle);
+		handles->cpus = cpus;
+		print_handle_file(handles);
+		printf("cpus=%d\n", cpus);
+
+		/* Latency trace is just all ASCII */
+		if (ret > 0) {
+			if (multi_inputs)
+				die("latency traces do not work with multiple inputs");
+			read_rest();
+			return;
+		}
+
+		init_wakeup(handles->handle);
+		process_filters(handles);
+	}
+
+	do {
+		last_handle = NULL;
+		last_record = NULL;
+
+		list_for_each_entry(handles, handle_list, list) {
+			record = get_next_record(handles, &next);
+			if (!last_record ||
+			    (record && record->ts < last_record->ts)) {
+				last_record = record;
+				last_handle = handles;
+				last_cpu = next;
+			}
+		}
+		if (last_record) {
+			print_handle_file(last_handle);
+			show_data(last_handle->handle, last_record, last_cpu);
+			free_handle_record(last_handle);
+		}
+	} while (last_record);
+
+	list_for_each_entry(handles, handle_list, list) {
+		pevent_filter_free(handles->event_filters);
+		pevent_filter_free(handles->event_filter_out);
+
+		show_test(handles->handle);
+	}
+}
+
+struct tracecmd_input *read_trace_header(const char *file)
+{
+	input_fd = open(file, O_RDONLY);
 	if (input_fd < 0)
-		die("opening '%s'\n", input_file);
+		die("opening '%s'\n", file);
 
 	return tracecmd_alloc_fd(input_fd);
 }
@@ -720,6 +860,8 @@ void trace_report (int argc, char **argv)
 	struct tracecmd_input *handle;
 	struct pevent *pevent;
 	const char *functions = NULL;
+	struct input_files *inputs;
+	struct handle_list *handles;
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
@@ -731,6 +873,9 @@ void trace_report (int argc, char **argv)
 	int raw = 0;
 	int neg = 0;
 	int c;
+
+	list_head_init(&handle_list);
+	list_head_init(&input_files);
 
 	if (argc < 2)
 		usage(argv);
@@ -760,7 +905,13 @@ void trace_report (int argc, char **argv)
 			usage(argv);
 			break;
 		case 'i':
-			input_file = optarg;
+			if (input_file) {
+				if (!multi_inputs)
+					add_input(input_file);
+				multi_inputs++;
+				add_input(optarg);
+			} else
+				input_file = optarg;
 			break;
 		case 'F':
 			add_filter(optarg, neg);
@@ -844,75 +995,87 @@ void trace_report (int argc, char **argv)
 	if (!input_file)
 		input_file = default_input_file;
 
-	handle = read_trace_header();
-	if (!handle)
-		die("error reading header");
+	if (!multi_inputs)
+		add_input(input_file);
+	else if (show_wakeup)
+		die("Wakeup tracing can only be done on a single input file");
 
-	page_size = tracecmd_page_size(handle);
+	list_for_each_entry(inputs, &input_files, list) {
+		handle = read_trace_header(inputs->file);
+		if (!handle)
+			die("error reading header for %s", inputs->file);
+		add_handle(handle, inputs->file);
 
-	if (show_page_size) {
-		printf("file page size is %d, and host page size is %d\n",
-		       page_size,
-		       getpagesize());
-		return;
-	}
+		page_size = tracecmd_page_size(handle);
 
-	pevent = tracecmd_get_pevent(handle);
-
-	if (raw)
-		pevent->print_raw = 1;
-
-	if (test_filters)
-		pevent->test_filters = 1;
-
-	if (functions)
-		add_functions(pevent, functions);
-
-	if (show_endian) {
-		printf("file is %s endian and host is %s endian\n",
-		       pevent_is_file_bigendian(pevent) ? "big" : "little",
-		       pevent_is_host_bigendian(pevent) ? "big" : "little");
-		return;
-	}
-
-	if (print_events) {
-		tracecmd_print_events(handle);
-		return;
-	}
-
-	if (tracecmd_read_headers(handle) < 0)
-		return;
-
-	if (show_funcs) {
-		pevent_print_funcs(pevent);
-		return;
-	}
-	if (show_printk) {
-		pevent_print_printk(pevent);
-		return;
-	}
-
-	if (show_events) {
-		struct event_format **events;
-		struct event_format *event;
-		int i;
-
-		events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
-		for (i = 0; events[i]; i++) {
-			event = events[i];
-			if (event->system)
-				printf("%s:", event->system);
-			printf("%s\n", event->name);
+		if (show_page_size) {
+			printf("file page size is %d, and host page size is %d\n",
+			       page_size,
+			       getpagesize());
+			return;
 		}
-		return;
+
+		pevent = tracecmd_get_pevent(handle);
+
+		if (raw)
+			pevent->print_raw = 1;
+
+		if (test_filters)
+			pevent->test_filters = 1;
+
+		if (functions)
+			add_functions(pevent, functions);
+
+		if (show_endian) {
+			printf("file is %s endian and host is %s endian\n",
+			       pevent_is_file_bigendian(pevent) ? "big" : "little",
+			       pevent_is_host_bigendian(pevent) ? "big" : "little");
+			return;
+		}
+
+		if (print_events) {
+			tracecmd_print_events(handle);
+			return;
+		}
+
+		if (tracecmd_read_headers(handle) < 0)
+			return;
+
+		if (show_funcs) {
+			pevent_print_funcs(pevent);
+			return;
+		}
+		if (show_printk) {
+			pevent_print_printk(pevent);
+			return;
+		}
+
+		if (show_events) {
+			struct event_format **events;
+			struct event_format *event;
+			int i;
+
+			events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+			for (i = 0; events[i]; i++) {
+				event = events[i];
+				if (event->system)
+					printf("%s:", event->system);
+				printf("%s\n", event->name);
+			}
+			return;
+		}
 	}
 
 	if (latency_format)
 		pevent_set_latency_format(pevent, latency_format);
 
-	read_data_info(handle);
+	read_data_info(&handle_list);
 
-	tracecmd_close(handle);
+	list_for_each_entry(handles, &handle_list, list) {
+		tracecmd_close(handles->handle);
+	}
+	free_handles();
+	free_inputs();
 
 	finish_wakeup();
 

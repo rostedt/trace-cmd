@@ -33,7 +33,7 @@ void usage(char **argv);
 extern int silence_warnings;
 extern int show_status;
 
-struct tracecmd_input *read_trace_header(void);
+struct tracecmd_input *read_trace_header(const char *file);
 int read_trace_files(void);
 
 void trace_report(int argc, char **argv);
