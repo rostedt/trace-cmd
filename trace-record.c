@@ -1574,6 +1574,7 @@ void trace_record (int argc, char **argv)
 	int run_command = 0;
 	int neg_event = 0;
 	int keep = 0;
+	int date = 0;
 	int fset;
 	int cpu;
 
@@ -1605,148 +1606,148 @@ void trace_record (int argc, char **argv)
 	} else
 		usage(argv);
 
-		while ((c = getopt(argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
-			switch (c) {
-			case 'h':
-				usage(argv);
-				break;
-			case 'a':
-				record_all = 1;
-				while (listed_events) {
-					list = listed_events;
-					listed_events = list->next;
-					free(list);
-				}
-				list = malloc_or_die(sizeof(*list));
-				list->next = NULL;
-				list->glob = "*/*";
-				listed_events = list;
-						
-				break;
-			case 'e':
-				if (extract)
-					usage(argv);
-				events = 1;
-				event = malloc_or_die(sizeof(*event));
-				memset(event, 0, sizeof(*event));
-				event->event = optarg;
-				event->next = event_selection;
-				event->neg = neg_event;
-				event_selection = event;
-				event->filter = NULL;
-				last_event = event;
-
-				if (!record_all) {
-					list = malloc_or_die(sizeof(*list));
-					list->next = listed_events;
-					list->glob = optarg;
-					listed_events = list;
-				}
-
-				break;
-			case 'f':
-				if (!last_event)
-					die("filter must come after event");
-				if (last_event->filter) {
-					last_event->filter =
-						realloc(last_event->filter,
-							strlen(last_event->filter) +
-							strlen("&&()") +
-							strlen(optarg) + 1);
-					strcat(last_event->filter, "&&(");
-					strcat(last_event->filter, optarg);
-					strcat(last_event->filter, ")");
-				} else {
-					last_event->filter =
-						malloc_or_die(strlen(optarg) +
-							      strlen("()") + 1);
-					sprintf(last_event->filter, "(%s)", optarg);
-				}
-				break;
-
-			case 'F':
-				if (filter_pid >= 0)
-					die("-P and -F can not both be specified");
-				filter_task = 1;
-				break;
-			case 'P':
-				if (filter_task)
-					die("-P and -F can not both be specified");
-				if (filter_pid >= 0)
-					die("only one -P pid can be filtered at a time");
-				filter_pid = atoi(optarg);
-				break;
-			case 'c':
-				do_ptrace = 1;
-				break;
-			case 'v':
-				if (extract)
-					usage(argv);
-				neg_event = 1;
-				break;
-			case 'l':
-				add_func(&filter_funcs, optarg);
-				break;
-			case 'n':
-				add_func(&notrace_funcs, optarg);
-				break;
-			case 'g':
-				add_func(&graph_funcs, optarg);
-				break;
-			case 'p':
-				if (plugin)
-					die("only one plugin allowed");
-				plugin = optarg;
-				fprintf(stderr, "  plugin %s\n", plugin);
-				break;
-			case 'd':
-				if (extract)
-					usage(argv);
-				disable = 1;
-				break;
-			case 'o':
-				if (host)
-					die("-o incompatible with -N");
-				if (!record && !extract)
-					die("start does not take output\n"
-					    "Did you mean 'record'?");
-				if (output)
-					die("only one output file allowed");
-				output = optarg;
-				break;
-			case 'O':
-				option = optarg;
-				save_option(option);
-				break;
-			case 's':
-				if (extract)
-					usage(argv);
-				sleep_time = atoi(optarg);
-				break;
-			case 'r':
-				rt_prio = atoi(optarg);
-				break;
-			case 'N':
-				if (!record)
-					die("-N only available with record");
-				if (output)
-					die("-N incompatible with -o");
-				host = optarg;
-				break;
-			case 't':
-				use_tcp = 1;
-				break;
-			case 'b':
-				buffer_size = atoi(optarg);
-				break;
-			case 'k':
-				keep = 1;
-				break;
-			case 'i':
-				ignore_event_not_found = 1;
-				break;
+	while ((c = getopt(argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
+		switch (c) {
+		case 'h':
+			usage(argv);
+			break;
+		case 'a':
+			record_all = 1;
+			while (listed_events) {
+				list = listed_events;
+				listed_events = list->next;
+				free(list);
 			}
+			list = malloc_or_die(sizeof(*list));
+			list->next = NULL;
+			list->glob = "*/*";
+			listed_events = list;
+
+			break;
+		case 'e':
+			if (extract)
+				usage(argv);
+			events = 1;
+			event = malloc_or_die(sizeof(*event));
+			memset(event, 0, sizeof(*event));
+			event->event = optarg;
+			event->next = event_selection;
+			event->neg = neg_event;
+			event_selection = event;
+			event->filter = NULL;
+			last_event = event;
+
+			if (!record_all) {
+				list = malloc_or_die(sizeof(*list));
+				list->next = listed_events;
+				list->glob = optarg;
+				listed_events = list;
+			}
+
+			break;
+		case 'f':
+			if (!last_event)
+				die("filter must come after event");
+			if (last_event->filter) {
+				last_event->filter =
+					realloc(last_event->filter,
+						strlen(last_event->filter) +
+						strlen("&&()") +
+						strlen(optarg) + 1);
+				strcat(last_event->filter, "&&(");
+				strcat(last_event->filter, optarg);
+				strcat(last_event->filter, ")");
+			} else {
+				last_event->filter =
+					malloc_or_die(strlen(optarg) +
+						      strlen("()") + 1);
+				sprintf(last_event->filter, "(%s)", optarg);
+			}
+			break;
+
+		case 'F':
+			if (filter_pid >= 0)
+				die("-P and -F can not both be specified");
+			filter_task = 1;
+			break;
+		case 'P':
+			if (filter_task)
+				die("-P and -F can not both be specified");
+			if (filter_pid >= 0)
+				die("only one -P pid can be filtered at a time");
+			filter_pid = atoi(optarg);
+			break;
+		case 'c':
+			do_ptrace = 1;
+			break;
+		case 'v':
+			if (extract)
+				usage(argv);
+			neg_event = 1;
+			break;
+		case 'l':
+			add_func(&filter_funcs, optarg);
+			break;
+		case 'n':
+			add_func(&notrace_funcs, optarg);
+			break;
+		case 'g':
+			add_func(&graph_funcs, optarg);
+			break;
+		case 'p':
+			if (plugin)
+				die("only one plugin allowed");
+			plugin = optarg;
+			fprintf(stderr, "  plugin %s\n", plugin);
+			break;
+		case 'd':
+			if (extract)
+				usage(argv);
+			disable = 1;
+			break;
+		case 'o':
+			if (host)
+				die("-o incompatible with -N");
+			if (!record && !extract)
+				die("start does not take output\n"
+				    "Did you mean 'record'?");
+			if (output)
+				die("only one output file allowed");
+			output = optarg;
+			break;
+		case 'O':
+			option = optarg;
+			save_option(option);
+			break;
+		case 's':
+			if (extract)
+				usage(argv);
+			sleep_time = atoi(optarg);
+			break;
+		case 'r':
+			rt_prio = atoi(optarg);
+			break;
+		case 'N':
+			if (!record)
+				die("-N only available with record");
+			if (output)
+				die("-N incompatible with -o");
+			host = optarg;
+			break;
+		case 't':
+			use_tcp = 1;
+			break;
+		case 'b':
+			buffer_size = atoi(optarg);
+			break;
+		case 'k':
+			keep = 1;
+			break;
+		case 'i':
+			ignore_event_not_found = 1;
+			break;
 		}
+	}
 
 	if (do_ptrace && !filter_task && (filter_pid < 0))
 		die(" -c can only be used with -F or -P");
