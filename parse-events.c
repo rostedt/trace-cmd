@@ -2371,6 +2371,7 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 
 		*next_arg = farg;
 		next_arg = &(farg->next);
+		free_token(token);
 	}
 
 	type = read_token(&token);
