@@ -36,6 +36,8 @@ extern int show_status;
 struct tracecmd_input *read_trace_header(const char *file);
 int read_trace_files(void);
 
+void trace_record(int argc, char **argv);
+
 void trace_report(int argc, char **argv);
 
 void trace_split(int argc, char **argv);
