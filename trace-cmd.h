@@ -102,6 +102,9 @@ void tracecmd_print_events(struct tracecmd_input *handle);
 int tracecmd_init_data(struct tracecmd_input *handle);
 
 struct record *
+tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
+			  struct record *last_record);
+struct record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
 
 static inline struct record *

@@ -740,6 +740,28 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 	free_record(record);
 }
 
+static int read_page_flags(struct pevent *pevent, void **ptr)
+{
+	unsigned int flags;
+
+	*ptr += 8;
+	switch (pevent->header_page_size_size) {
+	case 4:
+		flags = data2host4(pevent, *ptr);
+		*ptr += 4;
+		break;
+	case 8:
+		flags = (unsigned int)data2host8(pevent, *ptr);
+		*ptr += 8;
+		break;
+	default:
+		warning("bad long size");
+		return -1;
+	}
+
+	return flags;
+}
+
 /*
  * Page is mapped, now read in the page header info.
  */
@@ -756,20 +778,9 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	}
 
 	handle->cpu_data[cpu].timestamp = data2host8(pevent, ptr);
-	ptr += 8;
-	switch (pevent->header_page_size_size) {
-	case 4:
-		flags = data2host4(pevent, ptr);
-		ptr += 4;
-		break;
-	case 8:
-		flags = (unsigned int)data2host8(pevent, ptr);
-		ptr += 8;
-		break;
-	default:
-		warning("bad long size");
+	flags = read_page_flags(pevent, &ptr);
+	if (flags == -1U)
 		return -1;
-	}
 
 	handle->cpu_data[cpu].page_size = flags & COMMIT_MASK;
 
@@ -1501,6 +1512,102 @@ tracecmd_translate_data(struct tracecmd_input *handle,
 	default:
 		break;
 	}
+
+	return record;
+}
+
+/**
+ * tracecmd_read_page_record - read a record off of a page
+ * @pevent: pevent used to parse the page
+ * @page: the page to read
+ * @size: the size of the page
+ * @last_record: last record read from this page.
+ *
+ * If a ring buffer page is available, and the need to parse it
+ * without having a handle, then this function can be used.
+ *
+ * The @pevent needs to be initialized to have the page header information
+ * already available.
+ *
+ * The @last_record is used to know where to read the next record from.
+ * If @last_record is NULL, the first record on the page will be read.
+ *
+ * Returns:
+ *  A newly allocated record that must be freed with free_record() if
+ *  a record is found. Otherwise NULL is returned if the record is bad
+ *  or no more records exist.
+ */
+struct record *
+tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
+			  struct record *last_record)
+{
+	unsigned long long extend;
+	unsigned long long ts;
+	unsigned int type_len;
+	unsigned int flags;
+	struct record *record;
+	int page_size;
+	int length;
+	void *ptr;
+
+	if (!last_record) {
+		ptr = page;
+		flags = read_page_flags(pevent, &ptr);
+		if (flags == -1U)
+			return NULL;
+		page_size = flags & COMMIT_MASK;
+		if (page_size > size) {
+			warning("tracecmd_read_page_record: page_size > size");
+			return NULL;
+		}
+		ptr = page + pevent->header_page_data_offset;
+		ts = data2host8(pevent, page);
+	} else {
+		if (last_record->data < page || last_record->data >= (page + size)) {
+			warning("tracecmd_read_page_record: bad last record (size=%u)",
+				last_record->size);
+			return NULL;
+		}
+		ptr = last_record->data + last_record->size;
+		ts = last_record->ts;
+	}
+
+	if (ptr >= page + size)
+		return NULL;
+
+ read_again:
+	type_len = translate_data(pevent, &ptr, &extend, &length);
+
+	switch (type_len) {
+	case RINGBUF_TYPE_PADDING:
+		return NULL;
+	case RINGBUF_TYPE_TIME_EXTEND:
+		ts += extend;
+		/* fall through */
+	case RINGBUF_TYPE_TIME_STAMP:
+		goto read_again;
+	default:
+		break;
+	}
+
+	if (length < 0 || ptr + length > page + size) {
+		warning("tracecmd_read_page_record: bad record (size=%u)",
+			length);
+		return NULL;
+	}
+
+	ts += extend;
+
+	record = malloc(sizeof(*record));
+	if (!record)
+		return NULL;
+	memset(record, 0, sizeof(*record));
+
+	record->ts = ts;
+	record->size = length;
+	record->cpu = 0;
+	record->data = ptr;
+	record->ref_count = 1;
 
 	return record;
 }
