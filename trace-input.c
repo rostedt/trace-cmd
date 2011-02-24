@@ -534,53 +534,45 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	return 0;
 }
 
-static unsigned int type4host(struct tracecmd_input *handle,
+static unsigned int type4host(struct pevent *pevent,
 			      unsigned int type_len_ts)
 {
-	struct pevent *pevent = handle->pevent;
-
 	if (pevent->file_bigendian)
 		return (type_len_ts >> 29) & 3;
 	else
 		return type_len_ts & 3;
 }
 
-static unsigned int len4host(struct tracecmd_input *handle,
+static unsigned int len4host(struct pevent *pevent,
 			     unsigned int type_len_ts)
 {
-	struct pevent *pevent = handle->pevent;
-
 	if (pevent->file_bigendian)
 		return (type_len_ts >> 27) & 7;
 	else
 		return (type_len_ts >> 2) & 7;
 }
 
-static unsigned int type_len4host(struct tracecmd_input *handle,
+static unsigned int type_len4host(struct pevent *pevent,
 				  unsigned int type_len_ts)
 {
-	struct pevent *pevent = handle->pevent;
-
 	if (pevent->file_bigendian)
 		return (type_len_ts >> 27) & ((1 << 5) - 1);
 	else
 		return type_len_ts & ((1 << 5) - 1);
 }
 
-static unsigned int ts4host(struct tracecmd_input *handle,
+static unsigned int ts4host(struct pevent *pevent,
 			    unsigned int type_len_ts)
 {
-	struct pevent *pevent = handle->pevent;
-
 	if (pevent->file_bigendian)
 		return type_len_ts & ((1 << 27) - 1);
 	else
 		return type_len_ts >> 5;
 }
 
-static unsigned int read_type_len_ts(struct tracecmd_input *handle, void *ptr)
+static unsigned int read_type_len_ts(struct pevent *pevent, void *ptr)
 {
-	return data2host4(handle->pevent, ptr);
+	return data2host4(pevent, ptr);
 }
 
 static int calc_index(struct tracecmd_input *handle,
@@ -897,12 +889,12 @@ read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 
 	index = calc_index(handle, *ptr, cpu);
 
-	type_len_ts = read_type_len_ts(handle, *ptr);
+	type_len_ts = read_type_len_ts(pevent, *ptr);
 	*ptr += 4;
 
-	type = type4host(handle, type_len_ts);
-	len = len4host(handle, type_len_ts);
-	delta = ts4host(handle, type_len_ts);
+	type = type4host(pevent, type_len_ts);
+	len = len4host(pevent, type_len_ts);
+	delta = ts4host(pevent, type_len_ts);
 
 	switch (type) {
 	case OLD_RINGBUF_TYPE_PADDING:
@@ -1119,8 +1111,8 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 
 	record->data = cpu_data->page->map + index;
 
-	type_len_ts = read_type_len_ts(handle, record->data);
-	len = len4host(handle, type_len_ts);
+	type_len_ts = read_type_len_ts(handle->pevent, record->data);
+	len = len4host(handle->pevent, type_len_ts);
 
 	/* The data starts either 4 or 8 bytes from offset */
 	record->data += len ? 4 : 8;
@@ -1421,19 +1413,18 @@ tracecmd_get_cursor(struct tracecmd_input *handle, int cpu)
 
 
 static unsigned int
-translate_data(struct tracecmd_input *handle,
+translate_data(struct pevent *pevent,
 	       void **ptr, unsigned long long *delta, int *length)
 {
-	struct pevent *pevent = handle->pevent;
 	unsigned long long extend;
 	unsigned int type_len_ts;
 	unsigned int type_len;
 
-	type_len_ts = read_type_len_ts(handle, *ptr);
+	type_len_ts = read_type_len_ts(pevent, *ptr);
 	*ptr += 4;
 
-	type_len = type_len4host(handle, type_len_ts);
-	*delta = ts4host(handle, type_len_ts);
+	type_len = type_len4host(pevent, type_len_ts);
+	*delta = ts4host(pevent, type_len_ts);
 
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
@@ -1500,7 +1491,7 @@ tracecmd_translate_data(struct tracecmd_input *handle,
 
 	record->ref_count = 1;
 	record->data = ptr;
-	type_len = translate_data(handle, &record->data, &record->ts, &record->size);
+	type_len = translate_data(handle->pevent, &record->data, &record->ts, &record->size);
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
 	case RINGBUF_TYPE_TIME_EXTEND:
@@ -1597,7 +1588,7 @@ read_again:
 		return record;
 	}
 
-	type_len = translate_data(handle, &ptr, &extend, &length);
+	type_len = translate_data(pevent, &ptr, &extend, &length);
 
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
