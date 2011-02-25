@@ -1095,6 +1095,12 @@ struct tracecmd_output *tracecmd_create_init_fd(int fd)
 }
 
 struct tracecmd_output *
+tracecmd_create_init_fd_glob(int fd, struct tracecmd_event_list *list)
+{
+	return create_file_fd(fd, NULL, NULL, NULL, list);
+}
+
+struct tracecmd_output *
 tracecmd_create_init_file_glob(const char *output_file,
 			       struct tracecmd_event_list *list)
 {
