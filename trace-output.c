@@ -1032,7 +1032,7 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
 
 	handle = malloc(sizeof(*handle));
 	if (!handle)
-		return -1;
+		goto out_free;
 	memset(handle, 0, sizeof(*handle));
 
 	handle->fd = fd;
@@ -1044,10 +1044,9 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
 	pevent_ref(pevent);
 	handle->page_size = tracecmd_page_size(ihandle);
 
-	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0)
-		goto out_free;
+	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) >= 0)
+		ret = 0;
 
-	ret = 0;
 	tracecmd_output_close(handle);
  out_free:
 	tracecmd_close(ihandle);
