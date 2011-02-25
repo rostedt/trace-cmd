@@ -176,6 +176,9 @@ struct tracecmd_output *
 tracecmd_create_file_glob(const char *output_file,
 			  int cpus, char * const *cpu_data_files,
 			  struct tracecmd_event_list *event_globs);
+struct tracecmd_output *
+tracecmd_create_init_file_glob(const char *output_file,
+			       struct tracecmd_event_list *list);
 struct tracecmd_output *tracecmd_create_init_fd(int fd);
 struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
 struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
