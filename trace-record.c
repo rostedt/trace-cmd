@@ -1794,6 +1794,21 @@ void set_buffer_size(void)
 	close(fd);
 }
 
+static void record_all_events(void)
+{
+	struct tracecmd_event_list *list;
+
+	while (listed_events) {
+		list = listed_events;
+		listed_events = list->next;
+		free(list);
+	}
+	list = malloc_or_die(sizeof(*list));
+	list->next = NULL;
+	list->glob = "*/*";
+	listed_events = list;
+}
+
 void trace_record (int argc, char **argv)
 {
 	const char *plugin = NULL;
@@ -1862,15 +1877,7 @@ void trace_record (int argc, char **argv)
 			break;
 		case 'a':
 			record_all = 1;
-			while (listed_events) {
-				list = listed_events;
-				listed_events = list->next;
-				free(list);
-			}
-			list = malloc_or_die(sizeof(*list));
-			list->next = NULL;
-			list->glob = "*/*";
-			listed_events = list;
+			record_all_events();
 
 			break;
 		case 'e':
@@ -2029,6 +2036,10 @@ void trace_record (int argc, char **argv)
 		output_file = output;
 
 	tracing_on_init_val = read_tracing_on();
+
+	/* Extracting data records all events in the system. */
+	if (extract)
+		record_all_events();
 
 	if (event_selection)
 		expand_event_list();
