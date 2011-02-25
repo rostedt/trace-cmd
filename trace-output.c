@@ -80,6 +80,14 @@ do_write_check(struct tracecmd_output *handle, void *data, int size)
 	return __do_write_check(handle->fd, data, size);
 }
 
+static short convert_endian_2(struct tracecmd_output *handle, short val)
+{
+	if (!handle->pevent)
+		return val;
+
+	return __data2host2(handle->pevent, val);
+}
+
 static int convert_endian_4(struct tracecmd_output *handle, int val)
 {
 	if (!handle->pevent)
@@ -857,6 +865,8 @@ int tracecmd_add_option(struct tracecmd_output *handle,
 static int add_options(struct tracecmd_output *handle)
 {
 	unsigned short option;
+	unsigned short endian2;
+	unsigned int endian4;
 	int i;
 
 	if (handle->options_written)
@@ -866,10 +876,12 @@ static int add_options(struct tracecmd_output *handle)
 		return -1;
 
 	for (i = 0; i < handle->nr_options; i++) {
-		if (do_write_check(handle, &handle->options[i].id, 2))
+		endian2 = convert_endian_2(handle, handle->options[i].id);
+		if (do_write_check(handle, &endian2, 2))
 			return -1;
 
-		if (do_write_check(handle, &handle->options[i].size, 4))
+		endian4 = convert_endian_4(handle, handle->options[i].size);
+		if (do_write_check(handle, &endian4, 4))
 			return -1;
 
 		if (do_write_check(handle, handle->options[i].data,
