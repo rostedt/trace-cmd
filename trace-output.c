@@ -863,7 +863,7 @@ static int add_options(struct tracecmd_output *handle)
 		if (do_write_check(handle, &handle->options[i].size, 4))
 			return -1;
 
-		if (do_write_check(handle, &handle->options[i].data,
+		if (do_write_check(handle, handle->options[i].data,
 				   handle->options[i].size))
 			return -1;
 	}
