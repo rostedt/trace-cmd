@@ -25,8 +25,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <getopt.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/ptrace.h>
@@ -51,6 +53,7 @@
 #define CURRENT		"current_tracer"
 #define ITER_CTRL	"trace_options"
 #define MAX_LATENCY	"tracing_max_latency"
+#define STAMP		"stamp"
 
 #define UDP_MAX_PACKET (65536 - 20)
 
@@ -81,6 +84,9 @@ static int filter_task;
 static int filter_pid = -1;
 
 static int finished;
+
+/* Try a few times to get an accurate date */
+static int date2ts_tries = 5;
 
 struct func_list {
 	struct func_list *next;
@@ -1337,8 +1343,6 @@ static void setup_network(void)
 	write(sfd, buf, strlen(buf)+1);
 
 	/* write the pagesize (in ASCII) */
-
-	page_size = getpagesize();
 	sprintf(buf, "%d", page_size);
 
 	/* include \0 */
@@ -1417,7 +1421,7 @@ static void start_threads(void)
 	}
 }
 
-static void record_data(void)
+static void record_data(char *date2ts)
 {
 	struct tracecmd_output *handle;
 	char **temp_files;
@@ -1439,8 +1443,15 @@ static void record_data(void)
 		for (i = 0; i < cpu_count; i++)
 			temp_files[i] = get_temp_file(i);
 
-		handle = tracecmd_create_file_glob(output_file, cpu_count,
-						   temp_files, listed_events);
+		handle = tracecmd_create_init_file_glob(output_file, listed_events);
+		if (!handle)
+			die("Error creating output file");
+
+		if (date2ts)
+			tracecmd_add_option(handle, TRACECMD_OPTION_DATE,
+					    strlen(date2ts)+1, date2ts);
+
+		tracecmd_append_cpu_data(handle, cpu_count, temp_files);
 
 		for (i = 0; i < cpu_count; i++)
 			put_temp_file(temp_files[i]);
@@ -1531,6 +1542,232 @@ static void add_func(struct func_list **list, const char *func)
 	*list = item;
 }
 
+static unsigned long long
+find_ts_in_page(struct pevent *pevent, void *page, int size)
+{
+	struct event_format *event;
+	struct format_field *field;
+	struct record *last_record = NULL;
+	struct record *record;
+	unsigned long long ts = 0;
+	int id;
+
+	if (size <= 0)
+		return 0;
+
+	while (!ts) {
+		record = tracecmd_read_page_record(pevent, page, size,
+						   last_record);
+		if (!record)
+			break;
+		free_record(last_record);
+		id = pevent_data_type(pevent, record);
+		event = pevent_data_event_from_type(pevent, id);
+		if (event) {
+			/* Make sure this is our event */
+			field = pevent_find_field(event, "buf");
+			/* the trace_marker adds a '\n' */
+			if (field && strcmp(STAMP"\n", record->data + field->offset) == 0)
+				ts = record->ts;
+		}
+		last_record = record;
+	}
+	free_record(last_record);
+
+	return ts;
+}
+
+static unsigned long long find_time_stamp(struct pevent *pevent)
+{
+	struct dirent *dent;
+	unsigned long long ts = 0;
+	void *page;
+	char *path;
+	char *file;
+	DIR *dir;
+	int len;
+	int fd;
+	int r;
+
+	path = tracecmd_get_tracing_file("per_cpu");
+	if (!path)
+		return 0;
+
+	dir = opendir(path);
+	if (!dir)
+		goto out;
+
+	len = strlen(path);
+	file = malloc_or_die(len + strlen("trace_pipe_raw") + 32);
+	page = malloc_or_die(page_size);
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+
+		if (strncmp(name, "cpu", 3) != 0)
+			continue;
+
+		sprintf(file, "%s/%s/trace_pipe_raw", path, name);
+		fd = open(file, O_RDONLY);
+		if (fd < 0)
+			continue;
+		do {
+			r = read(fd, page, page_size);
+			ts = find_ts_in_page(pevent, page, r);
+			if (ts)
+				break;
+		} while (r > 0);
+		if (ts)
+			break;
+	}
+	free(file);
+	free(page);
+	closedir(dir);
+
+ out:
+	tracecmd_put_tracing_file(path);
+	return ts;
+}
+
+static char *read_file(char *file, int *psize)
+{
+	char buffer[BUFSIZ];
+	char *path;
+	char *buf;
+	int size = 0;
+	int fd;
+	int r;
+
+	path = tracecmd_get_tracing_file(file);
+	fd = open(path, O_RDONLY);
+	tracecmd_put_tracing_file(path);
+	if (fd < 0) {
+		warning("%s not found, --date ignored", file);
+		return NULL;
+	}
+	do {
+		r = read(fd, buffer, BUFSIZ);
+		if (r <= 0)
+			continue;
+		if (size) {
+			buf = realloc(buf, size+r);
+			if (!buf)
+				die("malloc");
+		} else
+			buf = malloc_or_die(r);
+		memcpy(buf+size, buffer, r);
+		size += r;
+	} while (r);
+
+	*psize = size;
+	return buf;
+}
+
+/*
+ * Try to write the date into the ftrace buffer and then
+ * read it back, mapping the timestamp to the date.
+ */
+static char *get_date_to_ts(void)
+{
+	unsigned long long min = -1ULL;
+	unsigned long long diff;
+	unsigned long long stamp;
+	unsigned long long min_stamp;
+	unsigned long long min_ts;
+	unsigned long long ts;
+	struct pevent *pevent;
+	struct timeval start;
+	struct timeval end;
+	char *date2ts = NULL;
+	char *path;
+	char *buf;
+	int size;
+	int tfd;
+	int ret;
+	int i;
+
+	/* Set up a pevent to read the raw format */
+	pevent = pevent_alloc();
+	if (!pevent) {
+		warning("failed to alloc pevent, --date ignored");
+		return NULL;
+	}
+
+	buf = read_file("events/header_page", &size);
+	if (!buf)
+		goto out_pevent;
+	ret = pevent_parse_header_page(pevent, buf, size, sizeof(unsigned long));
+	free(buf);
+	if (ret < 0) {
+		warning("Can't parse header page, --date ignored");
+		goto out_pevent;
+	}
+
+	/* Find the format for ftrace:print. */
+	buf = read_file("events/ftrace/print/format", &size);
+	if (!buf)
+		goto out_pevent;
+	ret = pevent_parse_event(pevent, buf, size, "ftrace");
+	free(buf);
+	if (ret < 0) {
+		warning("Can't parse print event, --date ignored");
+		goto out_pevent;
+	}
+
+	path = tracecmd_get_tracing_file("trace_marker");
+	tfd = open(path, O_WRONLY);
+	tracecmd_put_tracing_file(path);
+	if (tfd < 0) {
+		warning("Can not open 'trace_marker', --date ignored");
+		goto out_pevent;
+	}
+
+	for (i = 0; i < date2ts_tries; i++) {
+		disable_tracing();
+		clear_trace();
+		enable_tracing();
+
+		gettimeofday(&start, NULL);
+		write(tfd, STAMP, 5);
+		gettimeofday(&end, NULL);
+
+		disable_tracing();
+		ts = find_time_stamp(pevent);
+		if (!ts)
+			continue;
+
+		diff = (unsigned long long)end.tv_sec * 1000000;
+		diff += (unsigned long long)end.tv_usec;
+		stamp = diff;
+		diff -= (unsigned long long)start.tv_sec * 1000000;
+		diff -= (unsigned long long)start.tv_usec;
+
+		if (diff < min) {
+			min_ts = ts;
+			min_stamp = stamp - diff / 2;
+			min = diff;
+		}
+	}
+
+	close(tfd);
+
+	/* 16 hex chars + 0x + \0 */
+	date2ts = malloc(19);
+	if (!date2ts)
+		goto out_pevent;
+
+	/*
+	 * The difference between the timestamp and the gtod is
+	 * stored as an ASCII string in hex.
+	 */
+	snprintf(date2ts, 19, "0x%llx", min_stamp - min_ts / 1000);
+
+ out_pevent:
+	pevent_free(pevent);
+
+	return date2ts;
+}
+
 void set_buffer_size(void)
 {
 	char buf[BUFSIZ];
@@ -1566,6 +1803,7 @@ void trace_record (int argc, char **argv)
 	struct event_list *last_event;
 	struct tracecmd_event_list *list;
 	struct trace_seq s;
+	char *date2ts = NULL;
 	int record_all = 0;
 	int disable = 0;
 	int events = 0;
@@ -1606,7 +1844,18 @@ void trace_record (int argc, char **argv)
 	} else
 		usage(argv);
 
-	while ((c = getopt(argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ki")) >= 0) {
+	for (;;) {
+		int option_index = 0;
+		static struct option long_options[] = {
+			{"date", no_argument, NULL, 0},
+			{"help", no_argument, NULL, '?'},
+			{NULL, 0, NULL, 0}
+		};
+
+		c = getopt_long (argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ki",
+				 long_options, &option_index);
+		if (c == -1)
+			break;
 		switch (c) {
 		case 'h':
 			usage(argv);
@@ -1746,6 +1995,17 @@ void trace_record (int argc, char **argv)
 		case 'i':
 			ignore_event_not_found = 1;
 			break;
+		case 0:
+			switch (option_index) {
+			case 0: /* date */
+				date = 1;
+				break;
+			default:
+				usage(argv);
+			}
+			break;
+		default:
+			usage(argv);
 		}
 	}
 
@@ -1772,6 +2032,8 @@ void trace_record (int argc, char **argv)
 
 	if (event_selection)
 		expand_event_list();
+
+	page_size = getpagesize();
 
 	if (!extract) {
 		fset = set_ftrace(!disable);
@@ -1841,8 +2103,9 @@ void trace_record (int argc, char **argv)
 
 	stop_threads();
 
-	record_data();
-	delete_thread_data();
+
+	if (!keep)
+		disable_all();
 
 	printf("Kernel buffer statistics:\n"
 	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
@@ -1856,11 +2119,15 @@ void trace_record (int argc, char **argv)
 		printf("\n");
 	}
 
+	if (date)
+		date2ts = get_date_to_ts();
+
+	record_data(date2ts);
+	delete_thread_data();
+
+
 	if (keep)
 		exit(0);
-
-	/* Turn off everything */
-	disable_all();
 
 	/* If tracing_on was enabled before we started, set it on now */
 	if (tracing_on_init_val)

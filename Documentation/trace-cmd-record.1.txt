@@ -177,6 +177,11 @@ OPTIONS
     reliable, the amount of data is not that intensive, and a guarantee is
     needed that all traced information is transfered successfully.
 
+*--date*::
+    With the *--date* option, "trace-cmd" will write timestamps into the
+    trace buffer after it has finished recording. It will then map the
+    timestamp to gettimeofday which will allow wall time output from the
+    timestamps reading the created 'trace.dat' file.
 
 EXAMPLES
 --------
