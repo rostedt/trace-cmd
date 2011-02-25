@@ -2038,6 +2038,11 @@ void trace_record (int argc, char **argv)
 	if (!extract) {
 		fset = set_ftrace(!disable);
 		disable_all();
+
+		/* Record records the date first */
+		if (record && date)
+			date2ts = get_date_to_ts();
+
 		set_funcs();
 
 		if (events)
@@ -2119,7 +2124,8 @@ void trace_record (int argc, char **argv)
 		printf("\n");
 	}
 
-	if (date)
+	/* extract records the date after extraction */
+	if (extract && date)
 		date2ts = get_date_to_ts();
 
 	record_data(date2ts);
