@@ -84,6 +84,7 @@ struct tracecmd_input {
 	int			cpus;
 	int			ref;
 	struct cpu_data 	*cpu_data;
+	unsigned long long	ts_offset;
 
 	struct tracecmd_ftrace	finfo;
 
@@ -1720,7 +1721,7 @@ read_again:
 		return NULL;
 	memset(record, 0, sizeof(*record));
 
-	record->ts = handle->cpu_data[cpu].timestamp;
+	record->ts = handle->cpu_data[cpu].timestamp + handle->ts_offset;
 	record->size = length;
 	record->cpu = cpu;
 	record->data = ptr;
@@ -1962,30 +1963,48 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 
 static int handle_options(struct tracecmd_input *handle)
 {
+	unsigned long long offset;
 	unsigned short option;
 	unsigned int size;
 	char *buf;
 
-	do {
+	for (;;) {
 		if (do_read_check(handle, &option, 2))
 			return -1;
 
+		if (option == TRACECMD_OPTION_DONE)
+			break;
+
+		/* next 4 bytes is the size of the option */
+		if (do_read_check(handle, &size, 4))
+			return -1;
+		size = __data2host4(handle->pevent, size);
+		printf("size=%d\n", size);
+		buf = malloc_or_die(size);
+		if (do_read_check(handle, buf, size))
+			return -1;
+
 		switch (option) {
-		case TRACECMD_OPTION_DONE:
+		case TRACECMD_OPTION_DATE:
+			/*
+			 * A time has been mapped that is the
+			 * difference between the timestamps and
+			 * gtod. It is stored as ASCII with '0x'
+			 * appended.
+			 */
+			offset = strtoll(buf, NULL, 0);
+			/* Convert from micro to nano */
+			offset *= 1000;
+			handle->ts_offset = offset;
 			break;
 		default:
 			warning("unknown option %d", option);
-			/* next 4 bytes is the size of the option */
-			if (do_read_check(handle, &size, 4))
-				return -1;
-			size = __data2host4(handle->pevent, size);
-			buf = malloc_or_die(size);
-			if (do_read_check(handle, buf, size))
-				return -1;
-			free(buf);
 			break;
 		}
-	} while (option != TRACECMD_OPTION_DONE);
+
+		free(buf);
+
+	}
 
 	return 0;
 }

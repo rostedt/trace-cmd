@@ -76,6 +76,7 @@ char *tracecmd_find_tracing_dir(void);
 
 enum {
 	TRACECMD_OPTION_DONE,
+	TRACECMD_OPTION_DATE,
 };
 
 struct tracecmd_ftrace {
@@ -180,6 +181,9 @@ struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
 struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
 							   const char *tracing_dir,
 							   const char *kallsyms);
+int tracecmd_add_option(struct tracecmd_output *handle,
+			unsigned short id,
+			int size, void *data);
 void tracecmd_output_close(struct tracecmd_output *handle);
 struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);
