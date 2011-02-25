@@ -448,9 +448,11 @@ static void glob_events(struct tracecmd_output *handle,
 	strcat(path, "/");
 	strcat(path, str);
 	strcat(path, "/format");
+	put_tracing_file(events_path);
 
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
+	free(path);
 	if (ret < 0)
 		return;
 
@@ -479,6 +481,7 @@ static void glob_events(struct tracecmd_output *handle,
 		add_list_event_system(systems, system, event, file);
 		free(system);
 	}
+	globfree(&globbuf);
 }
 
 static void
@@ -519,6 +522,7 @@ create_event_list_item(struct tracecmd_output *handle,
 	strcat(str, ptr);
 	glob_events(handle, systems, str);
 
+	free(ptr);
 	free(str);
 }
 
@@ -636,8 +640,8 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 static int read_ftrace_printk(struct tracecmd_output *handle)
 {
 	unsigned int size, check_size, endian4;
-	const char *path;
 	struct stat st;
+	char *path;
 	int ret;
 
 	path = get_tracing_file(handle, "printk_formats");
@@ -650,21 +654,26 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 		size = 0;
 		endian4 = convert_endian_4(handle, size);
 		if (do_write_check(handle, &endian4, 4))
-			return -1;
-		return 0;
+			goto fail;
+		goto out;
 	}
 	size = get_size(path);
 	endian4 = convert_endian_4(handle, size);
 	if (do_write_check(handle, &endian4, 4))
-		return -1;
+		goto fail;
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
 		errno = EINVAL;
 		warning("error in size of file '%s'", path);
-		return -1;
+		goto fail;
 	}
 
+ out:
+	put_tracing_file(path);
 	return 0;
+ fail:
+	put_tracing_file(path);
+	return -1;
 }
 
 static struct tracecmd_output *
