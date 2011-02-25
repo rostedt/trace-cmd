@@ -1391,7 +1391,7 @@ static void setup_network(void)
 	}
 
 	/* Now create the handle through this socket */
-	handle = tracecmd_create_init_fd(sfd);
+	handle = tracecmd_create_init_fd_glob(sfd, listed_events);
 
 	/* OK, we are all set, let'r rip! */
 }
