@@ -214,4 +214,7 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 						 void *data),
 			     void *data);
 
+/* --- Hack! --- */
+int tracecmd_blk_hack(struct tracecmd_input *handle);
+
 #endif /* _TRACE_CMD_H */

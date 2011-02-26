@@ -2089,6 +2089,8 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 			return -1;
 	}
 
+	tracecmd_blk_hack(handle);
+
 	return 0;
 }
 
