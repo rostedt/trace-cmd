@@ -53,7 +53,6 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	int id;
 	int l;
 	int r;
-	int i;
 
 	pevent = tracecmd_get_pevent(handle);
 
@@ -125,15 +124,6 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	 * just the first parts of the struct are not used in order
 	 * to not write over the ftrace data.
 	 */
-
-	/* search for a ftrace event */
-	for (i = 0; i < 13; i++) {
-		event = pevent_find_event(pevent, i);
-		if (event)
-			break;
-	}
-	if (!event)
-		goto fail;
 
 	/* Make sure the common fields exist */
 	field = pevent_find_common_field(event, "common_type");
