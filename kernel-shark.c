@@ -1745,6 +1745,12 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return FALSE;
 }
 
+static void sig_end(int sig)
+{
+	fprintf(stderr, "kernelshark: Received SIGINT\n");
+	exit(0);
+}
+
 void kernel_shark(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
@@ -1797,6 +1803,9 @@ void kernel_shark(int argc, char **argv)
 			usage(basename(argv[0]));
 		input_file = argv[optind];
 	}
+
+	/* The python plugin overrides ^C */
+	signal(SIGINT, sig_end);
 
 	info = g_new0(typeof(*info), 1);
 	if (!info)
