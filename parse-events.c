@@ -3607,6 +3607,9 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case '#':
 				/* FIXME: need to handle properly */
 				goto cont_process;
+			case 'h':
+				ls--;
+				goto cont_process;
 			case 'l':
 				ls++;
 				goto cont_process;
@@ -3687,6 +3690,18 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						strcpy(format, "0x%llx");
 				}
 				switch (ls) {
+				case -2:
+					if (len_as_arg)
+						trace_seq_printf(s, format, len_arg, (char)val);
+					else
+						trace_seq_printf(s, format, (char)val);
+					break;
+				case -1:
+					if (len_as_arg)
+						trace_seq_printf(s, format, len_arg, (short)val);
+					else
+						trace_seq_printf(s, format, (short)val);
+					break;
 				case 0:
 					if (len_as_arg)
 						trace_seq_printf(s, format, len_arg, (int)val);
