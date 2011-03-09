@@ -1564,6 +1564,9 @@ static int get_op_prio(char *op)
 {
 	if (!op[1]) {
 		switch (op[0]) {
+		case '~':
+		case '!':
+			return 4;
 		case '*':
 		case '/':
 		case '%':
@@ -1642,6 +1645,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			goto out_free;
 		}
 		switch (token[0]) {
+		case '~':
 		case '!':
 		case '+':
 		case '-':
@@ -2981,6 +2985,21 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		left = eval_num_arg(data, size, event, arg->op.left);
 		right = eval_num_arg(data, size, event, arg->op.right);
 		switch (arg->op.op[0]) {
+		case '!':
+			switch (arg->op.op[1]) {
+			case 0:
+				val = !right;
+				break;
+			case '=':
+				val = left != right;
+				break;
+			default:
+				die("unknown op '%s'", arg->op.op);
+			}
+			break;
+		case '~':
+			val = ~right;
+			break;
 		case '|':
 			if (arg->op.op[1])
 				val = left || right;
