@@ -812,6 +812,10 @@ static void add_functions(struct pevent *pevent, const char *file)
 	free(buf);
 }
 
+#define OPT_cpu		255
+#define OPT_events	254
+#define OPT_kallsyms	253
+
 void trace_report (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
@@ -845,10 +849,10 @@ void trace_report (int argc, char **argv)
 	for (;;) {
 		int option_index = 0;
 		static struct option long_options[] = {
-			{"cpu", required_argument, NULL, 0},
-			{"events", no_argument, NULL, 0},
+			{"cpu", required_argument, NULL, OPT_cpu},
+			{"events", no_argument, NULL, OPT_events},
 			{"filter-test", no_argument, NULL, 'T'},
-			{"kallsyms", required_argument, NULL, 0},
+			{"kallsyms", required_argument, NULL, OPT_kallsyms},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -917,23 +921,14 @@ void trace_report (int argc, char **argv)
 		case 'q':
 			silence_warnings = 1;
 			break;
-		case 0:
-			switch(option_index) {
-			case 0: /* cpu */
-				parse_cpulist(optarg);
-				break;
-			case 1: /* events */
-				print_events = 1;
-				break;
-			case 2: /* filter-test */
-				test_filters = 1;
-				break;
-			case 3: /* kallsyms */
-				functions = optarg;
-				break;
-			default:
-				usage(argv);
-			}
+		case OPT_cpu:
+			parse_cpulist(optarg);
+			break;
+		case OPT_events:
+			print_events = 1;
+			break;
+		case OPT_kallsyms:
+			functions = optarg;
 			break;
 		default:
 			usage(argv);

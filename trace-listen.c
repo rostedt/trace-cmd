@@ -647,6 +647,8 @@ static void start_daemon(void)
 		die("starting daemon");
 }
 
+#define OPT_debug	255
+
 void trace_listen(int argc, char **argv)
 {
 	char *logfile = NULL;
@@ -666,7 +668,7 @@ void trace_listen(int argc, char **argv)
 		static struct option long_options[] = {
 			{"port", required_argument, NULL, 'p'},
 			{"help", no_argument, NULL, '?'},
-			{"debug", no_argument, NULL, 0},
+			{"debug", no_argument, NULL, OPT_debug},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -696,12 +698,8 @@ void trace_listen(int argc, char **argv)
 		case 'D':
 			daemon = 1;
 			break;
-		case 0:
-			switch (option_index) {
-			case 2:
-				debug = 1;
-				break;
-			}
+		case OPT_debug:
+			debug = 1;
 			break;
 		default:
 			usage(argv);

@@ -153,6 +153,10 @@ static void read_trace(void)
 	fclose(fp);
 }
 
+#define OPT_start	255
+#define OPT_stop	254
+#define OPT_reset	253
+
 void trace_stack (int argc, char **argv)
 {
 	enum stack_type trace_type = STACK_REPORT;
@@ -167,9 +171,9 @@ void trace_stack (int argc, char **argv)
 	for (;;) {
 		int option_index = 0;
 		static struct option long_options[] = {
-			{"start", no_argument, NULL, 0},
-			{"stop", no_argument, NULL, 0},
-			{"reset", no_argument, NULL, 0},
+			{"start", no_argument, NULL, OPT_start},
+			{"stop", no_argument, NULL, OPT_stop},
+			{"reset", no_argument, NULL, OPT_reset},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -183,20 +187,14 @@ void trace_stack (int argc, char **argv)
 		case 'h':
 			usage(argv);
 			break;
-		case 0:
-			switch(option_index) {
-			case 0:
-				trace_type = STACK_START;
-				break;
-			case 1:
-				trace_type = STACK_STOP;
-				break;
-			case 2:
-				trace_type = STACK_RESET;
-				break;
-			default:
-				usage(argv);
-			}
+		case OPT_start:
+			trace_type = STACK_START;
+			break;
+		case OPT_stop:
+			trace_type = STACK_STOP;
+			break;
+		case OPT_reset:
+			trace_type = STACK_RESET;
 			break;
 		default:
 			usage(argv);

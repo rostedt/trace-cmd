@@ -1809,6 +1809,8 @@ static void record_all_events(void)
 	listed_events = list;
 }
 
+#define OPT_date	255
+
 void trace_record (int argc, char **argv)
 {
 	const char *plugin = NULL;
@@ -1862,7 +1864,7 @@ void trace_record (int argc, char **argv)
 	for (;;) {
 		int option_index = 0;
 		static struct option long_options[] = {
-			{"date", no_argument, NULL, 0},
+			{"date", no_argument, NULL, OPT_date},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -2005,14 +2007,8 @@ void trace_record (int argc, char **argv)
 		case 'i':
 			ignore_event_not_found = 1;
 			break;
-		case 0:
-			switch (option_index) {
-			case 0: /* date */
-				date = 1;
-				break;
-			default:
-				usage(argv);
-			}
+		case OPT_date:
+			date = 1;
 			break;
 		default:
 			usage(argv);
