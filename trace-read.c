@@ -73,7 +73,6 @@ static const char *input_file;
 static int multi_inputs;
 static int max_file_size;
 
-static int filter_cpu = -1;
 static int *filter_cpus;
 static int nr_filter_cpus;
 
@@ -619,10 +618,6 @@ get_next_record(struct handle_list *handles, int *next_cpu)
 				record = tracecmd_read_data(handles->handle, next_cpu);
 			else
 				record = NULL;
-
-		} else if (filter_cpu >= 0) {
-			cpu = filter_cpu;
-			record = tracecmd_read_data(handles->handle, cpu);
 		} else
 			record = tracecmd_read_next_data(handles->handle, &cpu);
 
@@ -963,10 +958,7 @@ void trace_report (int argc, char **argv)
 		case 0:
 			switch(option_index) {
 			case 0: /* cpu */
-				if (filter_cpu)
-					add_cpu(optarg);
-				else
-					filter_cpu = atoi(optarg);
+				add_cpu(optarg);
 				break;
 			case 1: /* events */
 				print_events = 1;
