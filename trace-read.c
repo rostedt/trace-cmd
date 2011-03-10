@@ -738,9 +738,8 @@ static void sig_end(int sig)
 	exit(0);
 }
 
-static const char *inc_and_test_char(const char *p, const char *cpu_str)
+static const char *skip_space_and_test_digit(const char *p, const char *cpu_str)
 {
-	p++;
 	while (isspace(*p))
 		p++;
 	if (!isdigit(*p))
@@ -754,64 +753,27 @@ static void __add_cpu(int cpu)
 	filter_cpus = tracecmd_add_id(filter_cpus, cpu, nr_filter_cpus++);
 }
 
-static int process_cpu_str(const char *cpu_str)
+static void parse_cpulist(const char *cpu_str)
 {
-	const char *p = cpu_str;
-	int cpu, ncpu, ret_cpu = 1;
+	unsigned a, b;
+	const char *s = cpu_str;
 
 	do {
-		while (isspace(*p))
-			p++;
-
-		cpu = atoi(p);
-		__add_cpu(cpu);
-
- again:
-		while (isdigit(*p))
-			p++;
-		while (isspace(*p))
-			p++;
-
-		if (*p) {
-			ret_cpu = 0;
-			switch (*p) {
-			case '-':
-				p = inc_and_test_char(p, cpu_str);
-				ncpu = atoi(p);
-				if (ncpu < cpu)
-					die("range of cpu numbers must be lower to greater");
-				for (; cpu <= ncpu; cpu++)
-					__add_cpu(cpu);
-				break;
-
-			case ',':
-			case ':':
-				p = inc_and_test_char(p, cpu_str);
-				ncpu = atoi(p);
-				__add_cpu(ncpu);
-				break;
-			default:
-				die("invalid character '%c' in cpu string '%s'",
-				    *p, cpu_str);
-			}
-			goto again;
+		s = skip_space_and_test_digit(s, cpu_str);
+		b = a = strtoul(s, (char **)&s, 10);
+		if (*s == '-') {
+			s = skip_space_and_test_digit(s + 1, cpu_str);
+			b = strtoul(s, (char **)&s, 10);
 		}
-	} while (*p);
-
-	if (ret_cpu)
-		return cpu;
-
-	/* Return -1 if we added more than one CPU */
-	return -1;
-}
-
-static void add_cpu(const char *cpu_str)
-{
-	int cpu;
-
-	cpu = process_cpu_str(cpu_str);
-	if (cpu >= 0)
-		__add_cpu(cpu);
+		if (!(a <= b))
+			die("range of cpu numbers must be lower to greater");
+		while (a <= b) {
+			__add_cpu(a);
+			a++;
+		}
+		if (*s == ',' || *s == ':')
+			s++;
+	} while (*s != '\0');
 }
 
 static void read_file_fd(int fd, char *dst, int len)
@@ -958,7 +920,7 @@ void trace_report (int argc, char **argv)
 		case 0:
 			switch(option_index) {
 			case 0: /* cpu */
-				add_cpu(optarg);
+				parse_cpulist(optarg);
 				break;
 			case 1: /* events */
 				print_events = 1;
