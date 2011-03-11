@@ -55,6 +55,15 @@ OPTIONS
     not be able to display them. If this is the case, then specify the
     *-a* option and the format for all events in the system will be saved.
 
+*-T*::
+    Enable a stacktrace on each event. For example:
+
+          <idle>-0     [003] 58549.289091: sched_switch:         kworker/0:1:0 [120] R ==> trace-cmd:2603 [120]
+          <idle>-0     [003] 58549.289092: kernel_stack:         <stack trace>
+=> schedule (ffffffff814b260e)
+=> cpu_idle (ffffffff8100a38c)
+=> start_secondary (ffffffff814ab828)
+
 *-f* 'filter'::
     Specify a filter for the previous event. This must come after a *-e*. This
     will filter what events get recorded based on the content of the event.

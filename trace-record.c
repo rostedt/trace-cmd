@@ -1867,7 +1867,7 @@ void trace_record (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ki",
+		c = getopt_long (argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:kiT",
 				 long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1974,6 +1974,9 @@ void trace_record (int argc, char **argv)
 		case 'O':
 			option = optarg;
 			save_option(option);
+			break;
+		case 'T':
+			save_option("stacktrace");
 			break;
 		case 's':
 			if (extract)
