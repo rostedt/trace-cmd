@@ -812,9 +812,11 @@ static void add_functions(struct pevent *pevent, const char *file)
 	free(buf);
 }
 
-#define OPT_cpu		255
-#define OPT_events	254
-#define OPT_kallsyms	253
+enum {
+	OPT_kallsyms	= 253,
+	OPT_events	= 254,
+	OPT_cpu		= 255,
+};
 
 void trace_report (int argc, char **argv)
 {

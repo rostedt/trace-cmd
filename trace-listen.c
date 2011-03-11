@@ -647,7 +647,9 @@ static void start_daemon(void)
 		die("starting daemon");
 }
 
-#define OPT_debug	255
+enum {
+	OPT_debug	= 255,
+};
 
 void trace_listen(int argc, char **argv)
 {

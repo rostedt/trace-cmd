@@ -153,9 +153,11 @@ static void read_trace(void)
 	fclose(fp);
 }
 
-#define OPT_start	255
-#define OPT_stop	254
-#define OPT_reset	253
+enum {
+	OPT_reset	= 253,
+	OPT_stop	= 254,
+	OPT_start	= 255,
+};
 
 void trace_stack (int argc, char **argv)
 {

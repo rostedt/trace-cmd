@@ -1809,7 +1809,9 @@ static void record_all_events(void)
 	listed_events = list;
 }
 
-#define OPT_date	255
+enum {
+	OPT_date	= 255,
+};
 
 void trace_record (int argc, char **argv)
 {
