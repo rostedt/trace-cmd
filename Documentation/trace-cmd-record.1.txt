@@ -64,6 +64,13 @@ OPTIONS
 => cpu_idle (ffffffff8100a38c)
 => start_secondary (ffffffff814ab828)
 
+*--func-stack*::
+    Enable a stack trace on all functions. Note this is only applicable
+    for the "function" plugin tracer, and will only take effect if the
+    -l option is used and succeeds in limiting functions. If the function
+    tracer is not filtered, and the stack trace is enabled, you can live
+    lock the machine.
+
 *-f* 'filter'::
     Specify a filter for the previous event. This must come after a *-e*. This
     will filter what events get recorded based on the content of the event.

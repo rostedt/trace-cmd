@@ -54,6 +54,7 @@
 #define ITER_CTRL	"trace_options"
 #define MAX_LATENCY	"tracing_max_latency"
 #define STAMP		"stamp"
+#define FUNC_STACK_TRACE "func_stack_trace"
 
 #define UDP_MAX_PACKET (65536 - 20)
 
@@ -96,6 +97,8 @@ struct func_list {
 static struct func_list *filter_funcs;
 static struct func_list *notrace_funcs;
 static struct func_list *graph_funcs;
+
+static int func_stack;
 
 struct filter_pids {
 	struct filter_pids *next;
@@ -560,6 +563,7 @@ static void set_plugin(const char *name)
 {
 	FILE *fp;
 	char *path;
+	char zero = '0';
 
 	path = tracecmd_get_tracing_file("current_tracer");
 	fp = fopen(path, "w");
@@ -568,6 +572,16 @@ static void set_plugin(const char *name)
 	tracecmd_put_tracing_file(path);
 
 	fwrite(name, 1, strlen(name), fp);
+	fclose(fp);
+
+	if (strncmp(name, "function", 8) != 0)
+		return;
+
+	/* Make sure func_stack_trace option is disabled */
+	path = tracecmd_get_tracing_file("options/func_stack_trace");
+	fp = fopen(path, "w");
+	tracecmd_put_tracing_file(path);
+	fwrite(&zero, 1, 1, fp);
 	fclose(fp);
 }
 
@@ -1525,11 +1539,44 @@ static void write_func_file(const char *file, struct func_list **list)
 	tracecmd_put_tracing_file(path);
 }
 
+static int functions_filtered(void)
+{
+	char buf[1] = { '#' };
+	char *path;
+	int fd;
+
+	path = tracecmd_get_tracing_file("set_ftrace_filter");
+	fd = open(path, O_RDONLY);
+	tracecmd_put_tracing_file(path);
+	if (fd < 0)
+		return 0;
+
+	/*
+	 * If functions are not filtered, than the first character
+	 * will be '#'. Make sure it is not an '#' and also not space.
+	 */
+	read(fd, buf, 1);
+	close(fd);
+
+	if (buf[0] == '#' || isspace(buf[0]))
+		return 0;
+	return 1;
+}
+
 static void set_funcs(void)
 {
 	write_func_file("set_ftrace_filter", &filter_funcs);
 	write_func_file("set_ftrace_notrace", &notrace_funcs);
 	write_func_file("set_graph_function", &graph_funcs);
+
+	/* make sure we are filtering functions */
+	if (func_stack) {
+		if (!functions_filtered()) {
+			disable_all();
+			die("Function stack trace set, but functions not filtered");
+		}
+		save_option(FUNC_STACK_TRACE);
+	}
 }
 
 static void add_func(struct func_list **list, const char *func)
@@ -1810,6 +1857,7 @@ static void record_all_events(void)
 }
 
 enum {
+	OPT_funcstack	= 254,
 	OPT_date	= 255,
 };
 
@@ -1867,6 +1915,7 @@ void trace_record (int argc, char **argv)
 		int option_index = 0;
 		static struct option long_options[] = {
 			{"date", no_argument, NULL, OPT_date},
+			{"func-stack", no_argument, NULL, OPT_funcstack},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1957,7 +2006,8 @@ void trace_record (int argc, char **argv)
 		case 'p':
 			if (plugin)
 				die("only one plugin allowed");
-			plugin = optarg;
+			for (plugin = optarg; isspace(*plugin); plugin++)
+				;
 			fprintf(stderr, "  plugin %s\n", plugin);
 			break;
 		case 'd':
@@ -2012,10 +2062,17 @@ void trace_record (int argc, char **argv)
 		case OPT_date:
 			date = 1;
 			break;
+		case OPT_funcstack:
+			func_stack = 1;
+			break;
 		default:
 			usage(argv);
 		}
 	}
+
+	if (strncmp(plugin, "function", 8) == 0 &&
+	    func_stack && !filter_funcs)
+		die("Must supply function filtering with --func-stack\n");
 
 	if (do_ptrace && !filter_task && (filter_pid < 0))
 		die(" -c can only be used with -F or -P");

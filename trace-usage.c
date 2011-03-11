@@ -40,6 +40,8 @@ static struct usage_help usage_help[] = {
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
 		"          -k do not reset the buffers after tracing.\n"
 		"          -i do not fail if an event is not found\n"
+		"          --func-stack perform a stack trace for function tracer\n"
+		"             (use with caution)\n"
 	},
 	{
 		"start",
