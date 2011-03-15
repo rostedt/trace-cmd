@@ -2070,7 +2070,7 @@ void trace_record (int argc, char **argv)
 		}
 	}
 
-	if (strncmp(plugin, "function", 8) == 0 &&
+	if (plugin && strncmp(plugin, "function", 8) == 0 &&
 	    func_stack && !filter_funcs)
 		die("Must supply function filtering with --func-stack\n");
 
