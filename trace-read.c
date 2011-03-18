@@ -812,6 +812,19 @@ static void add_functions(struct pevent *pevent, const char *file)
 	free(buf);
 }
 
+static void process_plugin_option(char *option)
+{
+	char *name = option;
+	char *val = NULL;
+	char *p;
+
+	if ((p = strstr(name, "="))) {
+		*p = '\0';
+		val = p+1;
+	}
+	trace_util_add_option(name, val);
+}
+
 enum {
 	OPT_kallsyms	= 253,
 	OPT_events	= 254,
@@ -859,7 +872,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:feprPNLlEwF:VvTq",
+		c = getopt_long (argc-1, argv+1, "+hi:feprPNLlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -911,6 +924,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'l':
 			latency_format = 1;
+			break;
+		case 'O':
+			process_plugin_option(optarg);
 			break;
 		case 'v':
 			if (neg)

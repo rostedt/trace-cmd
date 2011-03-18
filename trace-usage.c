@@ -75,7 +75,7 @@ static struct usage_help usage_help[] = {
 		"report",
 		"read out the trace stored in a trace.dat file",
 		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-r][-E]\\\n"
-		"           [-F filter][-v][-V][-T]\n"
+		"           [-F filter][-v][-V][-T][-O option]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
 		"          -f show function list\n"
@@ -90,6 +90,7 @@ static struct usage_help usage_help[] = {
 		"          -N do not load any plugins\n"
 		"          -w show wakeup latencies\n"
 		"          -l show latency format (default with latency tracers)\n"
+		"          -O plugin option -O [plugin:]var[=val]\n"
 	},
 	{
 		"split",

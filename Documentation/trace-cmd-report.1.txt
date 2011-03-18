@@ -167,6 +167,17 @@ OPTIONS
 *-q*::
     Quiet non critical warnings.
 
+*-O*::
+    Pass options to the trace-cmd plugins that are loaded.
+
+     -O plugin:var=value
+
+     The 'plugin:' and '=value' are optional. Value may be left off for options
+     that are boolean. If the 'plugin:' is left off, then any variable that matches
+     in all plugins will be set.
+
+     Example:  -O fgraph:tailprint
+
 EXAMPLES
 --------
 
