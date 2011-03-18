@@ -1707,7 +1707,8 @@ static char *read_file(char *file, int *psize)
 	} while (r);
 
 	buf[size] = '\0';
-	*psize = size;
+	if (psize)
+		*psize = size;
 	return buf;
 }
 
