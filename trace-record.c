@@ -1160,7 +1160,7 @@ static int count_cpus(void)
 	size_t n;
 	int r;
 
-	cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	cpus = sysconf(_SC_NPROCESSORS_CONF);
 	if (cpus > 0)
 		return cpus;
 
