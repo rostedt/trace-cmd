@@ -98,12 +98,57 @@ typedef int (*pevent_event_handler_func)(struct trace_seq *s,
 typedef int (*pevent_plugin_load_func)(struct pevent *pevent);
 typedef int (*pevent_plugin_unload_func)(void);
 
+struct plugin_option {
+	struct plugin_option		*next;
+	void				*handle;
+	char				*file;
+	char				*name;
+	char				*plugin_alias;
+	char				*description;
+	char				*value;
+	void				*private;
+	int				set;
+};
+
+/*
+ * Plugin hooks that can be called:
+ *
+ * PEVENT_PLUGIN_LOADER:  (required)
+ *   The function name to initialized the plugin.
+ *
+ *   int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+ *
+ * PEVENT_PLUGIN_UNLOADER:  (optional)
+ *   The function called just before unloading
+ *
+ *   int PEVENT_PLUGIN_UNLOADER(void)
+ *
+ * PEVENT_PLUGIN_OPTIONS:  (optional)
+ *   Plugin options that can be set before loading
+ *
+ *   struct plugin_option PEVENT_PLUGIN_OPTIONS[] = {
+ *	{
+ *		.name = "option-name",
+ *		.plugin_alias = "overide-file-name", (optional)
+ *		.description = "description of option to show users",
+ *	},
+ *
+ *   .plugin_alias is used to give a shorter name to access
+ *   the vairable. Useful if a plugin handles more than one event.
+ *
+ * PEVENT_PLUGIN_ALIAS: (optional)
+ *   The name to use for finding options (uses filename if not defined)
+ */
 #define PEVENT_PLUGIN_LOADER pevent_plugin_loader
 #define PEVENT_PLUGIN_UNLOADER pevent_plugin_unloader
+#define PEVENT_PLUGIN_OPTIONS pevent_plugin_options
+#define PEVENT_PLUGIN_ALIAS pevent_plugin_alias
 #define _MAKE_STR(x)	#x
 #define MAKE_STR(x)	_MAKE_STR(x)
 #define PEVENT_PLUGIN_LOADER_NAME MAKE_STR(PEVENT_PLUGIN_LOADER)
 #define PEVENT_PLUGIN_UNLOADER_NAME MAKE_STR(PEVENT_PLUGIN_UNLOADER)
+#define PEVENT_PLUGIN_OPTIONS_NAME MAKE_STR(PEVENT_PLUGIN_OPTIONS)
+#define PEVENT_PLUGIN_ALIAS_NAME MAKE_STR(PEVENT_PLUGIN_ALIAS)
 
 #define NSECS_PER_SEC		1000000000ULL
 #define NSECS_PER_USEC		1000ULL
