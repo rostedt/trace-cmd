@@ -1844,6 +1844,26 @@ void set_buffer_size(void)
 	close(fd);
 }
 
+static void check_plugin(const char *plugin)
+{
+	char *buf;
+	char *tok;
+
+	buf = read_file("available_tracers", NULL);
+	if (!buf)
+		die("No plugins available");
+
+	while ((tok = strtok(buf, " "))) {
+		buf = NULL;
+		if (strcmp(tok, plugin) == 0)
+			goto out;
+	}
+	die ("Plugin '%s' does not exist", plugin);
+ out:
+	fprintf(stderr, "  plugin '%s'\n", plugin);
+	free(buf);
+}
+
 static void record_all_events(void)
 {
 	struct tracecmd_event_list *list;
@@ -2011,7 +2031,11 @@ void trace_record (int argc, char **argv)
 				die("only one plugin allowed");
 			for (plugin = optarg; isspace(*plugin); plugin++)
 				;
-			fprintf(stderr, "  plugin %s\n", plugin);
+			for (optarg += strlen(optarg) - 1;
+			     optarg > plugin && isspace(*optarg); optarg--)
+				;
+			optarg++;
+			optarg[0] = '\0';
 			break;
 		case 'd':
 			if (extract)
@@ -2123,6 +2147,8 @@ void trace_record (int argc, char **argv)
 	}
 
 	if (plugin) {
+
+		check_plugin(plugin);
 		/*
 		 * Latency tracers just save the trace and kill
 		 * the threads.
