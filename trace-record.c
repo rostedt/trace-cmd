@@ -1697,15 +1697,16 @@ static char *read_file(char *file, int *psize)
 		if (r <= 0)
 			continue;
 		if (size) {
-			buf = realloc(buf, size+r);
+			buf = realloc(buf, size+r+1);
 			if (!buf)
 				die("malloc");
 		} else
-			buf = malloc_or_die(r);
+			buf = malloc_or_die(r+1);
 		memcpy(buf+size, buffer, r);
 		size += r;
 	} while (r);
 
+	buf[size] = '\0';
 	*psize = size;
 	return buf;
 }
