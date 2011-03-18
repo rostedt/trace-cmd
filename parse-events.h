@@ -132,6 +132,13 @@ struct plugin_option {
  *		.plugin_alias = "overide-file-name", (optional)
  *		.description = "description of option to show users",
  *	},
+ *	{
+ *		.name = NULL,
+ *	},
+ *   };
+ *
+ *   Array must end with .name = NULL;
+ *
  *
  *   .plugin_alias is used to give a shorter name to access
  *   the vairable. Useful if a plugin handles more than one event.
