@@ -1840,6 +1840,7 @@ void set_buffer_size(void)
 	ret = write(fd, buf, strlen(buf));
 	if (ret < 0)
 		warning("Can't write to %s", path);
+	tracecmd_put_tracing_file(path);
 	close(fd);
 }
 
