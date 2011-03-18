@@ -26,6 +26,8 @@ COMMANDS
   report  - reads a trace.dat file and converts the binary data to a
             ASCII text readable format.
 
+  options - list the plugin options that are available to *report*
+
   start   - start the tracing without recording to a trace.dat file.
 
   stop    - stop tracing (only disables recording, overhead of tracer

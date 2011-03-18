@@ -111,6 +111,11 @@ static struct usage_help usage_help[] = {
 		"          end   - decimal end time in seconds\n"
 	},
 	{
+		"options",
+		"list the plugin options available for trace-cmd report",
+		" %s options\n"
+	},
+	{
 		"listen",
 		"listen on a network socket for trace clients",
 		" %s listen -p port[-D][-o file][-d dir][-l logfile]\n"
