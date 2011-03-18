@@ -581,6 +581,8 @@ static void set_plugin(const char *name)
 	path = tracecmd_get_tracing_file("options/func_stack_trace");
 	fp = fopen(path, "w");
 	tracecmd_put_tracing_file(path);
+	if (!fp)
+		return;
 	fwrite(&zero, 1, 1, fp);
 	fclose(fp);
 }
