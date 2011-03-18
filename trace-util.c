@@ -61,6 +61,18 @@ struct plugin_list {
 	void			*handle;
 };
 
+static void update_option(const char *file, struct plugin_option *option);
+
+void trace_util_ftrace_options(void)
+{
+	struct plugin_option *options = trace_ftrace_options;
+
+	while (options->name) {
+		update_option("ftrace", options);
+		options++;
+	}
+}
+
 void trace_util_add_option(const char *name, const char *val)
 {
 	struct trace_plugin_options *option;
@@ -909,12 +921,28 @@ struct plugin_option_read {
 	struct plugin_option	*options;
 };
 
+static void append_option(struct plugin_option_read *options,
+			  struct plugin_option *option,
+			  const char *alias, void *handle)
+{
+	struct plugin_option *op;
+
+	while (option->name) {
+		op = malloc_or_die(sizeof(*op));
+		*op = *option;
+		op->next = options->options;
+		options->options = op;
+		op->file = strdup(alias);
+		op->handle = handle;
+		option++;
+	}
+}
+
 static void read_options(struct pevent *pevent, const char *path,
 			 const char *file, void *data)
 {
-	struct plugin_option_read *option = data;
-	struct plugin_option *options;
-	struct plugin_option *op;
+	struct plugin_option_read *options = data;
+	struct plugin_option *option;
 	const char *alias;
 	int unload = 0;
 	char *plugin;
@@ -937,21 +965,13 @@ static void read_options(struct pevent *pevent, const char *path,
 	if (!alias)
 		alias = file;
 
-	options = dlsym(handle, PEVENT_PLUGIN_OPTIONS_NAME);
-	if (!options) {
+	option = dlsym(handle, PEVENT_PLUGIN_OPTIONS_NAME);
+	if (!option) {
 		unload = 1;
 		goto out_unload;
 	}
 
-	while (options->name) {
-		op = malloc_or_die(sizeof(*op));
-		*op = *options;
-		op->next = option->options;
-		option->options = op;
-		op->file = strdup(alias);
-		op->handle = handle;
-		options++;
-	}
+	append_option(options, option, alias, handle);
 
  out_unload:
 	if (unload)
@@ -965,6 +985,8 @@ struct plugin_option *trace_util_read_plugin_options(void)
 	struct plugin_option_read option = {
 		.options = NULL,
 	};
+
+	append_option(&option, trace_ftrace_options, "ftrace", NULL);
 
 	trace_util_load_plugins(NULL, ".so", read_options, &option);
 

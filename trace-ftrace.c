@@ -25,6 +25,20 @@
 
 #include "trace-cmd.h"
 
+struct plugin_option trace_ftrace_options[] = {
+	{
+		.name = "tailprint",
+		.plugin_alias = "fgraph",
+		.description =
+		"Print function name at function exit in function graph",
+	},
+	{
+		.name = NULL,
+	}
+};
+
+static struct plugin_option *fgraph_tail = &trace_ftrace_options[0];
+
 static void find_long_size(struct tracecmd_ftrace *finfo)
 {
 	finfo->long_size = tracecmd_long_size(finfo->handle);
@@ -290,6 +304,8 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 	struct tracecmd_ftrace *finfo = context;
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
+	unsigned long long val;
+	const char *func;
 	int i;
 
 	ret_event_check(finfo, event->pevent);
@@ -316,6 +332,15 @@ fgraph_ret_handler(struct trace_seq *s, struct record *record,
 		trace_seq_putc(s, ' ');
 
 	trace_seq_putc(s, '}');
+
+	if (fgraph_tail->set) {
+		if (pevent_get_field_val(s, event, "func", record, &val, 0))
+			return 0;
+		func = pevent_find_function(event->pevent, val);
+		if (!func)
+			return 0;
+		trace_seq_printf(s, " /* %s */", func);
+	}
 
 	return 0;
 }
