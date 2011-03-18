@@ -207,12 +207,15 @@ void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
 void tracecmd_stat_cpu(struct trace_seq *s, int cpu);
 
 /* --- Plugin handling --- */
+void trace_util_add_option(const char *name, const char *val);
 void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 			     void (*load_plugin)(struct pevent *pevent,
 						 const char *path,
 						 const char *name,
 						 void *data),
 			     void *data);
+struct plugin_option *trace_util_read_plugin_options(void);
+void trace_util_free_options(struct plugin_option *options);
 
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);

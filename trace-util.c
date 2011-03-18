@@ -40,6 +40,14 @@
 int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
 
+
+static struct trace_plugin_options {
+	struct trace_plugin_options	*next;
+	char				*plugin;
+	char				*option;
+	char				*value;
+} *trace_plugin_options;
+
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
@@ -52,6 +60,35 @@ struct plugin_list {
 	char			*name;
 	void			*handle;
 };
+
+void trace_util_add_option(const char *name, const char *val)
+{
+	struct trace_plugin_options *option;
+	char *p;
+
+	option = malloc_or_die(sizeof(*option));
+	memset(option, 0, sizeof(*option));
+	option->next = trace_plugin_options;
+	trace_plugin_options = option;
+
+	option->option = strdup(name);
+	if (!option->option)
+		die("malloc");
+
+	if ((p = strstr(option->option, ":"))) {
+		option->plugin = option->option;
+		*p = '\0';
+		option->option = strdup(p + 1);
+		if (!option->option)
+			die("malloc");
+	}
+
+	if (val) {
+		option->value = strdup(val);
+		if (!option->value)
+			die("malloc");
+	}
+}
 
 void parse_cmdlines(struct pevent *pevent,
 		    char *file, int size __unused)
@@ -131,12 +168,63 @@ void parse_ftrace_printk(struct pevent *pevent,
 	}
 }
 
+static void update_option(const char *file, struct plugin_option *option)
+{
+	struct trace_plugin_options *op;
+	char *plugin;
+
+	if (option->plugin_alias) {
+		plugin = strdup(option->plugin_alias);
+		if (!plugin)
+			die("malloc");
+	} else {
+		char *p;
+		plugin = strdup(file);
+		if (!plugin)
+			die("malloc");
+		p = strstr(plugin, ".");
+		if (p)
+			*p = '\0';
+	}
+
+	/* first look for named options */
+	for (op = trace_plugin_options; op; op = op->next) {
+		if (!op->plugin)
+			continue;
+		if (strcmp(op->plugin, plugin) != 0)
+			continue;
+		if (strcmp(op->option, option->name) != 0)
+			continue;
+
+		option->value = op->value;
+		option->set = 1;
+		goto out;
+	}
+
+	/* first look for unnamed options */
+	for (op = trace_plugin_options; op; op = op->next) {
+		if (op->plugin)
+			continue;
+		if (strcmp(op->option, option->name) != 0)
+			continue;
+
+		option->value = op->value;
+		option->set = 1;
+		break;
+	}
+
+ out:
+	free(plugin);
+}
+
 static void load_plugin(struct pevent *pevent, const char *path,
 			const char *file, void *data)
 {
 	struct plugin_list **plugin_list = data;
 	pevent_plugin_load_func func;
 	struct plugin_list *list;
+	struct plugin_option *options;
+	const char *alias;
 	char *plugin;
 	void *handle;
 
@@ -151,6 +239,18 @@ static void load_plugin(struct pevent *pevent, const char *path,
 		warning("cound not load plugin '%s'\n%s\n",
 			plugin, dlerror());
 		goto out_free;
+	}
+
+	alias = dlsym(handle, PEVENT_PLUGIN_ALIAS_NAME);
+	if (!alias)
+		alias = file;
+
+	options = dlsym(handle, PEVENT_PLUGIN_OPTIONS_NAME);
+	if (options) {
+		while (options->name) {
+			update_option(alias, options);
+			options++;
+		}
 	}
 
 	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
@@ -803,6 +903,89 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 	trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
 
 	free(path);
+}
+
+struct plugin_option_read {
+	struct plugin_option	*options;
+};
+
+static void read_options(struct pevent *pevent, const char *path,
+			 const char *file, void *data)
+{
+	struct plugin_option_read *option = data;
+	struct plugin_option *options;
+	struct plugin_option *op;
+	const char *alias;
+	int unload = 0;
+	char *plugin;
+	void *handle;
+
+	plugin = malloc_or_die(strlen(path) + strlen(file) + 2);
+
+	strcpy(plugin, path);
+	strcat(plugin, "/");
+	strcat(plugin, file);
+
+	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
+	if (!handle) {
+		warning("cound not load plugin '%s'\n%s\n",
+			plugin, dlerror());
+		goto out_free;
+	}
+
+	alias = dlsym(handle, PEVENT_PLUGIN_ALIAS_NAME);
+	if (!alias)
+		alias = file;
+
+	options = dlsym(handle, PEVENT_PLUGIN_OPTIONS_NAME);
+	if (!options) {
+		unload = 1;
+		goto out_unload;
+	}
+
+	while (options->name) {
+		op = malloc_or_die(sizeof(*op));
+		*op = *options;
+		op->next = option->options;
+		option->options = op;
+		op->file = strdup(alias);
+		op->handle = handle;
+		options++;
+	}
+
+ out_unload:
+	if (unload)
+		dlclose(handle);
+ out_free:
+	free(plugin);
+}
+
+struct plugin_option *trace_util_read_plugin_options(void)
+{
+	struct plugin_option_read option = {
+		.options = NULL,
+	};
+
+	trace_util_load_plugins(NULL, ".so", read_options, &option);
+
+	return option.options;
+}
+
+void trace_util_free_options(struct plugin_option *options)
+{
+	struct plugin_option *op;
+	void *last_handle = NULL;
+
+	while (options) {
+		op = options;
+		options = op->next;
+		if (op->handle && op->handle != last_handle) {
+			last_handle = op->handle;
+			dlclose(op->handle);
+		}
+		free(op->file);
+		free(op);
+	}
 }
 
 struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
