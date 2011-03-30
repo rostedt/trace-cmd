@@ -549,8 +549,12 @@ void run_cmd(int argc, char **argv)
 		/* child */
 		update_task_filter();
 		enable_ptrace();
-		if (execvp(argv[0], argv))
-			exit(-1);
+		if (execvp(argv[0], argv)) {
+			fprintf(stderr, "\n********************\n");
+			fprintf(stderr, " Unable to exec %s\n", argv[0]);
+			fprintf(stderr, "********************\n");
+			die("Failed to exec %s", argv[0]);
+		}
 	}
 	if (do_ptrace) {
 		add_filter_pid(pid);
