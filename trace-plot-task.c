@@ -376,20 +376,23 @@ static void update_last_record(struct graph_info *ginfo,
 		} else {
 			static int once;
 
-			saved = tracecmd_peek_data(handle, cpu);
+			saved = tracecmd_read_data(handle, cpu);
 			set_cpu_to_time(cpu, ginfo, ts);
 			t2record = tracecmd_read_data(handle, cpu);
 			trecord = tracecmd_read_prev(handle, t2record);
 			free_record(t2record);
 			/* reset cursor back to what it was */
-			if (saved)
+			if (saved) {
 				tracecmd_set_cursor(handle, cpu, saved->offset);
-			else {
+				free_record(saved);
+			} else {
 				saved = tracecmd_read_data(handle, cpu);
 				if (!once && saved) {
 					once++;
 					warning("failed to reset cursor to end!");
 				}
+				/* saved should always be NULL */
+				free_record(saved);
 			}
 		}
 		if (!trecord)
