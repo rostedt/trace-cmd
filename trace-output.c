@@ -1015,8 +1015,6 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
  out_free:
 	free(offsets);
 	free(sizes);
-
-	tracecmd_output_close(handle);
 	return -1;
 }
 
@@ -1087,8 +1085,10 @@ tracecmd_create_file_glob(const char *output_file,
 	if (!handle)
 		return NULL;
 
-	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0)
+	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0) {
+		tracecmd_output_close(handle);
 		return NULL;
+	}
 
 	return handle;
 }
