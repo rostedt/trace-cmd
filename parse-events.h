@@ -49,7 +49,7 @@ struct record {
 	int			cpu;
 	int			ref_count;
 	int			locked;		/* Do not free, even if ref_count is zero */
-	void			*private;
+	void			*r_private;
 #if DEBUG_RECORD
 	struct record		*prev;
 	struct record		*next;
@@ -106,7 +106,7 @@ struct plugin_option {
 	char				*plugin_alias;
 	char				*description;
 	char				*value;
-	void				*private;
+	void				*p_private;
 	int				set;
 };
 
@@ -736,7 +736,7 @@ struct filter_arg_str {
 struct filter_arg {
 	enum filter_arg_type	type;
 	union {
-		struct filter_arg_boolean	bool;
+		struct filter_arg_boolean	boolean;
 		struct filter_arg_field		field;
 		struct filter_arg_value		value;
 		struct filter_arg_op		op;
