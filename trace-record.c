@@ -343,7 +343,7 @@ static void update_ftrace_pid(const char *pid, int reset)
 			path = tracecmd_get_tracing_file("set_ftrace_pid");
 		if (!path)
 			return;
-		fd = open(path, O_WRONLY | (reset ? O_TRUNC : 0));
+		fd = open(path, O_WRONLY | O_CLOEXEC | (reset ? O_TRUNC : 0));
 		if (fd < 0)
 			return;
 	}
@@ -795,7 +795,7 @@ static void check_tracing_enabled(void)
 
 	if (fd < 0) {
 		path = tracecmd_get_tracing_file("tracing_enabled");
-		fd = open(path, O_WRONLY);
+		fd = open(path, O_WRONLY | O_CLOEXEC);
 		tracecmd_put_tracing_file(path);
 
 		if (fd < 0)
@@ -815,7 +815,7 @@ static int open_tracing_on(void)
 		return fd;
 
 	path = tracecmd_get_tracing_file("tracing_on");
-	fd = open(path, O_RDWR);
+	fd = open(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 		die("opening '%s'", path);
 	tracecmd_put_tracing_file(path);
