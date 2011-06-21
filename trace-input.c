@@ -92,6 +92,7 @@ struct tracecmd_input {
 	size_t			header_files_start;
 	size_t			ftrace_files_start;
 	size_t			event_files_start;
+	size_t			total_file_size;
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
@@ -2085,6 +2086,15 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		handle->cpu_data[cpu].file_offset = offset;
 		handle->cpu_data[cpu].file_size = size;
 
+		if (offset + size > handle->total_file_size) {
+			/* this happens if the file got truncated */
+			printf("File possibly truncated. "
+				"Need at least %llu, but file size is %lu.\n",
+				offset + size, handle->total_file_size);
+			errno = EINVAL;
+			return -1;
+		}
+
 		if (init_cpu(handle, cpu))
 			return -1;
 	}
@@ -2188,6 +2198,12 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 
 	handle->header_files_start =
 		lseek64(handle->fd, 0, SEEK_CUR);
+
+	handle->total_file_size =
+		lseek64(handle->fd, 0, SEEK_END);
+
+	handle->header_files_start =
+		lseek64(handle->fd, handle->header_files_start, SEEK_SET);
 
 	return handle;
 
