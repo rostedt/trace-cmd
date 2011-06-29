@@ -354,7 +354,6 @@ trace_stack_handler(struct trace_seq *s, struct record *record,
 	unsigned long long addr;
 	const char *func;
 	void *data = record->data;
-	int i;
 
 	field = pevent_find_any_field(event, "caller");
 	if (!field) {
@@ -366,9 +365,9 @@ trace_stack_handler(struct trace_seq *s, struct record *record,
 
 	long_size_check(finfo);
 
-	for (i = 0; i < field->size; i += finfo->long_size) {
-		addr = pevent_read_number(event->pevent,
-					  data + field->offset + i, finfo->long_size);
+	for (data += field->offset; data < record->data + record->size;
+	     data += finfo->long_size) {
+		addr = pevent_read_number(event->pevent, data, finfo->long_size);
 
 		if ((finfo->long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
