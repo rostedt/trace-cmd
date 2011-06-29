@@ -1855,6 +1855,13 @@ static void check_plugin(const char *plugin)
 	char *buf;
 	char *tok;
 
+	/*
+	 * nop is special. We may want to just trace
+	 * trace_printks, that are in the kernel.
+	 */
+	if (strcmp(plugin, "nop") == 0)
+		return;
+
 	buf = read_file("available_tracers", NULL);
 	if (!buf)
 		die("No plugins available");
