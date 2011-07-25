@@ -150,6 +150,11 @@ static struct usage_help usage_help[] = {
 		"          --reset  reset the maximum stack found\n"
 	},
 	{
+		"check-events",
+		"parse trace event formats",
+		" %s check-format\n"
+	},
+	{
 		NULL, NULL, NULL
 	}
 };

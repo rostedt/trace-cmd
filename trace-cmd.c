@@ -158,6 +158,31 @@ int main (int argc, char **argv)
 	} else if (strcmp(argv[1], "stack") == 0) {
 		trace_stack(argc, argv);
 		exit(0);
+	} else if (strcmp(argv[1], "check-events") == 0) {
+		char *tracing;
+		int ret;
+		struct pevent *pevent = NULL;
+
+		tracing = tracecmd_find_tracing_dir();
+
+		if (!tracing) {
+			printf("Can not find or mount tracing directory!\n"
+				"Either tracing is not configured for this "
+				"kernel\n"
+				"or you do not have the proper permissions to "
+				"mount the directory");
+			exit(EINVAL);
+		}
+
+		ret = 0;
+		pevent = tracecmd_local_events(tracing);
+		if (!pevent)
+			exit(EINVAL);
+		if (pevent->parsing_failures)
+			ret = EINVAL;
+		pevent_free(pevent);
+		exit(ret);
+
 	} else if (strcmp(argv[1], "record") == 0 ||
 		   strcmp(argv[1], "start") == 0 ||
 		   strcmp(argv[1], "extract") == 0 ||

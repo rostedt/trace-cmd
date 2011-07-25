@@ -402,6 +402,8 @@ struct pevent {
 	struct event_handler *handlers;
 	struct pevent_function_handler *func_handlers;
 
+	int parsing_failures;
+
 	/* cache */
 	struct event_format *last_event;
 };

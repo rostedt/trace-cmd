@@ -621,22 +621,22 @@ static int read_file(const char *file, char **buffer)
 	return len;
 }
 
-static void load_events(struct pevent *pevent, const char *system,
+static int load_events(struct pevent *pevent, const char *system,
 			const char *sys_dir)
 {
 	struct dirent *dent;
 	struct stat st;
 	DIR *dir;
 	int len = 0;
-	int ret;
+	int ret = 0, failure = 0;
 
 	ret = stat(sys_dir, &st);
 	if (ret < 0 || !S_ISDIR(st.st_mode))
-		return;
+		return EINVAL;
 
 	dir = opendir(sys_dir);
 	if (!dir)
-		return;
+		return errno;
 
 	while ((dent = readdir(dir))) {
 		const char *name = dent->d_name;
@@ -662,15 +662,18 @@ static void load_events(struct pevent *pevent, const char *system,
 		if (len < 0)
 			goto free_format;
 
-		pevent_parse_event(pevent, buf, len, system);
+		ret = pevent_parse_event(pevent, buf, len, system);
 		free(buf);
  free_format:
 		free(format);
  free_event:
 		free(event);
+		if (ret)
+			failure = ret;
 	}
 
 	closedir(dir);
+	return failure;
 }
 
 static int read_header(struct pevent *pevent, const char *events_dir)
@@ -715,7 +718,7 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
 	char *events_dir;
 	struct stat st;
 	DIR *dir;
-	int ret;
+	int ret, failure = 0;
 
 	if (!tracing_dir)
 		return NULL;
@@ -725,21 +728,28 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
 		return NULL;
 
 	ret = stat(events_dir, &st);
-	if (ret < 0 || !S_ISDIR(st.st_mode))
+	if (ret < 0 || !S_ISDIR(st.st_mode)) {
+		failure = 1;
 		goto out_free;
+	}
 
 	dir = opendir(events_dir);
-	if (!dir)
+	if (!dir) {
+		failure = 1;
 		goto out_free;
+	}
 
 	pevent = pevent_alloc();
-	if (!pevent)
+	if (!pevent) {
+		failure = 1;
 		goto out_free;
+	}
 
 	ret = read_header(pevent, events_dir);
 	if (ret < 0) {
 		pevent_free(pevent);
 		pevent = NULL;
+		failure = 1;
 		goto out_free;
 	}
 
@@ -758,15 +768,21 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
 			continue;
 		}
 
-		load_events(pevent, name, sys);
+		ret = load_events(pevent, name, sys);
 
 		free(sys);
+
+		if (ret)
+			failure = 1;
 	}
 
 	closedir(dir);
 
  out_free:
 	free(events_dir);
+
+	if (pevent)
+		pevent->parsing_failures = failure;
 
 	return pevent;
 }
