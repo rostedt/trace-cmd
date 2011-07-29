@@ -186,6 +186,7 @@ struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
 struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
 							   const char *tracing_dir,
 							   const char *kallsyms);
+void trace_util_ftrace_options(void);
 int tracecmd_add_option(struct tracecmd_output *handle,
 			unsigned short id,
 			int size, void *data);
