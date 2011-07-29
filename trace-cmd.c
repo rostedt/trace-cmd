@@ -176,9 +176,7 @@ int main (int argc, char **argv)
 
 		ret = 0;
 		pevent = tracecmd_local_events(tracing);
-		if (!pevent)
-			exit(EINVAL);
-		if (pevent->parsing_failures)
+		if (!pevent || pevent->parsing_failures)
 			ret = EINVAL;
 		pevent_free(pevent);
 		exit(ret);
