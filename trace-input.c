@@ -342,10 +342,12 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	if (print)
+	if (print) {
 		printf("%.*s\n", (int)size, buf);
-	else
-		pevent_parse_event(pevent, buf, size, "ftrace");
+	} else {
+		if (pevent_parse_event(pevent, buf, size, "ftrace"))
+			pevent->parsing_failures = 1;
+	}
 	free(buf);
 
 	return 0;
@@ -367,10 +369,12 @@ static int read_event_file(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	if (print)
+	if (print) {
 		printf("%.*s\n", (int)size, buf);
-	else
-		pevent_parse_event(pevent, buf, size, system);
+	} else {
+		if (pevent_parse_event(pevent, buf, size, system))
+			pevent->parsing_failures = 1;
+	}
 	free(buf);
 
 	return 0;

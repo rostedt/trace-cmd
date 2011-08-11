@@ -826,6 +826,7 @@ static void process_plugin_option(char *option)
 }
 
 enum {
+	OPT_check_event_parsing	= 252,
 	OPT_kallsyms	= 253,
 	OPT_events	= 254,
 	OPT_cpu		= 255,
@@ -848,6 +849,8 @@ void trace_report (int argc, char **argv)
 	int test_filters = 0;
 	int raw = 0;
 	int neg = 0;
+	int ret = 0;
+	int check_event_parsing = 0;
 	int c;
 
 	list_head_init(&handle_list);
@@ -868,6 +871,8 @@ void trace_report (int argc, char **argv)
 			{"events", no_argument, NULL, OPT_events},
 			{"filter-test", no_argument, NULL, 'T'},
 			{"kallsyms", required_argument, NULL, OPT_kallsyms},
+			{"check-events", no_argument, NULL,
+				OPT_check_event_parsing},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -948,6 +953,9 @@ void trace_report (int argc, char **argv)
 		case OPT_kallsyms:
 			functions = optarg;
 			break;
+		case OPT_check_event_parsing:
+			check_event_parsing = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -1005,8 +1013,16 @@ void trace_report (int argc, char **argv)
 			return;
 		}
 
-		if (tracecmd_read_headers(handle) < 0)
-			return;
+		ret = tracecmd_read_headers(handle);
+		if (check_event_parsing) {
+			if (ret || pevent->parsing_failures)
+				exit(EINVAL);
+			else
+				exit(0);
+		} else {
+			if (ret)
+				return;
+		}
 
 		if (show_funcs) {
 			pevent_print_funcs(pevent);

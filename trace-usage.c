@@ -91,6 +91,7 @@ static struct usage_help usage_help[] = {
 		"          -w show wakeup latencies\n"
 		"          -l show latency format (default with latency tracers)\n"
 		"          -O plugin option -O [plugin:]var[=val]\n"
+		"          --check-events return whether all event formats can be parsed\n"
 	},
 	{
 		"split",
