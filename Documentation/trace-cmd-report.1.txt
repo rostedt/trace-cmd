@@ -41,6 +41,11 @@ OPTIONS
 *--events*::
     This will list the event formats that are stored in the trace.dat file.
 
+*--check-events*::
+    This will parse the event format strings that are stored in the trace.dat
+    file and return whether the formats can be parsed correctly. It will load
+    plugins unless *-N* is specified.
+
 *-F* 'filter'::
     Add a filter to limit what events are displayed. The format of the filter
     is:
