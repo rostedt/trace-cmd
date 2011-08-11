@@ -159,7 +159,5 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	return 0;
 
  fail:
-	exit(0);
-	printf("failed!\n");
 	return -1;
 }
