@@ -162,7 +162,19 @@ int main (int argc, char **argv)
 		char *tracing;
 		int ret;
 		struct pevent *pevent = NULL;
+		struct plugin_list *list = NULL;
 
+		while ((c = getopt(argc-1, argv+1, "+hN")) >= 0) {
+			switch (c) {
+			case 'h':
+			default:
+				usage(argv);
+				break;
+			case 'N':
+				tracecmd_disable_plugins = 1;
+				break;
+			}
+		}
 		tracing = tracecmd_find_tracing_dir();
 
 		if (!tracing) {
@@ -174,10 +186,14 @@ int main (int argc, char **argv)
 			exit(EINVAL);
 		}
 
-		ret = 0;
-		pevent = tracecmd_local_events(tracing);
-		if (!pevent || pevent->parsing_failures)
+		pevent = pevent_alloc();
+		if (!pevent)
+			exit(EINVAL);
+		list = tracecmd_load_plugins(pevent);
+		ret = tracecmd_fill_local_events(tracing, pevent);
+		if (ret || pevent->parsing_failures)
 			ret = EINVAL;
+		tracecmd_unload_plugins(list);
 		pevent_free(pevent);
 		exit(ret);
 

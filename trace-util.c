@@ -714,6 +714,28 @@ static int read_header(struct pevent *pevent, const char *events_dir)
 struct pevent *tracecmd_local_events(const char *tracing_dir)
 {
 	struct pevent *pevent = NULL;
+
+	pevent = pevent_alloc();
+	if (!pevent)
+		return NULL;
+
+	if (tracecmd_fill_local_events(tracing_dir, pevent)) {
+		pevent_free(pevent);
+		pevent = NULL;
+	}
+
+	return pevent;
+}
+
+/**
+ * tracecmd_fill_local_events - Fill a pevent with the events on system
+ * @tracing_dir: The directory that contains the events.
+ * @pevent: Allocated pevent which will be filled
+ *
+ * Returns whether the operation succeeded
+ */
+int tracecmd_fill_local_events(const char *tracing_dir, struct pevent *pevent)
+{
 	struct dirent *dent;
 	char *events_dir;
 	struct stat st;
@@ -721,35 +743,27 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
 	int ret, failure = 0;
 
 	if (!tracing_dir)
-		return NULL;
+		return -1;
 
 	events_dir = append_file(tracing_dir, "events");
 	if (!events_dir)
-		return NULL;
+		return -1;
 
 	ret = stat(events_dir, &st);
 	if (ret < 0 || !S_ISDIR(st.st_mode)) {
-		failure = 1;
+		ret = -1;
 		goto out_free;
 	}
 
 	dir = opendir(events_dir);
 	if (!dir) {
-		failure = 1;
-		goto out_free;
-	}
-
-	pevent = pevent_alloc();
-	if (!pevent) {
-		failure = 1;
+		ret = -1;
 		goto out_free;
 	}
 
 	ret = read_header(pevent, events_dir);
 	if (ret < 0) {
-		pevent_free(pevent);
-		pevent = NULL;
-		failure = 1;
+		ret = -1;
 		goto out_free;
 	}
 
@@ -777,14 +791,15 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
 	}
 
 	closedir(dir);
+	/* always succeed because parsing failures are not critical */
+	ret = 0;
 
  out_free:
 	free(events_dir);
 
-	if (pevent)
-		pevent->parsing_failures = failure;
+	pevent->parsing_failures = failure;
 
-	return pevent;
+	return ret;
 }
 
 /**

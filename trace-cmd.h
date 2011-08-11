@@ -38,6 +38,7 @@ void tracecmd_unload_plugins(struct plugin_list *list);
 char **tracecmd_event_systems(const char *tracing_dir);
 char **tracecmd_system_events(const char *tracing_dir, const char *system);
 struct pevent *tracecmd_local_events(const char *tracing_dir);
+int tracecmd_fill_local_events(const char *tracing_dir, struct pevent *pevent);
 char **tracecmd_local_plugins(const char *tracing_dir);
 
 char **tracecmd_add_list(char **list, const char *name, int len);
