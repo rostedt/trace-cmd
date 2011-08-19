@@ -1426,8 +1426,6 @@ static void start_threads(void)
 {
 	int i;
 
-	cpu_count = count_cpus();
-
 	if (host)
 		setup_network();
 
@@ -1905,7 +1903,7 @@ void trace_record (int argc, char **argv)
 	struct event_list *event;
 	struct event_list *last_event;
 	struct tracecmd_event_list *list;
-	struct trace_seq s;
+	struct trace_seq *s;
 	char *date2ts = NULL;
 	int record_all = 0;
 	int disable = 0;
@@ -1920,6 +1918,8 @@ void trace_record (int argc, char **argv)
 	int cpu;
 
 	int c;
+
+	cpu_count = count_cpus();
 
 	if ((record = (strcmp(argv[1], "record") == 0)))
 		; /* do nothing */
@@ -2184,6 +2184,8 @@ void trace_record (int argc, char **argv)
 
 	set_options();
 
+	s = malloc_or_die(sizeof(*s) * cpu_count);
+
 	if (record || extract) {
 		signal(SIGINT, finish);
 		if (!latency)
@@ -2219,6 +2221,11 @@ void trace_record (int argc, char **argv)
 
 	stop_threads();
 
+	for (cpu = 0; cpu < cpu_count; cpu++) {
+		trace_seq_init(&s[cpu]);
+		trace_seq_printf(&s[cpu], "CPU: %d\n", cpu);
+		tracecmd_stat_cpu(&s[cpu], cpu);
+	}
 
 	if (!keep)
 		disable_all();
@@ -2227,13 +2234,11 @@ void trace_record (int argc, char **argv)
 	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
 	       "        recorded in the trace data. They should all be zero.\n\n");
 	for (cpu = 0; cpu < cpu_count; cpu++) {
-		trace_seq_init(&s);
-		trace_seq_printf(&s, "CPU: %d\n", cpu);
-		tracecmd_stat_cpu(&s, cpu);
-		trace_seq_do_printf(&s);
-		trace_seq_destroy(&s);
+		trace_seq_do_printf(&s[cpu]);
+		trace_seq_destroy(&s[cpu]);
 		printf("\n");
 	}
+
 
 	/* extract records the date after extraction */
 	if (extract && date)
