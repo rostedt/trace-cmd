@@ -77,6 +77,7 @@ struct cpu_data {
 struct tracecmd_input {
 	struct pevent		*pevent;
 	struct plugin_list	*plugin_list;
+	unsigned long		flags;
 	int			fd;
 	int			long_size;
 	int			page_size;
@@ -96,6 +97,16 @@ struct tracecmd_input {
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
+
+void tracecmd_set_flag(struct tracecmd_input *handle, int flag)
+{
+	handle->flags |= flag;
+}
+
+void tracecmd_clear_flag(struct tracecmd_input *handle, int flag)
+{
+	handle->flags &= ~flag;
+}
 
 #if DEBUG_RECORD
 static void remove_record(struct page *page, struct record *record)
@@ -1998,6 +2009,8 @@ static int handle_options(struct tracecmd_input *handle)
 			 * gtod. It is stored as ASCII with '0x'
 			 * appended.
 			 */
+			if (handle->flags & TRACECMD_FL_IGNORE_DATE)
+				break;
 			offset = strtoll(buf, NULL, 0);
 			/* Convert from micro to nano */
 			offset *= 1000;

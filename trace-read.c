@@ -826,6 +826,7 @@ static void process_plugin_option(char *option)
 }
 
 enum {
+	OPT_nodate	= 251,
 	OPT_check_event_parsing	= 252,
 	OPT_kallsyms	= 253,
 	OPT_events	= 254,
@@ -847,6 +848,7 @@ void trace_report (int argc, char **argv)
 	int show_events = 0;
 	int print_events = 0;
 	int test_filters = 0;
+	int no_date = 0;
 	int raw = 0;
 	int neg = 0;
 	int ret = 0;
@@ -873,6 +875,7 @@ void trace_report (int argc, char **argv)
 			{"kallsyms", required_argument, NULL, OPT_kallsyms},
 			{"check-events", no_argument, NULL,
 				OPT_check_event_parsing},
+			{"nodate", no_argument, NULL, OPT_nodate},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -956,6 +959,9 @@ void trace_report (int argc, char **argv)
 		case OPT_check_event_parsing:
 			check_event_parsing = 1;
 			break;
+		case OPT_nodate:
+			no_date = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -980,6 +986,9 @@ void trace_report (int argc, char **argv)
 		if (!handle)
 			die("error reading header for %s", inputs->file);
 		add_handle(handle, inputs->file);
+
+		if (no_date)
+			tracecmd_set_flag(handle, TRACECMD_FL_IGNORE_DATE);
 
 		page_size = tracecmd_page_size(handle);
 

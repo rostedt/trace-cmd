@@ -80,6 +80,10 @@ enum {
 	TRACECMD_OPTION_DATE,
 };
 
+enum {
+	TRACECMD_FL_IGNORE_DATE		= 1,
+};
+
 struct tracecmd_ftrace {
 	struct tracecmd_input		*handle;
 	struct event_format *fgraph_ret_event;
@@ -98,6 +102,8 @@ int tracecmd_long_size(struct tracecmd_input *handle);
 int tracecmd_page_size(struct tracecmd_input *handle);
 int tracecmd_cpus(struct tracecmd_input *handle);
 int tracecmd_copy_headers(struct tracecmd_input *handle, int fd);
+void tracecmd_set_flag(struct tracecmd_input *handle, int flag);
+void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
 
 void tracecmd_print_events(struct tracecmd_input *handle);
 
