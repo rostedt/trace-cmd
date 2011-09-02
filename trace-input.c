@@ -784,6 +784,7 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	}
 
 	handle->cpu_data[cpu].timestamp = data2host8(pevent, ptr);
+	handle->cpu_data[cpu].timestamp += handle->ts_offset;
 	flags = read_page_flags(pevent, &ptr);
 	if (flags == -1U)
 		return -1;
@@ -1726,7 +1727,7 @@ read_again:
 		return NULL;
 	memset(record, 0, sizeof(*record));
 
-	record->ts = handle->cpu_data[cpu].timestamp + handle->ts_offset;
+	record->ts = handle->cpu_data[cpu].timestamp;
 	record->size = length;
 	record->cpu = cpu;
 	record->data = ptr;
