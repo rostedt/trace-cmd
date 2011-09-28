@@ -31,7 +31,13 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+#ifndef NO_PTRACE
 #include <sys/ptrace.h>
+#else
+#ifdef WARN_NO_PTRACE
+#warning ptrace not supported. -c feature will not work
+#endif
+#endif
 #include <netdb.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -370,6 +376,30 @@ static void
 update_sched_event(struct event_list **event, const char *file,
 		   const char *pid_filter, const char *field_filter);
 
+static void update_task_filter(void)
+{
+	int pid = getpid();
+	char spid[100];
+
+	if (!filter_task && filter_pid < 0) {
+		update_ftrace_pid("", 1);
+		enable_tracing();
+		return;
+	}
+
+	if (filter_pid >= 0)
+		pid = filter_pid;
+
+	snprintf(spid, 100, "%d", pid);
+
+	update_ftrace_pid(spid, 1);
+
+	update_pid_event_filters(spid);
+
+	enable_tracing();
+}
+
+#ifndef NO_PTRACE
 static char *make_pid_filter(const char *field)
 {
 	struct filter_pids *p;
@@ -428,29 +458,6 @@ static void add_new_filter_pid(int pid)
 			   pid_filter, filter);
 	free(pid_filter);
 	free(filter);
-}
-
-static void update_task_filter(void)
-{
-	int pid = getpid();
-	char spid[100];
-
-	if (!filter_task && filter_pid < 0) {
-		update_ftrace_pid("", 1);
-		enable_tracing();
-		return;
-	}
-
-	if (filter_pid >= 0)
-		pid = filter_pid;
-
-	snprintf(spid, 100, "%d", pid);
-
-	update_ftrace_pid(spid, 1);
-
-	update_pid_event_filters(spid);
-
-	enable_tracing();
 }
 
 static void ptrace_attach(int pid)
@@ -529,6 +536,12 @@ static void ptrace_wait(int main_pid)
 	} while (!finished && ret > 0 &&
 		 (!WIFEXITED(status) || pid != main_pid));
 }
+#else
+static inline void ptrace_wait(int main_pid) { }
+static inline void enable_ptrace(void) { }
+static inline void ptrace_attach(int pid) { }
+
+#endif /* NO_PTRACE */
 
 void trace_or_sleep(void)
 {
@@ -2023,6 +2036,9 @@ void trace_record (int argc, char **argv)
 			filter_pid = atoi(optarg);
 			break;
 		case 'c':
+#ifdef NO_PTRACE
+			die("-c invalid: ptrace not supported");
+#endif
 			do_ptrace = 1;
 			break;
 		case 'v':

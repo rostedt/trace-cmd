@@ -13,7 +13,6 @@ FILE_VERSION = 6
 
 MAKEFLAGS += --no-print-directory
 
-
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
 # environment or command line. This is necessary for CC and AR
@@ -205,8 +204,21 @@ KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 INCLUDES = -I. -I/usr/local/include $(CONFIG_INCLUDES)
 
+include features.mk
+
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -Wall
+
+ifndef NO_PTRACE
+ifneq ($(call try-cc,$(SOURCE_PTRACE),),y)
+	NO_PTRACE = 1
+	CFLAGS += -DWARN_NO_PTRACE
+endif
+endif
+
+ifdef NO_PTRACE
+CFLAGS += -DNO_PTRACE
+endif
 
 # Append required CFLAGS
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
