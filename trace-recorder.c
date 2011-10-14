@@ -128,11 +128,39 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
 	return recorder;
 }
 
+/*
+ * Returns -1 on error.
+ *          or bytes of data read.
+ */
+static long splice_data(struct tracecmd_recorder *recorder)
+{
+	long ret;
+
+	ret = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
+		     recorder->page_size, 1 /* SPLICE_F_MOVE */);
+	if (ret < 0) {
+		warning("recorder error in splice input");
+		return -1;
+	}
+
+	ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
+		     recorder->page_size, 3 /* and NON_BLOCK */);
+	if (ret < 0) {
+		if (errno != EAGAIN) {
+			warning("recorder error in splice output");
+			return -1;
+		}
+		ret = 0;
+	}
+
+	return ret;
+}
+
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep)
 {
 	struct timespec req;
 	char *buf[recorder->page_size];
-	int ret;
+	long ret;
 
 	recorder->stop = 0;
 
@@ -142,20 +170,18 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 			req.tv_nsec = (sleep % 1000000) * 1000;
 			nanosleep(&req, NULL);
 		}
-
-		ret = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
-			     recorder->page_size, 1 /* SPLICE_F_MOVE */);
-		if (ret < 0) {
-			warning("recorder error in splice input");
-			return -1;
-		}
-		ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
-			     recorder->page_size, 3 /* and NON_BLOCK */);
-		if (ret < 0 && errno != EAGAIN) {
-			warning("recorder error in splice output");
-			return -1;
-		}
+		ret = splice_data(recorder);
+		if (ret < 0)
+			return ret;
 	} while (!recorder->stop);
+
+	/* Flush via splice first */
+	do {
+		ret = splice_data(recorder);
+	} while (ret > 0);
+
+	if (ret < 0)
+		return ret;
 
 	/* splice only reads full pages */
 	do {
