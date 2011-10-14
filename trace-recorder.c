@@ -156,10 +156,32 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	return ret;
 }
 
+long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
+{
+	char *buf[recorder->page_size];
+	long total = 0;
+	long ret;
+
+	do {
+		ret = splice_data(recorder);
+		if (ret < 0)
+			return ret;
+		total += ret;
+	} while (ret);
+
+	/* splice only reads full pages */
+	do {
+		ret = read(recorder->trace_fd, buf, recorder->page_size);
+		if (ret > 0)
+			write(recorder->fd, buf, ret);
+	} while (ret > 0);
+
+	return total;
+}
+
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep)
 {
 	struct timespec req;
-	char *buf[recorder->page_size];
 	long ret;
 
 	recorder->stop = 0;
@@ -175,20 +197,11 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 			return ret;
 	} while (!recorder->stop);
 
-	/* Flush via splice first */
-	do {
-		ret = splice_data(recorder);
-	} while (ret > 0);
+	/* Flush out the rest */
+	ret = tracecmd_flush_recording(recorder);
 
 	if (ret < 0)
 		return ret;
-
-	/* splice only reads full pages */
-	do {
-		ret = read(recorder->trace_fd, buf, recorder->page_size);
-		if (ret > 0)
-			write(recorder->fd, buf, ret);
-	} while (ret > 0);
 
 	return 0;
 }

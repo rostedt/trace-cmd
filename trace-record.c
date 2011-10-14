@@ -219,11 +219,15 @@ static void delete_thread_data(void)
 		return;
 
 	for (i = 0; i < cpu_count; i++) {
-		if (pids[i]) {
+		if (pids) {
+			if (pids[i]) {
+				delete_temp_file(i);
+				if (pids[i] < 0)
+					pids[i] = 0;
+			}
+		} else
+			/* Extract does not allocate pids */
 			delete_temp_file(i);
-			if (pids[i] < 0)
-				pids[i] = 0;
-		}
 	}
 }
 
@@ -243,16 +247,20 @@ static void stop_threads(void)
 	}
 }
 
+static int create_recorder(int cpu, int extract);
+
 static void flush_threads(void)
 {
+	long ret;
 	int i;
 
 	if (!cpu_count)
 		return;
 
 	for (i = 0; i < cpu_count; i++) {
-		if (pids[i] > 0)
-			kill(pids[i], SIGUSR1);
+		ret = create_recorder(i, 1);
+		if (ret < 0)
+			die("error reading ring buffer");
 	}
 }
 
@@ -1270,25 +1278,32 @@ static void set_prio(int prio)
 		warning("failed to set priority");
 }
 
-static int create_recorder(int cpu)
+/*
+ * If extract is set, then this is going to set up the recorder,
+ * connections and exit as the tracing is serialized by a single thread.
+ */
+static int create_recorder(int cpu, int extract)
 {
+	long ret;
 	char *file;
 	int pid;
 
-	signal(SIGUSR1, flush);
+	if (!extract) {
+		signal(SIGUSR1, flush);
 
-	pid = fork();
-	if (pid < 0)
-		die("fork");
+		pid = fork();
+		if (pid < 0)
+			die("fork");
 
-	if (pid)
-		return pid;
+		if (pid)
+			return pid;
 
-	if (rt_prio)
-		set_prio(rt_prio);
+		if (rt_prio)
+			set_prio(rt_prio);
 
-	/* do not kill tasks on error */
-	cpu_count = 0;
+		/* do not kill tasks on error */
+		cpu_count = 0;
+	}
 
 	if (client_ports) {
 		connect_port(cpu);
@@ -1301,6 +1316,13 @@ static int create_recorder(int cpu)
 
 	if (!recorder)
 		die ("can't create recorder");
+
+	if (extract) {
+		ret = tracecmd_flush_recording(recorder);
+		tracecmd_free_recorder(recorder);
+		return ret;
+	}
+
 	while (!finished) {
 		if (tracecmd_start_recording(recorder, sleep_time) < 0)
 			break;
@@ -1448,7 +1470,7 @@ static void start_threads(void)
 	memset(pids, 0, sizeof(*pids) * cpu_count);
 
 	for (i = 0; i < cpu_count; i++) {
-		pids[i] = create_recorder(i);
+		pids[i] = create_recorder(i, 0);
 	}
 }
 
@@ -1491,44 +1513,6 @@ static void record_data(char *date2ts)
 	if (!handle)
 		die("could not write to file");
 	tracecmd_output_close(handle);
-}
-
-static int trace_empty(void)
-{
-	char *path;
-	FILE *fp;
-	char *line = NULL;
-	size_t size;
-	ssize_t n;
-	int ret = 1;
-	
-	/*
-	 * Test if the trace file is empty.
-	 *
-	 * Yes, this is a heck of a hack. What is done here
-	 * is to read the trace file and ignore the
-	 * lines starting with '#', and if we get a line
-	 * that is without a '#' the trace is not empty.
-	 * Otherwise it is.
-	 */
-	path = tracecmd_get_tracing_file("trace");
-	fp = fopen(path, "r");
-	if (!fp)
-		die("reading '%s'", path);
-
-	do {
-		n = getline(&line, &size, fp);
-		if (n > 0 && line && line[0] != '#') {
-			ret = 0;
-			break;
-		}
-	} while (line && n > 0);
-
-	tracecmd_put_tracing_file(path);
-
-	fclose(fp);
-
-	return ret;
 }
 
 static void write_func_file(const char *file, struct func_list **list)
@@ -2202,17 +2186,15 @@ void trace_record (int argc, char **argv)
 
 	s = malloc_or_die(sizeof(*s) * cpu_count);
 
-	if (record || extract) {
+	if (record) {
 		signal(SIGINT, finish);
 		if (!latency)
 			start_threads();
 	}
 
 	if (extract) {
-		while (!finished && !trace_empty()) {
-			flush_threads();
-			sleep(1);
-		}
+		flush_threads();
+
 	} else {
 		if (!record) {
 			update_task_filter();
@@ -2233,9 +2215,8 @@ void trace_record (int argc, char **argv)
 		}
 
 		disable_tracing();
+		stop_threads();
 	}
-
-	stop_threads();
 
 	for (cpu = 0; cpu < cpu_count; cpu++) {
 		trace_seq_init(&s[cpu]);
@@ -2262,7 +2243,6 @@ void trace_record (int argc, char **argv)
 
 	record_data(date2ts);
 	delete_thread_data();
-
 
 	if (keep)
 		exit(0);

@@ -213,6 +213,7 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu);
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
 void tracecmd_stat_cpu(struct trace_seq *s, int cpu);
+long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
 
 /* --- Plugin handling --- */
 extern struct plugin_option trace_ftrace_options[];
