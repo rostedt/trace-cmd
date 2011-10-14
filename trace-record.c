@@ -1962,9 +1962,10 @@ void trace_record (int argc, char **argv)
 			usage(argv);
 			break;
 		case 'a':
-			record_all = 1;
-			record_all_events();
-
+			if (!extract) {
+				record_all = 1;
+				record_all_events();
+			}
 			break;
 		case 'e':
 			if (extract)
@@ -2136,7 +2137,7 @@ void trace_record (int argc, char **argv)
 	tracing_on_init_val = read_tracing_on();
 
 	/* Extracting data records all events in the system. */
-	if (extract)
+	if (extract && !record_all)
 		record_all_events();
 
 	if (event_selection)
