@@ -2167,6 +2167,11 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	field = alloc_arg();
 
 	type = process_arg(event, field, &token);
+
+	/* Handle operations in the first argument */
+	while (type == EVENT_OP)
+		type = process_op(event, field, &token);
+
 	if (test_type_token(type, token, EVENT_DELIM, ","))
 		goto out_free;
 	free_token(token);
