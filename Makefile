@@ -326,7 +326,7 @@ TARGETS = $(CMD_TARGETS) $(GUI_TARGETS)
 #    If you want kernelshark, then do:  make gui
 ###
 
-all: all_cmd show_gui_make
+all: all_cmd doc show_gui_make
 
 all_cmd: $(CMD_TARGETS)
 
@@ -502,7 +502,7 @@ install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_INSTALL)
 install_cmd: all_cmd install_plugins install_python
 	$(Q)$(call do_install,trace-cmd,$(bindir_SQ))
 
-install: install_cmd
+install: install_cmd install_doc
 	@echo "Note: to install the gui, type \"make install_gui\""
 
 install_gui: install_cmd gui
