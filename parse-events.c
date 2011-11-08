@@ -2114,7 +2114,7 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 			goto out_free;
 
 		field = malloc_or_die(sizeof(*field));
-		memset(field, 0, sizeof(field));
+		memset(field, 0, sizeof(*field));
 
 		value = arg_eval(arg);
 		if (value == NULL)
@@ -4879,7 +4879,7 @@ int pevent_register_event_handler(struct pevent *pevent,
  not_found:
 	/* Save for later use. */
 	handle = malloc_or_die(sizeof(*handle));
-	memset(handle, 0, sizeof(handle));
+	memset(handle, 0, sizeof(*handle));
 	handle->id = id;
 	if (event_name)
 		handle->event_name = strdup(event_name);
