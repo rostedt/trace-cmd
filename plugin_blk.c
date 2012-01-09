@@ -54,6 +54,11 @@ static void fill_rwbs(char *rwbs, int action, unsigned int bytes)
 		goto out;
 	}
 
+#if defined(HAVE_BLK_TC_FLUSH)
+	if (tc & BLK_TC_FLUSH)
+		rwbs[i++] = 'F';
+#endif
+
 	if (tc & BLK_TC_DISCARD)
 		rwbs[i++] = 'D';
 	else if (tc & BLK_TC_WRITE)
@@ -63,10 +68,16 @@ static void fill_rwbs(char *rwbs, int action, unsigned int bytes)
 	else
 		rwbs[i++] = 'N';
 
+#if defined(HAVE_BLK_TC_FLUSH)
+	if (tc & BLK_TC_FUA)
+		rwbs[i++] = 'F';
+#endif
 	if (tc & BLK_TC_AHEAD)
 		rwbs[i++] = 'A';
+#if !defined(HAVE_BLK_TC_FLUSH)
 	if (tc & BLK_TC_BARRIER)
 		rwbs[i++] = 'B';
+#endif
 	if (tc & BLK_TC_SYNC)
 		rwbs[i++] = 'S';
 	if (tc & BLK_TC_META)

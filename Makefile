@@ -89,11 +89,19 @@ endif
 
 # $(call test-build, snippet, ret) -> ret if snippet compiles
 #                                  -> empty otherwise
-test-build = $(if $(shell $(CC) -o /dev/null -c -x c - > /dev/null 2>&1 \
-	                  <<<'$1' && echo y), $2)
+test-build = $(if $(shell sh -c 'echo "$(1)" | \
+	$(CC) -o /dev/null -c -x c - > /dev/null 2>&1 && echo y'), $2)
 
 # have udis86 disassembler library?
 udis86-flags := $(call test-build,\#include <udis86.h>,-DHAVE_UDIS86 -ludis86)
+
+define BLK_TC_FLUSH_SOURCE
+#include <linux/blktrace_api.h>
+int main(void) { return BLK_TC_FLUSH; }
+endef
+
+# have flush/fua block layer instead of barriers?
+blk-flags := $(call test-build,$(BLK_TC_FLUSH_SOURCE),-DHAVE_BLK_TC_FLUSH)
 
 ifeq ("$(origin O)", "command line")
   BUILD_OUTPUT := $(O)
@@ -223,7 +231,7 @@ endif
 
 # Append required CFLAGS
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
-override CFLAGS += $(udis86-flags)
+override CFLAGS += $(udis86-flags) $(blk-flags)
 
 ifeq ($(VERBOSE),1)
   Q =
