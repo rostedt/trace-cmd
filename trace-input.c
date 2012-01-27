@@ -1458,7 +1458,6 @@ translate_data(struct pevent *pevent,
 	switch (type_len) {
 	case RINGBUF_TYPE_PADDING:
 		*length = data2host4(pevent, *ptr);
-		*length *= 4;
 		*ptr += *length;
 		break;
 
