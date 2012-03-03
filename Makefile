@@ -571,7 +571,7 @@ do_compile_python_plugin_obj =			\
 
 do_python_plugin_build =			\
 	($(print_plugin_build)			\
-	$(CC) -shared $(PYTHON_LDFLAGS) -o $@ $<)
+	$(CC) $< -shared $(PYTHON_LDFLAGS) -o $@)
 
 plugin_python.o: %.o : $(src)/%.c trace_python_dir
 	$(Q)$(do_compile_python_plugin_obj)
