@@ -50,7 +50,10 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 	if (!recorder)
 		return;
 
-	if (recorder->fd)
+	if (recorder->trace_fd >= 0)
+		close(recorder->trace_fd);
+
+	if (recorder->fd >= 0)
 		close(recorder->fd);
 
 	free(recorder);
