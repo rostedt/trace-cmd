@@ -218,7 +218,6 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
 /* --- Plugin handling --- */
 extern struct plugin_option trace_ftrace_options[];
 
-void trace_util_ftrace_options(void);
 void trace_util_add_option(const char *name, const char *val);
 void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 			     void (*load_plugin)(struct pevent *pevent,
