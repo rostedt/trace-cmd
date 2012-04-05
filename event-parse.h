@@ -341,6 +341,10 @@ enum pevent_func_arg_type {
 	PEVENT_FUNC_ARG_MAX_TYPES
 };
 
+enum pevent_flag {
+	PEVENT_NSEC_OUTPUT		= 1,	/* output in NSECS */
+};
+
 struct cmdline;
 struct cmdline_list;
 struct func_map;
@@ -380,6 +384,7 @@ struct pevent {
 	struct printk_list *printklist;
 	unsigned int printk_count;
 
+
 	struct event_format **events;
 	int nr_events;
 	struct event_format **sort_events;
@@ -404,6 +409,8 @@ struct pevent {
 
 	int test_filters;
 
+	int flags;
+
 	struct format_field *bprint_ip_field;
 	struct format_field *bprint_fmt_field;
 	struct format_field *bprint_buf_field;
@@ -416,6 +423,11 @@ struct pevent {
 	/* cache */
 	struct event_format *last_event;
 };
+
+static inline void pevent_set_flag(struct pevent *pevent, int flag)
+{
+	pevent->flags |= flag;
+}
 
 static inline unsigned short
 __data2host2(struct pevent *pevent, unsigned short data)
