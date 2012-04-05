@@ -22,6 +22,7 @@
 #define _TRACE_CMD_H
 
 #include <stdlib.h>
+#include "event-utils.h"
 #include "event-parse.h"
 
 void parse_cmdlines(struct pevent *pevent, char *file, int size);

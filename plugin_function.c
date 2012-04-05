@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "event-utils.h"
 #include "event-parse.h"
 
 static struct func_stack {
