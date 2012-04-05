@@ -295,7 +295,7 @@ static const struct {
 	[__BLK_TA_REMAP]	= {{  "A", "remap" },	   blk_log_remap },
 };
 
-static int blktrace_handler(struct trace_seq *s, struct record *record,
+static int blktrace_handler(struct trace_seq *s, struct pevent_record *record,
 			    struct event_format *event, void *context)
 {
 	struct format_field *field;

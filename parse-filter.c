@@ -1552,10 +1552,10 @@ int pevent_filter_event_has_trivial(struct event_filter *filter,
 }
 
 static int test_filter(struct event_format *event,
-		       struct filter_arg *arg, struct record *record);
+		       struct filter_arg *arg, struct pevent_record *record);
 
 static const char *
-get_comm(struct event_format *event, struct record *record)
+get_comm(struct event_format *event, struct pevent_record *record)
 {
 	const char *comm;
 	int pid;
@@ -1567,7 +1567,7 @@ get_comm(struct event_format *event, struct record *record)
 
 static unsigned long long
 get_value(struct event_format *event,
-	  struct format_field *field, struct record *record)
+	  struct format_field *field, struct pevent_record *record)
 {
 	unsigned long long val;
 
@@ -1598,10 +1598,10 @@ get_value(struct event_format *event,
 }
 
 static unsigned long long
-get_arg_value(struct event_format *event, struct filter_arg *arg, struct record *record);
+get_arg_value(struct event_format *event, struct filter_arg *arg, struct pevent_record *record);
 
 static unsigned long long
-get_exp_value(struct event_format *event, struct filter_arg *arg, struct record *record)
+get_exp_value(struct event_format *event, struct filter_arg *arg, struct pevent_record *record)
 {
 	unsigned long long lval, rval;
 
@@ -1647,7 +1647,7 @@ get_exp_value(struct event_format *event, struct filter_arg *arg, struct record 
 }
 
 static unsigned long long
-get_arg_value(struct event_format *event, struct filter_arg *arg, struct record *record)
+get_arg_value(struct event_format *event, struct filter_arg *arg, struct pevent_record *record)
 {
 	switch (arg->type) {
 	case FILTER_ARG_FIELD:
@@ -1668,7 +1668,7 @@ get_arg_value(struct event_format *event, struct filter_arg *arg, struct record 
 }
 
 static int test_num(struct event_format *event,
-		    struct filter_arg *arg, struct record *record)
+		    struct filter_arg *arg, struct pevent_record *record)
 {
 	unsigned long long lval, rval;
 
@@ -1700,7 +1700,7 @@ static int test_num(struct event_format *event,
 	}
 }
 
-static const char *get_field_str(struct filter_arg *arg, struct record *record)
+static const char *get_field_str(struct filter_arg *arg, struct pevent_record *record)
 {
 	struct event_format *event;
 	struct pevent *pevent;
@@ -1743,7 +1743,7 @@ static const char *get_field_str(struct filter_arg *arg, struct record *record)
 }
 
 static int test_str(struct event_format *event,
-		    struct filter_arg *arg, struct record *record)
+		    struct filter_arg *arg, struct pevent_record *record)
 {
 	const char *val;
 
@@ -1773,7 +1773,7 @@ static int test_str(struct event_format *event,
 }
 
 static int test_op(struct event_format *event,
-		   struct filter_arg *arg, struct record *record)
+		   struct filter_arg *arg, struct pevent_record *record)
 {
 	switch (arg->op.type) {
 	case FILTER_OP_AND:
@@ -1794,7 +1794,7 @@ static int test_op(struct event_format *event,
 }
 
 static int test_filter(struct event_format *event,
-		       struct filter_arg *arg, struct record *record)
+		       struct filter_arg *arg, struct pevent_record *record)
 {
 	switch (arg->type) {
 	case FILTER_ARG_BOOLEAN:
@@ -1859,7 +1859,7 @@ int pevent_event_filtered(struct event_filter *filter,
  * -2 - if no filters exist
  */
 int pevent_filter_match(struct event_filter *filter,
-			struct record *record)
+			struct pevent_record *record)
 {
 	struct pevent *pevent = filter->pevent;
 	struct filter_type *filter_type;

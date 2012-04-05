@@ -139,7 +139,7 @@ static void _print_flag(struct trace_seq *s, struct event_format *event,
 #define SFX(fn)	pevent_print_num_field(s, fn ":%#x", event, fn, record, 0)
 #define SP()	trace_seq_putc(s, ' ')
 
-static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
+static int drv_bss_info_changed(struct trace_seq *s, struct pevent_record *record,
 				struct event_format *event, void *context)
 {
 	void *data = record->data;
@@ -167,7 +167,7 @@ static int drv_bss_info_changed(struct trace_seq *s, struct record *record,
 	return 0;
 }
 
-static int drv_config(struct trace_seq *s, struct record *record,
+static int drv_config(struct trace_seq *s, struct pevent_record *record,
 		      struct event_format *event, void *context)
 {
 	void *data = record->data;

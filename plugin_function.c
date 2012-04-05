@@ -89,7 +89,7 @@ static int get_index(const char *parent, const char *child, int cpu)
 	return 0;
 }
 
-static int function_handler(struct trace_seq *s, struct record *record,
+static int function_handler(struct trace_seq *s, struct pevent_record *record,
 			    struct event_format *event, void *context)
 {
 	struct pevent *pevent = event->pevent;

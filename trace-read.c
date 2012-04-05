@@ -54,7 +54,7 @@ struct handle_list {
 	const char		*file;
 	int			cpus;
 	int			done;
-	struct record		*record;
+	struct pevent_record	*record;
 	struct event_filter	*event_filters;
 	struct event_filter	*event_filter_out;
 };
@@ -109,7 +109,7 @@ static int test_read_at_index;
 static void show_test(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
-	struct record *record;
+	struct pevent_record *record;
 	struct trace_seq s;
 	int cpu;
 
@@ -131,7 +131,7 @@ static void show_test(struct tracecmd_input *handle)
 	free_record(record);
 }
 
-static void test_save(struct record *record, int cpu)
+static void test_save(struct pevent_record *record, int cpu)
 {
 	if (test_read_at_index++ == test_read_at_copy) {
 		test_read_at_offset = record->offset;
@@ -151,7 +151,7 @@ static int test_at_timestamp_index;
 static void show_test(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
-	struct record *record;
+	struct pevent_record *record;
 	struct trace_seq s;
 	int cpu = test_at_timestamp_cpu;
 
@@ -178,7 +178,7 @@ static void show_test(struct tracecmd_input *handle)
 	free_record(record);
 }
 
-static void test_save(struct record *record, int cpu)
+static void test_save(struct pevent_record *record, int cpu)
 {
 	if (test_at_timestamp_index++ == test_at_timestamp_copy) {
 		test_at_timestamp_ts = record->ts;
@@ -196,7 +196,7 @@ static void test_save(struct record *record, int cpu)
 static void show_test(struct tracecmd_input *handle)
 {
 	struct pevent *pevent;
-	struct record *record;
+	struct pevent_record *record;
 	struct trace_seq s;
 	int cpu = 0;
 
@@ -234,7 +234,7 @@ static void show_test(struct tracecmd_input *handle)
 
 	free_record(record);
 }
-static void test_save(struct record *record, int cpu)
+static void test_save(struct pevent_record *record, int cpu)
 {
 }
 #endif /* TEST_FIRST_LAST */
@@ -243,7 +243,7 @@ static void test_save(struct record *record, int cpu)
 static void show_test(struct tracecmd_input *handle)
 {
 }
-static void test_save(struct record *record, int cpu)
+static void test_save(struct pevent_record *record, int cpu)
 {
 }
 #endif
@@ -343,7 +343,7 @@ static void process_filters(struct handle_list *handles)
 }
 
 static int filter_record(struct tracecmd_input *handle,
-			 struct record *record)
+			 struct pevent_record *record)
 {
 	return 0;
 }
@@ -475,7 +475,7 @@ static void add_sched(unsigned int val, unsigned long long end)
 	free(info);
 }
 
-static void process_wakeup(struct pevent *pevent, struct record *record)
+static void process_wakeup(struct pevent *pevent, struct pevent_record *record)
 {
 	unsigned long long val;
 	int id;
@@ -537,7 +537,7 @@ static void finish_wakeup(void)
 }
 
 static void show_data(struct tracecmd_input *handle,
-		      struct record *record, int cpu)
+		      struct pevent_record *record, int cpu)
 {
 	struct pevent *pevent;
 	struct trace_seq s;
@@ -581,11 +581,11 @@ static void read_rest(void)
 	} while (r > 0);
 }
 
-static struct record *
+static struct pevent_record *
 get_next_record(struct handle_list *handles, int *next_cpu)
 {
 	unsigned long long ts;
-	struct record *record;
+	struct pevent_record *record;
 	int found = 0;
 	int next;
 	int cpu;
@@ -602,7 +602,7 @@ get_next_record(struct handle_list *handles, int *next_cpu)
 		ts = 0;
 		if (filter_cpus) {
 			unsigned long long last_stamp = 0;
-			struct record *precord;
+			struct pevent_record *precord;
 			int next_cpu = -1;
 			int i;
 
@@ -665,8 +665,8 @@ static void read_data_info(struct list_head *handle_list)
 {
 	struct handle_list *handles;
 	struct handle_list *last_handle;
-	struct record *record;
-	struct record *last_record;
+	struct pevent_record *record;
+	struct pevent_record *last_record;
 	int last_cpu;
 	int cpus;
 	int next;

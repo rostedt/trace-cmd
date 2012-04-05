@@ -46,7 +46,7 @@ static void write_state(struct trace_seq *s, int val)
 }
 
 static void write_and_save_comm(struct format_field *field,
-				struct record *record,
+				struct pevent_record *record,
 				struct trace_seq *s, int pid)
 {
 	const char *comm;
@@ -65,7 +65,7 @@ static void write_and_save_comm(struct format_field *field,
 	pevent_register_comm(field->event->pevent, comm, pid);
 }
 
-static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
+static int sched_wakeup_handler(struct trace_seq *s, struct pevent_record *record,
 				struct event_format *event, void *context)
 {
 	struct format_field *field;
@@ -93,7 +93,7 @@ static int sched_wakeup_handler(struct trace_seq *s, struct record *record,
 	return 0;
 }
 
-static int sched_switch_handler(struct trace_seq *s, struct record *record,
+static int sched_switch_handler(struct trace_seq *s, struct pevent_record *record,
 				struct event_format *event, void *context)
 {
 	struct format_field *field;

@@ -30,7 +30,7 @@
 
 %inline %{
 static int python_callback(struct trace_seq *s,
-			   struct record *record,
+			   struct pevent_record *record,
 			   struct event_format *event,
 			   void *context);
 
@@ -49,7 +49,7 @@ void py_pevent_register_event_handler(struct pevent *pevent, int id,
 				      python_callback, pyfunc);
 }
 
-static PyObject *py_field_get_data(struct format_field *f, struct record *r)
+static PyObject *py_field_get_data(struct format_field *f, struct pevent_record *r)
 {
 	if (!strncmp(f->type, "__data_loc ", 11)) {
 		unsigned long long val;
@@ -75,7 +75,7 @@ static PyObject *py_field_get_data(struct format_field *f, struct record *r)
 	return PyBuffer_FromMemory((char *)r->data + f->offset, f->size);
 }
 
-static PyObject *py_field_get_str(struct format_field *f, struct record *r)
+static PyObject *py_field_get_str(struct format_field *f, struct pevent_record *r)
 {
 	if (!strncmp(f->type, "__data_loc ", 11)) {
 		unsigned long long val;
@@ -122,7 +122,7 @@ static PyObject *py_format_get_keys(struct event_format *ef)
 
 %wrapper %{
 static int python_callback(struct trace_seq *s,
-			   struct record *record,
+			   struct pevent_record *record,
 			   struct event_format *event,
 			   void *context)
 {
@@ -135,7 +135,7 @@ static int python_callback(struct trace_seq *s,
 		SWIG_NewPointerObj(SWIG_as_voidptr(s),
 				   SWIGTYPE_p_trace_seq, 0),
 		SWIG_NewPointerObj(SWIG_as_voidptr(record),
-				   SWIGTYPE_p_record, 0),
+				   SWIGTYPE_p_pevent_record, 0),
 		SWIG_NewPointerObj(SWIG_as_voidptr(event),
 				   SWIGTYPE_p_event_format, 0));
 

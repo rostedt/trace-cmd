@@ -55,8 +55,8 @@ enum {
 #define TS_SHIFT		27
 #endif
 
-void tracecmd_record_ref(struct record *record);
-void free_record(struct record *record);
+void tracecmd_record_ref(struct pevent_record *record);
+void free_record(struct pevent_record *record);
 
 struct tracecmd_input;
 struct tracecmd_output;
@@ -109,42 +109,42 @@ void tracecmd_print_events(struct tracecmd_input *handle);
 
 int tracecmd_init_data(struct tracecmd_input *handle);
 
-struct record *
+struct pevent_record *
 tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
-			  struct record *last_record);
-struct record *
+			  struct pevent_record *last_record);
+struct pevent_record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
 
-static inline struct record *
+static inline struct pevent_record *
 tracecmd_peek_data_ref(struct tracecmd_input *handle, int cpu)
 {
-	struct record *rec = tracecmd_peek_data(handle, cpu);
+	struct pevent_record *rec = tracecmd_peek_data(handle, cpu);
 	if (rec)
 		rec->ref_count++;
 	return rec;
 }
 
-struct record *
+struct pevent_record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu);
 
-struct record *
-tracecmd_read_prev(struct tracecmd_input *handle, struct record *record);
+struct pevent_record *
+tracecmd_read_prev(struct tracecmd_input *handle, struct pevent_record *record);
 
-struct record *
+struct pevent_record *
 tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu);
 
-struct record *
+struct pevent_record *
 tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *cpu);
-struct record *
+struct pevent_record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size);
-struct record *
+struct pevent_record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu);
-struct record *
+struct pevent_record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu);
 int tracecmd_refresh_record(struct tracecmd_input *handle,
-			    struct record *record);
+			    struct pevent_record *record);
 
 int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 				  int cpu, unsigned long long ts);

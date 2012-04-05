@@ -1608,8 +1608,8 @@ find_ts_in_page(struct pevent *pevent, void *page, int size)
 {
 	struct event_format *event;
 	struct format_field *field;
-	struct record *last_record = NULL;
-	struct record *record;
+	struct pevent_record *last_record = NULL;
+	struct pevent_record *record;
 	unsigned long long ts = 0;
 	int id;
 

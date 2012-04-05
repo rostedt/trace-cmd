@@ -55,7 +55,7 @@ struct page {
 	int			ref_count;
 	long long		lost_events;
 #if DEBUG_RECORD
-	struct record		*records;
+	struct pevent_record	*records;
 #endif
 };
 
@@ -67,7 +67,7 @@ struct cpu_data {
 	unsigned long long	size;
 	unsigned long long	timestamp;
 	struct list_head	pages;
-	struct record		*next;
+	struct pevent_record	*next;
 	struct page		*page;
 	int			cpu;
 	int			index;
@@ -109,7 +109,7 @@ void tracecmd_clear_flag(struct tracecmd_input *handle, int flag)
 }
 
 #if DEBUG_RECORD
-static void remove_record(struct page *page, struct record *record)
+static void remove_record(struct page *page, struct pevent_record *record)
 {
 	if (record->prev)
 		record->prev->next = record->next;
@@ -118,7 +118,7 @@ static void remove_record(struct page *page, struct record *record)
 	if (record->next)
 		record->next->prev = record->prev;
 }
-static void add_record(struct page *page, struct record *record)
+static void add_record(struct page *page, struct pevent_record *record)
 {
 	if (page->records)
 		page->records->prev = record;
@@ -129,7 +129,7 @@ static void add_record(struct page *page, struct record *record)
 static const char *show_records(struct list_head *pages)
 {
 	static char buf[BUFSIZ + 1];
-	struct record *record;
+	struct pevent_record *record;
 	struct page *page;
 	int len;
 
@@ -147,8 +147,8 @@ static const char *show_records(struct list_head *pages)
 	return buf;
 }
 #else
-static inline void remove_record(struct page *page, struct record *record) {}
-static inline void add_record(struct page *page, struct record *record) {}
+static inline void remove_record(struct page *page, struct pevent_record *record) {}
+static inline void add_record(struct page *page, struct pevent_record *record) {}
 static const char *show_records(struct list_head *pages)
 {
 	return "";
@@ -704,7 +704,7 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 	handle->cpu_data[cpu].page = NULL;
 }
 
-static void __free_record(struct record *record)
+static void __free_record(struct pevent_record *record)
 {
 	if (record->r_private) {
 		struct page *page = record->r_private;
@@ -715,7 +715,7 @@ static void __free_record(struct record *record)
 	free(record);
 }
 
-void free_record(struct record *record)
+void free_record(struct pevent_record *record)
 {
 	if (!record)
 		return;
@@ -736,7 +736,7 @@ void free_record(struct record *record)
 	__free_record(record);
 }
 
-void tracecmd_record_ref(struct record *record)
+void tracecmd_record_ref(struct pevent_record *record)
 {
 	record->ref_count++;
 #if DEBUG_RECORD
@@ -747,7 +747,7 @@ void tracecmd_record_ref(struct record *record)
 
 static void free_next(struct tracecmd_input *handle, int cpu)
 {
-	struct record *record;
+	struct pevent_record *record;
 
 	if (!handle->cpu_data || cpu >= handle->cpus)
 		return;
@@ -908,11 +908,11 @@ enum old_ring_buffer_type {
 	OLD_RINGBUF_TYPE_DATA,
 };
 
-static struct record *
+static struct pevent_record *
 read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
-	struct record *data;
+	struct pevent_record *data;
 	unsigned long long extend;
 	unsigned int type_len_ts;
 	unsigned int type;
@@ -983,11 +983,11 @@ read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 	return data;
 }
 
-static struct record *
+static struct pevent_record *
 peek_event(struct tracecmd_input *handle, unsigned long long offset,
 	   int cpu)
 {
-	struct record *record = NULL;
+	struct pevent_record *record = NULL;
 
 	/*
 	 * Since the timestamp is calculated from the beginning
@@ -1007,11 +1007,11 @@ peek_event(struct tracecmd_input *handle, unsigned long long offset,
 	return record;
 }
 
-static struct record *
+static struct pevent_record *
 read_event(struct tracecmd_input *handle, unsigned long long offset,
 	   int cpu)
 {
-	struct record *record;
+	struct pevent_record *record;
 
 	record = peek_event(handle, offset, cpu);
 	if (record)
@@ -1019,7 +1019,7 @@ read_event(struct tracecmd_input *handle, unsigned long long offset,
 	return record;
 }
 
-static struct record *
+static struct pevent_record *
 find_and_peek_event(struct tracecmd_input *handle, unsigned long long offset,
 		    int *pcpu)
 {
@@ -1051,11 +1051,11 @@ find_and_peek_event(struct tracecmd_input *handle, unsigned long long offset,
 }
 
 
-static struct record *
+static struct pevent_record *
 find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
 		    int *pcpu)
 {
-	struct record *record;
+	struct pevent_record *record;
 	int cpu;
 
 	record = find_and_peek_event(handle, offset, &cpu);
@@ -1080,7 +1080,7 @@ find_and_read_event(struct tracecmd_input *handle, unsigned long long offset,
  *
  * The record returned must be freed.
  */
-struct record *
+struct pevent_record *
 tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *pcpu)
 {
@@ -1122,7 +1122,7 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
  *        -1 on error.
  */
 int tracecmd_refresh_record(struct tracecmd_input *handle,
-			    struct record *record)
+			    struct pevent_record *record)
 {
 	unsigned long long page_offset;
 	int cpu = record->cpu;
@@ -1167,7 +1167,7 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
  *
  * The record returned must be freed.
  */
-struct record *
+struct pevent_record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 {
 	if (get_page(handle, cpu, handle->cpu_data[cpu].file_offset) < 0)
@@ -1188,10 +1188,10 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
  *
  * The record returned must be freed.
  */
-struct record *
+struct pevent_record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 {
-	struct record *record = NULL;
+	struct pevent_record *record = NULL;
 	off64_t offset, page_offset;
 
 	offset = handle->cpu_data[cpu].file_offset +
@@ -1506,11 +1506,11 @@ translate_data(struct pevent *pevent,
  *
  * The record returned must be freed.
  */
-struct record *
+struct pevent_record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size)
 {
-	struct record *record;
+	struct pevent_record *record;
 	unsigned int type_len;
 
 	/* minimum record read is 8, (warn?) (TODO: make 8 into macro) */
@@ -1559,15 +1559,15 @@ tracecmd_translate_data(struct tracecmd_input *handle,
  *  a record is found. Otherwise NULL is returned if the record is bad
  *  or no more records exist.
  */
-struct record *
+struct pevent_record *
 tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
-			  struct record *last_record)
+			  struct pevent_record *last_record)
 {
 	unsigned long long extend;
 	unsigned long long ts;
 	unsigned int type_len;
 	unsigned int flags;
-	struct record *record;
+	struct pevent_record *record;
 	int page_size;
 	int length;
 	void *ptr;
@@ -1642,11 +1642,11 @@ tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
  * This returns the record at the current location of the CPU
  * iterator. It does not increment the CPU iterator.
  */
-struct record *
+struct pevent_record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
-	struct record *record;
+	struct pevent_record *record;
 	struct page *page;
 	int index;
 	void *ptr;
@@ -1774,10 +1774,10 @@ read_again:
  *
  * The record returned must be freed.
  */
-struct record *
+struct pevent_record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 {
-	struct record *record;
+	struct pevent_record *record;
 
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
@@ -1807,11 +1807,11 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
  *
  * The record returned must be freed.
  */
-struct record *
+struct pevent_record *
 tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 {
 	unsigned long long ts;
-	struct record *record;
+	struct pevent_record *record;
 	int next;
 	int cpu;
 
@@ -1855,8 +1855,8 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
  *
  * The record returned must be freed with free_record().
  */
-struct record *
-tracecmd_read_prev(struct tracecmd_input *handle, struct record *record)
+struct pevent_record *
+tracecmd_read_prev(struct tracecmd_input *handle, struct pevent_record *record)
 {
 	unsigned long long offset, page_offset;;
 	struct cpu_data *cpu_data;

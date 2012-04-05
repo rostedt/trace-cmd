@@ -1517,7 +1517,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_graph_add_task;
 	static GtkWidget *menu_filter_graph_hide_task;
 	static GtkWidget *menu_filter_graph_clear_tasks;
-	struct record *record;
+	struct pevent_record *record;
 	TraceViewRecord *vrec;
 	GtkTreeModel *model;
 	const char *comm;

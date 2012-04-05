@@ -57,7 +57,7 @@ enum split_types {
 struct cpu_data {
 	unsigned long long		ts;
 	unsigned long long		offset;
-	struct record			*record;
+	struct pevent_record		*record;
 	int				cpu;
 	int				fd;
 	int				index;
@@ -90,7 +90,7 @@ static int create_type_len(struct pevent *pevent, int time, int len)
 }
 
 static int write_record(struct tracecmd_input *handle,
-			struct record *record,
+			struct pevent_record *record,
 			struct cpu_data *cpu_data,
 			enum split_types type)
 {
@@ -167,7 +167,7 @@ static void write_page(struct pevent *pevent,
 	write(cpu_data->fd, cpu_data->page, page_size);
 }
 
-static struct record *read_record(struct tracecmd_input *handle,
+static struct pevent_record *read_record(struct tracecmd_input *handle,
 				  int percpu, int *cpu)
 {
 	if (percpu)
@@ -183,7 +183,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 		     int count_limit, int percpu, int cpu,
 		     enum split_types type)
 {
-	struct record *record;
+	struct pevent_record *record;
 	struct pevent *pevent;
 	void *ptr;
 	int page_size;
@@ -332,7 +332,7 @@ static double parse_file(struct tracecmd_input *handle,
 	unsigned long long current;
 	struct tracecmd_output *ohandle;
 	struct cpu_data *cpu_data;
-	struct record *record;
+	struct pevent_record *record;
 	char **cpu_list;
 	char *output;
 	char *base;

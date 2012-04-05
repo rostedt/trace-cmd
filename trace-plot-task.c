@@ -29,7 +29,7 @@
 struct task_plot_info {
 	int			pid;
 	struct cpu_data		*cpu_data;
-	struct record		**last_records;
+	struct pevent_record	**last_records;
 	unsigned long long	last_time;
 	unsigned long long	wake_time;
 	unsigned long long	display_wake_time;
@@ -60,7 +60,7 @@ static int hash_cpu(int cpu)
 	return trace_hash(cpu);
 }
 
-static gboolean is_running(struct graph_info *ginfo, struct record *record)
+static gboolean is_running(struct graph_info *ginfo, struct pevent_record *record)
 {
 	unsigned long long val;
 	int id;
@@ -74,7 +74,7 @@ static gboolean is_running(struct graph_info *ginfo, struct record *record)
 }
 
 static gboolean record_matches_pid(struct graph_info *ginfo,
-				   struct record *record, int match_pid,
+				   struct pevent_record *record, int match_pid,
 				   int *pid, int *sched_pid,
 				   gboolean *is_sched,
 				   gboolean *wakeup)
@@ -109,7 +109,7 @@ static gboolean record_matches_pid(struct graph_info *ginfo,
 
 static void set_cpu_to_time(int cpu, struct graph_info *ginfo, unsigned long long time)
 {
-	struct record *record;
+	struct pevent_record *record;
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 
@@ -138,7 +138,7 @@ static int task_plot_match_time(struct graph_info *ginfo, struct graph_plot *plo
 			       unsigned long long time)
 {
 	struct task_plot_info *task_info = plot->private;
-	struct record *record = NULL;
+	struct pevent_record *record = NULL;
 	gboolean is_wakeup;
 	gboolean is_sched;
 	gboolean match;
@@ -180,7 +180,7 @@ struct offset_cache {
 static struct offset_cache *save_offsets(struct graph_info *ginfo)
 {
 	struct offset_cache *offsets;
-	struct record *record;
+	struct pevent_record *record;
 	int cpu;
 
 	offsets = malloc_or_die(sizeof(*offsets));
@@ -198,7 +198,7 @@ static struct offset_cache *save_offsets(struct graph_info *ginfo)
 
 static void restore_offsets(struct graph_info *ginfo, struct offset_cache *offsets)
 {
-	struct record *record;
+	struct pevent_record *record;
 	int cpu;
 
 	for (cpu = 0; cpu < ginfo->cpus; cpu++) {
@@ -215,10 +215,10 @@ static void restore_offsets(struct graph_info *ginfo, struct offset_cache *offse
 	free(offsets);
 }
 
-static struct record *
+static struct pevent_record *
 find_record(struct graph_info *ginfo, gint pid, guint64 time)
 {
-	struct record *record = NULL;
+	struct pevent_record *record = NULL;
 	gboolean is_wakeup;
 	gboolean is_sched;
 	gboolean match;
@@ -252,7 +252,7 @@ static int task_plot_display_last_event(struct graph_info *ginfo,
 {
 	struct task_plot_info *task_info = plot->private;
 	struct event_format *event;
-	struct record *record;
+	struct pevent_record *record;
 	struct offset_cache *offsets;
 	gboolean is_sched;
 	gboolean is_wakeup;
@@ -323,7 +323,7 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 {
 	struct task_plot_info *task_info = plot->private;
 
-	memset(task_info->last_records, 0, sizeof(struct record *) * ginfo->cpus);
+	memset(task_info->last_records, 0, sizeof(struct pevent_record *) * ginfo->cpus);
 
 	task_info->last_time = 0ULL;
 	task_info->last_cpu = -1;
@@ -333,11 +333,11 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 
 static void update_last_record(struct graph_info *ginfo,
 			       struct task_plot_info *task_info,
-			       struct record *record)
+			       struct pevent_record *record)
 {
 	struct tracecmd_input *handle = ginfo->handle;
-	struct record *trecord, *t2record;
-	struct record *saved;
+	struct pevent_record *trecord, *t2record;
+	struct pevent_record *saved;
 	unsigned long long ts;
 	int sched_pid;
 	int pid;
@@ -414,7 +414,7 @@ static void update_last_record(struct graph_info *ginfo,
 
 static int task_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   struct record *record,
+			   struct pevent_record *record,
 			   struct plot_info *info)
 {
 	struct task_plot_info *task_info = plot->private;
@@ -555,7 +555,7 @@ static int task_plot_event(struct graph_info *ginfo,
 }
 
 
-static struct record *
+static struct pevent_record *
 task_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
 		      unsigned long long time)
 {
@@ -569,12 +569,12 @@ task_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
 
 #define MAX_SEARCH 20
 
-static struct record *
-find_previous_record(struct graph_info *ginfo, struct record *start_record,
+static struct pevent_record *
+find_previous_record(struct graph_info *ginfo, struct pevent_record *start_record,
 		     int pid, int cpu)
 {
-	struct record *last_record = start_record;
-	struct record *record;
+	struct pevent_record *last_record = start_record;
+	struct pevent_record *record;
 	gboolean match;
 	gboolean is_sched;
 	gboolean is_wakeup;
@@ -609,11 +609,11 @@ find_previous_record(struct graph_info *ginfo, struct record *start_record,
 	return record;
 }
 
-static struct record *
+static struct pevent_record *
 get_display_record(struct graph_info *ginfo, int pid, unsigned long long time)
 {
-	struct record *record;
-	struct record **records;
+	struct pevent_record *record;
+	struct pevent_record **records;
 	unsigned long long ts;
 	int next_cpu;
 	int cpu;
@@ -685,7 +685,7 @@ int task_plot_display_info(struct graph_info *ginfo,
 {
 	struct task_plot_info *task_info = plot->private;
 	struct event_format *event;
-	struct record *record;
+	struct pevent_record *record;
 	struct pevent *pevent;
 	unsigned long sec, usec;
 	const char *comm;
@@ -843,7 +843,7 @@ void graph_plot_init_tasks(struct graph_info *ginfo)
 {
 	struct task_plot_info *task_info;
 	char label[100];
-	struct record *record;
+	struct pevent_record *record;
 	int pid;
 
 	/* Just for testing */
@@ -858,7 +858,7 @@ void graph_plot_init_tasks(struct graph_info *ginfo)
 
 	task_info = malloc_or_die(sizeof(*task_info));
 	task_info->last_records =
-		malloc_or_die(sizeof(struct record *) * ginfo->cpus);
+		malloc_or_die(sizeof(struct pevent_record *) * ginfo->cpus);
 	task_info->pid = pid;
 
 	snprintf(label, 100, "TASK %d", pid);
@@ -876,7 +876,7 @@ void graph_plot_task(struct graph_info *ginfo, int pid, int pos)
 
 	task_info = malloc_or_die(sizeof(*task_info));
 	task_info->last_records =
-		malloc_or_die(sizeof(struct record *) * ginfo->cpus);
+		malloc_or_die(sizeof(struct pevent_record *) * ginfo->cpus);
 	task_info->pid = pid;
 	comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
 

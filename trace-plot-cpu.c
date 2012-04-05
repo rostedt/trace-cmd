@@ -27,7 +27,7 @@ struct cpu_plot_info {
 	int			cpu;
 	unsigned long long	last_time;
 	int			last_pid;
-	struct record		*last_record;
+	struct pevent_record	*last_record;
 };
 
 static gint hash_pid(gint val)
@@ -46,10 +46,10 @@ static void convert_nano(unsigned long long time, unsigned long *sec,
 	*usec = (time / 1000) % 1000000;
 }
 
-static struct record *get_record_from_time(struct graph_info *ginfo, int cpu,
+static struct pevent_record *get_record_from_time(struct graph_info *ginfo, int cpu,
 					   unsigned long long time)
 {
-	struct record *record;
+	struct pevent_record *record;
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
 	record = tracecmd_read_data(ginfo->handle, cpu);
@@ -65,7 +65,7 @@ static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot
 			       unsigned long long time)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	struct record *record;
+	struct pevent_record *record;
 	int ret = 0;
 
 	record = get_record_from_time(ginfo, cpu_info->cpu, time);
@@ -86,7 +86,7 @@ static int cpu_plot_match_time(struct graph_info *ginfo, struct graph_plot *plot
  * @is_sched_switch returns 1 on context switch, otherwise 0
  */
 static int filter_record(struct graph_info *ginfo,
-			 struct record *record,
+			 struct pevent_record *record,
 			 int *orig_pid, int *sched_pid,
 			 gboolean *sched_switch)
 {
@@ -130,7 +130,7 @@ static int cpu_plot_display_last_event(struct graph_info *ginfo,
 {
 	struct cpu_plot_info *cpu_info = plot->private;
 	struct event_format *event;
-	struct record *record;
+	struct pevent_record *record;
 	int cpu = cpu_info->cpu;
 	unsigned long long offset = 0;
 	gboolean is_sched_switch;
@@ -206,10 +206,10 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 
 static void update_last_record(struct graph_info *ginfo,
 			       struct cpu_plot_info *cpu_info,
-			       struct record *record)
+			       struct pevent_record *record)
 {
 	struct tracecmd_input *handle = ginfo->handle;
-	struct record *trecord;
+	struct pevent_record *trecord;
 	int filter;
 	int sched_pid;
 	int orig_pid;
@@ -240,7 +240,7 @@ static void update_last_record(struct graph_info *ginfo,
 
 static int cpu_plot_event(struct graph_info *ginfo,
 			  struct graph_plot *plot,
-			  struct record *record,
+			  struct pevent_record *record,
 			  struct plot_info *info)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
@@ -330,10 +330,10 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	return ret;
 }
 
-static struct record *
+static struct pevent_record *
 find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
 {
-	struct record *record = NULL;
+	struct pevent_record *record = NULL;
 	guint64 offset = 0;
 
 	tracecmd_set_cpu_to_timestamp(ginfo->handle, cpu, time);
@@ -355,7 +355,7 @@ find_record_on_cpu(struct graph_info *ginfo, gint cpu, guint64 time)
 	return record;
 }
 
-static struct record *
+static struct pevent_record *
 cpu_plot_find_record(struct graph_info *ginfo, struct graph_plot *plot,
 		     unsigned long long time)
 {
@@ -374,7 +374,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 {
 	struct cpu_plot_info *cpu_info = plot->private;
 	struct event_format *event;
-	struct record *record;
+	struct pevent_record *record;
 	struct pevent *pevent;
 	unsigned long sec, usec;
 	const char *comm;
