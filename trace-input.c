@@ -695,7 +695,8 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 
 static void free_page(struct tracecmd_input *handle, int cpu)
 {
-	if (!handle->cpu_data[cpu].page)
+	if (!handle->cpu_data || cpu >= handle->cpus ||
+	    !handle->cpu_data[cpu].page)
 		return;
 
 	__free_page(handle, handle->cpu_data[cpu].page);
@@ -746,8 +747,12 @@ void tracecmd_record_ref(struct record *record)
 
 static void free_next(struct tracecmd_input *handle, int cpu)
 {
-	struct record *record = handle->cpu_data[cpu].next;
+	struct record *record;
 
+	if (!handle->cpu_data || cpu >= handle->cpus)
+		return;
+
+	record = handle->cpu_data[cpu].next;
 	if (!record)
 		return;
 
@@ -2337,7 +2342,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 		/* The tracecmd_peek_data may have cached a record */
 		free_next(handle, cpu);
 		free_page(handle, cpu);
-		if (!list_empty(&handle->cpu_data[cpu].pages))
+		if (handle->cpu_data &&
+		    !list_empty(&handle->cpu_data[cpu].pages))
 			warning("pages still allocated on cpu %d%s",
 				cpu, show_records(&handle->cpu_data[cpu].pages));
 	}
