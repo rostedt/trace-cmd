@@ -2216,7 +2216,8 @@ void trace_record (int argc, char **argv)
 		}
 
 		disable_tracing();
-		stop_threads();
+		if (!latency)
+			stop_threads();
 	}
 
 	for (cpu = 0; cpu < cpu_count; cpu++) {
