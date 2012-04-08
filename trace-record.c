@@ -897,11 +897,13 @@ static void disable_tracing(void)
 	write_tracing_on(0);
 }
 
-static void disable_all(void)
+static void disable_all(int disable_tracer)
 {
 	disable_tracing();
 
-	set_plugin("nop");
+	if (disable_tracer)
+		set_plugin("nop");
+
 	reset_events();
 
 	/* Force close and reset of ftrace pid file */
@@ -1573,7 +1575,7 @@ static void set_funcs(void)
 	/* make sure we are filtering functions */
 	if (func_stack) {
 		if (!functions_filtered()) {
-			disable_all();
+			disable_all(1);
 			die("Function stack trace set, but functions not filtered");
 		}
 		save_option(FUNC_STACK_TRACE);
@@ -1938,7 +1940,7 @@ void trace_record (int argc, char **argv)
 				break;
 			}
 		}
-		disable_all();
+		disable_all(1);
 		set_buffer_size();
 		exit(0);
 	} else
@@ -2147,7 +2149,7 @@ void trace_record (int argc, char **argv)
 
 	if (!extract) {
 		fset = set_ftrace(!disable);
-		disable_all();
+		disable_all(1);
 
 		/* Record records the date first */
 		if (record && date)
@@ -2227,7 +2229,7 @@ void trace_record (int argc, char **argv)
 	}
 
 	if (!keep)
-		disable_all();
+		disable_all(0);
 
 	printf("Kernel buffer statistics:\n"
 	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
@@ -2248,6 +2250,8 @@ void trace_record (int argc, char **argv)
 
 	if (keep)
 		exit(0);
+
+	set_plugin("nop");
 
 	/* If tracing_on was enabled before we started, set it on now */
 	if (tracing_on_init_val)
