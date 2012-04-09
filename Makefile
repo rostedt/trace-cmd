@@ -76,6 +76,7 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
+ifndef NO_PYTHON
 PYTHON		:= ctracecmd.so
 PYTHON_GUI	:= ctracecmd.so ctracecmdgui.so
 
@@ -86,6 +87,7 @@ ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
 	PYTHON_SO_INSTALL := ctracecmd.install
 	PYTHON_PY_INSTALL := event-viewer.install tracecmd.install tracecmdgui.install
 endif
+endif # NO_PYTHON
 
 # $(call test-build, snippet, ret) -> ret if snippet compiles
 #                                  -> empty otherwise
