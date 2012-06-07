@@ -1522,6 +1522,7 @@ static void write_func_file(const char *file, struct func_list **list)
 	struct func_list *item;
 	char *path;
 	int fd;
+	int ret;
 
 	path = tracecmd_get_tracing_file(file);
 
@@ -1532,14 +1533,24 @@ static void write_func_file(const char *file, struct func_list **list)
 	while (*list) {
 		item = *list;
 		*list = item->next;
-		write(fd, item->func, strlen(item->func));
-		write(fd, " ", 1);
+		ret = write(fd, item->func, strlen(item->func));
+		if (ret < 0)
+			goto failed;
+		ret = write(fd, " ", 1);
+		if (ret < 0)
+			goto failed;
 		free(item);
 	}
 	close(fd);
 
  free:
 	tracecmd_put_tracing_file(path);
+	return;
+ failed:
+	die("Failed to write %s to %s.\n"
+	    "Perhaps this function is not available for tracing.\n"
+	    "run 'trace-cmd list -f %s' to see if it is.",
+	    item->func, file, item->func);
 }
 
 static int functions_filtered(void)
