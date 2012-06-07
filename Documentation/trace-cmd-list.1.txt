@@ -29,6 +29,13 @@ OPTIONS
     This option will list the available Ftrace options that are configured on
     the local system.
 
+*-f* ['regex']::
+    This option will list the available filter functions. These are the list of
+    functions on the system that you can trace, or filter on.
+    It takes an optional argument that uses 'regcomp(3)' expressions to seach.
+
+    trace-cmd list -f '^sched.*'
+
 
 SEE ALSO
 --------

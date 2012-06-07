@@ -71,14 +71,14 @@ void *malloc_or_die(unsigned int size)
 	return data;
 }
 
-static void show_events(void)
+static void show_file(const char *name)
 {
 	char buf[BUFSIZ];
 	char *path;
 	FILE *fp;
-	size_t n;
+	ssize_t n;
 
-	path = tracecmd_get_tracing_file("available_events");
+	path = tracecmd_get_tracing_file(name);
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
@@ -90,48 +90,73 @@ static void show_events(void)
 			fwrite(buf, 1, n, stdout);
 	} while (n > 0);
 	fclose(fp);
+}
+
+static void show_file_re(const char *name, const char *re)
+{
+	regex_t reg;
+	char *path;
+	char *buf = NULL;
+	char *str;
+	FILE *fp;
+	ssize_t n;
+	size_t l = strlen(re);
+
+	/* Just in case :-p */
+	if (!re || l == 0) {
+		show_file(name);
+		return;
+	}
+
+	/* Handle the newline at end of names for the user */
+	str = malloc_or_die(l + 3);
+	strcpy(str, re);
+	if (re[l-1] == '$')
+		strcpy(&str[l-1], "\n*$");
+		
+	if (regcomp(&reg, str, REG_ICASE|REG_NOSUB))
+		die("invalid function regex '%s'", re);
+
+	free(str);
+
+	path = tracecmd_get_tracing_file(name);
+	fp = fopen(path, "r");
+	if (!fp)
+		die("reading %s", path);
+	tracecmd_put_tracing_file(path);
+
+	do {
+		n = getline(&buf, &l, fp);
+		if (n > 0 && regexec(&reg, buf, 0, NULL, 0) == 0)
+			fwrite(buf, 1, n, stdout);
+	} while (n > 0);
+	free(buf);
+	fclose(fp);
+
+	regfree(&reg);
+}
+
+static void show_events(void)
+{
+	show_file("available_events");
 }
 
 static void show_plugins(void)
 {
-	char buf[BUFSIZ];
-	char *path;
-	FILE *fp;
-	size_t n;
-
-	path = tracecmd_get_tracing_file("available_tracers");
-	fp = fopen(path, "r");
-	if (!fp)
-		die("reading %s", path);
-	tracecmd_put_tracing_file(path);
-
-	do {
-		n = fread(buf, 1, BUFSIZ, fp);
-		if (n > 0)
-			fwrite(buf, 1, n, stdout);
-	} while (n > 0);
-	fclose(fp);
+	show_file("available_tracers");
 }
 
 static void show_options(void)
 {
-	char buf[BUFSIZ];
-	char *path;
-	FILE *fp;
-	size_t n;
+	show_file("trace_options");
+}
 
-	path = tracecmd_get_tracing_file("trace_options");
-	fp = fopen(path, "r");
-	if (!fp)
-		die("reading %s", path);
-	tracecmd_put_tracing_file(path);
-
-	do {
-		n = fread(buf, 1, BUFSIZ, fp);
-		if (n > 0)
-			fwrite(buf, 1, n, stdout);
-	} while (n > 0);
-	fclose(fp);
+static void show_functions(const char *funcre)
+{
+	if (funcre)
+		show_file_re("available_filter_functions", funcre);
+	else
+		show_file("available_filter_functions");
 }
 
 int main (int argc, char **argv)
@@ -212,8 +237,11 @@ int main (int argc, char **argv)
 		int events = 0;
 		int plug = 0;
 		int options = 0;
+		int funcs = 0;
+		const char *funcre = NULL;
 
-		while ((c = getopt(argc-1, argv+1, "+hepo")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, ":hepof:")) >= 0) {
+ next:
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -227,7 +255,23 @@ int main (int argc, char **argv)
 			case 'o':
 				options = 1;
 				break;
+			case 'f':
+				funcs = 1;
+				if (optarg[0] == '-') {
+					c = optarg[1];
+					goto next;
+				}
+				funcre = optarg;
+				break;
 			default:
+				/* -f can have an optional parameter */
+				if (strcmp(argv[optind], "-f") == 0) {
+					funcs = 1;
+					break;
+				}
+				fprintf(stderr, "list: invalid option -- '%c'\n",
+					argv[optind][1]);
+				
 				usage(argv);
 			}
 		}
@@ -241,7 +285,10 @@ int main (int argc, char **argv)
 		if (options)
 			show_options();
 
-		if (!events && !plug && !options) {
+		if (funcs)
+			show_functions(funcre);
+
+		if (!events && !plug && !options && !funcs) {
 			printf("events:\n");
 			show_events();
 			printf("\nplugins:\n");
