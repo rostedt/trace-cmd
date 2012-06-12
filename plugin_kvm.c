@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "parse-events.h"
+#include "event-parse.h"
 
 #ifdef HAVE_UDIS86
 

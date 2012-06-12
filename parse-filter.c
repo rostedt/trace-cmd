@@ -25,7 +25,7 @@
 #include <errno.h>
 #include <sys/types.h>
 
-#include "parse-events.h"
+#include "event-parse.h"
 #include "util.h"
 
 #define COMM "COMM"

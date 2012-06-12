@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "parse-events.h"
+#include "event-parse.h"
 
 /*
  * The TRACE_SEQ_POISON is to catch the use of using

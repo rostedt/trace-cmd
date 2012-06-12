@@ -22,7 +22,7 @@
 #define _TRACE_CMD_H
 
 #include <stdlib.h>
-#include "parse-events.h"
+#include "event-parse.h"
 
 void parse_cmdlines(struct pevent *pevent, char *file, int size);
 void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);

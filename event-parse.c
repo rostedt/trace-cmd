@@ -32,7 +32,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "parse-events.h"
+#include "event-parse.h"
 
 static const char *input_buf;
 static unsigned long long input_buf_ptr;
