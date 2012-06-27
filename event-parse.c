@@ -694,6 +694,10 @@ static void free_arg(struct print_arg *arg)
 		free_arg(arg->symbol.field);
 		free_flag_sym(arg->symbol.symbols);
 		break;
+	case PRINT_HEX:
+		free_arg(arg->hex.field);
+		free_arg(arg->hex.size);
+		break;
 	case PRINT_TYPE:
 		free(arg->typecast.type);
 		free_arg(arg->typecast.item);
@@ -2284,6 +2288,45 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 }
 
 static enum event_type
+process_hex(struct event_format *event, struct print_arg *arg, char **tok)
+{
+	struct print_arg *field;
+	enum event_type type;
+	char *token;
+
+	memset(arg, 0, sizeof(*arg));
+	arg->type = PRINT_HEX;
+
+	field = alloc_arg();
+	type = process_arg(event, field, &token);
+
+	if (test_type_token(type, token, EVENT_DELIM, ","))
+		goto out_free;
+
+	arg->hex.field = field;
+
+	free_token(token);
+
+	field = alloc_arg();
+	type = process_arg(event, field, &token);
+
+	if (test_type_token(type, token, EVENT_DELIM, ")"))
+		goto out_free;
+
+	arg->hex.size = field;
+
+	free_token(token);
+	type = read_token_item(tok);
+	return type;
+
+ out_free:
+	free_arg(field);
+	free_token(token);
+	*tok = NULL;
+	return EVENT_ERROR;
+}
+
+static enum event_type
 process_dynamic_array(struct event_format *event, struct print_arg *arg, char **tok)
 {
 	struct format_field *field;
@@ -2509,6 +2552,10 @@ process_function(struct event_format *event, struct print_arg *arg,
 	if (strcmp(token, "__print_symbolic") == 0) {
 		free_token(token);
 		return process_symbols(event, arg, tok);
+	}
+	if (strcmp(token, "__print_hex") == 0) {
+		free_token(token);
+		return process_hex(event, arg, tok);
 	}
 	if (strcmp(token, "__get_str") == 0) {
 		free_token(token);
@@ -3027,6 +3074,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		break;
 	case PRINT_FLAGS:
 	case PRINT_SYMBOL:
+	case PRINT_HEX:
 		break;
 	case PRINT_TYPE:
 		val = eval_num_arg(data, size, event, arg->typecast.item);
@@ -3250,8 +3298,9 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	unsigned long long val, fval;
 	unsigned long addr;
 	char *str;
+	unsigned char *hex;
 	int print;
-	int len;
+	int i, len;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -3314,6 +3363,23 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 				print_str_to_seq(s, format, len_arg, flag->str);
 				break;
 			}
+		}
+		break;
+	case PRINT_HEX:
+		field = arg->hex.field->field.field;
+		if (!field) {
+			str = arg->hex.field->field.name;
+			field = pevent_find_any_field(event, str);
+			if (!field)
+				die("field %s not found", str);
+			arg->hex.field->field.field = field;
+		}
+		hex = data + field->offset;
+		len = eval_num_arg(data, size, event, arg->hex.size);
+		for (i = 0; i < len; i++) {
+			if (i)
+				trace_seq_putc(s, ' ');
+			trace_seq_printf(s, "%02x", hex[i]);
 		}
 		break;
 
@@ -4354,6 +4420,13 @@ static void print_args(struct print_arg *args)
 		print_fields(&s, args->symbol.symbols);
 		trace_seq_do_printf(&s);
 		trace_seq_destroy(&s);
+		printf(")");
+		break;
+	case PRINT_HEX:
+		printf("__print_hex(");
+		print_args(args->hex.field);
+		printf(", ");
+		print_args(args->hex.size);
 		printf(")");
 		break;
 	case PRINT_STRING:
