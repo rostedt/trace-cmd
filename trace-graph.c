@@ -33,7 +33,7 @@
 #include "trace-filter.h"
 #include "trace-gui.h"
 
-#include "util.h"
+#include "event-utils.h"
 
 #define DEBUG_LEVEL	0
 #if DEBUG_LEVEL > 0

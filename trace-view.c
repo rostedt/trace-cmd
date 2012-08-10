@@ -31,7 +31,7 @@
 #include "trace-gui.h"
 #include "trace-compat.h"
 #include "cpu.h"
-#include "util.h"
+#include "event-utils.h"
 
 enum {
 	COL_INDEX,

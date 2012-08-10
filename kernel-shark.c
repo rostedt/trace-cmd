@@ -36,7 +36,7 @@
 #include "trace-cmd.h"
 #include "trace-gui.h"
 #include "kernel-shark.h"
-#include "util.h"
+#include "event-utils.h"
 #include "version.h"
 
 #define ___stringify(X) #X

@@ -30,7 +30,7 @@
 #include "trace-gui.h"
 
 #include "cpu.h"
-#include "util.h"
+#include "event-utils.h"
 #include "list.h"
 
 #define DIALOG_WIDTH	400
