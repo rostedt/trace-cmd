@@ -937,7 +937,7 @@ read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
 		return NULL;
 
 	case OLD_RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(pevent, ptr);
+		extend = data2host4(pevent, *ptr);
 		extend <<= TS_SHIFT;
 		extend += delta;
 		handle->cpu_data[cpu].timestamp += extend;
