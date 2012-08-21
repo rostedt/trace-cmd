@@ -56,10 +56,6 @@ enum {
 	RINGBUF_TYPE_TIME_STAMP		= 31,
 };
 
-#ifndef TS_SHIFT
-#define TS_SHIFT		27
-#endif
-
 void tracecmd_record_ref(struct pevent_record *record);
 void free_record(struct pevent_record *record);
 

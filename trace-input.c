@@ -35,6 +35,7 @@
 #include <errno.h>
 
 #include "trace-cmd-local.h"
+#include "kbuffer.h"
 #include "list.h"
 
 #define MISSING_EVENTS (1 << 31)
@@ -67,9 +68,8 @@ struct cpu_data {
 	struct list_head	pages;
 	struct pevent_record	*next;
 	struct page		*page;
+	struct kbuffer		*kbuf;
 	int			cpu;
-	int			index;
-	int			page_size;
 };
 
 struct tracecmd_input {
@@ -551,53 +551,6 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	return 0;
 }
 
-static unsigned int type4host(struct pevent *pevent,
-			      unsigned int type_len_ts)
-{
-	if (pevent->file_bigendian)
-		return (type_len_ts >> 29) & 3;
-	else
-		return type_len_ts & 3;
-}
-
-static unsigned int len4host(struct pevent *pevent,
-			     unsigned int type_len_ts)
-{
-	if (pevent->file_bigendian)
-		return (type_len_ts >> 27) & 7;
-	else
-		return (type_len_ts >> 2) & 7;
-}
-
-static unsigned int type_len4host(struct pevent *pevent,
-				  unsigned int type_len_ts)
-{
-	if (pevent->file_bigendian)
-		return (type_len_ts >> 27) & ((1 << 5) - 1);
-	else
-		return type_len_ts & ((1 << 5) - 1);
-}
-
-static unsigned int ts4host(struct pevent *pevent,
-			    unsigned int type_len_ts)
-{
-	if (pevent->file_bigendian)
-		return type_len_ts & ((1 << 27) - 1);
-	else
-		return type_len_ts >> 5;
-}
-
-static unsigned int read_type_len_ts(struct pevent *pevent, void *ptr)
-{
-	return data2host4(pevent, ptr);
-}
-
-static int calc_index(struct tracecmd_input *handle,
-		      void *ptr, int cpu)
-{
-	return (unsigned long)ptr - (unsigned long)handle->cpu_data[cpu].page->map;
-}
-
 static unsigned long long calc_page_offset(struct tracecmd_input *handle,
 					   unsigned long long offset)
 {
@@ -762,28 +715,6 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 	free_record(record);
 }
 
-static int read_page_flags(struct pevent *pevent, void **ptr)
-{
-	unsigned int flags;
-
-	*ptr += 8;
-	switch (pevent->header_page_size_size) {
-	case 4:
-		flags = data2host4(pevent, *ptr);
-		*ptr += 4;
-		break;
-	case 8:
-		flags = (unsigned int)data2host8(pevent, *ptr);
-		*ptr += 8;
-		break;
-	default:
-		warning("bad long size");
-		return -1;
-	}
-
-	return flags;
-}
-
 /*
  * Page is mapped, now read in the page header info.
  */
@@ -791,7 +722,7 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 {
 	struct pevent *pevent = handle->pevent;
 	void *ptr = handle->cpu_data[cpu].page->map;
-	unsigned int flags;
+	struct kbuffer *kbuf = handle->cpu_data[cpu].kbuf;
 
 	/* FIXME: handle header page */
 	if (pevent->header_page_ts_size != 8) {
@@ -799,33 +730,8 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 		return -1;
 	}
 
-	handle->cpu_data[cpu].timestamp = data2host8(pevent, ptr);
-	handle->cpu_data[cpu].timestamp += handle->ts_offset;
-	flags = read_page_flags(pevent, &ptr);
-	if (flags == -1U)
-		return -1;
-
-	handle->cpu_data[cpu].page_size = flags & COMMIT_MASK;
-
-	if (flags & MISSING_EVENTS) {
-		if (flags & MISSING_STORED) {
-			ptr += handle->cpu_data[cpu].page_size;
-			switch (pevent->header_page_size_size) {
-			case 4:
-				handle->cpu_data[cpu].page->lost_events =
-					data2host4(pevent, ptr);
-				break;
-			case 8:
-				handle->cpu_data[cpu].page->lost_events =
-					data2host8(pevent, ptr);
-				break;
-			}
-		} else
-			handle->cpu_data[cpu].page->lost_events = -1;
-	} else
-		handle->cpu_data[cpu].page->lost_events = 0;
-
-	handle->cpu_data[cpu].index = 0;
+	kbuffer_load_subbuffer(kbuf, ptr);
+	handle->cpu_data[cpu].timestamp = kbuffer_timestamp(kbuf) + handle->ts_offset;
 
 	return 0;
 }
@@ -864,8 +770,6 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	}
 
 	handle->cpu_data[cpu].offset = offset;
-	handle->cpu_data[cpu].timestamp = 0;
-	handle->cpu_data[cpu].index = 0;
 	handle->cpu_data[cpu].size = (handle->cpu_data[cpu].file_offset +
 				      handle->cpu_data[cpu].file_size) -
 					offset;
@@ -881,6 +785,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 
 	return 0;
 }
+
 static int get_next_page(struct tracecmd_input *handle, int cpu)
 {
 	off64_t offset;
@@ -892,95 +797,12 @@ static int get_next_page(struct tracecmd_input *handle, int cpu)
 
 	if (handle->cpu_data[cpu].size <= handle->page_size) {
 		handle->cpu_data[cpu].offset = 0;
-		handle->cpu_data[cpu].timestamp = 0;
 		return 0;
 	}
 
 	offset = handle->cpu_data[cpu].offset + handle->page_size;
 
 	return get_page(handle, cpu, offset);
-}
-
-enum old_ring_buffer_type {
-	OLD_RINGBUF_TYPE_PADDING,
-	OLD_RINGBUF_TYPE_TIME_EXTEND,
-	OLD_RINGBUF_TYPE_TIME_STAMP,
-	OLD_RINGBUF_TYPE_DATA,
-};
-
-static struct pevent_record *
-read_old_format(struct tracecmd_input *handle, void **ptr, int cpu)
-{
-	struct pevent *pevent = handle->pevent;
-	struct pevent_record *data;
-	unsigned long long extend;
-	unsigned int type_len_ts;
-	unsigned int type;
-	unsigned int len;
-	unsigned int delta;
-	unsigned int length;
-	int index;
-
-	index = calc_index(handle, *ptr, cpu);
-
-	type_len_ts = read_type_len_ts(pevent, *ptr);
-	*ptr += 4;
-
-	type = type4host(pevent, type_len_ts);
-	len = len4host(pevent, type_len_ts);
-	delta = ts4host(pevent, type_len_ts);
-
-	switch (type) {
-	case OLD_RINGBUF_TYPE_PADDING:
-		*ptr = (void *)(((unsigned long)*ptr + (handle->page_size - 1)) &
-				~(handle->page_size - 1));
-		return NULL;
-
-	case OLD_RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(pevent, *ptr);
-		extend <<= TS_SHIFT;
-		extend += delta;
-		handle->cpu_data[cpu].timestamp += extend;
-		*ptr += 4;
-		return NULL;
-
-	case OLD_RINGBUF_TYPE_TIME_STAMP:
-		warning("should not be here");
-		return NULL;
-		break;
-	default:
-		if (len)
-			length = len * 4;
-		else {
-			length = data2host4(pevent, *ptr);
-			length -= 4;
-			*ptr += 4;
-		}
-		break;
-	}
-
-	handle->cpu_data[cpu].timestamp += delta;
-
-	data = malloc(sizeof(*data));
-	if (!data)
-		return NULL;
-	memset(data, 0, sizeof(*data));
-
-	data->ref_count = 1;
-	data->ts = handle->cpu_data[cpu].timestamp;
-	data->size = length;
-	data->data = *ptr;
-	data->offset = handle->cpu_data[cpu].offset + index;
-
-
-	*ptr += ((length+3)/4) * 4;
-
-	handle->cpu_data[cpu].index = calc_index(handle, *ptr, cpu);
-	handle->cpu_data[cpu].next = data;
-
-	data->record_size = handle->cpu_data[cpu].index - index;
-
-	return data;
 }
 
 static struct pevent_record *
@@ -1127,15 +949,13 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 	unsigned long long page_offset;
 	int cpu = record->cpu;
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
-	unsigned int type_len_ts;
-	unsigned int len;
 	int index;
 	int ret;
 
 	page_offset = calc_page_offset(handle, record->offset);
 	index = record->offset & (handle->page_size - 1);
 
-	ret =get_page(handle, record->cpu, page_offset);
+	ret = get_page(handle, record->cpu, page_offset);
 	if (ret < 0)
 		return -1;
 
@@ -1143,16 +963,7 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 	if (ret)
 		return 1;
 
-	record->data = cpu_data->page->map + index;
-
-	type_len_ts = read_type_len_ts(handle->pevent, record->data);
-	len = len4host(handle->pevent, type_len_ts);
-
-	/* The data starts either 4 or 8 bytes from offset */
-	record->data += len ? 4 : 8;
-
-	/* The get_page resets the index, set the index after this record */
-	cpu_data->index = index + record->record_size;
+	record->data = kbuffer_read_at_offset(cpu_data->kbuf, index, &record->ts);
 	cpu_data->timestamp = record->ts;
 
 	return 0;
@@ -1170,10 +981,16 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 struct pevent_record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 {
-	if (get_page(handle, cpu, handle->cpu_data[cpu].file_offset) < 0)
+	int ret;
+
+	ret = get_page(handle, cpu, handle->cpu_data[cpu].file_offset);
+	if (ret < 0)
 		return NULL;
 
-	handle->cpu_data[cpu].index = 0;
+	/* If the page was already mapped, we need to reset it */
+	if (ret)
+		update_page_info(handle, cpu);
+		
 	free_next(handle, cpu);
 
 	return tracecmd_read_data(handle, cpu);
@@ -1328,8 +1145,6 @@ tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle, int cpu,
 	    cpu_data->offset > cpu_data->file_offset)
 		get_page(handle, cpu, cpu_data->offset - handle->page_size);
 
-	cpu_data->index = 0;
-
 	return 0;
 }
 
@@ -1412,8 +1227,7 @@ unsigned long long
 tracecmd_get_cursor(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
-	struct pevent *pevent;
-	int index;
+	struct kbuffer *kbuf = cpu_data->kbuf;
 
 	if (cpu < 0 || cpu >= handle->cpus)
 		return 0;
@@ -1437,57 +1251,7 @@ tracecmd_get_cursor(struct tracecmd_input *handle, int cpu)
 	    cpu_data->file_size)
 		return cpu_data->offset;
 
-	pevent = handle->pevent;
-
-	index = cpu_data->index ? cpu_data->index :
-		pevent->header_page_data_offset;
-
-	return cpu_data->offset + index;
-}
-
-
-static unsigned int
-translate_data(struct pevent *pevent,
-	       void **ptr, unsigned long long *delta, int *length)
-{
-	unsigned long long extend;
-	unsigned int type_len_ts;
-	unsigned int type_len;
-
-	type_len_ts = read_type_len_ts(pevent, *ptr);
-	*ptr += 4;
-
-	type_len = type_len4host(pevent, type_len_ts);
-	*delta = ts4host(pevent, type_len_ts);
-
-	switch (type_len) {
-	case RINGBUF_TYPE_PADDING:
-		*length = data2host4(pevent, *ptr);
-		*ptr += *length;
-		break;
-
-	case RINGBUF_TYPE_TIME_EXTEND:
-		extend = data2host4(pevent, *ptr);
-		*ptr += 4;
-		extend <<= TS_SHIFT;
-		extend += *delta;
-		*delta = extend;
-		break;
-
-	case RINGBUF_TYPE_TIME_STAMP:
-		*ptr += 12;
-		break;
-	case 0:
-		*length = data2host4(pevent, *ptr) - 4;
-		*length = (*length + 3) & ~3;
-		*ptr += 4;
-		break;
-	default:
-		*length = type_len * 4;
-		break;
-	}
-
-	return type_len;
+	return cpu_data->offset + kbuffer_curr_offset(kbuf);
 }
 
 /**
@@ -1510,8 +1274,10 @@ struct pevent_record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size)
 {
+	struct pevent *pevent = handle->pevent;
 	struct pevent_record *record;
-	unsigned int type_len;
+	unsigned int length;
+	int swap = 1;
 
 	/* minimum record read is 8, (warn?) (TODO: make 8 into macro) */
 	if (size < 8)
@@ -1523,17 +1289,12 @@ tracecmd_translate_data(struct tracecmd_input *handle,
 	memset(record, 0, sizeof(*record));
 
 	record->ref_count = 1;
-	record->data = ptr;
-	type_len = translate_data(handle->pevent, &record->data, &record->ts, &record->size);
-	switch (type_len) {
-	case RINGBUF_TYPE_PADDING:
-	case RINGBUF_TYPE_TIME_EXTEND:
-	case RINGBUF_TYPE_TIME_STAMP:
-		record->data = NULL;
-		break;
-	default:
-		break;
-	}
+	if (pevent->host_bigendian == pevent->file_bigendian)
+		swap = 0;
+	record->data = kbuffer_translate_data(swap, ptr, &length);
+	record->size = length;
+	if (record->data)
+		record->record_size = record->size + (record->data - ptr);
 
 	return record;
 }
@@ -1563,62 +1324,54 @@ struct pevent_record *
 tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
 			  struct pevent_record *last_record)
 {
-	unsigned long long extend;
 	unsigned long long ts;
-	unsigned int type_len;
-	unsigned int flags;
-	struct pevent_record *record;
-	int page_size;
-	int length;
+	struct kbuffer *kbuf;
+	struct pevent_record *record = NULL;
+	enum kbuffer_long_size long_size;
+	enum kbuffer_endian endian;
 	void *ptr;
 
-	if (!last_record) {
-		ptr = page;
-		flags = read_page_flags(pevent, &ptr);
-		if (flags == -1U)
-			return NULL;
-		page_size = flags & COMMIT_MASK;
-		if (page_size > size) {
-			warning("tracecmd_read_page_record: page_size > size");
-			return NULL;
-		}
-		ptr = page + pevent->header_page_data_offset;
-		ts = data2host8(pevent, page);
-	} else {
+	if (pevent->file_bigendian)
+		endian = KBUFFER_ENDIAN_BIG;
+	else
+		endian = KBUFFER_ENDIAN_LITTLE;
+
+	if (pevent->header_page_size_size == 8)
+		long_size = KBUFFER_LSIZE_8;
+	else
+		long_size = KBUFFER_LSIZE_4;
+
+	kbuf = kbuffer_alloc(long_size, endian);
+	if (!kbuf)
+		return NULL;
+
+	kbuffer_load_subbuffer(kbuf, page);
+	if (kbuffer_subbuffer_size(kbuf) > size) {
+		warning("tracecmd_read_page_record: page_size > size");
+		goto out_free;
+	}
+
+	if (last_record) {
 		if (last_record->data < page || last_record->data >= (page + size)) {
 			warning("tracecmd_read_page_record: bad last record (size=%u)",
 				last_record->size);
-			return NULL;
+			goto out_free;
 		}
-		ptr = last_record->data + last_record->size;
-		ts = last_record->ts;
+
+		do {
+			ptr = kbuffer_next_event(kbuf, NULL);
+			if (!ptr)
+				break;
+		} while (ptr < last_record->data);
+		if (ptr != last_record->data) {
+			warning("tracecmd_read_page_record: could not find last_record");
+			goto out_free;
+		}
 	}
 
-	if (ptr >= page + size)
-		return NULL;
-
- read_again:
-	type_len = translate_data(pevent, &ptr, &extend, &length);
-
-	switch (type_len) {
-	case RINGBUF_TYPE_PADDING:
-		return NULL;
-	case RINGBUF_TYPE_TIME_EXTEND:
-		ts += extend;
-		/* fall through */
-	case RINGBUF_TYPE_TIME_STAMP:
-		goto read_again;
-	default:
-		break;
-	}
-
-	if (length < 0 || ptr + length > page + size) {
-		warning("tracecmd_read_page_record: bad record (size=%u)",
-			length);
-		return NULL;
-	}
-
-	ts += extend;
+	ptr = kbuffer_read_event(kbuf, &ts);
+	if (!ptr)
+		goto out_free;
 
 	record = malloc(sizeof(*record));
 	if (!record)
@@ -1626,11 +1379,14 @@ tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
 	memset(record, 0, sizeof(*record));
 
 	record->ts = ts;
-	record->size = length;
+	record->size = kbuffer_event_size(kbuf);
+	record->record_size = kbuffer_curr_size(kbuf);
 	record->cpu = 0;
 	record->data = ptr;
 	record->ref_count = 1;
 
+ out_free:
+	kbuffer_free(kbuf);
 	return record;
 }
 
@@ -1645,24 +1401,18 @@ tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
 struct pevent_record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 {
-	struct pevent *pevent = handle->pevent;
 	struct pevent_record *record;
+	unsigned long long ts;
+	struct kbuffer *kbuf;
 	struct page *page;
 	int index;
-	void *ptr;
-	unsigned long long extend;
-	unsigned int type_len;
-	long long missed_events = 0;
-	int length;
+	void *data;
 
 	if (cpu >= handle->cpus)
 		return NULL;
 
 	page = handle->cpu_data[cpu].page;
-	index = handle->cpu_data[cpu].index;
-
-	if (index < 0)
-		die("negative index on cpu iterator %d", cpu);
+	kbuf = handle->cpu_data[cpu].kbuf;
 
 	/* Hack to work around function graph read ahead */
 	tracecmd_curr_thread_handle = handle;
@@ -1683,59 +1433,21 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 		free_next(handle, cpu);
 	}
 
+read_again:
 	if (!page)
 		return NULL;
 
-	ptr = page->map + index;
-
-	if (!index) {
-		missed_events = page->lost_events;
-		ptr = handle->cpu_data[cpu].page->map + pevent->header_page_data_offset;
-	}
-
-read_again:
-	index = calc_index(handle, ptr, cpu);
-
-	if (index < 0)
-		die("negative index on cpu record %d", cpu);
-
-	if (index + (pevent->old_format ? 0 : 4) >=
-	    handle->cpu_data[cpu].page_size + pevent->header_page_data_offset) {
+	data = kbuffer_read_event(kbuf, &ts);
+	if (!data) {
 		if (get_next_page(handle, cpu))
 			return NULL;
-		return tracecmd_peek_data(handle, cpu);
-	}
-
-	if (pevent->old_format) {
-		record = read_old_format(handle, &ptr, cpu);
-		if (!record) {
-			if (!ptr)
-				return NULL;
-			goto read_again;
-		}
-		record->cpu = cpu;
-		return record;
-	}
-
-	type_len = translate_data(pevent, &ptr, &extend, &length);
-
-	switch (type_len) {
-	case RINGBUF_TYPE_PADDING:
-		if (!extend) {
-			warning("error, hit unexpected end of page");
-			return NULL;
-		}
-		/* fall through */
-	case RINGBUF_TYPE_TIME_EXTEND:
-		handle->cpu_data[cpu].timestamp += extend;
-		/* fall through */
-	case RINGBUF_TYPE_TIME_STAMP:
+		page = handle->cpu_data[cpu].page;
 		goto read_again;
-	default:
-		break;
 	}
 
-	handle->cpu_data[cpu].timestamp += extend;
+	handle->cpu_data[cpu].timestamp = ts + handle->ts_offset;
+
+	index = kbuffer_curr_offset(kbuf);
 
 	record = malloc(sizeof(*record));
 	if (!record)
@@ -1743,23 +1455,22 @@ read_again:
 	memset(record, 0, sizeof(*record));
 
 	record->ts = handle->cpu_data[cpu].timestamp;
-	record->size = length;
+	record->size = kbuffer_event_size(kbuf);
 	record->cpu = cpu;
-	record->data = ptr;
+	record->data = data;
 	record->offset = handle->cpu_data[cpu].offset + index;
-	record->missed_events = missed_events;
+	record->missed_events = kbuffer_missed_events(kbuf);
 	record->ref_count = 1;
 	record->locked = 1;
 
-	ptr += length;
-
-	handle->cpu_data[cpu].index = calc_index(handle, ptr, cpu);
 	handle->cpu_data[cpu].next = record;
 
-	record->record_size = handle->cpu_data[cpu].index - index;
+	record->record_size = kbuffer_curr_size(kbuf);
 	record->priv = page;
 	add_record(page, record);
 	page->ref_count++;
+
+	kbuffer_next_event(kbuf, NULL);
 
 	return record;
 }
@@ -2042,6 +1753,8 @@ static int handle_options(struct tracecmd_input *handle)
 int tracecmd_init_data(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
+	enum kbuffer_long_size long_size;
+	enum kbuffer_endian endian;
 	unsigned long long size;
 	char *cmdlines;
 	char buf[10];
@@ -2097,10 +1810,26 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	if (force_read)
 		handle->read_page = 1;
 
+	if (handle->long_size == 8)
+		long_size = KBUFFER_LSIZE_8;
+	else
+		long_size = KBUFFER_LSIZE_4;
+
+	if (handle->pevent->file_bigendian)
+		endian = KBUFFER_ENDIAN_BIG;
+	else
+		endian = KBUFFER_ENDIAN_LITTLE;
+
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		unsigned long long offset;
 
 		handle->cpu_data[cpu].cpu = cpu;
+
+		handle->cpu_data[cpu].kbuf = kbuffer_alloc(long_size, endian);
+		if (!handle->cpu_data[cpu].kbuf)
+			goto out_free;
+		if (pevent->old_format)
+			kbuffer_set_old_format(handle->cpu_data[cpu].kbuf);
 
 		offset = read8(handle);
 		size = read8(handle);
@@ -2114,16 +1843,22 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 				"Need at least %llu, but file size is %lu.\n",
 				offset + size, handle->total_file_size);
 			errno = EINVAL;
-			return -1;
+			goto out_free;
 		}
 
 		if (init_cpu(handle, cpu))
-			return -1;
+			goto out_free;
 	}
 
 	tracecmd_blk_hack(handle);
 
 	return 0;
+out_free:
+	for ( ; cpu >= 0; cpu--) {
+		free_page(handle, cpu);
+		kbuffer_free(handle->cpu_data[cpu].kbuf);
+	}
+	return -1;
 }
 
 /**
@@ -2342,10 +2077,13 @@ void tracecmd_close(struct tracecmd_input *handle)
 		/* The tracecmd_peek_data may have cached a record */
 		free_next(handle, cpu);
 		free_page(handle, cpu);
-		if (handle->cpu_data &&
-		    !list_empty(&handle->cpu_data[cpu].pages))
-			warning("pages still allocated on cpu %d%s",
-				cpu, show_records(&handle->cpu_data[cpu].pages));
+		if (handle->cpu_data) {
+			kbuffer_free(handle->cpu_data[cpu].kbuf);
+
+			if (!list_empty(&handle->cpu_data[cpu].pages))
+				warning("pages still allocated on cpu %d%s",
+					cpu, show_records(&handle->cpu_data[cpu].pages));
+		}
 	}
 
 	free(handle->cpu_data);
