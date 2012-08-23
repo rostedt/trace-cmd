@@ -707,8 +707,8 @@ static void free_page(struct tracecmd_input *handle, int cpu)
 
 static void __free_record(struct pevent_record *record)
 {
-	if (record->r_private) {
-		struct page *page = record->r_private;
+	if (record->priv) {
+		struct page *page = record->priv;
 		remove_record(page, record);
 		__free_page(page->handle, page);
 	}
@@ -1758,7 +1758,7 @@ read_again:
 	handle->cpu_data[cpu].next = record;
 
 	record->record_size = handle->cpu_data[cpu].index - index;
-	record->r_private = page;
+	record->priv = page;
 	add_record(page, record);
 	page->ref_count++;
 
