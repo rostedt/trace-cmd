@@ -13,8 +13,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * License along with this program; if not,  see <http://www.gnu.org/licenses>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -828,7 +827,7 @@ static struct tracecmd_output *create_file(const char *output_file,
  * @handle: the output file handle name
  * @id: the id of the option
  * @size: the size of the option data
- * @data: the data to write to the file.
+ * @data: the data to  see <http://www.gnu.org/licenses>
  */
 int tracecmd_add_option(struct tracecmd_output *handle,
 			unsigned short id,
