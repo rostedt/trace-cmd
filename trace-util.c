@@ -102,7 +102,7 @@ void trace_util_add_option(const char *name, const char *val)
 }
 
 void parse_cmdlines(struct pevent *pevent,
-		    char *file, int size __unused)
+		    char *file, int size __maybe_unused)
 {
 	char *comm;
 	char *line;
@@ -120,7 +120,7 @@ void parse_cmdlines(struct pevent *pevent,
 }
 
 void parse_proc_kallsyms(struct pevent *pevent,
-			 char *file, unsigned int size __unused)
+			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
 	char *func;
@@ -157,7 +157,7 @@ void parse_proc_kallsyms(struct pevent *pevent,
 }
 
 void parse_ftrace_printk(struct pevent *pevent,
-			 char *file, unsigned int size __unused)
+			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
 	char *printk;
