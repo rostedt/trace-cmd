@@ -17,7 +17,6 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-#define _GNU_SOURCE
 #include <gtk/gtk.h>
 #include <getopt.h>
 #include <string.h>

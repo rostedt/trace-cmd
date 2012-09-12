@@ -19,7 +19,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #define _LARGEFILE64_SOURCE
-#define _GNU_SOURCE
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
