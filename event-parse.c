@@ -826,9 +826,9 @@ static enum event_type __read_token(char **tok)
 	switch (type) {
 	case EVENT_NEWLINE:
 	case EVENT_DELIM:
-		*tok = malloc_or_die(2);
-		(*tok)[0] = ch;
-		(*tok)[1] = 0;
+		if (asprintf(tok, "%c", ch) < 0)
+			return EVENT_ERROR;
+
 		return type;
 
 	case EVENT_OP:
@@ -2776,10 +2776,8 @@ static int event_read_print(struct event_format *event)
 	if (type == EVENT_DQUOTE) {
 		char *cat;
 
-		cat = malloc_or_die(strlen(event->print_fmt.format) +
-				    strlen(token) + 1);
-		strcpy(cat, event->print_fmt.format);
-		strcat(cat, token);
+		if (asprintf(&cat, "%s%s", event->print_fmt.format, token) < 0)
+			goto fail;
 		free_token(token);
 		free_token(event->print_fmt.format);
 		event->print_fmt.format = NULL;
@@ -3523,6 +3521,18 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 	return ret;
 }
 
+static void free_args(struct print_arg *args)
+{
+	struct print_arg *next;
+
+	while (args) {
+		next = args->next;
+
+		free_arg(args);
+		args = next;
+	}
+}
+
 static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
@@ -3558,8 +3568,9 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	next = &arg->next;
 
 	arg->type = PRINT_ATOM;
-	arg->atom.atom = malloc_or_die(32);
-	sprintf(arg->atom.atom, "%lld", ip);
+		
+	if (asprintf(&arg->atom.atom, "%lld", ip) < 0)
+		goto out_free;
 
 	/* skip the first "%pf : " */
 	for (ptr = fmt + 6, bptr = data + field->offset;
@@ -3616,8 +3627,10 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				arg = alloc_arg();
 				arg->next = NULL;
 				arg->type = PRINT_ATOM;
-				arg->atom.atom = malloc_or_die(32);
-				sprintf(arg->atom.atom, "%lld", val);
+				if (asprintf(&arg->atom.atom, "%lld", val) < 0) {
+					free(arg);
+					goto out_free;
+				}
 				*next = arg;
 				next = &arg->next;
 				/*
@@ -3645,18 +3658,10 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	}
 
 	return args;
-}
 
-static void free_args(struct print_arg *args)
-{
-	struct print_arg *next;
-
-	while (args) {
-		next = args->next;
-
-		free_arg(args);
-		args = next;
-	}
+out_free:
+	free_args(args);
+	return NULL;
 }
 
 static char *
@@ -3683,9 +3688,8 @@ get_bprint_format(void *data, int size __maybe_unused,
 
 	printk = find_printk(pevent, addr);
 	if (!printk) {
-		format = malloc_or_die(45);
-		sprintf(format, "%%pf : (NO FORMAT FOUND at %llx)\n",
-			addr);
+		if (asprintf(&format, "%%pf : (NO FORMAT FOUND at %llx)\n", addr) < 0)
+			return NULL;
 		return format;
 	}
 
@@ -3693,8 +3697,8 @@ get_bprint_format(void *data, int size __maybe_unused,
 	/* Remove any quotes. */
 	if (*p == '"')
 		p++;
-	format = malloc_or_die(strlen(p) + 10);
-	sprintf(format, "%s : %s", "%pf", p);
+	if (asprintf(&format, "%s : %s", "%pf", p) < 0)
+		return NULL;
 	/* remove ending quotes and new line since we will add one too */
 	p = format + strlen(format) - 1;
 	if (*p == '"')
