@@ -1718,6 +1718,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		arg->op.left = left;
 		arg->op.prio = 0;
 
+		/* it will set arg->op.right */
 		type = process_cond(event, arg, tok);
 
 	} else if (strcmp(token, ">>") == 0 ||
@@ -1744,6 +1745,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		arg->type = PRINT_OP;
 		arg->op.op = token;
 		arg->op.left = left;
+		arg->op.right = NULL;
 
 		if (set_op_prio(arg) == -1) {
 			event->flags |= EVENT_FL_FAILED;
@@ -1791,6 +1793,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 		arg->op.prio = 0;
 
+		/* it will set arg->op.right */
 		type = process_array(event, arg, tok);
 
 	} else {
