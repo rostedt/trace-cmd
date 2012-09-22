@@ -500,13 +500,15 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 	if (size < 0)
 		return -1;
 
-	buf = malloc(size);
+	buf = malloc(size + 1);
 	if (!buf)
 		return -1;
 	if (do_read_check(handle, buf, size)) {
 		free(buf);
 		return -1;
 	}
+
+	buf[size] = 0;
 
 	parse_ftrace_printk(handle->pevent, buf, size);
 

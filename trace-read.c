@@ -630,6 +630,8 @@ get_next_record(struct handle_list *handles, int *next_cpu)
 					found = 1;
 					break;
 				}
+				/* fall through */
+			default:
 				free_record(record);
 			}
 		}

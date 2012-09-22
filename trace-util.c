@@ -178,6 +178,7 @@ void parse_ftrace_printk(struct pevent *pevent,
 		printk = strdup(fmt+1);
 		line = strtok_r(NULL, "\n", &next);
 		pevent_register_print_string(pevent, printk, addr);
+		free(printk);
 	}
 }
 
