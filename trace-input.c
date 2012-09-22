@@ -134,7 +134,7 @@ static const char *show_records(struct list_head *pages)
 
 	memset(buf, 0, sizeof(buf));
 	len = 0;
-	list_for_each_entry(page, pages, struct page, list) {
+	list_for_each_entry(page, pages, list) {
 		for (record = page->records; record; record = record->next) {
 			int n;
 			n = snprintf(buf+len, BUFSIZ - len, " 0x%lx", record->alloc_addr);
