@@ -39,12 +39,17 @@
 #include "trace-hash-local.h"
 #include "list.h"
 
-static struct filter {
-	struct filter		*next;
+static struct filter_str {
+	struct filter_str	*next;
 	const char		*filter;
 	int			neg;
 } *filter_strings;
-static struct filter **filter_next = &filter_strings;
+static struct filter_str **filter_next = &filter_strings;
+
+struct filter {
+	struct filter		*next;
+	struct event_filter	*filter;
+};
 
 struct handle_list {
 	struct list_head	list;
@@ -53,8 +58,8 @@ struct handle_list {
 	int			cpus;
 	int			done;
 	struct pevent_record	*record;
-	struct event_filter	*event_filters;
-	struct event_filter	*event_filter_out;
+	struct filter		*event_filters;
+	struct filter		*event_filter_out;
 };
 static struct list_head handle_list;
 
@@ -297,7 +302,7 @@ static void free_handles(void)
 
 static void add_filter(const char *filter, int neg)
 {
-	struct filter *ftr;
+	struct filter_str *ftr;
 
 	ftr = malloc_or_die(sizeof(*ftr));
 	ftr->filter = filter;
@@ -311,32 +316,43 @@ static void add_filter(const char *filter, int neg)
 
 static void process_filters(struct handle_list *handles)
 {
-	struct event_filter *event_filter;
+	struct filter **filter_next = &handles->event_filters;
+	struct filter **filter_out_next = &handles->event_filter_out;
+	struct filter *event_filter;
+	struct filter_str *filter;
 	struct pevent *pevent;
-	struct filter *filter;
 	char *errstr;
 	int ret;
 
 	pevent = tracecmd_get_pevent(handles->handle);
-	handles->event_filters = pevent_filter_alloc(pevent);
-	handles->event_filter_out = pevent_filter_alloc(pevent);
 
 	while (filter_strings) {
 		filter = filter_strings;
 		filter_strings = filter->next;
-		if (filter->neg)
-			event_filter = handles->event_filter_out;
-		else
-			event_filter = handles->event_filters;
 
-		ret = pevent_filter_add_filter_str(event_filter,
+		event_filter = malloc_or_die(sizeof(*event_filter));
+		event_filter->next = NULL;
+		event_filter->filter = pevent_filter_alloc(pevent);
+		if (!event_filter->filter)
+			die("malloc");
+
+		ret = pevent_filter_add_filter_str(event_filter->filter,
 						   filter->filter,
 						   &errstr);
 		if (ret < 0)
 			die("Error filtering: %s\n%s",
 			    filter->filter, errstr);
+
 		free(errstr);
 		free(filter);
+
+		if (filter->neg) {
+			*filter_out_next = event_filter;
+			filter_out_next = &event_filter->next;
+		} else {
+			*filter_next = event_filter;
+			filter_next = &event_filter->next;
+		}
 	}
 }
 
@@ -579,6 +595,25 @@ static void read_rest(void)
 	} while (r > 0);
 }
 
+static int
+test_filters(struct filter *event_filters, struct pevent_record *record)
+{
+	int found = 0;
+	int ret = FILTER_NONE;
+
+	while (!found && event_filters) {
+		ret = pevent_filter_match(event_filters->filter, record);
+		switch (ret) {
+			case FILTER_NONE:
+			case FILTER_MATCH:
+				found = 1;
+		}
+		event_filters = event_filters->next;
+	}
+
+	return ret;
+}
+
 static struct pevent_record *
 get_next_record(struct handle_list *handles, int *next_cpu)
 {
@@ -620,11 +655,11 @@ get_next_record(struct handle_list *handles, int *next_cpu)
 			record = tracecmd_read_next_data(handles->handle, &cpu);
 
 		if (record) {
-			ret = pevent_filter_match(handles->event_filters, record);
+			ret = test_filters(handles->event_filters, record);
 			switch (ret) {
 			case FILTER_NONE:
 			case FILTER_MATCH:
-				ret = pevent_filter_match(handles->event_filter_out, record);
+				ret = test_filters(handles->event_filter_out, record);
 				if (ret != FILTER_MATCH) {
 					found = 1;
 					break;
@@ -659,6 +694,19 @@ static void print_handle_file(struct handle_list *handles)
 	if (!multi_inputs)
 		return;
 	printf("%*s: ", max_file_size, handles->file);
+}
+
+static void free_filters(struct filter *event_filter)
+{
+	struct filter *filter;
+
+	while (event_filter) {
+		filter = event_filter;
+		event_filter = filter->next;
+
+		pevent_filter_free(filter->filter);
+		free(filter);
+	}
 }
 
 static void read_data_info(struct list_head *handle_list)
@@ -716,8 +764,8 @@ static void read_data_info(struct list_head *handle_list)
 	} while (last_record);
 
 	list_for_each_entry(handles, handle_list, list) {
-		pevent_filter_free(handles->event_filters);
-		pevent_filter_free(handles->event_filter_out);
+		free_filters(handles->event_filters);
+		free_filters(handles->event_filter_out);
 
 		show_test(handles->handle);
 	}
