@@ -69,6 +69,12 @@ struct input_files {
 };
 static struct list_head input_files;
 
+struct pid_list {
+	struct pid_list		*next;
+	char			*pid;
+	int			free;
+} *pid_list;
+
 static unsigned int page_size;
 static int input_fd;
 static const char *default_input_file = "trace.dat";
@@ -314,6 +320,88 @@ static void add_filter(const char *filter, int neg)
 	filter_next = &ftr->next;
 }
 
+static void add_pid_filter(const char *arg)
+{
+	struct pid_list *list;
+	char *pids = strdup(arg);
+	char *pid;
+	char *sav;
+	int free = 1;
+
+	if (!pids)
+		die("malloc");
+
+	pid = strtok_r(pids, ",", &sav);
+	while (pid) {
+		list = malloc_or_die(sizeof(*list));
+		list->pid = pid;
+		list->free = free;
+		list->next = pid_list;
+		pid_list = list;
+		/* The first pid needs to be freed */
+		free = 0;
+		pid = strtok_r(NULL, ",", &sav);
+	}
+}
+
+static char *append_pid_filter(char *curr_filter, const char *events,
+			       const char *field, char *pid)
+{
+	char *filter;
+	int len;
+
+	len = strlen("(!=)&&") + strlen(field) + strlen(pid);
+	if (!curr_filter) {
+		/* No need for +1 as we don't use the "||" */
+		filter = malloc_or_die(len);
+		sprintf(filter, "%s:(%s==%s)", events, field, pid);
+	} else {
+		int indx = strlen(curr_filter);
+
+		len += indx;
+		filter = realloc(curr_filter, len + indx + 1);
+		if (!filter)
+			die("realloc");
+		sprintf(filter, "%s||(%s==%s)", curr_filter, field, pid);
+	}
+
+	return filter;
+}
+
+static void make_pid_filter(void)
+{
+	struct pid_list *list;
+	char *common_str = NULL;
+	char *sched_switch_str = NULL;
+	char *sched_wakeup_str = NULL;
+
+	if (!pid_list)
+		return;
+
+	/* First do all common pids */
+	for (list = pid_list; list; list = list->next) {
+		common_str = append_pid_filter(common_str, ".*",
+					       "common_pid", list->pid);
+		sched_switch_str = append_pid_filter(sched_switch_str, "sched_switch",
+						     "next_pid", list->pid);
+		sched_wakeup_str = append_pid_filter(sched_wakeup_str, "sched_wakeup.*",
+						     "pid", list->pid);
+	}
+
+	/* Add it as a negative filters */
+	add_filter(common_str, 1);
+	add_filter(sched_switch_str, 1);
+	add_filter(sched_wakeup_str, 1);
+
+	while (pid_list) {
+		list = pid_list;
+		pid_list = pid_list->next;
+		if (list->free)
+			free(list->pid);
+		free(list);
+	}
+}
+
 static void process_filters(struct handle_list *handles)
 {
 	struct filter **filter_next = &handles->event_filters;
@@ -325,6 +413,8 @@ static void process_filters(struct handle_list *handles)
 	int ret;
 
 	pevent = tracecmd_get_pevent(handles->handle);
+
+	make_pid_filter();
 
 	while (filter_strings) {
 		filter = filter_strings;
@@ -596,18 +686,21 @@ static void read_rest(void)
 }
 
 static int
-test_filters(struct filter *event_filters, struct pevent_record *record)
+test_filters(struct filter *event_filters, struct pevent_record *record, int neg)
 {
 	int found = 0;
 	int ret = FILTER_NONE;
 
-	while (!found && event_filters) {
+	while (event_filters) {
 		ret = pevent_filter_match(event_filters->filter, record);
 		switch (ret) {
 			case FILTER_NONE:
-			case FILTER_MATCH:
+			case FILTER_MATCH: 
 				found = 1;
 		}
+		/* We need to test all negative filters */
+		if (!neg && found)
+			break;
 		event_filters = event_filters->next;
 	}
 
@@ -655,11 +748,11 @@ get_next_record(struct handle_list *handles, int *next_cpu)
 			record = tracecmd_read_next_data(handles->handle, &cpu);
 
 		if (record) {
-			ret = test_filters(handles->event_filters, record);
+			ret = test_filters(handles->event_filters, record, 0);
 			switch (ret) {
 			case FILTER_NONE:
 			case FILTER_MATCH:
-				ret = test_filters(handles->event_filter_out, record);
+				ret = test_filters(handles->event_filter_out, record, 1);
 				if (ret != FILTER_MATCH) {
 					found = 1;
 					break;
@@ -874,6 +967,7 @@ static void process_plugin_option(char *option)
 }
 
 enum {
+	OPT_pid		= 250,
 	OPT_nodate	= 251,
 	OPT_check_event_parsing	= 252,
 	OPT_kallsyms	= 253,
@@ -921,6 +1015,7 @@ void trace_report (int argc, char **argv)
 			{"events", no_argument, NULL, OPT_events},
 			{"filter-test", no_argument, NULL, 'T'},
 			{"kallsyms", required_argument, NULL, OPT_kallsyms},
+			{"pid", required_argument, NULL, OPT_pid},
 			{"check-events", no_argument, NULL,
 				OPT_check_event_parsing},
 			{"nodate", no_argument, NULL, OPT_nodate},
@@ -1003,6 +1098,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_kallsyms:
 			functions = optarg;
+			break;
+		case OPT_pid:
+			add_pid_filter(optarg);
 			break;
 		case OPT_check_event_parsing:
 			check_event_parsing = 1;
