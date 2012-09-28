@@ -56,7 +56,7 @@ ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
 python_dir = $(HOME)/.trace-cmd/python
 else
-plugin_dir = $(prefix)/share/trace-cmd/plugins
+plugin_dir = $(prefix)/lib/trace-cmd/plugins
 python_dir = $(prefix)/share/trace-cmd/python
 PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
