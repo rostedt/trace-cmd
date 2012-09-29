@@ -2601,6 +2601,9 @@ find_func_handler(struct pevent *pevent, char *func_name)
 {
 	struct pevent_function_handler *func;
 
+	if (!pevent)
+		return NULL;
+
 	for (func = pevent->func_handlers; func; func = func->next) {
 		if (strcmp(func->name, func_name) == 0)
 			break;
@@ -4937,6 +4940,9 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 		goto event_alloc_failed;
 	}
 
+	/* Add pevent to event so that it can be referenced */
+	event->pevent = pevent;
+
 	ret = event_read_format(event);
 	if (ret < 0) {
 		ret = PEVENT_ERRNO__READ_FORMAT_FAILED;
@@ -5039,9 +5045,6 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 
 	if (event == NULL)
 		return ret;
-
-	/* Add pevent to event so that it can be referenced */
-	event->pevent = pevent;
 
 	if (add_event(pevent, event)) {
 		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
