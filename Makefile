@@ -1,6 +1,6 @@
 # trace-cmd version
-TC_VERSION = 1
-TC_PATCHLEVEL = 2
+TC_VERSION = 2
+TC_PATCHLEVEL = 0
 TC_EXTRAVERSION = 0
 
 # Kernel Shark version
