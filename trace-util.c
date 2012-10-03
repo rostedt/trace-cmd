@@ -385,13 +385,20 @@ void parse_proc_kallsyms(struct pevent *pevent,
 	char *addr_str;
 	char *mod;
 	char ch;
-	int ret;
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {
 		mod = NULL;
-		ret = sscanf(line, "%ms %c %ms\t[%ms",
+		errno = 0;
+		sscanf(line, "%ms %c %ms\t[%ms",
 			     &addr_str, &ch, &func, &mod);
+		if (errno) {
+			free(addr_str);
+			free(func);
+			free(mod);
+			perror("sscanf");
+			return;
+		}
 		addr = strtoull(addr_str, NULL, 16);
 		free(addr_str);
 
