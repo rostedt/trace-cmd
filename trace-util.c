@@ -906,6 +906,45 @@ trace_util_load_plugins_dir(struct pevent *pevent, const char *suffix,
 	return;
 }
 
+struct add_plugin_data {
+	int ret;
+	int index;
+	char **files;
+};
+
+static void add_plugin_file(struct pevent *pevent, const char *path,
+			    const char *name, void *data)
+{
+	struct add_plugin_data *pdata = data;
+	char **ptr;
+	int size;
+	int i;
+
+	if (pdata->ret)
+		return;
+
+	size = pdata->index + 2;
+	ptr = realloc(pdata->files, sizeof(char *) * size);
+	if (!ptr)
+		goto out_free;
+
+	ptr[pdata->index] = strdup(name);
+	if (!ptr[pdata->index])
+		goto out_free;
+
+	pdata->files = ptr;
+	pdata->index++;
+	pdata->files[pdata->index] = NULL;
+	return;
+
+ out_free:
+	for (i = 0; i < pdata->index; i++)
+		free(pdata->files[i]);
+	free(pdata->files);
+	pdata->files = NULL;
+	pdata->ret = errno;
+}
+
 void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 			     void (*load_plugin)(struct pevent *pevent,
 						 const char *path,
@@ -947,6 +986,54 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 	trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
 
 	free(path);
+}
+
+/**
+ * trace_util_find_plugin_files - find list of possible plugin files
+ * @suffix: The suffix of the plugin files to find
+ *
+ * Searches the plugin directory for files that end in @suffix, and
+ * will return an allocated array of file names, or NULL if none is
+ * found.
+ *
+ * Must check against TRACECMD_ISERR(ret) as if an error happens
+ * the errno will be returned with the TRACECMD_ERR_MSK to denote
+ * such an error occurred.
+ *
+ * Use trace_util_free_plugin_files() to free the result.
+ */
+char **trace_util_find_plugin_files(const char *suffix)
+{
+	struct add_plugin_data pdata;
+
+	memset(&pdata, 0, sizeof(pdata));
+
+
+	trace_util_load_plugins(NULL, suffix, add_plugin_file, &pdata);
+
+	if (pdata.ret)
+		return TRACECMD_ERROR(pdata.ret);
+
+	return pdata.files;
+}
+
+/**
+ * trace_util_free_plugin_files - free the result of trace_util_find_plugin_files()
+ * @files: The result from trace_util_find_plugin_files()
+ *
+ * Frees the contents that were allocated by trace_util_find_plugin_files().
+ */
+void trace_util_free_plugin_files(char **files)
+{
+	int i;
+
+	if (!files || TRACECMD_ISERR(files))
+		return;
+
+	for (i = 0; files[i]; i++) {
+		free(files[i]);
+	}
+	free(files);
 }
 
 struct plugin_option_read {

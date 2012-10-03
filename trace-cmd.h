@@ -24,6 +24,11 @@
 #include "event-utils.h"
 #include "event-parse.h"
 
+#define TRACECMD_ERR_MSK	((unsigned long)(-1) & ~((1UL << 14) - 1))
+#define TRACECMD_ISERR(ptr)	((unsigned long)(ptr) > TRACECMD_ERR_MSK)
+#define TRACECMD_ERROR(ret)	((void *)((unsigned long)(ret) | TRACECMD_ERR_MSK))
+#define TRACECMD_PTR2ERR(ptr)	((unisgned long)(ptr) & ~TRACECMD_ERR_MSK)
+
 void parse_cmdlines(struct pevent *pevent, char *file, int size);
 void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(struct pevent *pevent, char *file, unsigned int size);
@@ -227,6 +232,8 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 			     void *data);
 struct plugin_option *trace_util_read_plugin_options(void);
 void trace_util_free_options(struct plugin_option *options);
+char **trace_util_find_plugin_files(const char *suffix);
+void trace_util_free_plugin_files(char **files);
 
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);
