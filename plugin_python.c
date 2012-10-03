@@ -58,6 +58,13 @@ static void load_plugin(struct pevent *pevent, const char *path,
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
 	PyObject *globals, *m, *py_pevent, *str, *res;
+	char **plugin_list;
+
+	/* Only load plugins if they exist */
+	plugin_list = trace_util_find_plugin_files(".py");
+	if (!plugin_list)
+		return 0;
+	trace_util_free_plugin_files(plugin_list);
 
 	Py_Initialize();
 
