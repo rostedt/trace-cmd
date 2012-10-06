@@ -2108,7 +2108,7 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		handle->cpu_data[cpu].file_offset = offset;
 		handle->cpu_data[cpu].file_size = size;
 
-		if (offset + size > handle->total_file_size) {
+		if (size && (offset + size > handle->total_file_size)) {
 			/* this happens if the file got truncated */
 			printf("File possibly truncated. "
 				"Need at least %llu, but file size is %lu.\n",
