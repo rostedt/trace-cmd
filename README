@@ -28,7 +28,7 @@ To install the gui
 
 Note: The default install is relative to /usr/local
     The default install directory is /usr/local/bin
-    The default plugin directory is /usr/local/share/trace-cmd/plugins
+    The default plugin directory is /usr/local/lib/trace-cmd/plugins
 
 To change the default, you can set 'prefix', eg
 mkdir $HOME/test-trace
