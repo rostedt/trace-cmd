@@ -68,8 +68,8 @@ class EventStore(gtk.GenericTreeModel):
         for cpu in range(0, trace.cpus):
             rec = tracecmd_read_data(self.trace._handle, cpu)
             while rec:
-                offset = record_offset_get(rec)
-                ts = record_ts_get(rec)
+                offset = pevent_record_offset_get(rec)
+                ts = pevent_record_ts_get(rec)
                 self.refs.append(self.EventRef(index, ts, offset, cpu))
                 index = index + 1
                 rec = tracecmd_read_data(self.trace._handle, cpu)

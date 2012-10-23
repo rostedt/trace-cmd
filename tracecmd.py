@@ -84,7 +84,7 @@ class Event(object, DictMixin):
 
     @cached_property
     def cpu(self):
-        return record_cpu_get(self._record)
+        return pevent_record_cpu_get(self._record)
 
     @cached_property
     def name(self):
@@ -96,7 +96,7 @@ class Event(object, DictMixin):
 
     @cached_property
     def ts(self):
-        return record_ts_get(self._record)
+        return pevent_record_ts_get(self._record)
 
     @cached_property
     def type(self):
