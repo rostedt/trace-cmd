@@ -57,7 +57,7 @@ plugin_dir = $(HOME)/.trace-cmd/plugins
 python_dir = $(HOME)/.trace-cmd/python
 else
 plugin_dir = $(prefix)/lib/trace-cmd/plugins
-python_dir = $(prefix)/share/trace-cmd/python
+python_dir = $(prefix)/lib/trace-cmd/python
 PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
