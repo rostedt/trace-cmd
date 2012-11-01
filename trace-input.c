@@ -1840,7 +1840,7 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		if (size && (offset + size > handle->total_file_size)) {
 			/* this happens if the file got truncated */
 			printf("File possibly truncated. "
-				"Need at least %llu, but file size is %lu.\n",
+				"Need at least %llu, but file size is %zu.\n",
 				offset + size, handle->total_file_size);
 			errno = EINVAL;
 			goto out_free;
