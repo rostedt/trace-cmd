@@ -22,6 +22,7 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 /* Can be overridden */
 void die(const char *fmt, ...);
