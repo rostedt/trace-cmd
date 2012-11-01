@@ -1003,7 +1003,7 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			    check_size, sizes[i]);
 			goto out_free;
 		}
-		fprintf(stderr, "    %ld bytes in size\n", check_size);
+		fprintf(stderr, "    %llu bytes in size\n", (unsigned long long)check_size);
 	}
 
 	free(offsets);
