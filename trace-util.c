@@ -110,8 +110,7 @@ void parse_cmdlines(struct pevent *pevent,
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {
-		sscanf(line, "%d %as", &pid,
-		       (float *)(void *)&comm); /* workaround gcc warning */
+		sscanf(line, "%d %ms", &pid, &comm);
 		pevent_register_comm(pevent, comm, pid);
 		free(comm);
 		line = strtok_r(NULL, "\n", &next);
@@ -133,11 +132,8 @@ void parse_proc_kallsyms(struct pevent *pevent,
 	line = strtok_r(file, "\n", &next);
 	while (line) {
 		mod = NULL;
-		ret = sscanf(line, "%as %c %as\t[%as",
-			     (float *)(void *)&addr_str, /* workaround gcc warning */
-			     &ch,
-			     (float *)(void *)&func,
-			     (float *)(void *)&mod);
+		ret = sscanf(line, "%ms %c %ms\t[%ms",
+			     &addr_str, &ch, &func, &mod);
 		addr = strtoull(addr_str, NULL, 16);
 		free(addr_str);
 
