@@ -546,12 +546,12 @@ PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
 ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
 	swig -Wall -python -noproxy ctracecmd.i
-	gcc -fpic -c $(PYTHON_INCLUDES)  ctracecmd_wrap.c
+	$(CC) -fpic -c $(PYTHON_INCLUDES)  ctracecmd_wrap.c
 	$(CC) --shared $(TCMD_LIB_OBJS) ctracecmd_wrap.o -o ctracecmd.so
 
 ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	swig -Wall -python -noproxy ctracecmdgui.i
-	gcc -fpic -c  $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
+	$(CC) -fpic -c  $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
 	$(CC) --shared $^ $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
 
 PHONY += python
