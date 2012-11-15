@@ -498,9 +498,8 @@ void graph_plot_cpus_update_callback(gboolean accept,
 	/* Get the current status */
 	graph_plot_cpus_plotted(ginfo, &old_all_cpus, &old_cpu_mask);
 
-	if (old_all_cpus == all_cpus ||
-	    (selected_cpu_mask &&
-	     cpus_equal(old_cpu_mask, selected_cpu_mask, ginfo->cpus))) {
+	if (selected_cpu_mask &&
+	     cpus_equal(old_cpu_mask, selected_cpu_mask, ginfo->cpus)) {
 		/* Nothing to do */
 		g_free(old_cpu_mask);
 		return;
