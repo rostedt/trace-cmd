@@ -1016,7 +1016,7 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 		found = FALSE;
 
 		event = pevent_find_event_by_name(ginfo->pevent,
-						  "sched", "sched_wakeup");
+						  NULL, "sched_wakeup");
 		if (event) {
 			found = TRUE;
 			ginfo->event_wakeup_id = event->id;
@@ -1026,7 +1026,7 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 
 
 		event = pevent_find_event_by_name(ginfo->pevent,
-						  "sched", "sched_wakeup_new");
+						  NULL, "sched_wakeup_new");
 		if (event) {
 			found = TRUE;
 			ginfo->event_wakeup_new_id = event->id;
@@ -1086,7 +1086,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 
 	if (ginfo->event_sched_switch_id < 0) {
 		event = pevent_find_event_by_name(ginfo->pevent,
-						  "sched", "sched_switch");
+						  NULL, "sched_switch");
 		if (!event)
 			return 0;
 
