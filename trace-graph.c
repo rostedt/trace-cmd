@@ -380,7 +380,7 @@ static void draw_cursor(struct graph_info *ginfo)
 	x = convert_time_to_x(ginfo, ginfo->cursor);
 
 	gdk_draw_line(ginfo->draw->window, ginfo->draw->style->mid_gc[3],
-		      x, 0, x, ginfo->draw->allocation.width);
+		      x, 0, x, ginfo->draw->allocation.height);
 }
 
 static void draw_marka(struct graph_info *ginfo)
@@ -392,7 +392,7 @@ static void draw_marka(struct graph_info *ginfo)
 
 	x = convert_time_to_x(ginfo, ginfo->marka_time);
 	gdk_draw_line(ginfo->draw->window, green,
-		      x, 0, x, ginfo->draw->allocation.width);
+		      x, 0, x, ginfo->draw->allocation.height);
 }
 
 static void draw_markb(struct graph_info *ginfo)
@@ -404,7 +404,7 @@ static void draw_markb(struct graph_info *ginfo)
 
 	x = convert_time_to_x(ginfo, ginfo->markb_time);
 	gdk_draw_line(ginfo->draw->window, red,
-		      x, 0, x, ginfo->draw->allocation.width);
+		      x, 0, x, ginfo->draw->allocation.height);
 }
 
 static void update_with_backend(struct graph_info *ginfo,
@@ -434,7 +434,7 @@ static void
 draw_line(GtkWidget *widget, gdouble x, struct graph_info *ginfo)
 {
 	gdk_draw_line(widget->window, widget->style->black_gc,
-		      x, 0, x, widget->allocation.width);
+		      x, 0, x, widget->allocation.height);
 }
 
 static void clear_line(struct graph_info *ginfo, gint x)
