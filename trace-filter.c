@@ -1723,29 +1723,36 @@ void cpu_toggle(gpointer data, GtkWidget *widget)
 
 	if (strcmp(label, CPU_ALL_CPUS_STR) == 0) {
 		cpu_helper->allcpus = active;
-		if (active) {
-			/* enable all toggles */
-			for (cpu = 0; cpu < cpu_helper->cpus; cpu++)
-				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu]),
-							     TRUE);
-		}
+		/* enable/disable all toggles */
+		for (cpu = 0; cpu < cpu_helper->cpus; cpu++)
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu]),
+						     active ? TRUE : FALSE);
 		return;
 	}
 
 	/* Get the CPU # from the label. Pass "CPU " */
 	cpu = atoi(label + 4);
-	if (active) {
+	if (active)
 		cpu_set(cpu_helper->cpu_mask, cpu);
-		return;
-	}
+	else
+		cpu_clear(cpu_helper->cpu_mask, cpu);
 
-	cpu_clear(cpu_helper->cpu_mask, cpu);
-
-	if (!cpu_helper->allcpus)
-		return;
+	cpu_helper->allcpus = cpu_allset(cpu_helper->cpu_mask,
+					 cpu_helper->cpus);
+	/*
+	 * Deactivate sending 'toggled' signal for "All CPUs"
+	 * while we adjust its state
+	 */
+	g_signal_handlers_block_by_func(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu_helper->cpus]),
+				        G_CALLBACK (cpu_toggle),
+				        (gpointer) cpu_helper);
 
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu_helper->cpus]),
-				     FALSE);
+				     cpu_helper->allcpus);
+
+	g_signal_handlers_unblock_by_func(GTK_TOGGLE_BUTTON(cpu_helper->buttons[cpu_helper->cpus]),
+					  G_CALLBACK (cpu_toggle),
+					  (gpointer) cpu_helper);
 }
 
 /**

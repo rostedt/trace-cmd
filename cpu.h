@@ -29,6 +29,17 @@ static inline int cpu_isset(guint64 *cpu_mask, gint cpu)
 	return mask & (1ULL << (cpu & ((1ULL << 6) - 1)));
 }
 
+static inline gboolean cpu_allset(guint64 *cpu_mask, gint max_cpus)
+{
+	gint cpu;
+
+	for (cpu = 0; cpu < max_cpus; cpu++) {
+		if (!cpu_isset(cpu_mask, cpu))
+			return FALSE;
+	}
+	return TRUE;
+}
+
 static inline void cpu_set(guint64 *cpu_mask, gint cpu)
 {
 	guint64 *mask;
