@@ -21,9 +21,12 @@ OPTIONS
     This option will list the available events that are enabled on the
     local system.
 
-*-p*::
-    This option will list the available plugins that are enabled on the
+*-t*::
+    This option will list the available tracers that are enabled on the
     local system.
+
+*-p*::
+    Same as *-t* and only for legacy purposes.
 
 *-o*::
     This option will list the available Ftrace options that are configured on

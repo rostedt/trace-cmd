@@ -131,9 +131,9 @@ static struct usage_help usage_help[] = {
 	{
 		"list",
 		"list the available events, plugins or options",
-		" %s list [-e][-p][-o][-f [regex]]\n"
+		" %s list [-e][-t][-o][-f [regex]]\n"
 		"          -e list available events\n"
-		"          -p list available plugins\n"
+		"          -t list available tracers\n"
 		"          -o list available options\n"
 		"          -f [regex] list available functions to filter on\n"
 	},

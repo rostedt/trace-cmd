@@ -140,7 +140,7 @@ static void show_events(void)
 	show_file("available_events");
 }
 
-static void show_plugins(void)
+static void show_tracers(void)
 {
 	show_file("available_tracers");
 }
@@ -234,12 +234,12 @@ int main (int argc, char **argv)
 		exit(0);
 	} else if (strcmp(argv[1], "list") == 0) {
 		int events = 0;
-		int plug = 0;
+		int tracer = 0;
 		int options = 0;
 		int funcs = 0;
 		const char *funcre = NULL;
 
-		while ((c = getopt(argc-1, argv+1, ":hepof:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, ":heptof:")) >= 0) {
  next:
 			switch (c) {
 			case 'h':
@@ -249,7 +249,8 @@ int main (int argc, char **argv)
 				events = 1;
 				break;
 			case 'p':
-				plug = 1;
+			case 't':
+				tracer = 1;
 				break;
 			case 'o':
 				options = 1;
@@ -278,8 +279,8 @@ int main (int argc, char **argv)
 		if (events)
 			show_events();
 
-		if (plug)
-			show_plugins();
+		if (tracer)
+			show_tracers();
 
 		if (options)
 			show_options();
@@ -287,11 +288,11 @@ int main (int argc, char **argv)
 		if (funcs)
 			show_functions(funcre);
 
-		if (!events && !plug && !options && !funcs) {
+		if (!events && !tracer && !options && !funcs) {
 			printf("events:\n");
 			show_events();
-			printf("\nplugins:\n");
-			show_plugins();
+			printf("\tracers:\n");
+			show_tracers();
 			printf("\noptions:\n");
 			show_options();
 		}
