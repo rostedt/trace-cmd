@@ -51,6 +51,11 @@ struct filter {
 	struct event_filter	*filter;
 };
 
+struct event_str {
+	struct event_str	*next;
+	const char		*event;
+};
+
 struct handle_list {
 	struct list_head	list;
 	struct tracecmd_input	*handle;
@@ -966,6 +971,40 @@ static void process_plugin_option(char *option)
 	trace_util_add_option(name, val);
 }
 
+static void set_event_flags(struct pevent *pevent, struct event_str *list,
+			    unsigned int flag)
+{
+	struct event_format **events;
+	struct event_format *event;
+	struct event_str *str;
+	regex_t regex;
+	int ret;
+	int i;
+
+	if (!list)
+		return;
+
+	events = pevent_list_events(pevent, 0);
+
+	for (str = list; str; str = str->next) {
+		char *match;
+
+		match = malloc_or_die(strlen(str->event) + 3);
+		sprintf(match, "^%s$", str->event);
+
+		ret = regcomp(&regex, match, REG_ICASE|REG_NOSUB);
+		if (ret < 0)
+			die("Can't parse '%s'", str->event);
+		free(match);
+		for (i = 0; events[i]; i++) {
+			event = events[i];
+			if (!regexec(&regex, event->name, 0, NULL, 0) ||
+			    !regexec(&regex, event->system, 0, NULL, 0))
+				event->flags |= flag;
+		}
+	}
+}
+
 enum {
 	OPT_pid		= 250,
 	OPT_nodate	= 251,
@@ -979,6 +1018,10 @@ void trace_report (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
 	struct pevent *pevent;
+	struct event_str *raw_events = NULL;
+	struct event_str *nohandler_events = NULL;
+	struct event_str **raw_ptr = &raw_events;
+	struct event_str **nohandler_ptr = &nohandler_events;
 	const char *functions = NULL;
 	struct input_files *inputs;
 	struct handle_list *handles;
@@ -1023,7 +1066,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:feprPNLlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hi:fepRr:PNn:LlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1058,6 +1101,12 @@ void trace_report (int argc, char **argv)
 		case 'N':
 			tracecmd_disable_plugins = 1;
 			break;
+		case 'n':
+			*nohandler_ptr = malloc_or_die(sizeof(struct event_str));
+			(*nohandler_ptr)->event = optarg;
+			(*nohandler_ptr)->next = NULL;
+			nohandler_ptr = &(*nohandler_ptr)->next;
+			break;
 		case 'e':
 			show_endian = 1;
 			break;
@@ -1067,8 +1116,14 @@ void trace_report (int argc, char **argv)
 		case 'E':
 			show_events = 1;
 			break;
-		case 'r':
+		case 'R':
 			raw = 1;
+			break;
+		case 'r':
+			*raw_ptr = malloc_or_die(sizeof(struct event_str));
+			(*raw_ptr)->event = optarg;
+			(*raw_ptr)->next = NULL;
+			raw_ptr = &(*raw_ptr)->next;
 			break;
 		case 'w':
 			show_wakeup = 1;
@@ -1202,6 +1257,9 @@ void trace_report (int argc, char **argv)
 			}
 			return;
 		}
+
+		set_event_flags(pevent, nohandler_events, EVENT_FL_NOHANDLE);
+		set_event_flags(pevent, raw_events, EVENT_FL_PRINTRAW);
 	}
 
 	if (latency_format)

@@ -140,9 +140,18 @@ OPTIONS
 *-N*::
     This will not load any plugins.
 
-*-r*::
+*-n* 'event-re'::
+    This will cause all events that match the option to ignore any registered
+    handler (by the plugins) to print the event. The normal event will be printed
+    instead.  The 'event-re' is a regular expression as defined by 'regcomp(3)'.
+
+*-R*::
     This will show the events in "raw" format. That is, it will ignore the event's
     print formatting and just print the contents of each field.
+
+*-r* 'event-re'::
+    This will cause all events that match the option to print its raw fields.
+    The 'event-re' is a regular expression as defined by 'regcomp(3)'.
 
 *-l*::
     This adds a "latency output" format. Information about interrupts being
