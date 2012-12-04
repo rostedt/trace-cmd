@@ -194,7 +194,6 @@ struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
 struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
 							   const char *tracing_dir,
 							   const char *kallsyms);
-void trace_util_ftrace_options(void);
 int tracecmd_add_option(struct tracecmd_output *handle,
 			unsigned short id,
 			int size, void *data);
@@ -219,6 +218,7 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
 /* --- Plugin handling --- */
 extern struct plugin_option trace_ftrace_options[];
 
+void trace_util_add_options(const char *name, struct plugin_option *options);
 void trace_util_add_option(const char *name, const char *val);
 void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 			     void (*load_plugin)(struct pevent *pevent,

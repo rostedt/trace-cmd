@@ -61,10 +61,15 @@ struct plugin_list {
 
 static void update_option(const char *file, struct plugin_option *option);
 
-void trace_util_ftrace_options(void)
+/**
+ * trace_util_add_options - Add a set of options by a plugin
+ * @name: The name of the plugin adding the options
+ * @options: The set of options being loaded
+ *
+ * Sets the options with the values that have been added by user.
+ */
+void trace_util_add_options(const char *name, struct plugin_option *options)
 {
-	struct plugin_option *options = trace_ftrace_options;
-
 	while (options->name) {
 		update_option("ftrace", options);
 		options++;

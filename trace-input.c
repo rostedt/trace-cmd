@@ -1940,9 +1940,6 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 	/* register default ftrace functions first */
 	tracecmd_ftrace_overrides(handle, &handle->finfo);
 
-	/* Add the ftrace options */
-	trace_util_ftrace_options();
-
 	handle->plugin_list = tracecmd_load_plugins(handle->pevent);
 
 	handle->pevent->file_bigendian = buf[0];

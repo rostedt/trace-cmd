@@ -405,6 +405,8 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	pevent_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
 				      trace_stack_handler, finfo);
 
+	trace_util_add_options("ftrace", trace_ftrace_options);
+
 	/* Store the func ret id and event for later use */
 	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
 	if (!event)
