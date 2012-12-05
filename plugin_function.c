@@ -21,8 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "event-utils.h"
-#include "event-parse.h"
+#include "trace-cmd.h"
 
 static struct func_stack {
 	int index;
@@ -33,6 +32,29 @@ static struct func_stack {
 static int cpus = -1;
 
 #define STK_BLK 10
+
+struct plugin_option plugin_options[] =
+{
+	{
+		.name = "parent",
+		.plugin_alias = "ftrace",
+		.description =
+		"Print parent of functions for function events",
+	},
+	{
+		.name = "indent",
+		.plugin_alias = "ftrace",
+		.description =
+		"Try to show function call indents, based on parents",
+		.set = 1,
+	},
+	{
+		.name = NULL,
+	}
+};
+
+static struct plugin_option *ftrace_parent = &plugin_options[0];
+static struct plugin_option *ftrace_indent = &plugin_options[1];
 
 static void add_child(struct func_stack *stack, const char *child, int pos)
 {
@@ -94,21 +116,23 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long function;
+	unsigned long long pfunction;
 	const char *func;
 	const char *parent;
-	int i, index;
+	int i, index = 0;
 
 	if (pevent_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
 	func = pevent_find_function(pevent, function);
 
-	if (pevent_get_field_val(s, event, "parent_ip", record, &function, 1))
+	if (pevent_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
 		return trace_seq_putc(s, '!');
 
-	parent = pevent_find_function(pevent, function);
+	parent = pevent_find_function(pevent, pfunction);
 
-	index = get_index(parent, func, record->cpu);
+	if (ftrace_indent->set)
+		index = get_index(parent, func, record->cpu);
 
 	for (i = 0; i < index; i++)
 		trace_seq_printf(s, "   ");
@@ -118,6 +142,14 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 	else
 		trace_seq_printf(s, "0x%llx", function);
 
+	if (ftrace_parent->set) {
+		trace_seq_printf(s, " <-- ");
+		if (parent)
+			trace_seq_printf(s, "%s", parent);
+		else
+			trace_seq_printf(s, "0x%llx", pfunction);
+	}
+
 	return 0;
 }
 
@@ -125,6 +157,8 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler, NULL);
+
+	trace_util_add_options("ftrace", plugin_options);
 
 	return 0;
 }
@@ -138,6 +172,8 @@ void PEVENT_PLUGIN_UNLOADER(void)
 			free(fstack[i].stack[x]);
 		free(fstack[i].stack);
 	}
+
+	trace_util_remove_options(plugin_options);
 
 	free(fstack);
 	fstack = NULL;
