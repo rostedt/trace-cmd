@@ -177,6 +177,9 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 	trace_util_add_option("ftrace:parent", "1");
 	trace_util_add_option("ftrace:indent", "0");
 
+	/* Also, show the function name in the tail for function graph */
+	trace_util_add_option("fgraph:tailprint", "1");
+
 	/* --- CPU column --- */
 
 	renderer = gtk_cell_renderer_text_new();
