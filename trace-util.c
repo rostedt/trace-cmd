@@ -26,6 +26,7 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -282,12 +283,61 @@ void parse_ftrace_printk(struct pevent *pevent,
 	}
 }
 
+static void lower_case(char *str)
+{
+	if (!str)
+		return;
+	for (; *str; str++)
+		*str = tolower(*str);
+}
+
+static int update_option_value(struct plugin_option *op, const char *val)
+{
+	char *op_val;
+	int ret = 1;
+
+	if (!val) {
+		/* toggle, only if option is boolean */
+		if (op->value)
+			/* Warn? */
+			return 0;
+		op->set ^= 1;
+		return 1;
+	}
+
+	/*
+	 * If the option has a value then it takes a string
+	 * otherwise the option is a boolean.
+	 */
+	if (op->value) {
+		op->value = val;
+		return 1;
+	}
+
+	/* Option is boolean, must be either "1", "0", "true" or "false" */
+
+	op_val = strdup(val);
+	if (!op_val)
+		die("malloc");
+	lower_case(op_val);
+
+	if (strcmp(val, "1") == 0 || strcmp(val, "true") == 0)
+		op->set = 1;
+	else if (strcmp(val, "0") == 0 || strcmp(val, "false") == 0)
+		op->set = 0;
+	else
+		/* Warn on else? */
+		ret = 0;
+	free(op_val);
+
+	return ret;
+}
+
 static int process_option(const char *plugin, const char *option, const char *val)
 {
 	struct registered_plugin_options *reg;
 	struct plugin_option *op;
 	const char *op_plugin;
-	int ret = 0;
 
 	for (reg = registered_options; reg; reg = reg->next) {
 		for (op = reg->options; op->name; op = op->next) {
@@ -301,18 +351,11 @@ static int process_option(const char *plugin, const char *option, const char *va
 			if (strcmp(option, op->name) != 0)
 				continue;
 
-			if (val)
-				op->value = val;
-			else {
-				op->value = NULL;
-				op->set ^= 1;
-			}
-			ret = 1;
-			goto out;
+			return update_option_value(op, val);
 		}
 	}
- out:
-	return ret;
+
+	return 0;
 }
 
 static void update_option(const char *file, struct plugin_option *option)
