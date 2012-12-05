@@ -172,6 +172,89 @@ void trace_util_print_plugins(struct trace_seq *s,
 	}
 }
 
+static void parse_option_name(char **option, char **plugin)
+{
+	char *p;
+
+	*plugin = NULL;
+
+	if ((p = strstr(*option, ":"))) {
+		*plugin = *option;
+		*p = '\0';
+		*option = strdup(p + 1);
+		if (!*option)
+			die("malloc");
+	}
+}
+
+static struct plugin_option *
+find_registered_option(const char *plugin, const char *option)
+{
+	struct registered_plugin_options *reg;
+	struct plugin_option *op;
+	const char *op_plugin;
+
+	for (reg = registered_options; reg; reg = reg->next) {
+		for (op = reg->options; op->name; op++) {
+			if (op->plugin_alias)
+				op_plugin = op->plugin_alias;
+			else
+				op_plugin = op->file;
+
+			if (plugin && strcmp(plugin, op_plugin) != 0)
+				continue;
+			if (strcmp(option, op->name) != 0)
+				continue;
+
+			return op;
+		}
+	}
+
+	return NULL;
+}
+
+static struct plugin_option *
+find_registered_option_parse(const char *name)
+{
+	struct plugin_option *option;
+	char *option_str;
+	char *plugin;
+
+	option_str = strdup(name);
+	if (!option_str)
+		die("malloc");
+
+	parse_option_name(&option_str, &plugin);
+	option = find_registered_option(plugin, option_str);
+	free(option_str);
+	free(plugin);
+
+	return option;
+}
+
+/**
+ * trace_util_plugin_option_value - return a plugin option value
+ * @name: The name of the plugin option to find (format: <plugin>:<option>)
+ *
+ * Returns the value char string of the option. If the option is only
+ * boolean, then it returns "1" if set, and "0" if not.
+ *
+ * Returns NULL if the option is not found.
+ */
+const char *trace_util_plugin_option_value(const char *name)
+{
+	struct plugin_option *option;
+
+	option = find_registered_option_parse(name);
+	if (!option)
+		return NULL;
+
+	if (option->value)
+		return option->value;
+
+	return option->set ? "1" : "0";
+}
+
 /**
  * trace_util_add_option - add an option/val pair to set plugin options
  * @name: The name of the option (format: <plugin>:<option> or just <option>)
@@ -185,20 +268,13 @@ void trace_util_add_option(const char *name, const char *val)
 {
 	struct trace_plugin_options *op;
 	char *option_str;
-	char *plugin = NULL;
-	char *p;
+	char *plugin;
 	
 	option_str = strdup(name);
 	if (!option_str)
 		die("malloc");
 
-	if ((p = strstr(option_str, ":"))) {
-		plugin = option_str;
-		*p = '\0';
-		option_str = strdup(p + 1);
-		if (!option_str)
-			die("malloc");
-	}
+	parse_option_name(&option_str, &plugin);
 
 	/* If the option exists, update the val */
 	for (op = trace_plugin_options; op; op = op->next) {
@@ -411,27 +487,13 @@ static int update_option_value(struct plugin_option *op, const char *val)
 
 static int process_option(const char *plugin, const char *option, const char *val)
 {
-	struct registered_plugin_options *reg;
 	struct plugin_option *op;
-	const char *op_plugin;
 
-	for (reg = registered_options; reg; reg = reg->next) {
-		for (op = reg->options; op->name; op = op->next) {
-			if (op->plugin_alias)
-				op_plugin = op->plugin_alias;
-			else
-				op_plugin = op->file;
+	op = find_registered_option(plugin, option);
+	if (!op)
+		return 0;
 
-			if (plugin && strcmp(plugin, op_plugin) != 0)
-				continue;
-			if (strcmp(option, op->name) != 0)
-				continue;
-
-			return update_option_value(op, val);
-		}
-	}
-
-	return 0;
+	return update_option_value(op, val);
 }
 
 static void update_option(const char *file, struct plugin_option *option)
