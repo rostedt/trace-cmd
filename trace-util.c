@@ -206,6 +206,40 @@ void trace_util_add_option(const char *name, const char *val)
 	process_option(plugin, option_str, val);
 }
 
+static void print_op_data(struct trace_seq *s, const char *name,
+			  const char *op)
+{
+		if (op)
+			trace_seq_printf(s, "%8s:\t%s\n", name, op);
+}
+
+/**
+ * trace_util_print_plugin_options - print out the registered plugin options
+ * @s: The trace_seq descriptor to write the plugin options into
+ * 
+ * Writes a list of options into trace_seq @s.
+ */
+void trace_util_print_plugin_options(struct trace_seq *s)
+{
+	struct registered_plugin_options *reg;
+	struct plugin_option *op;
+
+	for (reg = registered_options; reg; reg = reg->next) {
+		if (reg != registered_options)
+			trace_seq_printf(s, "============\n");
+		for (op = reg->options; op->name; op++) {
+			if (op != reg->options)
+				trace_seq_printf(s, "------------\n");
+			print_op_data(s, "file", op->file);
+			print_op_data(s, "plugin", op->plugin_alias);
+			print_op_data(s, "option", op->name);
+			print_op_data(s, "desc", op->description);
+			print_op_data(s, "value", op->value);
+			trace_seq_printf(s, "%8s:\t%d\n", "set", op->set);
+		}
+	}
+}
+
 void parse_cmdlines(struct pevent *pevent,
 		    char *file, int size __maybe_unused)
 {

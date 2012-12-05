@@ -233,6 +233,10 @@ char **trace_util_find_plugin_files(const char *suffix);
 void trace_util_free_plugin_files(char **files);
 void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,
 			      const struct plugin_list *list);
+void trace_util_print_plugin_options(struct trace_seq *s);
+
+/* Used for trace-cmd list */
+void tracecmd_ftrace_load_options(void);
 
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);

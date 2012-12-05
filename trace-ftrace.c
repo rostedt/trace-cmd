@@ -383,6 +383,18 @@ trace_stack_handler(struct trace_seq *s, struct pevent_record *record,
 	return 0;
 }
 
+/**
+ * tracecmd_ftrace_load_options - load the ftrace options
+ *
+ * This routine is used for trace-cmd list, to load the builtin
+ * ftrace options in order to list them. As the list command does
+ * not load a trace.dat file where this would normally be loaded.
+ */
+void tracecmd_ftrace_load_options(void)
+{
+	trace_util_add_options("ftrace", trace_ftrace_options);
+}
+
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	struct tracecmd_ftrace *finfo)
 {

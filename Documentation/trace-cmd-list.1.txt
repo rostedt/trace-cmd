@@ -42,6 +42,9 @@ OPTIONS
 *-P*::
     List the plugin files that get loaded on trace-cmd report.
 
+*-O*::
+    List plugin options that can be used by trace-cmd report *-O* option.
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

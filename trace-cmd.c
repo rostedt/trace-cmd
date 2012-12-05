@@ -177,6 +177,27 @@ static void show_plugins(void)
 	pevent_free(pevent);
 }
 
+static void show_plugin_options(void)
+{
+	struct pevent *pevent;
+	struct plugin_list *list;
+	struct trace_seq s;
+
+	tracecmd_ftrace_load_options();
+
+	pevent = pevent_alloc();
+	if (!pevent)
+		die("Can not allocate pevent\n");
+
+	trace_seq_init(&s);
+
+	list = tracecmd_load_plugins(pevent);
+	trace_util_print_plugin_options(&s);
+	trace_seq_do_printf(&s);
+	tracecmd_unload_plugins(list);
+	pevent_free(pevent);
+}
+
 int main (int argc, char **argv)
 {
 	int c;
@@ -257,9 +278,10 @@ int main (int argc, char **argv)
 		int options = 0;
 		int funcs = 0;
 		int plug = 0;
+		int plug_op = 0;
 		const char *funcre = NULL;
 
-		while ((c = getopt(argc-1, argv+1, ":heptPof:")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, ":heptPOof:")) >= 0) {
  next:
 			switch (c) {
 			case 'h':
@@ -274,6 +296,9 @@ int main (int argc, char **argv)
 				break;
 			case 'P':
 				plug = 1;
+				break;
+			case 'O':
+				plug_op = 1;
 				break;
 			case 'o':
 				options = 1;
@@ -311,10 +336,13 @@ int main (int argc, char **argv)
 		if (plug)
 			show_plugins();
 
+		if (plug_op)
+			show_plugin_options();
+
 		if (funcs)
 			show_functions(funcre);
 
-		if (!events && !tracer && !options && !plug && !funcs) {
+		if (!events && !tracer && !options && !plug && !plug_op && !funcs) {
 			printf("events:\n");
 			show_events();
 			printf("\tracers:\n");
