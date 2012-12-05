@@ -76,6 +76,27 @@ void trace_util_add_options(const char *name, struct plugin_option *options)
 	}
 }
 
+/**
+ * trace_util_print_plugins - print out the list of plugins loaded
+ * @s: the trace_seq descripter to write to
+ * @prefix: The prefix string to add before listing the option name
+ * @suffix: The suffix string ot append after the option name
+ * @list: The list of plugins (usually returned by tracecmd_load_plugins()
+ *
+ * Writes to the trace_seq @s the list of plugins (files) that is
+ * returned by tracecmd_load_plugins(). Use @prefix and @suffix for formating:
+ * @prefix = "  ", @suffix = "\n".
+ */
+void trace_util_print_plugins(struct trace_seq *s,
+			      const char *prefix, const char *suffix,
+			      const struct plugin_list *list)
+{
+	while (list) {
+		trace_seq_printf(s, "%s%s%s", prefix, list->name, suffix);
+		list = list->next;
+	}
+}
+
 void trace_util_add_option(const char *name, const char *val)
 {
 	struct trace_plugin_options *option;

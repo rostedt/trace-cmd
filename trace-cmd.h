@@ -230,6 +230,8 @@ struct plugin_option *trace_util_read_plugin_options(void);
 void trace_util_free_options(struct plugin_option *options);
 char **trace_util_find_plugin_files(const char *suffix);
 void trace_util_free_plugin_files(char **files);
+void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,
+			      const struct plugin_list *list);
 
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);

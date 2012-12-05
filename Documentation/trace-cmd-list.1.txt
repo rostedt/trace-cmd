@@ -39,6 +39,8 @@ OPTIONS
 
     trace-cmd list -f '^sched.*'
 
+*-P*::
+    List the plugin files that get loaded on trace-cmd report.
 
 SEE ALSO
 --------
