@@ -234,6 +234,8 @@ void trace_util_free_plugin_files(char **files);
 void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,
 			      const struct plugin_list *list);
 void trace_util_print_plugin_options(struct trace_seq *s);
+char **trace_util_list_plugin_options(void);
+void trace_util_free_plugin_options_list(char **list);
 
 /* Used for trace-cmd list */
 void tracecmd_ftrace_load_options(void);

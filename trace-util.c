@@ -64,6 +64,48 @@ struct plugin_list {
 	void			*handle;
 };
 
+/**
+ * trace_util_list_plugin_options - get list of plugin options
+ *
+ * Returns an array of char strings that list the currently registered
+ * plugin options in the format of <plugin>:<option>. This list can be
+ * used by toggling the option.
+ *
+ * Returns NULL if there's no options registered.
+ *
+ * Must be freed with trace_util_free_plugin_options_list().
+ */
+char **trace_util_list_plugin_options(void)
+{
+	struct registered_plugin_options *reg;
+	struct plugin_option *op;
+	char **list = NULL;
+	char *name;
+	int count = 0;
+
+	for (reg = registered_options; reg; reg = reg->next) {
+		for (op = reg->options; op->name; op++) {
+			char *alias = op->plugin_alias ? op->plugin_alias : op->file;
+
+			name = malloc_or_die(strlen(op->name) + strlen(alias) + 2);
+			sprintf(name, "%s:%s", alias, op->name);
+			list = realloc(list, count + 2);
+			if (!list)
+				die("realloc");
+			list[count++] = name;
+			list[count] = NULL;
+		}
+	}
+	if (!count)
+		return NULL;
+	return list;
+}
+
+void trace_util_free_plugin_options_list(char **list)
+{
+	tracecmd_free_list(list);
+}
+
 static int process_option(const char *plugin, const char *option, const char *val);
 static void update_option(const char *file, struct plugin_option *option);
 
