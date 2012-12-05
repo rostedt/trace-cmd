@@ -38,6 +38,10 @@
 int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
 
+static struct registered_plugin_options {
+	struct registered_plugin_options	*next;
+	struct plugin_option			*options;
+} *registered_options;
 
 static struct trace_plugin_options {
 	struct trace_plugin_options	*next;
@@ -59,6 +63,7 @@ struct plugin_list {
 	void			*handle;
 };
 
+static int process_option(const char *plugin, const char *option, const char *val);
 static void update_option(const char *file, struct plugin_option *option);
 
 /**
@@ -70,10 +75,37 @@ static void update_option(const char *file, struct plugin_option *option);
  */
 void trace_util_add_options(const char *name, struct plugin_option *options)
 {
+	struct registered_plugin_options *reg;
+
+	reg = malloc_or_die(sizeof(*reg));
+	reg->next = registered_options;
+	reg->options = options;
+	registered_options = reg;
+
 	while (options->name) {
 		update_option("ftrace", options);
 		options++;
 	}
+}
+
+/**
+ * trace_util_remove_options - remove plugin options that were registered
+ * @options: Options to removed that were registered with trace_util_add_options
+ */
+void trace_util_remove_options(struct plugin_option *options)
+{
+	struct registered_plugin_options **last;
+	struct registered_plugin_options *reg;
+
+	for (last = &registered_options; *last; last = &(*last)->next) {
+		if ((*last)->options == options) {
+			reg = *last;
+			*last = reg->next;
+			free(reg);
+			return;
+		}
+	}
+			
 }
 
 /**
@@ -97,33 +129,80 @@ void trace_util_print_plugins(struct trace_seq *s,
 	}
 }
 
+/**
+ * trace_util_add_option - add an option/val pair to set plugin options
+ * @name: The name of the option (format: <plugin>:<option> or just <option>)
+ * @val: (optiona) the value for the option
+ *
+ * Modify a plugin option. If @val is given than the value of the option
+ * is set (note, some options just take a boolean, so @val must be either
+ * "1" or "0" or "true" or "false").
+ */
 void trace_util_add_option(const char *name, const char *val)
 {
-	struct trace_plugin_options *option;
+	struct trace_plugin_options *op;
+	char *option_str;
+	char *plugin = NULL;
 	char *p;
-
-	option = malloc_or_die(sizeof(*option));
-	memset(option, 0, sizeof(*option));
-	option->next = trace_plugin_options;
-	trace_plugin_options = option;
-
-	option->option = strdup(name);
-	if (!option->option)
+	
+	option_str = strdup(name);
+	if (!option_str)
 		die("malloc");
 
-	if ((p = strstr(option->option, ":"))) {
-		option->plugin = option->option;
+	if ((p = strstr(option_str, ":"))) {
+		plugin = option_str;
 		*p = '\0';
-		option->option = strdup(p + 1);
-		if (!option->option)
+		option_str = strdup(p + 1);
+		if (!option_str)
 			die("malloc");
 	}
 
-	if (val) {
-		option->value = strdup(val);
-		if (!option->value)
-			die("malloc");
+	/* If the option exists, update the val */
+	for (op = trace_plugin_options; op; op = op->next) {
+		/* Both must be NULL or not NULL */
+		if ((!plugin || !op->plugin) && plugin != op->plugin)
+			continue;
+		if (plugin && strcmp(plugin, op->plugin) != 0)
+			continue;
+		if (strcmp(op->option, option_str) != 0)
+			continue;
+
+		/* update option */
+		free(op->value);
+		if (val) {
+			op->value = strdup(val);
+			if (!op->value)
+				die("malloc");
+		} else
+			op->value = NULL;
+
+		/* plugin and option_str don't get freed at the end */
+		free(plugin);
+		free(option_str);
+
+		plugin = op->plugin;
+		option_str = op->option;
+		break;
 	}
+
+	/* If not found, create */
+	if (!op) {
+		op = malloc_or_die(sizeof(*op));
+		memset(op, 0, sizeof(*op));
+		op->next = trace_plugin_options;
+		trace_plugin_options = op;
+
+		op->plugin = plugin;
+		op->option = option_str;
+
+		if (val) {
+			op->value = strdup(val);
+			if (!op->value)
+				die("malloc");
+		}
+	}
+
+	process_option(plugin, option_str, val);
 }
 
 void parse_cmdlines(struct pevent *pevent,
@@ -203,6 +282,39 @@ void parse_ftrace_printk(struct pevent *pevent,
 	}
 }
 
+static int process_option(const char *plugin, const char *option, const char *val)
+{
+	struct registered_plugin_options *reg;
+	struct plugin_option *op;
+	const char *op_plugin;
+	int ret = 0;
+
+	for (reg = registered_options; reg; reg = reg->next) {
+		for (op = reg->options; op->name; op = op->next) {
+			if (op->plugin_alias)
+				op_plugin = op->plugin_alias;
+			else
+				op_plugin = op->file;
+
+			if (plugin && strcmp(plugin, op_plugin) != 0)
+				continue;
+			if (strcmp(option, op->name) != 0)
+				continue;
+
+			if (val)
+				op->value = val;
+			else {
+				op->value = NULL;
+				op->set ^= 1;
+			}
+			ret = 1;
+			goto out;
+		}
+	}
+ out:
+	return ret;
+}
+
 static void update_option(const char *file, struct plugin_option *option)
 {
 	struct trace_plugin_options *op;
@@ -232,7 +344,7 @@ static void update_option(const char *file, struct plugin_option *option)
 			continue;
 
 		option->value = op->value;
-		option->set = 1;
+		option->set ^= 1;
 		goto out;
 	}
 
@@ -244,7 +356,7 @@ static void update_option(const char *file, struct plugin_option *option)
 			continue;
 
 		option->value = op->value;
-		option->set = 1;
+		option->set ^= 1;
 		break;
 	}
 

@@ -104,7 +104,7 @@ struct plugin_option {
 	char				*name;
 	char				*plugin_alias;
 	char				*description;
-	char				*value;
+	const char			*value;
 	void				*priv;
 	int				set;
 };
