@@ -169,6 +169,13 @@ trace_view_load(GtkWidget *view, struct tracecmd_input *handle,
 	GtkTreeModel *model;
 	long c;
 
+	/*
+	 * The handle should have loaded the file by now.
+	 * Try to turn off function trace indent and turn on show parent
+	 * if possible.
+	 */
+	trace_util_add_option("ftrace:parent", "1");
+	trace_util_add_option("ftrace:indent", "0");
 
 	/* --- CPU column --- */
 
