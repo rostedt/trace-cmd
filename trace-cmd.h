@@ -79,6 +79,7 @@ char *tracecmd_find_tracing_dir(void);
 enum {
 	TRACECMD_OPTION_DONE,
 	TRACECMD_OPTION_DATE,
+	TRACECMD_OPTION_CPUSTAT,
 };
 
 enum {
@@ -109,6 +110,8 @@ void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
 void tracecmd_print_events(struct tracecmd_input *handle);
 
 int tracecmd_init_data(struct tracecmd_input *handle);
+
+void tracecmd_print_stats(struct tracecmd_input *handle);
 
 struct pevent_record *
 tracecmd_read_page_record(struct pevent *pevent, void *page, int size,

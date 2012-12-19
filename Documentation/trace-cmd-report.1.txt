@@ -192,6 +192,10 @@ OPTIONS
 
      Example:  -O fgraph:tailprint
 
+*--stat*::
+    If the trace.dat file recorded the final stats (outputed at the end of record)
+    the *--stat* option can be used to retrieve them.
+
 EXAMPLES
 --------
 

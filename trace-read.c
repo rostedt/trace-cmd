@@ -807,7 +807,7 @@ static void free_filters(struct filter *event_filter)
 	}
 }
 
-static void read_data_info(struct list_head *handle_list)
+static void read_data_info(struct list_head *handle_list, int stat_only)
 {
 	struct handle_list *handles;
 	struct handle_list *last_handle;
@@ -837,9 +837,20 @@ static void read_data_info(struct list_head *handle_list)
 			return;
 		}
 
+		if (stat_only) {
+			printf("\nKernel buffer statistics:\n"
+			       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
+			       "        recorded in the trace data. They should all be zero.\n\n");
+			tracecmd_print_stats(handles->handle);
+			continue;
+		}
+
 		init_wakeup(handles->handle);
 		process_filters(handles);
 	}
+
+	if (stat_only)
+		return;
 
 	do {
 		last_handle = NULL;
@@ -1006,6 +1017,7 @@ static void set_event_flags(struct pevent *pevent, struct event_str *list,
 }
 
 enum {
+	OPT_stat	= 249,
 	OPT_pid		= 250,
 	OPT_nodate	= 251,
 	OPT_check_event_parsing	= 252,
@@ -1025,6 +1037,7 @@ void trace_report (int argc, char **argv)
 	const char *functions = NULL;
 	struct input_files *inputs;
 	struct handle_list *handles;
+	int show_stat = 0;
 	int show_funcs = 0;
 	int show_endian = 0;
 	int show_page_size = 0;
@@ -1062,6 +1075,7 @@ void trace_report (int argc, char **argv)
 			{"check-events", no_argument, NULL,
 				OPT_check_event_parsing},
 			{"nodate", no_argument, NULL, OPT_nodate},
+			{"stat", no_argument, NULL, OPT_stat},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1162,6 +1176,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_nodate:
 			no_date = 1;
+			break;
+		case OPT_stat:
+			show_stat = 1;
 			break;
 		default:
 			usage(argv);
@@ -1265,7 +1282,7 @@ void trace_report (int argc, char **argv)
 	if (latency_format)
 		pevent_set_latency_format(pevent, latency_format);
 
-	read_data_info(&handle_list);
+	read_data_info(&handle_list, show_stat);
 
 	list_for_each_entry(handles, &handle_list, list) {
 		tracecmd_close(handles->handle);

@@ -84,6 +84,7 @@ struct tracecmd_input {
 	int			ref;
 	struct cpu_data 	*cpu_data;
 	unsigned long long	ts_offset;
+	char *			cpustats;
 
 	struct tracecmd_ftrace	finfo;
 
@@ -1698,6 +1699,8 @@ static int handle_options(struct tracecmd_input *handle)
 	unsigned long long offset;
 	unsigned short option;
 	unsigned int size;
+	char *cpustats = NULL;
+	unsigned int cpustats_size = 0;
 	char *buf;
 
 	for (;;) {
@@ -1711,7 +1714,6 @@ static int handle_options(struct tracecmd_input *handle)
 		if (do_read_check(handle, &size, 4))
 			return -1;
 		size = __data2host4(handle->pevent, size);
-		printf("size=%d\n", size);
 		buf = malloc_or_die(size);
 		if (do_read_check(handle, buf, size))
 			return -1;
@@ -1731,6 +1733,15 @@ static int handle_options(struct tracecmd_input *handle)
 			offset *= 1000;
 			handle->ts_offset = offset;
 			break;
+		case TRACECMD_OPTION_CPUSTAT:
+			buf[size-1] = '\n';
+			cpustats = realloc(cpustats, cpustats_size + size + 1);
+			if (!cpustats)
+				die("realloc");
+			memcpy(cpustats + cpustats_size, buf, size);
+			cpustats_size += size;
+			cpustats[cpustats_size] = 0;
+			break;
 		default:
 			warning("unknown option %d", option);
 			break;
@@ -1739,6 +1750,8 @@ static int handle_options(struct tracecmd_input *handle)
 		free(buf);
 
 	}
+
+	handle->cpustats = cpustats;
 
 	return 0;
 }
@@ -1882,6 +1895,21 @@ void tracecmd_print_events(struct tracecmd_input *handle)
 
 	read_event_files(handle, 1);
 	return;
+}
+
+/**
+ * tracecmd_print_stats - prints the stats recorded in the options.
+ * @handle: input handle for the trace.dat file
+ *
+ * Looks for the option TRACECMD_OPTION_CPUSTAT and prints out what's
+ * stored there, if it is found. Otherwise it prints that none were found.
+ */
+void tracecmd_print_stats(struct tracecmd_input *handle)
+{
+	if (handle->cpustats)
+		printf("%s\n", handle->cpustats);
+	else
+		printf(" No stats in this file\n");
 }
 
 /**

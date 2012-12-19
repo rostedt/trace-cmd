@@ -1571,7 +1571,7 @@ static void start_threads(void)
 	}
 }
 
-static void record_data(char *date2ts)
+static void record_data(char *date2ts, struct trace_seq *s)
 {
 	struct tracecmd_output *handle;
 	char **temp_files;
@@ -1600,6 +1600,10 @@ static void record_data(char *date2ts)
 		if (date2ts)
 			tracecmd_add_option(handle, TRACECMD_OPTION_DATE,
 					    strlen(date2ts)+1, date2ts);
+
+		for (i = 0; i < cpu_count; i++)
+			tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
+					    s[i].len+1, s[i].buffer);
 
 		tracecmd_append_cpu_data(handle, cpu_count, temp_files);
 
@@ -2348,7 +2352,6 @@ void trace_record (int argc, char **argv)
 	       "        recorded in the trace data. They should all be zero.\n\n");
 	for (cpu = 0; cpu < cpu_count; cpu++) {
 		trace_seq_do_printf(&s[cpu]);
-		trace_seq_destroy(&s[cpu]);
 		printf("\n");
 	}
 
@@ -2357,8 +2360,11 @@ void trace_record (int argc, char **argv)
 	if (extract && date)
 		date2ts = get_date_to_ts();
 
-	record_data(date2ts);
+	record_data(date2ts, s);
 	delete_thread_data();
+
+	for (cpu = 0; cpu < cpu_count; cpu++)
+		trace_seq_destroy(&s[cpu]);
 
 	if (keep)
 		exit(0);
