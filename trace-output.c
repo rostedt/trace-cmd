@@ -826,7 +826,7 @@ static struct tracecmd_output *create_file(const char *output_file,
  * @handle: the output file handle name
  * @id: the id of the option
  * @size: the size of the option data
- * @data: the data to  see <http://www.gnu.org/licenses>
+ * @data: the data to write to the file.
  */
 int tracecmd_add_option(struct tracecmd_output *handle,
 			unsigned short id,
