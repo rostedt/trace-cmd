@@ -174,6 +174,19 @@ static struct pevent_record *read_record(struct tracecmd_input *handle,
 	return tracecmd_read_next_data(handle, cpu);
 }
 
+static void set_cpu_time(struct tracecmd_input *handle,
+			 int percpu, unsigned long long start, int cpu, int cpus)
+{
+	if (percpu) {
+		tracecmd_set_cpu_to_timestamp(handle, cpu, start);
+		return;
+	}
+
+	for (cpu = 0; cpu < cpus; cpu++)
+		tracecmd_set_cpu_to_timestamp(handle, cpu, start);
+	return;
+}
+
 static int parse_cpu(struct tracecmd_input *handle,
 		     struct cpu_data *cpu_data,
 		     unsigned long long start,
@@ -215,6 +228,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 	record = read_record(handle, percpu, &cpu);
 
 	if (start) {
+		set_cpu_time(handle, percpu, start, cpu, cpus);
 		while (record && record->ts < start) {
 			free_record(record);
 			record = read_record(handle, percpu, &cpu);
