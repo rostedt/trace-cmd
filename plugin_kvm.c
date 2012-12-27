@@ -382,7 +382,7 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct pevent_record *record,
 	} else
 		trace_seq_printf(s, "WORD: %08x", role.word);
 
-	pevent_print_num_field(s, " root %u",  event,
+	pevent_print_num_field(s, " root %u ",  event,
 			       "root_count", record, 1);
 
 	if (pevent_get_field_val(s, event, "unsync", record, &val, 1) < 0)
@@ -396,6 +396,11 @@ static int kvm_mmu_get_page_handler(struct trace_seq *s, struct pevent_record *r
 				    struct event_format *event, void *context)
 {
 	unsigned long long val;
+
+	if (pevent_get_field_val(s, event, "created", record, &val, 1) < 0)
+		return -1;
+
+	trace_seq_printf(s, "%s ", val ? "new" : "existing");
 
 	if (pevent_get_field_val(s, event, "gfn", record, &val, 1) < 0)
 		return -1;
@@ -432,6 +437,10 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 
 	pevent_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_zap_page",
 				      kvm_mmu_print_role, NULL);
+
+	pevent_register_event_handler(pevent, -1, "kvmmmu",
+			"kvm_mmu_prepare_zap_page", kvm_mmu_print_role,
+			NULL);
 
 	return 0;
 }
