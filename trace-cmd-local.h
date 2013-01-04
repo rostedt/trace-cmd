@@ -24,10 +24,10 @@
 
 #include "trace-cmd.h"
 
-static int __do_write(int fd, void *data, int size)
+static ssize_t __do_write(int fd, void *data, size_t size)
 {
-	int tot = 0;
-	int w;
+	ssize_t tot = 0;
+	ssize_t w;
 
 	do {
 		w = write(fd, data, size - tot);
@@ -42,10 +42,10 @@ static int __do_write(int fd, void *data, int size)
 	return tot;
 }
 
-static int
-__do_write_check(int fd, void *data, int size)
+static ssize_t
+__do_write_check(int fd, void *data, size_t size)
 {
-	int ret;
+	ssize_t ret;
 
 	ret = __do_write(fd, data, size);
 	if (ret < 0)
