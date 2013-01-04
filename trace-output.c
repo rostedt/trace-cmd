@@ -72,8 +72,8 @@ struct list_event_system {
 	char				*name;
 };
 
-static int
-do_write_check(struct tracecmd_output *handle, void *data, int size)
+static ssize_t
+do_write_check(struct tracecmd_output *handle, void *data, size_t size)
 {
 	return __do_write_check(handle->fd, data, size);
 }
@@ -161,11 +161,11 @@ static unsigned long get_size(const char *file)
 	return size;
 }
 
-static unsigned long long copy_file_fd(struct tracecmd_output *handle, int fd)
+static size_t copy_file_fd(struct tracecmd_output *handle, int fd)
 {
-	unsigned long long size = 0;
+	size_t size = 0;
 	char buf[BUFSIZ];
-	int r;
+	ssize_t r;
 
 	do {
 		r = read(fd, buf, BUFSIZ);
@@ -179,10 +179,10 @@ static unsigned long long copy_file_fd(struct tracecmd_output *handle, int fd)
 	return size;
 }
 
-static unsigned long long copy_file(struct tracecmd_output *handle,
+static size_t copy_file(struct tracecmd_output *handle,
 				    const char *file)
 {
-	unsigned long long size = 0;
+	size_t size = 0;
 	int fd;
 
 	fd = open(file, O_RDONLY);
@@ -254,7 +254,7 @@ int tracecmd_ftrace_enable(int set)
 
 static int read_header_files(struct tracecmd_output *handle)
 {
-	unsigned long long size, check_size, endian8;
+	size_t size, check_size, endian8;
 	struct stat st;
 	char *path;
 	int fd;

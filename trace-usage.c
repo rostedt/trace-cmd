@@ -96,6 +96,11 @@ static struct usage_help usage_help[] = {
 		"          --check-events return whether all event formats can be parsed\n"
 	},
 	{
+		"hist",
+		"show a historgram of the trace.dat information",
+		" %s hist [file]"
+	},
+	{
 		"split",
 		"parse a trace.dat file into smaller file(s)",
 		" %s split [options] -o file [start [end]]\n"

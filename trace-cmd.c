@@ -210,6 +210,9 @@ int main (int argc, char **argv)
 	if (strcmp(argv[1], "report") == 0) {
 		trace_report(argc, argv);
 		exit(0);
+	} else if (strcmp(argv[1], "hist") == 0) {
+		trace_hist(argc, argv);
+		exit(0);
 	} else if (strcmp(argv[1], "listen") == 0) {
 		trace_listen(argc, argv);
 		exit(0);
