@@ -379,17 +379,23 @@ process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 
 	current_pid = pid;
 
+	/* Need to start at the end of the callers and work up */
 	for (data += field->offset; data < record->data + record->size;
 	     data += long_size) {
 		unsigned long long addr;
-		const char *func;
 
 		addr = pevent_read_number(pevent, data, long_size);
 
 		if ((long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
 			break;
+	}
 
+	for (data -= long_size; data >= record->data + field->offset; data -= long_size) {
+		unsigned long long addr;
+		const char *func;
+
+		addr = pevent_read_number(pevent, data, long_size);
 		func = pevent_find_function(pevent, addr);
 		if (func)
 			push_stack_func(func);
