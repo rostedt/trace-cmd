@@ -141,6 +141,7 @@ struct chain {
 	int			nr_parents;
 	int			count;
 	int			total;
+	int			event;
 };
 static struct chain *chains;
 static int nr_chains;
@@ -163,7 +164,8 @@ static void add_chain(struct chain *chain)
 }
 
 static void
-insert_chain(struct pid_list *pid_list, struct chain *chain_list, const char **chain_str, int size)
+insert_chain(struct pid_list *pid_list, struct chain *chain_list,
+	     const char **chain_str, int size, int event)
 {
 	struct chain *chain;
 
@@ -178,7 +180,7 @@ insert_chain(struct pid_list *pid_list, struct chain *chain_list, const char **c
 
 	for (chain = chain_list->parents; chain; chain = chain->sibling) {
 		if (chain->func == chain_str[size]) {
-			insert_chain(pid_list, chain, chain_str, size);
+			insert_chain(pid_list, chain, chain_str, size, 0);
 			return;
 		}
 	}
@@ -191,15 +193,16 @@ insert_chain(struct pid_list *pid_list, struct chain *chain_list, const char **c
 	chain_list->parents = chain;
 	chain->func = chain_str[size];
 	chain->pid_list = pid_list;
+	chain->event = event;
 
 	/* NULL func means this is the top level of the chain. Store it */
 	if (!chain_list->func)
 		add_chain(chain);
 
-	insert_chain(pid_list, chain, chain_str, size);
+	insert_chain(pid_list, chain, chain_str, size, 0);
 }
 
-static void save_call_chain(int pid, const char **chain, int size)
+static void save_call_chain(int pid, const char **chain, int size, int event)
 {
 	static struct pid_list *pid_list;
 
@@ -217,14 +220,14 @@ static void save_call_chain(int pid, const char **chain, int size)
 			list_pids = pid_list;
 		}
 	}
-	insert_chain(pid_list, &pid_list->chain, chain, size);
+	insert_chain(pid_list, &pid_list->chain, chain, size, event);
 }
 
 static void save_stored_stacks(void)
 {
 	while (saved_stacks) {
 		restore_stack(saved_stacks->pid);
-		save_call_chain(current_pid, ips, ips_idx);
+		save_call_chain(current_pid, ips, ips_idx, 0);
 	}
 }
 
@@ -233,7 +236,7 @@ static void flush_stack(void)
 	if (current_pid < 0)
 		return;
 
-	save_call_chain(current_pid, ips, ips_idx);
+	save_call_chain(current_pid, ips, ips_idx, 0);
 	free(ips);
 	reset_stack();
 }
@@ -290,7 +293,7 @@ process_function(struct pevent *pevent, struct pevent_record *record)
 		if (ips[ips_idx - 1] == parent)
 			push_stack_func(func);
 		else {
-			save_call_chain(pid, ips, ips_idx);
+			save_call_chain(pid, ips, ips_idx, 0);
 			while (ips_idx) {
 				pop_stack_func();
 				if (ips[ips_idx - 1] == parent) {
@@ -373,7 +376,7 @@ process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 
 	push_stack_func(pending_ips[pending_ips_idx - 1]);
 	reset_pending_stack();
-	save_call_chain(current_pid, ips, ips_idx);
+	save_call_chain(current_pid, ips, ips_idx, 1);
 	restore_stack(current_pid);
 }
 
@@ -435,7 +438,7 @@ process_event(struct pevent *pevent, struct pevent_record *record, int type)
 	int ret;
 
 	if (pending_pid >= 0) {
-		save_call_chain(pending_pid, pending_ips, pending_ips_idx);
+		save_call_chain(pending_pid, pending_ips, pending_ips_idx, 1);
 		reset_pending_stack();
 	}
 		
@@ -799,7 +802,10 @@ static void print_chains(struct pevent *pevent)
 		       chain->func,
 		       chain->count);
 		printf(START);
-		printf(TICK "%s\n", chain->func);
+		if (chain->event)
+			printf(TICK "*%s*\n", chain->func);
+		else
+			printf(TICK "%s\n", chain->func);
 		print_parents(pevent, chain, 0);
 	}
 }
@@ -863,9 +869,9 @@ static void do_trace_hist(struct tracecmd_input *handle)
 	}
 
 	if (current_pid >= 0)
-		save_call_chain(current_pid, ips, ips_idx);
+		save_call_chain(current_pid, ips, ips_idx, 0);
 	if (pending_pid >= 0)
-		save_call_chain(pending_pid, pending_ips, pending_ips_idx);
+		save_call_chain(pending_pid, pending_ips, pending_ips_idx, 1);
 
 	save_stored_stacks();
 
