@@ -62,6 +62,8 @@ struct format_field *function_graph_exit_rettime_field;
 struct format_field *function_graph_exit_overrun_field;
 struct format_field *kernel_stack_caller_field;
 
+static int compact;
+
 static void *zalloc(size_t size)
 {
 	return calloc(1, size);
@@ -153,6 +155,7 @@ struct pid_list {
 	int			pid;
 };
 static struct pid_list *list_pids;
+static struct pid_list all_pid_list;
 
 static void add_chain(struct chain *chain)
 {
@@ -206,7 +209,10 @@ static void save_call_chain(int pid, const char **chain, int size, int event)
 {
 	static struct pid_list *pid_list;
 
-	if (!pid_list || pid_list->pid != pid) {
+	if (compact)
+		pid_list = &all_pid_list;
+
+	else if (!pid_list || pid_list->pid != pid) {
 		for (pid_list = list_pids; pid_list; pid_list = pid_list->next) {
 			if (pid_list->pid == pid)
 				break;
@@ -795,12 +801,18 @@ static void print_chains(struct pevent *pevent)
 		pid = chain->pid_list->pid;
 		if (chain != chains)
 			printf("\n");
-		printf("  %%%3.2f  (%d) %s %30s #%d\n",
-		       get_percent(total_counts, chain->count),
-		       pid,
-		       pevent_data_comm_from_pid(pevent, pid),
-		       chain->func,
-		       chain->count);
+		if (compact)
+			printf("  %%%3.2f <all pids> %30s #%d\n",
+			       get_percent(total_counts, chain->count),
+			       chain->func,
+			       chain->count);
+		else
+			printf("  %%%3.2f  (%d) %s %30s #%d\n",
+			       get_percent(total_counts, chain->count),
+			       pid,
+			       pevent_data_comm_from_pid(pevent, pid),
+			       chain->func,
+			       chain->count);
 		printf(START);
 		if (chain->event)
 			printf(TICK "*%s*\n", chain->func);
@@ -888,7 +900,7 @@ void trace_hist(int argc, char **argv)
 	for (;;) {
 		int c;
 
-		c = getopt(argc-1, argv+1, "+hi:");
+		c = getopt(argc-1, argv+1, "+hi:P");
 		if (c == -1)
 			break;
 		switch (c) {
@@ -899,6 +911,9 @@ void trace_hist(int argc, char **argv)
 			if (input_file)
 				die("Only one input for historgram");
 			input_file = optarg;
+			break;
+		case 'P':
+			compact = 1;
 			break;
 		default:
 			usage(argv);

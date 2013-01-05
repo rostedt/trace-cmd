@@ -98,7 +98,8 @@ static struct usage_help usage_help[] = {
 	{
 		"hist",
 		"show a historgram of the trace.dat information",
-		" %s hist [file]"
+		" %s hist [-i file][-P] [file]"
+		"          -P ignore pids (compact all functions)\n"
 	},
 	{
 		"split",
