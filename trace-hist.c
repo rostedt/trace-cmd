@@ -334,24 +334,30 @@ static void reset_pending_stack(void)
 	pending_ips = NULL;
 }
 
+static void copy_stack_to_pending(int pid)
+{
+	pending_pid = pid;
+	pending_ips = zalloc(sizeof(char *) * ips_idx);
+	memcpy(pending_ips, ips, sizeof(char *) * ips_idx);
+	pending_ips_idx = ips_idx;
+}
+
 static void
 process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 {
 	struct format_field *field = kernel_stack_caller_field;
 	unsigned long long val;
 	void *data = record->data;
+	int do_restore = 0;
 	int pid;
 	int ret;
-
-	if (pending_pid < 0)
-		return;
 
 	ret = pevent_read_number_field(common_pid_field, record->data, &val);
 	if (ret < 0)
 		die("no pid field for function?");
 	pid = val;
 
-	if (pid != pending_pid) {
+	if (pending_pid >= 0 && pid != pending_pid) {
 		reset_pending_stack();
 		return;
 	}
@@ -359,8 +365,17 @@ process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 	if (!field)
 		die("no caller field for kernel stack?");
 
-	if (current_pid >= 0)
-		save_stack();
+	if (pending_pid >= 0) {
+		if (current_pid >= 0) {
+			save_stack();
+			do_restore = 1;
+		}
+	} else {
+		/* function stack trace? */
+		copy_stack_to_pending(current_pid);
+		free(ips);
+		reset_stack();
+	}
 
 	current_pid = pid;
 
@@ -383,7 +398,8 @@ process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 	push_stack_func(pending_ips[pending_ips_idx - 1]);
 	reset_pending_stack();
 	save_call_chain(current_pid, ips, ips_idx, 1);
-	restore_stack(current_pid);
+	if (do_restore)
+		restore_stack(current_pid);
 }
 
 static void
@@ -465,10 +481,7 @@ process_event(struct pevent *pevent, struct pevent_record *record, int type)
 	 * the pending stack.
 	 */
 	push_stack_func(event_name);
-	pending_pid = pid;
-	pending_ips = zalloc(sizeof(char *) * ips_idx);
-	memcpy(pending_ips, ips, sizeof(char *) * ips_idx);
-	pending_ips_idx = ips_idx;
+	copy_stack_to_pending(pid);
 	pop_stack_func();
 }
 
