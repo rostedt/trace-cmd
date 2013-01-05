@@ -39,6 +39,8 @@ static int function_graph_entry_type;
 static int function_graph_exit_type;
 static int kernel_stack_type;
 
+static int long_size;
+
 struct format_field *common_type_field;
 struct format_field *common_pid_field;
 struct format_field *sched_wakeup_comm_field;
@@ -82,6 +84,7 @@ static void reset_stack(void)
 {
 	current_pid = -1;
 	ips_idx = 0;
+	/* Don't free here, it may be saved */
 	ips = NULL;
 }
 
@@ -122,6 +125,7 @@ static void restore_stack(int pid)
 
 	current_pid = stack->pid;
 	ips_idx = stack->ips_idx;
+	free(ips);
 	ips = stack->ips;
 	free(stack);
 }
@@ -230,6 +234,7 @@ static void flush_stack(void)
 		return;
 
 	save_call_chain(current_pid, ips, ips_idx);
+	free(ips);
 	reset_stack();
 }
 
@@ -308,9 +313,68 @@ process_function_graph(struct pevent *pevent, struct pevent_record *record)
 {
 }
 
+static int pending_pid = -1;
+static const char **pending_ips;
+static int pending_ips_idx;
+
+static void reset_pending_stack(void)
+{
+	pending_pid = -1;
+	pending_ips_idx = 0;
+	free(pending_ips);
+	pending_ips = NULL;
+}
+
 static void
 process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 {
+	struct format_field *field = kernel_stack_caller_field;
+	unsigned long long val;
+	void *data = record->data;
+	int pid;
+	int ret;
+
+	if (pending_pid < 0)
+		return;
+
+	ret = pevent_read_number_field(common_pid_field, record->data, &val);
+	if (ret < 0)
+		die("no pid field for function?");
+	pid = val;
+
+	if (pid != pending_pid) {
+		reset_pending_stack();
+		return;
+	}
+
+	if (!field)
+		die("no caller field for kernel stack?");
+
+	if (current_pid >= 0)
+		save_stack();
+
+	current_pid = pid;
+
+	for (data += field->offset; data < record->data + record->size;
+	     data += long_size) {
+		unsigned long long addr;
+		const char *func;
+
+		addr = pevent_read_number(pevent, data, long_size);
+
+		if ((long_size == 8 && addr == (unsigned long long)-1) ||
+		    ((int)addr == -1))
+			break;
+
+		func = pevent_find_function(pevent, addr);
+		if (func)
+			push_stack_func(func);
+	}
+
+	push_stack_func(pending_ips[pending_ips_idx - 1]);
+	reset_pending_stack();
+	save_call_chain(current_pid, ips, ips_idx);
+	restore_stack(current_pid);
 }
 
 static void
@@ -362,8 +426,41 @@ process_sched_switch(struct pevent *pevent, struct pevent_record *record)
 }
 
 static void
-process_event(struct pevent *pevent, struct pevent_record *record)
+process_event(struct pevent *pevent, struct pevent_record *record, int type)
 {
+	struct event_format *event;
+	const char *event_name;
+	unsigned long long val;
+	int pid;
+	int ret;
+
+	if (pending_pid >= 0) {
+		save_call_chain(pending_pid, pending_ips, pending_ips_idx);
+		reset_pending_stack();
+	}
+		
+	event = pevent_data_event_from_type(pevent, type);
+	event_name = event->name;
+
+	ret = pevent_read_number_field(common_pid_field, record->data, &val);
+	if (ret < 0)
+		die("no pid field for function?");
+
+	pid = val;
+
+	/*
+	 * Even if function or function graph tracer is running,
+	 * if the user ran with stack traces on events, we want to use
+	 * that instead. But unfortunately, that stack doesn't come
+	 * until after the event. Thus, we only add the event into
+	 * the pending stack.
+	 */
+	push_stack_func(event_name);
+	pending_pid = pid;
+	pending_ips = zalloc(sizeof(char *) * ips_idx);
+	memcpy(pending_ips, ips, sizeof(char *) * ips_idx);
+	pending_ips_idx = ips_idx;
+	pop_stack_func();
 }
 
 static void
@@ -391,7 +488,7 @@ process_record(struct pevent *pevent, struct pevent_record *record)
 	else if (type == sched_switch_type)
 		process_sched_switch(pevent, record);
 
-	process_event(pevent, record);
+	process_event(pevent, record, type);
 }
 
 static struct event_format *
@@ -672,9 +769,9 @@ static void print_parents(struct pevent *pevent, struct chain *chain, int indent
 
 		make_indent(indent + 1);
 
-		printf("--%%%.2f-- %s\n",
+		printf("--%%%.2f-- %s  # %d\n",
 		       get_percent(chain->count, parent->count),
-		       parent->func);
+		       parent->func, parent->count);
 
 		if (x == chain->nr_parents - 1)
 			line_mask &= (1ULL << indent) - 1;
@@ -728,6 +825,8 @@ static void do_trace_hist(struct tracecmd_input *handle)
 	ret = pevent_data_type(pevent, record);
 	event = pevent_data_event_from_type(pevent, ret);
 
+	long_size = tracecmd_long_size(handle);
+
 	common_type_field = pevent_find_common_field(event, "common_type");
 	if (!common_type_field)
 		die("Can't find a 'type' field?");
@@ -765,6 +864,8 @@ static void do_trace_hist(struct tracecmd_input *handle)
 
 	if (current_pid >= 0)
 		save_call_chain(current_pid, ips, ips_idx);
+	if (pending_pid >= 0)
+		save_call_chain(pending_pid, pending_ips, pending_ips_idx);
 
 	save_stored_stacks();
 
