@@ -26,6 +26,8 @@ COMMANDS
   report  - reads a trace.dat file and converts the binary data to a
             ASCII text readable format.
 
+  hist    - show a histogram of the events.
+
   options - list the plugin options that are available to *report*
 
   start   - start the tracing without recording to a trace.dat file.
@@ -62,7 +64,7 @@ Other options see the man page for the corresponding command.
 
 SEE ALSO
 --------
-trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
+trace-cmd-record(1), trace-cmd-report(1), trace-cmd-hist(1), trace-cmd-start(1),
 trace-cmd-stop(1), trace-cmd-extract(1), trace-cmd-reset(1),
 trace-cmd-restore(1), trace-cmd-stack(1),
 trace-cmd-split(1), trace-cmd-list(1), trace-cmd-listen(1),
