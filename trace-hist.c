@@ -729,7 +729,7 @@ static int single_chain(struct chain *chain)
 
 #define START	"         |\n"
 #define TICK	"         --- "
-#define BLANK	"             "
+#define BLANK	"          "
 #define LINE	"            |"
 #define INDENT	"             "
 
@@ -747,15 +747,21 @@ void make_indent(int indent)
 }
 
 static void
+print_single_parent(struct chain *chain, int indent)
+{
+	make_indent(indent);
+
+	printf(BLANK);
+	printf("%s\n", chain->parents->func);
+}
+
+static void
 dump_chain(struct pevent *pevent, struct chain *chain, int indent)
 {
 	if (!chain->parents)
 		return;
 
-	make_indent(indent);
-
-	printf(BLANK);
-	printf("%s\n", chain->parents->func);
+	print_single_parent(chain, indent);
 	dump_chain(pevent, chain->parents, indent);
 }
 
@@ -772,6 +778,7 @@ static void print_parents(struct pevent *pevent, struct chain *chain, int indent
 	line_mask |= 1ULL << (indent);
 
 	for (x = 0; parent; x++, parent = parent->sibling) {
+		struct chain *save_parent;
 
 		make_indent(indent + 1);
 		printf("\n");
@@ -785,10 +792,20 @@ static void print_parents(struct pevent *pevent, struct chain *chain, int indent
 		if (x == chain->nr_parents - 1)
 			line_mask &= (1ULL << indent) - 1;
 
-		if (single_chain(chain))
+		if (single_chain(parent))
 			dump_chain(pevent, parent, indent + 1);
-		else
-			print_parents(pevent, parent, indent + 1);
+		else {
+			save_parent = parent;
+
+			while (parent && parent->parents && parent->nr_parents < 2 &&
+			       parent->parents->count == parent->count) {
+				print_single_parent(parent, indent + 1);
+				parent = parent->parents;
+			}
+			if (parent)
+				print_parents(pevent, parent, indent + 1);
+			parent = save_parent;
+		}
 	}
 }
 
