@@ -17,5 +17,6 @@ ctracecmd_wrap.c
 ctracecmdgui_wrap.c
 tags
 TAGS
+cscope*
 trace_plugin_dir
 trace_python_dir

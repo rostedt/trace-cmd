@@ -488,6 +488,10 @@ TAGS:	force
 	$(RM) TAGS
 	find . -name '*.[ch]' | xargs etags
 
+cscope: force
+	$(RM) cscope*
+	find . -name '*.[ch]' | cscope -b -q
+
 PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS)) $(subst .so,.install,$(PYTHON_PLUGINS))
 
 define do_install
@@ -534,7 +538,7 @@ install_doc:
 
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
-	$(RM) tags TAGS
+	$(RM) tags TAGS cscope*
 
 
 ##### PYTHON STUFF #####
