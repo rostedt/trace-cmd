@@ -36,6 +36,8 @@ static int timer_expire_handler(struct trace_seq *s, struct pevent_record *recor
 
 	pevent_print_num_field(s, "%llu", event, "now", record, 1);
 
+	pevent_print_func_field(s, " function=%s", event, "function", record, 0);
+
 	return 0;
 }
 
