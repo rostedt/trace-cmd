@@ -538,8 +538,8 @@ static int task_plot_event(struct graph_info *ginfo,
 	cpu = record->cpu;
 
 	if (!task_info->last_records[cpu]) {
-		free_record(task_info->last_records[cpu]);
 		task_info->last_records[cpu] = record;
+		tracecmd_record_ref(record);
 	}
 	/* not a match, and on the last CPU, scheduled out? */
 	if (task_info->last_cpu >= 0) {
