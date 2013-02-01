@@ -709,7 +709,7 @@ int kbuffer_curr_size(struct kbuffer *kbuf)
 int kbuffer_missed_events(struct kbuffer *kbuf)
 {
 	/* Only the first event can have missed events */
-	if (kbuf->index)
+	if (kbuf->curr)
 		return 0;
 
 	return kbuf->lost_events;
