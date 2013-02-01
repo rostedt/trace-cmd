@@ -82,6 +82,7 @@ static struct usage_help usage_help[] = {
 		"          -P show printk list\n"
 		"          -E show event files stored\n"
 		"          -F filter to filter output on\n"
+		"          -t print out full timestamp. Do not truncate to 6 places.\n"
 		"          -R raw format: ignore print format and only show field data\n"
 		"          -r raw format the events that match the option\n"
 		"          -v will negate all -F after it (Not show matches)\n"

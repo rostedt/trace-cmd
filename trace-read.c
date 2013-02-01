@@ -1046,6 +1046,7 @@ void trace_report (int argc, char **argv)
 	int show_events = 0;
 	int print_events = 0;
 	int test_filters = 0;
+	int nanosec = 0;
 	int no_date = 0;
 	int raw = 0;
 	int neg = 0;
@@ -1080,7 +1081,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepRr:PNn:LlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hi:fepRr:tPNn:LlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1138,6 +1139,9 @@ void trace_report (int argc, char **argv)
 			(*raw_ptr)->event = optarg;
 			(*raw_ptr)->next = NULL;
 			raw_ptr = &(*raw_ptr)->next;
+			break;
+		case 't':
+			nanosec = 1;
 			break;
 		case 'w':
 			show_wakeup = 1;
@@ -1218,6 +1222,9 @@ void trace_report (int argc, char **argv)
 		}
 
 		pevent = tracecmd_get_pevent(handle);
+
+		if (nanosec)
+			pevent->flags |= PEVENT_NSEC_OUTPUT;
 
 		if (raw)
 			pevent->print_raw = 1;

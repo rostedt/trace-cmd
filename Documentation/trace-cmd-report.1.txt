@@ -46,6 +46,11 @@ OPTIONS
     file and return whether the formats can be parsed correctly. It will load
     plugins unless *-N* is specified.
 
+*-t*::
+    Print the full timestamp. The timestamps in the data file are usually
+    recorded to the nanosecond. But the default display of the timestamp
+    is only to the microsecond. To see the full timestamp, add the *-t* option.
+
 *-F* 'filter'::
     Add a filter to limit what events are displayed. The format of the filter
     is:
