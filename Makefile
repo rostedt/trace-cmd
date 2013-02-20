@@ -513,7 +513,10 @@ $(PYTHON_SO_INSTALL): %.install : %.so force
 $(PYTHON_PY_INSTALL): %.install : %.py force
 	$(Q)$(call do_install,$<,$(python_dir_SQ))
 
-install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_INSTALL)
+$(PYTHON_PY_PLUGINS): %.install : %.py force
+	$(Q)$(call do_install,$<,$(plugin_dir_SQ))
+
+install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_INSTALL) $(PYTHON_PY_PLUGINS)
 
 install_cmd: all_cmd install_plugins install_python
 	$(Q)$(call do_install,trace-cmd,$(bindir_SQ))
