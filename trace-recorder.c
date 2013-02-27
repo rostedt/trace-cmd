@@ -42,6 +42,7 @@ struct tracecmd_recorder {
 	int		page_size;
 	int		cpu;
 	int		stop;
+	unsigned	flags;
 };
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
@@ -58,7 +59,7 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 	free(recorder);
 }
 
-struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu)
+struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags)
 {
 	struct tracecmd_recorder *recorder;
 	char *tracing = NULL;
@@ -70,6 +71,7 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu)
 		return NULL;
 
 	recorder->cpu = cpu;
+	recorder->flags = flags;
 
 	/* Init to know what to free and release */
 	recorder->trace_fd = -1;
@@ -98,9 +100,11 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu)
 	free(tracing);
 	free(path);
 
-	ret = pipe(recorder->brass);
-	if (ret < 0)
-		goto out_free;
+	if ((recorder->flags & TRACECMD_RECORD_NOSPLICE) == 0) {
+		ret = pipe(recorder->brass);
+		if (ret < 0)
+			goto out_free;
+	}
 
 	return recorder;
 
@@ -112,7 +116,7 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu)
 	return NULL;
 }
 
-struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
+struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, unsigned flags)
 {
 	struct tracecmd_recorder *recorder;
 	int fd;
@@ -121,7 +125,7 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu)
 	if (fd < 0)
 		return NULL;
 
-	recorder = tracecmd_create_recorder_fd(fd, cpu);
+	recorder = tracecmd_create_recorder_fd(fd, cpu, flags);
 	if (!recorder) {
 		close(fd);
 		unlink(file);
@@ -158,6 +162,29 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	return ret;
 }
 
+/*
+ * Returns -1 on error.
+ *          or bytes of data read.
+ */
+static long read_data(struct tracecmd_recorder *recorder)
+{
+	char buf[recorder->page_size];
+	long ret;
+
+	ret = read(recorder->trace_fd, buf, recorder->page_size);
+	if (ret < 0) {
+		if (errno != EAGAIN) {
+			warning("recorder error in read output");
+			return -1;
+		}
+		ret = 0;
+	}
+	if (ret > 0)
+		write(recorder->fd, buf, ret);
+
+	return ret;
+}
+
 long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 {
 	char *buf[recorder->page_size];
@@ -165,7 +192,10 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 	long ret;
 
 	do {
-		ret = splice_data(recorder);
+		if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
+			ret = read_data(recorder);
+		else
+			ret = splice_data(recorder);
 		if (ret < 0)
 			return ret;
 		total += ret;
@@ -194,7 +224,10 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 			req.tv_nsec = (sleep % 1000000) * 1000;
 			nanosleep(&req, NULL);
 		}
-		ret = splice_data(recorder);
+		if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
+			ret = read_data(recorder);
+		else
+			ret = splice_data(recorder);
 		if (ret < 0)
 			return ret;
 	} while (!recorder->stop);

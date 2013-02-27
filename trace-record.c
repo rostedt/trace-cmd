@@ -89,6 +89,8 @@ static int filter_pid = -1;
 
 static int finished;
 
+static unsigned recorder_flags;
+
 /* Try a few times to get an accurate date */
 static int date2ts_tries = 5;
 
@@ -1404,10 +1406,10 @@ static int create_recorder(int cpu, int extract)
 
 	if (client_ports) {
 		connect_port(cpu);
-		recorder = tracecmd_create_recorder_fd(client_ports[cpu], cpu);
+		recorder = tracecmd_create_recorder_fd(client_ports[cpu], cpu, recorder_flags);
 	} else {
 		file = get_temp_file(cpu);
-		recorder = tracecmd_create_recorder(file, cpu);
+		recorder = tracecmd_create_recorder(file, cpu, recorder_flags);
 		put_temp_file(file);
 	}
 
@@ -2000,6 +2002,7 @@ static void record_all_events(void)
 }
 
 enum {
+	OPT_nosplice	= 253,
 	OPT_funcstack	= 254,
 	OPT_date	= 255,
 };
@@ -2064,6 +2067,7 @@ void trace_record (int argc, char **argv)
 		static struct option long_options[] = {
 			{"date", no_argument, NULL, OPT_date},
 			{"func-stack", no_argument, NULL, OPT_funcstack},
+			{"nosplice", no_argument, NULL, OPT_nosplice},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -2221,6 +2225,9 @@ void trace_record (int argc, char **argv)
 			break;
 		case OPT_funcstack:
 			func_stack = 1;
+			break;
+		case OPT_nosplice:
+			recorder_flags |= TRACECMD_RECORD_NOSPLICE;
 			break;
 		default:
 			usage(argv);
