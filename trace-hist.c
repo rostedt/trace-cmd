@@ -874,8 +874,17 @@ static void do_trace_hist(struct tracecmd_input *handle)
 	if (ret > 0)
 		die("trace-cmd hist does not work with latency traces\n");
 
+	cpus = tracecmd_cpus(handle);
+
 	/* Need to get any event */
-	record = tracecmd_peek_data(handle, 0);
+	for (cpu = 0; cpu < cpus; cpu++) {
+		record = tracecmd_peek_data(handle, cpu);
+		if (record)
+			break;
+	}
+	if (!record)
+		die("No records found in file");
+
 	ret = pevent_data_type(pevent, record);
 	event = pevent_data_event_from_type(pevent, ret);
 
@@ -896,8 +905,6 @@ static void do_trace_hist(struct tracecmd_input *handle)
 	update_function_graph_entry(pevent);
 	update_function_graph_exit(pevent);
 	update_kernel_stack(pevent);
-
-	cpus = tracecmd_cpus(handle);
 
 	for (cpu = 0; cpu < cpus; cpu++) {
 		for (;;) {
