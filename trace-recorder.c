@@ -214,22 +214,28 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep)
 {
 	struct timespec req;
+	long read = 1;
 	long ret;
 
 	recorder->stop = 0;
 
 	do {
-		if (sleep) {
+		/* Only sleep if we did not read anything last time */
+		if (!read && sleep) {
 			req.tv_sec = sleep / 1000000;
 			req.tv_nsec = (sleep % 1000000) * 1000;
 			nanosleep(&req, NULL);
 		}
-		if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
-			ret = read_data(recorder);
-		else
-			ret = splice_data(recorder);
-		if (ret < 0)
-			return ret;
+		read = 0;
+		do {
+			if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
+				ret = read_data(recorder);
+			else
+				ret = splice_data(recorder);
+			if (ret < 0)
+				return ret;
+			read += ret;
+		} while (ret);
 	} while (!recorder->stop);
 
 	/* Flush out the rest */
