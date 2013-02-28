@@ -152,7 +152,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
 		     recorder->page_size, 3 /* and NON_BLOCK */);
 	if (ret < 0) {
-		if (errno != EAGAIN) {
+		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in splice output");
 			return -1;
 		}
@@ -173,7 +173,7 @@ static long read_data(struct tracecmd_recorder *recorder)
 
 	ret = read(recorder->trace_fd, buf, recorder->page_size);
 	if (ret < 0) {
-		if (errno != EAGAIN) {
+		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in read output");
 			return -1;
 		}
