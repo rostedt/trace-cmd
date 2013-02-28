@@ -51,4 +51,6 @@ void trace_option(int argc, char **argv);
 
 void trace_hist(int argc, char **argv);
 
+void trace_mem(int argc, char **argv);
+
 #endif /* __TRACE_LOCAL_H */
