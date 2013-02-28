@@ -249,8 +249,14 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder)
 {
+	long flags;
+
 	if (!recorder)
 		return;
+
+	/* Do not block on reads for flushing */
+	flags = fcntl(recorder->trace_fd, F_GETFL);
+	fcntl(recorder->trace_fd, F_SETFL, flags | O_NONBLOCK);
 
 	recorder->stop = 1;
 }
