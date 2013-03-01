@@ -145,8 +145,10 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	ret = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
 		     recorder->page_size, 1 /* SPLICE_F_MOVE */);
 	if (ret < 0) {
-		warning("recorder error in splice input");
-		return -1;
+		if (errno != EAGAIN && errno != EINTR) {
+			warning("recorder error in splice input");
+			return -1;
+		}
 	}
 
 	ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
