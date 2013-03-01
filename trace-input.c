@@ -1897,6 +1897,20 @@ void tracecmd_print_events(struct tracecmd_input *handle)
 	return;
 }
 
+/* Show the cpu data stats */
+static void show_cpu_stats(struct tracecmd_input *handle)
+{
+	struct cpu_data *cpu_data;
+	int i;
+
+	for (i = 0; i < handle->cpus; i++) {
+		cpu_data = &handle->cpu_data[i];
+		printf("CPU%d data recorded at offset=0x%llx\n",
+		       i, cpu_data->file_offset);
+		printf("    %lld bytes in size\n", cpu_data->file_size);
+	}
+}
+
 /**
  * tracecmd_print_stats - prints the stats recorded in the options.
  * @handle: input handle for the trace.dat file
@@ -1910,6 +1924,8 @@ void tracecmd_print_stats(struct tracecmd_input *handle)
 		printf("%s\n", handle->cpustats);
 	else
 		printf(" No stats in this file\n");
+
+	show_cpu_stats(handle);
 }
 
 /**
