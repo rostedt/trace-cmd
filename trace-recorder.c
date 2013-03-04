@@ -187,11 +187,22 @@ static long read_data(struct tracecmd_recorder *recorder)
 	return ret;
 }
 
+static void set_nonblock(struct tracecmd_recorder *recorder)
+{
+	long flags;
+
+	/* Do not block on reads for flushing */
+	flags = fcntl(recorder->trace_fd, F_GETFL);
+	fcntl(recorder->trace_fd, F_SETFL, flags | O_NONBLOCK);
+}
+
 long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 {
 	char *buf[recorder->page_size];
 	long total = 0;
 	long ret;
+
+	set_nonblock(recorder);
 
 	do {
 		if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
@@ -251,14 +262,10 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder)
 {
-	long flags;
-
 	if (!recorder)
 		return;
 
-	/* Do not block on reads for flushing */
-	flags = fcntl(recorder->trace_fd, F_GETFL);
-	fcntl(recorder->trace_fd, F_SETFL, flags | O_NONBLOCK);
+	set_nonblock(recorder);
 
 	recorder->stop = 1;
 }
