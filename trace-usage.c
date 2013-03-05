@@ -53,8 +53,9 @@ static struct usage_help usage_help[] = {
 	{
 		"extract",
 		"extract a trace from the kernel",
-		" %s extract [-p plugin][-O option][-o file]\n"
+		" %s extract [-p plugin][-O option][-o file][-s]\n"
 		"          Uses same options as record, but only reads an existing trace.\n"
+		"          -s : extract the snapshot instead of the main buffer\n"
 	},
 	{
 		"stop",

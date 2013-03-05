@@ -2064,6 +2064,7 @@ void trace_record (int argc, char **argv)
 
 	for (;;) {
 		int option_index = 0;
+		const char *opts;
 		static struct option long_options[] = {
 			{"date", no_argument, NULL, OPT_date},
 			{"func-stack", no_argument, NULL, OPT_funcstack},
@@ -2072,8 +2073,11 @@ void trace_record (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:kiT",
-				 long_options, &option_index);
+		if (extract)
+			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
+		else
+			opts = "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:ksiT";
+		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
 		switch (c) {
@@ -2087,8 +2091,6 @@ void trace_record (int argc, char **argv)
 			}
 			break;
 		case 'e':
-			if (extract)
-				usage(argv);
 			events = 1;
 			event = malloc_or_die(sizeof(*event));
 			memset(event, 0, sizeof(*event));
@@ -2147,8 +2149,6 @@ void trace_record (int argc, char **argv)
 			do_ptrace = 1;
 			break;
 		case 'v':
-			if (extract)
-				usage(argv);
 			neg_event = 1;
 			break;
 		case 'l':
@@ -2172,8 +2172,6 @@ void trace_record (int argc, char **argv)
 			optarg[0] = '\0';
 			break;
 		case 'd':
-			if (extract)
-				usage(argv);
 			disable = 1;
 			break;
 		case 'o':
@@ -2194,7 +2192,13 @@ void trace_record (int argc, char **argv)
 			save_option("stacktrace");
 			break;
 		case 's':
-			if (extract)
+			if (extract) {
+				if (optarg)
+					usage(argv);
+				recorder_flags |= TRACECMD_RECORD_SNAPSHOT;
+				break;
+			}
+			if (!optarg)
 				usage(argv);
 			sleep_time = atoi(optarg);
 			break;

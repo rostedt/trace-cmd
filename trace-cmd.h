@@ -214,6 +214,7 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files);
 
 enum {
 	TRACECMD_RECORD_NOSPLICE	= (1 << 0),	/* Use read instead of splice */
+	TRACECMD_RECORD_SNAPSHOT	= (1 << 1),	/* extract from snapshot */
 };
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder);

@@ -92,7 +92,10 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned 
 	if (!path)
 		goto out_free;
 
-	sprintf(path, "%s/per_cpu/cpu%d/trace_pipe_raw", tracing, cpu);
+	if (flags & TRACECMD_RECORD_SNAPSHOT)
+		sprintf(path, "%s/per_cpu/cpu%d/snapshot_raw", tracing, cpu);
+	else
+		sprintf(path, "%s/per_cpu/cpu%d/trace_pipe_raw", tracing, cpu);
 	recorder->trace_fd = open(path, O_RDONLY);
 	if (recorder->trace_fd < 0)
 		goto out_free;

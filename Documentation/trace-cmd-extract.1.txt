@@ -44,6 +44,8 @@ OPTIONS
     By default, the extract command will create a 'trace.dat' file. This
     option will change where the file is written to.
 
+*-s*::
+    Extract from the snapshot buffer (if the kernel supports it).
 
 SEE ALSO
 --------
