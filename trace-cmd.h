@@ -167,6 +167,8 @@ struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 char *tracecmd_get_tracing_file(const char *name);
 void tracecmd_put_tracing_file(char *name);
 
+int tracecmd_record_at_buffer_start(struct tracecmd_input *handle, struct pevent_record *record);
+
 #ifndef SWIG
 /* hack for function graph work around */
 extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;

@@ -95,6 +95,8 @@ static int wakeup_id;
 static int wakeup_new_id;
 static int sched_id;
 
+static int buffer_breaks = 0;
+
 static struct format_field *wakeup_task;
 static struct format_field *wakeup_success;
 static struct format_field *wakeup_new_task;
@@ -665,6 +667,10 @@ static void show_data(struct tracecmd_input *handle,
 	else if (record->missed_events < 0)
 		trace_seq_printf(&s, "CPU:%d [EVENTS DROPPED]\n",
 				 record->cpu);
+	if (buffer_breaks && tracecmd_record_at_buffer_start(handle, record))
+		trace_seq_printf(&s, "CPU:%d [SUBBUFFER START]\n",
+				 record->cpu);
+
 	pevent_print_event(pevent, &s, record);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
@@ -1019,6 +1025,7 @@ static void set_event_flags(struct pevent *pevent, struct event_str *list,
 }
 
 enum {
+	OPT_boundary	= 248,
 	OPT_stat	= 249,
 	OPT_pid		= 250,
 	OPT_nodate	= 251,
@@ -1079,6 +1086,7 @@ void trace_report (int argc, char **argv)
 				OPT_check_event_parsing},
 			{"nodate", no_argument, NULL, OPT_nodate},
 			{"stat", no_argument, NULL, OPT_stat},
+			{"boundary", no_argument, NULL, OPT_boundary},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1185,6 +1193,10 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_stat:
 			show_stat = 1;
+			break;
+		case OPT_boundary:
+			/* Debug to look at buffer breaks */
+			buffer_breaks = 1;
 			break;
 		default:
 			usage(argv);

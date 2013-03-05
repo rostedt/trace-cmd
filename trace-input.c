@@ -2370,6 +2370,27 @@ int tracecmd_copy_headers(struct tracecmd_input *handle, int fd)
 }
 
 /**
+ * tracecmd_record_at_buffer_start - return true if record is first on subbuffer
+ * @handle: input handle for the trace.dat file
+ * @record: The record to test if it is the first record on page
+ *
+ * Returns true if the record is the first record on the page.
+ */
+int tracecmd_record_at_buffer_start(struct tracecmd_input *handle,
+				    struct pevent_record *record)
+{
+	struct page *page = record->priv;
+	struct kbuffer *kbuf = handle->cpu_data[0].kbuf;
+	int offset;
+
+	if (!page || !kbuf)
+		return 0;
+
+	offset = record->offset - page->offset;
+	return offset == kbuffer_start_of_data(kbuf);
+}
+
+/**
  * tracecmd_long_size - return the size of "long" for the arch
  * @handle: input handle for the trace.dat file
  */
