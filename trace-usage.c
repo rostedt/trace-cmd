@@ -18,7 +18,7 @@ static struct usage_help usage_help[] = {
 		"record a trace into a trace.dat file",
 		" %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
 		"           [-s usecs][-O option ][-l func][-g func][-n func] \\\n"
-		"           [-P pid][-N host:port][-t][-r prio][-b size][command ...]\n"
+		"           [-P pid][-N host:port][-t][-r prio][-b size][-B buf][command ...]\n"
 		"          -e run command with event enabled\n"
 		"          -f filter for previous -e event\n"
 		"          -p run command with plugin enabled\n"
@@ -38,6 +38,7 @@ static struct usage_help usage_help[] = {
 		"          -N host:port to connect to (see listen)\n"
 		"          -t used with -N, forces use of tcp in live trace\n"
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
+		"          -B create sub buffer and folling events will be enabled here\n"
 		"          -k do not reset the buffers after tracing.\n"
 		"          -i do not fail if an event is not found\n"
 		"          --func-stack perform a stack trace for function tracer\n"

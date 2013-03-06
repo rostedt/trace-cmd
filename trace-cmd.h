@@ -80,6 +80,7 @@ enum {
 	TRACECMD_OPTION_DONE,
 	TRACECMD_OPTION_DATE,
 	TRACECMD_OPTION_CPUSTAT,
+	TRACECMD_OPTION_BUFFER,
 };
 
 enum {
@@ -203,6 +204,8 @@ struct tracecmd_output *tracecmd_create_init_file_override(const char *output_fi
 							   const char *kallsyms);
 struct tracecmd_option *tracecmd_add_option(struct tracecmd_output *handle,
 					    unsigned short id, int size, void *data);
+struct tracecmd_option *tracecmd_add_buffer_option(struct tracecmd_output *handle,
+						   const char *name);
 int tracecmd_update_option(struct tracecmd_output *handle,
 			   struct tracecmd_option *option, int size, void *data);
 void tracecmd_output_close(struct tracecmd_output *handle);
@@ -210,6 +213,9 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);
 int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			     int cpus, char * const *cpu_data_files);
+int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
+				    struct tracecmd_option *option,
+				    int cpus, char * const *cpu_data_files);
 int tracecmd_attach_cpu_data(char *file, int cpus, char * const *cpu_data_files);
 int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files);
 
@@ -223,6 +229,9 @@ enum {
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder);
 struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, unsigned flags);
 struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags);
+struct tracecmd_recorder *tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *buffer);
+struct tracecmd_recorder *tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags, const char *buffer);
+
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
 void tracecmd_stat_cpu(struct trace_seq *s, int cpu);

@@ -165,6 +165,25 @@ OPTIONS
     inside the kernel. Using "-b 10000" on a machine with 4 CPUs will make
     Ftrace have a total buffer size of 40 Megs.
 
+*-B* 'buffer-name'::
+    If the kernel supports multiple buffers, this will add a buffer with
+    the given name. If the buffer name already exists, that buffer is just
+    reset and will not be deleted at the end of record execution. If the
+    buffer is created, it will be removed at the end of execution (unless
+    the *-k* is set, or 'start' command was used).
+
+    After a buffer name is stated, all events added after that will be
+    associated with that buffer. If no buffer is specified, or an event
+    is specified before a buffer name, it will be associated with the
+    main (toplevel) buffer.
+
+     trace-cmd record -e sched -B block -e block -B time -e timer sleep 1
+
+    The above is will enable all sched events in the main buffer. It will
+    then create a 'block' buffer instance and enable all block events within
+    that buffer. A 'time' buffer instance is created and all timer events
+    will be enabled for that event.
+
 *-k*::
     By default, when trace-cmd is finished tracing, it will reset the buffers
     and disable all the tracing that it enabled. This option keeps trace-cmd

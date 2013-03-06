@@ -59,10 +59,10 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 	free(recorder);
 }
 
-struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags)
+struct tracecmd_recorder *
+tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *buffer)
 {
 	struct tracecmd_recorder *recorder;
-	char *tracing = NULL;
 	char *path = NULL;
 	int ret;
 
@@ -82,25 +82,18 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned 
 
 	recorder->fd = fd;
 
-	tracing = tracecmd_find_tracing_dir();
-	if (!tracing) {
-		errno = ENODEV;
-		goto out_free;
-	}
-
-	path = malloc_or_die(strlen(tracing) + 40);
+	path = malloc_or_die(strlen(buffer) + 40);
 	if (!path)
 		goto out_free;
 
 	if (flags & TRACECMD_RECORD_SNAPSHOT)
-		sprintf(path, "%s/per_cpu/cpu%d/snapshot_raw", tracing, cpu);
+		sprintf(path, "%s/per_cpu/cpu%d/snapshot_raw", buffer, cpu);
 	else
-		sprintf(path, "%s/per_cpu/cpu%d/trace_pipe_raw", tracing, cpu);
+		sprintf(path, "%s/per_cpu/cpu%d/trace_pipe_raw", buffer, cpu);
 	recorder->trace_fd = open(path, O_RDONLY);
 	if (recorder->trace_fd < 0)
 		goto out_free;
 
-	free(tracing);
 	free(path);
 
 	if ((recorder->flags & TRACECMD_RECORD_NOSPLICE) == 0) {
@@ -112,14 +105,14 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned 
 	return recorder;
 
  out_free:
-	free(tracing);
 	free(path);
 
 	tracecmd_free_recorder(recorder);
 	return NULL;
 }
 
-struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, unsigned flags)
+struct tracecmd_recorder *
+tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags, const char *buffer)
 {
 	struct tracecmd_recorder *recorder;
 	int fd;
@@ -128,13 +121,39 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, un
 	if (fd < 0)
 		return NULL;
 
-	recorder = tracecmd_create_recorder_fd(fd, cpu, flags);
+	recorder = tracecmd_create_buffer_recorder_fd(fd, cpu, flags, buffer);
 	if (!recorder) {
 		close(fd);
 		unlink(file);
 	}
 
 	return recorder;
+}
+
+struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags)
+{
+	char *tracing;
+
+	tracing = tracecmd_find_tracing_dir();
+	if (!tracing) {
+		errno = ENODEV;
+		return NULL;
+	}
+
+	return tracecmd_create_buffer_recorder_fd(fd, cpu, flags, tracing);
+}
+
+struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, unsigned flags)
+{
+	char *tracing;
+
+	tracing = tracecmd_find_tracing_dir();
+	if (!tracing) {
+		errno = ENODEV;
+		return NULL;
+	}
+
+	return tracecmd_create_buffer_recorder(file, cpu, flags, tracing);
 }
 
 /*
