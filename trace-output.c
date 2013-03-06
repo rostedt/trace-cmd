@@ -38,6 +38,10 @@
 #include "trace-cmd-local.h"
 #include "version.h"
 
+/* We can't depend on the host size for size_t, all must be 64 bit */
+typedef unsigned long long	tsize_t;
+typedef long long		stsize_t;
+
 static struct tracecmd_event_list all_event_list = {
 	.next = NULL,
 	.glob = "all"
@@ -47,6 +51,7 @@ struct tracecmd_option {
 	unsigned short	id;
 	int		size;
 	void		*data;
+	tsize_t		offset;
 };
 
 struct tracecmd_output {
@@ -71,10 +76,6 @@ struct list_event_system {
 	struct list_event		*events;
 	char				*name;
 };
-
-/* We can't depend on the host size for size_t, all must be 64 bit */
-typedef unsigned long long	tsize_t;
-typedef long long		stsize_t;
 
 static stsize_t
 do_write_check(struct tracecmd_output *handle, void *data, tsize_t size)
@@ -831,10 +832,14 @@ static struct tracecmd_output *create_file(const char *output_file,
  * @id: the id of the option
  * @size: the size of the option data
  * @data: the data to write to the file.
+ *
+ * Returns handle to update option if needed.
+ *  Just the content can be updated, with smaller or equal to
+ *  content than the specified size.
  */
-int tracecmd_add_option(struct tracecmd_output *handle,
-			unsigned short id,
-			int size, void *data)
+struct tracecmd_option *
+tracecmd_add_option(struct tracecmd_output *handle,
+		    unsigned short id, int size, void *data)
 {
 	int index = handle->nr_options;
 
@@ -843,7 +848,7 @@ int tracecmd_add_option(struct tracecmd_output *handle,
 	 * This may change in the future.
 	 */
 	if (handle->options_written)
-		return -EBUSY;
+		return NULL;
 
 	handle->nr_options++;
 
@@ -861,7 +866,7 @@ int tracecmd_add_option(struct tracecmd_output *handle,
 	handle->options[index].data = malloc_or_die(size);
 	memcpy(handle->options[index].data, data, size);
 
-	return 0;
+	return &handle->options[index];
 }
 
 static int add_options(struct tracecmd_output *handle)
@@ -871,8 +876,9 @@ static int add_options(struct tracecmd_output *handle)
 	unsigned int endian4;
 	int i;
 
+	/* If already written, ignore */
 	if (handle->options_written)
-		die("options already written?");
+		return 0;
 
 	if (do_write_check(handle, "options  ", 10))
 		return -1;
@@ -886,6 +892,9 @@ static int add_options(struct tracecmd_output *handle)
 		if (do_write_check(handle, &endian4, 4))
 			return -1;
 
+		/* Save the data location in case it needs to be updated */
+		handle->options[i].offset = lseek64(handle->fd, 0, SEEK_CUR);
+
 		if (do_write_check(handle, handle->options[i].data,
 				   handle->options[i].size))
 			return -1;
@@ -897,6 +906,45 @@ static int add_options(struct tracecmd_output *handle)
 		return -1;
 
 	handle->options_written = 1;
+
+	return 0;
+}
+
+int tracecmd_update_option(struct tracecmd_output *handle,
+			   struct tracecmd_option *option, int size, void *data)
+{
+	tsize_t offset;
+	stsize_t ret;
+
+	if (size > option->size) {
+		warning("Can't update option with more data than allocated");
+		return -1;
+	}
+
+	if (!handle->options_written) {
+		/* Hasn't been written yet. Just update current pointer */
+		option->size = size;
+		memcpy(option->data, data, size);
+		return 0;
+	}
+
+	/* Save current offset */
+	offset = lseek64(handle->fd, 0, SEEK_CUR);
+
+	ret = lseek64(handle->fd, option->offset, SEEK_SET);
+	if (ret == (off64_t)-1) {
+		warning("could not seek to %lld\n", option->offset);
+		return -1;
+	}
+
+	if (do_write_check(handle, data, size))
+		return -1;
+
+	ret = lseek64(handle->fd, offset, SEEK_SET);
+	if (ret == (off64_t)-1) {
+		warning("could not seek to %lld\n", offset);
+		return -1;
+	}
 
 	return 0;
 }
