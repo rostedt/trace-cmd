@@ -84,7 +84,8 @@ enum {
 };
 
 enum {
-	TRACECMD_FL_IGNORE_DATE		= 1,
+	TRACECMD_FL_IGNORE_DATE		= (1 << 0),
+	TRACECMD_FL_BUFFER_INSTANCE	= (1 << 1),
 };
 
 struct tracecmd_ftrace {
@@ -107,6 +108,11 @@ int tracecmd_cpus(struct tracecmd_input *handle);
 int tracecmd_copy_headers(struct tracecmd_input *handle, int fd);
 void tracecmd_set_flag(struct tracecmd_input *handle, int flag);
 void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
+
+int tracecmd_buffer_instances(struct tracecmd_input *handle);
+const char *tracecmd_buffer_instance_name(struct tracecmd_input *handle, int indx);
+struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx);
+int tracecmd_is_buffer_instance(struct tracecmd_input *handle);
 
 void tracecmd_print_events(struct tracecmd_input *handle);
 

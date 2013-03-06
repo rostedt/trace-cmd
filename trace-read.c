@@ -87,6 +87,8 @@ static const char *input_file;
 static int multi_inputs;
 static int max_file_size;
 
+static int instances;
+
 static int *filter_cpus;
 static int nr_filter_cpus;
 
@@ -280,14 +282,15 @@ static void add_handle(struct tracecmd_input *handle, const char *file)
 	item = malloc_or_die(sizeof(*item));
 	memset(item, 0, sizeof(*item));
 	item->handle = handle;
-	item->file = file + strlen(file);
-	/* we want just the base name */
-	while (*item->file != '/' && item->file >= file)
-		item->file--;
-	item->file++;
-	if (strlen(item->file) > max_file_size)
-		max_file_size = strlen(item->file);
-
+	if (file) {
+		item->file = file + strlen(file);
+		/* we want just the base name */
+		while (*item->file != '/' && item->file >= file)
+			item->file--;
+		item->file++;
+		if (strlen(item->file) > max_file_size)
+			max_file_size = strlen(item->file);
+	}
 	list_add_tail(&item->list, &handle_list);
 }
 
@@ -797,9 +800,12 @@ static void free_handle_record(struct handle_list *handles)
 static void print_handle_file(struct handle_list *handles)
 {
 	/* Only print file names if more than one file is read */
-	if (!multi_inputs)
+	if (!multi_inputs && !instances)
 		return;
-	printf("%*s: ", max_file_size, handles->file);
+	if (handles->file)
+		printf("%*s: ", max_file_size, handles->file);
+	else
+		printf("%*s  ", max_file_size, "");
 }
 
 static void free_filters(struct filter *event_filter)
@@ -828,6 +834,10 @@ static void read_data_info(struct list_head *handle_list, int stat_only)
 
 	list_for_each_entry(handles, handle_list, list) {
 
+		/* Don't process instances that we added here */
+		if (tracecmd_is_buffer_instance(handles->handle))
+			continue;
+
 		ret = tracecmd_init_data(handles->handle);
 		if (ret < 0)
 			die("failed to init data");
@@ -855,6 +865,26 @@ static void read_data_info(struct list_head *handle_list, int stat_only)
 
 		init_wakeup(handles->handle);
 		process_filters(handles);
+
+		/* If this file has buffer instances, get the handles for them */
+		instances = tracecmd_buffer_instances(handles->handle);
+		if (instances) {
+			struct tracecmd_input *new_handle;
+			const char *name;
+			int i;
+
+			for (i = 0; i < instances; i++) {
+				name = tracecmd_buffer_instance_name(handles->handle, i);
+				if (!name)
+					die("error in reading buffer instance");
+				new_handle = tracecmd_buffer_instance_handle(handles->handle, i);
+				if (!new_handle) {
+					warning("could not retreive handle %s", name);
+					continue;
+				}
+				add_handle(new_handle, name);
+			}
+		}
 	}
 
 	if (stat_only)
@@ -1221,7 +1251,9 @@ void trace_report (int argc, char **argv)
 		handle = read_trace_header(inputs->file);
 		if (!handle)
 			die("error reading header for %s", inputs->file);
-		add_handle(handle, inputs->file);
+
+		/* If used with instances, top instance will have no tag */
+		add_handle(handle, multi_inputs ? inputs->file : NULL);
 
 		if (no_date)
 			tracecmd_set_flag(handle, TRACECMD_FL_IGNORE_DATE);
