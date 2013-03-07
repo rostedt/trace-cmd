@@ -278,6 +278,76 @@ int main (int argc, char **argv)
 	} else if (strcmp(argv[1], "options") == 0) {
 		trace_option(argc, argv);
 		exit(0);
+	} else if (strcmp(argv[1], "show") == 0) {
+		const char *buffer = NULL;
+		const char *file = "trace";
+		const char *cpu = NULL;
+		char cpu_path[128];
+		char *path;
+		int snap = 0;
+		int pipe = 0;
+		int show_name = 0;
+
+		while ((c = getopt(argc-1, argv+1, "B:c:fsp")) >= 0) {
+			switch (c) {
+			case 'h':
+				usage(argv);
+				break;
+			case 'B':
+				if (buffer)
+					die("Can only show one buffer at a time");
+				buffer = optarg;
+				break;
+			case 'c':
+				if (cpu)
+					die("Can only show one CPU at a time");
+				cpu = optarg;
+				break;
+			case 'f':
+				show_name = 1;
+				break;
+			case 's':
+				snap = 1;
+				if (pipe)
+					die("Can not have -s and -p together");
+				break;
+			case 'p':
+				pipe = 1;
+				if (snap)
+					die("Can not have -s and -p together");
+				break;
+			default:
+				usage(argv);
+			}
+		}
+		if (pipe)
+			file = "trace_pipe";
+		else if (snap)
+			file = "snapshot";
+
+		if (cpu) {
+			snprintf(cpu_path, 128, "per_cpu/cpu%d/%s", atoi(cpu), file);
+			file = cpu_path;
+		}
+			
+		if (buffer) {
+			path = malloc_or_die(strlen(buffer) + strlen("instances//") +
+					     strlen(file) + 1);
+			sprintf(path, "instances/%s/%s", buffer, file);
+			file = path;
+		}
+
+		if (show_name) {
+			char *name;
+			name = tracecmd_get_tracing_file(file);
+			printf("%s\n", name);
+			tracecmd_put_tracing_file(name);
+		}
+		show_file(file);
+		if (buffer)
+			free(path);
+
+		exit(0);
 	} else if (strcmp(argv[1], "list") == 0) {
 		int events = 0;
 		int tracer = 0;

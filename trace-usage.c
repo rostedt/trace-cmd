@@ -66,6 +66,18 @@ static struct usage_help usage_help[] = {
 		"          Used in conjunction with start\n"
 	},
 	{
+		"show",
+		"show the contents of the kernel tracing buffer",
+		" %s show [-p|-s][-c cpu][-B buf]\n"
+		"          Basically, this is a cat of the trace file.\n"
+		"          -p read the trace_pipe file instead\n"
+		"          -s read the snapshot file instance\n"
+		"           (Can't have both -p and -s)\n"
+		"          -c just show the file associated with a given CPU\n"
+		"          -B read from a tracing buffer instance.\n"
+		"          -f display the file path that is being dumped\n"
+	},
+	{
 		"reset",
 		"disable all kernel tracing and clear the trace buffers",
 		" %s reset [-b size]\n"
