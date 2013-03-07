@@ -169,6 +169,17 @@ static struct usage_help usage_help[] = {
 		"          -i parital trace.dat file for input\n"
 	},
 	{
+		"snapshot",
+		"take snapshot of running trace",
+		" %s snapshot [-s][-r][-f][-B buf][-c cpu]\n"
+		"          -s take a snapshot of the trace buffer\n"
+		"          -r reset current snapshot\n"
+		"          -f free the snapshot buffer\n"
+		"            without the above three options, display snapshot\n"
+		"          -c operate on the snapshot buffer for the given CPU\n"
+		"          -B operate on the snapshot buffer for a tracing buffer instance.\n"
+	},
+	{
 		"stack",
 		"output, enable or disable kernel stack tracing",
 		" %s stack [--start][--stop][--reset]\n"

@@ -32,6 +32,8 @@ void usage(char **argv);
 extern int silence_warnings;
 extern int show_status;
 
+void show_file(const char *name);
+
 struct tracecmd_input *read_trace_header(const char *file);
 int read_trace_files(void);
 
@@ -50,6 +52,8 @@ void trace_stack(int argc, char **argv);
 void trace_option(int argc, char **argv);
 
 void trace_hist(int argc, char **argv);
+
+void trace_snapshot(int argc, char **argv);
 
 void trace_mem(int argc, char **argv);
 
