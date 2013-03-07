@@ -1524,6 +1524,7 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 {
 	unsigned long long ts;
 	struct pevent_record *record;
+	int first_record = 1;
 	int next;
 	int cpu;
 
@@ -1535,9 +1536,10 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		record = tracecmd_peek_data(handle, cpu);
-		if (record && (!ts || record->ts < ts)) {
+		if (record && (first_record || record->ts < ts)) {
 			ts = record->ts;
 			next = cpu;
+			first_record = 0;
 		}
 	}
 
