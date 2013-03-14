@@ -379,7 +379,7 @@ static int set_ftrace_proc(int set)
 	return ret;
 }
 
-static int set_ftrace(int set)
+static int set_ftrace(int set, int use_proc)
 {
 	char *path;
 	int ret;
@@ -389,7 +389,8 @@ static int set_ftrace(int set)
 	ret = set_ftrace_enable(path, set);
 	tracecmd_put_tracing_file(path);
 
-	if (ret < 0)
+	/* Always enable ftrace_enable proc file when set is true */
+	if (ret < 0 || set || use_proc)
 		ret = set_ftrace_proc(set);
 
 	return 0;
@@ -2281,6 +2282,7 @@ void trace_record (int argc, char **argv)
 	char *sav;
 	char *date2ts = NULL;
 	int record_all = 0;
+	int total_disable = 0;
 	int disable = 0;
 	int events = 0;
 	int record = 0;
@@ -2338,7 +2340,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cdo:O:s:r:vg:l:n:P:N:tb:B:ksiT";
+			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:B:ksiT";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -2433,6 +2435,9 @@ void trace_record (int argc, char **argv)
 			optarg++;
 			optarg[0] = '\0';
 			break;
+		case 'D':
+			total_disable = 1;
+			/* fall through */
 		case 'd':
 			disable = 1;
 			break;
@@ -2544,7 +2549,7 @@ void trace_record (int argc, char **argv)
 	page_size = getpagesize();
 
 	if (!extract) {
-		fset = set_ftrace(!disable);
+		fset = set_ftrace(!disable, total_disable);
 		disable_all(1);
 
 		/* Record records the date first */

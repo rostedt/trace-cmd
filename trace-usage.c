@@ -16,7 +16,7 @@ static struct usage_help usage_help[] = {
 	{
 		"record",
 		"record a trace into a trace.dat file",
-		" %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-o file] \\\n"
+		" %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-D][-o file] \\\n"
 		"           [-s usecs][-O option ][-l func][-g func][-n func] \\\n"
 		"           [-P pid][-N host:port][-t][-r prio][-b size][-B buf][command ...]\n"
 		"          -e run command with event enabled\n"
@@ -31,6 +31,7 @@ static struct usage_help usage_help[] = {
 		"          -n do not trace function\n"
 		"          -v will negate all -e after it (disable those events)\n"
 		"          -d disable function tracer when running\n"
+		"          -D Full disable of function tracing (for all users)\n"
 		"          -o data output file [default trace.dat]\n"
 		"          -O option to enable (or disable)\n"
 		"          -r real time priority to run the capture threads\n"

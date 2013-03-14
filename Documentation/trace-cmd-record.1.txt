@@ -133,6 +133,16 @@ OPTIONS
     latency tracers. This option prevents the function tracer from being
     enabled at start up.
 
+*-D*::
+    The option *-d* will try to use the function-trace option to disable the
+    function tracer (if available), otherwise it defaults to the proc file:
+    /proc/sys/kernel/ftrace_enabled, but will not touch it if the function-trace
+    option is available.  The *-D* option will disable both the ftrace_enabled
+    proc file as well as the function-trace option if it exists.
+
+    Note, this disable function tracing for all users, which includes users
+    outside of ftrace tracers (stack_tracer, perf, etc).
+
 *-O* 'option'::
     Ftrace has various options that can be enabled or disabled. This allows
     you to set them. Appending the text 'no' to an option disables it.
