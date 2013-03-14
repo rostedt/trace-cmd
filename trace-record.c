@@ -343,24 +343,54 @@ static void flush_threads(void)
 	}
 }
 
-static int set_ftrace(int set)
+static int set_ftrace_enable(const char *path, int set)
 {
-	struct stat buf;
-	char *path = "/proc/sys/kernel/ftrace_enabled";
+	struct stat st;
 	int fd;
 	char *val = set ? "1" : "0";
+	int ret;
 
 	/* if ftace_enable does not exist, simply ignore it */
-	fd = stat(path, &buf);
+	fd = stat(path, &st);
 	if (fd < 0)
 		return -ENODEV;
 
+	ret = -1;
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
-		die ("Can't %s ftrace", set ? "enable" : "disable");
+		goto out;
 
-	write(fd, val, 1);
+	/* Now set or clear the function option */
+	ret = write(fd, val, 1);
 	close(fd);
+
+ out:
+	return ret < 0 ? ret : 0;
+}
+
+static int set_ftrace_proc(int set)
+{
+	const char *path = "/proc/sys/kernel/ftrace_enabled";
+	int ret;
+
+	ret = set_ftrace_enable(path, set);
+	if (ret == -1)
+		die ("Can't %s ftrace", set ? "enable" : "disable");
+	return ret;
+}
+
+static int set_ftrace(int set)
+{
+	char *path;
+	int ret;
+
+	/* First check if the function-trace option exists */
+	path = tracecmd_get_tracing_file("options/function-trace");
+	ret = set_ftrace_enable(path, set);
+	tracecmd_put_tracing_file(path);
+
+	if (ret < 0)
+		ret = set_ftrace_proc(set);
 
 	return 0;
 }
