@@ -30,6 +30,7 @@
 #define TRACECMD_PTR2ERR(ptr)	((unisgned long)(ptr) & ~TRACECMD_ERR_MSK)
 
 void parse_cmdlines(struct pevent *pevent, char *file, int size);
+void parse_trace_clock(struct pevent *pevent, char *file, int size);
 void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(struct pevent *pevent, char *file, unsigned int size);
 
@@ -171,6 +172,7 @@ tracecmd_get_cursor(struct tracecmd_input *handle, int cpu);
 
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle, struct tracecmd_ftrace *finfo);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
+bool tracecmd_get_use_trace_clock(struct tracecmd_input *handle);
 
 char *tracecmd_get_tracing_file(const char *name);
 void tracecmd_put_tracing_file(char *name);

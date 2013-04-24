@@ -19,6 +19,7 @@
  */
 #define _LARGEFILE64_SOURCE
 #include <dirent.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,6 +90,7 @@ struct tracecmd_input {
 	int			cpus;
 	int			ref;
 	int			nr_buffers;	/* buffer instances */
+	bool			use_trace_clock;
 	struct cpu_data 	*cpu_data;
 	unsigned long long	ts_offset;
 	char *			cpustats;
@@ -1767,6 +1769,9 @@ static int handle_options(struct tracecmd_input *handle)
 			offset = *(unsigned long long *)buf;
 			buffer->offset = __data2host8(handle->pevent, offset);
 			break;
+		case TRACECMD_OPTION_TRACECLOCK:
+			handle->use_trace_clock = true;
+			break;
 		default:
 			warning("unknown option %d", option);
 			break;
@@ -1901,6 +1906,20 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle,
 	return 0;
 }
 
+static int read_and_parse_trace_clock(struct tracecmd_input *handle,
+							struct pevent *pevent)
+{
+	unsigned long long size;
+	char *trace_clock;
+
+	if (read_data_and_size(handle, &trace_clock, &size) < 0)
+		return -1;
+	trace_clock[size] = 0;
+	parse_trace_clock(pevent, trace_clock, size);
+	free(trace_clock);
+	return 0;
+}
+
 /**
  * tracecmd_init_data - prepare reading the data from trace.dat
  * @handle: input handle for the trace.dat file
@@ -1926,6 +1945,11 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	ret = read_cpu_data(handle);
 	if (ret < 0)
 		return ret;
+
+	if (handle->use_trace_clock) {
+		if (read_and_parse_trace_clock(handle, pevent) < 0)
+			return -1;
+	}
 
 	tracecmd_blk_hack(handle);
 
@@ -2562,4 +2586,13 @@ int tracecmd_cpus(struct tracecmd_input *handle)
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle)
 {
 	return handle->pevent;
+}
+
+/**
+ * tracecmd_get_use_trace_clock - return use_trace_clock
+ * @handle: input handle for the trace.dat file
+ */
+bool tracecmd_get_use_trace_clock(struct tracecmd_input *handle)
+{
+	return handle->use_trace_clock;
 }

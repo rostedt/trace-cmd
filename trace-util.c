@@ -375,6 +375,32 @@ void parse_cmdlines(struct pevent *pevent,
 	}
 }
 
+static void extract_trace_clock(struct pevent *pevent, char *line)
+{
+	char *data;
+	char *clock;
+	char *next = NULL;
+
+	data = strtok_r(line, "[]", &next);
+	sscanf(data, "%ms", &clock);
+	pevent_register_trace_clock(pevent, clock);
+}
+
+void parse_trace_clock(struct pevent *pevent,
+			char *file, int size __maybe_unused)
+{
+	char *line;
+	char *next = NULL;
+
+	line = strtok_r(file, " ", &next);
+	while (line) {
+		/* current trace_clock is shown as "[local]". */
+		if (*line == '[')
+			return extract_trace_clock(pevent, line);
+		line = strtok_r(NULL, " ", &next);
+	}
+}
+
 void parse_proc_kallsyms(struct pevent *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {

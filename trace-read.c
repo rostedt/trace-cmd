@@ -708,6 +708,7 @@ static void show_data(struct tracecmd_input *handle,
 {
 	struct pevent *pevent;
 	struct trace_seq s;
+	bool use_trace_clock;
 
 	if (filter_record(handle, record))
 		return;
@@ -727,7 +728,8 @@ static void show_data(struct tracecmd_input *handle,
 		trace_seq_printf(&s, "CPU:%d [SUBBUFFER START]\n",
 				 record->cpu);
 
-	pevent_print_event(pevent, &s, record);
+	use_trace_clock = tracecmd_get_use_trace_clock(handle);
+	pevent_print_event(pevent, &s, record, use_trace_clock);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
 	trace_seq_do_printf(&s);
