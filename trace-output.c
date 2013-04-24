@@ -687,6 +687,45 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	return -1;
 }
 
+static int save_tracing_file_data(struct tracecmd_output *handle,
+						const char *filename)
+{
+	unsigned long long endian8;
+	char *file = NULL;
+	struct stat st;
+	off64_t check_size;
+	off64_t size;
+	int ret = -1;
+
+	file = get_tracing_file(handle, filename);
+	if (!file)
+		return -1;
+
+	ret = stat(file, &st);
+	if (ret >= 0) {
+		size = get_size(file);
+		endian8 = convert_endian_8(handle, size);
+		if (do_write_check(handle, &endian8, 8))
+			goto out_free;
+		check_size = copy_file(handle, file);
+		if (size != check_size) {
+			errno = EINVAL;
+			warning("error in size of file '%s'", file);
+			goto out_free;
+		}
+	} else {
+		size = 0;
+		endian8 = convert_endian_8(handle, size);
+		if (do_write_check(handle, &endian8, 8))
+			goto out_free;
+	}
+	ret = 0;
+
+out_free:
+	put_tracing_file(file);
+	return ret;
+}
+
 static struct tracecmd_output *
 create_file_fd(int fd, struct tracecmd_input *ihandle,
 	       const char *tracing_dir,
@@ -694,15 +733,9 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	       struct tracecmd_event_list *list)
 {
 	struct tracecmd_output *handle;
-	unsigned long long endian8;
 	struct pevent *pevent;
 	char buf[BUFSIZ];
-	char *file = NULL;
-	struct stat st;
-	off64_t check_size;
-	off64_t size;
 	int endian4;
-	int ret;
 
 	handle = malloc(sizeof(*handle));
 	if (!handle)
@@ -775,27 +808,8 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	/*
 	 * Save the command lines;
 	 */
-	file = get_tracing_file(handle, "saved_cmdlines");
-	ret = stat(file, &st);
-	if (ret >= 0) {
-		size = get_size(file);
-		endian8 = convert_endian_8(handle, size);
-		if (do_write_check(handle, &endian8, 8))
-			goto out_free;
-		check_size = copy_file(handle, file);
-		if (size != check_size) {
-			errno = EINVAL;
-			warning("error in size of file '%s'", file);
-			goto out_free;
-		}
-	} else {
-		size = 0;
-		endian8 = convert_endian_8(handle, size);
-		if (do_write_check(handle, &endian8, 8))
-			goto out_free;
-	}
-	put_tracing_file(file);
-	file = NULL;
+	if (save_tracing_file_data(handle, "saved_cmdlines") < 0)
+		goto out_free;
 
 	return handle;
 

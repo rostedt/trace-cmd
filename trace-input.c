@@ -1870,6 +1870,37 @@ static int read_cpu_data(struct tracecmd_input *handle)
 
 }
 
+static int read_data_and_size(struct tracecmd_input *handle,
+				     char **data, unsigned long long *size)
+{
+	*size = read8(handle);
+	if (*size < 0)
+		return -1;
+	*data = malloc(*size + 1);
+	if (!*data)
+		return -1;
+	if (do_read_check(handle, *data, *size)) {
+		free(*data);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int read_and_parse_cmdlines(struct tracecmd_input *handle,
+							struct pevent *pevent)
+{
+	unsigned long long size;
+	char *cmdlines;
+
+	if (read_data_and_size(handle, &cmdlines, &size) < 0)
+		return -1;
+	cmdlines[size] = 0;
+	parse_cmdlines(pevent, cmdlines, size);
+	free(cmdlines);
+	return 0;
+}
+
 /**
  * tracecmd_init_data - prepare reading the data from trace.dat
  * @handle: input handle for the trace.dat file
@@ -1880,23 +1911,10 @@ static int read_cpu_data(struct tracecmd_input *handle)
 int tracecmd_init_data(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = handle->pevent;
-	unsigned long long size;
-	char *cmdlines;
 	int ret;
 
-	size = read8(handle);
-	if (size < 0)
+	if (read_and_parse_cmdlines(handle, pevent) < 0)
 		return -1;
-	cmdlines = malloc(size + 1);
-	if (!cmdlines)
-		return -1;
-	if (do_read_check(handle, cmdlines, size)) {
-		free(cmdlines);
-		return -1;
-	}
-	cmdlines[size] = 0;
-	parse_cmdlines(pevent, cmdlines, size);
-	free(cmdlines);
 
 	handle->cpus = read4(handle);
 	if (handle->cpus < 0)
