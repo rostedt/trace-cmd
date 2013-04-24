@@ -1067,6 +1067,9 @@ static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			goto out_free;
 	}
 
+	if (save_tracing_file_data(handle, "trace_clock") < 0)
+		goto out_free;
+
 	for (i = 0; i < cpus; i++) {
 		fprintf(stderr, "CPU%d data recorded at offset=0x%llx\n",
 			i, (unsigned long long) offsets[i]);

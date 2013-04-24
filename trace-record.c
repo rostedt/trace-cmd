@@ -1804,6 +1804,9 @@ static void record_data(char *date2ts, struct trace_seq *s)
 			tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
 					    s[i].len+1, s[i].buffer);
 
+		tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK,
+				    0, NULL);
+
 		if (buffers) {
 			buffer_options = malloc_or_die(sizeof(*buffer_options) * buffers);
 			i = 0;
