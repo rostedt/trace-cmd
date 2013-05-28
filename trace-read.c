@@ -104,9 +104,13 @@ static struct format_field *wakeup_success;
 static struct format_field *wakeup_new_task;
 static struct format_field *wakeup_new_success;
 static struct format_field *sched_task;
+static struct format_field *sched_prio;
 
 static unsigned long long total_wakeup_lat;
 static unsigned long wakeup_lat_count;
+
+static unsigned long long total_wakeup_rt_lat;
+static unsigned long wakeup_rt_lat_count;
 
 struct wakeup_info {
 	struct wakeup_info	*next;
@@ -489,6 +493,10 @@ static void init_wakeup(struct tracecmd_input *handle)
 	if (!sched_task)
 		goto fail;
 
+	sched_prio = pevent_find_field(event, "next_prio");
+	if (!sched_prio)
+		goto fail;
+
 
 	wakeup_new_id = -1;
 
@@ -551,7 +559,12 @@ static unsigned long long max_time;
 static unsigned long long min_lat = -1;
 static unsigned long long min_time;
 
-static void add_sched(unsigned int val, unsigned long long end)
+static unsigned long long max_rt_lat = 0;
+static unsigned long long max_rt_time;
+static unsigned long long min_rt_lat = -1;
+static unsigned long long min_rt_time;
+
+static void add_sched(unsigned int val, unsigned long long end, int rt)
 {
 	unsigned int key = calc_wakeup_key(val);
 	struct wakeup_info *info;
@@ -573,10 +586,26 @@ static void add_sched(unsigned int val, unsigned long long end)
 		min_time = end;
 	}
 
+	if (rt) {
+		if (cal > max_rt_lat) {
+			max_rt_lat = cal;
+			max_rt_time = end;
+		}
+		if (cal < min_rt_lat) {
+			min_rt_lat = cal;
+			min_rt_time = end;
+		}
+	}
+
 	printf(" Latency: %llu.%03llu usecs", cal / 1000, cal % 1000);
 
 	total_wakeup_lat += cal;
 	wakeup_lat_count++;
+
+	if (rt) {
+		total_wakeup_rt_lat += cal;
+		wakeup_rt_lat_count++;
+	}
 
 	next = &wakeup_hash[key];
 	while (*next) {
@@ -615,10 +644,34 @@ static void process_wakeup(struct pevent *pevent, struct pevent_record *record)
 			return;
 		add_wakeup(val, record->ts);
 	} else if (id == sched_id) {
+		int rt = 1;
+		if (pevent_read_number_field(sched_prio, record->data, &val))
+			return;
+		if (val > 99)
+			rt = 0;
 		if (pevent_read_number_field(sched_task, record->data, &val))
 			return;
-		add_sched(val, record->ts);
+		add_sched(val, record->ts, rt);
 	}
+}
+
+static void
+show_wakeup_timings(unsigned long long total, unsigned long count,
+		    unsigned long long lat_max, unsigned long long time_max,
+		    unsigned long long lat_min, unsigned long long time_min)
+{
+
+	total /= count;
+
+	printf("\nAverage wakeup latency: %llu.%03llu usecs\n",
+	       total / 1000,
+	       total % 1000);
+	printf("Maximum Latency: %llu.%03llu usecs at ", lat_max / 1000, lat_max % 1000);
+	printf("timestamp: %llu.%06llu\n",
+	       time_max / 1000000000, ((time_max + 500) % 1000000000) / 1000);
+	printf("Minimum Latency: %llu.%03llu usecs at ", lat_min / 1000, lat_min % 1000);
+	printf("timestamp: %llu.%06llu\n\n", time_min / 1000000000,
+	       ((time_min + 500) % 1000000000) / 1000);
 }
 
 static void finish_wakeup(void)
@@ -629,17 +682,17 @@ static void finish_wakeup(void)
 	if (!show_wakeup || !wakeup_lat_count)
 		return;
 
-	total_wakeup_lat /= wakeup_lat_count;
+	show_wakeup_timings(total_wakeup_lat, wakeup_lat_count,
+			    max_lat, max_time,
+			    min_lat, min_time);
 
-	printf("\nAverage wakeup latency: %llu.%03llu usecs\n",
-	       total_wakeup_lat / 1000,
-	       total_wakeup_lat % 1000);
-	printf("Maximum Latency: %llu.%03llu usecs at ", max_lat / 1000, max_lat % 1000);
-	printf("timestamp: %llu.%06llu\n",
-	       max_time / 1000000000, ((max_time + 500) % 1000000000) / 1000);
-	printf("Minimum Latency: %llu.%03llu usecs at ", min_lat / 1000, min_lat % 1000);
-	printf("timestamp: %llu.%06llu\n\n", min_time / 1000000000,
-	       ((min_time + 500) % 1000000000) / 1000);
+
+	if (wakeup_rt_lat_count) {
+		printf("RT task timings:\n");
+		show_wakeup_timings(total_wakeup_rt_lat, wakeup_rt_lat_count,
+				    max_rt_lat, max_rt_time,
+				    min_rt_lat, min_rt_time);
+	}
 
 	for (i = 0; i < WAKEUP_HASH_SIZE; i++) {
 		while (wakeup_hash[i]) {
