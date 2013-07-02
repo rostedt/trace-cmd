@@ -424,7 +424,7 @@ int main (int argc, char **argv)
 		if (!events && !tracer && !options && !plug && !plug_op && !funcs) {
 			printf("events:\n");
 			show_events();
-			printf("\tracers:\n");
+			printf("\ntracers:\n");
 			show_tracers();
 			printf("\noptions:\n");
 			show_options();
