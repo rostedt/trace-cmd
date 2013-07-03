@@ -218,8 +218,11 @@ INCLUDES = -I. $(CONFIG_INCLUDES)
 include features.mk
 
 # Set compile option CFLAGS if not set elsewhere
-CFLAGS ?= -g -Wall -D_GNU_SOURCE
+CFLAGS ?= -g -Wall
 LDFLAGS ?=
+
+# Required CFLAGS
+CFLAGS += -D_GNU_SOURCE
 
 ifndef NO_PTRACE
 ifneq ($(call try-cc,$(SOURCE_PTRACE),),y)
