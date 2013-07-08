@@ -18,10 +18,10 @@ an instance of a live trace but without stopping the trace.
   trace-cmd start -p function
   trace-cmd snapshot -s
   trace-cmd snapshot
-[ dumps the content of buffer at 'trace-cmd snapshot -s' ]
+ [ dumps the content of buffer at 'trace-cmd snapshot -s' ]
   trace-cmd snapshot -s
   trace-cmd snapshot
-[ dumps the new content of the buffer at the last -s operation ]
+ [ dumps the new content of the buffer at the last -s operation ]
 
 OPTIONS
 -------
