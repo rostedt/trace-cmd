@@ -46,7 +46,9 @@ endef
 # Most likely a docbook.xsl is already installed on the users system
 # instead of creating a new wheel, lets reuse what's already there.
 #
-MANPAGE_DOCBOOK_XSL ?=  $(shell find /usr -name docbook.xsl 2>/dev/null | grep manpages | head -1)
+FIND_MANPAGE_DOCBOOK_XSL :=  $(shell find /usr -name docbook.xsl 2>/dev/null | grep manpages | head -1)
+
+MANPAGE_DOCBOOK_XSL ?= ${FIND_MANPAGE_DOCBOOK_XSL}
 
 $(obj)/%.xsl: $(src)/%.txt
 	$(Q)mkdir -p $(obj)
