@@ -194,6 +194,15 @@ OPTIONS
     that buffer. A 'time' buffer instance is created and all timer events
     will be enabled for that event.
 
+*-m* 'size'::
+    The max size in kilobytes that a per cpu buffer should be. Note, due
+    to rounding to page size, the number may not be totally correct.
+    Also, this is performed by switching between two buffers that are half
+    the given size thus the output may not be of the given size even if
+    much more was written.
+
+    Use this to prevent running out of diskspace for long runs.
+
 *-k*::
     By default, when trace-cmd is finished tracing, it will reset the buffers
     and disable all the tracing that it enabled. This option keeps trace-cmd

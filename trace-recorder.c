@@ -37,30 +37,79 @@
 
 struct tracecmd_recorder {
 	int		fd;
+	int		fd1;
+	int		fd2;
 	int		trace_fd;
 	int		brass[2];
 	int		page_size;
 	int		cpu;
 	int		stop;
+	int		max;
+	int		pages;
+	int		count;
 	unsigned	flags;
 };
+
+static int append_file(int size, int dst, int src)
+{
+	char buf[size];
+	int r;
+
+	lseek64(src, 0, SEEK_SET);
+
+	/* If there's an error, then we are pretty much screwed :-p */
+	do {
+		r = read(src, buf, size);
+		if (r < 0)
+			return r;
+		r = write(dst, buf, r);
+		if (r < 0)
+			return r;
+	} while (r);
+	return 0;
+}
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 {
 	if (!recorder)
 		return;
 
+	if (recorder->max) {
+		/* Need to put everything into fd1 */
+		if (recorder->fd == recorder->fd1) {
+			int ret;
+			/*
+			 * Crap, the older data is in fd2, and we need
+			 * to append fd1 onto it, and then copy over to fd1
+			 */
+			ret = append_file(recorder->page_size,
+					  recorder->fd2, recorder->fd1);
+			/* Error on copying, then just keep fd1 */
+			if (ret) {
+				lseek64(recorder->fd1, 0, SEEK_END);
+				goto close;
+			}
+			lseek64(recorder->fd1, 0, SEEK_SET);
+			ftruncate(recorder->fd1, 0);
+		}
+		append_file(recorder->page_size, recorder->fd1, recorder->fd2);
+	}
+ close:
 	if (recorder->trace_fd >= 0)
 		close(recorder->trace_fd);
 
-	if (recorder->fd >= 0)
-		close(recorder->fd);
+	if (recorder->fd1 >= 0)
+		close(recorder->fd1);
+
+	if (recorder->fd2 >= 0)
+		close(recorder->fd2);
 
 	free(recorder);
 }
 
 struct tracecmd_recorder *
-tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *buffer)
+tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
+				    const char *buffer, int maxkb)
 {
 	struct tracecmd_recorder *recorder;
 	char *path = NULL;
@@ -79,8 +128,26 @@ tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *
 	recorder->brass[1] = -1;
 
 	recorder->page_size = getpagesize();
+	if (maxkb) {
+		int kb_per_page = recorder->page_size >> 10;
 
+		if (!kb_per_page)
+			kb_per_page = 1;
+		recorder->max = maxkb / kb_per_page;
+		/* keep max half */
+		recorder->max >>= 1;
+		if (!recorder->max)
+			recorder->max = 1;
+	} else
+		recorder->max = 0;
+
+	recorder->count = 0;
+	recorder->pages = 0;
+
+	/* fd always points to what to write to */
 	recorder->fd = fd;
+	recorder->fd1 = fd;
+	recorder->fd2 = fd2;
 
 	path = malloc_or_die(strlen(buffer) + 40);
 	if (!path)
@@ -112,6 +179,12 @@ tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *
 }
 
 struct tracecmd_recorder *
+tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *buffer)
+{
+	return tracecmd_create_buffer_recorder_fd2(fd, -1, cpu, flags, buffer, 0);
+}
+
+struct tracecmd_recorder *
 tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags, const char *buffer)
 {
 	struct tracecmd_recorder *recorder;
@@ -128,6 +201,51 @@ tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags, const
 	}
 
 	return recorder;
+}
+
+struct tracecmd_recorder *
+tracecmd_create_buffer_recorder_maxkb(const char *file, int cpu, unsigned flags,
+				      const char *buffer, int maxkb)
+{
+	struct tracecmd_recorder *recorder = NULL;
+	char *file2;
+	int len;
+	int fd;
+	int fd2;
+
+	if (!maxkb)
+		return tracecmd_create_buffer_recorder(file, cpu, flags, buffer);
+
+	len = strlen(file);
+	file2 = malloc(len + 3);
+	if (!file2)
+		return NULL;
+
+	sprintf(file2, "%s.1", file);
+
+	fd = open(file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+	if (fd < 0)
+		goto out;
+
+	fd2 = open(file2, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+	if (fd < 0)
+		goto err;
+
+	recorder = tracecmd_create_buffer_recorder_fd2(fd, fd2, cpu, flags, buffer, maxkb);
+	if (!recorder)
+		goto err2;
+ out:
+	/* Unlink file2, we need to add everything to file at the end */
+	unlink(file2);
+	free(file2);
+
+	return recorder;
+ err2:
+	close(fd2);
+ err:
+	close(fd);
+	unlink(file);
+	goto out;
 }
 
 struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags)
@@ -156,6 +274,54 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, un
 	return tracecmd_create_buffer_recorder(file, cpu, flags, tracing);
 }
 
+struct tracecmd_recorder *
+tracecmd_create_recorder_maxkb(const char *file, int cpu, unsigned flags, int maxkb)
+{
+	char *tracing;
+
+	tracing = tracecmd_find_tracing_dir();
+	if (!tracing) {
+		errno = ENODEV;
+		return NULL;
+	}
+
+	return tracecmd_create_buffer_recorder_maxkb(file, cpu, flags, tracing, maxkb);
+}
+
+static inline void update_fd(struct tracecmd_recorder *recorder, int size)
+{
+	int fd;
+
+	if (!recorder->max)
+		return;
+
+	recorder->count += size;
+
+	if (recorder->count >= recorder->page_size) {
+		recorder->count = 0;
+		recorder->pages++;
+	}
+
+	if (recorder->pages < recorder->max)
+		return;
+
+	recorder->pages = 0;
+
+	fd = recorder->fd;
+
+	/* Swap fd to next file. */
+	if (fd == recorder->fd1)
+		fd = recorder->fd2;
+	else
+		fd = recorder->fd1;
+
+	/* Zero out the new file we are writing to */
+	lseek64(fd, 0, SEEK_SET);
+	ftruncate(fd, 0);
+
+	recorder->fd = fd;
+}
+
 /*
  * Returns -1 on error.
  *          or bytes of data read.
@@ -181,7 +347,8 @@ static long splice_data(struct tracecmd_recorder *recorder)
 			return -1;
 		}
 		ret = 0;
-	}
+	} else
+		update_fd(recorder, ret);
 
 	return ret;
 }
@@ -203,8 +370,10 @@ static long read_data(struct tracecmd_recorder *recorder)
 		}
 		ret = 0;
 	}
-	if (ret > 0)
+	if (ret > 0) {
 		write(recorder->fd, buf, ret);
+		update_fd(recorder, ret);
+	}
 
 	return ret;
 }

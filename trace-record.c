@@ -84,6 +84,9 @@ static char *host;
 static int *client_ports;
 static int sfd;
 
+/* Max size to let a per cpu file get */
+static int max_kb;
+
 static int do_ptrace;
 
 static int filter_task;
@@ -1532,14 +1535,15 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 	char *path;
 
 	if (!name)
-		return tracecmd_create_recorder(file, cpu, recorder_flags);
+		return tracecmd_create_recorder_maxkb(file, cpu, recorder_flags, max_kb);
 
 	tmp = malloc_or_die(strlen(name) + strlen("instances/") + 1);
 	sprintf(tmp, "instances/%s", name);
 	path = tracecmd_get_tracing_file(tmp);
 	free(tmp);
 
-	record = tracecmd_create_buffer_recorder(file, cpu, recorder_flags, path);
+	record = tracecmd_create_buffer_recorder_maxkb(file, cpu, recorder_flags,
+						       path, max_kb);
 	tracecmd_put_tracing_file(path);
 
 	return record;
@@ -2343,7 +2347,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:B:ksiT";
+			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:B:ksiTm:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -2481,6 +2485,13 @@ void trace_record (int argc, char **argv)
 			if (output)
 				die("-N incompatible with -o");
 			host = optarg;
+			break;
+		case 'm':
+			if (max_kb)
+				die("-m can only be specified once");
+			if (!record)
+				die("only record take 'm' option");
+			max_kb = atoi(optarg);
 			break;
 		case 't':
 			use_tcp = 1;
