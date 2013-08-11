@@ -91,6 +91,7 @@ static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
 	_ER(TASK_SWITCH,	9)		\
 	_ER(CPUID,		10)		\
 	_ER(HLT,		12)		\
+	_ER(INVD,		13)		\
 	_ER(INVLPG,		14)		\
 	_ER(RDPMC,		15)		\
 	_ER(RDTSC,		16)		\
@@ -115,9 +116,15 @@ static const char *disassemble(unsigned char *insn, int len, uint64_t rip,
 	_ER(MCE_DURING_VMENTRY,	41)		\
 	_ER(TPR_BELOW_THRESHOLD,43)		\
 	_ER(APIC_ACCESS,	44)		\
+	_ER(EOI_INDUCED,	45)		\
 	_ER(EPT_VIOLATION,	48)		\
 	_ER(EPT_MISCONFIG,	49)		\
-	_ER(WBINVD,		54)
+	_ER(INVEPT,		50)		\
+	_ER(PREEMPTION_TIMER,	52)		\
+	_ER(WBINVD,		54)		\
+	_ER(XSETBV,		55)		\
+	_ER(APIC_WRITE,		56)		\
+	_ER(INVPCID,		58)
 
 #define SVM_EXIT_REASONS \
 	_ER(EXIT_READ_CR0,	0x000)		\
