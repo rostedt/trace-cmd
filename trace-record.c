@@ -1607,19 +1607,83 @@ static int create_recorder(struct buffer_instance *instance, int cpu, int extrac
 	exit(0);
 }
 
+static void communicate_with_listener(int fd)
+{
+	char buf[BUFSIZ];
+	ssize_t n;
+	int cpu, i;
+
+	n = read(fd, buf, 8);
+
+	/* Make sure the server is the tracecmd server */
+	if (memcmp(buf, "tracecmd", 8) != 0)
+		die("server not tracecmd server");
+
+	/* write the number of CPUs we have (in ASCII) */
+
+	sprintf(buf, "%d", cpu_count);
+
+	/* include \0 */
+	write(fd, buf, strlen(buf)+1);
+
+	/* write the pagesize (in ASCII) */
+	sprintf(buf, "%d", page_size);
+
+	/* include \0 */
+	write(fd, buf, strlen(buf)+1);
+
+	/*
+	 * If we are using IPV4 and our page size is greater than
+	 * or equal to 64K, we need to punt and use TCP. :-(
+	 */
+
+	/* TODO, test for ipv4 */
+	if (page_size >= UDP_MAX_PACKET) {
+		warning("page size too big for UDP using TCP in live read");
+		use_tcp = 1;
+	}
+
+	if (use_tcp) {
+		/* Send one option */
+		write(fd, "1", 2);
+		/* Size 4 */
+		write(fd, "4", 2);
+		/* use TCP */
+		write(fd, "TCP", 4);
+	} else
+		/* No options */
+		write(fd, "0", 2);
+
+	client_ports = malloc_or_die(sizeof(int) * cpu_count);
+
+	/*
+	 * Now we will receive back a comma deliminated list
+	 * of client ports to connect to.
+	 */
+	for (cpu = 0; cpu < cpu_count; cpu++) {
+		for (i = 0; i < BUFSIZ; i++) {
+			n = read(fd, buf+i, 1);
+			if (n != 1)
+				die("Error, reading server ports");
+			if (!buf[i] || buf[i] == ',')
+				break;
+		}
+		if (i == BUFSIZ)
+			die("read bad port number");
+		buf[i] = 0;
+		client_ports[cpu] = atoi(buf);
+	}
+}
+
 static void setup_network(void)
 {
 	struct tracecmd_output *handle;
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, s;
-	ssize_t n;
-	char buf[BUFSIZ];
 	char *server;
 	char *port;
 	char *p;
-	int cpu;
-	int i;
 
 	if (!strchr(host, ':')) {
 		server = strdup("localhost");
@@ -1659,66 +1723,7 @@ static void setup_network(void)
 
 	freeaddrinfo(result);
 
-	n = read(sfd, buf, 8);
-
-	/* Make sure the server is the tracecmd server */
-	if (memcmp(buf, "tracecmd", 8) != 0)
-		die("server not tracecmd server");
-
-	/* write the number of CPUs we have (in ASCII) */
-
-	sprintf(buf, "%d", cpu_count);
-
-	/* include \0 */
-	write(sfd, buf, strlen(buf)+1);
-
-	/* write the pagesize (in ASCII) */
-	sprintf(buf, "%d", page_size);
-
-	/* include \0 */
-	write(sfd, buf, strlen(buf)+1);
-
-	/*
-	 * If we are using IPV4 and our page size is greater than
-	 * or equal to 64K, we need to punt and use TCP. :-(
-	 */
-
-	/* TODO, test for ipv4 */
-	if (page_size >= UDP_MAX_PACKET) {
-		warning("page size too big for UDP using TCP in live read");
-		use_tcp = 1;
-	}
-
-	if (use_tcp) {
-		/* Send one option */
-		write(sfd, "1", 2);
-		/* Size 4 */
-		write(sfd, "4", 2);
-		/* use TCP */
-		write(sfd, "TCP", 4);
-	} else
-		/* No options */
-		write(sfd, "0", 2);
-
-	client_ports = malloc_or_die(sizeof(int) * cpu_count);
-
-	/*
-	 * Now we will receive back a comma deliminated list
-	 * of client ports to connect to.
-	 */
-	for (cpu = 0; cpu < cpu_count; cpu++) {
-		for (i = 0; i < BUFSIZ; i++) {
-			n = read(sfd, buf+i, 1);
-			if (n != 1)
-				die("Error, reading server ports");
-			if (!buf[i] || buf[i] == ',')
-				break;
-		}
-		if (i == BUFSIZ)
-			die("read bad port number");
-		buf[i] = 0;
-		client_ports[cpu] = atoi(buf);
-	}
+	communicate_with_listener(sfd);
 
 	/* Now create the handle through this socket */
 	handle = tracecmd_create_init_fd_glob(sfd, listed_events);
