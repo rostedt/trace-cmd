@@ -653,7 +653,6 @@ void trace_listen(int argc, char **argv)
 {
 	char *logfile = NULL;
 	char *port = NULL;
-	char *iface;
 	int daemon = 0;
 	int c;
 
@@ -672,7 +671,7 @@ void trace_listen(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hp:o:d:i:l:D",
+		c = getopt_long (argc-1, argv+1, "+hp:o:d:l:D",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -682,9 +681,6 @@ void trace_listen(int argc, char **argv)
 			break;
 		case 'p':
 			port = optarg;
-			break;
-		case 'i':
-			iface = optarg;
 			break;
 		case 'd':
 			output_dir = optarg;
