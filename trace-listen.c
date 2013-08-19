@@ -446,6 +446,7 @@ static void process_client(const char *node, const char *port, int fd)
 	for (cpu = 0; cpu < cpus; cpu++) {
 		if (pid_array[cpu] > 0) {
 			kill(pid_array[cpu], SIGKILL);
+			waitpid(pid_array[cpu], NULL, 0);
 			delete_temp_file(node, port, cpu);
 			pid_array[cpu] = 0;
 		}
