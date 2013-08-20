@@ -592,6 +592,14 @@ plugin_python.so: %.so: %.o
 
 endif # skip-makefile
 
+dist:
+	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \
+		> ../trace-cmd-$(TRACECMD_VERSION).tar
+	cat ../trace-cmd-$(TRACECMD_VERSION).tar | \
+		bzip2 -c9 > ../trace-cmd-$(TRACECMD_VERSION).tar.bz2
+	cat ../trace-cmd-$(TRACECMD_VERSION).tar | \
+		xz -e -c8 > ../trace-cmd-$(TRACECMD_VERSION).tar.xz
+
 PHONY += force
 force:
 
