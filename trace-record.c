@@ -2140,6 +2140,11 @@ static char *get_date_to_ts(void)
 
 	close(tfd);
 
+	if (min == -1ULL) {
+		warning("Failed to make date offset, --date ignored");
+		goto out_pevent;
+	}
+
 	/* 16 hex chars + 0x + \0 */
 	date2ts = malloc(19);
 	if (!date2ts)
