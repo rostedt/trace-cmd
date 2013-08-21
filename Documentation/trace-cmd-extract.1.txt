@@ -47,6 +47,11 @@ OPTIONS
 *-s*::
     Extract from the snapshot buffer (if the kernel supports it).
 
+*--date*::
+    This is the same as the trace-cmd-record(1) --date option, but it
+    does cause the extract routine to disable all tracing. That is,
+    the end of the extract will perform something similar to trace-cmd-reset(1).
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

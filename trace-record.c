@@ -2666,8 +2666,14 @@ void trace_record (int argc, char **argv)
 
 
 	/* extract records the date after extraction */
-	if (extract && date)
+	if (extract && date) {
+		/*
+		 * We need to start tracing, don't let other traces
+		 * screw with our trace_marker.
+		 */
+		disable_all(1);
 		date2ts = get_date_to_ts();
+	}
 
 	record_data(date2ts, s);
 	delete_thread_data();
