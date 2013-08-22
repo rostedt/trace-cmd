@@ -150,6 +150,7 @@ struct events {
 struct buffer_instance {
 	struct buffer_instance	*next;
 	const char		*name;
+	const char		*cpumask;
 	struct event_list	*events;
 	struct event_list	**event_next;
 
@@ -1205,6 +1206,62 @@ static void update_pid_event_filters(struct buffer_instance *instance)
 	update_sched_event(instance->sched_wakeup_new_event, "pid");
 
 	update_event_filters(instance);
+}
+
+static void set_mask(struct buffer_instance *instance)
+{
+	const char *mask = instance->cpumask;
+	struct stat st;
+	char cpumask[4096]; /* Don't expect more than 32768 CPUS */
+	char *path;
+	int fd;
+	int ret;
+
+	if (!mask)
+		return;
+
+	if (strcmp(mask, "-1") == 0) {
+		/* set all CPUs */
+		int bytes = (cpu_count + 7) / 8;
+		int last = cpu_count % 8;
+		int i;
+
+		if (bytes > 4095) {
+			warning("cpumask can't handle more than 32768 CPUS!");
+			bytes = 4095;
+		}
+
+		sprintf(cpumask, "%x", (1 << last) - 1);
+
+		for (i = 1; i < bytes; i++)
+			cpumask[i] = 'f';
+
+		cpumask[i+1] = 0;
+
+		mask = cpumask;
+	}
+
+	path = get_instance_file(instance, "tracing_cpumask");
+	if (!path)
+		die("could not allocate path");
+
+	ret = stat(path, &st);
+	if (ret < 0) {
+		if (mask)
+			warning("%s not found", path);
+		goto out;
+	}
+
+	fd = open(path, O_WRONLY | O_TRUNC);
+	if (fd < 0)
+		die("could not open %s\n", path);
+
+	if (mask)
+		write(fd, mask, strlen(mask));
+	
+	close(fd);
+ out:
+	tracecmd_put_tracing_file(path);
 }
 
 static void enable_events(struct buffer_instance *instance)
@@ -2357,7 +2414,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:B:ksiTm:";
+			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:B:ksiTm:M:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -2503,6 +2560,9 @@ void trace_record (int argc, char **argv)
 				die("only record take 'm' option");
 			max_kb = atoi(optarg);
 			break;
+		case 'M':
+			instance->cpumask = optarg;
+			break;
 		case 't':
 			use_tcp = 1;
 			break;
@@ -2581,6 +2641,10 @@ void trace_record (int argc, char **argv)
 			date2ts = get_date_to_ts();
 
 		set_funcs();
+
+		set_mask(&top_instance);
+		for_each_instance(instance)
+			set_mask(instance);
 
 		if (events) {
 			enable_events(&top_instance);

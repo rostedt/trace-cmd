@@ -203,6 +203,16 @@ OPTIONS
 
     Use this to prevent running out of diskspace for long runs.
 
+*-M* 'cpumask'::
+    Set the cpumask for to trace. It only affects the last buffer instance
+    given. If supplied before any buffer instance, then it affects the
+    main buffer. The value supplied must be a hex number.
+
+     trace-cmd record -p function -M c -B events13 -e all -M 5
+
+    If the -M is left out, then the mask stays the same. To enable all
+    CPUs, pass in a value of '-1'.
+
 *-k*::
     By default, when trace-cmd is finished tracing, it will reset the buffers
     and disable all the tracing that it enabled. This option keeps trace-cmd
