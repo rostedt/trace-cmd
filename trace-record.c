@@ -419,19 +419,27 @@ get_instance_file(struct buffer_instance *instance, const char *file)
 	return path;
 }
 
-static void clear_trace(void)
+static void __clear_trace(struct buffer_instance *instance)
 {
 	FILE *fp;
 	char *path;
 
 	/* reset the trace */
-	path = tracecmd_get_tracing_file("trace");
+	path = get_instance_file(instance, "trace");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
 	tracecmd_put_tracing_file(path);
 	fwrite("0", 1, 1, fp);
 	fclose(fp);
+}
+
+static void clear_trace(void)
+{
+	struct buffer_instance *instance;
+
+	for_each_instance(instance)
+		__clear_trace(instance);
 }
 
 static void reset_max_latency(void)
