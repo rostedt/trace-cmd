@@ -228,13 +228,12 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 #define START_PORT_SEARCH 1500
 #define MAX_PORT_SEARCH 6000
 
-static int open_udp(const char *node, const char *port, int *pid,
-		    int cpu, int pagesize, int start_port)
+static int udp_bind_a_port(int start_port, int *sfd)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
-	int sfd, s;
 	char buf[BUFSIZ];
+	int s;
 	int num_port = start_port;
 
  again:
@@ -250,15 +249,15 @@ static int open_udp(const char *node, const char *port, int *pid,
 		pdie("getaddrinfo: error opening udp socket");
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
-		sfd = socket(rp->ai_family, rp->ai_socktype,
-			     rp->ai_protocol);
-		if (sfd < 0)
+		*sfd = socket(rp->ai_family, rp->ai_socktype,
+			      rp->ai_protocol);
+		if (*sfd < 0)
 			continue;
 
-		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
+		if (bind(*sfd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;
 
-		close(sfd);
+		close(*sfd);
 	}
 
 	if (rp == NULL) {
@@ -270,6 +269,12 @@ static int open_udp(const char *node, const char *port, int *pid,
 
 	freeaddrinfo(result);
 
+	return num_port;
+}
+
+static void fork_udp_reader(int sfd, const char *node, const char *port,
+			    int *pid, int cpu, int pagesize)
+{
 	*pid = fork();
 
 	if (*pid < 0)
@@ -279,6 +284,23 @@ static int open_udp(const char *node, const char *port, int *pid,
 		process_udp_child(sfd, node, port, cpu, pagesize);
 
 	close(sfd);
+}
+
+static int open_udp(const char *node, const char *port, int *pid,
+		    int cpu, int pagesize, int start_port)
+{
+	int sfd;
+	int num_port;
+
+	/*
+	 * udp_bind_a_port() currently does not return an error, but if that
+	 * changes in the future, we have a check for it now.
+	 */
+	num_port = udp_bind_a_port(start_port, &sfd);
+	if (num_port < 0)
+		return num_port;
+
+	fork_udp_reader(sfd, node, port, pid, cpu, pagesize);
 
 	return num_port;
 }
