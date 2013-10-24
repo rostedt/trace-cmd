@@ -28,6 +28,7 @@
 #include <gtk/gtk.h>
 #include <errno.h>
 #include <getopt.h>
+#include <libgen.h>
 
 #include "trace-compat.h"
 #include "trace-capture.h"
