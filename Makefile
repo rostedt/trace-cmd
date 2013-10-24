@@ -569,13 +569,13 @@ PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
 ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
 	swig -Wall -python -noproxy ctracecmd.i
-	$(CC) -fpic -c $(PYTHON_INCLUDES)  ctracecmd_wrap.c
-	$(CC) --shared $(TCMD_LIB_OBJS) ctracecmd_wrap.o -o ctracecmd.so
+	$(CC) -fpic -c $(CFLAGS) $(PYTHON_INCLUDES)  ctracecmd_wrap.c
+	$(CC) --shared $(TCMD_LIB_OBJS) $(LDFLAGS) ctracecmd_wrap.o -o ctracecmd.so
 
 ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	swig -Wall -python -noproxy ctracecmdgui.i
 	$(CC) -fpic -c  $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
-	$(CC) --shared $^ $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
+	$(CC) --shared $^ $(LDFLAGS) $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
 
 PHONY += python
 python: $(PYTHON)
@@ -594,7 +594,7 @@ do_compile_python_plugin_obj =			\
 
 do_python_plugin_build =			\
 	($(print_plugin_build)			\
-	$(CC) $< -shared $(PYTHON_LDFLAGS) -o $@)
+	$(CC) $< -shared $(LDFLAGS) $(PYTHON_LDFLAGS) -o $@)
 
 plugin_python.o: %.o : $(src)/%.c trace_python_dir
 	$(Q)$(do_compile_python_plugin_obj)
