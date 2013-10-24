@@ -86,7 +86,8 @@ ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
 	PYTHON_SO_INSTALL := ctracecmd.install
-	PYTHON_PY_INSTALL := event-viewer.install tracecmd.install tracecmdgui.install
+	PYTHON_PY_PROGS := event-viewer.install
+	PYTHON_PY_LIBS := tracecmd.install tracecmdgui.install
 endif
 endif # NO_PYTHON
 
@@ -506,21 +507,32 @@ define do_install
 	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
 endef
 
+define do_install_data
+	$(print_install)				\
+	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
+	fi;						\
+	$(INSTALL) -m 644 $1 '$(DESTDIR_SQ)$2'
+endef
+
 $(PLUGINS_INSTALL): %.install : %.so force
-	$(Q)$(call do_install,$<,$(plugin_dir_SQ))
+	$(Q)$(call do_install_data,$<,$(plugin_dir_SQ))
 
 install_plugins: $(PLUGINS_INSTALL)
 
 $(PYTHON_SO_INSTALL): %.install : %.so force
+	$(Q)$(call do_install_data,$<,$(python_dir_SQ))
+
+$(PYTHON_PY_PROGS): %.install : %.py force
 	$(Q)$(call do_install,$<,$(python_dir_SQ))
 
-$(PYTHON_PY_INSTALL): %.install : %.py force
-	$(Q)$(call do_install,$<,$(python_dir_SQ))
+$(PYTHON_PY_LIBS): %.install : %.py force
+	$(Q)$(call do_install_data,$<,$(python_dir_SQ))
 
 $(PYTHON_PY_PLUGINS): %.install : %.py force
-	$(Q)$(call do_install,$<,$(plugin_dir_SQ))
+	$(Q)$(call do_install_data,$<,$(plugin_dir_SQ))
 
-install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_INSTALL) $(PYTHON_PY_PLUGINS)
+install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_PROGS) $(PYTHON_PY_LIBS) $(PYTHON_PY_PLUGINS)
 
 install_cmd: all_cmd install_plugins install_python
 	$(Q)$(call do_install,trace-cmd,$(bindir_SQ))

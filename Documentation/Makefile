@@ -73,21 +73,22 @@ all: $(MAN1) $(MAN5)
 
 # Need to find out how to export a macro instead of
 # copying this from the main Makefile.
-define do_install
+define do_install_data
 	$(print_install)				\
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
 	fi;						\
-	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
+	$(INSTALL) -m 644 $1 '$(DESTDIR_SQ)$2'
 endef
+
 
 MAN1_INSTALL = $(MAN1:%.1=%.1.install)
 MAN5_INSTALL = $(MAN5:%.5=%.5.install)
 
 $(MAN1_INSTALL): %.1.install : %.1 force
-	$(Q)$(call do_install,$<,$(man_dir_SQ)/man1)
+	$(Q)$(call do_install_data,$<,$(man_dir_SQ)/man1)
 $(MAN5_INSTALL): %.5.install : %.5 force
-	$(Q)$(call do_install,$<,$(man_dir_SQ)/man5)
+	$(Q)$(call do_install_data,$<,$(man_dir_SQ)/man5)
 
 html_dir = $(src)/HTML
 image_dir = $(html_dir)/images
@@ -99,10 +100,10 @@ HTML_INSTALL = $(subst .html,.html.install,$(HTML))
 IMGS_INSTALL = $(subst .png,.png.install,$(IMGS))
 
 $(HTML_INSTALL): %.html.install : %.html force
-	$(Q)$(call do_install,$<,'$(html_install_SQ)')
+	$(Q)$(call do_install_data,$<,'$(html_install_SQ)')
 
 $(IMGS_INSTALL): %.png.install : %.png force
-	$(Q)$(call do_install,$<,'$(img_install_SQ)')
+	$(Q)$(call do_install_data,$<,'$(img_install_SQ)')
 
 
 GUI_INSTALL = $(HTML_INSTALL) $(IMGS_INSTALL)
