@@ -81,8 +81,10 @@ ifndef NO_PYTHON
 PYTHON		:= ctracecmd.so
 PYTHON_GUI	:= ctracecmd.so ctracecmdgui.so
 
+PYTHON_VERS ?= python
+
 # Can build python?
-ifeq ($(shell sh -c "python-config --includes > /dev/null 2>&1 && echo y"), y)
+ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
 	PYTHON_SO_INSTALL := ctracecmd.install
@@ -562,8 +564,8 @@ clean:
 
 ##### PYTHON STUFF #####
 
-PYTHON_INCLUDES = `python-config --includes`
-PYTHON_LDFLAGS = `python-config --ldflags` \
+PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_VERS)`
+PYTHON_LDFLAGS = `pkg-config --libs $(PYTHON_VERS)` \
 		$(shell python -c "import distutils.sysconfig; print distutils.sysconfig.get_config_var('LINKFORSHARED')")
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
