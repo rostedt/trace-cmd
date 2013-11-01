@@ -223,7 +223,7 @@ CFLAGS ?= -g -Wall
 LDFLAGS ?=
 
 # Required CFLAGS
-CFLAGS += -D_GNU_SOURCE
+override CFLAGS += -D_GNU_SOURCE
 
 ifndef NO_PTRACE
 ifneq ($(call try-cc,$(SOURCE_PTRACE),),y)
