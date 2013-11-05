@@ -2858,7 +2858,7 @@ static unsigned long long find_time_stamp(struct pevent *pevent)
 			continue;
 
 		sprintf(file, "%s/%s/trace_pipe_raw", path, name);
-		fd = open(file, O_RDONLY);
+		fd = open(file, O_RDONLY | O_NONBLOCK);
 		if (fd < 0)
 			continue;
 		do {
