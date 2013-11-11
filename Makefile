@@ -328,6 +328,7 @@ PLUGIN_OBJS += plugin_jbd2.o
 PLUGIN_OBJS += plugin_function.o
 PLUGIN_OBJS += plugin_kvm.o
 PLUGIN_OBJS += plugin_blk.o
+PLUGIN_OBJS += plugin_cfg80211.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
