@@ -329,6 +329,7 @@ PLUGIN_OBJS += plugin_mac80211.o
 PLUGIN_OBJS += plugin_sched_switch.o
 PLUGIN_OBJS += plugin_function.o
 PLUGIN_OBJS += plugin_xen.o
+PLUGIN_OBJS += plugin_scsi.o
 PLUGIN_OBJS += plugin_cfg80211.o
 PLUGIN_OBJS += plugin_blk.o
 
