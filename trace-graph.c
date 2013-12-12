@@ -2132,7 +2132,7 @@ void trace_graph_adv_filter_callback(gboolean accept,
 {
 	struct graph_info *ginfo = data;
 	struct event_filter *event_filter;
-	char *error_str;
+	char error_str[200];
 	int ret;
 	int i;
 
@@ -2156,10 +2156,11 @@ void trace_graph_adv_filter_callback(gboolean accept,
 		pevent_filter_clear_trivial(event_filter,
 					    FILTER_TRIVIAL_BOTH);
 
-		ret = pevent_filter_add_filter_str(event_filter, text, &error_str);
+		ret = pevent_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
+			pevent_strerror(event_filter->pevent, ret,
+					error_str, sizeof(error_str));
 			warning("filter failed due to: %s", error_str);
-			free(error_str);
 			return;
 		}
 	}

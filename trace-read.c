@@ -471,7 +471,7 @@ static void process_filters(struct handle_list *handles)
 	struct filter *event_filter;
 	struct filter_str *filter;
 	struct pevent *pevent;
-	char *errstr;
+	char errstr[200];
 	int ret;
 
 	pevent = tracecmd_get_pevent(handles->handle);
@@ -489,13 +489,13 @@ static void process_filters(struct handle_list *handles)
 			die("malloc");
 
 		ret = pevent_filter_add_filter_str(event_filter->filter,
-						   filter->filter,
-						   &errstr);
-		if (ret < 0)
+						   filter->filter);
+		if (ret < 0) {
+			pevent_strerror(pevent, ret, errstr, sizeof(errstr));
 			die("Error filtering: %s\n%s",
 			    filter->filter, errstr);
+		}
 
-		free(errstr);
 		free(filter);
 
 		if (filter->neg) {

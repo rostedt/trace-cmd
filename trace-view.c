@@ -457,7 +457,7 @@ void trace_view_adv_filter_callback(gboolean accept,
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
-	char *error_str;
+	char error_str[200];
 	int ret;
 	int i;
 
@@ -484,10 +484,11 @@ void trace_view_adv_filter_callback(gboolean accept,
 
 		trace_view_store_clear_all_events_enabled(store);
 
-		ret = pevent_filter_add_filter_str(event_filter, text, &error_str);
+		ret = pevent_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
+			pevent_strerror(event_filter->pevent, ret,
+					error_str, sizeof(error_str));
 			warning("filter failed due to: %s", error_str);
-			free(error_str);
 			return;
 		}
 	}

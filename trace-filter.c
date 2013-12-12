@@ -2013,7 +2013,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 	if (systems) {
 		for (i = 0; systems[i]; i++)
 			pevent_filter_add_filter_str(filter,
-						     systems[i], NULL);
+						     systems[i]);
 	}
 
 	if (events) {
@@ -2021,8 +2021,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 			event = pevent_find_event(filter->pevent, events[i]);
 			if (event)
 				pevent_filter_add_filter_str(filter,
-							     event->name,
-							     NULL);
+							     event->name);
 		}
 	}
 
@@ -2114,7 +2113,7 @@ int trace_filter_load_events(struct event_filter *event_filter,
 		if (strcmp(name, "System") == 0) {
 			system = tracecmd_xml_node_value(handle, node);
 			pevent_filter_add_filter_str(event_filter,
-						     system, NULL);
+						     system);
 		} else if (strcmp(name, "Event") == 0) {
 			system = NULL;
 			event = NULL;
@@ -2161,7 +2160,7 @@ int trace_filter_load_events(struct event_filter *event_filter,
 					}
 				}
 				pevent_filter_add_filter_str(event_filter,
-							     buffer, NULL);
+							     buffer);
 				free(buffer);
 			}
 		}
