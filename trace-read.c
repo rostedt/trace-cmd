@@ -358,25 +358,33 @@ static void add_pid_filter(const char *arg)
 	}
 }
 
-static char *append_pid_filter(char *curr_filter, const char *events,
-			       const char *field, char *pid)
+static char *append_pid_filter(char *curr_filter, char *pid)
 {
 	char *filter;
 	int len;
 
-	len = strlen("(!=)&&") + strlen(field) + strlen(pid);
-	if (!curr_filter) {
-		/* No need for +1 as we don't use the "||" */
-		filter = malloc_or_die(len);
-		sprintf(filter, "%s:(%s==%s)", events, field, pid);
-	} else {
-		int indx = strlen(curr_filter);
+#define FILTER_FMT "(common_pid==" __STR ")||(pid==" __STR ")||(next_pid==" __STR ")"
 
-		len += indx;
-		filter = realloc(curr_filter, len + indx + 1);
+#undef __STR
+#define __STR ""
+
+	/* strlen(".*:") > strlen("||") */
+	len = strlen(".*:" FILTER_FMT) + strlen(pid) * 3 + 1;
+
+#undef __STR
+#define __STR "%s"
+
+	if (!curr_filter) {
+		filter = malloc_or_die(len);
+		sprintf(filter, ".*:" FILTER_FMT, pid, pid, pid);
+	} else {
+
+		len += strlen(curr_filter);
+
+		filter = realloc(curr_filter, len);
 		if (!filter)
 			die("realloc");
-		sprintf(filter, "%s||(%s==%s)", curr_filter, field, pid);
+		sprintf(filter, "%s||" FILTER_FMT, curr_filter, pid, pid, pid);
 	}
 
 	return filter;
@@ -385,27 +393,17 @@ static char *append_pid_filter(char *curr_filter, const char *events,
 static void make_pid_filter(void)
 {
 	struct pid_list *list;
-	char *common_str = NULL;
-	char *sched_switch_str = NULL;
-	char *sched_wakeup_str = NULL;
+	char *str = NULL;
 
 	if (!pid_list)
 		return;
 
 	/* First do all common pids */
 	for (list = pid_list; list; list = list->next) {
-		common_str = append_pid_filter(common_str, ".*",
-					       "common_pid", list->pid);
-		sched_switch_str = append_pid_filter(sched_switch_str, "sched_switch",
-						     "next_pid", list->pid);
-		sched_wakeup_str = append_pid_filter(sched_wakeup_str, "sched_wakeup.*",
-						     "pid", list->pid);
+		str = append_pid_filter(str, list->pid);
 	}
 
-	/* Add it as a negative filters */
-	add_filter(common_str, 1);
-	add_filter(sched_switch_str, 1);
-	add_filter(sched_wakeup_str, 1);
+	add_filter(str, 0);
 
 	while (pid_list) {
 		list = pid_list;
