@@ -222,6 +222,7 @@ include features.mk
 
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -Wall
+CPPFLAGS ?=
 LDFLAGS ?=
 
 # Required CFLAGS
@@ -265,7 +266,7 @@ endif
 
 do_fpic_compile =					\
 	($(print_fpic_compile)				\
-	$(CC) -c $(CFLAGS) $(EXT) -fPIC $< -o $@)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(EXT) -fPIC $< -o $@)
 
 do_app_build =						\
 	($(print_app_build)				\
@@ -277,7 +278,7 @@ do_compile_shared_library =			\
 
 do_compile_plugin_obj =				\
 	($(print_plugin_obj_compile)		\
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $<)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -fPIC -o $@ $<)
 
 do_plugin_build =				\
 	($(print_plugin_build)			\
@@ -293,7 +294,7 @@ define check_gui
 		$(REBUILD_GUI);							\
 	else									\
 		$(print_compile)						\
-		$(CC) -c $(CFLAGS) $(EXT) $< -o $(obj)/$@;			\
+		$(CC) -c $(CPPFLAGS) $(CFLAGS) $(EXT) $< -o $(obj)/$@;		\
 	fi;
 endef
 
@@ -458,10 +459,10 @@ define check_gui_deps
 		if [ $(BUILDGUI) -ne 1 ]; then			\
 			$(REBUILD_GUI);				\
 		else						\
-			$(CC) -M $(CFLAGS) $< > $@;		\
+			$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@;	\
 		fi						\
 	elif [ $(BUILDGUI) -eq 0 ]; then			\
-		$(CC) -M $(CFLAGS) $< > $@;			\
+		$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@;		\
 	else							\
 		echo SKIPPING $@;				\
 	fi;
@@ -578,12 +579,12 @@ PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
 ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
 	swig -Wall -python -noproxy ctracecmd.i
-	$(CC) -fpic -c $(CFLAGS) $(PYTHON_INCLUDES)  ctracecmd_wrap.c
+	$(CC) -fpic -c $(CPPFLAGS) $(CFLAGS) $(PYTHON_INCLUDES)  ctracecmd_wrap.c
 	$(CC) --shared $(TCMD_LIB_OBJS) $(LDFLAGS) ctracecmd_wrap.o -o ctracecmd.so
 
 ctracecmdgui.so: $(TRACE_VIEW_OBJS) $(LIB_FILE)
 	swig -Wall -python -noproxy ctracecmdgui.i
-	$(CC) -fpic -c  $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
+	$(CC) -fpic -c  $(CPPFLAGS) $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
 	$(CC) --shared $^ $(LDFLAGS) $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
 
 PHONY += python
@@ -599,7 +600,7 @@ CFLAGS_plugin_python.o += $(PYTHON_DIR_SQ)
 
 do_compile_python_plugin_obj =			\
 	($(print_plugin_obj_compile)		\
-	$(CC) -c $(CFLAGS) $(CFLAGS_$@) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$@) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
 
 do_python_plugin_build =			\
 	($(print_plugin_build)			\
