@@ -438,6 +438,8 @@ static void clear_trace(void)
 {
 	struct buffer_instance *instance;
 
+	__clear_trace(&top_instance);
+
 	for_each_instance(instance)
 		__clear_trace(instance);
 }
