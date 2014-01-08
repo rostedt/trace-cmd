@@ -218,7 +218,7 @@ KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 INCLUDES = -I. $(CONFIG_INCLUDES)
 
-include features.mk
+include $(src)/features.mk
 
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -Wall
