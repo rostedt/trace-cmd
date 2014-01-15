@@ -31,6 +31,7 @@ static struct usage_help usage_help[] = {
 		"          -g set graph function\n"
 		"          -n do not trace function\n"
 		"          -m max size per CPU in kilobytes\n"
+		"          -M set CPU mask to trace\n"
 		"          -v will negate all -e after it (disable those events)\n"
 		"          -d disable function tracer when running\n"
 		"          -D Full disable of function tracing (for all users)\n"
