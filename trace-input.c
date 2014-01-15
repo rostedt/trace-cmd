@@ -1947,8 +1947,17 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		return ret;
 
 	if (handle->use_trace_clock) {
-		if (read_and_parse_trace_clock(handle, pevent) < 0)
-			return -1;
+		/*
+		 * There was a bug in the original setting of
+		 * the trace_clock file which let it get
+		 * corrupted. If it fails to read, force local
+		 * clock.
+		 */
+		if (read_and_parse_trace_clock(handle, pevent) < 0) {
+			char clock[] = "[local]";
+			warning("File has trace_clock bug, using local clock");
+			parse_trace_clock(pevent, clock, 8);
+		}
 	}
 
 	tracecmd_blk_hack(handle);
