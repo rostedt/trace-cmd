@@ -1045,6 +1045,28 @@ static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
 
 	/* hold any extra data for data */
 	offset += cpus * (16);
+
+	/*
+	 * Unfortunately, the trace_clock data was placed after the
+	 * cpu data, and wasn't accounted for with the offsets.
+	 * We need to save room for the trace_clock file. This means
+	 * we need to find the size of it before we define the final
+	 * offsets.
+	 */
+	file = get_tracing_file(handle, "trace_clock");
+	if (!file)
+		goto out_free;
+
+	/* Save room for storing the size */
+	offset += 8;
+
+	ret = stat(file, &st);
+	if (ret >= 0)
+		offset += get_size(file);
+
+	put_tracing_file(file);
+
+	/* Page align offset */
 	offset = (offset + (handle->page_size - 1)) & ~(handle->page_size - 1);
 
 	for (i = 0; i < cpus; i++) {
