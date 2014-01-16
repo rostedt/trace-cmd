@@ -86,3 +86,13 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 
 	return 0;
 }
+
+void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+{
+	pevent_unregister_event_handler(pevent, -1,
+					"timer", "hrtimer_expire_entry",
+					timer_expire_handler, NULL);
+
+	pevent_unregister_event_handler(pevent, -1, "timer", "hrtimer_start",
+					timer_start_handler, NULL);
+}
