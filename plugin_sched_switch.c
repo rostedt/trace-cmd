@@ -145,3 +145,15 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 
 	return 0;
 }
+
+void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+{
+	pevent_unregister_event_handler(pevent, -1, "sched", "sched_switch",
+					sched_switch_handler, NULL);
+
+	pevent_unregister_event_handler(pevent, -1, "sched", "sched_wakeup",
+					sched_wakeup_handler, NULL);
+
+	pevent_unregister_event_handler(pevent, -1, "sched", "sched_wakeup_new",
+					sched_wakeup_handler, NULL);
+}
