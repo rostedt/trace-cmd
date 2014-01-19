@@ -384,7 +384,7 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 		filter = realloc(curr_filter, len);
 		if (!filter)
 			die("realloc");
-		sprintf(filter, "%s||" FILTER_FMT, curr_filter, pid, pid, pid);
+		sprintf(filter, "%s||" FILTER_FMT, filter, pid, pid, pid);
 	}
 
 	return filter;
