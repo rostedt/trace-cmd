@@ -80,6 +80,8 @@ struct pid_list {
 	int			free;
 } *pid_list;
 
+struct pid_list *comm_list;
+
 static unsigned int page_size;
 static int input_fd;
 static const char *default_input_file = "trace.dat";
@@ -334,7 +336,7 @@ static void add_filter(const char *filter, int neg)
 	filter_next = &ftr->next;
 }
 
-static void add_pid_filter(const char *arg)
+static void __add_filter(struct pid_list **head, const char *arg)
 {
 	struct pid_list *list;
 	char *pids = strdup(arg);
@@ -350,12 +352,22 @@ static void add_pid_filter(const char *arg)
 		list = malloc_or_die(sizeof(*list));
 		list->pid = pid;
 		list->free = free;
-		list->next = pid_list;
-		pid_list = list;
+		list->next = *head;
+		*head = list;
 		/* The first pid needs to be freed */
 		free = 0;
 		pid = strtok_r(NULL, ",", &sav);
 	}
+}
+
+static void add_comm_filter(const char *arg)
+{
+	__add_filter(&comm_list, arg);
+}
+
+static void add_pid_filter(const char *arg)
+{
+	__add_filter(&pid_list, arg);
 }
 
 static char *append_pid_filter(char *curr_filter, char *pid)
@@ -390,10 +402,48 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 	return filter;
 }
 
-static void make_pid_filter(void)
+static void convert_comm_filter(struct tracecmd_input *handle)
+{
+	struct pevent *pevent;
+	struct pid_list *list;
+	struct cmdline *cmdline;
+	char pidstr[100];
+
+	if (!comm_list)
+		return;
+
+	pevent = tracecmd_get_pevent(handle);
+
+	/* Seach for comm names and get their pids */
+	for (list = comm_list; list; list = list->next) {
+		cmdline = pevent_data_pid_from_comm(pevent, list->pid, NULL);
+		if (!cmdline) {
+			warning("comm: %s not in cmdline list", list->pid);
+			continue;
+		}
+		do {
+			sprintf(pidstr, "%d", pevent_cmdline_pid(pevent, cmdline));
+			add_pid_filter(pidstr);
+			cmdline = pevent_data_pid_from_comm(pevent, list->pid,
+							    cmdline);
+		} while (cmdline);
+	}
+
+	while (comm_list) {
+		list = comm_list;
+		comm_list = comm_list->next;
+		if (list->free)
+			free(list->pid);
+		free(list);
+	}
+}
+
+static void make_pid_filter(struct tracecmd_input *handle)
 {
 	struct pid_list *list;
 	char *str = NULL;
+
+	convert_comm_filter(handle);
 
 	if (!pid_list)
 		return;
@@ -426,7 +476,7 @@ static void process_filters(struct handle_list *handles)
 
 	pevent = tracecmd_get_pevent(handles->handle);
 
-	make_pid_filter();
+	make_pid_filter(handles->handle);
 
 	while (filter_strings) {
 		filter = filter_strings;
@@ -1108,6 +1158,7 @@ static void set_event_flags(struct pevent *pevent, struct event_str *list,
 }
 
 enum {
+	OPT_comm	= 247,
 	OPT_boundary	= 248,
 	OPT_stat	= 249,
 	OPT_pid		= 250,
@@ -1165,6 +1216,7 @@ void trace_report (int argc, char **argv)
 			{"filter-test", no_argument, NULL, 'T'},
 			{"kallsyms", required_argument, NULL, OPT_kallsyms},
 			{"pid", required_argument, NULL, OPT_pid},
+			{"comm", required_argument, NULL, OPT_comm},
 			{"check-events", no_argument, NULL,
 				OPT_check_event_parsing},
 			{"nodate", no_argument, NULL, OPT_nodate},
@@ -1267,6 +1319,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_pid:
 			add_pid_filter(optarg);
+			break;
+		case OPT_comm:
+			add_comm_filter(optarg);
 			break;
 		case OPT_check_event_parsing:
 			check_event_parsing = 1;
