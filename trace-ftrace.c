@@ -32,11 +32,18 @@ struct plugin_option trace_ftrace_options[] = {
 		"Print function name at function exit in function graph",
 	},
 	{
+		.name = "depth",
+		.plugin_alias = "fgraph",
+		.description =
+		"Show the depth of each entry",
+	},
+	{
 		.name = NULL,
 	}
 };
 
 static struct plugin_option *fgraph_tail = &trace_ftrace_options[0];
+static struct plugin_option *fgraph_depth = &trace_ftrace_options[1];
 
 static void find_long_size(struct tracecmd_ftrace *finfo)
 {
@@ -196,6 +203,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	unsigned long long duration, depth;
 	unsigned long long val;
 	const char *func;
+	int ret;
 	int i;
 
 	if (pevent_get_field_val(s, finfo->fgraph_ret_event, "rettime", ret_rec, &rettime, 1))
@@ -224,9 +232,14 @@ print_graph_entry_leaf(struct trace_seq *s,
 	func = pevent_find_function(pevent, val);
 
 	if (func)
-		return trace_seq_printf(s, "%s();", func);
+		ret = trace_seq_printf(s, "%s();", func);
 	else
-		return trace_seq_printf(s, "%llx();", val);
+		ret = trace_seq_printf(s, "%llx();", val);
+
+	if (ret && fgraph_depth->set)
+		ret = trace_seq_printf(s, " (%lld)", depth);
+
+	return ret;
 }
 
 static int print_graph_nested(struct trace_seq *s,
@@ -237,6 +250,7 @@ static int print_graph_nested(struct trace_seq *s,
 	unsigned long long depth;
 	unsigned long long val;
 	const char *func;
+	int ret;
 	int i;
 
 	/* No overhead */
@@ -258,9 +272,14 @@ static int print_graph_nested(struct trace_seq *s,
 	func = pevent_find_function(pevent, val);
 
 	if (func)
-		return trace_seq_printf(s, "%s() {", func);
+		ret = trace_seq_printf(s, "%s() {", func);
 	else
-		return trace_seq_printf(s, "%llx() {", val);
+		ret = trace_seq_printf(s, "%llx() {", val);
+
+	if (ret && fgraph_depth->set)
+		ret = trace_seq_printf(s, " (%lld)", depth);
+
+	return ret;
 }
 
 static int
@@ -341,6 +360,9 @@ fgraph_ret_handler(struct trace_seq *s, struct pevent_record *record,
 			return 0;
 		trace_seq_printf(s, " /* %s */", func);
 	}
+
+	if (fgraph_depth->set)
+		trace_seq_printf(s, " (%lld)", depth);
 
 	return 0;
 }

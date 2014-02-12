@@ -131,7 +131,7 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 
 	parent = pevent_find_function(pevent, pfunction);
 
-	if (ftrace_indent->set)
+	if (parent && ftrace_indent->set)
 		index = get_index(parent, func, record->cpu);
 
 	for (i = 0; i < index; i++)
