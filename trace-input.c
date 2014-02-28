@@ -1870,9 +1870,9 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	for ( ; cpu >= 0; cpu--) {
 		free_page(handle, cpu);
 		kbuffer_free(handle->cpu_data[cpu].kbuf);
+		handle->cpu_data[cpu].kbuf = NULL;
 	}
 	return -1;
-
 }
 
 static int read_data_and_size(struct tracecmd_input *handle,
@@ -2209,7 +2209,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 		/* The tracecmd_peek_data may have cached a record */
 		free_next(handle, cpu);
 		free_page(handle, cpu);
-		if (handle->cpu_data) {
+		if (handle->cpu_data && handle->cpu_data[cpu].kbuf) {
 			kbuffer_free(handle->cpu_data[cpu].kbuf);
 
 			if (!list_empty(&handle->cpu_data[cpu].pages))
