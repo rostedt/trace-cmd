@@ -4559,7 +4559,7 @@ int pevent_cmdline_pid(struct pevent *pevent, struct cmdline *cmdline)
 	 * If cmdlines have not been created yet, or cmdline is
 	 * not part of the array, then treat it as a cmdlist instead.
 	 */
-	if (!pevent->cmdlines || 
+	if (!pevent->cmdlines ||
 	    cmdline < pevent->cmdlines ||
 	    cmdline >= pevent->cmdlines + pevent->cmdline_count)
 		return cmdlist->pid;
