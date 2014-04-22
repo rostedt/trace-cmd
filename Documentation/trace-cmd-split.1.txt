@@ -78,6 +78,13 @@ OPTIONS
 
     This will create a file that has 10 pages per each CPU from the input.
 
+*-C* 'cpu'::
+    This option will split for a single CPU. Only the cpu named will be extracted
+    from the file.
+
+    trace-cmd split -C 1
+
+    This will split out all the events for cpu 1 in the file.
 
 SEE ALSO
 --------
