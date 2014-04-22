@@ -83,6 +83,7 @@ static int buffers;
 static char *host;
 static int *client_ports;
 static int sfd;
+static struct tracecmd_output *network_handle;
 
 /* Max size to let a per cpu file get */
 static int max_kb;
@@ -1744,7 +1745,6 @@ static void communicate_with_listener(int fd)
 
 static void setup_network(void)
 {
-	struct tracecmd_output *handle;
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, s;
@@ -1793,7 +1793,7 @@ static void setup_network(void)
 	communicate_with_listener(sfd);
 
 	/* Now create the handle through this socket */
-	handle = tracecmd_create_init_fd_glob(sfd, listed_events);
+	network_handle = tracecmd_create_init_fd_glob(sfd, listed_events);
 
 	/* OK, we are all set, let'r rip! */
 }
@@ -2770,6 +2770,9 @@ void trace_record (int argc, char **argv)
 	/* If tracing_on was enabled before we started, set it on now */
 	if (tracing_on_init_val)
 		write_tracing_on(&top_instance, tracing_on_init_val);
+
+	if (host)
+		tracecmd_output_close(network_handle);
 
 	exit(0);
 }
