@@ -412,7 +412,6 @@ static double parse_file(struct tracecmd_input *handle,
 void trace_split (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
-	struct pevent *pevent;
 	unsigned long long start_ns = 0, end_ns = 0;
 	unsigned long long current;
 	double start, end;
@@ -515,8 +514,6 @@ void trace_split (int argc, char **argv)
 		die("error reading %s", input_file);
 
 	page_size = tracecmd_page_size(handle);
-
-	pevent = tracecmd_get_pevent(handle);
 
 	if (!output)
 		output = strdup(input_file);

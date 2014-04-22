@@ -349,8 +349,6 @@ process_function_graph_entry(struct pevent *pevent, struct pevent_record *record
 	pid = val;
 
 	func = pevent_find_function(pevent, ip);
-	if (strcmp("list_netdevice", func) == 0)
-		breakpoint();
 
 	if (current_pid >= 0 && pid != current_pid) {
 		save_stack();

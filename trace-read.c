@@ -827,7 +827,6 @@ test_filters(struct filter *event_filters, struct pevent_record *record, int neg
 static struct pevent_record *
 get_next_record(struct handle_list *handles, int *next_cpu)
 {
-	unsigned long long ts;
 	struct pevent_record *record;
 	int found = 0;
 	int next;
@@ -842,7 +841,6 @@ get_next_record(struct handle_list *handles, int *next_cpu)
 
 	do {
 		next = -1;
-		ts = 0;
 		if (filter_cpus) {
 			long long last_stamp = -1;
 			struct pevent_record *precord;
