@@ -173,7 +173,7 @@ static void show_plugins(void)
 	list = tracecmd_load_plugins(pevent);
 	trace_util_print_plugins(&s, "  ", "\n", list);
 	trace_seq_do_printf(&s);
-	tracecmd_unload_plugins(list);
+	tracecmd_unload_plugins(list, pevent);
 	pevent_free(pevent);
 }
 
@@ -194,7 +194,7 @@ static void show_plugin_options(void)
 	list = tracecmd_load_plugins(pevent);
 	trace_util_print_plugin_options(&s);
 	trace_seq_do_printf(&s);
-	tracecmd_unload_plugins(list);
+	tracecmd_unload_plugins(list, pevent);
 	pevent_free(pevent);
 }
 
@@ -266,7 +266,7 @@ int main (int argc, char **argv)
 		ret = tracecmd_fill_local_events(tracing, pevent);
 		if (ret || pevent->parsing_failures)
 			ret = EINVAL;
-		tracecmd_unload_plugins(list);
+		tracecmd_unload_plugins(list, pevent);
 		pevent_free(pevent);
 		exit(ret);
 

@@ -1486,7 +1486,8 @@ struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
 	return list;
 }
 
-void tracecmd_unload_plugins(struct plugin_list *plugin_list)
+void
+tracecmd_unload_plugins(struct plugin_list *plugin_list, struct pevent *pevent)
 {
 	pevent_plugin_unload_func func;
 	struct plugin_list *list;
@@ -1496,7 +1497,7 @@ void tracecmd_unload_plugins(struct plugin_list *plugin_list)
 		plugin_list = list->next;
 		func = dlsym(list->handle, PEVENT_PLUGIN_UNLOADER_NAME);
 		if (func)
-			func();
+			func(pevent);
 		dlclose(list->handle);
 		free(list->name);
 		free(list);

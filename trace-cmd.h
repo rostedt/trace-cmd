@@ -39,7 +39,7 @@ extern int tracecmd_disable_plugins;
 
 struct plugin_list;
 struct plugin_list *tracecmd_load_plugins(struct pevent *pevent);
-void tracecmd_unload_plugins(struct plugin_list *list);
+void tracecmd_unload_plugins(struct plugin_list *list, struct pevent *pevent);
 
 char **tracecmd_event_systems(const char *tracing_dir);
 char **tracecmd_system_events(const char *tracing_dir, const char *system);
