@@ -17,9 +17,13 @@ lists all plugins, events and Ftrace options to standard output.
 
 OPTIONS
 -------
-*-e*::
+*-e* ['regex']::
     This option will list the available events that are enabled on the
     local system.
+
+    It takes an optional argument that uses 'regcomp(3)' expressions to seach.
+
+    trace-cmd list -e '^sys.*'
 
 *-t*::
     This option will list the available tracers that are enabled on the

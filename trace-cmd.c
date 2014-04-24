@@ -135,9 +135,12 @@ static void show_file_re(const char *name, const char *re)
 	regfree(&reg);
 }
 
-static void show_events(void)
+static void show_events(const char *eventre)
 {
-	show_file("available_events");
+	if (eventre)
+		show_file_re("available_events", eventre);
+	else
+		show_file("available_events");
 }
 
 static void show_tracers(void)
@@ -358,53 +361,53 @@ int main (int argc, char **argv)
 		int funcs = 0;
 		int plug = 0;
 		int plug_op = 0;
+		int i;
+		const char *arg;
 		const char *funcre = NULL;
+		const char *eventre = NULL;
 
-		while ((c = getopt(argc-1, argv+1, ":heptPOof:")) >= 0) {
- next:
-			switch (c) {
-			case 'h':
-				usage(argv);
-				break;
-			case 'e':
-				events = 1;
-				break;
-			case 'p':
-			case 't':
-				tracer = 1;
-				break;
-			case 'P':
-				plug = 1;
-				break;
-			case 'O':
-				plug_op = 1;
-				break;
-			case 'o':
-				options = 1;
-				break;
-			case 'f':
-				funcs = 1;
-				if (optarg[0] == '-') {
-					c = optarg[1];
-					goto next;
+		for (i = 2; i < argc; i++) {
+			arg = NULL;
+			if (argv[i][0] == '-') {
+				if (i < argc - 1) {
+					if (argv[i+1][0] != '-')
+						arg = argv[i+1];
 				}
-				funcre = optarg;
-				break;
-			default:
-				/* -f can have an optional parameter */
-				if (strcmp(argv[optind], "-f") == 0) {
-					funcs = 1;
+				switch (argv[i][1]) {
+				case 'h':
+					usage(argv);
 					break;
+				case 'e':
+					events = 1;
+					eventre = arg;
+					break;
+				case 'p':
+				case 't':
+					tracer = 1;
+					break;
+				case 'P':
+					plug = 1;
+					break;
+				case 'O':
+					plug_op = 1;
+					break;
+				case 'o':
+					options = 1;
+					break;
+				case 'f':
+					funcs = 1;
+					funcre = arg;
+					break;
+				default:
+					fprintf(stderr, "list: invalid option -- '%c'\n",
+						argv[optind][1]);
+					usage(argv);
 				}
-				fprintf(stderr, "list: invalid option -- '%c'\n",
-					argv[optind][1]);
-				
-				usage(argv);
 			}
 		}
 
 		if (events)
-			show_events();
+			show_events(eventre);
 
 		if (tracer)
 			show_tracers();
@@ -423,7 +426,7 @@ int main (int argc, char **argv)
 
 		if (!events && !tracer && !options && !plug && !plug_op && !funcs) {
 			printf("events:\n");
-			show_events();
+			show_events(NULL);
 			printf("\ntracers:\n");
 			show_tracers();
 			printf("\noptions:\n");
