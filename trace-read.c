@@ -1156,6 +1156,7 @@ static void set_event_flags(struct pevent *pevent, struct event_str *list,
 }
 
 enum {
+	OPT_event	= 246,
 	OPT_comm	= 247,
 	OPT_boundary	= 248,
 	OPT_stat	= 249,
@@ -1176,6 +1177,7 @@ void trace_report (int argc, char **argv)
 	struct event_str **raw_ptr = &raw_events;
 	struct event_str **nohandler_ptr = &nohandler_events;
 	const char *functions = NULL;
+	const char *print_event = NULL;
 	struct input_files *inputs;
 	struct handle_list *handles;
 	int show_stat = 0;
@@ -1211,6 +1213,7 @@ void trace_report (int argc, char **argv)
 		static struct option long_options[] = {
 			{"cpu", required_argument, NULL, OPT_cpu},
 			{"events", no_argument, NULL, OPT_events},
+			{"event", required_argument, NULL, OPT_event},
 			{"filter-test", no_argument, NULL, 'T'},
 			{"kallsyms", required_argument, NULL, OPT_kallsyms},
 			{"pid", required_argument, NULL, OPT_pid},
@@ -1312,6 +1315,9 @@ void trace_report (int argc, char **argv)
 		case OPT_events:
 			print_events = 1;
 			break;
+		case OPT_event:
+			print_event = optarg;
+			break;
 		case OPT_kallsyms:
 			functions = optarg;
 			break;
@@ -1395,7 +1401,12 @@ void trace_report (int argc, char **argv)
 		}
 
 		if (print_events) {
-			tracecmd_print_events(handle);
+			tracecmd_print_events(handle, NULL);
+			return;
+		}
+
+		if (print_event) {
+			tracecmd_print_events(handle, print_event);
 			return;
 		}
 

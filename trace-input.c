@@ -30,6 +30,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <regex.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -348,8 +349,39 @@ static int read_header_files(struct tracecmd_input *handle)
 	return -1;
 }
 
+static int regex_event_buf(const char *file, int size, regex_t *epreg)
+{
+	char *buf;
+	char *line;
+	int ret;
+
+	buf = malloc(size + 1);
+	if (!buf)
+		die("malloc");
+
+	strncpy(buf, file, size);
+	buf[size] = 0;
+
+	/* get the name from the first line */
+	line = strtok(buf, "\n");
+	if (!line) {
+		warning("No newline found in '%s'", buf);
+		return 0;
+	}
+	/* skip name if it is there */
+	if (strncmp(line, "name: ", 6) == 0)
+		line += 6;
+
+	ret = regexec(epreg, line, 0, NULL, 0) == 0;
+
+	free(buf);
+
+	return ret;
+}
+
 static int read_ftrace_file(struct tracecmd_input *handle,
-			    unsigned long long size, int print)
+			    unsigned long long size,
+			    int print, regex_t *epreg)
 {
 	struct pevent *pevent = handle->pevent;
 	char *buf;
@@ -362,8 +394,9 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	if (print) {
-		printf("%.*s\n", (int)size, buf);
+	if (epreg) {
+		if (print || regex_event_buf(buf, size, epreg))
+			printf("%.*s\n", (int)size, buf);
 	} else {
 		if (pevent_parse_event(pevent, buf, size, "ftrace"))
 			pevent->parsing_failures = 1;
@@ -375,7 +408,8 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 
 static int read_event_file(struct tracecmd_input *handle,
 			   char *system, unsigned long long size,
-			   int print)
+			   int print, int *sys_printed,
+			   regex_t *epreg)
 {
 	struct pevent *pevent = handle->pevent;
 	char *buf;
@@ -389,8 +423,14 @@ static int read_event_file(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	if (print) {
-		printf("%.*s\n", (int)size, buf);
+	if (epreg) {
+		if (print || regex_event_buf(buf, size, epreg)) {
+			if (!*sys_printed) {
+				printf("\nsystem: %s\n", system);
+				*sys_printed = 1;
+			}
+			printf("%.*s\n", (int)size, buf);
+		}
 	} else {
 		if (pevent_parse_event(pevent, buf, size, system))
 			pevent->parsing_failures = 1;
@@ -400,12 +440,88 @@ static int read_event_file(struct tracecmd_input *handle,
 	return 0;
 }
 
-static int read_ftrace_files(struct tracecmd_input *handle, int print)
+static int make_preg_files(const char *regex, regex_t *system,
+			   regex_t *event, int *unique)
+{
+	char *buf;
+	char *sstr;
+	char *estr;
+	int ret;
+
+	/* unique is set if a colon is found */
+	*unique = 0;
+
+	/* split "system:event" into "system" and "event" */
+
+	buf = strdup(regex);
+	if (!buf)
+		die("malloc");
+
+	sstr = strtok(buf, ":");
+	estr = strtok(NULL, ":");
+
+	/* If no colon is found, set event == system */
+	if (!estr)
+		estr = sstr;
+	else
+		*unique = 1;
+
+	ret = regcomp(system, sstr, REG_ICASE|REG_NOSUB);
+	if (ret) {
+		warning("Bad regular expression '%s'", sstr);
+		goto out;
+	}
+
+	ret = regcomp(event, estr, REG_ICASE|REG_NOSUB);
+	if (ret) {
+		warning("Bad regular expression '%s'", estr);
+		goto out;
+	}
+
+ out:
+	free(buf);
+	return ret;
+}
+
+static int read_ftrace_files(struct tracecmd_input *handle, const char *regex)
 {
 	unsigned long long size;
+	regex_t spreg;
+	regex_t epreg;
+	regex_t *sreg = NULL;
+	regex_t *ereg = NULL;
+	int print_all = 0;
+	int unique;
 	int count;
 	int ret;
 	int i;
+
+	if (regex) {
+		sreg = &spreg;
+		ereg = &epreg;
+		ret = make_preg_files(regex, sreg, ereg, &unique);
+		if (ret)
+			return -1;
+
+		if (regexec(sreg, "ftrace", 0, NULL, 0) == 0) {
+			/*
+			 * If the system matches a regex that did
+			 * not contain a colon, then print all events.
+			 */
+			if (!unique)
+				print_all = 1;
+		} else if (unique) {
+			/*
+			 * The user specified a unique event that did
+			 * not match the ftrace system. Don't print any
+			 * events here.
+			 */
+			regfree(sreg);
+			regfree(ereg);
+			sreg = NULL;
+			ereg = NULL;
+		}
+	}
 
 	count = read4(handle);
 	if (count < 0)
@@ -415,7 +531,7 @@ static int read_ftrace_files(struct tracecmd_input *handle, int print)
 		size = read8(handle);
 		if (size < 0)
 			return -1;
-		ret = read_ftrace_file(handle, size, print);
+		ret = read_ftrace_file(handle, size, print_all, ereg);
 		if (ret < 0)
 			return -1;
 	}
@@ -423,17 +539,38 @@ static int read_ftrace_files(struct tracecmd_input *handle, int print)
 	handle->event_files_start =
 		lseek64(handle->fd, 0, SEEK_CUR);
 
+	if (sreg) {
+		regfree(sreg);
+		regfree(ereg);
+	}
+
 	return 0;
 }
 
-static int read_event_files(struct tracecmd_input *handle, int print)
+static int read_event_files(struct tracecmd_input *handle, const char *regex)
 {
 	unsigned long long size;
 	char *system;
+	regex_t spreg;
+	regex_t epreg;
+	regex_t *sreg = NULL;
+	regex_t *ereg = NULL;
+	regex_t *reg;
 	int systems;
+	int print_all;
+	int sys_printed;
 	int count;
+	int unique;
 	int ret;
 	int i,x;
+
+	if (regex) {
+		sreg = &spreg;
+		ereg = &epreg;
+		ret = make_preg_files(regex, sreg, ereg, &unique);
+		if (ret)
+			return -1;
+	}
 
 	systems = read4(handle);
 	if (systems < 0)
@@ -444,8 +581,30 @@ static int read_event_files(struct tracecmd_input *handle, int print)
 		if (!system)
 			return -1;
 
-		if (print)
-			printf("\nsystem: %s\n", system);
+		sys_printed = 0;
+		print_all = 0;
+		reg = ereg;
+
+		if (sreg) {
+			if (regexec(sreg, system, 0, NULL, 0) == 0) {
+				/*
+				 * If the user passed in a regex that
+				 * did not contain a colon, then we can
+				 * print all the events of this system.
+				 */
+				if (!unique)
+					print_all = 1;
+			} else if (unique) {
+				/*
+				 * The user passed in a unique event that
+				 * specified a specific system and event.
+				 * Since this system doesn't match this
+				 * event, then we don't print any events
+				 * for this system.
+				 */
+				reg = NULL;
+			}
+		}
 
 		count = read4(handle);
 		if (count < 0)
@@ -456,16 +615,28 @@ static int read_event_files(struct tracecmd_input *handle, int print)
 			if (size < 0)
 				goto failed;
 
-			ret = read_event_file(handle, system, size, print);
+			ret = read_event_file(handle, system, size,
+					      print_all, &sys_printed,
+					      reg);
 			if (ret < 0)
 				goto failed;
 		}
 		free(system);
 	}
 
+	if (sreg) {
+		regfree(sreg);
+		regfree(ereg);
+	}
+
 	return 0;
 
  failed:
+	if (sreg) {
+		regfree(sreg);
+		regfree(ereg);
+	}
+
 	free(system);
 	return -1;
 }
@@ -543,11 +714,11 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	if (ret < 0)
 		return -1;
 
-	ret = read_ftrace_files(handle, 0);
+	ret = read_ftrace_files(handle, NULL);
 	if (ret < 0)
 		return -1;
 
-	ret = read_event_files(handle, 0);
+	ret = read_event_files(handle, NULL);
 	if (ret < 0)
 		return -1;
 
@@ -1968,23 +2139,27 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 /**
  * tracecmd_print_events - print the events that are stored in trace.dat
  * @handle: input handle for the trace.dat file
+ * @regex: regex of events to print (NULL is all events)
  *
  * This is a debugging routine to print out the events that
  * are stored in a given trace.dat file.
  */
-void tracecmd_print_events(struct tracecmd_input *handle)
+void tracecmd_print_events(struct tracecmd_input *handle, const char *regex)
 {
 	int ret;
+
+	if (!regex)
+		regex = ".*";
 
 	if (!handle->ftrace_files_start) {
 		lseek64(handle->fd, handle->header_files_start, SEEK_SET);
 		read_header_files(handle);
 	}
-	ret = read_ftrace_files(handle, 1);
+	ret = read_ftrace_files(handle, regex);
 	if (ret < 0)
 		return;
 
-	read_event_files(handle, 1);
+	read_event_files(handle, regex);
 	return;
 }
 

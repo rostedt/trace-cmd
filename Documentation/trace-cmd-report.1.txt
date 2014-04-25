@@ -41,6 +41,21 @@ OPTIONS
 *--events*::
     This will list the event formats that are stored in the trace.dat file.
 
+*--event* regex::
+    This will print events that match the given regex. If a colon is specified,
+    then the characters before the colon will be used to match the system and
+    the characters after the colon will match the event.
+
+     trace-cmd report --event sys:read
+
+    The above will only match events where the system name contains "sys"
+    and the event name contains "read".
+
+     trace-cmd report --event read
+
+    The above will match all events that contain "read" in its name. Also it
+    may list all events of a system that contains "read" as well.
+
 *--check-events*::
     This will parse the event format strings that are stored in the trace.dat
     file and return whether the formats can be parsed correctly. It will load

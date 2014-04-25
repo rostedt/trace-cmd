@@ -116,7 +116,7 @@ const char *tracecmd_buffer_instance_name(struct tracecmd_input *handle, int ind
 struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx);
 int tracecmd_is_buffer_instance(struct tracecmd_input *handle);
 
-void tracecmd_print_events(struct tracecmd_input *handle);
+void tracecmd_print_events(struct tracecmd_input *handle, const char *regex);
 
 int tracecmd_init_data(struct tracecmd_input *handle);
 
