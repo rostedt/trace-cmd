@@ -167,6 +167,8 @@ static struct buffer_instance top_instance;
 static struct buffer_instance *instances;
 
 #define for_each_instance(i) for (i = instances; i; i = (i)->next)
+#define for_all_instances(i) for (i = &top_instance; i; \
+				  i = i == &top_instance ? instances : (i)->next)
 
 static struct tracecmd_recorder *recorder;
 
@@ -254,13 +256,12 @@ static int kill_thread_instance(int start, struct buffer_instance *instance)
 static void kill_threads(void)
 {
 	struct buffer_instance *instance;
-	int i;
+	int i = 0;
 
 	if (!recorder_threads || !pids)
 		return;
 
-	i = kill_thread_instance(0, &top_instance);
-	for_each_instance(instance)
+	for_all_instances(instance)
 		i = kill_thread_instance(i, instance);
 }
 
@@ -307,10 +308,9 @@ static int delete_thread_instance(int start, struct buffer_instance *instance)
 static void delete_thread_data(void)
 {
 	struct buffer_instance *instance;
-	int i;
+	int i = 0;
 
-	i = delete_thread_instance(0, &top_instance);
-	for_each_instance(instance)
+	for_all_instances(instance)
 		i = delete_thread_instance(i, instance);
 }
 
@@ -439,9 +439,7 @@ static void clear_trace(void)
 {
 	struct buffer_instance *instance;
 
-	__clear_trace(&top_instance);
-
-	for_each_instance(instance)
+	for_all_instances(instance)
 		__clear_trace(instance);
 }
 
@@ -604,9 +602,8 @@ static void update_task_filter(void)
 	common_pid_filter = make_pid_filter(NULL, "common_pid");
 
 	update_ftrace_pids(1);
-	update_pid_event_filters(&top_instance);
-	for_each_instance(instance)
-		update_pid_event_filters(&top_instance);
+	for_all_instances(instance)
+		update_pid_event_filters(instance);
 }
 
 #ifndef NO_PTRACE
@@ -672,10 +669,7 @@ static void add_new_filter_pid(int pid)
 
 	common_pid_filter = append_pid_filter(common_pid_filter, "common_pid", pid);
 
-	update_sched_events(&top_instance, pid);
-	update_event_filters(&top_instance);
-
-	for_each_instance(instance) {
+	for_all_instances(instance) {
 		update_sched_events(instance, pid);
 		update_event_filters(instance);
 	}
@@ -1101,8 +1095,7 @@ static void enable_tracing(void)
 
 	check_tracing_enabled();
 
-	write_tracing_on(&top_instance, 1);
-	for_each_instance(instance)
+	for_all_instances(instance)
 		write_tracing_on(instance, 1);
 
 	if (latency)
@@ -1113,8 +1106,7 @@ static void disable_tracing(void)
 {
 	struct buffer_instance *instance;
 
-	write_tracing_on(&top_instance, 0);
-	for_each_instance(instance)
+	for_all_instances(instance)
 		write_tracing_on(instance, 0);
 }
 
@@ -1488,8 +1480,7 @@ static void expand_event_list(void)
 	if (use_old_event_method())
 		return;
 
-	expand_event_instance(&top_instance);
-	for_each_instance(instance)
+	for_all_instances(instance)
 		expand_event_instance(instance);
 }
 
@@ -1807,7 +1798,7 @@ static void finish_network(void)
 static void start_threads(void)
 {
 	struct buffer_instance *instance;
-	int i;
+	int i = 0;
 
 	if (host)
 		setup_network();
@@ -1817,10 +1808,7 @@ static void start_threads(void)
 
 	memset(pids, 0, sizeof(*pids) * cpu_count * (buffers + 1));
 
-	for (i = 0; i < cpu_count; i++) {
-		pids[i] = create_recorder(&top_instance, i, 0);
-	}
-	for_each_instance(instance) {
+	for_all_instances(instance) {
 		int x;
 		for (x = 0; x < cpu_count; x++)
 			pids[i++] = create_recorder(instance, x, 0);
@@ -2652,13 +2640,11 @@ void trace_record (int argc, char **argv)
 
 		set_funcs();
 
-		set_mask(&top_instance);
-		for_each_instance(instance)
+		for_all_instances(instance)
 			set_mask(instance);
 
 		if (events) {
-			enable_events(&top_instance);
-			for_each_instance(instance)
+			for_all_instances(instance)
 				enable_events(instance);
 		}
 		set_buffer_size();
