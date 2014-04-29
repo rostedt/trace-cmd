@@ -1966,10 +1966,8 @@ static void set_funcs(void)
 
 	/* make sure we are filtering functions */
 	if (func_stack) {
-		if (!functions_filtered()) {
-			disable_all(1);
+		if (!functions_filtered())
 			die("Function stack trace set, but functions not filtered");
-		}
 		save_option(FUNC_STACK_TRACE);
 	}
 }
