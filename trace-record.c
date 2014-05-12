@@ -2377,7 +2377,37 @@ void trace_record (int argc, char **argv)
 	else if ((extract = strcmp(argv[1], "extract") == 0))
 		; /* do nothing */
 	else if (strcmp(argv[1], "stop") == 0) {
-		disable_tracing();
+		for (;;) {
+			int c;
+
+			c = getopt(argc-1, argv+1, "tB:");
+			if (c == -1)
+				break;
+			switch (c) {
+			case 'h':
+				usage(argv);
+				break;
+			case 'B':
+				instance = malloc_or_die(sizeof(*instance));
+				memset(instance, 0, sizeof(*instance));
+				instance->name = optarg;
+				add_instance(instance);
+				break;
+			case 't':
+				add_instance(&top_instance);
+				/* Added to instance array, ignore direct call */
+				instance = NULL;
+				break;
+			default:
+				usage(argv);
+			}
+
+		}
+		if (instance == &top_instance)
+			disable_tracing();
+		else
+			for_each_instance(instance)
+				write_tracing_on(instance, 0);
 		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
 		while ((c = getopt(argc-1, argv+1, "b:")) >= 0) {

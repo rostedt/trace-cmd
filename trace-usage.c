@@ -65,9 +65,11 @@ static struct usage_help usage_help[] = {
 	{
 		"stop",
 		"stop the kernel from recording trace data",
-		" %s stop\n"
+		" %s stop [-B buf [-B buf]..] [-t]\n"
 		"          Stops the tracer from recording more data.\n"
 		"          Used in conjunction with start\n"
+		"          -B stop a given buffer (more than one may be specified)\n "
+		"          -t stop the top level buffer (needed if -B is specified)\n"
 	},
 	{
 		"show",
