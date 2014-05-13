@@ -74,7 +74,7 @@ struct cpu_data {
 	int			cpu;
 };
 
-struct buffer_instance {
+struct input_buffer_instance {
 	char			*name;
 	size_t			offset;
 };
@@ -95,7 +95,7 @@ struct tracecmd_input {
 	struct cpu_data 	*cpu_data;
 	unsigned long long	ts_offset;
 	char *			cpustats;
-	struct buffer_instance	*buffers;
+	struct input_buffer_instance	*buffers;
 
 	struct tracecmd_ftrace	finfo;
 
@@ -1884,7 +1884,7 @@ static int handle_options(struct tracecmd_input *handle)
 	unsigned int size;
 	char *cpustats = NULL;
 	unsigned int cpustats_size = 0;
-	struct buffer_instance *buffer;
+	struct input_buffer_instance *buffer;
 	char *buf;
 
 	for (;;) {
@@ -2676,7 +2676,7 @@ struct tracecmd_input *
 tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 {
 	struct tracecmd_input *new_handle;
-	struct buffer_instance *buffer = &handle->buffers[indx];
+	struct input_buffer_instance *buffer = &handle->buffers[indx];
 	size_t offset;
 	ssize_t ret;
 

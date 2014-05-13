@@ -148,27 +148,8 @@ struct events {
 	char *name;
 };
 
-struct buffer_instance {
-	struct buffer_instance	*next;
-	const char		*name;
-	const char		*cpumask;
-	struct event_list	*events;
-	struct event_list	**event_next;
-
-	struct event_list	*sched_switch_event;
-	struct event_list	*sched_wakeup_event;
-	struct event_list	*sched_wakeup_new_event;
-
-	int			tracing_on_fd;
-	int			keep;
-};
-
-static struct buffer_instance top_instance;
-static struct buffer_instance *instances;
-
-#define for_each_instance(i) for (i = instances; i; i = (i)->next)
-#define for_all_instances(i) for (i = &top_instance; i; \
-				  i = i == &top_instance ? instances : (i)->next)
+struct buffer_instance top_instance;
+struct buffer_instance *buffer_instances;
 
 static struct tracecmd_recorder *recorder;
 
@@ -179,12 +160,34 @@ static void init_instance(struct buffer_instance *instance)
 	instance->event_next = &instance->events;
 }
 
-static void add_instance(struct buffer_instance *instance)
+/**
+ * add_instance - add a buffer instance to the internal list
+ * @instance: The buffer instance to add
+ */
+void add_instance(struct buffer_instance *instance)
 {
 	init_instance(instance);
-	instance->next = instances;
-	instances = instance;
+	instance->next = buffer_instances;
+	buffer_instances = instance;
 	buffers++;
+}
+
+/**
+ * create_instance - allocate a new buffer instance
+ * @name: The name of the instance (instance will point to this)
+ *
+ * Returns a newly allocated instance. Note that @name will not be
+ * copied, and the instance buffer will point to the string itself.
+ */
+struct buffer_instance *create_instance(char *name)
+{
+	struct buffer_instance *instance;
+
+	instance = malloc_or_die(sizeof(*instance));
+	memset(instance, 0, sizeof(*instance));
+	instance->name = optarg;
+
+	return instance;
 }
 
 static void add_event(struct buffer_instance *instance, struct event_list *event)
@@ -401,7 +404,16 @@ static int set_ftrace(int set, int use_proc)
 	return 0;
 }
 
-static char *
+/**
+ * get_instance_file - return the path to a instance file.
+ * @instance: buffer instance for the file
+ * @file: name of file to return
+ *
+ * Returns the path name of the @file for the given @instance.
+ *
+ * Must use tracecmd_put_tracing_file() to free the returned string.
+ */
+char *
 get_instance_file(struct buffer_instance *instance, const char *file)
 {
 	char *buf;
@@ -2388,9 +2400,7 @@ void trace_record (int argc, char **argv)
 				usage(argv);
 				break;
 			case 'B':
-				instance = malloc_or_die(sizeof(*instance));
-				memset(instance, 0, sizeof(*instance));
-				instance->name = optarg;
+				instance = create_instance(optarg);
 				add_instance(instance);
 				break;
 			case 't':
@@ -2596,9 +2606,7 @@ void trace_record (int argc, char **argv)
 			buffer_size = atoi(optarg);
 			break;
 		case 'B':
-			instance = malloc_or_die(sizeof(*instance));
-			memset(instance, 0, sizeof(*instance));
-			instance->name = optarg;
+			instance = create_instance(optarg);
 			add_instance(instance);
 			break;
 		case 'k':

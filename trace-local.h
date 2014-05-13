@@ -57,4 +57,32 @@ void trace_snapshot(int argc, char **argv);
 
 void trace_mem(int argc, char **argv);
 
+/* --- instance manipulation --- */
+
+struct buffer_instance {
+	struct buffer_instance	*next;
+	const char		*name;
+	const char		*cpumask;
+	struct event_list	*events;
+	struct event_list	**event_next;
+
+	struct event_list	*sched_switch_event;
+	struct event_list	*sched_wakeup_event;
+	struct event_list	*sched_wakeup_new_event;
+
+	int			tracing_on_fd;
+	int			keep;
+};
+
+extern struct buffer_instance top_instance;
+extern struct buffer_instance *buffer_instances;
+
+#define for_each_instance(i) for (i = buffer_instances; i; i = (i)->next)
+#define for_all_instances(i) for (i = &top_instance; i; \
+				  i = i == &top_instance ? buffer_instances : (i)->next)
+
+void add_instance(struct buffer_instance *instance);
+char *get_instance_file(struct buffer_instance *instance, const char *file);
+
+
 #endif /* __TRACE_LOCAL_H */
