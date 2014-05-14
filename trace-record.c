@@ -132,9 +132,11 @@ static char *common_pid_filter;
 struct event_list {
 	struct event_list *next;
 	const char *event;
+	char *trigger;
 	char *filter;
 	char *pid_filter;
 	char *filter_file;
+	char *trigger_file;
 	char *enable_file;
 	int neg;
 };
@@ -966,7 +968,7 @@ static void reset_events(void)
 	globfree(&globbuf);
 }
 
-static void write_filter(const char *file, const char *filter)
+static void write_file(const char *file, const char *str, const char *type)
 {
 	char buf[BUFSIZ];
 	int fd;
@@ -975,19 +977,29 @@ static void write_filter(const char *file, const char *filter)
 	fd = open(file, O_WRONLY);
 	if (fd < 0)
 		die("opening to '%s'", file);
-	ret = write(fd, filter, strlen(filter));
+	ret = write(fd, str, strlen(str));
 	close(fd);
 	if (ret < 0) {
-		/* filter failed */
+		/* write failed */
 		fd = open(file, O_RDONLY);
 		if (fd < 0)
 			die("writing to '%s'", file);
 		/* the filter has the error */
 		while ((ret = read(fd, buf, BUFSIZ)) > 0)
 			fprintf(stderr, "%.*s", ret, buf);
-		die("Failed filter of %s\n", file);
+		die("Failed %s of %s\n", type, file);
 		close(fd);
 	}
+}
+
+static void write_filter(const char *file, const char *filter)
+{
+	write_file(file, filter, "filter");
+}
+
+static void write_trigger(const char *file, const char *trigger)
+{
+	write_file(file, trigger, "trigger");
 }
 
 static void
@@ -1008,6 +1020,13 @@ update_event(struct event_list *event, const char *filter,
 
 	if (filter && event->filter_file)
 		write_filter(event->filter_file, filter);
+
+	if (event->trigger_file) {
+		write_trigger(event->trigger_file, event->trigger);
+		/* Make sure we don't write this again */
+		free(event->trigger_file);
+		event->trigger = NULL;
+	}
 
 	if (filter_only || !event->enable_file)
 		return;
@@ -1323,6 +1342,15 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		event->enable_file = p;
 	else
 		free(p);
+
+	if (event->trigger) {
+		p = malloc_or_die(strlen(path) + strlen("/trigger") + 1);
+		sprintf(p, "%s/trigger", path);
+		ret = stat(p, &st);
+		if (ret > 0)
+			die("trigger specified but not supported by this kernel");
+		event->trigger_file = p;
+	}
 
 	return event;
 }
@@ -2450,7 +2478,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:B:ksiTm:M:";
+			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:R:B:ksiTm:M:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -2499,6 +2527,24 @@ void trace_record (int argc, char **argv)
 					malloc_or_die(strlen(optarg) +
 						      strlen("()") + 1);
 				sprintf(last_event->filter, "(%s)", optarg);
+			}
+			break;
+
+		case 'R':
+			if (!last_event)
+				die("trigger must come after event");
+			if (last_event->trigger) {
+				last_event->trigger =
+					realloc(last_event->trigger,
+						strlen(last_event->trigger) +
+						strlen("\n") +
+						strlen(optarg) + 1);
+				strcat(last_event->trigger, "\n");
+				strcat(last_event->trigger, optarg);
+			} else {
+				last_event->trigger =
+					malloc_or_die(strlen(optarg) + 1);
+				sprintf(last_event->trigger, "%s", optarg);
 			}
 			break;
 

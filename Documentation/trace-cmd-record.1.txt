@@ -84,6 +84,14 @@ OPTIONS
 
     The above are usually safe to use to compare fields.
 
+*-R* 'trigger'::
+    Specify a trigger for the previous event. This must come after a *-e*. 
+    This will add a given trigger to the given event. To only enable the trigger
+    and not the event itself, then place the event after the *-v* option.
+
+    See Documentation/trace/events.txt in the Linux kernel source for more
+    information on triggers.
+
 *-v*::
     This will cause all events specified after it on the command line to not
     be traced. This is useful for selecting a subsystem to be traced but to

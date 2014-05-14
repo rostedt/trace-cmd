@@ -22,6 +22,7 @@ static struct usage_help usage_help[] = {
 		"           [-m max]\n"
 		"          -e run command with event enabled\n"
 		"          -f filter for previous -e event\n"
+		"          -R trigger for previous -e event\n"
 		"          -p run command with plugin enabled\n"
 		"          -F filter only on the given process\n"
 		"          -P trace the given pid like -F for the command\n"
