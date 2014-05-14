@@ -74,7 +74,7 @@ static struct usage_help usage_help[] = {
 	{
 		"show",
 		"show the contents of the kernel tracing buffer",
-		" %s show [-p|-s][-c cpu][-B buf]\n"
+		" %s show [-p|-s][-c cpu][-B buf][options]\n"
 		"          Basically, this is a cat of the trace file.\n"
 		"          -p read the trace_pipe file instead\n"
 		"          -s read the snapshot file instance\n"
@@ -82,6 +82,18 @@ static struct usage_help usage_help[] = {
 		"          -c just show the file associated with a given CPU\n"
 		"          -B read from a tracing buffer instance.\n"
 		"          -f display the file path that is being dumped\n"
+		"          The following options shows the corresponding file name\n"
+		"           and then exits.\n"
+		"          --tracing_on\n"
+		"          --current_tracer\n"
+		"          --buffer_size (for buffer_size_kb)\n"
+		"          --buffer_total_size (for buffer_total_size_kb)\n"
+		"          --ftrace_filter (for set_ftrace_filter)\n"
+		"          --ftrace_notrace (for set_ftrace_notrace)\n"
+		"          --ftrace_pid (for set_ftrace_pid)\n"
+		"          --graph_function (for set_graph_function)\n"
+		"          --graph_notrace (for set_graph_notrace)\n"
+		"          --cpumask (for tracing_cpumask)\n"
 	},
 	{
 		"reset",

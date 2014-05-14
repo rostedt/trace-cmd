@@ -19,6 +19,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <getopt.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -70,18 +71,15 @@ void *malloc_or_die(unsigned int size)
 	return data;
 }
 
-void show_file(const char *name)
+static void dump_file_content(const char *path)
 {
 	char buf[BUFSIZ];
-	char *path;
-	FILE *fp;
 	ssize_t n;
+	FILE *fp;
 
-	path = tracecmd_get_tracing_file(name);
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
-	tracecmd_put_tracing_file(path);
 
 	do {
 		n = fread(buf, 1, BUFSIZ, fp);
@@ -89,6 +87,15 @@ void show_file(const char *name)
 			fwrite(buf, 1, n, stdout);
 	} while (n > 0);
 	fclose(fp);
+}
+
+void show_file(const char *name)
+{
+	char *path;
+
+	path = tracecmd_get_tracing_file(name);
+	dump_file_content(path);
+	tracecmd_put_tracing_file(path);
 }
 
 static void show_file_re(const char *name, const char *re)
@@ -133,6 +140,15 @@ static void show_file_re(const char *name, const char *re)
 	fclose(fp);
 
 	regfree(&reg);
+}
+
+void show_instance_file(struct buffer_instance *instance, const char *name)
+{
+	char *path;
+
+	path = get_instance_file(instance, name);
+	dump_file_content(path);
+	tracecmd_put_tracing_file(path);
 }
 
 static void show_events(const char *eventre)
@@ -200,6 +216,19 @@ static void show_plugin_options(void)
 	tracecmd_unload_plugins(list, pevent);
 	pevent_free(pevent);
 }
+
+enum {
+	OPT_tracing_on			= 255,
+	OPT_current_tracer		= 254,
+	OPT_buffer_size_kb		= 253,
+	OPT_buffer_total_size_kb	= 252,
+	OPT_ftrace_filter		= 251,
+	OPT_ftrace_notrace		= 250,
+	OPT_ftrace_pid			= 249,
+	OPT_graph_function		= 248,
+	OPT_graph_notrace		= 247,
+	OPT_cpumask			= 246,
+};
 
 int main (int argc, char **argv)
 {
@@ -288,13 +317,31 @@ int main (int argc, char **argv)
 		const char *buffer = NULL;
 		const char *file = "trace";
 		const char *cpu = NULL;
+		struct buffer_instance *instance = &top_instance;
 		char cpu_path[128];
 		char *path;
 		int snap = 0;
 		int pipe = 0;
 		int show_name = 0;
+		int option_index = 0;
+		int stop = 0;
+		static struct option long_options[] = {
+			{"tracing_on", no_argument, NULL, OPT_tracing_on},
+			{"current_tracer", no_argument, NULL, OPT_current_tracer},
+			{"buffer_size", no_argument, NULL, OPT_buffer_size_kb},
+			{"buffer_total_size", no_argument, NULL, OPT_buffer_total_size_kb},
+			{"ftrace_filter", no_argument, NULL, OPT_ftrace_filter},
+			{"ftrace_notrace", no_argument, NULL, OPT_ftrace_notrace},
+			{"ftrace_pid", no_argument, NULL, OPT_ftrace_pid},
+			{"graph_function", no_argument, NULL, OPT_graph_function},
+			{"graph_notrace", no_argument, NULL, OPT_graph_notrace},
+			{"cpumask", no_argument, NULL, OPT_cpumask},
+			{"help", no_argument, NULL, '?'},
+			{NULL, 0, NULL, 0}
+		};
 
-		while ((c = getopt(argc-1, argv+1, "B:c:fsp")) >= 0) {
+		while ((c = getopt_long(argc-1, argv+1, "B:c:fsp",
+					long_options, &option_index)) >= 0) {
 			switch (c) {
 			case 'h':
 				usage(argv);
@@ -303,6 +350,7 @@ int main (int argc, char **argv)
 				if (buffer)
 					die("Can only show one buffer at a time");
 				buffer = optarg;
+				instance = create_instance(optarg);
 				break;
 			case 'c':
 				if (cpu)
@@ -322,10 +370,52 @@ int main (int argc, char **argv)
 				if (snap)
 					die("Can not have -s and -p together");
 				break;
+			case OPT_tracing_on:
+				show_instance_file(instance, "tracing_on");
+				stop = 1;
+				break;
+			case OPT_current_tracer:
+				show_instance_file(instance, "current_tracer");
+				stop = 1;
+				break;
+			case OPT_buffer_size_kb:
+				show_instance_file(instance, "buffer_size_kb");
+				stop = 1;
+				break;
+			case OPT_buffer_total_size_kb:
+				show_instance_file(instance, "buffer_total_size_kb");
+				stop = 1;
+				break;
+			case OPT_ftrace_filter:
+				show_instance_file(instance, "set_ftrace_filter");
+				stop = 1;
+				break;
+			case OPT_ftrace_notrace:
+				show_instance_file(instance, "set_ftrace_notrace");
+				stop = 1;
+				break;
+			case OPT_ftrace_pid:
+				show_instance_file(instance, "set_ftrace_pid");
+				stop = 1;
+				break;
+			case OPT_graph_function:
+				show_instance_file(instance, "set_graph_function");
+				stop = 1;
+				break;
+			case OPT_graph_notrace:
+				show_instance_file(instance, "set_graph_notrace");
+				stop = 1;
+				break;
+			case OPT_cpumask:
+				show_instance_file(instance, "tracing_cpumask");
+				stop = 1;
+				break;
 			default:
 				usage(argv);
 			}
 		}
+		if (stop)
+			exit(0);
 		if (pipe)
 			file = "trace_pipe";
 		else if (snap)

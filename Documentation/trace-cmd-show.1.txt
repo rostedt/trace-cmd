@@ -48,6 +48,37 @@ OPTIONS
     If a buffer instance was created, then the *-B* option will access the
     files associated with the given buffer.
 
+*--tracing_on*::
+    Show if tracing is on for the given instance.
+
+*--current_tracer*::
+    Show what the current tracer is.
+
+*--buffer_size*::
+    Show the current buffer size (per-cpu)
+
+*--buffer_total_size*::
+     Show the total size of all buffers.
+
+*--ftrace_filter*::
+     Show what function filters are set.
+
+*--ftrace_notrace*::
+     Show what function disabled filters are set.
+
+*--ftrace_pid*::
+     Show the PIDs the function tracer is limited to (if any).
+
+*--graph_function*::
+     Show the functions that will be graphed.
+
+*--graph_notrace*::
+     Show the functions that will not be graphed.
+
+*--cpumask*::
+     Show the mask of CPUs that tracing will trace.
+
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

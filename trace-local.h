@@ -81,8 +81,10 @@ extern struct buffer_instance *buffer_instances;
 #define for_all_instances(i) for (i = &top_instance; i; \
 				  i = i == &top_instance ? buffer_instances : (i)->next)
 
+struct buffer_instance *create_instance(char *name);
 void add_instance(struct buffer_instance *instance);
 char *get_instance_file(struct buffer_instance *instance, const char *file);
 
+void show_instance_file(struct buffer_instance *instance, const char *name);
 
 #endif /* __TRACE_LOCAL_H */
