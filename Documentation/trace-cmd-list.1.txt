@@ -25,6 +25,15 @@ OPTIONS
 
     trace-cmd list -e '^sys.*'
 
+*-F*::
+    Used with *-e* 'regex' to show those events formats.
+
+*-l*::
+    Used with *-e* 'regex' to show those events filters.
+
+*-R*::
+    Used with *-e* 'regex' to show those events triggers.
+
 *-t*::
     This option will list the available tracers that are enabled on the
     local system.

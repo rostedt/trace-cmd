@@ -98,7 +98,10 @@ void show_file(const char *name)
 	tracecmd_put_tracing_file(path);
 }
 
-static void show_file_re(const char *name, const char *re)
+typedef int (*process_file_func)(char *buf, int len);
+
+static void process_file_re(process_file_func func,
+			    const char *name, const char *re)
 {
 	regex_t reg;
 	char *path;
@@ -134,12 +137,130 @@ static void show_file_re(const char *name, const char *re)
 	do {
 		n = getline(&buf, &l, fp);
 		if (n > 0 && regexec(&reg, buf, 0, NULL, 0) == 0)
-			fwrite(buf, 1, n, stdout);
+			func(buf, n);
 	} while (n > 0);
 	free(buf);
 	fclose(fp);
 
 	regfree(&reg);
+}
+
+static int show_file_write(char *buf, int len)
+{
+	return fwrite(buf, 1, len, stdout);
+}
+
+static void show_file_re(const char *name, const char *re)
+{
+	process_file_re(show_file_write, name, re);
+}
+
+static char *get_event_file(const char *type, char *buf, int len)
+{
+	char *system;
+	char *event;
+	char *path;
+	char *file;
+
+	if (buf[len-1] == '\n')
+		buf[len-1] = '\0';
+
+	system = strtok(buf, ":");
+	if (!system)
+		die("no system found in %s", buf);
+
+	event = strtok(NULL, ":");
+	if (!event)
+		die("no event found in %s\n", buf);
+
+	path = tracecmd_get_tracing_file("events");
+	file = malloc_or_die(strlen(path) + strlen(system) + strlen(event) +
+			     strlen(type) + strlen("///") + 1);
+	sprintf(file, "%s/%s/%s/%s", path, system, event, type);
+	tracecmd_put_tracing_file(path);
+
+	return file;
+}
+
+static int event_filter_write(char *buf, int len)
+{
+	char *file;
+
+	if (buf[len-1] == '\n')
+		buf[len-1] = '\0';
+
+	printf("%s\n", buf);
+
+	file = get_event_file("filter", buf, len);
+	dump_file_content(file);
+	free(file);
+	printf("\n");
+
+	return 0;
+}
+
+static int event_trigger_write(char *buf, int len)
+{
+	char *file;
+
+	if (buf[len-1] == '\n')
+		buf[len-1] = '\0';
+
+	printf("%s\n", buf);
+
+	file = get_event_file("trigger", buf, len);
+	dump_file_content(file);
+	free(file);
+	printf("\n");
+
+	return 0;
+}
+
+static int event_format_write(char *fbuf, int len)
+{
+	char *file = get_event_file("format", fbuf, len);
+	char *buf = NULL;
+	size_t l;
+	FILE *fp;
+	int n;
+
+	/* The get_event_file() crops system in fbuf */
+	printf("system: %s\n", fbuf);
+
+	/* Don't print the print fmt, it's ugly */
+
+	fp = fopen(file, "r");
+	if (!fp)
+		die("reading %s", file);
+
+	do {
+		n = getline(&buf, &l, fp);
+		if (n > 0) {
+			if (strncmp(buf, "print fmt", 9) == 0)
+				break;
+			fwrite(buf, 1, n, stdout);
+		}
+	} while (n > 0);
+	fclose(fp);
+	free(buf);
+	free(file);
+
+	return 0;
+}
+
+static void show_event_filter_re(const char *re)
+{
+	process_file_re(event_filter_write, "available_events", re);
+}
+
+static void show_event_trigger_re(const char *re)
+{
+	process_file_re(event_trigger_write, "available_events", re);
+}
+
+static void show_event_format_re(const char *re)
+{
+	process_file_re(event_format_write, "available_events", re);
 }
 
 void show_instance_file(struct buffer_instance *instance, const char *name)
@@ -151,11 +272,29 @@ void show_instance_file(struct buffer_instance *instance, const char *name)
 	tracecmd_put_tracing_file(path);
 }
 
-static void show_events(const char *eventre)
+enum {
+	SHOW_EVENT_FORMAT		= 1 << 0,
+	SHOW_EVENT_FILTER		= 1 << 1,
+	SHOW_EVENT_TRIGGER		= 1 << 2,
+};
+
+static void show_events(const char *eventre, int flags)
 {
-	if (eventre)
-		show_file_re("available_events", eventre);
-	else
+	if (flags && !eventre)
+		die("When specifying event files, an event must be named");
+
+	if (eventre) {
+		if (flags & SHOW_EVENT_FORMAT)
+			show_event_format_re(eventre);
+
+		else if (flags & SHOW_EVENT_FILTER)
+			show_event_filter_re(eventre);
+
+		else if (flags & SHOW_EVENT_TRIGGER)
+			show_event_trigger_re(eventre);
+		else
+			show_file_re("available_events", eventre);
+	} else
 		show_file("available_events");
 }
 
@@ -451,6 +590,7 @@ int main (int argc, char **argv)
 		int funcs = 0;
 		int plug = 0;
 		int plug_op = 0;
+		int flags = 0;
 		int i;
 		const char *arg;
 		const char *funcre = NULL;
@@ -470,6 +610,15 @@ int main (int argc, char **argv)
 				case 'e':
 					events = 1;
 					eventre = arg;
+					break;
+				case 'F':
+					flags |= SHOW_EVENT_FORMAT;
+					break;
+				case 'R':
+					flags |= SHOW_EVENT_TRIGGER;
+					break;
+				case 'l':
+					flags |= SHOW_EVENT_FILTER;
 					break;
 				case 'p':
 				case 't':
@@ -497,7 +646,7 @@ int main (int argc, char **argv)
 		}
 
 		if (events)
-			show_events(eventre);
+			show_events(eventre, flags);
 
 		if (tracer)
 			show_tracers();
@@ -516,7 +665,7 @@ int main (int argc, char **argv)
 
 		if (!events && !tracer && !options && !plug && !plug_op && !funcs) {
 			printf("events:\n");
-			show_events(NULL);
+			show_events(NULL, 0);
 			printf("\ntracers:\n");
 			show_tracers();
 			printf("\noptions:\n");
