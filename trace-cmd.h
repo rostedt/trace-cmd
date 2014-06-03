@@ -264,10 +264,10 @@ void tracecmd_stat_cpu(struct trace_seq *s, int cpu);
 long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
 
 /* --- Plugin handling --- */
-extern struct plugin_option trace_ftrace_options[];
+extern struct pevent_plugin_option trace_ftrace_options[];
 
-void trace_util_add_options(const char *name, struct plugin_option *options);
-void trace_util_remove_options(struct plugin_option *options);
+void trace_util_add_options(const char *name, struct pevent_plugin_option *options);
+void trace_util_remove_options(struct pevent_plugin_option *options);
 void trace_util_add_option(const char *name, const char *val);
 void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 			     void (*load_plugin)(struct pevent *pevent,
@@ -275,8 +275,8 @@ void trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 						 const char *name,
 						 void *data),
 			     void *data);
-struct plugin_option *trace_util_read_plugin_options(void);
-void trace_util_free_options(struct plugin_option *options);
+struct pevent_plugin_option *trace_util_read_plugin_options(void);
+void trace_util_free_options(struct pevent_plugin_option *options);
 char **trace_util_find_plugin_files(const char *suffix);
 void trace_util_free_plugin_files(char **files);
 void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,

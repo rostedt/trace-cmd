@@ -32,7 +32,7 @@ static int cpus = -1;
 
 #define STK_BLK 10
 
-struct plugin_option plugin_options[] =
+struct pevent_plugin_option plugin_options[] =
 {
 	{
 		.name = "parent",
@@ -52,8 +52,8 @@ struct plugin_option plugin_options[] =
 	}
 };
 
-static struct plugin_option *ftrace_parent = &plugin_options[0];
-static struct plugin_option *ftrace_indent = &plugin_options[1];
+static struct pevent_plugin_option *ftrace_parent = &plugin_options[0];
+static struct pevent_plugin_option *ftrace_indent = &plugin_options[1];
 
 static void add_child(struct func_stack *stack, const char *child, int pos)
 {

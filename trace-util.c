@@ -42,7 +42,7 @@ int tracecmd_disable_plugins;
 
 static struct registered_plugin_options {
 	struct registered_plugin_options	*next;
-	struct plugin_option			*options;
+	struct pevent_plugin_option			*options;
 } *registered_options;
 
 static struct trace_plugin_options {
@@ -79,7 +79,7 @@ struct plugin_list {
 char **trace_util_list_plugin_options(void)
 {
 	struct registered_plugin_options *reg;
-	struct plugin_option *op;
+	struct pevent_plugin_option *op;
 	char **list = NULL;
 	char *name;
 	int count = 0;
@@ -108,7 +108,7 @@ void trace_util_free_plugin_options_list(char **list)
 }
 
 static int process_option(const char *plugin, const char *option, const char *val);
-static void update_option(const char *file, struct plugin_option *option);
+static void update_option(const char *file, struct pevent_plugin_option *option);
 
 /**
  * trace_util_add_options - Add a set of options by a plugin
@@ -117,7 +117,7 @@ static void update_option(const char *file, struct plugin_option *option);
  *
  * Sets the options with the values that have been added by user.
  */
-void trace_util_add_options(const char *name, struct plugin_option *options)
+void trace_util_add_options(const char *name, struct pevent_plugin_option *options)
 {
 	struct registered_plugin_options *reg;
 
@@ -136,7 +136,7 @@ void trace_util_add_options(const char *name, struct plugin_option *options)
  * trace_util_remove_options - remove plugin options that were registered
  * @options: Options to removed that were registered with trace_util_add_options
  */
-void trace_util_remove_options(struct plugin_option *options)
+void trace_util_remove_options(struct pevent_plugin_option *options)
 {
 	struct registered_plugin_options **last;
 	struct registered_plugin_options *reg;
@@ -188,11 +188,11 @@ static void parse_option_name(char **option, char **plugin)
 	}
 }
 
-static struct plugin_option *
+static struct pevent_plugin_option *
 find_registered_option(const char *plugin, const char *option)
 {
 	struct registered_plugin_options *reg;
-	struct plugin_option *op;
+	struct pevent_plugin_option *op;
 	const char *op_plugin;
 
 	for (reg = registered_options; reg; reg = reg->next) {
@@ -214,10 +214,10 @@ find_registered_option(const char *plugin, const char *option)
 	return NULL;
 }
 
-static struct plugin_option *
+static struct pevent_plugin_option *
 find_registered_option_parse(const char *name)
 {
-	struct plugin_option *option;
+	struct pevent_plugin_option *option;
 	char *option_str;
 	char *plugin;
 
@@ -244,7 +244,7 @@ find_registered_option_parse(const char *name)
  */
 const char *trace_util_plugin_option_value(const char *name)
 {
-	struct plugin_option *option;
+	struct pevent_plugin_option *option;
 
 	option = find_registered_option_parse(name);
 	if (!option)
@@ -341,7 +341,7 @@ static void print_op_data(struct trace_seq *s, const char *name,
 void trace_util_print_plugin_options(struct trace_seq *s)
 {
 	struct registered_plugin_options *reg;
-	struct plugin_option *op;
+	struct pevent_plugin_option *op;
 
 	for (reg = registered_options; reg; reg = reg->next) {
 		if (reg != registered_options)
@@ -478,7 +478,7 @@ static void lower_case(char *str)
 		*str = tolower(*str);
 }
 
-static int update_option_value(struct plugin_option *op, const char *val)
+static int update_option_value(struct pevent_plugin_option *op, const char *val)
 {
 	char *op_val;
 	int ret = 1;
@@ -522,7 +522,7 @@ static int update_option_value(struct plugin_option *op, const char *val)
 
 static int process_option(const char *plugin, const char *option, const char *val)
 {
-	struct plugin_option *op;
+	struct pevent_plugin_option *op;
 
 	op = find_registered_option(plugin, option);
 	if (!op)
@@ -531,7 +531,7 @@ static int process_option(const char *plugin, const char *option, const char *va
 	return update_option_value(op, val);
 }
 
-static void update_option(const char *file, struct plugin_option *option)
+static void update_option(const char *file, struct pevent_plugin_option *option)
 {
 	struct trace_plugin_options *op;
 	char *plugin;
@@ -586,7 +586,7 @@ static void load_plugin(struct pevent *pevent, const char *path,
 	struct plugin_list **plugin_list = data;
 	pevent_plugin_load_func func;
 	struct plugin_list *list;
-	struct plugin_option *options;
+	struct pevent_plugin_option *options;
 	const char *alias;
 	char *plugin;
 	void *handle;
@@ -1436,14 +1436,14 @@ void trace_util_free_plugin_files(char **files)
 }
 
 struct plugin_option_read {
-	struct plugin_option	*options;
+	struct pevent_plugin_option	*options;
 };
 
 static void append_option(struct plugin_option_read *options,
-			  struct plugin_option *option,
+			  struct pevent_plugin_option *option,
 			  const char *alias, void *handle)
 {
-	struct plugin_option *op;
+	struct pevent_plugin_option *op;
 
 	while (option->name) {
 		op = malloc_or_die(sizeof(*op));
@@ -1460,7 +1460,7 @@ static void read_options(struct pevent *pevent, const char *path,
 			 const char *file, void *data)
 {
 	struct plugin_option_read *options = data;
-	struct plugin_option *option;
+	struct pevent_plugin_option *option;
 	const char *alias;
 	int unload = 0;
 	char *plugin;
@@ -1498,7 +1498,7 @@ static void read_options(struct pevent *pevent, const char *path,
 	free(plugin);
 }
 
-struct plugin_option *trace_util_read_plugin_options(void)
+struct pevent_plugin_option *trace_util_read_plugin_options(void)
 {
 	struct plugin_option_read option = {
 		.options = NULL,
@@ -1511,9 +1511,9 @@ struct plugin_option *trace_util_read_plugin_options(void)
 	return option.options;
 }
 
-void trace_util_free_options(struct plugin_option *options)
+void trace_util_free_options(struct pevent_plugin_option *options)
 {
-	struct plugin_option *op;
+	struct pevent_plugin_option *op;
 	void *last_handle = NULL;
 
 	while (options) {

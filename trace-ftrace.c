@@ -24,7 +24,7 @@
 
 #include "trace-cmd.h"
 
-struct plugin_option trace_ftrace_options[] = {
+struct pevent_plugin_option trace_ftrace_options[] = {
 	{
 		.name = "tailprint",
 		.plugin_alias = "fgraph",
@@ -42,8 +42,8 @@ struct plugin_option trace_ftrace_options[] = {
 	}
 };
 
-static struct plugin_option *fgraph_tail = &trace_ftrace_options[0];
-static struct plugin_option *fgraph_depth = &trace_ftrace_options[1];
+static struct pevent_plugin_option *fgraph_tail = &trace_ftrace_options[0];
+static struct pevent_plugin_option *fgraph_depth = &trace_ftrace_options[1];
 
 static void find_long_size(struct tracecmd_ftrace *finfo)
 {
