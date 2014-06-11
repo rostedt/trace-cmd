@@ -59,6 +59,11 @@ void trace_mem(int argc, char **argv);
 
 /* --- instance manipulation --- */
 
+struct func_list {
+	struct func_list *next;
+	const char *func;
+};
+
 struct buffer_instance {
 	struct buffer_instance	*next;
 	const char		*name;
@@ -69,6 +74,10 @@ struct buffer_instance {
 	struct event_list	*sched_switch_event;
 	struct event_list	*sched_wakeup_event;
 	struct event_list	*sched_wakeup_new_event;
+
+	const char		*plugin;
+	struct func_list	*filter_funcs;
+	struct func_list	*notrace_funcs;
 
 	int			tracing_on_init_val;
 	int			tracing_on_fd;

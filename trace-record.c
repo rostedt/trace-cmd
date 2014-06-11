@@ -93,18 +93,14 @@ static int filter_pid = -1;
 
 static int finished;
 
+/* setting of /proc/sys/kernel/ftrace_enabled */
+static int fset;
+
 static unsigned recorder_flags;
 
 /* Try a few times to get an accurate date */
 static int date2ts_tries = 5;
 
-struct func_list {
-	struct func_list *next;
-	const char *func;
-};
-
-static struct func_list *filter_funcs;
-static struct func_list *notrace_funcs;
 static struct func_list *graph_funcs;
 
 static int func_stack;
@@ -1995,14 +1991,15 @@ static void record_data(char *date2ts, struct trace_seq *s)
 	tracecmd_output_close(handle);
 }
 
-static void write_func_file(const char *file, struct func_list **list)
+static void write_func_file(struct buffer_instance *instance,
+			    const char *file, struct func_list **list)
 {
 	struct func_list *item;
 	char *path;
 	int fd;
 	int ret;
 
-	path = tracecmd_get_tracing_file(file);
+	path = get_instance_file(instance, file);
 
 	fd = open(path, O_WRONLY | O_TRUNC);
 	if (fd < 0)
@@ -2031,17 +2028,23 @@ static void write_func_file(const char *file, struct func_list **list)
 	    item->func, file, item->func);
 }
 
-static int functions_filtered(void)
+static int functions_filtered(struct buffer_instance *instance)
 {
 	char buf[1] = { '#' };
 	char *path;
 	int fd;
 
-	path = tracecmd_get_tracing_file("set_ftrace_filter");
+	path = get_instance_file(instance, "set_ftrace_filter");
 	fd = open(path, O_RDONLY);
 	tracecmd_put_tracing_file(path);
-	if (fd < 0)
+	if (fd < 0) {
+		if (instance == &top_instance)
+			warning("Can not set set_ftrace_filter");
+		else
+			warning("Can not set set_ftrace_filter for %s",
+				instance->name);
 		return 0;
+	}
 
 	/*
 	 * If functions are not filtered, than the first character
@@ -2055,15 +2058,17 @@ static int functions_filtered(void)
 	return 1;
 }
 
-static void set_funcs(void)
+static void set_funcs(struct buffer_instance *instance)
 {
-	write_func_file("set_ftrace_filter", &filter_funcs);
-	write_func_file("set_ftrace_notrace", &notrace_funcs);
-	write_func_file("set_graph_function", &graph_funcs);
+	write_func_file(instance, "set_ftrace_filter", &instance->filter_funcs);
+	write_func_file(instance, "set_ftrace_notrace", &instance->notrace_funcs);
+	/* graph tracing currently only works for top instance */
+	if (instance == &top_instance)
+		write_func_file(instance, "set_graph_function", &graph_funcs);
 
 	/* make sure we are filtering functions */
-	if (func_stack) {
-		if (!functions_filtered())
+	if (func_stack && instance == &top_instance) {
+		if (!functions_filtered(instance))
 			die("Function stack trace set, but functions not filtered");
 		save_option(FUNC_STACK_TRACE);
 	}
@@ -2413,6 +2418,85 @@ static void check_plugin(const char *plugin)
 	free(buf);
 }
 
+static void check_function_plugin(void)
+{
+	const char *plugin;
+
+	/* We only care about the top_instance */
+	if (first_instance != &top_instance)
+		return;
+
+	plugin = top_instance.plugin;
+	if (!plugin)
+		return;
+
+	if (plugin && strncmp(plugin, "function", 8) == 0 &&
+	    func_stack && !top_instance.filter_funcs)
+		die("Must supply function filtering with --func-stack\n");
+}
+
+static void check_doing_something(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance) {
+		if (instance->plugin || instance->events)
+			return;
+	}
+
+	die("no event or plugin was specified... aborting");
+}
+
+enum trace_type {
+	TRACE_TYPE_RECORD,
+	TRACE_TYPE_START,
+	TRACE_TYPE_EXTRACT,
+};
+
+static void
+update_plugin_instance(struct buffer_instance *instance,
+		       enum trace_type type)
+{
+	const char *plugin = instance->plugin;
+
+	if (!plugin)
+		return;
+
+	check_plugin(plugin);
+
+	/*
+	 * Latency tracers just save the trace and kill
+	 * the threads.
+	 */
+	if (strcmp(plugin, "irqsoff") == 0 ||
+	    strcmp(plugin, "preemptoff") == 0 ||
+	    strcmp(plugin, "preemptirqsoff") == 0 ||
+	    strcmp(plugin, "wakeup") == 0 ||
+	    strcmp(plugin, "wakeup_rt") == 0) {
+		latency = 1;
+		if (host)
+			die("Network tracing not available with latency tracer plugins");
+	} else if (type == TRACE_TYPE_RECORD) {
+		if (latency)
+			die("Can not record latency tracer and non latency trace together");
+	}
+
+	if (fset < 0 && (strcmp(plugin, "function") == 0 ||
+			 strcmp(plugin, "function_graph") == 0))
+		die("function tracing not configured on this kernel");
+
+	if (type != TRACE_TYPE_EXTRACT)
+		set_plugin_instance(instance, plugin);
+}
+
+static void update_plugins(enum trace_type type)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		update_plugin_instance(instance, type);
+}
+
 static void record_all_events(void)
 {
 	struct tracecmd_event_list *list;
@@ -2444,6 +2528,7 @@ void trace_record (int argc, char **argv)
 	struct tracecmd_event_list *list;
 	struct trace_seq *s;
 	struct buffer_instance *instance = &top_instance;
+	enum trace_type type;
 	char *pids;
 	char *pid;
 	char *sav;
@@ -2458,7 +2543,6 @@ void trace_record (int argc, char **argv)
 	int neg_event = 0;
 	int keep = 0;
 	int date = 0;
-	int fset;
 	int cpu;
 
 	int c;
@@ -2629,19 +2713,20 @@ void trace_record (int argc, char **argv)
 			neg_event = 1;
 			break;
 		case 'l':
-			add_func(&filter_funcs, optarg);
+			add_func(&instance->filter_funcs, optarg);
 			break;
 		case 'n':
-			add_func(&notrace_funcs, optarg);
+			add_func(&instance->notrace_funcs, optarg);
 			break;
 		case 'g':
 			add_func(&graph_funcs, optarg);
 			break;
 		case 'p':
-			if (plugin)
+			if (instance->plugin)
 				die("only one plugin allowed");
 			for (plugin = optarg; isspace(*plugin); plugin++)
 				;
+			instance->plugin = plugin;
 			for (optarg += strlen(optarg) - 1;
 			     optarg > plugin && isspace(*optarg); optarg--)
 				;
@@ -2732,10 +2817,6 @@ void trace_record (int argc, char **argv)
 		}
 	}
 
-	if (plugin && strncmp(plugin, "function", 8) == 0 &&
-	    func_stack && !filter_funcs)
-		die("Must supply function filtering with --func-stack\n");
-
 	if (do_ptrace && !filter_task && (filter_pid < 0))
 		die(" -c can only be used with -F or -P");
 
@@ -2749,18 +2830,18 @@ void trace_record (int argc, char **argv)
 		run_command = 1;
 	}
 
-	if (!events && !plugin && !extract)
-		die("no event or plugin was specified... aborting");
-
 	/*
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!plugin && !top_instance.events) {
+	if (!top_instance.plugin && !top_instance.events) {
 		if (!buffer_instances)
 			die("No instances reference??");
 		first_instance = buffer_instances;
 	}
+
+	check_doing_something();
+	check_function_plugin();
 
 	if (output)
 		output_file = output;
@@ -2793,10 +2874,10 @@ void trace_record (int argc, char **argv)
 		if (record && date)
 			date2ts = get_date_to_ts();
 
-		set_funcs();
-
-		for_all_instances(instance)
+		for_all_instances(instance) {
+			set_funcs(instance);
 			set_mask(instance);
+		}
 
 		if (events) {
 			for_all_instances(instance)
@@ -2805,28 +2886,14 @@ void trace_record (int argc, char **argv)
 		set_buffer_size();
 	}
 
-	if (plugin) {
-
-		check_plugin(plugin);
-		/*
-		 * Latency tracers just save the trace and kill
-		 * the threads.
-		 */
-		if (strcmp(plugin, "irqsoff") == 0 ||
-		    strcmp(plugin, "preemptoff") == 0 ||
-		    strcmp(plugin, "preemptirqsoff") == 0 ||
-		    strcmp(plugin, "wakeup") == 0 ||
-		    strcmp(plugin, "wakeup_rt") == 0) {
-			latency = 1;
-			if (host)
-				die("Network tracing not available with latency tracer plugins");
-		}
-		if (fset < 0 && (strcmp(plugin, "function") == 0 ||
-				 strcmp(plugin, "function_graph") == 0))
-			die("function tracing not configured on this kernel");
-		if (!extract)
-			set_plugin(plugin);
-	}
+	if (record)
+		type = TRACE_TYPE_RECORD;
+	else if (extract)
+		type = TRACE_TYPE_EXTRACT;
+	else
+		type = TRACE_TYPE_START;
+		
+	update_plugins(type);
 
 	set_options();
 
