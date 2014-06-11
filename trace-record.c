@@ -316,6 +316,14 @@ static void delete_thread_data(void)
 
 	for_all_instances(instance)
 		i = delete_thread_instance(i, instance);
+	/*
+	 * Top instance temp files are still created even if it
+	 * isn't used.
+	 */
+	if (no_top_instance()) {
+		for (i = 0; i < cpu_count; i++)
+			delete_temp_file(&top_instance, i);
+	}
 }
 
 static void stop_threads(void)
@@ -805,13 +813,14 @@ void run_cmd(int argc, char **argv)
 		waitpid(pid, &status, 0);
 }
 
-static void set_plugin(const char *name)
+static void
+set_plugin_instance(struct buffer_instance *instance, const char *name)
 {
 	FILE *fp;
 	char *path;
 	char zero = '0';
 
-	path = tracecmd_get_tracing_file("current_tracer");
+	path = get_instance_file(instance, "current_tracer");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
@@ -824,13 +833,27 @@ static void set_plugin(const char *name)
 		return;
 
 	/* Make sure func_stack_trace option is disabled */
-	path = tracecmd_get_tracing_file("options/func_stack_trace");
+	/* First try instance file, then top level */
+	path = get_instance_file(instance, "options/func_stack_trace");
 	fp = fopen(path, "w");
 	tracecmd_put_tracing_file(path);
-	if (!fp)
-		return;
+	if (!fp) {
+		path = tracecmd_get_tracing_file("options/func_stack_trace");
+		fp = fopen(path, "w");
+		tracecmd_put_tracing_file(path);
+		if (!fp)
+			return;
+	}
 	fwrite(&zero, 1, 1, fp);
 	fclose(fp);
+}
+
+static void set_plugin(const char *name)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		set_plugin_instance(instance, name);
 }
 
 static void save_option(const char *option)
@@ -926,7 +949,8 @@ static void old_update_events(const char *name, char update)
 	return;
 }
 
-static void reset_events(void)
+static void
+reset_events_instance(struct buffer_instance *instance)
 {
 	glob_t globbuf;
 	char *path;
@@ -936,12 +960,15 @@ static void reset_events(void)
 	int ret;
 
 	if (use_old_event_method()) {
+		/* old way only had top instance */
+		if (instance != &top_instance)
+			return;
 		old_update_events("all", '0');
 		return;
 	}
 
 	c = '0';
-	path = tracecmd_get_tracing_file("events/enable");
+	path = get_instance_file(instance, "events/enable");
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
 		die("opening to '%s'", path);
@@ -949,7 +976,7 @@ static void reset_events(void)
 	close(fd);
 	tracecmd_put_tracing_file(path);
 
-	path = tracecmd_get_tracing_file("events/*/filter");
+	path = get_instance_file(instance, "events/*/filter");
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
 	tracecmd_put_tracing_file(path);
@@ -965,6 +992,14 @@ static void reset_events(void)
 		close(fd);
 	}
 	globfree(&globbuf);
+}
+
+static void reset_events(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		reset_events_instance(instance);
 }
 
 static void write_file(const char *file, const char *str, const char *type)
@@ -1875,6 +1910,16 @@ static void append_buffer(struct tracecmd_output *handle,
 		put_temp_file(temp_files[i]);
 }
 
+static void touch_file(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC);
+	if (fd < 0)
+		die("could not create file %s\n", file);
+	close(fd);
+}
+
 static void record_data(char *date2ts, struct trace_seq *s)
 {
 	struct tracecmd_option **buffer_options;
@@ -1898,6 +1943,15 @@ static void record_data(char *date2ts, struct trace_seq *s)
 
 		for (i = 0; i < cpu_count; i++)
 			temp_files[i] = get_temp_file(&top_instance, i);
+
+		/*
+		 * If top_instance was not used, we still need to create
+		 * empty trace.dat files for it.
+		 */
+		if (first_instance != &top_instance) {
+			for (i = 0; i < cpu_count; i++)
+				touch_file(temp_files[i]);
+		}
 
 		handle = tracecmd_create_init_file_glob(output_file, listed_events);
 		if (!handle)
@@ -2702,7 +2756,7 @@ void trace_record (int argc, char **argv)
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!plugin && !instance->event_next) {
+	if (!plugin && !top_instance.events) {
 		if (!buffer_instances)
 			die("No instances reference??");
 		first_instance = buffer_instances;
