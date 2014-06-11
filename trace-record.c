@@ -61,8 +61,6 @@
 
 #define UDP_MAX_PACKET (65536 - 20)
 
-static int tracing_on_init_val;
-
 static int rt_prio;
 
 static int use_tcp;
@@ -150,8 +148,9 @@ struct events {
 	char *name;
 };
 
-struct buffer_instance top_instance;
+struct buffer_instance top_instance = { .keep = 1 };
 struct buffer_instance *buffer_instances;
+struct buffer_instance *first_instance = &top_instance;
 
 static struct tracecmd_recorder *recorder;
 
@@ -1075,8 +1074,12 @@ static int open_tracing_on(struct buffer_instance *instance)
 
 	path = get_instance_file(instance, "tracing_on");
 	fd = open(path, O_RDWR | O_CLOEXEC);
-	if (fd < 0)
-		die("opening '%s'", path);
+	if (fd < 0) {
+		/* instances may not be created yet */
+		if (instance == &top_instance)
+			die("opening '%s'", path);
+		return fd;
+	}
 	tracecmd_put_tracing_file(path);
 	instance->tracing_on_fd = fd;
 
@@ -1109,7 +1112,7 @@ static int read_tracing_on(struct buffer_instance *instance)
 
 	fd = open_tracing_on(instance);
 	if (fd < 0)
-		return 0;
+		return fd;
 
 	ret = read(fd, buf, 10);
 	if (ret <= 0)
@@ -2695,10 +2698,26 @@ void trace_record (int argc, char **argv)
 	if (!events && !plugin && !extract)
 		die("no event or plugin was specified... aborting");
 
+	/*
+	 * If top_instance doesn't have any plugins or events, then
+	 * remove it from being processed.
+	 */
+	if (!plugin && !instance->event_next) {
+		if (!buffer_instances)
+			die("No instances reference??");
+		first_instance = buffer_instances;
+	}
+
 	if (output)
 		output_file = output;
 
-	tracing_on_init_val = read_tracing_on(&top_instance);
+	/* Save the state of tracing_on before starting */
+	for_all_instances(instance) {
+		instance->tracing_on_init_val = read_tracing_on(instance);
+		/* Some instances may not be created yet */
+		if (instance->tracing_on_init_val < 0)
+			instance->tracing_on_init_val = 1;
+	}
 
 	/* Extracting data records all events in the system. */
 	if (extract && !record_all)
@@ -2836,8 +2855,10 @@ void trace_record (int argc, char **argv)
 	remove_instances();
 
 	/* If tracing_on was enabled before we started, set it on now */
-	if (tracing_on_init_val)
-		write_tracing_on(&top_instance, tracing_on_init_val);
+	for_all_instances(instance) {
+		if (instance->keep)
+			write_tracing_on(instance, instance->tracing_on_init_val);
+	}
 
 	if (host)
 		tracecmd_output_close(network_handle);

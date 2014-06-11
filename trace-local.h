@@ -70,15 +70,17 @@ struct buffer_instance {
 	struct event_list	*sched_wakeup_event;
 	struct event_list	*sched_wakeup_new_event;
 
+	int			tracing_on_init_val;
 	int			tracing_on_fd;
 	int			keep;
 };
 
 extern struct buffer_instance top_instance;
 extern struct buffer_instance *buffer_instances;
+extern struct buffer_instance *first_instance;
 
 #define for_each_instance(i) for (i = buffer_instances; i; i = (i)->next)
-#define for_all_instances(i) for (i = &top_instance; i; \
+#define for_all_instances(i) for (i = first_instance; i; \
 				  i = i == &top_instance ? buffer_instances : (i)->next)
 
 struct buffer_instance *create_instance(char *name);
