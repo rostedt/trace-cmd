@@ -108,11 +108,12 @@ static struct usage_help usage_help[] = {
 	{
 		"reset",
 		"disable all kernel tracing and clear the trace buffers",
-		" %s reset [-b size][-B buf][-t]\n"
+		" %s reset [-b size][-B buf][-d][-t]\n"
 		"          Disables the tracer (may reset trace file)\n"
 		"          Used in conjunction with start\n"
 		"          -b change the kernel buffer size (in kilobytes per CPU)\n"
 		"          -B reset the given buffer instance (top instance ignored)\n"
+		"          -d delete the previous specified instance\n"
 		"          -t still reset the top instance if -B option is given\n"
 	},
 	{

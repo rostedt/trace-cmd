@@ -39,6 +39,11 @@ OPTIONS
     will not be reset if this option is given (unless the *-t* option is
     also supplied).
 
+*-d*::
+    Delete the previously specified buffer instance that was specified by
+    the *-B* option. It is invalid to use with *-t* as the top level instance
+    can not be deleted.
+
 *-t*::
     Resets the top level instance buffer. Without the *-B* option this is the
     same as the default. But if *-B* is used, this is required if the top

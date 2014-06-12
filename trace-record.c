@@ -2770,7 +2770,7 @@ void trace_record (int argc, char **argv)
 	} else if (strcmp(argv[1], "reset") == 0) {
 		int topt = 0;
 
-		while ((c = getopt(argc-1, argv+1, "b:B:t")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "b:B:td")) >= 0) {
 			switch (c) {
 			case 'b':
 				instance->buffer_size = atoi(optarg);
@@ -2781,6 +2781,8 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				instance = create_instance(optarg);
 				add_instance(instance);
+				/* -d will remove keep */
+				instance->keep = 1;
 				/* top instance requires direct access */
 				if (!topt && is_top_instance(first_instance))
 					first_instance = instance;
@@ -2791,10 +2793,16 @@ void trace_record (int argc, char **argv)
 				instance = &top_instance;
 				first_instance = instance;
 				break;
+			case 'd':
+				if (is_top_instance(instance))
+					die("Can not delete top level buffer");
+				instance->keep = 0;
+				break;
 			}
 		}
 		disable_all(1);
 		set_buffer_size();
+		remove_instances();
 		exit(0);
 	} else
 		usage(argv);
