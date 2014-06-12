@@ -491,6 +491,26 @@ get_instance_file(struct buffer_instance *instance, const char *file)
 	return path;
 }
 
+static char *
+get_instance_dir(struct buffer_instance *instance)
+{
+	char *buf;
+	char *path;
+
+	/* only works for instances */
+	if (!instance->name)
+		return NULL;
+
+	buf = malloc_or_die(strlen(instance->name) +
+			    strlen("instances/") + 1);
+	sprintf(buf, "instances/%s", instance->name);
+
+	path = tracecmd_get_tracing_file(buf);
+	free(buf);
+
+	return path;
+}
+
 static void __clear_trace(struct buffer_instance *instance)
 {
 	FILE *fp;
@@ -1717,17 +1737,12 @@ static struct tracecmd_recorder *
 create_recorder_instance(struct buffer_instance *instance, const char *file, int cpu)
 {
 	struct tracecmd_recorder *record;
-	const char *name = instance->name;
-	char *tmp;
 	char *path;
 
-	if (!name)
+	if (!instance->name)
 		return tracecmd_create_recorder_maxkb(file, cpu, recorder_flags, max_kb);
 
-	tmp = malloc_or_die(strlen(name) + strlen("instances/") + 1);
-	sprintf(tmp, "instances/%s", name);
-	path = tracecmd_get_tracing_file(tmp);
-	free(tmp);
+	path = get_instance_dir(instance);
 
 	record = tracecmd_create_buffer_recorder_maxkb(file, cpu, recorder_flags,
 						       path, max_kb);
@@ -2408,14 +2423,10 @@ static void make_instances(void)
 	struct buffer_instance *instance;
 	struct stat st;
 	char *path;
-	char *buf;
 	int ret;
 
 	for_each_instance(instance) {
-		buf = malloc_or_die(strlen("instances/") + strlen(instance->name) + 1);
-		sprintf(buf, "instances/%s", instance->name);
-		path = tracecmd_get_tracing_file(buf);
-		free(buf);
+		path = get_instance_dir(instance);
 		ret = stat(path, &st);
 		if (ret < 0) {
 			ret = mkdir(path, 0777);
@@ -2431,7 +2442,6 @@ static void make_instances(void)
 static void remove_instances(void)
 {
 	struct buffer_instance *instance;
-	char *buf;
 	char *path;
 	int ret;
 
@@ -2439,10 +2449,7 @@ static void remove_instances(void)
 		/* Only delete what we created */
 		if (instance->keep)
 			continue;
-		buf = malloc_or_die(strlen("instances/") + strlen(instance->name) + 1);
-		sprintf(buf, "instances/%s", instance->name);
-		path = tracecmd_get_tracing_file(buf);
-		free(buf);
+		path = get_instance_dir(instance);
 		ret = rmdir(path);
 		if (ret < 0)
 			die("rmdir %s", path);
