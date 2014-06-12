@@ -128,6 +128,8 @@ static struct usage_help usage_help[] = {
 		"          -l show latency format (default with latency tracers)\n"
 		"          -O plugin option -O [plugin:]var[=val]\n"
 		"          --check-events return whether all event formats can be parsed\n"
+		"          --stat - show the buffer stats that were reported at the end of the record.\n"
+
 	},
 	{
 		"hist",
