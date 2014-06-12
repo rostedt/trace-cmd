@@ -1975,6 +1975,24 @@ static void append_buffer(struct tracecmd_output *handle,
 		put_temp_file(temp_files[i]);
 }
 
+static void
+add_buffer_stat(struct tracecmd_output *handle, struct buffer_instance *instance)
+{
+	struct trace_seq s;
+	int i;
+
+	trace_seq_init(&s);
+	trace_seq_printf(&s, "\nBuffer: %s\n\n", instance->name);
+	tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
+			    s.len+1, s.buffer);
+	trace_seq_destroy(&s);
+
+	for (i = 0; i < cpu_count; i++)
+		tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
+				    instance->s[i].len+1,
+				    instance->s[i].buffer);
+}
+
 static void touch_file(const char *file)
 {
 	int fd;
@@ -2043,6 +2061,7 @@ static void record_data(char *date2ts)
 			i = 0;
 			for_each_instance(instance) {
 				buffer_options[i++] = tracecmd_add_buffer_option(handle, instance->name);
+				add_buffer_stat(handle, instance);
 			}
 		}
 
