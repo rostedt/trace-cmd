@@ -2715,7 +2715,8 @@ void trace_record (int argc, char **argv)
 			case 't':
 				/* Force to use top instance */
 				topt = 1;
-				first_instance = &top_instance;
+				instance = &top_instance;
+				first_instance = instance;
 				break;
 			default:
 				usage(argv);
@@ -2746,7 +2747,8 @@ void trace_record (int argc, char **argv)
 			case 't':
 				/* Force to use top instance */
 				topt = 1;
-				first_instance = &top_instance;
+				instance = &top_instance;
+				first_instance = instance;
 				break;
 			default:
 				usage(argv);
@@ -2776,7 +2778,8 @@ void trace_record (int argc, char **argv)
 			case 't':
 				/* Force to use top instance */
 				topt = 1;
-				first_instance = &top_instance;
+				instance = &top_instance;
+				first_instance = instance;
 				break;
 			}
 		}
