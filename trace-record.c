@@ -2724,6 +2724,37 @@ void trace_record (int argc, char **argv)
 		}
 		disable_tracing();
 		exit(0);
+	} else if (strcmp(argv[1], "restart") == 0) {
+		int topt = 0;
+		for (;;) {
+			int c;
+
+			c = getopt(argc-1, argv+1, "tB:");
+			if (c == -1)
+				break;
+			switch (c) {
+			case 'h':
+				usage(argv);
+				break;
+			case 'B':
+				instance = create_instance(optarg);
+				add_instance(instance);
+				/* top instance requires direct access */
+				if (!topt && is_top_instance(first_instance))
+					first_instance = instance;
+				break;
+			case 't':
+				/* Force to use top instance */
+				topt = 1;
+				first_instance = &top_instance;
+				break;
+			default:
+				usage(argv);
+			}
+
+		}
+		enable_tracing();
+		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
 		int topt = 0;
 

@@ -35,6 +35,8 @@ COMMANDS
   stop    - stop tracing (only disables recording, overhead of tracer
             is still in effect)
 
+  restart - restart tracing from a previous stop (only effects recording)
+
   extract - extract the data from the kernel buffer and create a trace.dat
             file.
 
