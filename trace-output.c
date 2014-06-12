@@ -36,6 +36,7 @@
 #include <glob.h>
 
 #include "trace-cmd-local.h"
+#include "list.h"
 #include "version.h"
 
 /* We can't depend on the host size for size_t, all must be 64 bit */
@@ -52,6 +53,7 @@ struct tracecmd_option {
 	int		size;
 	void		*data;
 	tsize_t		offset;
+	struct list_head list;
 };
 
 struct tracecmd_output {
@@ -62,7 +64,7 @@ struct tracecmd_output {
 	char		*tracing_dir;
 	int		options_written;
 	int		nr_options;
-	struct tracecmd_option *options;
+	struct list_head options;
 };
 
 struct list_event {
@@ -110,7 +112,7 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 
 void tracecmd_output_close(struct tracecmd_output *handle)
 {
-	int i;
+	struct tracecmd_option *option;
 
 	if (!handle)
 		return;
@@ -126,10 +128,12 @@ void tracecmd_output_close(struct tracecmd_output *handle)
 	if (handle->pevent)
 		pevent_unref(handle->pevent);
 
-	if (handle->options) {
-		for (i = 0; i < handle->nr_options; i++)
-			free(handle->options[i].data);
-		free(handle->options);
+	while (!list_empty(&handle->options)) {
+		option = container_of(handle->options.next,
+				      struct tracecmd_option, list);
+		list_del(&option->list);
+		free(option->data);
+		free(option);
 	}
 
 	free(handle);
@@ -749,6 +753,8 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 			goto out_free;
 	}
 
+	list_head_init(&handle->options);
+
 	buf[0] = 23;
 	buf[1] = 8;
 	buf[2] = 68;
@@ -855,7 +861,7 @@ struct tracecmd_option *
 tracecmd_add_option(struct tracecmd_output *handle,
 		    unsigned short id, int size, void *data)
 {
-	int index = handle->nr_options;
+	struct tracecmd_option *option;
 
 	/*
 	 * We can only add options before they were written.
@@ -866,29 +872,25 @@ tracecmd_add_option(struct tracecmd_output *handle,
 
 	handle->nr_options++;
 
-	if (!handle->options)
-		handle->options = malloc_or_die(sizeof(*handle->options));
-	else {
-		handle->options = realloc(handle->options,
-					  sizeof(*handle->options) * handle->nr_options);
-		if (!handle->options)
-			die("Could not reallocate space for options");
-	}
+	option = malloc(sizeof(*option));
+	if (!option)
+		die("Could not allocate space for option");
 
-	handle->options[index].id = id;
-	handle->options[index].size = size;
-	handle->options[index].data = malloc_or_die(size);
-	memcpy(handle->options[index].data, data, size);
+	option->id = id;
+	option->size = size;
+	option->data = malloc_or_die(size);
+	memcpy(option->data, data, size);
+	list_add_tail(&option->list, &handle->options);
 
-	return &handle->options[index];
+	return option;
 }
 
 static int add_options(struct tracecmd_output *handle)
 {
+	struct tracecmd_option *options;
 	unsigned short option;
 	unsigned short endian2;
 	unsigned int endian4;
-	int i;
 
 	/* If already written, ignore */
 	if (handle->options_written)
@@ -897,20 +899,20 @@ static int add_options(struct tracecmd_output *handle)
 	if (do_write_check(handle, "options  ", 10))
 		return -1;
 
-	for (i = 0; i < handle->nr_options; i++) {
-		endian2 = convert_endian_2(handle, handle->options[i].id);
+	list_for_each_entry(options, &handle->options, list) {
+		endian2 = convert_endian_2(handle, options->id);
 		if (do_write_check(handle, &endian2, 2))
 			return -1;
 
-		endian4 = convert_endian_4(handle, handle->options[i].size);
+		endian4 = convert_endian_4(handle, options->size);
 		if (do_write_check(handle, &endian4, 4))
 			return -1;
 
 		/* Save the data location in case it needs to be updated */
-		handle->options[i].offset = lseek64(handle->fd, 0, SEEK_CUR);
+		options->offset = lseek64(handle->fd, 0, SEEK_CUR);
 
-		if (do_write_check(handle, handle->options[i].data,
-				   handle->options[i].size))
+		if (do_write_check(handle, options->data,
+				   options->size))
 			return -1;
 	}
 
