@@ -79,6 +79,8 @@ struct buffer_instance {
 	struct func_list	*filter_funcs;
 	struct func_list	*notrace_funcs;
 
+	struct trace_seq	*s;
+
 	int			tracing_on_init_val;
 	int			tracing_on_fd;
 	int			keep;

@@ -197,6 +197,50 @@ struct buffer_instance *create_instance(char *name)
 	return instance;
 }
 
+/**
+ * tracecmd_stat_cpu - show the buffer stats of a particular CPU
+ * @s: the trace_seq to record the data in.
+ * @cpu: the CPU to stat
+ *
+ */
+void tracecmd_stat_cpu_instance(struct buffer_instance *instance,
+				struct trace_seq *s, int cpu)
+{
+	char buf[BUFSIZ];
+	char *path;
+	char *file;
+	int fd;
+	int r;
+
+	file = malloc(40);
+	if (!file)
+		return;
+	snprintf(file, 40, "per_cpu/cpu%d/stats", cpu);
+
+	path = get_instance_file(instance, file);
+	free(file);
+	fd = open(path, O_RDONLY);
+	tracecmd_put_tracing_file(path);
+	if (fd < 0)
+		return;
+
+	while ((r = read(fd, buf, BUFSIZ)) > 0)
+		trace_seq_printf(s, "%.*s", r, buf);
+
+	close(fd);
+}
+
+/**
+ * tracecmd_stat_cpu - show the buffer stats of a particular CPU
+ * @s: the trace_seq to record the data in.
+ * @cpu: the CPU to stat
+ *
+ */
+void tracecmd_stat_cpu(struct trace_seq *s, int cpu)
+{
+	tracecmd_stat_cpu_instance(&top_instance, s, cpu);
+}
+
 static void add_event(struct buffer_instance *instance, struct event_list *event)
 {
 	*instance->event_next = event;
@@ -1926,7 +1970,7 @@ static void touch_file(const char *file)
 	close(fd);
 }
 
-static void record_data(char *date2ts, struct trace_seq *s)
+static void record_data(char *date2ts)
 {
 	struct tracecmd_option **buffer_options;
 	struct tracecmd_output *handle;
@@ -1967,9 +2011,14 @@ static void record_data(char *date2ts, struct trace_seq *s)
 			tracecmd_add_option(handle, TRACECMD_OPTION_DATE,
 					    strlen(date2ts)+1, date2ts);
 
-		for (i = 0; i < cpu_count; i++)
-			tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
-					    s[i].len+1, s[i].buffer);
+		/* Only record the top instance under TRACECMD_OPTION_CPUSTAT*/
+		if (!no_top_instance()) {
+			struct trace_seq *s = top_instance.s;
+
+			for (i = 0; i < cpu_count; i++)
+				tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
+						    s[i].len+1, s[i].buffer);
+		}
 
 		tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK,
 				    0, NULL);
@@ -2507,6 +2556,59 @@ static void update_plugins(enum trace_type type)
 		update_plugin_instance(instance, type);
 }
 
+static void allocate_seq(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		instance->s = malloc_or_die(sizeof(struct trace_seq) * cpu_count);
+}
+
+static void record_stats(void)
+{
+	struct buffer_instance *instance;
+	struct trace_seq *s;
+	int cpu;
+
+	for_all_instances(instance) {
+		s = instance->s;
+		for (cpu = 0; cpu < cpu_count; cpu++) {
+			trace_seq_init(&s[cpu]);
+			trace_seq_printf(&s[cpu], "CPU: %d\n", cpu);
+			tracecmd_stat_cpu_instance(instance, &s[cpu], cpu);
+		}
+	}
+}
+
+static void print_stats(void)
+{
+	struct buffer_instance *instance;
+	int cpu;
+
+	for_all_instances(instance) {
+		if (!is_top_instance(instance)) {
+			if (instance != first_instance)
+				printf("\n");
+			printf("Buffer: %s\n\n", instance->name);
+		}
+		for (cpu = 0; cpu < cpu_count; cpu++) {
+			trace_seq_do_printf(&instance->s[cpu]);
+			printf("\n");
+		}
+	}
+}
+
+static void destroy_stats(void)
+{
+	struct buffer_instance *instance;
+	int cpu;
+
+	for_all_instances(instance) {
+		for (cpu = 0; cpu < cpu_count; cpu++)
+			trace_seq_destroy(&instance->s[cpu]);
+	}
+}
+
 static void record_all_events(void)
 {
 	struct tracecmd_event_list *list;
@@ -2536,7 +2638,6 @@ void trace_record (int argc, char **argv)
 	struct event_list *event;
 	struct event_list *last_event;
 	struct tracecmd_event_list *list;
-	struct trace_seq *s;
 	struct buffer_instance *instance = &top_instance;
 	enum trace_type type;
 	char *pids;
@@ -2553,7 +2654,6 @@ void trace_record (int argc, char **argv)
 	int neg_event = 0;
 	int keep = 0;
 	int date = 0;
-	int cpu;
 
 	int c;
 
@@ -2907,7 +3007,7 @@ void trace_record (int argc, char **argv)
 
 	set_options();
 
-	s = malloc_or_die(sizeof(*s) * cpu_count);
+	allocate_seq();
 
 	if (record) {
 		signal(SIGINT, finish);
@@ -2944,11 +3044,7 @@ void trace_record (int argc, char **argv)
 			stop_threads();
 	}
 
-	for (cpu = 0; cpu < cpu_count; cpu++) {
-		trace_seq_init(&s[cpu]);
-		trace_seq_printf(&s[cpu], "CPU: %d\n", cpu);
-		tracecmd_stat_cpu(&s[cpu], cpu);
-	}
+	record_stats();
 
 	if (!keep)
 		disable_all(0);
@@ -2956,11 +3052,8 @@ void trace_record (int argc, char **argv)
 	printf("Kernel buffer statistics:\n"
 	       "  Note: \"entries\" are the entries left in the kernel ring buffer and are not\n"
 	       "        recorded in the trace data. They should all be zero.\n\n");
-	for (cpu = 0; cpu < cpu_count; cpu++) {
-		trace_seq_do_printf(&s[cpu]);
-		printf("\n");
-	}
 
+	print_stats();
 
 	/* extract records the date after extraction */
 	if (extract && date) {
@@ -2972,11 +3065,10 @@ void trace_record (int argc, char **argv)
 		date2ts = get_date_to_ts();
 	}
 
-	record_data(date2ts, s);
+	record_data(date2ts);
 	delete_thread_data();
 
-	for (cpu = 0; cpu < cpu_count; cpu++)
-		trace_seq_destroy(&s[cpu]);
+	destroy_stats();
 
 	if (keep)
 		exit(0);
