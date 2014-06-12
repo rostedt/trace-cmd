@@ -2694,6 +2694,7 @@ void trace_record (int argc, char **argv)
 	else if ((extract = strcmp(argv[1], "extract") == 0))
 		; /* do nothing */
 	else if (strcmp(argv[1], "stop") == 0) {
+		int topt = 0;
 		for (;;) {
 			int c;
 
@@ -2707,22 +2708,21 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				instance = create_instance(optarg);
 				add_instance(instance);
+				/* top instance requires direct access */
+				if (!topt && is_top_instance(first_instance))
+					first_instance = instance;
 				break;
 			case 't':
-				add_instance(&top_instance);
-				/* Added to instance array, ignore direct call */
-				instance = NULL;
+				/* Force to use top instance */
+				topt = 1;
+				first_instance = &top_instance;
 				break;
 			default:
 				usage(argv);
 			}
 
 		}
-		if (is_top_instance(instance))
-			disable_tracing();
-		else
-			for_each_instance(instance)
-				write_tracing_on(instance, 0);
+		disable_tracing();
 		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
 		int topt = 0;
