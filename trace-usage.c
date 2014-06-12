@@ -73,6 +73,15 @@ static struct usage_help usage_help[] = {
 		"          -t stop the top level buffer (needed if -B is specified)\n"
 	},
 	{
+		"restart",
+		"restart the kernel trace data recording",
+		" %s restart [-B buf [-B buf]..] [-t]\n"
+		"          Restarts recording after a trace-cmd stop.\n"
+		"          Used in conjunction with stop\n"
+		"          -B restart a given buffer (more than one may be specified)\n "
+		"          -t restart the top level buffer (needed if -B is specified)\n"
+	},
+	{
 		"show",
 		"show the contents of the kernel tracing buffer",
 		" %s show [-p|-s][-c cpu][-B buf][options]\n"

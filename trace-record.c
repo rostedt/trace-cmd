@@ -67,8 +67,6 @@ static int use_tcp;
 
 static unsigned int page_size;
 
-static int buffer_size;
-
 static const char *output_file = "trace.dat";
 
 static int latency;
@@ -2410,8 +2408,9 @@ static char *get_date_to_ts(void)
 	return date2ts;
 }
 
-void set_buffer_size(void)
+static void set_buffer_size_instance(struct buffer_instance *instance)
 {
+	int buffer_size = instance->buffer_size;
 	char buf[BUFSIZ];
 	char *path;
 	int ret;
@@ -2425,16 +2424,27 @@ void set_buffer_size(void)
 
 	snprintf(buf, BUFSIZ, "%d", buffer_size);
 
-	path = tracecmd_get_tracing_file("buffer_size_kb");
+	path = get_instance_file(instance, "buffer_size_kb");
 	fd = open(path, O_WRONLY);
-	if (fd < 0)
-		die("can't open %s", path);
+	if (fd < 0) {
+		warning("can't open %s", path);
+		goto out;
+	}
 
 	ret = write(fd, buf, strlen(buf));
 	if (ret < 0)
 		warning("Can't write to %s", path);
-	tracecmd_put_tracing_file(path);
 	close(fd);
+ out:
+	tracecmd_put_tracing_file(path);
+}
+
+void set_buffer_size(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		set_buffer_size_instance(instance);
 }
 
 static void make_instances(void)
@@ -2763,10 +2773,10 @@ void trace_record (int argc, char **argv)
 		while ((c = getopt(argc-1, argv+1, "b:B:t")) >= 0) {
 			switch (c) {
 			case 'b':
-				buffer_size = atoi(optarg);
+				instance->buffer_size = atoi(optarg);
 				/* Min buffer size is 1 */
 				if (strcmp(optarg, "0") == 0)
-					buffer_size = 1;
+					instance->buffer_size = 1;
 				break;
 			case 'B':
 				instance = create_instance(optarg);
@@ -2975,7 +2985,7 @@ void trace_record (int argc, char **argv)
 			use_tcp = 1;
 			break;
 		case 'b':
-			buffer_size = atoi(optarg);
+			instance->buffer_size = atoi(optarg);
 			break;
 		case 'B':
 			instance = create_instance(optarg);
