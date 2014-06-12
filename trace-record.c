@@ -152,6 +152,16 @@ static struct tracecmd_recorder *recorder;
 
 static int ignore_event_not_found = 0;
 
+static inline int is_top_instance(struct buffer_instance *instance)
+{
+	return instance == &top_instance;
+}
+
+static inline int no_top_instance(void)
+{
+	return first_instance != &top_instance;
+}
+
 static void init_instance(struct buffer_instance *instance)
 {
 	instance->event_next = &instance->events;
@@ -957,7 +967,7 @@ reset_events_instance(struct buffer_instance *instance)
 
 	if (use_old_event_method()) {
 		/* old way only had top instance */
-		if (instance != &top_instance)
+		if (!is_top_instance(instance))
 			return;
 		old_update_events("all", '0');
 		return;
@@ -1107,7 +1117,7 @@ static int open_tracing_on(struct buffer_instance *instance)
 	fd = open(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
 		/* instances may not be created yet */
-		if (instance == &top_instance)
+		if (is_top_instance(instance))
 			die("opening '%s'", path);
 		return fd;
 	}
@@ -1944,7 +1954,7 @@ static void record_data(char *date2ts, struct trace_seq *s)
 		 * If top_instance was not used, we still need to create
 		 * empty trace.dat files for it.
 		 */
-		if (first_instance != &top_instance) {
+		if (no_top_instance()) {
 			for (i = 0; i < cpu_count; i++)
 				touch_file(temp_files[i]);
 		}
@@ -2038,7 +2048,7 @@ static int functions_filtered(struct buffer_instance *instance)
 	fd = open(path, O_RDONLY);
 	tracecmd_put_tracing_file(path);
 	if (fd < 0) {
-		if (instance == &top_instance)
+		if (is_top_instance(instance))
 			warning("Can not set set_ftrace_filter");
 		else
 			warning("Can not set set_ftrace_filter for %s",
@@ -2063,11 +2073,11 @@ static void set_funcs(struct buffer_instance *instance)
 	write_func_file(instance, "set_ftrace_filter", &instance->filter_funcs);
 	write_func_file(instance, "set_ftrace_notrace", &instance->notrace_funcs);
 	/* graph tracing currently only works for top instance */
-	if (instance == &top_instance)
+	if (is_top_instance(instance))
 		write_func_file(instance, "set_graph_function", &graph_funcs);
 
 	/* make sure we are filtering functions */
-	if (func_stack && instance == &top_instance) {
+	if (func_stack && is_top_instance(instance)) {
 		if (!functions_filtered(instance))
 			die("Function stack trace set, but functions not filtered");
 		save_option(FUNC_STACK_TRACE);
@@ -2423,7 +2433,7 @@ static void check_function_plugin(void)
 	const char *plugin;
 
 	/* We only care about the top_instance */
-	if (first_instance != &top_instance)
+	if (no_top_instance())
 		return;
 
 	plugin = top_instance.plugin;
@@ -2582,7 +2592,7 @@ void trace_record (int argc, char **argv)
 			}
 
 		}
-		if (instance == &top_instance)
+		if (is_top_instance(instance))
 			disable_tracing();
 		else
 			for_each_instance(instance)
