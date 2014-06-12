@@ -183,6 +183,7 @@ static struct usage_help usage_help[] = {
 		"          -f [regex] list available functions to filter on\n"
 		"          -P list loaded plugin files (by path)\n"
 		"          -O list plugin options\n"
+		"          -B list defined buffer instances\n"
 	},
 	{
 		"restore",

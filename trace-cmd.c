@@ -21,6 +21,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
 
 #include "trace-local.h"
@@ -316,6 +317,35 @@ static void show_functions(const char *funcre)
 		show_file("available_filter_functions");
 }
 
+static void show_buffers(void)
+{
+	struct dirent *dent;
+	DIR *dir;
+	char *path;
+	int printed = 0;
+
+	path = tracecmd_get_tracing_file("instances");
+	dir = opendir(path);
+	tracecmd_put_tracing_file(path);
+	if (!dir)
+		die("Can not read instance directory");
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		printf("%s\n", name);
+		printed = 1;
+	}
+	closedir(dir);
+
+	if (!printed)
+		printf("No buffer instances defined\n");
+}
+
 static void show_plugins(void)
 {
 	struct pevent *pevent;
@@ -588,9 +618,11 @@ int main (int argc, char **argv)
 		int tracer = 0;
 		int options = 0;
 		int funcs = 0;
+		int buffers = 0;
 		int plug = 0;
 		int plug_op = 0;
 		int flags = 0;
+		int show_all = 1;
 		int i;
 		const char *arg;
 		const char *funcre = NULL;
@@ -610,6 +642,11 @@ int main (int argc, char **argv)
 				case 'e':
 					events = 1;
 					eventre = arg;
+					show_all = 0;
+					break;
+				case 'B':
+					buffers = 1;
+					show_all = 0;
 					break;
 				case 'F':
 					flags |= SHOW_EVENT_FORMAT;
@@ -623,19 +660,24 @@ int main (int argc, char **argv)
 				case 'p':
 				case 't':
 					tracer = 1;
+					show_all = 0;
 					break;
 				case 'P':
 					plug = 1;
+					show_all = 0;
 					break;
 				case 'O':
 					plug_op = 1;
+					show_all = 0;
 					break;
 				case 'o':
 					options = 1;
+					show_all = 0;
 					break;
 				case 'f':
 					funcs = 1;
 					funcre = arg;
+					show_all = 0;
 					break;
 				default:
 					fprintf(stderr, "list: invalid option -- '%c'\n",
@@ -663,7 +705,10 @@ int main (int argc, char **argv)
 		if (funcs)
 			show_functions(funcre);
 
-		if (!events && !tracer && !options && !plug && !plug_op && !funcs) {
+		if (buffers)
+			show_buffers();
+
+		if (show_all) {
 			printf("events:\n");
 			show_events(NULL, 0);
 			printf("\ntracers:\n");

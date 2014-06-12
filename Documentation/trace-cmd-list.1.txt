@@ -58,6 +58,9 @@ OPTIONS
 *-O*::
     List plugin options that can be used by trace-cmd report *-O* option.
 
+*-B*::
+    List defined buffer instances (sub buffers).
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
