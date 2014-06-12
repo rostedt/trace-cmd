@@ -32,6 +32,18 @@ OPTIONS
 
     trace-cmd reset -b 1
 
+*-B* 'buffer-name'::
+    If the kernel supports multiple buffers, this will reset the trace for
+    only the given buffer. It does not affect any other buffer. This may be
+    used multiple times to specify different buffers. The top level buffer
+    will not be reset if this option is given (unless the *-t* option is
+    also supplied).
+
+*-t*::
+    Resets the top level instance buffer. Without the *-B* option this is the
+    same as the default. But if *-B* is used, this is required if the top
+    level instance buffer should also be reset.
+
 
 SEE ALSO
 --------
