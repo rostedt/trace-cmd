@@ -4,11 +4,12 @@
 #include <endian.h>
 #include "event-parse.h"
 
-unsigned long long process___le16_to_cpup(struct trace_seq *s,
-					  unsigned long long *args)
+static unsigned long long
+process___le16_to_cpup(struct trace_seq *s,
+		       unsigned long long *args)
 {
 	uint16_t *val = (uint16_t *) args[0];
-	return (long long) le16toh(*val);
+	return val ? (long long) le16toh(*val) : 0;
 }
 
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
