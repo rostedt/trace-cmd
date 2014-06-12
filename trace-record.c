@@ -2478,6 +2478,10 @@ static void remove_instances(void)
 		/* Only delete what we created */
 		if (instance->keep)
 			continue;
+		if (instance->tracing_on_fd > 0) {
+			close(instance->tracing_on_fd);
+			instance->tracing_on_fd = 0;
+		}
 		path = get_instance_dir(instance);
 		ret = rmdir(path);
 		if (ret < 0)
