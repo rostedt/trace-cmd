@@ -2400,8 +2400,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 		tracecmd_close(handle->parent);
 	else {
 		/* Only main handle frees plugins and pevent */
-		pevent_free(handle->pevent);
 		tracecmd_unload_plugins(handle->plugin_list, handle->pevent);
+		pevent_free(handle->pevent);
 	}
 	free(handle);
 }
