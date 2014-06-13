@@ -97,7 +97,7 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	return 0;
 }
 
-int PEVENT_PLUGIN_UNLOADER(void)
+int PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
 {
 	Py_Finalize();
 	return 0;
