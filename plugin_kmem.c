@@ -65,9 +65,6 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	pevent_register_event_handler(pevent, -1, "kmem", "kmem_cache_alloc_node",
 				      call_site_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "kmem", "kfree",
-				      call_site_handler, NULL);
-
 	pevent_register_event_handler(pevent, -1, "kmem", "kmem_cache_free",
 				      call_site_handler, NULL);
 
