@@ -321,15 +321,15 @@ TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
 			trace-blk-hack.o kbuffer-parse.o event-plugin.o
 
 PLUGIN_OBJS =
+PLUGIN_OBJS += plugin_jbd2.o
 PLUGIN_OBJS += plugin_hrtimer.o
 PLUGIN_OBJS += plugin_kmem.o
-PLUGIN_OBJS += plugin_sched_switch.o
-PLUGIN_OBJS += plugin_mac80211.o
-PLUGIN_OBJS += plugin_jbd2.o
-PLUGIN_OBJS += plugin_function.o
 PLUGIN_OBJS += plugin_kvm.o
-PLUGIN_OBJS += plugin_blk.o
+PLUGIN_OBJS += plugin_mac80211.o
+PLUGIN_OBJS += plugin_sched_switch.o
+PLUGIN_OBJS += plugin_function.o
 PLUGIN_OBJS += plugin_cfg80211.o
+PLUGIN_OBJS += plugin_blk.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
