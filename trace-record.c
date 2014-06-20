@@ -1995,7 +1995,7 @@ static void touch_file(const char *file)
 {
 	int fd;
 
-	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC);
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0)
 		die("could not create file %s\n", file);
 	close(fd);
