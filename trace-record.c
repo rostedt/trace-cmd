@@ -890,8 +890,18 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 
 	path = get_instance_file(instance, "current_tracer");
 	fp = fopen(path, "w");
-	if (!fp)
+	if (!fp) {
+		/*
+		 * Legacy kernels do not have current_tracer file, and they
+		 * always use nop. So, it doesn't need to try to change the
+		 * plugin for those if name is "nop".
+		 */
+		if (!strncmp(name, "nop", 3)) {
+			tracecmd_put_tracing_file(path);
+			return;
+		}
 		die("writing to '%s'", path);
+	}
 	tracecmd_put_tracing_file(path);
 
 	fwrite(name, 1, strlen(name), fp);
