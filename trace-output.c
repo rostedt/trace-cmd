@@ -1202,6 +1202,7 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
 	handle->pevent = tracecmd_get_pevent(ihandle);
 	pevent_ref(pevent);
 	handle->page_size = tracecmd_page_size(ihandle);
+	list_head_init(&handle->options);
 
 	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) >= 0)
 		ret = 0;
