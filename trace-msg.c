@@ -395,6 +395,27 @@ error:
 	return -ENOMSG;
 }
 
+#define MSG_WAIT_MSEC	5000
+
+/*
+ * A return value of 0 indicates time-out
+ */
+static int tracecmd_msg_recv_wait(int fd, struct tracecmd_msg *msg)
+{
+	struct pollfd pfd;
+	int ret;
+
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	ret = poll(&pfd, 1, MSG_WAIT_MSEC);
+	if (ret < 0)
+		return -errno;
+	else if (ret == 0)
+		return -ETIMEDOUT;
+
+	return tracecmd_msg_recv(fd, msg);
+}
+
 static void *tracecmd_msg_buf_access(struct tracecmd_msg *msg, int offset)
 {
 	return (void *)msg + offset;
@@ -405,9 +426,12 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	u32 cmd;
 	int ret;
 
-	ret = tracecmd_msg_recv(fd, msg);
-	if (ret < 0)
+	ret = tracecmd_msg_recv_wait(fd, msg);
+	if (ret < 0) {
+		if (ret == -ETIMEDOUT)
+			warning("Connection timed out\n");
 		return ret;
+	}
 
 	cmd = ntohl(msg->cmd);
 	if (cmd == MSG_CLOSE)
@@ -487,9 +511,12 @@ int tracecmd_msg_initial_setting(int fd, int *cpus, int *pagesize)
 	u32 cmd;
 
 	msg = (struct tracecmd_msg *)buf;
-	ret = tracecmd_msg_recv(fd, msg);
-	if (ret < 0)
+	ret = tracecmd_msg_recv_wait(fd, msg);
+	if (ret < 0) {
+		if (ret == -ETIMEDOUT)
+			warning("Connection timed out\n");
 		return ret;
+	}
 
 	cmd = ntohl(msg->cmd);
 	if (cmd != MSG_TINIT) {
@@ -627,9 +654,12 @@ int tracecmd_msg_collect_metadata(int ifd, int ofd)
 	msg = (struct tracecmd_msg *)buf;
 
 	do {
-		ret = tracecmd_msg_recv(ifd, msg);
+		ret = tracecmd_msg_recv_wait(ifd, msg);
 		if (ret < 0) {
-			warning("reading client");
+			if (ret == -ETIMEDOUT)
+				warning("Connection timed out\n");
+			else
+				warning("reading client");
 			return ret;
 		}
 
