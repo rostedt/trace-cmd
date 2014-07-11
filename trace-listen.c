@@ -33,6 +33,7 @@
 #include <errno.h>
 
 #include "trace-local.h"
+#include "trace-msg.h"
 
 #define MAX_OPTION_SIZE 4096
 
@@ -45,9 +46,9 @@ static FILE *logfp;
 
 static int debug;
 
-static int use_tcp;
-
 static int backlog = 5;
+
+static int proto_ver;
 
 #define  TEMP_FILE_STR "%s.%s:%s.cpu%d", output_file, host, port, cpu
 static char *get_temp_file(const char *host, const char *port, int cpu)
@@ -114,10 +115,9 @@ static int process_option(char *option)
 	return 0;
 }
 
-static int done;
 static void finish(int sig)
 {
-	done = 1;
+	done = true;
 }
 
 #define LOG_BUF_SIZE 1024
@@ -146,7 +146,7 @@ static void __plog(const char *prefix, const char *fmt, va_list ap,
 	fprintf(fp, "%.*s", r, buf);
 }
 
-static void plog(const char *fmt, ...)
+void plog(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -155,7 +155,7 @@ static void plog(const char *fmt, ...)
 	va_end(ap);
 }
 
-static void pdie(const char *fmt, ...)
+void pdie(const char *fmt, ...)
 {
 	va_list ap;
 	char *str = "";
@@ -334,58 +334,80 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 
 	*cpus = atoi(buf);
 
-	plog("cpus=%d\n", *cpus);
-	if (*cpus < 0)
-		return -EINVAL;
+	/* Is the client using the new protocol? */
+	if (!*cpus) {
+		if (memcmp(buf, "V2", 2) != 0) {
+			plog("Cannot handle the protocol %s", buf);
+			return -EINVAL;
+		}
 
-	/* next read the page size */
-	n = read_string(fd, buf, BUFSIZ);
-	if (n == BUFSIZ)
-		/** ERROR **/
-		return -EINVAL;
+		/* read the rest of dummy data, but not use */
+		read(fd, buf, sizeof(V2_MAGIC)+1);
 
-	*pagesize = atoi(buf);
+		proto_ver = V2_PROTOCOL;
 
-	plog("pagesize=%d\n", *pagesize);
-	if (*pagesize <= 0)
-		return -EINVAL;
+		/* Let the client know we use v2 protocol */
+		write(fd, "V2", 2);
 
-	/* Now the number of options */
-	n = read_string(fd, buf, BUFSIZ);
-	if (n == BUFSIZ)
-		/** ERROR **/
-		return -EINVAL;
+		/* read the CPU count, the page size, and options */
+		if (tracecmd_msg_initial_setting(fd, cpus, pagesize) < 0)
+			return -EINVAL;
+	} else {
+		/* The client is using the v1 protocol */
 
-	options = atoi(buf);
+		plog("cpus=%d\n", *cpus);
+		if (*cpus < 0)
+			return -EINVAL;
 
-	for (i = 0; i < options; i++) {
-		/* next is the size of the options */
+		/* next read the page size */
 		n = read_string(fd, buf, BUFSIZ);
 		if (n == BUFSIZ)
 			/** ERROR **/
 			return -EINVAL;
-		size = atoi(buf);
-		/* prevent a client from killing us */
-		if (size > MAX_OPTION_SIZE)
-			return -EINVAL;
-		option = malloc(size);
-		if (!option)
-			return -ENOMEM;
-		do {
-			t = size;
-			s = 0;
-			s = read(fd, option+s, t);
-			if (s <= 0)
-				return -EIO;
-			t -= s;
-			s = size - t;
-		} while (t);
 
-		s = process_option(option);
-		free(option);
-		/* do we understand this option? */
-		if (!s)
+		*pagesize = atoi(buf);
+
+		plog("pagesize=%d\n", *pagesize);
+		if (*pagesize <= 0)
 			return -EINVAL;
+
+		/* Now the number of options */
+		n = read_string(fd, buf, BUFSIZ);
+ 		if (n == BUFSIZ)
+			/** ERROR **/
+			return -EINVAL;
+
+		options = atoi(buf);
+
+		for (i = 0; i < options; i++) {
+			/* next is the size of the options */
+			n = read_string(fd, buf, BUFSIZ);
+			if (n == BUFSIZ)
+				/** ERROR **/
+				return -EINVAL;
+			size = atoi(buf);
+			/* prevent a client from killing us */
+			if (size > MAX_OPTION_SIZE)
+				return -EINVAL;
+			option = malloc(size);
+			if (!option)
+				return -ENOMEM;
+			do {
+				t = size;
+				s = 0;
+				s = read(fd, option+s, t);
+				if (s <= 0)
+					return -EIO;
+				t -= s;
+				s = size - t;
+			} while (t);
+
+			s = process_option(option);
+			free(option);
+			/* do we understand this option? */
+			if (!s)
+				return -EINVAL;
+		}
 	}
 
 	if (use_tcp)
@@ -462,14 +484,20 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 		start_port = udp_port + 1;
 	}
 
-	/* send the client a comma deliminated set of port numbers */
-	for (cpu = 0; cpu < cpus; cpu++) {
-		snprintf(buf, BUFSIZ, "%s%d",
-			 cpu ? "," : "", port_array[cpu]);
-		write(fd, buf, strlen(buf));
+	if (proto_ver == V2_PROTOCOL) {
+		/* send set of port numbers to the client */
+		if (tracecmd_msg_send_port_array(fd, cpus, port_array) < 0)
+			goto out_free;
+	} else {
+		/* send the client a comma deliminated set of port numbers */
+		for (cpu = 0; cpu < cpus; cpu++) {
+			snprintf(buf, BUFSIZ, "%s%d",
+				 cpu ? "," : "", port_array[cpu]);
+			write(fd, buf, strlen(buf));
+		}
+		/* end with null terminator */
+		write(fd, "\0", 1);
 	}
-	/* end with null terminator */
-	write(fd, "\0", 1);
 
 	return pid_array;
 
@@ -563,7 +591,10 @@ static int process_client(const char *node, const char *port, int fd)
 		return -ENOMEM;
 
 	/* Now we are ready to start reading data from the client */
-	collect_metadata_from_client(fd, ofd);
+	if (proto_ver == V2_PROTOCOL)
+		tracecmd_msg_collect_metadata(fd, ofd);
+	else
+		collect_metadata_from_client(fd, ofd);
 
 	/* wait a little to let our readers finish reading */
 	sleep(1);

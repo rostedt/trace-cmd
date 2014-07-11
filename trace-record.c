@@ -46,6 +46,7 @@
 #include <errno.h>
 
 #include "trace-local.h"
+#include "trace-msg.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -60,8 +61,6 @@
 #define STAMP		"stamp"
 #define FUNC_STACK_TRACE "func_stack_trace"
 
-#define UDP_MAX_PACKET (65536 - 20)
-
 enum trace_type {
 	TRACE_TYPE_RECORD	= 1,
 	TRACE_TYPE_START	= (1 << 1),
@@ -72,17 +71,12 @@ enum trace_type {
 
 static int rt_prio;
 
-static int use_tcp;
-
 static int keep;
-
-static unsigned int page_size;
 
 static const char *output_file = "trace.dat";
 
 static int latency;
 static int sleep_time = 1000;
-static int cpu_count;
 static int recorder_threads;
 static struct pid_record_data *pids;
 static int buffers;
@@ -91,7 +85,6 @@ static int buffers;
 static int clear_function_filters;
 
 static char *host;
-static int *client_ports;
 static int sfd;
 static struct tracecmd_output *network_handle;
 
@@ -113,6 +106,7 @@ static unsigned recorder_flags;
 /* Try a few times to get an accurate date */
 static int date2ts_tries = 5;
 
+static int proto_ver = V2_PROTOCOL;
 static struct func_list *graph_funcs;
 
 static int func_stack;
@@ -2620,20 +2614,26 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 	exit(0);
 }
 
-static void communicate_with_listener(int fd)
+static void check_first_msg_from_server(int fd)
+{
+	char buf[BUFSIZ];
+
+	read(fd, buf, 8);
+
+	/* Make sure the server is the tracecmd server */
+	if (memcmp(buf, "tracecmd", 8) != 0)
+		die("server not tracecmd server");
+}
+
+static void communicate_with_listener_v1(int fd)
 {
 	char buf[BUFSIZ];
 	ssize_t n;
 	int cpu, i;
 
-	n = read(fd, buf, 8);
-
-	/* Make sure the server is the tracecmd server */
-	if (memcmp(buf, "tracecmd", 8) != 0)
-		die("server not tracecmd server");
+	check_first_msg_from_server(fd);
 
 	/* write the number of CPUs we have (in ASCII) */
-
 	sprintf(buf, "%d", cpu_count);
 
 	/* include \0 */
@@ -2690,6 +2690,46 @@ static void communicate_with_listener(int fd)
 	}
 }
 
+static void communicate_with_listener_v2(int fd)
+{
+	if (tracecmd_msg_send_init_data(fd) < 0)
+		die("Cannot communicate with server");
+}
+
+static void check_protocol_version(int fd)
+{
+	char buf[BUFSIZ];
+
+	check_first_msg_from_server(fd);
+
+	/*
+	 * Write the protocol version, the magic number, and the dummy
+	 * option(0) (in ASCII). The client understands whether the client
+	 * uses the v2 protocol or not by checking a reply message from the
+	 * server. If the message is "V2", the server uses v2 protocol. On the
+	 * other hands, if the message is just number strings, the server
+	 * returned port numbers. So, in that time, the client understands the
+	 * server uses the v1 protocol. However, the old server tells the
+	 * client port numbers after reading cpu_count, page_size, and option.
+	 * So, we add the dummy number (the magic number and 0 option) to the
+	 * first client message.
+	 */
+	write(fd, "V2\0"V2_MAGIC"0", sizeof(V2_MAGIC)+4);
+
+	/* read a reply message */
+	read(fd, buf, BUFSIZ);
+
+	if (!buf[0]) {
+		/* the server uses the v1 protocol, so we'll use it */
+		proto_ver = V1_PROTOCOL;
+		plog("Use the v1 protocol\n");
+	} else {
+		if (memcmp(buf, "V2", 2) != 0)
+			die("Cannot handle the protocol %s", buf);
+		/* OK, let's use v2 protocol */
+	}
+}
+
 static void setup_network(void)
 {
 	struct addrinfo hints;
@@ -2717,6 +2757,7 @@ static void setup_network(void)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
+again:
 	s = getaddrinfo(server, port, &hints, &result);
 	if (s != 0)
 		die("getaddrinfo: %s", gai_strerror(s));
@@ -2737,16 +2778,32 @@ static void setup_network(void)
 
 	freeaddrinfo(result);
 
-	communicate_with_listener(sfd);
+	if (proto_ver == V2_PROTOCOL) {
+		check_protocol_version(sfd);
+		if (proto_ver == V1_PROTOCOL) {
+			/* reconnect to the server for using the v1 protocol */
+			close(sfd);
+			goto again;
+		}
+		communicate_with_listener_v2(sfd);
+	}
+
+	if (proto_ver == V1_PROTOCOL)
+		communicate_with_listener_v1(sfd);
 
 	/* Now create the handle through this socket */
 	network_handle = tracecmd_create_init_fd_glob(sfd, listed_events);
+
+	if (proto_ver == V2_PROTOCOL)
+		tracecmd_msg_finish_sending_metadata(sfd);
 
 	/* OK, we are all set, let'r rip! */
 }
 
 static void finish_network(void)
 {
+	if (proto_ver == V2_PROTOCOL)
+		tracecmd_msg_send_close_msg();
 	close(sfd);
 	free(host);
 }
