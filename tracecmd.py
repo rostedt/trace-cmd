@@ -212,6 +212,15 @@ class Trace(object):
         # rec ownership goes over to Event instance
         return Event(self._pevent, rec, format)
 
+    def read_next_event(self):
+        res = tracecmd_read_next_data(self._handle)
+        if isinstance(res, int):
+            return None
+        rec, cpu = res
+        type = pevent_data_type(self._pevent, rec)
+        format = pevent_data_event_from_type(self._pevent, type)
+        return Event(self._pevent, rec, format)
+
     def peek_event(self, cpu):
         rec = tracecmd_peek_data_ref(self._handle, cpu)
         if rec is None:
