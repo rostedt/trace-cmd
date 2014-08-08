@@ -453,9 +453,11 @@ process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 		}
 	} else {
 		/* function stack trace? */
-		copy_stack_to_pending(current_pid);
-		free(ips);
-		reset_stack();
+		if (current_pid >= 0) {
+			copy_stack_to_pending(current_pid);
+			free(ips);
+			reset_stack();
+		}
 	}
 
 	current_pid = pid;
@@ -482,8 +484,10 @@ process_kernel_stack(struct pevent *pevent, struct pevent_record *record)
 			push_stack_func(func);
 	}
 
-	push_stack_func(pending_ips[pending_ips_idx - 1]);
-	reset_pending_stack();
+	if (pending_pid >= 0) {
+		push_stack_func(pending_ips[pending_ips_idx - 1]);
+		reset_pending_stack();
+	}
 	save_call_chain(current_pid, ips, ips_idx, 1);
 	if (do_restore)
 		restore_stack(current_pid);
