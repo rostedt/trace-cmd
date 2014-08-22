@@ -57,6 +57,8 @@ void trace_snapshot(int argc, char **argv);
 
 void trace_mem(int argc, char **argv);
 
+void trace_stat(int argc, char **argv);
+
 /* --- instance manipulation --- */
 
 struct func_list {
@@ -100,5 +102,6 @@ void add_instance(struct buffer_instance *instance);
 char *get_instance_file(struct buffer_instance *instance, const char *file);
 
 void show_instance_file(struct buffer_instance *instance, const char *name);
+int count_cpus(void);
 
 #endif /* __TRACE_LOCAL_H */

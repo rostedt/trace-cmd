@@ -1641,7 +1641,7 @@ static void expand_event_list(void)
 		expand_event_instance(instance);
 }
 
-static int count_cpus(void)
+int count_cpus(void)
 {
 	FILE *fp;
 	char buf[1024];

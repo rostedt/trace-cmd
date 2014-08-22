@@ -150,6 +150,11 @@ static struct usage_help usage_help[] = {
 		"          -P ignore pids (compact all functions)\n"
 	},
 	{
+		"stat",
+		"show the status of the running tracing (ftrace) system",
+		" %s stat"
+	},
+	{
 		"split",
 		"parse a trace.dat file into smaller file(s)",
 		" %s split [options] -o file [start [end]]\n"
