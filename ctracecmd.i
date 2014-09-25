@@ -49,6 +49,43 @@ void py_pevent_register_event_handler(struct pevent *pevent, int id,
 				      python_callback, pyfunc);
 }
 
+static PyObject *py_field_get_stack(struct pevent *pevent,
+				    struct pevent_record *record,
+				    struct event_format *event,
+				    int long_size)
+{
+	PyObject *list;
+	struct format_field *field;
+	void *data = record->data;
+	const char *func = NULL;
+	unsigned long addr;
+
+	field = pevent_find_any_field(event, "caller");
+	if (!field) {
+		PyErr_SetString(PyExc_TypeError,
+				"Event doesn't have caller field");
+		return NULL;
+	}
+
+	list = PyList_New(0);
+
+	for (data += field->offset; data < record->data + record->size;
+	     data += long_size) {
+		addr = pevent_read_number(event->pevent, data, long_size);
+
+		if ((long_size == 8 && addr == (unsigned long long)-1) ||
+		    ((int)addr == -1))
+			break;
+		func = pevent_find_function(event->pevent, addr);
+		if (PyList_Append(list, PyString_FromString(func))) {
+			Py_DECREF(list);
+			return NULL;
+		}
+	}
+
+	return list;
+}
+
 static PyObject *py_field_get_data(struct format_field *f, struct pevent_record *r)
 {
 	if (!strncmp(f->type, "__data_loc ", 11)) {

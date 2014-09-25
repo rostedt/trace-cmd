@@ -117,6 +117,10 @@ class Event(object, DictMixin):
             return None
         return py_field_get_str(f, self._record)
 
+    def stack_field(self, long_size):
+        return py_field_get_stack(self._pevent, self._record, self._format,
+                                  long_size)
+
 class TraceSeq(object):
     def __init__(self, trace_seq):
         self._trace_seq = trace_seq
@@ -191,6 +195,10 @@ class Trace(object):
     @cached_property
     def cpus(self):
         return tracecmd_cpus(self._handle)
+
+    @cached_property
+    def long_size(self):
+        return tracecmd_long_size(self._handle)
 
     def read_event(self, cpu):
         rec = tracecmd_read_data(self._handle, cpu)
