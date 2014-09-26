@@ -34,6 +34,36 @@ static int python_callback(struct trace_seq *s,
 			   struct event_format *event,
 			   void *context);
 
+static int skip_output = 0;
+
+static void py_supress_trace_output(void)
+{
+	skip_output = 1;
+}
+
+void pr_stat(const char *fmt, ...)
+{
+        va_list ap;
+
+	if (skip_output)
+		return;
+	va_start(ap, fmt);
+	__vpr_stat(fmt, ap);
+	va_end(ap);
+}
+
+void warning(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (skip_output)
+		return;
+
+	va_start(ap, fmt);
+	__vwarning(fmt, ap);
+	va_end(ap);
+}
+
 PyObject *convert_pevent(unsigned long pevent)
 {
 	void *pev = (void *)pevent;
