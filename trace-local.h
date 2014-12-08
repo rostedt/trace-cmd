@@ -132,6 +132,7 @@ struct buffer_instance {
 	int			tracing_on_fd;
 	int			keep;
 	int			buffer_size;
+	int			profile;
 };
 
 extern struct buffer_instance top_instance;

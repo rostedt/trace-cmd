@@ -1160,22 +1160,29 @@ static void set_options(void)
 	}
 }
 
+static int trace_check_file_exists(struct buffer_instance *instance, char *file)
+{
+	struct stat st;
+	char *path;
+	int ret;
+
+	path = get_instance_file(instance, file);
+	ret = stat(path, &st);
+	tracecmd_put_tracing_file(path);
+
+	return ret < 0 ? 0 : 1;
+}
+
 static int use_old_event_method(void)
 {
 	static int old_event_method;
 	static int processed;
-	struct stat st;
-	char *path;
-	int ret;
 
 	if (processed)
 		return old_event_method;
 
 	/* Check if the kernel has the events/enable file */
-	path = tracecmd_get_tracing_file("events/enable");
-	ret = stat(path, &st);
-	tracecmd_put_tracing_file(path);
-	if (ret < 0)
+	if (!trace_check_file_exists(&top_instance, "events/enable"))
 		old_event_method = 1;
 
 	processed = 1;
@@ -1269,7 +1276,7 @@ static void reset_events(void)
 		reset_events_instance(instance);
 }
 
-static void write_file(const char *file, const char *str, const char *type)
+static int write_file(const char *file, const char *str, const char *type)
 {
 	char buf[BUFSIZ];
 	int fd;
@@ -1280,7 +1287,7 @@ static void write_file(const char *file, const char *str, const char *type)
 		die("opening to '%s'", file);
 	ret = write(fd, str, strlen(str));
 	close(fd);
-	if (ret < 0) {
+	if (ret < 0 && type) {
 		/* write failed */
 		fd = open(file, O_RDONLY);
 		if (fd < 0)
@@ -1291,6 +1298,21 @@ static void write_file(const char *file, const char *str, const char *type)
 		die("Failed %s of %s\n", type, file);
 		close(fd);
 	}
+	return ret;
+}
+
+static int
+write_instance_file(struct buffer_instance *instance,
+		    const char *file, const char *str, const char *type)
+{
+	char *path;
+	int ret;
+
+	path = get_instance_file(instance, file);
+	ret = write_file(path, str, type);
+	tracecmd_put_tracing_file(path);
+
+	return ret;
 }
 
 enum {
@@ -2973,12 +2995,17 @@ static void check_function_plugin(void)
 		die("Must supply function filtering with --func-stack\n");
 }
 
+static int __check_doing_something(struct buffer_instance *instance)
+{
+	return instance->profile || instance->plugin || instance->events;
+}
+
 static void check_doing_something(void)
 {
 	struct buffer_instance *instance;
 
 	for_all_instances(instance) {
-		if (instance->plugin || instance->events)
+		if (__check_doing_something(instance))
 			return;
 	}
 
@@ -3088,6 +3115,18 @@ static void destroy_stats(void)
 	}
 }
 
+static void list_event(const char *event)
+{
+	struct tracecmd_event_list *list;
+
+	list = malloc_or_die(sizeof(*list));
+	list->next = listed_events;
+	list->glob = event;
+	listed_events = list;
+}
+
+#define ALL_EVENTS "*/*"
+
 static void record_all_events(void)
 {
 	struct tracecmd_event_list *list;
@@ -3099,11 +3138,153 @@ static void record_all_events(void)
 	}
 	list = malloc_or_die(sizeof(*list));
 	list->next = NULL;
-	list->glob = "*/*";
+	list->glob = ALL_EVENTS;
 	listed_events = list;
 }
 
+static int recording_all_events(void)
+{
+	return listed_events && strcmp(listed_events->glob, ALL_EVENTS) == 0;
+}
+
+static void add_trigger(struct event_list *event, const char *trigger)
+{
+	if (event->trigger) {
+		event->trigger = realloc(event->trigger,
+					 strlen(event->trigger) + strlen("\n") +
+					 strlen(trigger) + 1);
+		strcat(event->trigger, "\n");
+		strcat(event->trigger, trigger);
+	} else {
+		event->trigger = malloc_or_die(strlen(trigger) + 1);
+		sprintf(event->trigger, "%s", trigger);
+	}
+}
+
+static int test_stacktrace_trigger(struct buffer_instance *instance)
+{
+	char *path;
+	int ret = 0;
+	int fd;
+
+	path = get_instance_file(instance, "events/sched/sched_switch/trigger");
+
+	clear_trigger(path);
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		goto out;
+
+	ret = write(fd, "stacktrace", 10);
+	if (ret != 10)
+		ret = 0;
+	else
+		ret = 1;
+	close(fd);
+ out:
+	tracecmd_put_tracing_file(path);
+
+	return ret;
+}
+
+static int
+profile_add_event(struct buffer_instance *instance, const char *event_str, int stack)
+{
+	struct event_list *event;
+	char buf[BUFSIZ];
+	char *p;
+
+	strcpy(buf, "events/");
+	strncpy(buf + 7, event_str, BUFSIZ - 7);
+	buf[BUFSIZ-1] = 0;
+
+	if ((p = strstr(buf, ":"))) {
+		*p = '/';
+		p++;
+	}
+
+	if (!trace_check_file_exists(instance, buf))
+		return -1;
+
+	/* Only add event if it isn't already added */
+	for (event = instance->events; event; event = event->next) {
+		if (p && strcmp(event->event, p) == 0)
+			break;
+		if (strcmp(event->event, event_str) == 0)
+			break;
+	}
+
+	if (!event) {
+		event = malloc_or_die(sizeof(*event));
+		memset(event, 0, sizeof(*event));
+		event->event = event_str;
+		add_event(instance, event);
+	}
+
+	if (!recording_all_events())
+		list_event(event_str);
+
+	if (stack) {
+		if (!event->trigger || !strstr(event->trigger, "stacktrace"))
+			add_trigger(event, "stacktrace");
+	}
+
+	return 0;
+}
+
+static void enable_profile(struct buffer_instance *instance)
+{
+	int stacktrace = 0;
+	int ret;
+	int i;
+	char *trigger_events[] = {
+		"sched:sched_switch",
+		"sched:sched_wakeup",
+		NULL,
+	};
+	char *events[] = {
+		"exceptions:page_fault_user",
+		"irq:irq_handler_entry",
+		"irq:irq_handler_exit",
+		"irq:softirq_entry",
+		"irq:softirq_exit",
+		"irq:softirq_raise",
+		"raw_syscalls",
+		NULL,
+	};
+
+	if (!instance->plugin) {
+		if (trace_check_file_exists(instance, "max_graph_depth")) {
+			instance->plugin = "function_graph";
+			ret = write_instance_file(instance, "max_graph_depth",
+						  "1", NULL);
+			if (ret < 0)
+				die("could not write to max_graph_depth");
+		} else
+			warning("Kernel does not support max_graph_depth\n"
+				" Skipping user/kernel profiling");
+	}
+
+	if (test_stacktrace_trigger(instance))
+		stacktrace = 1;
+	else
+		/*
+		 * The stacktrace trigger is not implemented with this
+		 * kernel, then we need to default to the stack trace option.
+		 * This is less efficient but still works.
+		 */
+		save_option("stacktrace");
+
+
+	for (i = 0; trigger_events[i]; i++)
+		profile_add_event(instance, trigger_events[i], stacktrace);
+
+	for (i = 0; events[i]; i++)
+		profile_add_event(instance, events[i], 0);
+}
+
 enum {
+	OPT_profile	= 252,
 	OPT_nosplice	= 253,
 	OPT_funcstack	= 254,
 	OPT_date	= 255,
@@ -3116,7 +3297,6 @@ void trace_record (int argc, char **argv)
 	const char *option;
 	struct event_list *event;
 	struct event_list *last_event;
-	struct tracecmd_event_list *list;
 	struct buffer_instance *instance = &top_instance;
 	enum trace_type type;
 	char *pids;
@@ -3258,6 +3438,7 @@ void trace_record (int argc, char **argv)
 			{"date", no_argument, NULL, OPT_date},
 			{"func-stack", no_argument, NULL, OPT_funcstack},
 			{"nosplice", no_argument, NULL, OPT_nosplice},
+			{"profile", no_argument, NULL, OPT_profile},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -3289,13 +3470,8 @@ void trace_record (int argc, char **argv)
 			event->filter = NULL;
 			last_event = event;
 
-			if (!record_all) {
-				list = malloc_or_die(sizeof(*list));
-				list->next = listed_events;
-				list->glob = optarg;
-				listed_events = list;
-			}
-
+			if (!record_all)
+				list_event(optarg);
 			break;
 		case 'f':
 			if (!last_event)
@@ -3320,19 +3496,7 @@ void trace_record (int argc, char **argv)
 		case 'R':
 			if (!last_event)
 				die("trigger must come after event");
-			if (last_event->trigger) {
-				last_event->trigger =
-					realloc(last_event->trigger,
-						strlen(last_event->trigger) +
-						strlen("\n") +
-						strlen(optarg) + 1);
-				strcat(last_event->trigger, "\n");
-				strcat(last_event->trigger, optarg);
-			} else {
-				last_event->trigger =
-					malloc_or_die(strlen(optarg) + 1);
-				sprintf(last_event->trigger, "%s", optarg);
-			}
+			add_trigger(event, optarg);
 			break;
 
 		case 'F':
@@ -3458,6 +3622,10 @@ void trace_record (int argc, char **argv)
 		case OPT_nosplice:
 			recorder_flags |= TRACECMD_RECORD_NOSPLICE;
 			break;
+		case OPT_profile:
+			instance->profile = 1;
+			events = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -3480,7 +3648,7 @@ void trace_record (int argc, char **argv)
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!extract && !top_instance.plugin && !top_instance.events) {
+	if (!extract && !__check_doing_something(&top_instance)) {
 		if (!buffer_instances)
 			die("No instances reference??");
 		first_instance = buffer_instances;
@@ -3495,6 +3663,10 @@ void trace_record (int argc, char **argv)
 
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
+
+		if (instance->profile)
+			enable_profile(instance);
+
 		instance->tracing_on_init_val = read_tracing_on(instance);
 		/* Some instances may not be created yet */
 		if (instance->tracing_on_init_val < 0)
