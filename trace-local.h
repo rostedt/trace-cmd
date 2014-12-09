@@ -62,6 +62,11 @@ void trace_mem(int argc, char **argv);
 
 void trace_stat(int argc, char **argv);
 
+int trace_profile_record(struct tracecmd_input *handle,
+			 struct pevent_record *record, int cpu);
+void trace_init_profile(struct tracecmd_input *handle);
+int trace_profile(void);
+
 /* --- event interation --- */
 
 /*
@@ -102,7 +107,6 @@ char *append_file(const char *dir, const char *name);
 char *get_file_content(const char *file);
 
 char *strstrip(char *str);
-
 
 /* --- instance manipulation --- */
 
