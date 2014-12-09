@@ -36,7 +36,7 @@
 #include <errno.h>
 
 #include "trace-local.h"
-#include "trace-hash-local.h"
+#include "trace-hash.h"
 #include "list.h"
 
 static struct filter_str {
@@ -115,13 +115,13 @@ static unsigned long long total_wakeup_rt_lat;
 static unsigned long wakeup_rt_lat_count;
 
 struct wakeup_info {
-	struct wakeup_info	*next;
+	struct trace_hash_item	hash;
 	unsigned long long	start;
 	int			pid;
 };
 
 #define WAKEUP_HASH_SIZE 1024
-static struct wakeup_info *wakeup_hash[WAKEUP_HASH_SIZE];
+static struct trace_hash wakeup_hash;
 
 /* Debug variables for testing tracecmd_read_at */
 #define TEST_READ_AT 0
@@ -528,6 +528,8 @@ static void init_wakeup(struct tracecmd_input *handle)
 
 	pevent = tracecmd_get_pevent(handle);
 
+	trace_hash_init(&wakeup_hash, WAKEUP_HASH_SIZE);
+
 	event = pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
 	if (!event)
 		goto fail;
@@ -568,42 +570,24 @@ static void init_wakeup(struct tracecmd_input *handle)
 	show_wakeup = 0;
 }
 
-static unsigned int calc_wakeup_key(unsigned long val)
-{
-	return trace_hash(val) % WAKEUP_HASH_SIZE;
-}
-
-static struct wakeup_info *
-__find_wakeup(unsigned int key, unsigned int val)
-{
-	struct wakeup_info *info = wakeup_hash[key];
-
-	while (info) {
-		if (info->pid == val)
-			return info;
-		info = info->next;
-	}
-
-	return NULL;
-}
-
 static void add_wakeup(unsigned int val, unsigned long long start)
 {
-	unsigned int key = calc_wakeup_key(val);
+	unsigned int key = trace_hash(val);
 	struct wakeup_info *info;
+	struct trace_hash_item *item;
 
-	info = __find_wakeup(key, val);
-	if (info) {
+	item = trace_hash_find(&wakeup_hash, key, NULL, NULL);
+	if (item) {
+		info = container_of(item, struct wakeup_info, hash);
 		/* Hmm, double wakeup? */
 		info->start = start;
 		return;
 	}
 
 	info = malloc_or_die(sizeof(*info));
-	info->pid = val;
+	info->hash.key = val;
 	info->start = start;
-	info->next = wakeup_hash[key];
-	wakeup_hash[key] = info;
+	trace_hash_add(&wakeup_hash, &info->hash);
 }
 
 static unsigned long long max_lat = 0;
@@ -618,14 +602,16 @@ static unsigned long long min_rt_time;
 
 static void add_sched(unsigned int val, unsigned long long end, int rt)
 {
-	unsigned int key = calc_wakeup_key(val);
+	struct trace_hash_item *item;
+	unsigned int key = trace_hash(val);
 	struct wakeup_info *info;
-	struct wakeup_info **next;
 	unsigned long long cal;
 
-	info = __find_wakeup(key, val);
-	if (!info)
+	item = trace_hash_find(&wakeup_hash, key, NULL, NULL);
+	if (!item)
 		return;
+
+	info = container_of(item, struct wakeup_info, hash);
 
 	cal = end - info->start;
 
@@ -659,14 +645,7 @@ static void add_sched(unsigned int val, unsigned long long end, int rt)
 		wakeup_rt_lat_count++;
 	}
 
-	next = &wakeup_hash[key];
-	while (*next) {
-		if (*next == info) {
-			*next = info->next;
-			break;
-		}
-		next = &(*next)->next;
-	}
+	trace_hash_del(item);
 	free(info);
 }
 
@@ -729,7 +708,8 @@ show_wakeup_timings(unsigned long long total, unsigned long count,
 static void finish_wakeup(void)
 {
 	struct wakeup_info *info;
-	int i;
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
 
 	if (!show_wakeup || !wakeup_lat_count)
 		return;
@@ -746,13 +726,15 @@ static void finish_wakeup(void)
 				    min_rt_lat, min_rt_time);
 	}
 
-	for (i = 0; i < WAKEUP_HASH_SIZE; i++) {
-		while (wakeup_hash[i]) {
-			info = wakeup_hash[i];
-			wakeup_hash[i] = info->next;
+	trace_hash_for_each_bucket(bucket, &wakeup_hash) {
+		trace_hash_while_item(item, bucket) {
+			trace_hash_del(item);
+			info = container_of(item, struct wakeup_info, hash);
 			free(info);
 		}
 	}
+
+	trace_hash_free(&wakeup_hash);
 }
 
 static void show_data(struct tracecmd_input *handle, struct pevent_record *record)
