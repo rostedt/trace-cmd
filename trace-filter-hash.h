@@ -17,8 +17,8 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-#ifndef _TRACE_HASH_H
-#define _TRACE_HASH_H
+#ifndef _TRACE_FILTER_HASH_H
+#define _TRACE_FILTER_HASH_H
 
 #include <glib.h>
 #include "trace-hash-local.h"
@@ -49,4 +49,4 @@ static inline gint filter_task_count(struct filter_task *hash)
 	return hash->count;
 }
 
-#endif /* _TRACE_HASH_H */
+#endif /* _TRACE_FILTER_HASH_H */
