@@ -28,7 +28,7 @@
 #include "trace-cmd.h"
 #include "trace-local.h"
 #include "trace-graph.h"
-#include "trace-hash.h"
+#include "trace-filter-hash.h"
 #include "trace-filter.h"
 #include "trace-gui.h"
 

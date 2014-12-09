@@ -22,7 +22,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "trace-hash.h"
+#include "trace-filter-hash.h"
 
 #define FILTER_TASK_HASH_SIZE	256
 

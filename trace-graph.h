@@ -22,7 +22,7 @@
 
 #include <gtk/gtk.h>
 #include "trace-cmd.h"
-#include "trace-hash.h"
+#include "trace-filter-hash.h"
 #include "trace-xml.h"
 
 struct graph_info;

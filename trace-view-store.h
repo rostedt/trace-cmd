@@ -22,7 +22,7 @@
 
 #include <gtk/gtk.h>
 #include "trace-cmd.h"
-#include "trace-hash.h"
+#include "trace-filter-hash.h"
 
 /* Some boilerplate GObject defines. 'klass' is used
  *   instead of 'class', because 'class' is a C++ keyword */
