@@ -1104,6 +1104,47 @@ static void write_file(const char *file, const char *str, const char *type)
 	}
 }
 
+enum {
+	STATE_NEWLINE,
+	STATE_SKIP,
+	STATE_COPY,
+};
+
+static int find_trigger(const char *file, char *buf, int size)
+{
+	FILE *fp;
+	int state = STATE_NEWLINE;
+	int ch;
+	int len = 0;
+
+	fp = fopen(file, "r");
+	while ((ch = fgetc(fp)) != EOF) {
+		if (ch == '\n') {
+			if (state == STATE_COPY)
+				break;
+			state = STATE_NEWLINE;
+			continue;
+		}
+		if (state == STATE_SKIP)
+			continue;
+		if (state == STATE_NEWLINE && ch == '#') {
+			state = STATE_SKIP;
+			continue;
+		}
+		if (state == STATE_COPY && ch == ':')
+			break;
+
+		state = STATE_COPY;
+		buf[len++] = ch;
+		if (len == size - 1)
+			break;
+	}
+	buf[len] = 0;
+	fclose(fp);
+
+	return len;
+}
+
 static void write_filter(const char *file, const char *filter)
 {
 	write_file(file, filter, "filter");
@@ -1112,6 +1153,24 @@ static void write_filter(const char *file, const char *filter)
 static void write_trigger(const char *file, const char *trigger)
 {
 	write_file(file, trigger, "trigger");
+}
+
+static void clear_trigger(const char *file)
+{
+	char trigger[BUFSIZ];
+	int len;
+
+	trigger[0] = '!';
+
+	/*
+	 * To delete a trigger, we need to write a '!trigger'
+	 * to the file for each trigger.
+	 */
+	do {
+		len = find_trigger(file, trigger+1, BUFSIZ-1);
+		if (len)
+			write_trigger(file, trigger);
+	} while (len);
 }
 
 static void
@@ -1134,6 +1193,7 @@ update_event(struct event_list *event, const char *filter,
 		write_filter(event->filter_file, filter);
 
 	if (event->trigger_file) {
+		clear_trigger(event->trigger_file);
 		write_trigger(event->trigger_file, event->trigger);
 		/* Make sure we don't write this again */
 		free(event->trigger_file);
