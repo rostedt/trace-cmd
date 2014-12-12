@@ -51,7 +51,7 @@ static int get_instance_file_fd(struct buffer_instance *instance,
 	return fd;
 }
 
-static char *strstrip(char *str)
+char *strstrip(char *str)
 {
 	char *s;
 
@@ -103,7 +103,7 @@ static char *get_fd_content(int fd, const char *file)
 	return str;
 }
 
-static char *get_file_content(const char *file)
+char *get_file_content(const char *file)
 {
 	char *str;
 	int fd;

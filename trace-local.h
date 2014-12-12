@@ -99,6 +99,9 @@ enum event_iter_type trace_event_iter_next(struct event_iter *iter,
 void trace_event_iter_free(struct event_iter *iter);
 
 char *append_file(const char *dir, const char *name);
+char *get_file_content(const char *file);
+
+char *strstrip(char *str);
 
 
 /* --- instance manipulation --- */

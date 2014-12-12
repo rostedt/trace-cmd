@@ -65,6 +65,8 @@ static int rt_prio;
 
 static int use_tcp;
 
+static int keep;
+
 static unsigned int page_size;
 
 static const char *output_file = "trace.dat";
@@ -142,6 +144,19 @@ struct events {
 	char *name;
 };
 
+/* Files to be reset when done recording */
+struct reset_file {
+	struct reset_file	*next;
+	char			*path;
+	char			*reset;
+	int			prio;
+};
+
+static struct reset_file *reset_files;
+
+/* Triggers need to be cleared in a special way */
+static struct reset_file *reset_triggers;
+
 struct buffer_instance top_instance = { .keep = 1 };
 struct buffer_instance *buffer_instances;
 struct buffer_instance *first_instance = &top_instance;
@@ -163,6 +178,85 @@ static inline int no_top_instance(void)
 static void init_instance(struct buffer_instance *instance)
 {
 	instance->event_next = &instance->events;
+}
+
+enum {
+	RESET_DEFAULT_PRIO	= 0,
+	RESET_HIGH_PRIO		= 100000,
+};
+
+static void add_reset_file(const char *file, const char *val, int prio)
+{
+	struct reset_file *reset;
+	struct reset_file **last = &reset_files;
+
+	/* Only reset if we are not keeping the state */
+	if (keep)
+		return;
+
+	reset = malloc_or_die(sizeof(*reset));
+	reset->path = strdup(file);
+	reset->reset = strdup(val);
+	reset->prio = prio;
+	if (!reset->path || !reset->reset)
+		die("malloc");
+
+	while (*last && (*last)->prio > prio)
+		last = &(*last)->next;
+
+	reset->next = *last;
+	*last = reset;
+}
+
+static void add_reset_trigger(const char *file)
+{
+	struct reset_file *reset;
+
+	/* Only reset if we are not keeping the state */
+	if (keep)
+		return;
+
+	reset = malloc_or_die(sizeof(*reset));
+	reset->path = strdup(file);
+
+	reset->next = reset_triggers;
+	reset_triggers = reset;
+}
+
+/* To save the contents of the file */
+static void reset_save_file(const char *file, int prio)
+{
+	char *content;
+
+	content = get_file_content(file);
+	add_reset_file(file, content, prio);
+	free(content);
+}
+
+/*
+ * @file: the file to check
+ * @nop: If the content of the file is this, use the reset value
+ * @reset: What to write if the file == @nop
+ */
+static void reset_save_file_cond(const char *file, int prio,
+				 const char *nop, const char *reset)
+{
+	char *content;
+	char *cond;
+
+	if (keep)
+		return;
+
+	content = get_file_content(file);
+
+	cond = strstrip(content);
+
+	if (strcmp(cond, nop) == 0)
+		add_reset_file(file, reset, prio);
+	else
+		add_reset_file(file, content, prio);
+
+	free(content);
 }
 
 /**
@@ -420,6 +514,8 @@ static int set_ftrace_enable(const char *path, int set)
 	if (fd < 0)
 		return -ENODEV;
 
+	reset_save_file(path, RESET_DEFAULT_PRIO);
+
 	ret = -1;
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
@@ -566,6 +662,7 @@ static void update_ftrace_pid(const char *pid, int reset)
 	static char *path;
 	int ret;
 	static int fd = -1;
+	static int first = 1;
 
 	if (!pid) {
 		if (fd >= 0)
@@ -588,6 +685,10 @@ static void update_ftrace_pid(const char *pid, int reset)
 			path = tracecmd_get_tracing_file("set_ftrace_pid");
 		if (!path)
 			return;
+		if (first) {
+			first = 0;
+			reset_save_file_cond(path, RESET_DEFAULT_PRIO, "no pid", "");
+		}
 		fd = open(path, O_WRONLY | O_CLOEXEC | (reset ? O_TRUNC : 0));
 		if (fd < 0)
 			return;
@@ -914,14 +1015,21 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 	/* First try instance file, then top level */
 	path = get_instance_file(instance, "options/func_stack_trace");
 	fp = fopen(path, "w");
-	tracecmd_put_tracing_file(path);
 	if (!fp) {
+		tracecmd_put_tracing_file(path);
 		path = tracecmd_get_tracing_file("options/func_stack_trace");
 		fp = fopen(path, "w");
-		tracecmd_put_tracing_file(path);
-		if (!fp)
+		if (!fp) {
+			tracecmd_put_tracing_file(path);
 			return;
+		}
 	}
+	/*
+	 * Always reset func_stack_trace to zero. Don't bother saving
+	 * the original content.
+	 */
+	add_reset_file(path, "0", RESET_HIGH_PRIO);
+	tracecmd_put_tracing_file(path);
 	fwrite(&zero, 1, 1, fp);
 	fclose(fp);
 }
@@ -959,9 +1067,90 @@ static void set_option(const char *option)
 	fclose(fp);
 }
 
+static void add_reset_options(void)
+{
+	struct opt_list *opt;
+	const char *option;
+	char *content;
+	char *path;
+	char *ptr;
+	int len;
+
+	if (keep)
+		return;
+
+	path = tracecmd_get_tracing_file("trace_options");
+	content = get_file_content(path);
+
+	for (opt = options; opt; opt = opt->next) {
+		option = opt->option;
+		len = strlen(option);
+		ptr = content;
+ again:
+		ptr = strstr(ptr, option);
+		if (ptr) {
+			/* First make sure its the option we want */
+			if (ptr[len] != '\n') {
+				ptr += len;
+				goto again;
+			}
+			if (ptr - content >= 2 && strncmp(ptr - 2, "no", 2) == 0) {
+				/* Make sure this isn't ohno-option */
+				if (ptr > content + 2 && *(ptr - 3) != '\n') {
+					ptr += len;
+					goto again;
+				}
+				/* we enabled it */
+				ptr[len] = 0;
+				add_reset_file(path, ptr-2, RESET_DEFAULT_PRIO);
+				ptr[len] = '\n';
+				continue;
+			}
+			/* make sure this is our option */
+			if (ptr > content && *(ptr - 1) != '\n') {
+				ptr += len;
+				goto again;
+			}
+			/* this option hasn't changed, ignore it */
+			continue;
+		}
+
+		/* ptr is NULL, not found, maybe option is a no */
+		if (strncmp(option, "no", 2) != 0)
+			/* option is really not found? */
+			continue;
+
+		option += 2;
+		len = strlen(option);
+		ptr = content;
+ loop:
+		ptr = strstr(content, option);
+		if (!ptr)
+			/* Really not found? */
+			continue;
+
+		/* make sure this is our option */
+		if (ptr[len] != '\n') {
+			ptr += len;
+			goto loop;
+		}
+
+		if (ptr > content && *(ptr - 1) != '\n') {
+			ptr += len;
+			goto loop;
+		}
+
+		add_reset_file(path, option, RESET_DEFAULT_PRIO);
+	}
+	tracecmd_put_tracing_file(path);
+	free(content);
+}
+
 static void set_options(void)
 {
 	struct opt_list *opt;
+
+	add_reset_options();
 
 	while (options) {
 		opt = options;
@@ -1181,6 +1370,35 @@ static void clear_trigger(const char *file)
 	} while (len);
 }
 
+static void update_reset_triggers(void)
+{
+	struct reset_file *reset;
+
+	while (reset_triggers) {
+		reset = reset_triggers;
+		reset_triggers = reset->next;
+
+		clear_trigger(reset->path);
+		free(reset->path);
+		free(reset);
+	}
+}
+
+static void update_reset_files(void)
+{
+	struct reset_file *reset;
+
+	while (reset_files) {
+		reset = reset_files;
+		reset_files = reset->next;
+
+		write_file(reset->path, reset->reset, "reset");
+		free(reset->path);
+		free(reset->reset);
+		free(reset);
+	}
+}
+
 static void
 update_event(struct event_list *event, const char *filter,
 	     int filter_only, char update)
@@ -1197,10 +1415,14 @@ update_event(struct event_list *event, const char *filter,
 		return;
 	}
 
-	if (filter && event->filter_file)
+	if (filter && event->filter_file) {
+		reset_save_file_cond(event->filter_file, RESET_DEFAULT_PRIO,
+				     "none", "0");
 		write_filter(event->filter_file, filter);
+	}
 
 	if (event->trigger_file) {
+		add_reset_trigger(event->trigger_file);
 		clear_trigger(event->trigger_file);
 		write_trigger(event->trigger_file, event->trigger);
 		/* Make sure we don't write this again */
@@ -2909,7 +3131,6 @@ void trace_record (int argc, char **argv)
 	int extract = 0;
 	int run_command = 0;
 	int neg_event = 0;
-	int keep = 0;
 	int date = 0;
 
 	int c;
@@ -3388,6 +3609,9 @@ void trace_record (int argc, char **argv)
 
 	if (keep)
 		exit(0);
+
+	update_reset_files();
+	update_reset_triggers();
 
 	set_plugin("nop");
 
