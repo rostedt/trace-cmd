@@ -98,6 +98,7 @@ static int show_wakeup;
 static int wakeup_id;
 static int wakeup_new_id;
 static int sched_id;
+static int stacktrace_id;
 
 static int buffer_breaks = 0;
 
@@ -799,6 +800,90 @@ test_filters(struct filter *event_filters, struct pevent_record *record, int neg
 	return ret;
 }
 
+struct stack_info_cpu {
+	int			cpu;
+	int			last_printed;
+};
+
+struct stack_info {
+	struct stack_info	*next;
+	struct handle_list	*handles;
+	struct stack_info_cpu	*cpus;
+	int			stacktrace_id;
+	int			nr_cpus;
+};
+
+static int
+test_stacktrace(struct handle_list *handles, struct pevent_record *record,
+		int last_printed)
+{
+	static struct stack_info *infos;
+	struct stack_info *info;
+	struct stack_info_cpu *cpu_info;
+	struct handle_list *h;
+	struct tracecmd_input *handle;
+	struct event_format *event;
+	struct pevent *pevent;
+	static int init;
+	int ret;
+	int id;
+
+	if (!init) {
+		init = 1;
+
+		list_for_each_entry(h, &handle_list, list) {
+			info = malloc_or_die(sizeof(*info));
+			info->handles = h;
+			info->nr_cpus = tracecmd_cpus(h->handle);
+
+			info->cpus = malloc_or_die(sizeof(*info->cpus) * info->nr_cpus);
+			memset(info->cpus, 0, sizeof(*info->cpus));
+
+			pevent = tracecmd_get_pevent(h->handle);
+			event = pevent_find_event_by_name(pevent, "ftrace",
+							  "kernel_stack");
+			if (event)
+				info->stacktrace_id = event->id;
+			else
+				info->stacktrace_id = 0;
+
+			info->next = infos;
+			infos = info;
+		}
+
+
+	}
+
+	handle = handles->handle;
+	pevent = tracecmd_get_pevent(handle);
+
+	for (info = infos; info; info = info->next)
+		if (info->handles == handles)
+			break;
+
+	if (!info->stacktrace_id)
+		return 0;
+
+	cpu_info = &info->cpus[record->cpu];
+
+	id = pevent_data_type(pevent, record);
+
+	/*
+	 * Print the stack trace if the previous event was printed.
+	 * But do not print the stack trace if it is explicitly
+	 * being filtered out.
+	 */
+	if (id == info->stacktrace_id) {
+		ret = test_filters(handles->event_filter_out, record, 1);
+		if (ret != FILTER_MATCH)
+			return cpu_info->last_printed;
+		return 0;
+	}
+
+	cpu_info->last_printed = last_printed;
+	return 0;
+}
+
 static struct pevent_record *get_next_record(struct handle_list *handles)
 {
 	struct pevent_record *record;
@@ -839,8 +924,17 @@ static struct pevent_record *get_next_record(struct handle_list *handles)
 		if (record) {
 			ret = test_filters(handles->event_filters, record, 0);
 			switch (ret) {
+			case FILTER_NOEXIST:
+				/* Stack traces may still filter this */
+				if (stacktrace_id &&
+				    test_stacktrace(handles, record, 0))
+					found = 1;
+				else
+					free_record(record);
+				break;
 			case FILTER_NONE:
 			case FILTER_MATCH:
+				/* Test the negative filters (-v) */
 				ret = test_filters(handles->event_filter_out, record, 1);
 				if (ret != FILTER_MATCH) {
 					found = 1;
@@ -852,6 +946,9 @@ static struct pevent_record *get_next_record(struct handle_list *handles)
 			}
 		}
 	} while (record && !found);
+
+	if (record && stacktrace_id)
+		test_stacktrace(handles, record, 1);
 
 	handles->record = record;
 	if (!record)
@@ -899,6 +996,8 @@ static void read_data_info(struct list_head *handle_list, int stat_only)
 	struct handle_list *last_handle;
 	struct pevent_record *record;
 	struct pevent_record *last_record;
+	struct event_format *event;
+	struct pevent *pevent;
 	int cpus;
 	int ret;
 
@@ -932,6 +1031,12 @@ static void read_data_info(struct list_head *handle_list, int stat_only)
 			tracecmd_print_stats(handles->handle);
 			continue;
 		}
+
+		/* Find the kernel_stacktrace if available */
+		pevent = tracecmd_get_pevent(handles->handle);
+		event = pevent_find_event_by_name(pevent, "ftrace", "kernel_stack");
+		if (event)
+			stacktrace_id = event->id;
 
 		init_wakeup(handles->handle);
 		process_filters(handles);
