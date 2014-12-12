@@ -20,6 +20,9 @@
 #ifndef __TRACE_LOCAL_H
 #define __TRACE_LOCAL_H
 
+#include <sys/types.h>
+#include <dirent.h>	/* for DIR */
+
 #include "trace-cmd.h"
 
 /* fix stupid glib guint64 typecasts and printf formats */
@@ -58,6 +61,45 @@ void trace_snapshot(int argc, char **argv);
 void trace_mem(int argc, char **argv);
 
 void trace_stat(int argc, char **argv);
+
+/* --- event interation --- */
+
+/*
+ * Use this to iterate through the event directories
+ */
+
+
+enum event_process {
+	PROCESSED_NONE,
+	PROCESSED_EVENT,
+	PROCESSED_SYSTEM
+};
+
+enum process_type {
+	PROCESS_EVENT,
+	PROCESS_SYSTEM
+};
+
+struct event_iter {
+	DIR *system_dir;
+	DIR *event_dir;
+	struct dirent *system_dent;
+	struct dirent *event_dent;
+};
+
+enum event_iter_type {
+	EVENT_ITER_NONE,
+	EVENT_ITER_SYSTEM,
+	EVENT_ITER_EVENT
+};
+
+struct event_iter *trace_event_iter_alloc(const char *path);
+enum event_iter_type trace_event_iter_next(struct event_iter *iter,
+					   const char *path, const char *system);
+void trace_event_iter_free(struct event_iter *iter);
+
+char *append_file(const char *dir, const char *name);
+
 
 /* --- instance manipulation --- */
 

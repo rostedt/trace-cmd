@@ -70,7 +70,7 @@ static char *strstrip(char *str)
 	return s;
 }
 
-static char *append_file(const char *dir, const char *name)
+char *append_file(const char *dir, const char *name)
 {
 	char *file;
 
@@ -154,19 +154,7 @@ static void report_plugin(struct buffer_instance *instance)
 	free(str);
 }
 
-enum process_type {
-	PROCESS_EVENT,
-	PROCESS_SYSTEM
-};
-
-struct event_iter {
-	DIR *system_dir;
-	DIR *event_dir;
-	struct dirent *system_dent;
-	struct dirent *event_dent;
-};
-
-static struct event_iter *alloc_event_iter(const char *path)
+struct event_iter *trace_event_iter_alloc(const char *path)
 {
 	struct event_iter *iter;
 
@@ -180,14 +168,8 @@ static struct event_iter *alloc_event_iter(const char *path)
 	return iter;
 }
 
-enum event_iter_type {
-	EVENT_ITER_NONE,
-	EVENT_ITER_SYSTEM,
-	EVENT_ITER_EVENT
-};
-
-static enum event_iter_type
-next_event_iter(struct event_iter *iter, const char *path, const char *system)
+enum event_iter_type
+trace_event_iter_next(struct event_iter *iter, const char *path, const char *system)
 {
 	struct dirent *dent;
 
@@ -240,7 +222,7 @@ next_event_iter(struct event_iter *iter, const char *path, const char *system)
 	return EVENT_ITER_NONE;
 }
 
-static void free_event_iter(struct event_iter *iter)
+void trace_event_iter_free(struct event_iter *iter)
 {
 	if (!iter)
 		return;
@@ -292,12 +274,6 @@ static int process_individual_events(const char *path, struct event_iter *iter)
 
 	return ret;
 }
-
-enum event_process {
-	PROCESSED_NONE,
-	PROCESSED_EVENT,
-	PROCESSED_SYSTEM
-};
 
 static void
 process_event_enable(char *path, const char *system, const char *name,
@@ -385,9 +361,9 @@ static void report_events(struct buffer_instance *instance)
 	if (!path)
 		die("malloc");
 
-	iter = alloc_event_iter(path);
+	iter = trace_event_iter_alloc(path);
 
-	while (next_event_iter(iter, path, NULL)) {
+	while (trace_event_iter_next(iter, path, NULL)) {
 		process_event_enable(path, NULL, iter->system_dent->d_name, &processed);
 	}
 
@@ -395,7 +371,7 @@ static void report_events(struct buffer_instance *instance)
 
 	processed = PROCESSED_NONE;
 	system = NULL;
-	while ((type = next_event_iter(iter, path, system))) {
+	while ((type = trace_event_iter_next(iter, path, system))) {
 
 		if (type == EVENT_ITER_SYSTEM) {
 
@@ -413,7 +389,7 @@ static void report_events(struct buffer_instance *instance)
 				     iter->event_dent->d_name, &processed);
 	}
 
-	free_event_iter(iter);
+	trace_event_iter_free(iter);
 
 	if (!processed)
 		printf("  (none enabled)\n");
@@ -475,11 +451,11 @@ static void report_event_filters(struct buffer_instance *instance)
 	if (!path)
 		die("malloc");
 
-	iter = alloc_event_iter(path);
+	iter = trace_event_iter_alloc(path);
 
 	processed = PROCESSED_NONE;
 	system = NULL;
-	while ((type = next_event_iter(iter, path, system))) {
+	while ((type = trace_event_iter_next(iter, path, system))) {
 
 		if (type == EVENT_ITER_SYSTEM) {
 			system = iter->system_dent->d_name;
@@ -489,7 +465,7 @@ static void report_event_filters(struct buffer_instance *instance)
 		process_event_filter(path, iter, &processed);
 	}
 
-	free_event_iter(iter);
+	trace_event_iter_free(iter);
 
 	tracecmd_put_tracing_file(path);
 }
@@ -548,11 +524,11 @@ static void report_event_triggers(struct buffer_instance *instance)
 	if (!path)
 		die("malloc");
 
-	iter = alloc_event_iter(path);
+	iter = trace_event_iter_alloc(path);
 
 	processed = PROCESSED_NONE;
 	system = NULL;
-	while ((type = next_event_iter(iter, path, system))) {
+	while ((type = trace_event_iter_next(iter, path, system))) {
 
 		if (type == EVENT_ITER_SYSTEM) {
 			system = iter->system_dent->d_name;
@@ -562,7 +538,7 @@ static void report_event_triggers(struct buffer_instance *instance)
 		process_event_trigger(path, iter, &processed);
 	}
 
-	free_event_iter(iter);
+	trace_event_iter_free(iter);
 
 	tracecmd_put_tracing_file(path);
 }

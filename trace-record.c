@@ -1118,6 +1118,9 @@ static int find_trigger(const char *file, char *buf, int size)
 	int len = 0;
 
 	fp = fopen(file, "r");
+	if (!fp)
+		return 0;
+
 	while ((ch = fgetc(fp)) != EOF) {
 		if (ch == '\n') {
 			if (state == STATE_COPY)
@@ -1148,6 +1151,11 @@ static int find_trigger(const char *file, char *buf, int size)
 static void write_filter(const char *file, const char *filter)
 {
 	write_file(file, filter, "filter");
+}
+
+static void clear_filter(const char *file)
+{
+	write_filter(file, "0");
 }
 
 static void write_trigger(const char *file, const char *trigger)
@@ -2518,6 +2526,144 @@ void set_buffer_size(void)
 		set_buffer_size_instance(instance);
 }
 
+static void
+process_event_trigger(char *path, struct event_iter *iter, enum event_process *processed)
+{
+	const char *system = iter->system_dent->d_name;
+	const char *event = iter->event_dent->d_name;
+	struct stat st;
+	char *trigger = NULL;
+	char *file;
+	int ret;
+
+	path = append_file(path, system);
+	file = append_file(path, event);
+	free(path);
+
+	ret = stat(file, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out;
+
+	trigger = append_file(file, "trigger");
+
+	ret = stat(trigger, &st);
+	if (ret < 0)
+		goto out;
+
+	clear_trigger(trigger);
+ out:
+	free(trigger);
+	free(file);
+}
+
+static void clear_instance_triggers(struct buffer_instance *instance)
+{
+	struct event_iter *iter;
+	char *path;
+	char *system;
+	enum event_iter_type type;
+	enum event_process processed = PROCESSED_NONE;
+
+	path = get_instance_file(instance, "events");
+	if (!path)
+		die("malloc");
+
+	iter = trace_event_iter_alloc(path);
+
+	processed = PROCESSED_NONE;
+	system = NULL;
+	while ((type = trace_event_iter_next(iter, path, system))) {
+
+		if (type == EVENT_ITER_SYSTEM) {
+			system = iter->system_dent->d_name;
+			continue;
+		}
+
+		process_event_trigger(path, iter, &processed);
+	}
+
+	trace_event_iter_free(iter);
+
+	tracecmd_put_tracing_file(path);
+}
+
+static void
+process_event_filter(char *path, struct event_iter *iter, enum event_process *processed)
+{
+	const char *system = iter->system_dent->d_name;
+	const char *event = iter->event_dent->d_name;
+	struct stat st;
+	char *filter = NULL;
+	char *file;
+	int ret;
+
+	path = append_file(path, system);
+	file = append_file(path, event);
+	free(path);
+
+	ret = stat(file, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out;
+
+	filter = append_file(file, "filter");
+
+	ret = stat(filter, &st);
+	if (ret < 0)
+		goto out;
+
+	clear_filter(filter);
+ out:
+	free(filter);
+	free(file);
+}
+
+static void clear_instance_filters(struct buffer_instance *instance)
+{
+	struct event_iter *iter;
+	char *path;
+	char *system;
+	enum event_iter_type type;
+	enum event_process processed = PROCESSED_NONE;
+
+	path = get_instance_file(instance, "events");
+	if (!path)
+		die("malloc");
+
+	iter = trace_event_iter_alloc(path);
+
+	processed = PROCESSED_NONE;
+	system = NULL;
+	while ((type = trace_event_iter_next(iter, path, system))) {
+
+		if (type == EVENT_ITER_SYSTEM) {
+			system = iter->system_dent->d_name;
+			continue;
+		}
+
+		process_event_filter(path, iter, &processed);
+	}
+
+	trace_event_iter_free(iter);
+
+	tracecmd_put_tracing_file(path);
+}
+
+static void clear_filters(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		clear_instance_filters(instance);
+}
+
+static void clear_triggers(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		clear_instance_triggers(instance);
+}
+
 static void make_instances(void)
 {
 	struct buffer_instance *instance;
@@ -2877,6 +3023,8 @@ void trace_record (int argc, char **argv)
 		}
 		disable_all(1);
 		set_buffer_size();
+		clear_filters();
+		clear_triggers();
 		remove_instances();
 		exit(0);
 	} else
