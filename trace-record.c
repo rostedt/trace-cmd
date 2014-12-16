@@ -1491,6 +1491,7 @@ static void make_sched_event(struct buffer_instance *instance,
 	sprintf(p, "%s/filter", sched_path);
 
 	*event = create_event(instance, path, sched);
+	free(path);
 }
 
 static void test_event(struct event_list *event, const char *path,
