@@ -146,6 +146,12 @@ static struct usage_help usage_help[] = {
 
 	},
 	{
+		"stream",
+		"Start tracing and read the output directly",
+		" %s stream [-e event][-p plugin][-d][-O option ][-P pid]\n"
+		"          Uses same options as record but does not write to files or the network.\n"
+	},
+	{
 		"hist",
 		"show a historgram of the trace.dat information",
 		" %s hist [-i file][-P] [file]"

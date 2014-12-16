@@ -61,6 +61,13 @@
 
 #define UDP_MAX_PACKET (65536 - 20)
 
+enum trace_type {
+	TRACE_TYPE_RECORD,
+	TRACE_TYPE_START,
+	TRACE_TYPE_STREAM,
+	TRACE_TYPE_EXTRACT,
+};
+
 static int rt_prio;
 
 static int use_tcp;
@@ -75,7 +82,7 @@ static int latency;
 static int sleep_time = 1000;
 static int cpu_count;
 static int recorder_threads;
-static int *pids;
+static struct pid_record_data *pids;
 static int buffers;
 
 static char *host;
@@ -388,10 +395,12 @@ static int kill_thread_instance(int start, struct buffer_instance *instance)
 	int i;
 
 	for (i = 0; i < cpu_count; i++) {
-		if (pids[n] > 0) {
-			kill(pids[n], SIGKILL);
+		if (pids[n].pid > 0) {
+			kill(pids[n].pid, SIGKILL);
 			delete_temp_file(instance, i);
-			pids[n] = 0;
+			pids[n].pid = 0;
+			if (pids[n].brass[0] >= 0)
+				close(pids[n].brass[0]);
 		}
 		n++;
 	}
@@ -438,10 +447,10 @@ static int delete_thread_instance(int start, struct buffer_instance *instance)
 
 	for (i = 0; i < cpu_count; i++) {
 		if (pids) {
-			if (pids[n]) {
+			if (pids[n].pid) {
 				delete_temp_file(instance, i);
-				if (pids[n] < 0)
-					pids[n] = 0;
+				if (pids[n].pid < 0)
+					pids[n].pid = 0;
 			}
 			n++;
 		} else
@@ -468,23 +477,39 @@ static void delete_thread_data(void)
 	}
 }
 
-static void stop_threads(void)
+static void stop_threads(enum trace_type type)
 {
+	struct timeval tv = { 0, 0 };
+	int ret;
 	int i;
 
 	if (!cpu_count)
 		return;
 
+	/* Tell all threads to finish up */
 	for (i = 0; i < recorder_threads; i++) {
-		if (pids[i] > 0) {
-			kill(pids[i], SIGINT);
-			waitpid(pids[i], NULL, 0);
-			pids[i] = -1;
+		if (pids[i].pid > 0) {
+			kill(pids[i].pid, SIGINT);
+		}
+	}
+
+	/* Flush out the pipes */
+	if (type == TRACE_TYPE_STREAM) {
+		do {
+			ret = trace_stream_read(pids, recorder_threads, &tv);
+		} while (ret > 0);
+	}
+
+	for (i = 0; i < recorder_threads; i++) {
+		if (pids[i].pid > 0) {
+			waitpid(pids[i].pid, NULL, 0);
+			pids[i].pid = -1;
 		}
 	}
 }
 
-static int create_recorder(struct buffer_instance *instance, int cpu, int extract);
+static int create_recorder(struct buffer_instance *instance, int cpu,
+			   enum trace_type type, int *brass);
 
 static void flush_threads(void)
 {
@@ -496,7 +521,7 @@ static void flush_threads(void)
 
 	for (i = 0; i < cpu_count; i++) {
 		/* Extract doesn't support sub buffers yet */
-		ret = create_recorder(&top_instance, i, 1);
+		ret = create_recorder(&top_instance, i, TRACE_TYPE_EXTRACT, NULL);
 		if (ret < 0)
 			die("error reading ring buffer");
 	}
@@ -796,6 +821,22 @@ static void update_task_filter(void)
 		update_pid_event_filters(instance);
 }
 
+static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int options)
+{
+	struct timeval tv = { 1, 0 };
+	int ret;
+
+	options |= WNOHANG;
+
+	do {
+		ret = waitpid(pid, status, options);
+		if (ret != 0)
+			return ret;
+
+		if (type == TRACE_TYPE_STREAM)
+			trace_stream_read(pids, recorder_threads, &tv);
+	} while (1);
+}
 #ifndef NO_PTRACE
 
 /**
@@ -886,7 +927,7 @@ static void enable_ptrace(void)
 	ptrace(PTRACE_TRACEME, 0, NULL, 0);
 }
 
-static void ptrace_wait(int main_pid)
+static void ptrace_wait(enum trace_type type, int main_pid)
 {
 	unsigned long send_sig;
 	unsigned long child;
@@ -898,7 +939,7 @@ static void ptrace_wait(int main_pid)
 	int ret;
 
 	do {
-		ret = waitpid(-1, &status, WSTOPPED | __WALL);
+		ret = trace_waitpid(type, -1, &status, WSTOPPED | __WALL);
 		if (ret < 0)
 			continue;
 
@@ -948,15 +989,18 @@ static inline void ptrace_attach(int pid) { }
 
 #endif /* NO_PTRACE */
 
-void trace_or_sleep(void)
+static void trace_or_sleep(enum trace_type type)
 {
+	struct timeval tv = { 1 , 0 };
 	if (do_ptrace && filter_pid >= 0)
-		ptrace_wait(filter_pid);
+		ptrace_wait(type, filter_pid);
+	else if (type == TRACE_TYPE_STREAM)
+		trace_stream_read(pids, recorder_threads, &tv);
 	else
 		sleep(10);
 }
 
-void run_cmd(int argc, char **argv)
+static void run_cmd(enum trace_type type, int argc, char **argv)
 {
 	int status;
 	int pid;
@@ -977,9 +1021,9 @@ void run_cmd(int argc, char **argv)
 	}
 	if (do_ptrace) {
 		add_filter_pid(pid);
-		ptrace_wait(pid);
+		ptrace_wait(type, pid);
 	} else
-		waitpid(pid, &status, 0);
+		trace_waitpid(type, pid, &status, 0);
 }
 
 static void
@@ -2055,10 +2099,41 @@ static void set_prio(int prio)
 }
 
 static struct tracecmd_recorder *
-create_recorder_instance(struct buffer_instance *instance, const char *file, int cpu)
+create_recorder_instance_pipe(struct buffer_instance *instance,
+			      int cpu, int *brass)
+{
+	struct tracecmd_recorder *recorder;
+	unsigned flags = recorder_flags | TRACECMD_RECORD_BLOCK;
+	char *path;
+
+	if (instance->name)
+		path = get_instance_dir(instance);
+	else
+		path = tracecmd_find_tracing_dir();
+
+	if (!path)
+		die("malloc");
+
+	/* This is already the child */
+	close(brass[0]);
+
+	recorder = tracecmd_create_buffer_recorder_fd(brass[1], cpu, flags, path);
+
+	if (instance->name)
+		tracecmd_put_tracing_file(path);
+
+	return recorder;
+}
+
+static struct tracecmd_recorder *
+create_recorder_instance(struct buffer_instance *instance, const char *file, int cpu,
+			 int *brass)
 {
 	struct tracecmd_recorder *record;
 	char *path;
+
+	if (brass)
+		return create_recorder_instance_pipe(instance, cpu, brass);
 
 	if (!instance->name)
 		return tracecmd_create_recorder_maxkb(file, cpu, recorder_flags, max_kb);
@@ -2076,7 +2151,8 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
  * If extract is set, then this is going to set up the recorder,
  * connections and exit as the tracing is serialized by a single thread.
  */
-static int create_recorder(struct buffer_instance *instance, int cpu, int extract)
+static int create_recorder(struct buffer_instance *instance, int cpu,
+			   enum trace_type type, int *brass)
 {
 	long ret;
 	char *file;
@@ -2086,7 +2162,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu, int extrac
 	if (client_ports && instance->name)
 		return 0;
 
-	if (!extract) {
+	if (type != TRACE_TYPE_EXTRACT) {
 		signal(SIGUSR1, flush);
 
 		pid = fork();
@@ -2108,14 +2184,14 @@ static int create_recorder(struct buffer_instance *instance, int cpu, int extrac
 		recorder = tracecmd_create_recorder_fd(client_ports[cpu], cpu, recorder_flags);
 	} else {
 		file = get_temp_file(instance, cpu);
-		recorder = create_recorder_instance(instance, file, cpu);
+		recorder = create_recorder_instance(instance, file, cpu, brass);
 		put_temp_file(file);
 	}
 
 	if (!recorder)
 		die ("can't create recorder");
 
-	if (extract) {
+	if (type == TRACE_TYPE_EXTRACT) {
 		ret = tracecmd_flush_recording(recorder);
 		tracecmd_free_recorder(recorder);
 		return ret;
@@ -2259,10 +2335,12 @@ static void finish_network(void)
 	free(host);
 }
 
-static void start_threads(void)
+static void start_threads(enum trace_type type)
 {
 	struct buffer_instance *instance;
+	int *brass = NULL;
 	int i = 0;
+	int ret;
 
 	if (host)
 		setup_network();
@@ -2274,8 +2352,24 @@ static void start_threads(void)
 
 	for_all_instances(instance) {
 		int x;
-		for (x = 0; x < cpu_count; x++)
-			pids[i++] = create_recorder(instance, x, 0);
+		for (x = 0; x < cpu_count; x++) {
+			if (type == TRACE_TYPE_STREAM) {
+				brass = pids[i].brass;
+				ret = pipe(brass);
+				if (ret < 0)
+					die("pipe");
+				pids[i].stream = trace_stream_init(instance, x,
+								   brass[0], cpu_count);
+				if (!pids[i].stream)
+					die("Creating stream for %d", i);
+			} else
+				pids[i].brass[0] = -1;
+			pids[i].cpu = x;
+			pids[i].instance = instance;
+			pids[i++].pid = create_recorder(instance, x, type, brass);
+			if (brass)
+				close(brass[1]);
+		}
 	}
 	recorder_threads = i;
 }
@@ -3012,12 +3106,6 @@ static void check_doing_something(void)
 	die("no event or plugin was specified... aborting");
 }
 
-enum trace_type {
-	TRACE_TYPE_RECORD,
-	TRACE_TYPE_START,
-	TRACE_TYPE_EXTRACT,
-};
-
 static void
 update_plugin_instance(struct buffer_instance *instance,
 		       enum trace_type type)
@@ -3041,6 +3129,8 @@ update_plugin_instance(struct buffer_instance *instance,
 		latency = 1;
 		if (host)
 			die("Network tracing not available with latency tracer plugins");
+		if (type == TRACE_TYPE_STREAM)
+			die("Streaming is not available with latency tracer plugins");
 	} else if (type == TRACE_TYPE_RECORD) {
 		if (latency)
 			die("Can not record latency tracer and non latency trace together");
@@ -3309,6 +3399,8 @@ void trace_record (int argc, char **argv)
 	int events = 0;
 	int record = 0;
 	int extract = 0;
+	int stream = 0;
+	int start = 0;
 	int run_command = 0;
 	int neg_event = 0;
 	int date = 0;
@@ -3321,9 +3413,11 @@ void trace_record (int argc, char **argv)
 
 	if ((record = (strcmp(argv[1], "record") == 0)))
 		; /* do nothing */
-	else if (strcmp(argv[1], "start") == 0)
+	else if ((start = strcmp(argv[1], "start") == 0))
 		; /* do nothing */
 	else if ((extract = strcmp(argv[1], "extract") == 0))
+		; /* do nothing */
+	else if ((stream = strcmp(argv[1], "stream") == 0))
 		; /* do nothing */
 	else if (strcmp(argv[1], "stop") == 0) {
 		int topt = 0;
@@ -3552,8 +3646,11 @@ void trace_record (int argc, char **argv)
 		case 'o':
 			if (host)
 				die("-o incompatible with -N");
-			if (!record && !extract)
+			if (start)
 				die("start does not take output\n"
+				    "Did you mean 'record'?");
+			if (stream)
+				die("stream does not take output\n"
 				    "Did you mean 'record'?");
 			if (output)
 				die("only one output file allowed");
@@ -3635,7 +3732,7 @@ void trace_record (int argc, char **argv)
 		die(" -c can only be used with -F or -P");
 
 	if ((argc - optind) >= 2) {
-		if (!record)
+		if (start)
 			die("Command start does not take any commands\n"
 			    "Did you mean 'record'?");
 		if (extract)
@@ -3707,35 +3804,37 @@ void trace_record (int argc, char **argv)
 
 	if (record)
 		type = TRACE_TYPE_RECORD;
+	else if (stream)
+		type = TRACE_TYPE_STREAM;
 	else if (extract)
 		type = TRACE_TYPE_EXTRACT;
 	else
 		type = TRACE_TYPE_START;
-		
+
 	update_plugins(type);
 
 	set_options();
 
 	allocate_seq();
 
-	if (record) {
+	if (record || stream) {
 		signal(SIGINT, finish);
 		if (!latency)
-			start_threads();
+			start_threads(type);
 	}
 
 	if (extract) {
 		flush_threads();
 
 	} else {
-		if (!record) {
+		if (!record && !stream) {
 			update_task_filter();
 			enable_tracing();
 			exit(0);
 		}
 
 		if (run_command)
-			run_cmd((argc - optind) - 1, &argv[optind + 1]);
+			run_cmd(type, (argc - optind) - 1, &argv[optind + 1]);
 		else {
 			update_task_filter();
 			enable_tracing();
@@ -3745,12 +3844,12 @@ void trace_record (int argc, char **argv)
 			/* sleep till we are woken with Ctrl^C */
 			printf("Hit Ctrl^C to stop recording\n");
 			while (!finished)
-				trace_or_sleep();
+				trace_or_sleep(type);
 		}
 
 		disable_tracing();
 		if (!latency)
-			stop_threads();
+			stop_threads(type);
 	}
 
 	record_stats();
@@ -3774,8 +3873,10 @@ void trace_record (int argc, char **argv)
 		date2ts = get_date_to_ts();
 	}
 
-	record_data(date2ts);
-	delete_thread_data();
+	if (record || extract) {
+		record_data(date2ts);
+		delete_thread_data();
+	}
 
 	destroy_stats();
 

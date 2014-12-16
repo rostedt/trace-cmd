@@ -28,12 +28,24 @@
 /* fix stupid glib guint64 typecasts and printf formats */
 typedef unsigned long long u64;
 
+struct buffer_instance;
+
 /* for local shared information with trace-cmd executable */
 
 void usage(char **argv);
 
 extern int silence_warnings;
 extern int show_status;
+
+struct pid_record_data {
+	int			pid;
+	int			brass[2];
+	int			cpu;
+	int			closed;
+	struct tracecmd_input	*stream;
+	struct buffer_instance	*instance;
+	struct pevent_record	*record;
+};
 
 void show_file(const char *name);
 
@@ -66,6 +78,12 @@ int trace_profile_record(struct tracecmd_input *handle,
 			 struct pevent_record *record, int cpu);
 void trace_init_profile(struct tracecmd_input *handle);
 int trace_profile(void);
+
+struct tracecmd_input *
+trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus);
+int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv);
+
+void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record);
 
 /* --- event interation --- */
 
@@ -131,6 +149,8 @@ struct buffer_instance {
 	struct func_list	*notrace_funcs;
 
 	struct trace_seq	*s;
+
+	struct tracecmd_input	*handle;
 
 	int			tracing_on_init_val;
 	int			tracing_on_fd;

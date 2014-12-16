@@ -72,6 +72,7 @@ struct cpu_data {
 	struct page		*page;
 	struct kbuffer		*kbuf;
 	int			cpu;
+	int			pipe_fd;
 };
 
 struct input_buffer_instance {
@@ -87,11 +88,12 @@ struct tracecmd_input {
 	int			fd;
 	int			long_size;
 	int			page_size;
-	int			read_page;
 	int			cpus;
 	int			ref;
 	int			nr_buffers;	/* buffer instances */
 	bool			use_trace_clock;
+	bool			read_page;
+	bool			use_pipe;
 	struct cpu_data 	*cpu_data;
 	unsigned long long	ts_offset;
 	char *			cpustats;
@@ -698,6 +700,8 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 	return 0;
 }
 
+static int read_and_parse_cmdlines(struct tracecmd_input *handle);
+
 /**
  * tracecmd_read_headers - read the header information from trace.dat
  * @handle: input handle for the trace.dat file
@@ -730,6 +734,11 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	if (ret < 0)
 		return -1;
 
+	if (read_and_parse_cmdlines(handle) < 0)
+		return -1;
+
+	pevent_set_long_size(handle->pevent, handle->long_size);
+
 	return 0;
 }
 
@@ -740,10 +749,25 @@ static unsigned long long calc_page_offset(struct tracecmd_input *handle,
 }
 
 static int read_page(struct tracecmd_input *handle, off64_t offset,
-		     void *map)
+		     int cpu, void *map)
 {
 	off64_t save_seek;
 	off64_t ret;
+
+	if (handle->use_pipe) {
+		ret = read(handle->cpu_data[cpu].pipe_fd, map, handle->page_size);
+		/* Set EAGAIN if the pipe is empty */
+		if (ret < 0) {
+			errno = EAGAIN;
+			return -1;
+
+		} else if (ret == 0) {
+			/* Set EINVAL when the pipe has closed */
+			errno = EINVAL;
+			return -1;
+		}
+		return 0;
+	}
 
 	/* other parts of the code may expect the pointer to not move */
 	save_seek = lseek64(handle->fd, 0, SEEK_CUR);
@@ -786,7 +810,7 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 	if (handle->read_page) {
 		page->map = malloc(handle->page_size);
 		if (page->map) {
-			ret = read_page(handle, offset, page->map);
+			ret = read_page(handle, offset, cpu, page->map);
 			if (ret < 0) {
 				free(page->map);
 				page->map = NULL;
@@ -913,6 +937,9 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	}
 
 	kbuffer_load_subbuffer(kbuf, ptr);
+	if (kbuffer_subbuffer_size(kbuf) > handle->page_size)
+		die("bad page read, with size of %d",
+		    kbuffer_subbuffer_size(kbuf));
 	handle->cpu_data[cpu].timestamp = kbuffer_timestamp(kbuf) + handle->ts_offset;
 
 	return 0;
@@ -972,7 +999,7 @@ static int get_next_page(struct tracecmd_input *handle, int cpu)
 {
 	off64_t offset;
 
-	if (!handle->cpu_data[cpu].page)
+	if (!handle->cpu_data[cpu].page && !handle->use_pipe)
 		return 0;
 
 	free_page(handle, cpu);
@@ -1616,8 +1643,14 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	}
 
 read_again:
-	if (!page)
-		return NULL;
+	if (!page) {
+		if (handle->use_pipe) {
+			get_next_page(handle, cpu);
+			page = handle->cpu_data[cpu].page;
+		}
+		if (!page)
+			return NULL;
+	}
 
 	data = kbuffer_read_event(kbuf, &ts);
 	if (!data) {
@@ -1847,6 +1880,18 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 		return 0;
 	}
 
+	if (handle->use_pipe) {
+		/* Just make a page, it will be nuked later */
+		cpu_data->page = malloc(sizeof(*cpu_data->page));
+		if (!cpu_data->page)
+			return -1;
+
+		memset(cpu_data->page, 0, sizeof(*cpu_data->page));
+		list_add(&cpu_data->page->list, &cpu_data->pages);
+		cpu_data->page->ref_count = 1;
+		return 0;
+	}
+
 	cpu_data->page = allocate_page(handle, cpu, cpu_data->offset);
 	if (!cpu_data->page && !handle->read_page) {
 		perror("mmap");
@@ -1864,7 +1909,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 		}
 
 		/* try again without mmapping, just read it directly */
-		handle->read_page = 1;
+		handle->read_page = true;
 		cpu_data->page = allocate_page(handle, cpu, cpu_data->offset);
 		if (!cpu_data->page)
 			/* Still no luck, bail! */
@@ -1993,7 +2038,7 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	memset(handle->cpu_data, 0, sizeof(*handle->cpu_data) * handle->cpus);
 
 	if (force_read)
-		handle->read_page = 1;
+		handle->read_page = true;
 
 	if (handle->long_size == 8)
 		long_size = KBUFFER_LSIZE_8;
@@ -2063,9 +2108,9 @@ static int read_data_and_size(struct tracecmd_input *handle,
 	return 0;
 }
 
-static int read_and_parse_cmdlines(struct tracecmd_input *handle,
-							struct pevent *pevent)
+static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 {
+	struct pevent *pevent = handle->pevent;
 	unsigned long long size;
 	char *cmdlines;
 
@@ -2103,15 +2148,11 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	struct pevent *pevent = handle->pevent;
 	int ret;
 
-	if (read_and_parse_cmdlines(handle, pevent) < 0)
-		return -1;
-
 	handle->cpus = read4(handle);
 	if (handle->cpus < 0)
 		return -1;
 
 	pevent_set_cpus(pevent, handle->cpus);
-	pevent_set_long_size(pevent, handle->long_size);
 
 	ret = read_cpu_data(handle);
 	if (ret < 0)
@@ -2134,6 +2175,73 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 	tracecmd_blk_hack(handle);
 
 	return ret;
+}
+
+/**
+ * tracecmd_make_pipe - Have the handle read a pipe instead of a file
+ * @handle: input handle to read from a pipe
+ * @cpu: the cpu that the pipe represents
+ * @fd: the read end of the pipe
+ * @cpus: the total number of cpus for this handle
+ *
+ * In order to stream data from the binary trace files and produce
+ * output or analyze the data, a tracecmd_input descriptor needs to
+ * be created, and then converted into a form that can act on a
+ * pipe.
+ *
+ * Note, there are limitations to what this descriptor can do.
+ * Most notibly, it can not read backwards. Once a page is read
+ * it can not be read at a later time (except if a record is attached
+ * to it and is holding the page ref).
+ *
+ * It is expected that the handle has already been created and
+ * tracecmd_read_headers() has run on it.
+ */
+int tracecmd_make_pipe(struct tracecmd_input *handle, int cpu, int fd, int cpus)
+{
+	enum kbuffer_long_size long_size;
+	enum kbuffer_endian endian;
+
+	handle->read_page = true;
+	handle->use_pipe = true;
+
+	if (!handle->cpus) {
+		handle->cpus = cpus;
+		handle->cpu_data = malloc(sizeof(*handle->cpu_data) * handle->cpus);
+		if (!handle->cpu_data)
+			return -1;
+	}
+
+	if (cpu >= handle->cpus)
+		return -1;
+
+
+	if (handle->long_size == 8)
+		long_size = KBUFFER_LSIZE_8;
+	else
+		long_size = KBUFFER_LSIZE_4;
+
+	if (handle->pevent->file_bigendian)
+		endian = KBUFFER_ENDIAN_BIG;
+	else
+		endian = KBUFFER_ENDIAN_LITTLE;
+
+	memset(&handle->cpu_data[cpu], 0, sizeof(handle->cpu_data[cpu]));
+	handle->cpu_data[cpu].pipe_fd = fd;
+	handle->cpu_data[cpu].cpu = cpu;
+
+	handle->cpu_data[cpu].kbuf = kbuffer_alloc(long_size, endian);
+	if (!handle->cpu_data[cpu].kbuf)
+		return -1;
+	if (handle->pevent->old_format)
+		kbuffer_set_old_format(handle->cpu_data[cpu].kbuf);
+
+	handle->cpu_data[cpu].file_offset = 0;
+	handle->cpu_data[cpu].file_size = -1;
+
+	init_cpu(handle, cpu);
+
+	return 0;
 }
 
 /**

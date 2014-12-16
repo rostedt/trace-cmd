@@ -47,6 +47,7 @@ struct tracecmd_recorder {
 	int		max;
 	int		pages;
 	int		count;
+	unsigned	fd_flags;
 	unsigned	flags;
 };
 
@@ -121,6 +122,11 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 
 	recorder->cpu = cpu;
 	recorder->flags = flags;
+
+	recorder->fd_flags = 1; /* SPLICE_F_MOVE */
+
+	if (!(recorder->flags & TRACECMD_RECORD_BLOCK))
+		recorder->fd_flags |= 2; /* and NON_BLOCK */
 
 	/* Init to know what to free and release */
 	recorder->trace_fd = -1;
@@ -343,7 +349,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 		return 0;
 
 	ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
-		     recorder->page_size, 3 /* and NON_BLOCK */);
+		     recorder->page_size, recorder->fd_flags);
 	if (ret < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in splice output");
@@ -388,12 +394,16 @@ static void set_nonblock(struct tracecmd_recorder *recorder)
 	/* Do not block on reads for flushing */
 	flags = fcntl(recorder->trace_fd, F_GETFL);
 	fcntl(recorder->trace_fd, F_SETFL, flags | O_NONBLOCK);
+
+	/* Do not block on streams for write */
+	recorder->fd_flags |= 2; /* NON_BLOCK */
 }
 
 long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 {
-	char *buf[recorder->page_size];
+	char buf[recorder->page_size];
 	long total = 0;
+	long wrote = 0;
 	long ret;
 
 	set_nonblock(recorder);
@@ -411,9 +421,20 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 	/* splice only reads full pages */
 	do {
 		ret = read(recorder->trace_fd, buf, recorder->page_size);
-		if (ret > 0)
+		if (ret > 0) {
 			write(recorder->fd, buf, ret);
+			wrote += ret;
+		}
+
 	} while (ret > 0);
+
+	/* Make sure we finish off with a page size boundary */
+	wrote &= recorder->page_size - 1;
+	if (wrote) {
+		memset(buf, 0, recorder->page_size);
+		write(recorder->fd, buf, recorder->page_size - wrote);
+		total += recorder->page_size;
+	}
 
 	return total;
 }

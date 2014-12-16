@@ -115,6 +115,8 @@ int tracecmd_copy_headers(struct tracecmd_input *handle, int fd);
 void tracecmd_set_flag(struct tracecmd_input *handle, int flag);
 void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
 
+int tracecmd_make_pipe(struct tracecmd_input *handle, int cpu, int fd, int cpus);
+
 int tracecmd_buffer_instances(struct tracecmd_input *handle);
 const char *tracecmd_buffer_instance_name(struct tracecmd_input *handle, int indx);
 struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx);
@@ -222,6 +224,7 @@ struct tracecmd_option *tracecmd_add_buffer_option(struct tracecmd_output *handl
 int tracecmd_update_option(struct tracecmd_output *handle,
 			   struct tracecmd_option *option, int size, void *data);
 void tracecmd_output_close(struct tracecmd_output *handle);
+void tracecmd_output_free(struct tracecmd_output *handle);
 struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file);
 int tracecmd_append_cpu_data(struct tracecmd_output *handle,
@@ -237,6 +240,7 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files);
 enum {
 	TRACECMD_RECORD_NOSPLICE	= (1 << 0),	/* Use read instead of splice */
 	TRACECMD_RECORD_SNAPSHOT	= (1 << 1),	/* extract from snapshot */
+	TRACECMD_RECORD_BLOCK		= (1 << 2),	/* Block on splice write */
 };
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder);
@@ -246,6 +250,7 @@ struct tracecmd_recorder *tracecmd_create_recorder_maxkb(const char *file, int c
 struct tracecmd_recorder *tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *buffer);
 struct tracecmd_recorder *tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags, const char *buffer);
 struct tracecmd_recorder *tracecmd_create_buffer_recorder_maxkb(const char *file, int cpu, unsigned flags, const char *buffer, int maxkb);
+struct tracecmd_recorder *tracecmd_create_buffer_recorder_pipe(const char *file, int cpu, unsigned flags, const char *buffer, int *brass);
 
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);

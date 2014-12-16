@@ -110,17 +110,12 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 	return __data2host8(handle->pevent, val);
 }
 
-void tracecmd_output_close(struct tracecmd_output *handle)
+void tracecmd_output_free(struct tracecmd_output *handle)
 {
 	struct tracecmd_option *option;
 
 	if (!handle)
 		return;
-
-	if (handle->fd >= 0) {
-		close(handle->fd);
-		handle->fd = -1;
-	}
 
 	if (handle->tracing_dir)
 		free(handle->tracing_dir);
@@ -139,6 +134,18 @@ void tracecmd_output_close(struct tracecmd_output *handle)
 	free(handle);
 }
 
+void tracecmd_output_close(struct tracecmd_output *handle)
+{
+	if (!handle)
+		return;
+
+	if (handle->fd >= 0) {
+		close(handle->fd);
+		handle->fd = -1;
+	}
+
+	tracecmd_output_free(handle);
+}
 static unsigned long get_size_fd(int fd)
 {
 	unsigned long long size = 0;
