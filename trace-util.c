@@ -384,6 +384,7 @@ static void extract_trace_clock(struct pevent *pevent, char *line)
 	data = strtok_r(line, "[]", &next);
 	sscanf(data, "%ms", &clock);
 	pevent_register_trace_clock(pevent, clock);
+	free(clock);
 }
 
 void parse_trace_clock(struct pevent *pevent,
