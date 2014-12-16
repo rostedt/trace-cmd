@@ -320,9 +320,14 @@ int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
 	return 0;
 }
 
-void pevent_register_trace_clock(struct pevent *pevent, char *trace_clock)
+int pevent_register_trace_clock(struct pevent *pevent, const char *trace_clock)
 {
-	pevent->trace_clock = trace_clock;
+	pevent->trace_clock = strdup(trace_clock);
+	if (!pevent->trace_clock) {
+		errno = ENOMEM;
+		return -1;
+	}
+	return 0;
 }
 
 struct func_map {
@@ -6106,6 +6111,7 @@ void pevent_free(struct pevent *pevent)
 		free_handler(handle);
 	}
 
+	free(pevent->trace_clock);
 	free(pevent->events);
 	free(pevent->sort_events);
 
