@@ -690,6 +690,17 @@ char *tracecmd_find_tracing_dir(void)
 	return tracing_dir;
 }
 
+const char *tracecmd_get_tracing_dir(void)
+{
+	static const char *tracing_dir;
+
+	if (tracing_dir)
+		return tracing_dir;
+
+	tracing_dir = tracecmd_find_tracing_dir();
+	return tracing_dir;
+}
+
 static char *append_file(const char *dir, const char *name)
 {
 	char *file;

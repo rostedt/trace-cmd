@@ -283,17 +283,6 @@ static gboolean end_capture(struct trace_capture *cap)
 	return TRUE;
 }
 
-static char *get_tracing_dir(void)
-{
-	static char *tracing_dir;
-
-	if (tracing_dir)
-		return tracing_dir;
-
-	tracing_dir = tracecmd_find_tracing_dir();
-	return tracing_dir;
-}
-
 static int is_latency(char *plugin)
 {
 	return strcmp(plugin, "wakeup") == 0 ||
@@ -1597,7 +1586,7 @@ void tracecmd_capture_clicked(gpointer data)
 	struct shark_info *info = data;
 	char *tracing;
 
-	tracing = get_tracing_dir();
+	tracing = tracecmd_get_tracing_dir();
 
 	if (!tracing) {
 		warning("Can not find or mount tracing directory!\n"

@@ -73,6 +73,10 @@ static inline int tracecmd_host_bigendian(void)
 	return *ptr == 0x01020304;
 }
 
+/* tracecmd_get_tracing_dir must *not* be freed */
+const char *tracecmd_get_tracing_dir(void);
+
+/* tracecmd_find_tracing_dir must be freed */
 char *tracecmd_find_tracing_dir(void);
 
 /* --- Opening and Reading the trace.dat file --- */

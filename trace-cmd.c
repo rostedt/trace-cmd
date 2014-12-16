@@ -433,7 +433,7 @@ int main (int argc, char **argv)
 		trace_stack(argc, argv);
 		exit(0);
 	} else if (strcmp(argv[1], "check-events") == 0) {
-		char *tracing;
+		const char *tracing;
 		int ret;
 		struct pevent *pevent = NULL;
 		struct plugin_list *list = NULL;
@@ -449,7 +449,7 @@ int main (int argc, char **argv)
 				break;
 			}
 		}
-		tracing = tracecmd_find_tracing_dir();
+		tracing = tracecmd_get_tracing_dir();
 
 		if (!tracing) {
 			printf("Can not find or mount tracing directory!\n"

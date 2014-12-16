@@ -250,9 +250,9 @@ tracecmd_create_buffer_recorder_maxkb(const char *file, int cpu, unsigned flags,
 
 struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags)
 {
-	char *tracing;
+	const char *tracing;
 
-	tracing = tracecmd_find_tracing_dir();
+	tracing = tracecmd_get_tracing_dir();
 	if (!tracing) {
 		errno = ENODEV;
 		return NULL;
@@ -263,9 +263,9 @@ struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned 
 
 struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, unsigned flags)
 {
-	char *tracing;
+	const char *tracing;
 
-	tracing = tracecmd_find_tracing_dir();
+	tracing = tracecmd_get_tracing_dir();
 	if (!tracing) {
 		errno = ENODEV;
 		return NULL;
@@ -277,9 +277,9 @@ struct tracecmd_recorder *tracecmd_create_recorder(const char *file, int cpu, un
 struct tracecmd_recorder *
 tracecmd_create_recorder_maxkb(const char *file, int cpu, unsigned flags, int maxkb)
 {
-	char *tracing;
+	const char *tracing;
 
-	tracing = tracecmd_find_tracing_dir();
+	tracing = tracecmd_get_tracing_dir();
 	if (!tracing) {
 		errno = ENODEV;
 		return NULL;
