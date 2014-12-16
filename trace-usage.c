@@ -46,6 +46,7 @@ static struct usage_help usage_help[] = {
 		"          -B create sub buffer and folling events will be enabled here\n"
 		"          -k do not reset the buffers after tracing.\n"
 		"          -i do not fail if an event is not found\n"
+		"          --profile enable tracing options needed for report --profile\n"
 		"          --func-stack perform a stack trace for function tracer\n"
 		"             (use with caution)\n"
 	},
@@ -141,6 +142,7 @@ static struct usage_help usage_help[] = {
 		"          -O plugin option -O [plugin:]var[=val]\n"
 		"          --check-events return whether all event formats can be parsed\n"
 		"          --stat - show the buffer stats that were reported at the end of the record.\n"
+		"          --profile report stats on where tasks are blocked and such\n"
 
 	},
 	{

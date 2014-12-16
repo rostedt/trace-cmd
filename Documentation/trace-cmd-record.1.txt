@@ -258,6 +258,15 @@ OPTIONS
     timestamp to gettimeofday which will allow wall time output from the
     timestamps reading the created 'trace.dat' file.
 
+*--profile*::
+    With the *--profile* option, "trace-cmd" will enable tracing that can
+    be used with trace-cmd-report(1) --profile option. If a tracer *-p* is
+    not set, and function graph depth is supported by the kernel, then
+    the function_graph tracer will be enabled with a depth of one (only
+    show where userspace enters into the kernel). It will also enable
+    various tracepoints with stack tracing such that the report can show
+    where tasks have been blocked for the longest time.
+
 EXAMPLES
 --------
 
@@ -314,6 +323,43 @@ Here is a nice way to find what interrupts have the highest latency:
           <idle>-0     [000] 157417.888398: funcgraph_exit:       + 25.943 us |  }
 
 
+------------------------------------------
+
+An example of the profile:
+------------------------------------------
+ # trace-cmd record --profile sleep 1
+ # trace-cmd report --profile --comm sleep
+task: sleep-21611
+  Event: sched_switch:R (1) Total: 99442 Avg: 99442 Max: 99442 Min:99442
+     <stack> 1 total:99442 min:99442 max:99442 avg=99442
+       => ftrace_raw_event_sched_switch (0xffffffff8105f812)
+       => __schedule (0xffffffff8150810a)
+       => preempt_schedule (0xffffffff8150842e)
+       => ___preempt_schedule (0xffffffff81273354)
+       => cpu_stop_queue_work (0xffffffff810b03c5)
+       => stop_one_cpu (0xffffffff810b063b)
+       => sched_exec (0xffffffff8106136d)
+       => do_execve_common.isra.27 (0xffffffff81148c89)
+       => do_execve (0xffffffff811490b0)
+       => SyS_execve (0xffffffff811492c4)
+       => return_to_handler (0xffffffff8150e3c8)
+       => stub_execve (0xffffffff8150c699)
+  Event: sched_switch:S (1) Total: 1000506680 Avg: 1000506680 Max: 1000506680 Min:1000506680
+     <stack> 1 total:1000506680 min:1000506680 max:1000506680 avg=1000506680
+       => ftrace_raw_event_sched_switch (0xffffffff8105f812)
+       => __schedule (0xffffffff8150810a)
+       => schedule (0xffffffff815084b8)
+       => do_nanosleep (0xffffffff8150b22c)
+       => hrtimer_nanosleep (0xffffffff8108d647)
+       => SyS_nanosleep (0xffffffff8108d72c)
+       => return_to_handler (0xffffffff8150e3c8)
+       => tracesys_phase2 (0xffffffff8150c304)
+  Event: sched_wakeup:21611 (1) Total: 30326 Avg: 30326 Max: 30326 Min:30326
+     <stack> 1 total:30326 min:30326 max:30326 avg=30326
+       => ftrace_raw_event_sched_wakeup_template (0xffffffff8105f653)
+       => ttwu_do_wakeup (0xffffffff810606eb)
+       => ttwu_do_activate.constprop.124 (0xffffffff810607c8)
+       => try_to_wake_up (0xffffffff8106340a)
 ------------------------------------------
 
 SEE ALSO
