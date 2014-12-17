@@ -95,9 +95,12 @@ struct stack_holder {
 struct start_data {
 	struct trace_hash_item	hash;
 	struct event_data	*event_data;
+	struct list_head	list;
+	struct task_data	*task;
 	unsigned long long 	timestamp;
 	unsigned long long 	search_val;
 	unsigned long long	val;
+	int			cpu;
 
 	struct stack_holder	stack;
 };
@@ -131,6 +134,7 @@ struct task_data {
 	struct task_data	*proxy;
 	struct start_data	*last_start;
 	struct event_hash	*last_event;
+	struct handle_data	*handle;
 };
 
 struct cpu_info {
@@ -159,6 +163,8 @@ struct handle_data {
 	struct sched_switch_data sched_switch_preempt;
 
 	struct trace_hash	task_hash;
+	struct list_head	all_starts;
+
 	int			cpus;
 };
 
@@ -166,7 +172,7 @@ static struct handle_data *handles;
 
 static struct start_data *
 add_start(struct task_data *task,
-	  struct event_data *event_data, unsigned long long ts,
+	  struct event_data *event_data, struct pevent_record *record,
 	  unsigned long long search_val, unsigned long long val)
 {
 	struct start_data *start;
@@ -176,9 +182,12 @@ add_start(struct task_data *task,
 	start->hash.key = trace_hash(search_val);
 	start->search_val = search_val;
 	start->val = val;
-	start->timestamp = ts;
+	start->timestamp = record->ts;
 	start->event_data = event_data;
+	start->cpu = record->cpu;
+	start->task = task;
 	trace_hash_add(&task->start_hash, &start->hash);
+	list_add(&start->list, &task->handle->all_starts);
 	return start;
 }
 
@@ -315,6 +324,17 @@ static void add_event_stack(struct event_hash *event_hash,
 		stack->time_max = time;
 }
 
+static void free_start(struct start_data *start)
+{
+	if (start->task->last_start == start)
+		start->task->last_start = NULL;
+	if (start->stack.record)
+		free_record(start->stack.record);
+	trace_hash_del(&start->hash);
+	list_del(&start->list);
+	free(start);
+}
+
 static struct event_hash *
 add_and_free_start(struct task_data *task, struct start_data *start,
 		   struct event_data *event_data, unsigned long long ts)
@@ -344,10 +364,10 @@ add_and_free_start(struct task_data *task, struct start_data *start,
 
 		add_event_stack(event_hash, caller, size, delta);
 		free_record(start->stack.record);
+		start->stack.record = NULL;
 	}
 
-	trace_hash_del(&start->hash);
-	free(start);
+	free_start(start);
 
 	return event_hash;
 }
@@ -383,6 +403,7 @@ add_task(struct handle_data *h, int pid)
 	task->pid = pid;
 	task->hash.key = key;
 	trace_hash_add(&h->task_hash, &task->hash);
+	task->handle = h;
 
 	trace_hash_init(&task->start_hash, 16);
 	trace_hash_init(&task->event_hash, 32);
@@ -471,7 +492,7 @@ static int handle_event_data(struct handle_data *h,
 
 		pevent_read_number_field(event_data->end_match_field, record->data,
 					 &val);
-		start = add_start(task, event_data, record->ts, val, val);
+		start = add_start(task, event_data, record, val, val);
 		task->last_start = start;
 		task->last_event = NULL;
 	}
@@ -484,6 +505,17 @@ static int handle_event_data(struct handle_data *h,
 	}
 
 	return 0;
+}
+
+static void handle_missed_events(struct handle_data *h, int cpu)
+{
+	struct start_data *start;
+	struct start_data *n;
+
+	list_for_each_entry_safe(start, n, &h->all_starts, list) {
+		if (start->cpu == cpu || start->event_data->migrate)
+			free_start(start);
+	}
 }
 
 int trace_profile_record(struct tracecmd_input *handle,
@@ -507,6 +539,9 @@ int trace_profile_record(struct tracecmd_input *handle,
 			die("Handle not found?");
 		last_handle = h;
 	}
+
+	if (record->missed_events)
+		handle_missed_events(h, cpu);
 
 	pevent = h->pevent;
 
@@ -656,7 +691,7 @@ static int handle_sched_switch_event(struct handle_data *h,
 		task->sleeping = 0;
 
 	/* task is being scheduled out. prev_state tells why */
-	start = add_start(task, event_data, record->ts, prev_pid, prev_state);
+	start = add_start(task, event_data, record, prev_pid, prev_state);
 	task->last_start = start;
 
 	task = find_task(h, next_pid);
@@ -777,7 +812,7 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 	find_and_update_start(task, event_data->start, record->ts, pid);
 
 	/* Set this up for timing how long the wakeup takes */
-	start = add_start(task, event_data, record->ts, pid, pid);
+	start = add_start(task, event_data, record, pid, pid);
 	task->last_start = start;
 
 	return 0;
@@ -806,6 +841,7 @@ void trace_init_profile(struct tracecmd_input *handle)
 	handles = h;
 
 	trace_hash_init(&h->task_hash, 1024);
+	list_head_init(&h->all_starts);
 
 	h->handle = handle;
 	h->pevent = pevent;
@@ -987,6 +1023,7 @@ static void free_task_starts(struct task_data *task)
 			start = start_from_item(item);
 			if (start->stack.record)
 				free_record(start->stack.record);
+			list_del(&start->list);
 			trace_hash_del(item);
 		}
 	}

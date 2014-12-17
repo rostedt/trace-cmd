@@ -55,6 +55,10 @@ static inline void trace_hash_del(struct trace_hash_item *item)
 #define trace_hash_for_each_item(item, bucket)				\
 	for ((item = *(bucket)); item; item = (item)->next)
 
+#define trace_hash_for_each_item_safe(item, n, bucket)		\
+	for ((item = *(bucket)), n = item ? item->next : NULL; item; \
+	     item = n, n = item ? (item)->next : NULL)
+
 #define trace_hash_while_item(item, bucket)	\
 	while ((item = *(bucket)))
 

@@ -73,4 +73,10 @@ static inline int list_empty(struct list_head *list)
 	     &(p)->field != list;				\
 	     p = container_of((p)->field.next, typeof(*p), field))
 
+#define list_for_each_entry_safe(p, n, list, field)			\
+	for (p = container_of((list)->next, typeof(*p), field),		\
+		     n = container_of((p)->field.next, typeof(*p), field); \
+	     &(p)->field != list;					\
+	     p = n, n = container_of((p)->field.next, typeof(*p), field))
+
 #endif /* __LIST_H */
