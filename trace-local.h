@@ -80,10 +80,13 @@ void trace_init_profile(struct tracecmd_input *handle);
 int trace_profile(void);
 
 struct tracecmd_input *
-trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus);
-int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv);
+trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
+		  int profile);
+int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv,
+		      int profile);
 
-void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record);
+void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record,
+		     int profile);
 
 /* --- event interation --- */
 

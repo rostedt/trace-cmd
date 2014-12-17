@@ -62,10 +62,11 @@
 #define UDP_MAX_PACKET (65536 - 20)
 
 enum trace_type {
-	TRACE_TYPE_RECORD,
-	TRACE_TYPE_START,
-	TRACE_TYPE_STREAM,
-	TRACE_TYPE_EXTRACT,
+	TRACE_TYPE_RECORD	= 1,
+	TRACE_TYPE_START	= (1 << 1),
+	TRACE_TYPE_STREAM	= (1 << 2),
+	TRACE_TYPE_EXTRACT	= (1 << 3),
+	TRACE_TYPE_PROFILE	= (1 << 4) | TRACE_TYPE_STREAM,
 };
 
 static int rt_prio;
@@ -480,6 +481,7 @@ static void delete_thread_data(void)
 static void stop_threads(enum trace_type type)
 {
 	struct timeval tv = { 0, 0 };
+	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 	int ret;
 	int i;
 
@@ -494,9 +496,9 @@ static void stop_threads(enum trace_type type)
 	}
 
 	/* Flush out the pipes */
-	if (type == TRACE_TYPE_STREAM) {
+	if (type & TRACE_TYPE_STREAM) {
 		do {
-			ret = trace_stream_read(pids, recorder_threads, &tv);
+			ret = trace_stream_read(pids, recorder_threads, &tv, profile);
 		} while (ret > 0);
 	}
 
@@ -825,6 +827,7 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 {
 	struct timeval tv = { 1, 0 };
 	int ret;
+	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 
 	options |= WNOHANG;
 
@@ -833,8 +836,8 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 		if (ret != 0)
 			return ret;
 
-		if (type == TRACE_TYPE_STREAM)
-			trace_stream_read(pids, recorder_threads, &tv);
+		if (type & TRACE_TYPE_STREAM)
+			trace_stream_read(pids, recorder_threads, &tv, profile);
 	} while (1);
 }
 #ifndef NO_PTRACE
@@ -992,10 +995,12 @@ static inline void ptrace_attach(int pid) { }
 static void trace_or_sleep(enum trace_type type)
 {
 	struct timeval tv = { 1 , 0 };
+	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
+
 	if (do_ptrace && filter_pid >= 0)
 		ptrace_wait(type, filter_pid);
-	else if (type == TRACE_TYPE_STREAM)
-		trace_stream_read(pids, recorder_threads, &tv);
+	else if (type & TRACE_TYPE_STREAM)
+		trace_stream_read(pids, recorder_threads, &tv, profile);
 	else
 		sleep(10);
 }
@@ -2337,6 +2342,7 @@ static void finish_network(void)
 
 static void start_threads(enum trace_type type)
 {
+	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 	struct buffer_instance *instance;
 	int *brass = NULL;
 	int i = 0;
@@ -2353,13 +2359,14 @@ static void start_threads(enum trace_type type)
 	for_all_instances(instance) {
 		int x;
 		for (x = 0; x < cpu_count; x++) {
-			if (type == TRACE_TYPE_STREAM) {
+			if (type & TRACE_TYPE_STREAM) {
 				brass = pids[i].brass;
 				ret = pipe(brass);
 				if (ret < 0)
 					die("pipe");
 				pids[i].stream = trace_stream_init(instance, x,
-								   brass[0], cpu_count);
+								   brass[0], cpu_count,
+								   profile);
 				if (!pids[i].stream)
 					die("Creating stream for %d", i);
 			} else
@@ -3129,7 +3136,7 @@ update_plugin_instance(struct buffer_instance *instance,
 		latency = 1;
 		if (host)
 			die("Network tracing not available with latency tracer plugins");
-		if (type == TRACE_TYPE_STREAM)
+		if (type & TRACE_TYPE_STREAM)
 			die("Streaming is not available with latency tracer plugins");
 	} else if (type == TRACE_TYPE_RECORD) {
 		if (latency)
@@ -3388,7 +3395,7 @@ void trace_record (int argc, char **argv)
 	struct event_list *event;
 	struct event_list *last_event;
 	struct buffer_instance *instance = &top_instance;
-	enum trace_type type;
+	enum trace_type type = 0;
 	char *pids;
 	char *pid;
 	char *sav;
@@ -3400,6 +3407,7 @@ void trace_record (int argc, char **argv)
 	int record = 0;
 	int extract = 0;
 	int stream = 0;
+	int profile = 0;
 	int start = 0;
 	int run_command = 0;
 	int neg_event = 0;
@@ -3419,7 +3427,10 @@ void trace_record (int argc, char **argv)
 		; /* do nothing */
 	else if ((stream = strcmp(argv[1], "stream") == 0))
 		; /* do nothing */
-	else if (strcmp(argv[1], "stop") == 0) {
+	else if ((profile = strcmp(argv[1], "profile") == 0)) {
+		events = 1;
+
+	} else if (strcmp(argv[1], "stop") == 0) {
 		int topt = 0;
 		for (;;) {
 			int c;
@@ -3652,6 +3663,9 @@ void trace_record (int argc, char **argv)
 			if (stream)
 				die("stream does not take output\n"
 				    "Did you mean 'record'?");
+			if (profile)
+				die("profile does not take output\n"
+				    "Did you mean 'record'?");
 			if (output)
 				die("only one output file allowed");
 			output = optarg;
@@ -3703,6 +3717,8 @@ void trace_record (int argc, char **argv)
 		case 'B':
 			instance = create_instance(optarg);
 			add_instance(instance);
+			if (profile)
+				instance->profile = 1;
 			break;
 		case 'k':
 			keep = 1;
@@ -3740,6 +3756,13 @@ void trace_record (int argc, char **argv)
 			    "Did you mean 'record'?");
 		run_command = 1;
 	}
+
+	/*
+	 * If this is a profile run, and no instances were set,
+	 * then enable profiling on the top instance.
+	 */
+	if (profile && !buffer_instances)
+		top_instance.profile = 1;
 
 	/*
 	 * If top_instance doesn't have any plugins or events, then
@@ -3808,6 +3831,9 @@ void trace_record (int argc, char **argv)
 		type = TRACE_TYPE_STREAM;
 	else if (extract)
 		type = TRACE_TYPE_EXTRACT;
+	else if (profile)
+		/* PROFILE includes the STREAM bit */
+		type = TRACE_TYPE_PROFILE;
 	else
 		type = TRACE_TYPE_START;
 
@@ -3817,7 +3843,7 @@ void trace_record (int argc, char **argv)
 
 	allocate_seq();
 
-	if (record || stream) {
+	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, finish);
 		if (!latency)
 			start_threads(type);
@@ -3827,7 +3853,7 @@ void trace_record (int argc, char **argv)
 		flush_threads();
 
 	} else {
-		if (!record && !stream) {
+		if (!(type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM))) {
 			update_task_filter();
 			enable_tracing();
 			exit(0);
@@ -3898,6 +3924,9 @@ void trace_record (int argc, char **argv)
 
 	if (host)
 		tracecmd_output_close(network_handle);
+
+	if (profile)
+		trace_profile();
 
 	exit(0);
 }

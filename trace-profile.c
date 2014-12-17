@@ -123,6 +123,8 @@ struct task_data {
 	int			pid;
 	int			sleeping;
 
+	char			*comm;
+
 	struct trace_hash	start_hash;
 	struct trace_hash	event_hash;
 
@@ -149,7 +151,9 @@ struct handle_data {
 	struct cpu_info		**cpu_data;
 
 	struct format_field	*common_pid;
-	struct format_field	*wakeup_success;
+	struct format_field	*wakeup_comm;
+	struct format_field	*switch_prev_comm;
+	struct format_field	*switch_next_comm;
 
 	struct sched_switch_data sched_switch_blocked;
 	struct sched_switch_data sched_switch_preempt;
@@ -407,6 +411,18 @@ find_task(struct handle_data *h, int pid)
 	return last_task;
 }
 
+static void
+add_task_comm(struct task_data *task, struct format_field *field,
+	      struct pevent_record *record)
+{
+	const char *comm;
+
+	task->comm = malloc_or_die(field->size + 1);
+	comm = record->data + field->offset;
+	memcpy(task->comm, comm, field->size);
+	task->comm[field->size] = 0;
+}
+
 static void account_task(struct task_data *task, struct event_data *event_data)
 {
 }
@@ -631,6 +647,8 @@ static int handle_sched_switch_event(struct handle_data *h,
 				 record->data, &next_pid);
 
 	task = find_task(h, prev_pid);
+	if (!task->comm)
+		add_task_comm(task, h->switch_prev_comm, record);
 
 	if (prev_state)
 		task->sleeping = 1;
@@ -642,6 +660,8 @@ static int handle_sched_switch_event(struct handle_data *h,
 	task->last_start = start;
 
 	task = find_task(h, next_pid);
+	if (!task->comm)
+		add_task_comm(task, h->switch_next_comm, record);
 
 	/*
 	 * If the next task was blocked, it required a wakeup to
@@ -737,6 +757,8 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 				 record->data, &pid);
 
 	task = find_task(h, pid);
+	if (!task->comm)
+		add_task_comm(task, h->wakeup_comm, record);
 
 	/* if the task isn't sleeping, then ignore the wake up */
 	if (!task->sleeping)
@@ -823,6 +845,19 @@ void trace_init_profile(struct tracecmd_input *handle)
 		if (!sched_switch->data_field)
 			die("Event: %s does not have field prev_state",
 			    sched_switch->event->name);
+
+		h->switch_prev_comm = pevent_find_field(sched_switch->event,
+							"prev_comm");
+		if (!h->switch_prev_comm)
+			die("Event: %s does not have field prev_comm",
+			    sched_switch->event->name);
+
+		h->switch_next_comm = pevent_find_field(sched_switch->event,
+							"next_comm");
+		if (!h->switch_next_comm)
+			die("Event: %s does not have field next_comm",
+			    sched_switch->event->name);
+
 		sched_switch->print_func = sched_switch_print;
 	}
 
@@ -836,6 +871,11 @@ void trace_init_profile(struct tracecmd_input *handle)
 		/* The 'success' field may or may not be present */
 		sched_wakeup->data_field = pevent_find_field(sched_wakeup->event,
 							     "success");
+
+		h->wakeup_comm = pevent_find_field(sched_wakeup->event, "comm");
+		if (!h->wakeup_comm)
+			die("Event: %s does not have field comm",
+			    sched_wakeup->event->name);
 	}
 
 	if (irq_entry && irq_exit)
@@ -998,7 +1038,10 @@ static void output_task(struct handle_data *h, struct task_data *task)
 
 	free_task_starts(task);
 
-	comm = pevent_data_comm_from_pid(h->pevent, task->pid);
+	if (task->comm)
+		comm = task->comm;
+	else
+		comm = pevent_data_comm_from_pid(h->pevent, task->pid);
 
 	printf("\ntask: %s-%d\n", comm, task->pid);
 

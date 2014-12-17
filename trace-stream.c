@@ -34,7 +34,8 @@
  * it to create the pevent and handle.
  */
 struct tracecmd_input *
-trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus)
+trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
+		  int profile)
 {
 	struct tracecmd_input *trace_input;
 	struct tracecmd_output *trace_output;
@@ -74,6 +75,9 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus)
 	if (tracecmd_read_headers(trace_input) < 0)
 		goto fail_free_input;
 
+	if (profile)
+		trace_init_profile(trace_input);
+
  make_pipe:
 	/* Do not block on this pipe */
 	flags = fcntl(fd, F_GETFL);
@@ -94,7 +98,8 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus)
 	return NULL;
 }
 
-int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv)
+int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv,
+		      int profile)
 {
 	struct pevent_record *record;
 	struct pid_record_data *pid;
@@ -122,7 +127,7 @@ int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval 
 			last_pid = pid;
 	}
 	if (last_pid) {
-		trace_show_data(last_pid->instance->handle, last_pid->record);
+		trace_show_data(last_pid->instance->handle, last_pid->record, profile);
 		free_record(last_pid->record);
 		last_pid->record = NULL;
 		return 1;
