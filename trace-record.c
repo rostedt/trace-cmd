@@ -2373,6 +2373,8 @@ static void start_threads(enum trace_type type)
 				pids[i].brass[0] = -1;
 			pids[i].cpu = x;
 			pids[i].instance = instance;
+			/* Make sure all output is flushed before forking */
+			fflush(stdout);
 			pids[i++].pid = create_recorder(instance, x, type, brass);
 			if (brass)
 				close(brass[1]);
