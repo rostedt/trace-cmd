@@ -1010,6 +1010,20 @@ static int calc_percent(unsigned long long val, unsigned long long total)
 	return (val * 100 + total / 2) / total;
 }
 
+static int stack_overflows(struct stack_data *stack, int longsize, int level)
+{
+	return longsize * level > stack->size - longsize;
+}
+
+static unsigned long long
+stack_value(struct stack_data *stack, int longsize, int level)
+{
+	void *ptr;
+
+	ptr = &stack->caller[longsize * level];
+	return longsize == 8 ? *(u64 *)ptr : *(unsigned *)ptr;
+}
+
 static struct stack_chain *
 make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 		 int *nr_children)
@@ -1023,7 +1037,6 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 	unsigned long long	count;
 	unsigned long long	stop = -1ULL;
 	int nr_chains = 0;
-	void *ptr;
 	u64 last = 0;
 	u64 val;
 	int start;
@@ -1035,11 +1048,10 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 
 	/* First find out how many diffs there are */
 	for (i = 0; i < cnt; i++) {
-		if (longsize * level > stacks[i]->size - longsize)
+		if (stack_overflows(stacks[i], longsize, level))
 			continue;
 
-		ptr = &stacks[i]->caller[longsize * level];
-		val = longsize == 8 ? *(u64 *)ptr : *(unsigned *)ptr;
+		val = stack_value(stacks[i], longsize, level);
 
 		if (val == stop)
 			continue;
@@ -1065,65 +1077,48 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 	time_max = 0;
 
 	for (i = 0; i < cnt; i++) {
-		ptr = &stacks[i]->caller[longsize * level];
-		val = longsize == 8 ? *(u64 *)ptr : *(unsigned *)ptr;
-
-		if (i) {
-			int y = i - 1;
-
-			count += stacks[y]->count;
-			time += stacks[y]->time;
-			if (stacks[y]->time_max > time_max)
-				time_max = stacks[y]->time_max;
-			if (y != start || stacks[y]->time_min < time_min)
-				time_min = stacks[y]->time_min;
+		if (stack_overflows(stacks[i], longsize, level)) {
+			start = i+1;
+			continue;
 		}
 
-		if (i && val != last) {
+		val = stack_value(stacks[i], longsize, level);
+
+		if (val == stop) {
+			start = i+1;
+			continue;
+		}
+
+		count += stacks[i]->count;
+		time += stacks[i]->time;
+		if (stacks[i]->time_max > time_max)
+			time_max = stacks[i]->time_max;
+		if (i == start || stacks[i]->time_min < time_min)
+			time_min = stacks[i]->time_min;
+
+		if (i == cnt - 1 ||
+		    stack_overflows(stacks[i+1], longsize, level) ||
+		    val != stack_value(stacks[i+1], longsize, level)) {
+
 			total_time += time;
 			total_count += count;
-			chain[x].val = last;
+			chain[x].val = val;
 			chain[x].time_avg = time / count;
 			chain[x].count = count;
 			chain[x].time = time;
 			chain[x].time_min = time_min;
 			chain[x].time_max = time_max;
 			chain[x].children =
-				make_stack_chain(&stacks[start], i - start,
+				make_stack_chain(&stacks[start], (i - start) + 1,
 						 longsize, level+1,
 						 &chain[x].nr_children);
 			x++;
-			start = i;
+			start = i + 1;
 			count = 0;
 			time = 0;
 			time_min = 0;
 			time_max = 0;
 		}
-
-		last = val;
-	}
-	if (x < nr_chains) {
-		int y = i - 1;
-
-		count += stacks[y]->count;
-		time += stacks[y]->time;
-		if (stacks[y]->time_max > time_max)
-			time_max = stacks[y]->time_max;
-		if (y != start || stacks[y]->time_min < time_min)
-			time_min = stacks[y]->time_min;
-
-		total_time += time;
-		total_count += count;
-		chain[x].val = last;
-		chain[x].time_avg = time / count;
-		chain[x].count = count;
-		chain[x].time = time;
-		chain[x].time_min = time_min;
-		chain[x].time_max = time_max;
-		chain[x].children =
-			make_stack_chain(&stacks[start], i - start,
-					 longsize, level+1,
-					 &chain[x].nr_children);
 	}
 
 	qsort(chain, nr_chains, sizeof(*chain), compare_chains);
@@ -1146,6 +1141,19 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 	}
 
 	return chain;
+}
+
+static void free_chain(struct stack_chain *chain, int nr_chains)
+{
+	int i;
+
+	if (!chain)
+		return;
+
+	for (i = 0; i < nr_chains; i++)
+		free_chain(chain[i].children, chain[i].nr_children);
+
+	free(chain);
 }
 
 #define INDENT	5
@@ -1269,7 +1277,6 @@ static void output_stacks(struct pevent *pevent, struct trace_hash *stack_hash)
 {
 	struct trace_hash_item **bucket;
 	struct trace_hash_item *item;
-	struct stack_data *stack;
 	struct stack_data **stacks;
 	struct stack_chain *chain;
 	unsigned long long mask = 0;
@@ -1304,13 +1311,8 @@ static void output_stacks(struct pevent *pevent, struct trace_hash *stack_hash)
 		for (i = 0; i < nr_stacks; i++)
 			output_event_stack(pevent, stacks[i]);
 
-	trace_hash_for_each_bucket(bucket, stack_hash) {
-		trace_hash_while_item(item, bucket) {
-			stack = stack_from_item(item);
-			trace_hash_del(&stack->hash);
-			free(stack);
-		}
-	}
+	free(stacks);
+	free_chain(chain, nr_chains);
 }
 
 static void output_event(struct event_hash *event_hash)
@@ -1339,23 +1341,6 @@ static void output_event(struct event_hash *event_hash)
 	trace_seq_destroy(&s);
 
 	output_stacks(pevent, &event_hash->stacks);
-}
-
-static void free_task_starts(struct task_data *task)
-{
-	struct trace_hash_item **bucket;
-	struct trace_hash_item *item;
-	struct start_data *start;
-
-	trace_hash_for_each_bucket(bucket, &task->start_hash) {
-		trace_hash_while_item(item, bucket) {
-			start = start_from_item(item);
-			if (start->stack.record)
-				free_record(start->stack.record);
-			list_del(&start->list);
-			trace_hash_del(item);
-		}
-	}
 }
 
 static int compare_events(const void *a, const void *b)
@@ -1402,8 +1387,6 @@ static void output_task(struct handle_data *h, struct task_data *task)
 	int nr_events = 0;
 	int i;
 
-	free_task_starts(task);
-
 	if (task->comm)
 		comm = task->comm;
 	else
@@ -1446,6 +1429,56 @@ static int compare_tasks(const void *a, const void *b)
 	return 0;
 }
 
+static void free_event_hash(struct event_hash *event_hash)
+{
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
+	struct stack_data *stack;
+
+	trace_hash_for_each_bucket(bucket, &event_hash->stacks) {
+		trace_hash_while_item(item, bucket) {
+			stack = stack_from_item(item);
+			trace_hash_del(&stack->hash);
+			free(stack);
+		}
+	}
+	trace_hash_free(&event_hash->stacks);
+	free(event_hash);
+}
+
+static void free_task(struct task_data *task)
+{
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
+	struct start_data *start;
+	struct event_hash *event_hash;
+
+	free(task->comm);
+
+	trace_hash_for_each_bucket(bucket, &task->start_hash) {
+		trace_hash_while_item(item, bucket) {
+			start = start_from_item(item);
+			if (start->stack.record)
+				free_record(start->stack.record);
+			list_del(&start->list);
+			trace_hash_del(item);
+			free(start);
+		}
+	}
+	trace_hash_free(&task->start_hash);
+
+	trace_hash_for_each_bucket(bucket, &task->event_hash) {
+		trace_hash_while_item(item, bucket) {
+			event_hash = event_from_item(item);
+			trace_hash_del(item);
+			free_event_hash(event_hash);
+		}
+	}
+	trace_hash_free(&task->event_hash);
+
+	free(task);
+}
+
 static void output_handle(struct handle_data *h)
 {
 	struct trace_hash_item **bucket;
@@ -1473,16 +1506,22 @@ static void output_handle(struct handle_data *h)
 
 	qsort(tasks, nr_tasks, sizeof(*tasks), compare_tasks);
 
-	for (i = 0; i < nr_tasks; i++)
+	for (i = 0; i < nr_tasks; i++) {
 		output_task(h, tasks[i]);
+		free_task(tasks[i]);
+	}
+
+	free(tasks);
 }
 
 int trace_profile(void)
 {
 	struct handle_data *h;
 
-	for (h = handles; h; h = h->next)
+	for (h = handles; h; h = h->next) {
 		output_handle(h);
+		trace_hash_free(&h->task_hash);
+	}
 
 	return 0;
 }
