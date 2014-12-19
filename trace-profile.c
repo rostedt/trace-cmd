@@ -222,35 +222,42 @@ static int match_event(struct trace_hash_item *item, void *data)
 }
 
 static struct event_hash *
-find_event_hash(struct task_data *task, struct event_data *event_data,
-		struct start_data *start)
+find_event_hash(struct task_data *task, struct event_data_match *edata)
 {
-	struct trace_hash_item *item;
 	struct event_hash *event_hash;
-	struct event_data_match edata;
+	struct trace_hash_item *item;
 	unsigned long long key;
 
-	edata.event_data = event_data;
-	edata.search_val = start->search_val;
-	edata.val = start->val;
-
-	key = trace_hash((unsigned long)event_data);
-	item = trace_hash_find(&task->event_hash, key, match_event, &edata);
+	key = trace_hash((unsigned long)(edata->event_data));
+	item = trace_hash_find(&task->event_hash, key, match_event, edata);
 	if (item)
 		return event_from_item(item);
 
 	event_hash = malloc_or_die(sizeof(*event_hash));
 	memset(event_hash, 0, sizeof(*event_hash));
 
-	event_hash->event_data = event_data;
-	event_hash->search_val = start->search_val;
-	event_hash->val = start->val;
+	event_hash->event_data = edata->event_data;
+	event_hash->search_val = edata->search_val;
+	event_hash->val = edata->val;
 	event_hash->hash.key = key;
 	trace_hash_init(&event_hash->stacks, 32);
 
 	trace_hash_add(&task->event_hash, &event_hash->hash);
 
 	return event_hash;
+}
+
+static struct event_hash *
+find_start_event_hash(struct task_data *task, struct event_data *event_data,
+		      struct start_data *start)
+{
+	struct event_data_match edata;
+
+	edata.event_data = event_data;
+	edata.search_val = start->search_val;
+	edata.val = start->val;
+
+	return find_event_hash(task, &edata);
 }
 
 static struct start_data *
@@ -349,7 +356,7 @@ add_and_free_start(struct task_data *task, struct start_data *start,
 
 	delta = ts - start->timestamp;
 
-	event_hash = find_event_hash(task, event_data, start);
+	event_hash = find_start_event_hash(task, event_data, start);
 	event_hash->count++;
 	event_hash->time_total += delta;
 	event_hash->last_time = delta;
