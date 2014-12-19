@@ -456,8 +456,51 @@ add_task_comm(struct task_data *task, struct format_field *field,
 	task->comm[field->size] = 0;
 }
 
-static void account_task(struct task_data *task, struct event_data *event_data)
+/* Account for tasks that don't have starts */
+static void account_task(struct task_data *task, struct event_data *event_data,
+			 struct pevent_record *record)
 {
+	struct event_data_match edata;
+	struct event_hash *event_hash;
+	struct task_data *proxy = NULL;
+	unsigned long long search_val = 0;
+	unsigned long long val = 0;
+	unsigned long long pid;
+
+	/*
+	 * If an event has the pid_field set, then find that task for
+	 * this event instead. Let this task proxy for it to handle
+	 * stack traces on this event.
+	 */
+	if (event_data->pid_field) {
+		pevent_read_number_field(event_data->pid_field,
+					 record->data, &pid);
+		proxy = task;
+		task = find_task(task->handle, pid);
+		proxy->proxy = task;
+	}
+
+	/*
+	 * If data_field is defined, use that for val,
+	 * if the start_field is defined, use that for search_val.
+	 */
+	if (event_data->data_field) {
+		pevent_read_number_field(event_data->data_field,
+					 record->data, &val);
+	}
+	if (event_data->start_match_field) {
+		pevent_read_number_field(event_data->start_match_field,
+					 record->data, &search_val);
+	}
+
+	edata.event_data = event_data;
+	edata.search_val = val;
+	edata.val = val;
+
+	event_hash = find_event_hash(task, &edata);
+
+	event_hash->count++;
+	task->last_event = event_hash;
 }
 
 static int handle_event_data(struct handle_data *h,
@@ -511,9 +554,10 @@ static int handle_event_data(struct handle_data *h,
 
 	if (!task) {
 		task = find_task(h, pid);
+		task->proxy = NULL;
 		task->last_start = NULL;
 		task->last_event = NULL;
-		account_task(task, event_data);
+		account_task(task, event_data, record);
 	}
 
 	return 0;
@@ -873,7 +917,10 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 void trace_init_profile(struct tracecmd_input *handle)
 {
 	struct pevent *pevent = tracecmd_get_pevent(handle);
+	struct event_format **events;
+	struct format_field **fields;
 	struct handle_data *h;
+	struct event_data *event_data;
 	struct event_data *sched_switch;
 	struct event_data *sched_wakeup;
 	struct event_data *irq_entry;
@@ -887,6 +934,7 @@ void trace_init_profile(struct tracecmd_input *handle)
 	struct event_data *syscall_exit;
 	struct event_data *process_exec;
 	struct event_data *stacktrace;
+	int i;
 
 	h = malloc_or_die(sizeof(*h));
 	memset(h, 0, sizeof(*h));
@@ -993,6 +1041,29 @@ void trace_init_profile(struct tracecmd_input *handle)
 
 	if (syscall_enter && syscall_exit)
 		mate_events(h, syscall_enter, NULL, "id", syscall_exit, "id", 1);
+
+	events = pevent_list_events(pevent, EVENT_SORT_ID);
+	if (!events)
+		die("malloc");
+
+	/* Now add any defined event that we haven't processed */
+	for (i = 0; events[i]; i++) {
+		event_data = find_event_data(h, events[i]->id);
+		if (event_data)
+			continue;
+
+		event_data = add_event(h, events[i]->system, events[i]->name,
+				       EVENT_TYPE_UNDEFINED);
+
+		fields = pevent_event_fields(events[i]);
+		if (!fields)
+			die("malloc");
+
+		if (fields[0])
+			event_data->data_field = fields[0];
+
+		free(fields);
+	}
 }
 
 static void output_event_stack(struct pevent *pevent, struct stack_data *stack)
@@ -1392,14 +1463,18 @@ static void output_event(struct event_hash *event_hash)
 				 event_hash->val);
 	trace_seq_terminate(&s);
 
-	event_hash->time_avg = event_hash->time_total / event_hash->count;
-
-	printf("  Event: %s (%lld) Total: %lld Avg: %lld Max: %lld Min:%lld\n",
-	       s.buffer,
-	       event_hash->count, event_hash->time_total, event_hash->time_avg,
-	       event_hash->time_max, event_hash->time_min);
+	printf("  Event: %s (%lld)",
+	       s.buffer, event_hash->count);
 
 	trace_seq_destroy(&s);
+
+	if (event_hash->time_total) {
+		event_hash->time_avg = event_hash->time_total / event_hash->count;
+		printf(" Total: %lld Avg: %lld Max: %lld Min:%lld",
+		       event_hash->time_total, event_hash->time_avg,
+		       event_hash->time_max, event_hash->time_min);
+	}
+	printf("\n");
 
 	output_stacks(pevent, &event_hash->stacks);
 }
