@@ -17,6 +17,8 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+
+/** FIXME: Convert numbers based on machine and file */
 #define _LARGEFILE64_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,7 +79,7 @@ struct event_data {
 
 struct stack_data {
 	struct trace_hash_item  hash;
-	unsigned long		count;
+	unsigned long long	count;
 	unsigned long long	time;
 	unsigned long long	time_min;
 	unsigned long long	time_max;
@@ -932,9 +934,8 @@ void trace_init_profile(struct tracecmd_input *handle)
 		mate_events(h, syscall_enter, NULL, "id", syscall_exit, "id", 1);
 }
 
-static void output_event_stack(struct event_hash *event_hash, struct stack_data *stack)
+static void output_event_stack(struct pevent *pevent, struct stack_data *stack)
 {
-	struct pevent *pevent = event_hash->event_data->event->pevent;
 	int longsize = pevent_get_long_size(pevent);
 	unsigned long long val;
 	const char *func;
@@ -948,7 +949,7 @@ static void output_event_stack(struct event_hash *event_hash, struct stack_data 
 	if (stack->count)
 		stack->time_avg = stack->time / stack->count;
 
-	printf("     <stack> %ld total:%lld min:%lld max:%lld avg=%lld\n",
+	printf("     <stack> %lld total:%lld min:%lld max:%lld avg=%lld\n",
 	       stack->count, stack->time, stack->time_min, stack->time_max,
 	       stack->time_avg);
 
@@ -975,12 +976,347 @@ static void output_event_stack(struct event_hash *event_hash, struct stack_data 
 	}
 }
 
-static void output_event(struct event_hash *event_hash)
+struct stack_chain {
+	struct stack_chain *children;
+	unsigned long long	val;
+	unsigned long long	time;
+	unsigned long long	time_min;
+	unsigned long long	time_max;
+	unsigned long long	time_avg;
+	unsigned long long	count;
+	int			percent;
+	int			nr_children;
+};
+
+static int compare_chains(const void *a, const void *b)
 {
-	struct event_data *event_data = event_hash->event_data;
+	const struct stack_chain * A = a;
+	const struct stack_chain * B = b;
+
+	if (A->time > B->time)
+		return -1;
+	if (A->time < B->time)
+		return 1;
+	/* If stacks don't use time, then use count */
+	if (A->count > B->count)
+		return -1;
+	if (A->count < B->count)
+		return 1;
+	return 0;
+}
+
+static int calc_percent(unsigned long long val, unsigned long long total)
+{
+	return (val * 100 + total / 2) / total;
+}
+
+static struct stack_chain *
+make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
+		 int *nr_children)
+{
+	struct stack_chain *chain;
+	unsigned long long	total_time = 0;
+	unsigned long long	total_count = 0;
+	unsigned long long	time;
+	unsigned long long	time_min;
+	unsigned long long	time_max;
+	unsigned long long	count;
+	unsigned long long	stop = -1ULL;
+	int nr_chains = 0;
+	void *ptr;
+	u64 last = 0;
+	u64 val;
+	int start;
+	int i;
+	int x;
+
+	if (longsize < 8)
+		stop &= (1ULL << (longsize * 8)) - 1;
+
+	/* First find out how many diffs there are */
+	for (i = 0; i < cnt; i++) {
+		if (longsize * level > stacks[i]->size - longsize)
+			continue;
+
+		ptr = &stacks[i]->caller[longsize * level];
+		val = longsize == 8 ? *(u64 *)ptr : *(unsigned *)ptr;
+
+		if (val == stop)
+			continue;
+
+		if (!nr_chains || val != last)
+			nr_chains++;
+		last = val;
+	}
+
+	if (!nr_chains) {
+		*nr_children = 0;
+		return NULL;
+	}
+
+	chain = malloc_or_die(sizeof(*chain) * nr_chains);
+	memset(chain, 0, sizeof(*chain) * nr_chains);
+
+	x = 0;
+	count = 0;
+	start = 0;
+	time = 0;
+	time_min = 0;
+	time_max = 0;
+
+	for (i = 0; i < cnt; i++) {
+		ptr = &stacks[i]->caller[longsize * level];
+		val = longsize == 8 ? *(u64 *)ptr : *(unsigned *)ptr;
+
+		if (i) {
+			int y = i - 1;
+
+			count += stacks[y]->count;
+			time += stacks[y]->time;
+			if (stacks[y]->time_max > time_max)
+				time_max = stacks[y]->time_max;
+			if (y != start || stacks[y]->time_min < time_min)
+				time_min = stacks[y]->time_min;
+		}
+
+		if (i && val != last) {
+			total_time += time;
+			total_count += count;
+			chain[x].val = last;
+			chain[x].time_avg = time / count;
+			chain[x].count = count;
+			chain[x].time = time;
+			chain[x].time_min = time_min;
+			chain[x].time_max = time_max;
+			chain[x].children =
+				make_stack_chain(&stacks[start], i - start,
+						 longsize, level+1,
+						 &chain[x].nr_children);
+			x++;
+			start = i;
+			count = 0;
+			time = 0;
+			time_min = 0;
+			time_max = 0;
+		}
+
+		last = val;
+	}
+	if (x < nr_chains) {
+		int y = i - 1;
+
+		count += stacks[y]->count;
+		time += stacks[y]->time;
+		if (stacks[y]->time_max > time_max)
+			time_max = stacks[y]->time_max;
+		if (y != start || stacks[y]->time_min < time_min)
+			time_min = stacks[y]->time_min;
+
+		total_time += time;
+		total_count += count;
+		chain[x].val = last;
+		chain[x].time_avg = time / count;
+		chain[x].count = count;
+		chain[x].time = time;
+		chain[x].time_min = time_min;
+		chain[x].time_max = time_max;
+		chain[x].children =
+			make_stack_chain(&stacks[start], i - start,
+					 longsize, level+1,
+					 &chain[x].nr_children);
+	}
+
+	qsort(chain, nr_chains, sizeof(*chain), compare_chains);
+
+	*nr_children = nr_chains;
+
+	/* Should never happen */
+	if (!total_time && !total_count)
+		return chain;
+
+
+	/* Now calculate percentage */
+	time = 0;
+	for (i = 0; i < nr_chains; i++) {
+		if (total_time)
+			chain[i].percent = calc_percent(chain[i].time, total_time);
+		/* In case stacks don't have time */
+		else if (total_count)
+			chain[i].percent = calc_percent(chain[i].count, total_count);
+	}
+
+	return chain;
+}
+
+#define INDENT	5
+
+static void print_indent(int level, unsigned long long mask)
+{
+	char line;
+	int p;
+
+	for (p = 0; p < level + 1; p++) {
+		if (mask & (1ULL << p))
+			line = '|';
+		else
+			line = ' ';
+		printf("%*c ", INDENT, line);
+	}
+}
+
+static void print_chain_func(struct pevent *pevent, struct stack_chain *chain)
+{
+	unsigned long long val = chain->val;
+	const char *func;
+
+	func = pevent_find_function(pevent, val);
+	if (func)
+		printf("%s (0x%llx)\n", func, val);
+	else
+		printf("0x%llx\n", val);
+}
+
+static void output_chain(struct pevent *pevent, struct stack_chain *chain, int level,
+			 int nr_chains, unsigned long long *mask)
+{
+	struct stack_chain *child;
+	int nr_children;
+	int i;
+	char line = '|';
+
+	if (!nr_chains)
+		return;
+
+	*mask |= (1ULL << (level + 1));
+	print_indent(level + 1, *mask);
+	printf("\n");
+
+	for (i = 0; i < nr_chains; i++) {
+
+		print_indent(level, *mask);
+
+		printf("%*c ", INDENT, '+');
+
+		if (i == nr_chains - 1) {
+			*mask &= ~(1ULL << (level + 1));
+			line = ' ';
+		}
+
+		print_chain_func(pevent, &chain[i]);
+
+		print_indent(level, *mask);
+
+		printf("%*c ", INDENT, line);
+		printf("  %d%% (%lld)", chain[i].percent, chain[i].count);
+		if (chain[i].time)
+			printf(" time:%lld max:%lld min:%lld avg:%lld",
+			       chain[i].time, chain[i].time_max,
+			       chain[i].time_min, chain[i].time_avg);
+		printf("\n");
+
+		for (child = chain[i].children, nr_children = chain[i].nr_children;
+		     child && nr_children == 1;
+		     nr_children = child->nr_children, child = child->children) {
+			print_indent(level, *mask);
+			printf("%*c ", INDENT, line);
+			printf("   ");
+			print_chain_func(pevent, child);
+		}
+
+		if (child)
+			output_chain(pevent, child, level+1, nr_children, mask);
+
+		print_indent(level + 1, *mask);
+		printf("\n");
+	}
+	*mask &= ~(1ULL << (level + 1));
+	print_indent(level, *mask);
+	printf("\n");
+}
+
+static int compare_stacks(const void *a, const void *b)
+{
+	struct stack_data * const *A = a;
+	struct stack_data * const *B = b;
+	unsigned int sa, sb;
+	int size;
+	int i;
+
+	/* only compare up to the smaller size of the two */
+	if ((*A)->size > (*B)->size)
+		size = (*B)->size;
+	else
+		size = (*A)->size;
+
+	for (i = 0; i < size; i += sizeof(sa)) {
+		sa = *(unsigned *)&(*A)->caller[i];
+		sb = *(unsigned *)&(*B)->caller[i];
+		if (sa > sb)
+			return 1;
+		if (sa < sb)
+			return -1;
+	}
+
+	/* They are the same up to size. Then bigger size wins */
+	if ((*A)->size > (*B)->size)
+		return 1;
+	if ((*A)->size < (*B)->size)
+		return -1;
+	return 0;
+}
+
+static void output_stacks(struct pevent *pevent, struct trace_hash *stack_hash)
+{
 	struct trace_hash_item **bucket;
 	struct trace_hash_item *item;
 	struct stack_data *stack;
+	struct stack_data **stacks;
+	struct stack_chain *chain;
+	unsigned long long mask = 0;
+	int nr_chains;
+	int longsize = pevent_get_long_size(pevent);
+	int nr_stacks;
+	int i;
+
+	nr_stacks = 0;
+	trace_hash_for_each_bucket(bucket, stack_hash) {
+		trace_hash_for_each_item(item, bucket) {
+			nr_stacks++;
+		}
+	}
+
+	stacks = malloc_or_die(sizeof(*stacks) * nr_stacks);
+
+	nr_stacks = 0;
+	trace_hash_for_each_bucket(bucket, stack_hash) {
+		trace_hash_for_each_item(item, bucket) {
+			stacks[nr_stacks++] = stack_from_item(item);
+		}
+	}
+
+	qsort(stacks, nr_stacks, sizeof(*stacks), compare_stacks);
+
+	chain = make_stack_chain(stacks, nr_stacks, longsize, 0, &nr_chains);
+
+	output_chain(pevent, chain, 0, nr_chains, &mask);
+
+	if (0)
+		for (i = 0; i < nr_stacks; i++)
+			output_event_stack(pevent, stacks[i]);
+
+	trace_hash_for_each_bucket(bucket, stack_hash) {
+		trace_hash_while_item(item, bucket) {
+			stack = stack_from_item(item);
+			trace_hash_del(&stack->hash);
+			free(stack);
+		}
+	}
+}
+
+static void output_event(struct event_hash *event_hash)
+{
+	struct event_data *event_data = event_hash->event_data;
+	struct pevent *pevent = event_data->event->pevent;
 	struct trace_seq s;
 
 	trace_seq_init(&s);
@@ -1002,14 +1338,7 @@ static void output_event(struct event_hash *event_hash)
 
 	trace_seq_destroy(&s);
 
-	trace_hash_for_each_bucket(bucket, &event_hash->stacks) {
-		trace_hash_while_item(item, bucket) {
-			stack = stack_from_item(item);
-			output_event_stack(event_hash, stack);
-			trace_hash_del(&stack->hash);
-			free(stack);
-		}
-	}
+	output_stacks(pevent, &event_hash->stacks);
 }
 
 static void free_task_starts(struct task_data *task)
