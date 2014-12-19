@@ -3348,6 +3348,7 @@ static void enable_profile(struct buffer_instance *instance)
 		"irq:softirq_entry",
 		"irq:softirq_exit",
 		"irq:softirq_raise",
+		"sched:sched_process_exec",
 		"raw_syscalls",
 		NULL,
 	};

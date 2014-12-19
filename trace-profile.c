@@ -54,6 +54,7 @@ enum event_data_type {
 	EVENT_TYPE_IRQ,
 	EVENT_TYPE_SOFTIRQ,
 	EVENT_TYPE_SOFTIRQ_RAISE,
+	EVENT_TYPE_PROCESS_EXEC,
 };
 
 struct event_data {
@@ -768,6 +769,28 @@ static int handle_stacktrace_event(struct handle_data *h,
 	return 0;
 }
 
+static int handle_process_exec(struct handle_data *h,
+			       unsigned long long pid,
+			       struct event_data *event_data,
+			       struct pevent_record *record, int cpu)
+{
+	struct task_data *task;
+	unsigned long long val;
+
+	/* Task has execed, remove the comm for it */
+	if (event_data->data_field) {
+		pevent_read_number_field(event_data->data_field,
+					 record->data, &val);
+		pid = val;
+	}
+
+	task = find_task(h, pid);
+	free(task->comm);
+	task->comm = NULL;
+
+	return 0;
+}
+
 static int handle_sched_wakeup_event(struct handle_data *h,
 				     unsigned long long pid,
 				     struct event_data *event_data,
@@ -835,6 +858,7 @@ void trace_init_profile(struct tracecmd_input *handle)
 	struct event_data *fgraph_exit;
 	struct event_data *syscall_enter;
 	struct event_data *syscall_exit;
+	struct event_data *process_exec;
 	struct event_data *stacktrace;
 
 	h = malloc_or_die(sizeof(*h));
@@ -865,6 +889,9 @@ void trace_init_profile(struct tracecmd_input *handle)
 	syscall_enter = add_event(h, "raw_syscalls", "sys_enter", EVENT_TYPE_SYSCALL);
 	syscall_exit = add_event(h, "raw_syscalls", "sys_exit", EVENT_TYPE_SYSCALL);
 
+	process_exec = add_event(h, "sched", "sched_process_exec",
+				 EVENT_TYPE_PROCESS_EXEC);
+
 	stacktrace = add_event(h, "ftrace", "kernel_stack", EVENT_TYPE_STACK);
 	if (stacktrace) {
 		stacktrace->handle_event = handle_stacktrace_event;
@@ -874,6 +901,12 @@ void trace_init_profile(struct tracecmd_input *handle)
 		if (!stacktrace->data_field)
 			die("Event: %s does not have field caller",
 			    stacktrace->event->name);
+	}
+
+	if (process_exec) {
+		process_exec->handle_event = handle_process_exec;
+		process_exec->data_field = pevent_find_field(process_exec->event,
+							     "old_pid");
 	}
 
 	if (sched_switch) {
