@@ -34,6 +34,7 @@
 #define start_from_item(item)	container_of(item, struct start_data, hash)
 #define event_from_item(item)	container_of(item, struct event_hash, hash)
 #define stack_from_item(item)	container_of(item, struct stack_data, hash)
+#define event_data_from_item(item)	container_of(item, struct event_data, hash)
 
 struct handle_data;
 struct event_hash;
@@ -58,7 +59,7 @@ enum event_data_type {
 };
 
 struct event_data {
-	struct event_data	*next;
+	struct trace_hash_item	hash;
 	int			id;
 	int			trace;
 	struct event_format	*event;
@@ -153,7 +154,8 @@ struct handle_data {
 	struct handle_data	*next;
 	struct tracecmd_input	*handle;
 	struct pevent		*pevent;
-	struct event_data	*events;
+
+	struct trace_hash	events;
 
 	struct cpu_info		**cpu_data;
 
@@ -521,6 +523,27 @@ static void handle_missed_events(struct handle_data *h, int cpu)
 	}
 }
 
+static int match_event_data(struct trace_hash_item *item, void *data)
+{
+	struct event_data *event_data = event_data_from_item(item);
+	int id = (int)(unsigned long)data;
+
+	return event_data->id == id;
+}
+
+static struct event_data *
+find_event_data(struct handle_data *h, int id)
+{
+	struct trace_hash_item *item;
+	unsigned long long key = trace_hash(id);
+	void *data = (void *)(unsigned long)id;
+
+	item = trace_hash_find(&h->events, key, match_event_data, data);
+	if (item)
+		return event_data_from_item(item);
+	return NULL;
+}
+
 int trace_profile_record(struct tracecmd_input *handle,
 			 struct pevent_record *record, int cpu)
 {
@@ -550,10 +573,7 @@ int trace_profile_record(struct tracecmd_input *handle,
 
 	id = pevent_data_type(pevent, record);
 
-	for (event_data = h->events; event_data; event_data = event_data->next) {
-		if (event_data->id == id)
-			break;
-	}
+	event_data = find_event_data(h, id);
 
 	if (!event_data)
 		return -1;
@@ -592,9 +612,9 @@ add_event(struct handle_data *h, const char *system, const char *event_name,
 	event_data->id = event->id;
 	event_data->event = event;
 	event_data->type = type;
+	event_data->hash.key = trace_hash(event_data->event->id);
 
-	event_data->next = h->events;
-	h->events = event_data;
+	trace_hash_add(&h->events, &event_data->hash);
 
 	return event_data;
 }
@@ -867,6 +887,7 @@ void trace_init_profile(struct tracecmd_input *handle)
 	handles = h;
 
 	trace_hash_init(&h->task_hash, 1024);
+	trace_hash_init(&h->events, 64);
 	list_head_init(&h->all_starts);
 
 	h->handle = handle;
