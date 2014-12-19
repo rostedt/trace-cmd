@@ -700,7 +700,7 @@ void mate_events(struct handle_data *h, struct event_data *start,
 	start->migrate = migrate;
 }
 
-void fgraph_print(struct trace_seq *s, struct event_hash *event_hash)
+void func_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char *func;
 
@@ -1036,7 +1036,7 @@ void trace_init_profile(struct tracecmd_input *handle)
 
 	if (fgraph_entry && fgraph_exit) {
 		mate_events(h, fgraph_entry, NULL, "func", fgraph_exit, "func", 1);
-		fgraph_entry->print_func = fgraph_print;
+		fgraph_entry->print_func = func_print;
 	}
 
 	if (syscall_enter && syscall_exit)
@@ -1045,6 +1045,13 @@ void trace_init_profile(struct tracecmd_input *handle)
 	events = pevent_list_events(pevent, EVENT_SORT_ID);
 	if (!events)
 		die("malloc");
+
+	/* Add some other events */
+	event_data = add_event(h, "ftrace", "function", EVENT_TYPE_FUNC);
+	if (event_data) {
+		event_data->data_field =
+			pevent_find_field(event_data->event, "ip");
+	}
 
 	/* Now add any defined event that we haven't processed */
 	for (i = 0; events[i]; i++) {
@@ -1457,6 +1464,8 @@ static void output_event(struct event_hash *event_hash)
 
 	if (event_data->print_func)
 		event_data->print_func(&s, event_hash);
+	else if (event_data->type == EVENT_TYPE_FUNC)
+		func_print(&s, event_hash);
 	else
 		trace_seq_printf(&s, "%s:%lld",
 				 event_data->event->name,
