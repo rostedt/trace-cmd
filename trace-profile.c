@@ -721,6 +721,12 @@ void func_print(struct trace_seq *s, struct event_hash *event_hash)
 		trace_seq_printf(s, "func: 0x%llx", event_hash->val);
 }
 
+static void print_int(struct trace_seq *s, struct event_hash *event_hash)
+{
+	trace_seq_printf(s, "%s:%d", event_hash->event_data->event->name,
+			 (int)event_hash->val);
+}
+
 void sched_switch_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char states[] = TASK_STATE_TO_CHAR_STR;
@@ -1060,8 +1066,11 @@ void trace_init_profile(struct tracecmd_input *handle)
 		fgraph_entry->print_func = func_print;
 	}
 
-	if (syscall_enter && syscall_exit)
+	if (syscall_enter && syscall_exit) {
 		mate_events(h, syscall_enter, NULL, "id", syscall_exit, "id", 1);
+		syscall_enter->print_func = print_int;
+		syscall_exit->print_func = print_int;
+	}
 
 	events = pevent_list_events(pevent, EVENT_SORT_ID);
 	if (!events)
@@ -1488,7 +1497,7 @@ static void output_event(struct event_hash *event_hash)
 	else if (event_data->type == EVENT_TYPE_FUNC)
 		func_print(&s, event_hash);
 	else
-		trace_seq_printf(&s, "%s:%lld",
+		trace_seq_printf(&s, "%s:0x%llx",
 				 event_data->event->name,
 				 event_hash->val);
 	trace_seq_terminate(&s);
