@@ -1101,7 +1101,7 @@ static void save_option(const char *option)
 	opt->option = option;
 }
 
-static void set_option(const char *option)
+static int set_option(const char *option)
 {
 	FILE *fp;
 	char *path;
@@ -1109,11 +1109,51 @@ static void set_option(const char *option)
 	path = tracecmd_get_tracing_file("trace_options");
 	fp = fopen(path, "w");
 	if (!fp)
-		die("writing to '%s'", path);
+		warning("writing to '%s'", path);
 	tracecmd_put_tracing_file(path);
+
+	if (!fp)
+		return -1;
 
 	fwrite(option, 1, strlen(option), fp);
 	fclose(fp);
+
+	return 0;
+}
+
+static char *read_instance_file(struct buffer_instance *instance, char *file, int *psize);
+
+static void disable_func_stack_trace_instance(struct buffer_instance *instance)
+{
+	struct stat st;
+	char *content;
+	char *path;
+	char *cond;
+	int size;
+	int ret;
+
+	path = get_instance_file(instance, "current_tracer");
+	ret = stat(path, &st);
+	tracecmd_put_tracing_file(path);
+	if (ret < 0)
+		return;
+
+	content = read_instance_file(instance, "current_tracer", &size);
+	cond = strstrip(content);
+	if (memcmp(cond, "function", size - (cond - content)) !=0)
+		goto out;
+
+	set_option("nofunc_stack_trace");
+ out:
+	free(content);
+}
+
+static void disable_func_stack_trace(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		disable_func_stack_trace_instance(instance);
 }
 
 static void add_reset_options(void)
@@ -1198,13 +1238,16 @@ static void add_reset_options(void)
 static void set_options(void)
 {
 	struct opt_list *opt;
+	int ret;
 
 	add_reset_options();
 
 	while (options) {
 		opt = options;
 		options = opt->next;
-		set_option(opt->option);
+		ret = set_option(opt->option);
+		if (ret < 0)
+			exit(-1);
 		free(opt);
 	}
 }
@@ -1370,7 +1413,7 @@ enum {
 	STATE_COPY,
 };
 
-static int find_trigger(const char *file, char *buf, int size)
+static int find_trigger(const char *file, char *buf, int size, int fields)
 {
 	FILE *fp;
 	int state = STATE_NEWLINE;
@@ -1394,7 +1437,7 @@ static int find_trigger(const char *file, char *buf, int size)
 			state = STATE_SKIP;
 			continue;
 		}
-		if (state == STATE_COPY && ch == ':')
+		if (state == STATE_COPY && ch == ':' && --fields < 1)
 			break;
 
 		state = STATE_COPY;
@@ -1423,6 +1466,11 @@ static void write_trigger(const char *file, const char *trigger)
 	write_file(file, trigger, "trigger");
 }
 
+static void write_func_filter(const char *file, const char *trigger)
+{
+	write_file(file, trigger, "function filter");
+}
+
 static void clear_trigger(const char *file)
 {
 	char trigger[BUFSIZ];
@@ -1435,10 +1483,59 @@ static void clear_trigger(const char *file)
 	 * to the file for each trigger.
 	 */
 	do {
-		len = find_trigger(file, trigger+1, BUFSIZ-1);
+		len = find_trigger(file, trigger+1, BUFSIZ-1, 1);
 		if (len)
 			write_trigger(file, trigger);
 	} while (len);
+}
+
+static void clear_func_filter(const char *file)
+{
+	char trigger[BUFSIZ];
+	struct stat st;
+	char *p;
+	int len;
+	int ret;
+	int fd;
+
+	/* Function filters may not exist */
+	ret = stat(file, &st);
+	if (ret < 0)
+		return;
+
+	/*  First zero out normal filters */
+	fd = open(file, O_WRONLY | O_TRUNC);
+	if (fd < 0)
+		die("opening to '%s'", file);
+	close(fd);
+
+	/* Now remove triggers */
+	trigger[0] = '!';
+
+	/*
+	 * To delete a trigger, we need to write a '!trigger'
+	 * to the file for each trigger.
+	 */
+	do {
+		len = find_trigger(file, trigger+1, BUFSIZ-1, 3);
+		if (len) {
+			/*
+			 * To remove "unlimited" triggers, we must remove
+			 * the ":unlimited" from what we write.
+			 */
+			if ((p = strstr(trigger, ":unlimited"))) {
+				*p = '\0';
+				len = p - trigger;
+			}
+			/*
+			 * The write to this file expects white space
+			 * at the end :-p
+			 */
+			trigger[len] = '\n';
+			trigger[len+1] = '\0';
+			write_func_filter(file, trigger);
+		}
+	} while (len > 0);
 }
 
 static void update_reset_triggers(void)
@@ -1622,8 +1719,10 @@ static void disable_all(int disable_tracer)
 {
 	disable_tracing();
 
-	if (disable_tracer)
+	if (disable_tracer) {
+		disable_func_stack_trace();
 		set_plugin("nop");
+	}
 
 	reset_events();
 
@@ -2688,7 +2787,7 @@ static unsigned long long find_time_stamp(struct pevent *pevent)
 	return ts;
 }
 
-static char *read_file(char *file, int *psize)
+static char *read_instance_file(struct buffer_instance *instance, char *file, int *psize)
 {
 	char buffer[BUFSIZ];
 	char *path;
@@ -2697,7 +2796,7 @@ static char *read_file(char *file, int *psize)
 	int fd;
 	int r;
 
-	path = tracecmd_get_tracing_file(file);
+	path = get_instance_file(instance, file);
 	fd = open(path, O_RDONLY);
 	tracecmd_put_tracing_file(path);
 	if (fd < 0) {
@@ -2722,6 +2821,11 @@ static char *read_file(char *file, int *psize)
 	if (psize)
 		*psize = size;
 	return buf;
+}
+
+static char *read_file(char *file, int *psize)
+{
+	return read_instance_file(&top_instance, file, psize);
 }
 
 /*
@@ -3009,6 +3113,26 @@ static void clear_triggers(void)
 
 	for_all_instances(instance)
 		clear_instance_triggers(instance);
+}
+
+static void clear_func_filters(void)
+{
+	struct buffer_instance *instance;
+	char *path;
+	int i;
+	const char const *files[] = { "set_ftrace_filter",
+				      "set_ftrace_notrace",
+				      "set_graph_function",
+				      "set_graph_notrace",
+				      NULL };
+
+	for_all_instances(instance) {
+		for (i = 0; files[i]; i++) {
+			path = get_instance_file(instance, files[i]);
+			clear_func_filter(path);
+			tracecmd_put_tracing_file(path);
+		}
+	}
 }
 
 static void make_instances(void)
@@ -3535,6 +3659,7 @@ void trace_record (int argc, char **argv)
 		clear_filters();
 		clear_triggers();
 		remove_instances();
+		clear_func_filters();
 		exit(0);
 	} else
 		usage(argv);
