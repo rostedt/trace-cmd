@@ -168,7 +168,8 @@ struct handle_data {
 	struct sched_switch_data sched_switch_preempt;
 
 	struct trace_hash	task_hash;
-	struct list_head	all_starts;
+	struct list_head	*cpu_starts;
+	struct list_head	migrate_starts;
 
 	int			cpus;
 };
@@ -192,7 +193,10 @@ add_start(struct task_data *task,
 	start->cpu = record->cpu;
 	start->task = task;
 	trace_hash_add(&task->start_hash, &start->hash);
-	list_add(&start->list, &task->handle->all_starts);
+	if (event_data->migrate)
+		list_add(&start->list, &task->handle->migrate_starts);
+	else
+		list_add(&start->list, &task->handle->cpu_starts[record->cpu]);
 	return start;
 }
 
@@ -568,9 +572,14 @@ static void handle_missed_events(struct handle_data *h, int cpu)
 	struct start_data *start;
 	struct start_data *n;
 
-	list_for_each_entry_safe(start, n, &h->all_starts, list) {
-		if (start->cpu == cpu || start->event_data->migrate)
-			free_start(start);
+	/* Clear all starts on this CPU */
+	list_for_each_entry_safe(start, n, &h->cpu_starts[cpu], list) {
+		free_start(start);
+	}
+
+	/* Now clear all starts whose events can migrate */
+	list_for_each_entry_safe(start, n, &h->migrate_starts, list) {
+		free_start(start);
 	}
 }
 
@@ -943,12 +952,24 @@ void trace_init_profile(struct tracecmd_input *handle)
 
 	trace_hash_init(&h->task_hash, 1024);
 	trace_hash_init(&h->events, 64);
-	list_head_init(&h->all_starts);
 
 	h->handle = handle;
 	h->pevent = pevent;
 
 	h->cpus = tracecmd_cpus(handle);
+
+	/*
+	 * For streaming profiling, cpus will not be set up yet.
+	 * In this case, we simply use the number of cpus on the
+	 * system.
+	 */
+	if (!h->cpus)
+		h->cpus = count_cpus();
+
+	list_head_init(&h->migrate_starts);
+	h->cpu_starts = malloc_or_die(sizeof(*h->cpu_starts) * h->cpus);
+	for (i = 0; i < h->cpus; i++)
+		list_head_init(&h->cpu_starts[i]);
 
 	h->cpu_data = malloc_or_die(h->cpus * sizeof(*h->cpu_data));
 	memset(h->cpu_data, 0, h->cpus * sizeof(h->cpu_data));
