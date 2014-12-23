@@ -1595,6 +1595,8 @@ update_event(struct event_list *event, const char *filter,
 		write_trigger(event->trigger_file, event->trigger);
 		/* Make sure we don't write this again */
 		free(event->trigger_file);
+		free(event->trigger);
+		event->trigger_file = NULL;
 		event->trigger = NULL;
 	}
 
