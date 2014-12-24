@@ -727,6 +727,42 @@ static void print_int(struct trace_seq *s, struct event_hash *event_hash)
 			 (int)event_hash->val);
 }
 
+/* From Linux include/linux/interrupt.h */
+#define SOFTIRQS				\
+		C(HI),				\
+		C(TIMER),			\
+		C(NET_TX),			\
+		C(NET_RX),			\
+		C(BLOCK),			\
+		C(BLOCK_IOPOLL),		\
+		C(TASKLET),			\
+		C(SCHED),			\
+		C(HRTIMER),			\
+		C(RCU),				\
+		C(NR),
+
+#undef C
+#define C(a)	a##_SOFTIRQ
+
+enum { SOFTIRQS };
+
+#undef C
+#define C(a)	#a
+
+static const char *softirq_map[] = { SOFTIRQS };
+
+static void softirq_print(struct trace_seq *s, struct event_hash *event_hash)
+{
+	int softirq = (int)event_hash->val;
+
+	if (softirq < NR_SOFTIRQ)
+		trace_seq_printf(s, "%s:%s", event_hash->event_data->event->name,
+				 softirq_map[softirq]);
+	else
+		trace_seq_printf(s, "%s:%d", event_hash->event_data->event->name,
+				 softirq);
+}
+
 void sched_switch_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char states[] = TASK_STATE_TO_CHAR_STR;
@@ -1054,6 +1090,15 @@ void trace_init_profile(struct tracecmd_input *handle)
 
 	if (irq_entry && irq_exit)
 		mate_events(h, irq_entry, NULL, "irq", irq_exit, "irq", 0);
+
+	if (softirq_entry)
+		softirq_entry->print_func = softirq_print;
+
+	if (softirq_exit)
+		softirq_exit->print_func = softirq_print;
+
+	if (softirq_raise)
+		softirq_raise->print_func = softirq_print;
 
 	if (softirq_entry && softirq_exit)
 		mate_events(h, softirq_entry, NULL, "vec", softirq_exit, "vec", 0);
