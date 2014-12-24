@@ -818,6 +818,7 @@ static int handle_sched_switch_event(struct handle_data *h,
 	/* task is being scheduled out. prev_state tells why */
 	start = add_start(task, event_data, record, prev_pid, prev_state);
 	task->last_start = start;
+	task->last_event = NULL;
 
 	task = find_task(h, next_pid);
 	if (!task->comm)
@@ -960,6 +961,7 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 
 	/* Set this up for timing how long the wakeup takes */
 	start = add_start(task, event_data, record, pid, pid);
+	task->last_event = NULL;
 	task->last_start = start;
 
 	return 0;
