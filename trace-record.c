@@ -86,6 +86,9 @@ static int recorder_threads;
 static struct pid_record_data *pids;
 static int buffers;
 
+/* Clear all function filters */
+static int clear_function_filters;
+
 static char *host;
 static int *client_ports;
 static int sfd;
@@ -2690,6 +2693,7 @@ static void set_funcs(struct buffer_instance *instance)
 			die("Function stack trace set, but functions not filtered");
 		save_option(FUNC_STACK_TRACE);
 	}
+	clear_function_filters = 1;
 }
 
 static void add_func(struct func_list **list, const char *func)
@@ -4048,6 +4052,8 @@ void trace_record (int argc, char **argv)
 
 	update_reset_files();
 	update_reset_triggers();
+	if (clear_function_filters)
+		clear_func_filters();
 
 	set_plugin("nop");
 
