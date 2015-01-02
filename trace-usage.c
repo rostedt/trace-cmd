@@ -40,6 +40,7 @@ static struct usage_help usage_help[] = {
 		"          -O option to enable (or disable)\n"
 		"          -r real time priority to run the capture threads\n"
 		"          -s sleep interval between recording (in usecs) [default: 1000]\n"
+		"          -S used with --profile, to enable only events in command line\n"
 		"          -N host:port to connect to (see listen)\n"
 		"          -t used with -N, forces use of tcp in live trace\n"
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
@@ -154,8 +155,8 @@ static struct usage_help usage_help[] = {
 	{
 		"profile",
 		"Start profiling and read the output directly",
-		" %s profile [-e event][-p plugin][-d][-O option ][-P pid]\n"
-		"          Uses same options as record but does not write to files or the network.\n"
+		" %s profile [-e event][-p plugin][-d][-O option ][-P pid][-S]\n"
+		"          Uses same options as record --profile but does not write to files or the network.\n"
 	},
 	{
 		"hist",

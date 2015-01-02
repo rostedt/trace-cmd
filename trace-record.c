@@ -3521,7 +3521,7 @@ void trace_record (int argc, char **argv)
 	const char *plugin = NULL;
 	const char *output = NULL;
 	const char *option;
-	struct event_list *event;
+	struct event_list *event = NULL;
 	struct event_list *last_event;
 	struct buffer_instance *instance = &top_instance;
 	enum trace_type type = 0;
@@ -3541,6 +3541,7 @@ void trace_record (int argc, char **argv)
 	int run_command = 0;
 	int neg_event = 0;
 	int date = 0;
+	int manual = 0;
 
 	int c;
 
@@ -3681,7 +3682,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:R:B:ksiTm:M:";
+			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -3818,6 +3819,12 @@ void trace_record (int argc, char **argv)
 				usage(argv);
 			sleep_time = atoi(optarg);
 			break;
+		case 'S':
+			manual = 1;
+			/* User sets events for profiling */
+			if (!event)
+				events = 0;
+			break;
 		case 'r':
 			rt_prio = atoi(optarg);
 			break;
@@ -3914,7 +3921,7 @@ void trace_record (int argc, char **argv)
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
 
-		if (instance->profile)
+		if (!manual && instance->profile)
 			enable_profile(instance);
 
 		instance->tracing_on_init_val = read_tracing_on(instance);

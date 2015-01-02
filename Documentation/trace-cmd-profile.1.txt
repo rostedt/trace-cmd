@@ -32,6 +32,12 @@ except that it does not take the *-o* option.
     Set a tracer plugin to run instead of function graph tracing set to
     depth of 1. To not run any tracer, use *-p nop*.
 
+*-S*::
+    Only enable the tracer or events speficied on the command line.
+    With this option, the function_graph tracer is not enabled, nor are
+    any events (like sched_switch), unless they are specifically specified
+    on the command line (i.e. -p function -e sched_switch -e sched_wakeup)
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
