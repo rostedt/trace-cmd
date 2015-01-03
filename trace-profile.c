@@ -138,6 +138,7 @@ struct task_data {
 	struct task_data	*proxy;
 	struct start_data	*last_start;
 	struct event_hash	*last_event;
+	struct pevent_record	*last_stack;
 	struct handle_data	*handle;
 };
 
@@ -175,6 +176,7 @@ struct handle_data {
 };
 
 static struct handle_data *handles;
+static struct event_data *stacktrace_event;
 
 static struct start_data *
 add_start(struct task_data *task,
@@ -507,54 +509,69 @@ static void account_task(struct task_data *task, struct event_data *event_data,
 	task->last_event = event_hash;
 }
 
+static struct task_data *
+find_event_task(struct handle_data *h, struct event_data *event_data,
+		struct pevent_record *record, unsigned long long pid)
+{
+	/* If pid_field is defined, use that to find the task */
+	if (event_data->pid_field)
+		pevent_read_number_field(event_data->pid_field,
+					 record->data, &pid);
+	return find_task(h, pid);
+}
+
+static struct task_data *
+handle_end_event(struct handle_data *h, struct event_data *event_data,
+		 struct pevent_record *record, int pid)
+{
+	struct event_hash *event_hash;
+	struct task_data *task;
+	unsigned long long val;
+
+	task = find_event_task(h, event_data, record, pid);
+
+	pevent_read_number_field(event_data->start_match_field, record->data,
+				 &val);
+	event_hash = find_and_update_start(task, event_data->start, record->ts, val);
+	task->last_start = NULL;
+	task->last_event = event_hash;
+
+	return task;
+}
+
+static struct task_data *
+handle_start_event(struct handle_data *h, struct event_data *event_data,
+		   struct pevent_record *record, unsigned long long pid)
+{
+	struct start_data *start;
+	struct task_data *task;
+	unsigned long long val;
+
+	task = find_event_task(h, event_data, record, pid);
+
+	pevent_read_number_field(event_data->end_match_field, record->data,
+				 &val);
+	start = add_start(task, event_data, record, val, val);
+	task->last_start = start;
+	task->last_event = NULL;
+
+	return task;
+}
+
 static int handle_event_data(struct handle_data *h,
 			     unsigned long long pid,
 			     struct event_data *event_data,
 			     struct pevent_record *record, int cpu)
 {
-	unsigned long long epid;
-	unsigned long long val;
 	struct task_data *task = NULL;
-	struct event_hash *event_hash;
-	struct start_data *start;
 
 	/* If this is the end of a event pair (start is set) */
-	if (event_data->start) {
-
-		/* If pid_field is defined, use that to find the task */
-		if (event_data->pid_field)
-			pevent_read_number_field(event_data->pid_field,
-						 record->data, &epid);
-		else
-			epid = pid;
-
-		task = find_task(h, epid);
-
-		pevent_read_number_field(event_data->start_match_field, record->data,
-					 &val);
-		event_hash = find_and_update_start(task, event_data->start, record->ts, val);
-		task->last_start = NULL;
-		task->last_event = event_hash;
-	}
+	if (event_data->start)
+		task = handle_end_event(h, event_data, record, pid);
 
 	/* If this is the start of a event pair (end is set) */
-	if (event_data->end) {
-
-		/* If end_pid is defined, use that to find the task */
-		if (event_data->pid_field)
-			pevent_read_number_field(event_data->pid_field,
-						 record->data, &epid);
-		else
-			epid = pid;
-
-		task = find_task(h, epid);
-
-		pevent_read_number_field(event_data->end_match_field, record->data,
-					 &val);
-		start = add_start(task, event_data, record, val, val);
-		task->last_start = start;
-		task->last_event = NULL;
-	}
+	if (event_data->end)
+		task = handle_start_event(h, event_data, record, pid);
 
 	if (!task) {
 		task = find_task(h, pid);
@@ -608,7 +625,9 @@ int trace_profile_record(struct tracecmd_input *handle,
 			 struct pevent_record *record, int cpu)
 {
 	static struct handle_data *last_handle;
+	struct pevent_record *stack_record;
 	struct event_data *event_data;
+	struct task_data *task;
 	struct handle_data *h;
 	struct pevent *pevent;
 	unsigned long long pid;
@@ -642,10 +661,19 @@ int trace_profile_record(struct tracecmd_input *handle,
 	/* Get this current PID */
 	pevent_read_number_field(h->common_pid, record->data, &pid);
 
+	task = find_task(h, pid);
+	stack_record = task->last_stack;
+
 	if (event_data->handle_event)
 		event_data->handle_event(h, pid, event_data, record, cpu);
 	else
 		handle_event_data(h, pid, event_data, record, cpu);
+
+	/* If the last stack hasn't changed, free it */
+	if (stack_record && task->last_stack == stack_record) {
+		free_record(stack_record);
+		task->last_stack = NULL;
+	}
 
 	return 0;
 }
@@ -846,6 +874,7 @@ static int handle_stacktrace_event(struct handle_data *h,
 				   struct event_data *event_data,
 				   struct pevent_record *record, int cpu)
 {
+	struct task_data *orig_task;
 	struct task_data *proxy;
 	struct task_data *task;
 	unsigned long long size;
@@ -855,13 +884,28 @@ static int handle_stacktrace_event(struct handle_data *h,
 
 	task = find_task(h, pid);
 
+	if (task->last_stack) {
+		free_record(task->last_stack);
+		task->last_stack = NULL;
+	}
+
 	if ((proxy = task->proxy)) {
 		task->proxy = NULL;
+		orig_task = task;
 		task = proxy;
 	}
 
-	if (!task->last_start && !task->last_event)
+	if (!task->last_start && !task->last_event) {
+		/*
+		 * Save this stack in case function graph needs it.
+		 * Need the original task, not a proxy.
+		 */
+		if (proxy)
+			task = orig_task;
+		tracecmd_record_ref(record);
+		task->last_stack = record;
 		return 0;
+	}
 
 	/*
 	 * start_match_field holds the size.
@@ -889,6 +933,57 @@ static int handle_stacktrace_event(struct handle_data *h,
 
 	add_event_stack(event_hash, caller, size, event_hash->last_time);
 	
+	return 0;
+}
+
+static int handle_fgraph_entry_event(struct handle_data *h,
+				    unsigned long long pid,
+				    struct event_data *event_data,
+				    struct pevent_record *record, int cpu)
+{
+	unsigned long long size;
+	struct start_data *start;
+	struct task_data *task;
+	void *caller;
+
+	task = handle_start_event(h, event_data, record, pid);
+
+	/*
+	 * If a stack trace hasn't been used for a previous task,
+	 * then it could be a function trace that we can use for
+	 * the function graph. But stack traces come before the function
+	 * graph events (unfortunately). So we need to attach the previous
+	 * stack trace (if there is one) to this start event.
+	 */
+	if (task->last_stack) {
+		start = task->last_start;
+		record = task->last_stack;
+		size = record->size - stacktrace_event->data_field->offset;
+		caller = record->data + stacktrace_event->data_field->offset;
+		start->stack.record = record;
+		start->stack.size = size;
+		start->stack.caller = caller;
+		task->last_stack = NULL;
+		task->last_event = NULL;
+	}
+
+	/* Do not map stacks after this event to this event */
+	task->last_start = NULL;
+
+	return 0;
+}
+
+static int handle_fgraph_exit_event(struct handle_data *h,
+				    unsigned long long pid,
+				    struct event_data *event_data,
+				    struct pevent_record *record, int cpu)
+{
+	struct task_data *task;
+
+	task = handle_end_event(h, event_data, record, pid);
+	/* Do not match stacks with function graph exit events */
+	task->last_event = NULL;
+
 	return 0;
 }
 
@@ -986,7 +1081,6 @@ void trace_init_profile(struct tracecmd_input *handle)
 	struct event_data *syscall_enter;
 	struct event_data *syscall_exit;
 	struct event_data *process_exec;
-	struct event_data *stacktrace;
 	int i;
 
 	h = malloc_or_die(sizeof(*h));
@@ -1033,15 +1127,15 @@ void trace_init_profile(struct tracecmd_input *handle)
 	process_exec = add_event(h, "sched", "sched_process_exec",
 				 EVENT_TYPE_PROCESS_EXEC);
 
-	stacktrace = add_event(h, "ftrace", "kernel_stack", EVENT_TYPE_STACK);
-	if (stacktrace) {
-		stacktrace->handle_event = handle_stacktrace_event;
+	stacktrace_event = add_event(h, "ftrace", "kernel_stack", EVENT_TYPE_STACK);
+	if (stacktrace_event) {
+		stacktrace_event->handle_event = handle_stacktrace_event;
 
-		stacktrace->data_field = pevent_find_field(stacktrace->event,
+		stacktrace_event->data_field = pevent_find_field(stacktrace_event->event,
 							    "caller");
-		if (!stacktrace->data_field)
+		if (!stacktrace_event->data_field)
 			die("Event: %s does not have field caller",
-			    stacktrace->event->name);
+			    stacktrace_event->event->name);
 	}
 
 	if (process_exec) {
@@ -1110,6 +1204,8 @@ void trace_init_profile(struct tracecmd_input *handle)
 
 	if (fgraph_entry && fgraph_exit) {
 		mate_events(h, fgraph_entry, NULL, "func", fgraph_exit, "func", 1);
+		fgraph_entry->handle_event = handle_fgraph_entry_event;
+		fgraph_exit->handle_event = handle_fgraph_exit_event;
 		fgraph_entry->print_func = func_print;
 	}
 
@@ -1697,6 +1793,9 @@ static void free_task(struct task_data *task)
 		}
 	}
 	trace_hash_free(&task->event_hash);
+
+	if (task->last_stack)
+		free_record(task->last_stack);
 
 	free(task);
 }
