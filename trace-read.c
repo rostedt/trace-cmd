@@ -41,7 +41,7 @@
 
 static struct filter_str {
 	struct filter_str	*next;
-	const char		*filter;
+	char			*filter;
 	int			neg;
 } *filter_strings;
 static struct filter_str **filter_next = &filter_strings;
@@ -327,7 +327,9 @@ static void add_filter(const char *filter, int neg)
 	struct filter_str *ftr;
 
 	ftr = malloc_or_die(sizeof(*ftr));
-	ftr->filter = filter;
+	ftr->filter = strdup(filter);
+	if (!ftr->filter)
+		die("malloc");
 	ftr->next = NULL;
 	ftr->neg = neg;
 
@@ -454,6 +456,7 @@ static void make_pid_filter(struct tracecmd_input *handle)
 	}
 
 	add_filter(str, 0);
+	free(str);
 
 	while (pid_list) {
 		list = pid_list;
@@ -504,6 +507,7 @@ static void process_filters(struct handle_list *handles)
 			filter_next = &event_filter->next;
 		}
 
+		free(filter->filter);
 		free(filter);
 	}
 }
