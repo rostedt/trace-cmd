@@ -496,8 +496,6 @@ static void process_filters(struct handle_list *handles)
 			    filter->filter, errstr);
 		}
 
-		free(filter);
-
 		if (filter->neg) {
 			*filter_out_next = event_filter;
 			filter_out_next = &event_filter->next;
@@ -505,6 +503,8 @@ static void process_filters(struct handle_list *handles)
 			*filter_next = event_filter;
 			filter_next = &event_filter->next;
 		}
+
+		free(filter);
 	}
 }
 
