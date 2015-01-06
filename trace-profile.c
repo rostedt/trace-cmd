@@ -234,7 +234,10 @@ find_event_hash(struct task_data *task, struct event_data_match *edata)
 	struct trace_hash_item *item;
 	unsigned long long key;
 
-	key = trace_hash((unsigned long)(edata->event_data));
+	key = (unsigned long)edata->event_data +
+		(unsigned long)edata->search_val +
+		(unsigned long)edata->val;
+	key = trace_hash(key);
 	item = trace_hash_find(&task->event_hash, key, match_event, edata);
 	if (item)
 		return event_from_item(item);
@@ -1089,7 +1092,7 @@ void trace_init_profile(struct tracecmd_input *handle)
 	handles = h;
 
 	trace_hash_init(&h->task_hash, 1024);
-	trace_hash_init(&h->events, 64);
+	trace_hash_init(&h->events, 1024);
 
 	h->handle = handle;
 	h->pevent = pevent;
