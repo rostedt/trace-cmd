@@ -7,7 +7,7 @@ trace-cmd-stream - stream a trace to stdout as it is happening
 
 SYNOPSIS
 --------
-*trace-cmd srteam ['OPTIONS']* ['command']
+*trace-cmd stream ['OPTIONS']* ['command']
 
 DESCRIPTION
 -----------
