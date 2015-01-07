@@ -361,9 +361,17 @@ add_and_free_start(struct task_data *task, struct start_data *start,
 		   struct event_data *event_data, unsigned long long ts)
 {
 	struct event_hash *event_hash;
-	unsigned long long delta;
+	long long delta;
 
 	delta = ts - start->timestamp;
+
+	/*
+	 * It's possible on a live trace, because of timestamps being
+	 * different on different CPUs, we can go back in time. When
+	 * that happens, just zero out the delta.
+	 */
+	if (delta < 0)
+		delta = 0;
 
 	event_hash = find_start_event_hash(task, event_data, start);
 	event_hash->count++;
