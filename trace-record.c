@@ -1587,8 +1587,7 @@ update_event(struct event_list *event, const char *filter,
 	}
 
 	if (filter && event->filter_file) {
-		reset_save_file_cond(event->filter_file, RESET_DEFAULT_PRIO,
-				     "none", "0");
+		add_reset_file(event->filter_file, "0", RESET_DEFAULT_PRIO);
 		write_filter(event->filter_file, filter);
 	}
 
