@@ -309,6 +309,11 @@ static void show_options(void)
 	show_file("trace_options");
 }
 
+static void show_clocks(void)
+{
+	show_file("trace_clock");
+}
+
 static void show_functions(const char *funcre)
 {
 	if (funcre)
@@ -626,6 +631,7 @@ int main (int argc, char **argv)
 		int options = 0;
 		int funcs = 0;
 		int buffers = 0;
+		int clocks = 0;
 		int plug = 0;
 		int plug_op = 0;
 		int flags = 0;
@@ -653,6 +659,10 @@ int main (int argc, char **argv)
 					break;
 				case 'B':
 					buffers = 1;
+					show_all = 0;
+					break;
+				case 'C':
+					clocks = 1;
 					show_all = 0;
 					break;
 				case 'F':
@@ -714,6 +724,9 @@ int main (int argc, char **argv)
 
 		if (buffers)
 			show_buffers();
+
+		if (clocks)
+			show_clocks();
 
 		if (show_all) {
 			printf("events:\n");
