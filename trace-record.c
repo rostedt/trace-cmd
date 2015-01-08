@@ -3845,12 +3845,24 @@ void trace_record (int argc, char **argv)
 			if (stream)
 				die("stream does not take output\n"
 				    "Did you mean 'record'?");
-			if (profile)
-				die("profile does not take output\n"
-				    "Did you mean 'record'?");
 			if (output)
 				die("only one output file allowed");
 			output = optarg;
+
+			if (profile) {
+				int fd;
+
+				/* pipe the output to this file instead of stdout */
+				save_stdout = dup(1);
+				close(1);
+				fd = open(optarg, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+				if (fd < 0)
+					die("can't write to %s", optarg);
+				if (fd != 1) {
+					dup2(fd, 1);
+					close(fd);
+				}
+			}
 			break;
 		case 'O':
 			option = optarg;
@@ -3928,6 +3940,9 @@ void trace_record (int argc, char **argv)
 			events = 1;
 			break;
 		case OPT_stderr:
+			/* if -o was used (for profile), ignore this */
+			if (save_stdout >= 0)
+				break;
 			save_stdout = dup(1);
 			close(1);
 			dup2(2, 1);

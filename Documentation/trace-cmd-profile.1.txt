@@ -34,8 +34,7 @@ All timings are currently in nanoseconds.
 
 OPTIONS
 -------
-These are the same as trace-cmd-record(1) with the *--profile* option,
-except that it does not take the *-o* option.
+These are the same as trace-cmd-record(1) with the *--profile* option.
 
 *-p* 'tracer'::
     Set a tracer plugin to run instead of function graph tracing set to
@@ -46,6 +45,9 @@ except that it does not take the *-o* option.
     With this option, the function_graph tracer is not enabled, nor are
     any events (like sched_switch), unless they are specifically specified
     on the command line (i.e. -p function -e sched_switch -e sched_wakeup)
+
+*-o* 'file'::
+    Write the output of the profile to 'file'. This supersedes *--stderr*
 
 *--stderr*::
     Redirect the output to stderr. The output of the command being executed
@@ -612,6 +614,10 @@ To watch the command run but save the output of the profile to a file
 use --stderr, and redirect stderr to a file
 
 # trace-cmd profile --stderr cyclictest -p 80 -n -t1 2> profile.out
+
+Or simple use *-o*
+
+# trace-cmd profile -o profile.out cyclictest -p 80 -n -t1
 
 SEE ALSO
 --------

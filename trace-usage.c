@@ -156,8 +156,8 @@ static struct usage_help usage_help[] = {
 	{
 		"profile",
 		"Start profiling and read the output directly",
-		" %s profile [-e event][-p plugin][-d][-O option ][-P pid][-S]\n"
-		"          Uses same options as record --profile but does not write to files or the network.\n"
+		" %s profile [-e event][-p plugin][-d][-O option ][-P pid][-S][-o output]\n"
+		"          Uses same options as record --profile.\n"
 	},
 	{
 		"hist",
