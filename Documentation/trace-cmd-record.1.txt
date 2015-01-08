@@ -274,6 +274,11 @@ OPTIONS
 
     See trace-cmd-profile(1) for more details and examples.
 
+*--stderr*::
+    Have output go to stderr instead of stdout, but the output of the command
+    executed will not be changed. This is useful if you want to monitor the
+    output of the command being executed, but not see the output from trace-cmd.
+
 EXAMPLES
 --------
 

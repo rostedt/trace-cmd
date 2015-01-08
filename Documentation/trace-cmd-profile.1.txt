@@ -47,6 +47,11 @@ except that it does not take the *-o* option.
     any events (like sched_switch), unless they are specifically specified
     on the command line (i.e. -p function -e sched_switch -e sched_wakeup)
 
+*--stderr*::
+    Redirect the output to stderr. The output of the command being executed
+    is not changed. This allows watching the command execute and saving the
+    output of the profile to another file.
+
 EXAMPLES
 --------
 
@@ -602,8 +607,11 @@ task: sshd-11786
                system_call_fastpath (0xffffffff816c63d2)
  [..]
 ---            
-    
 
+To watch the command run but save the output of the profile to a file
+use --stderr, and redirect stderr to a file
+
+# trace-cmd profile --stderr cyclictest -p 80 -n -t1 2> profile.out
 
 SEE ALSO
 --------

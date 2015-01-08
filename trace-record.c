@@ -116,6 +116,8 @@ static struct func_list *graph_funcs;
 
 static int func_stack;
 
+static int save_stdout = -1;
+
 struct filter_pids {
 	struct filter_pids *next;
 	int pid;
@@ -1020,6 +1022,15 @@ static void run_cmd(enum trace_type type, int argc, char **argv)
 		update_task_filter();
 		enable_tracing();
 		enable_ptrace();
+		/*
+		 * If we are using stderr for stdout, switch
+		 * it back to the saved stdout for the code we run.
+		 */
+		if (save_stdout >= 0) {
+			close(1);
+			dup2(save_stdout, 1);
+			close(save_stdout);
+		}
 		if (execvp(argv[0], argv)) {
 			fprintf(stderr, "\n********************\n");
 			fprintf(stderr, " Unable to exec %s\n", argv[0]);
@@ -3545,6 +3556,7 @@ static void enable_profile(struct buffer_instance *instance)
 }
 
 enum {
+	OPT_stderr	= 251,
 	OPT_profile	= 252,
 	OPT_nosplice	= 253,
 	OPT_funcstack	= 254,
@@ -3710,6 +3722,7 @@ void trace_record (int argc, char **argv)
 			{"func-stack", no_argument, NULL, OPT_funcstack},
 			{"nosplice", no_argument, NULL, OPT_nosplice},
 			{"profile", no_argument, NULL, OPT_profile},
+			{"stderr", no_argument, NULL, OPT_stderr},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -3913,6 +3926,11 @@ void trace_record (int argc, char **argv)
 		case OPT_profile:
 			instance->profile = 1;
 			events = 1;
+			break;
+		case OPT_stderr:
+			save_stdout = dup(1);
+			close(1);
+			dup2(2, 1);
 			break;
 		default:
 			usage(argv);
