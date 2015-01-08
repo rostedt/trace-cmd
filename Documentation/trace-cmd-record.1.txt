@@ -114,6 +114,11 @@ OPTIONS
 *-c*::
      Used with either *-F* to trace the process' children too.
 
+*-C* 'clock'::
+     Set the trace clock to "clock".
+
+     Use trace-cmd(1) list -C to see what clocks are available.
+
 *-o* 'output-file'::
     By default, trace-cmd report will create a 'trace.dat' file. You can
     specify a different file to write to with the *-o* option.

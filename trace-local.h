@@ -151,6 +151,8 @@ struct buffer_instance {
 	struct func_list	*filter_funcs;
 	struct func_list	*notrace_funcs;
 
+	const char		*clock;
+
 	struct trace_seq	*s;
 
 	struct tracecmd_input	*handle;

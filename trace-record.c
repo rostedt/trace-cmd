@@ -1894,6 +1894,36 @@ static void enable_events(struct buffer_instance *instance)
 	}
 }
 
+static void set_clock(struct buffer_instance *instance)
+{
+	char *path;
+	char *content;
+	char *str;
+
+	if (!instance->clock)
+		return;
+
+	/* The current clock is in brackets, reset it when we are done */
+	content = read_instance_file(instance, "trace_clock", NULL);
+
+	/* check if first clock is set */
+	if (*content == '[')
+		str = strtok(content+1, "]");
+	else {
+		str = strtok(content, "[");
+		if (!str)
+			die("Can not find clock in trace_clock");
+		str = strtok(NULL, "]");
+	}
+	path = get_instance_file(instance, "trace_clock");
+	add_reset_file(path, str, RESET_DEFAULT_PRIO);
+
+	free(content);
+	tracecmd_put_tracing_file(path);
+
+	write_instance_file(instance, "trace_clock", instance->clock, "clock");
+}
+
 static struct event_list *
 create_event(struct buffer_instance *instance, char *path, struct event_list *old_event)
 {
@@ -3687,7 +3717,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cdDo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:";
+			opts = "+hae:f:Fp:cC:dDo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -3759,6 +3789,9 @@ void trace_record (int argc, char **argv)
 			die("-c invalid: ptrace not supported");
 #endif
 			do_ptrace = 1;
+			break;
+		case 'C':
+			instance->clock = optarg;
 			break;
 		case 'v':
 			neg_event = 1;
@@ -3950,6 +3983,9 @@ void trace_record (int argc, char **argv)
 	if (!extract) {
 		fset = set_ftrace(!disable, total_disable);
 		disable_all(1);
+
+		for_all_instances(instance)
+			set_clock(instance);
 
 		/* Record records the date first */
 		if (record && date)
