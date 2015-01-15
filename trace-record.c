@@ -695,6 +695,7 @@ static void update_ftrace_pid(const char *pid, int reset)
 	int ret;
 	static int fd = -1;
 	static int first = 1;
+	struct stat st;
 
 	if (!pid) {
 		if (fd >= 0)
@@ -716,6 +717,9 @@ static void update_ftrace_pid(const char *pid, int reset)
 		if (!path)
 			path = tracecmd_get_tracing_file("set_ftrace_pid");
 		if (!path)
+			return;
+		ret = stat(path, &st);
+		if (ret < 0)
 			return;
 		if (first) {
 			first = 0;
