@@ -294,7 +294,7 @@ static void add_handle(struct tracecmd_input *handle, const char *file)
 	if (file) {
 		item->file = file + strlen(file);
 		/* we want just the base name */
-		while (*item->file != '/' && item->file >= file)
+		while (item->file >= file && *item->file != '/')
 			item->file--;
 		item->file++;
 		if (strlen(item->file) > max_file_size)
