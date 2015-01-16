@@ -2806,6 +2806,7 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 	new_handle->buffers = NULL;
 	new_handle->ref = 1;
 	new_handle->parent = handle;
+	new_handle->cpustats = NULL;
 	tracecmd_ref(handle);
 
 	new_handle->fd = dup(handle->fd);
