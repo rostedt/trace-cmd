@@ -34,6 +34,7 @@
 #include "trace-cmd.h"
 
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
+#define TRACEFS_PATH "/sys/kernel/tracing"
 #define DEBUGFS_PATH "/sys/kernel/debug"
 
 int tracecmd_disable_sys_plugins;
@@ -652,11 +653,29 @@ static int mount_debugfs(void)
 	return ret;
 }
 
+static int mount_tracefs(void)
+{
+	struct stat st;
+	int ret;
+
+	/* make sure debugfs exists */
+	ret = stat(TRACEFS_PATH, &st);
+	if (ret < 0)
+		return -1;
+
+	ret = mount("nodev", TRACEFS_PATH,
+		    "tracefs", 0, NULL);
+
+	return ret;
+}
+
 char *tracecmd_find_tracing_dir(void)
 {
-	char debugfs[MAX_PATH+1];
+	char *debug_str = NULL;
+	char fspath[MAX_PATH+1];
 	char *tracing_dir;
 	char type[100];
+	int use_debug = 0;
 	FILE *fp;
 	
 	if ((fp = fopen("/proc/mounts","r")) == NULL) {
@@ -667,26 +686,46 @@ char *tracecmd_find_tracing_dir(void)
 	while (fscanf(fp, "%*s %"
 		      STR(MAX_PATH)
 		      "s %99s %*s %*d %*d\n",
-		      debugfs, type) == 2) {
-		if (strcmp(type, "debugfs") == 0)
+		      fspath, type) == 2) {
+		if (strcmp(type, "tracefs") == 0)
 			break;
+		if (!debug_str && strcmp(type, "debugfs") == 0) {
+			debug_str = strdup(fspath);
+			if (!debug_str)
+				return NULL;
+		}
 	}
 	fclose(fp);
 
-	if (strcmp(type, "debugfs") != 0) {
-		/* If debugfs is not mounted, try to mount it */
-		if (mount_debugfs() < 0) {
-			warning("debugfs not mounted, please mount");
-			return NULL;
-		}
-		strcpy(debugfs, DEBUGFS_PATH);
+	if (strcmp(type, "tracefs") != 0) {
+		if (mount_tracefs() < 0) {
+			if (debug_str) {
+				strncpy(fspath, debug_str, MAX_PATH);
+				fspath[MAX_PATH] = 0;
+			} else {
+				if (mount_debugfs() < 0) {
+					warning("debugfs not mounted, please mount");
+					return NULL;
+				}
+				strcpy(fspath, DEBUGFS_PATH);
+			}
+			use_debug = 1;
+		} else
+			strcpy(fspath, TRACEFS_PATH);
 	}
+	free(debug_str);
 
-	tracing_dir = malloc_or_die(strlen(debugfs) + 9);
-	if (!tracing_dir)
-		return NULL;
+	if (use_debug) {
+		tracing_dir = malloc(strlen(fspath) + 9);
+		if (!tracing_dir)
+			return NULL;
 
-	sprintf(tracing_dir, "%s/tracing", debugfs);
+		sprintf(tracing_dir, "%s/tracing", fspath);
+	} else {
+		tracing_dir = strdup(fspath);
+		if (!tracing_dir)
+			return NULL;
+	}		
 
 	return tracing_dir;
 }
