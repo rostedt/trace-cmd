@@ -36,6 +36,16 @@
 #define stack_from_item(item)	container_of(item, struct stack_data, hash)
 #define event_data_from_item(item)	container_of(item, struct event_data, hash)
 
+static unsigned long long nsecs_per_sec(unsigned long long ts)
+{
+	return ts / NSECS_PER_SEC;
+}
+
+static unsigned long long mod_to_usec(unsigned long long ts)
+{
+	return ((ts % NSECS_PER_SEC) + NSECS_PER_USEC / 2) / NSECS_PER_USEC;
+}
+
 struct handle_data;
 struct event_hash;
 struct event_data;
@@ -84,7 +94,9 @@ struct stack_data {
 	unsigned long long	count;
 	unsigned long long	time;
 	unsigned long long	time_min;
+	unsigned long long	ts_min;
 	unsigned long long	time_max;
+	unsigned long long	ts_max;
 	unsigned long long	time_avg;
 	unsigned long		size;
 	char			caller[];
@@ -118,7 +130,9 @@ struct event_hash {
 	unsigned long long	time_total;
 	unsigned long long	time_avg;
 	unsigned long long	time_max;
+	unsigned long long	ts_max;
 	unsigned long long	time_min;
+	unsigned long long	ts_min;
 	unsigned long long	time_std;
 	unsigned long long	last_time;
 
@@ -309,7 +323,7 @@ static int match_stack(struct trace_hash_item *item, void *data)
 
 static void add_event_stack(struct event_hash *event_hash,
 			    void *caller, unsigned long size,
-			    unsigned long long time)
+			    unsigned long long time, unsigned long long ts)
 {
 	unsigned long long key;
 	struct stack_data *stack;
@@ -339,10 +353,14 @@ static void add_event_stack(struct event_hash *event_hash,
 
 	stack->count++;
 	stack->time += time;
-	if (stack->count == 1 || time < stack->time_min)
+	if (stack->count == 1 || time < stack->time_min) {
 		stack->time_min = time;
-	if (time > stack->time_max)
+		stack->ts_min = ts;
+	}
+	if (time > stack->time_max) {
 		stack->time_max = time;
+		stack->ts_max = ts;
+	}
 }
 
 static void free_start(struct start_data *start)
@@ -378,11 +396,15 @@ add_and_free_start(struct task_data *task, struct start_data *start,
 	event_hash->time_total += delta;
 	event_hash->last_time = delta;
 
-	if (delta > event_hash->time_max)
+	if (delta > event_hash->time_max) {
 		event_hash->time_max = delta;
+		event_hash->ts_max = ts;
+	}
 
-	if (event_hash->count == 1 || delta < event_hash->time_min)
+	if (event_hash->count == 1 || delta < event_hash->time_min) {
 		event_hash->time_min = delta;
+		event_hash->ts_min = ts;
+	}
 
 	if (start->stack.record) {
 		unsigned long size;
@@ -391,7 +413,8 @@ add_and_free_start(struct task_data *task, struct start_data *start,
 		size = start->stack.size;
 		caller = start->stack.caller;
 
-		add_event_stack(event_hash, caller, size, delta);
+		add_event_stack(event_hash, caller, size, delta,
+				start->stack.record->ts);
 		free_record(start->stack.record);
 		start->stack.record = NULL;
 	}
@@ -942,7 +965,8 @@ static int handle_stacktrace_event(struct handle_data *h,
 	event_hash = task->last_event;
 	task->last_event = NULL;
 
-	add_event_stack(event_hash, caller, size, event_hash->last_time);
+	add_event_stack(event_hash, caller, size, event_hash->last_time,
+			record->ts);
 	
 	return 0;
 }
@@ -1272,8 +1296,11 @@ static void output_event_stack(struct pevent *pevent, struct stack_data *stack)
 	if (stack->count)
 		stack->time_avg = stack->time / stack->count;
 
-	printf("     <stack> %lld total:%lld min:%lld max:%lld avg=%lld\n",
-	       stack->count, stack->time, stack->time_min, stack->time_max,
+	printf("     <stack> %lld total:%lld min:%lld(ts:%lld.%06lld) max:%lld(ts:%lld.%06lld) avg=%lld\n",
+	       stack->count, stack->time, stack->time_min,
+	       nsecs_per_sec(stack->ts_min), mod_to_usec(stack->ts_min),
+	       stack->time_max,
+	       nsecs_per_sec(stack->ts_max), mod_to_usec(stack->ts_max),
 	       stack->time_avg);
 
 	for (i = 0; i < stack->size; i += longsize) {
@@ -1304,7 +1331,9 @@ struct stack_chain {
 	unsigned long long	val;
 	unsigned long long	time;
 	unsigned long long	time_min;
+	unsigned long long	ts_min;
 	unsigned long long	time_max;
+	unsigned long long	ts_max;
 	unsigned long long	time_avg;
 	unsigned long long	count;
 	int			percent;
@@ -1356,7 +1385,9 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 	unsigned long long	total_count = 0;
 	unsigned long long	time;
 	unsigned long long	time_min;
+	unsigned long long	ts_min;
 	unsigned long long	time_max;
+	unsigned long long	ts_max;
 	unsigned long long	count;
 	unsigned long long	stop = -1ULL;
 	int nr_chains = 0;
@@ -1414,11 +1445,14 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 
 		count += stacks[i]->count;
 		time += stacks[i]->time;
-		if (stacks[i]->time_max > time_max)
+		if (stacks[i]->time_max > time_max) {
 			time_max = stacks[i]->time_max;
-		if (i == start || stacks[i]->time_min < time_min)
+			ts_max = stacks[i]->ts_max;
+		}
+		if (i == start || stacks[i]->time_min < time_min) {
 			time_min = stacks[i]->time_min;
-
+			ts_min = stacks[i]->ts_min;
+		}
 		if (i == cnt - 1 ||
 		    stack_overflows(stacks[i+1], longsize, level) ||
 		    val != stack_value(stacks[i+1], longsize, level)) {
@@ -1430,7 +1464,9 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 			chain[x].count = count;
 			chain[x].time = time;
 			chain[x].time_min = time_min;
+			chain[x].ts_min = ts_min;
 			chain[x].time_max = time_max;
+			chain[x].ts_max = ts_max;
 			chain[x].children =
 				make_stack_chain(&stacks[start], (i - start) + 1,
 						 longsize, level+1,
@@ -1540,9 +1576,14 @@ static void output_chain(struct pevent *pevent, struct stack_chain *chain, int l
 		printf("%*c ", INDENT, line);
 		printf("  %d%% (%lld)", chain[i].percent, chain[i].count);
 		if (chain[i].time)
-			printf(" time:%lld max:%lld min:%lld avg:%lld",
+			printf(" time:%lld max:%lld(ts:%lld.%06lld) min:%lld(ts:%lld.%06lld) avg:%lld",
 			       chain[i].time, chain[i].time_max,
-			       chain[i].time_min, chain[i].time_avg);
+			       nsecs_per_sec(chain[i].ts_max),
+			       mod_to_usec(chain[i].ts_max),
+			       chain[i].time_min,
+			       nsecs_per_sec(chain[i].ts_min),
+			       mod_to_usec(chain[i].ts_min),
+			       chain[i].time_avg);
 		printf("\n");
 
 		for (child = chain[i].children, nr_children = chain[i].nr_children;
@@ -1663,9 +1704,14 @@ static void output_event(struct event_hash *event_hash)
 
 	if (event_hash->time_total) {
 		event_hash->time_avg = event_hash->time_total / event_hash->count;
-		printf(" Total: %lld Avg: %lld Max: %lld Min:%lld",
+		printf(" Total: %lld Avg: %lld Max: %lld(ts:%lld.%06lld) Min:%lld(ts:%lld.%06lld)",
 		       event_hash->time_total, event_hash->time_avg,
-		       event_hash->time_max, event_hash->time_min);
+		       event_hash->time_max,
+		       nsecs_per_sec(event_hash->ts_max),
+		       mod_to_usec(event_hash->ts_max),
+		       event_hash->time_min,
+		       nsecs_per_sec(event_hash->ts_min),
+		       mod_to_usec(event_hash->ts_min));
 	}
 	printf("\n");
 
