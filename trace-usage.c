@@ -144,6 +144,7 @@ static struct usage_help usage_help[] = {
 		"          -O plugin option -O [plugin:]var[=val]\n"
 		"          --check-events return whether all event formats can be parsed\n"
 		"          --stat - show the buffer stats that were reported at the end of the record.\n"
+		"          --uname - show uname of the record, if it was saved\n"
 		"          --profile report stats on where tasks are blocked and such\n"
 
 	},

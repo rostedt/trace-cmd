@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+#include <sys/utsname.h>
 #ifndef NO_PTRACE
 #include <sys/ptrace.h>
 #else
@@ -2565,6 +2566,28 @@ add_buffer_stat(struct tracecmd_output *handle, struct buffer_instance *instance
 				    instance->s[i].buffer);
 }
 
+static void add_uname(struct tracecmd_output *handle)
+{
+	struct utsname buf;
+	char *str;
+	int len;
+	int ret;
+
+	ret = uname(&buf);
+	/* if this fails for some reason, just ignore it */
+	if (ret < 0)
+		return;
+
+	len = strlen(buf.sysname) + strlen(buf.nodename) +
+		strlen(buf.release) + strlen(buf.machine) + 4;
+	str = malloc(len);
+	if (!str)
+		return;
+	sprintf(str, "%s %s %s %s", buf.sysname, buf.nodename, buf.release, buf.machine);
+	tracecmd_add_option(handle, TRACECMD_OPTION_UNAME, len, str);
+	free(str);
+}
+
 static void touch_file(const char *file)
 {
 	int fd;
@@ -2627,6 +2650,8 @@ static void record_data(char *date2ts)
 
 		tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK,
 				    0, NULL);
+
+		add_uname(handle);
 
 		if (buffers) {
 			buffer_options = malloc_or_die(sizeof(*buffer_options) * buffers);

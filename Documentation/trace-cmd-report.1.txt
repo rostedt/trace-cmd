@@ -224,6 +224,10 @@ OPTIONS
     If the trace.dat file recorded the final stats (outputed at the end of record)
     the *--stat* option can be used to retrieve them.
 
+*--uname*::
+    If the trace.dat file recorded uname during the run, this will retrieve that
+    information.
+
 EXAMPLES
 --------
 

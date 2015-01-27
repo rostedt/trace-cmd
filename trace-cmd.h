@@ -87,6 +87,7 @@ enum {
 	TRACECMD_OPTION_CPUSTAT,
 	TRACECMD_OPTION_BUFFER,
 	TRACECMD_OPTION_TRACECLOCK,
+	TRACECMD_OPTION_UNAME,
 };
 
 enum {
@@ -127,6 +128,7 @@ void tracecmd_print_events(struct tracecmd_input *handle, const char *regex);
 int tracecmd_init_data(struct tracecmd_input *handle);
 
 void tracecmd_print_stats(struct tracecmd_input *handle);
+void tracecmd_print_uname(struct tracecmd_input *handle);
 
 struct pevent_record *
 tracecmd_read_page_record(struct pevent *pevent, void *page, int size,

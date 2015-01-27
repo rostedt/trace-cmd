@@ -97,6 +97,7 @@ struct tracecmd_input {
 	struct cpu_data 	*cpu_data;
 	unsigned long long	ts_offset;
 	char *			cpustats;
+	char *			uname;
 	struct input_buffer_instance	*buffers;
 
 	struct tracecmd_ftrace	finfo;
@@ -1988,6 +1989,9 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_TRACECLOCK:
 			handle->use_trace_clock = true;
 			break;
+		case TRACECMD_OPTION_UNAME:
+			handle->uname = strdup(buf);
+			break;
 		default:
 			warning("unknown option %d", option);
 			break;
@@ -2303,6 +2307,21 @@ void tracecmd_print_stats(struct tracecmd_input *handle)
 }
 
 /**
+ * tracecmd_print_uname - prints the recorded uname if it was recorded
+ * @handle: input handle for the trace.dat file
+ *
+ * Looks for the option TRACECMD_OPTION_UNAME and prints out what's
+ * stored there, if it is found. Otherwise it prints that none were found.
+ */
+void tracecmd_print_uname(struct tracecmd_input *handle)
+{
+	if (handle->uname)
+		printf("%s\n", handle->uname);
+	else
+		printf(" uname was not recorded in this file\n");
+}
+
+/**
  * tracecmd_alloc_fd - create a tracecmd_input handle from a file descriptor
  * @fd: the file descriptor for the trace.dat file
  *
@@ -2503,6 +2522,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 
 	free(handle->cpustats);
 	free(handle->cpu_data);
+	free(handle->uname);
 	close(handle->fd);
 
 	if (handle->flags & TRACECMD_FL_BUFFER_INSTANCE)
@@ -2807,6 +2827,9 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 	new_handle->ref = 1;
 	new_handle->parent = handle;
 	new_handle->cpustats = NULL;
+	if (handle->uname)
+		/* Ignore if fails to malloc, no biggy */
+		new_handle->uname = strdup(handle->uname);
 	tracecmd_ref(handle);
 
 	new_handle->fd = dup(handle->fd);
