@@ -49,6 +49,40 @@ These are the same as trace-cmd-record(1) with the *--profile* option.
 *-o* 'file'::
     Write the output of the profile to 'file'. This supersedes *--stderr*
 
+*-H* 'event-hooks'::
+    Add custom event matching to connect any two events together. Format is:
+    [<start_system>:]<start_event>,<start_match>[,<start_pid>]/
+    [<end_system>:]<end_event>,<end_match>[,<flags>]
+
+    The start_system:start_event (start_system is optional), is the event that
+    starts the timing.
+
+    start_match is the field in the start event that is to match with the
+    end_match in the end event.
+
+    start_pid is optional, as matches are attached to the tasks that run
+    the events, if another field should be used to find that task, then
+    it is specified with start_pid.
+
+    end_system:end_event is the event that ends the timing (end_system is
+    optional).
+
+    end_match is the field in end_match that wil match the start event field
+    start_match.
+
+    flags are optional and can be the following (case insensitive):
+
+      p : The two events are pinned to the same CPU (start and end happen
+          on the same CPU always).
+
+      s : The event should have a stack traced with it (enable stack tracing
+          for the start event).
+
+      g : The event is global (not associated to a task). start_pid is
+          not applicable with this flag.
+
+	  (Note: 'g' is not yet implemented)
+
 *--stderr*::
     Redirect the output to stderr. The output of the command being executed
     is not changed. This allows watching the command execute and saving the

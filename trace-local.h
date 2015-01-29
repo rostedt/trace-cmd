@@ -74,14 +74,16 @@ void trace_mem(int argc, char **argv);
 
 void trace_stat(int argc, char **argv);
 
+struct hook_list;
+
 int trace_profile_record(struct tracecmd_input *handle,
 			 struct pevent_record *record, int cpu);
-void trace_init_profile(struct tracecmd_input *handle);
+void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hooks);
 int trace_profile(void);
 
 struct tracecmd_input *
 trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
-		  int profile);
+		  int profile, struct hook_list *hooks);
 int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv,
 		      int profile);
 

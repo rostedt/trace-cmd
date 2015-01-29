@@ -1059,7 +1059,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			stacktrace_id = event->id;
 
 		init_wakeup(handles->handle);
-		trace_init_profile(handles->handle);
+		trace_init_profile(handles->handle, NULL);
 
 		process_filters(handles);
 

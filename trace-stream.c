@@ -35,7 +35,7 @@
  */
 struct tracecmd_input *
 trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
-		  int profile)
+		  int profile, struct hook_list *hooks)
 {
 	struct tracecmd_input *trace_input;
 	struct tracecmd_output *trace_output;
@@ -76,7 +76,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 		goto fail_free_input;
 
 	if (profile)
-		trace_init_profile(trace_input);
+		trace_init_profile(trace_input, hooks);
 
  make_pipe:
 	/* Do not block on this pipe */

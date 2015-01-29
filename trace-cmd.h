@@ -287,6 +287,27 @@ const char *trace_util_plugin_option_value(const char *name);
 /* Used for trace-cmd list */
 void tracecmd_ftrace_load_options(void);
 
+/* event hooks */
+
+struct hook_list {
+	struct hook_list	*next;
+	struct buffer_instance	*instance;
+	const char		*hook;
+	char			*str;
+	char			*start_system;
+	char			*start_event;
+	char			*start_match;
+	char			*end_system;
+	char			*end_event;
+	char			*end_match;
+	char			*pid;
+	int			migrate;
+	int			global;
+	int			stack;
+};
+
+struct hook_list *tracecmd_create_event_hook(const char *arg);
+
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);
 

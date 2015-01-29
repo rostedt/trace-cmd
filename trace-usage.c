@@ -158,7 +158,9 @@ static struct usage_help usage_help[] = {
 		"profile",
 		"Start profiling and read the output directly",
 		" %s profile [-e event][-p plugin][-d][-O option ][-P pid][-S][-o output]\n"
+		"    [-H [start_system:]start_event,start_match[,pid]/[end_system:]end_event,end_match[,flags]\n\n"
 		"          Uses same options as record --profile.\n"
+		"          -H Allows users to hook two events together for timings\n"
 	},
 	{
 		"hist",

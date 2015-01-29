@@ -135,6 +135,8 @@ struct opt_list {
 
 static struct opt_list *options;
 
+static struct hook_list *hooks;
+
 static char *common_pid_filter;
 
 struct event_list {
@@ -2515,7 +2517,7 @@ static void start_threads(enum trace_type type)
 					die("pipe");
 				pids[i].stream = trace_stream_init(instance, x,
 								   brass[0], cpu_count,
-								   profile);
+								   profile, hooks);
 				if (!pids[i].stream)
 					die("Creating stream for %d", i);
 			} else
@@ -3584,6 +3586,54 @@ static void enable_profile(struct buffer_instance *instance)
 		profile_add_event(instance, events[i], 0);
 }
 
+static struct event_list *
+create_hook_event(struct buffer_instance *instance,
+		  const char *system, const char *event)
+{
+	struct event_list *event_list;
+	char *event_name;
+	int len;
+
+	if (!system)
+		system = "*";
+
+	len = strlen(event);
+	len += strlen(system) + 2;
+
+	event_name = malloc_or_die(len);
+	sprintf(event_name, "%s:%s", system, event);
+
+	event_list = malloc_or_die(sizeof(*event_list));
+	memset(event_list, 0, sizeof(*event_list));
+	event_list->event = event_name;
+	add_event(instance, event_list);
+
+	list_event(event_name);
+
+	return event_list;
+}
+
+static void add_hook(struct buffer_instance *instance, const char *arg)
+{
+	struct event_list *event;
+	struct hook_list *hook;
+
+	hook = tracecmd_create_event_hook(arg);
+
+	hook->instance = instance;
+	hook->next = hooks;
+	hooks = hook;
+
+	/* Make sure the event is enabled */
+	event = create_hook_event(instance, hook->start_system, hook->start_event);
+	create_hook_event(instance, hook->end_system, hook->end_event);
+
+	if (hook->stack) {
+		if (!event->trigger || !strstr(event->trigger, "stacktrace"))
+			add_trigger(event, "stacktrace");
+	}
+}
+
 enum {
 	OPT_stderr	= 251,
 	OPT_profile	= 252,
@@ -3759,7 +3809,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cC:dDo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:";
+			opts = "+hae:f:Fp:cC:dDo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -3899,6 +3949,10 @@ void trace_record (int argc, char **argv)
 			break;
 		case 'T':
 			save_option("stacktrace");
+			break;
+		case 'H':
+			add_hook(instance, optarg);
+			events = 1;
 			break;
 		case 's':
 			if (extract) {

@@ -66,6 +66,7 @@ enum event_data_type {
 	EVENT_TYPE_SOFTIRQ,
 	EVENT_TYPE_SOFTIRQ_RAISE,
 	EVENT_TYPE_PROCESS_EXEC,
+	EVENT_TYPE_USER_MATE,
 };
 
 struct event_data {
@@ -772,6 +773,44 @@ mate_events(struct handle_data *h, struct event_data *start,
 	start->migrate = migrate;
 }
 
+/**
+ * tracecmd_mate_events - match events to profile against
+ * @handle: The input handle where the events exist.
+ * @start_event: The event that starts the transaction
+ * @pid_field: Use this over common_pid (may be NULL to use common_pid)
+ * @end_match_field: The field that matches the end events @start_match_field
+ * @end_event: The event that ends the transaction
+ * @start_match_field: The end event field that matches start's @end_match_field
+ * @migrate: Can the transaction switch CPUs? 1 for yes, 0 for no
+ */
+void tracecmd_mate_events(struct tracecmd_input *handle,
+			  struct event_format *start_event,
+			  const char *pid_field, const char *end_match_field,
+			  struct event_format *end_event,
+			  const char *start_match_field,
+			  int migrate)
+{
+	struct handle_data *h;
+	struct event_data *start;
+	struct event_data *end;
+
+	for (h = handles; h; h = h->next) {
+		if (h->handle == handle)
+			break;
+	}
+	if (!h)
+		die("Handle not found for trace profile");
+
+	start = add_event(h, start_event->system, start_event->name,
+			  EVENT_TYPE_USER_MATE);
+
+	end = add_event(h, end_event->system, end_event->name,
+			EVENT_TYPE_USER_MATE);
+
+	mate_events(h, start, pid_field, end_match_field, end, start_match_field,
+		    migrate);
+}
+
 static void func_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char *func;
@@ -1098,7 +1137,7 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 	return 0;
 }
 
-void trace_init_profile(struct tracecmd_input *handle)
+void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 {
 	struct pevent *pevent = tracecmd_get_pevent(handle);
 	struct event_format **events;
@@ -1117,6 +1156,8 @@ void trace_init_profile(struct tracecmd_input *handle)
 	struct event_data *syscall_enter;
 	struct event_data *syscall_exit;
 	struct event_data *process_exec;
+	struct event_data *start_event;
+	struct event_data *end_event;
 	int i;
 
 	h = malloc_or_die(sizeof(*h));
@@ -1260,6 +1301,24 @@ void trace_init_profile(struct tracecmd_input *handle)
 	if (event_data) {
 		event_data->data_field =
 			pevent_find_field(event_data->event, "ip");
+	}
+
+	/* Add any user defined hooks */
+	for (; hook; hook = hook->next) {
+		start_event = add_event(h, hook->start_system, hook->start_event,
+					EVENT_TYPE_USER_MATE);
+		end_event = add_event(h, hook->end_system, hook->end_event,
+				      EVENT_TYPE_USER_MATE);
+		if (!start_event) {
+			warning("Event %s not found", hook->start_event);
+			continue;
+		}
+		if (!end_event) {
+			warning("Event %s not found", hook->end_event);
+			continue;
+		}
+		mate_events(h, start_event, hook->pid, hook->start_match,
+			    end_event, hook->end_match, hook->migrate);
 	}
 
 	/* Now add any defined event that we haven't processed */
