@@ -741,10 +741,11 @@ add_event(struct handle_data *h, const char *system, const char *event_name,
 	return event_data;
 }
 
-void mate_events(struct handle_data *h, struct event_data *start,
-		 const char *pid_field, const char *end_match_field,
-		 struct event_data *end, const char *start_match_field,
-		 int migrate)
+static void
+mate_events(struct handle_data *h, struct event_data *start,
+	    const char *pid_field, const char *end_match_field,
+	    struct event_data *end, const char *start_match_field,
+	    int migrate)
 {
 	start->end = end;
 	end->start = start;
@@ -771,7 +772,7 @@ void mate_events(struct handle_data *h, struct event_data *start,
 	start->migrate = migrate;
 }
 
-void func_print(struct trace_seq *s, struct event_hash *event_hash)
+static void func_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char *func;
 
@@ -825,7 +826,7 @@ static void softirq_print(struct trace_seq *s, struct event_hash *event_hash)
 				 softirq);
 }
 
-void sched_switch_print(struct trace_seq *s, struct event_hash *event_hash)
+static void sched_switch_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char states[] = TASK_STATE_TO_CHAR_STR;
 	int i;
