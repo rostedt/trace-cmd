@@ -123,6 +123,8 @@ struct wakeup_info {
 	int			pid;
 };
 
+static struct hook_list *hooks;
+
 #define WAKEUP_HASH_SIZE 1024
 static struct trace_hash wakeup_hash;
 
@@ -1059,7 +1061,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			stacktrace_id = event->id;
 
 		init_wakeup(handles->handle);
-		trace_init_profile(handles->handle, NULL);
+		trace_init_profile(handles->handle, hooks);
 
 		process_filters(handles);
 
@@ -1253,6 +1255,16 @@ static void set_event_flags(struct pevent *pevent, struct event_str *list,
 	}
 }
 
+static void add_hook(const char *arg)
+{
+	struct hook_list *hook;
+
+	hook = create_event_hook(arg);
+
+	hook->next = hooks;
+	hooks = hook;
+}
+
 enum {
 	OPT_uname	= 244,
 	OPT_profile	= 245,
@@ -1331,7 +1343,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:fepRr:tPNn:LlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hi:H:fepRr:tPNn:LlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1350,6 +1362,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'F':
 			add_filter(optarg, neg);
+			break;
+		case 'H':
+			add_hook(optarg);
 			break;
 		case 'T':
 			test_filters = 1;

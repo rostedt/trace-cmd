@@ -124,6 +124,7 @@ static struct usage_help usage_help[] = {
 		"read out the trace stored in a trace.dat file",
 		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-R][-E]\\\n"
 		"           [-r events][-n events][-F filter][-v][-V][-T][-O option]\n"
+		"           [-H [start_system:]start_event,start_match[,pid]/[end_system:]end_event,end_match[,flags]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
 		"          -f show function list\n"
@@ -146,6 +147,8 @@ static struct usage_help usage_help[] = {
 		"          --stat - show the buffer stats that were reported at the end of the record.\n"
 		"          --uname - show uname of the record, if it was saved\n"
 		"          --profile report stats on where tasks are blocked and such\n"
+		"          -H Allows users to hook two events together for timings\n"
+		"             (used with --profile)\n"
 
 	},
 	{

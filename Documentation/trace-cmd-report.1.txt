@@ -173,6 +173,11 @@ OPTIONS
 
     See trace-cmd-profile(1) for more details and examples.
 
+*-H* 'event-hooks'::
+    Add custom event matching to connect any two events together.
+
+    See trace-cmd-profile(1) for format.
+
 *-R*::
     This will show the events in "raw" format. That is, it will ignore the event's
     print formatting and just print the contents of each field.
