@@ -24,7 +24,7 @@
 
 #include "trace-cmd.h"
 
-static ssize_t __do_write(int fd, void *data, size_t size)
+static ssize_t __do_write(int fd, const void *data, size_t size)
 {
 	ssize_t tot = 0;
 	ssize_t w;
@@ -43,7 +43,7 @@ static ssize_t __do_write(int fd, void *data, size_t size)
 }
 
 static ssize_t
-__do_write_check(int fd, void *data, size_t size)
+__do_write_check(int fd, const void *data, size_t size)
 {
 	ssize_t ret;
 

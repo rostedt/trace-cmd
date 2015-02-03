@@ -80,7 +80,7 @@ struct list_event_system {
 };
 
 static stsize_t
-do_write_check(struct tracecmd_output *handle, void *data, tsize_t size)
+do_write_check(struct tracecmd_output *handle, const void *data, tsize_t size)
 {
 	return __do_write_check(handle->fd, data, size);
 }
@@ -866,7 +866,7 @@ static struct tracecmd_output *create_file(const char *output_file,
  */
 struct tracecmd_option *
 tracecmd_add_option(struct tracecmd_output *handle,
-		    unsigned short id, int size, void *data)
+		    unsigned short id, int size, const void *data)
 {
 	struct tracecmd_option *option;
 
@@ -934,7 +934,8 @@ static int add_options(struct tracecmd_output *handle)
 }
 
 int tracecmd_update_option(struct tracecmd_output *handle,
-			   struct tracecmd_option *option, int size, void *data)
+			   struct tracecmd_option *option, int size,
+			   const void *data)
 {
 	tsize_t offset;
 	stsize_t ret;

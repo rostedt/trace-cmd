@@ -220,11 +220,13 @@ struct tracecmd_output *tracecmd_create_init_file_override(const char *output_fi
 							   const char *tracing_dir,
 							   const char *kallsyms);
 struct tracecmd_option *tracecmd_add_option(struct tracecmd_output *handle,
-					    unsigned short id, int size, void *data);
+					    unsigned short id, int size,
+					    const void *data);
 struct tracecmd_option *tracecmd_add_buffer_option(struct tracecmd_output *handle,
 						   const char *name);
 int tracecmd_update_option(struct tracecmd_output *handle,
-			   struct tracecmd_option *option, int size, void *data);
+			   struct tracecmd_option *option, int size,
+			   const void *data);
 void tracecmd_output_close(struct tracecmd_output *handle);
 void tracecmd_output_free(struct tracecmd_output *handle);
 struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
