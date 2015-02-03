@@ -124,6 +124,7 @@ struct wakeup_info {
 };
 
 static struct hook_list *hooks;
+static struct hook_list *last_hook;
 
 #define WAKEUP_HASH_SIZE 1024
 static struct trace_hash wakeup_hash;
@@ -1061,6 +1062,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			stacktrace_id = event->id;
 
 		init_wakeup(handles->handle);
+		if (last_hook)
+			last_hook->next = tracecmd_hooks(handles->handle);
 		trace_init_profile(handles->handle, hooks);
 
 		process_filters(handles);
@@ -1259,10 +1262,12 @@ static void add_hook(const char *arg)
 {
 	struct hook_list *hook;
 
-	hook = create_event_hook(arg);
+	hook = tracecmd_create_event_hook(arg);
 
 	hook->next = hooks;
 	hooks = hook;
+	if (!last_hook)
+		last_hook = hook;
 }
 
 enum {

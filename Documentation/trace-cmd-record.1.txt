@@ -274,6 +274,18 @@ OPTIONS
 
     See trace-cmd-profile(1) for more details and examples.
 
+*-H* 'event-hooks'::
+    Add custom event matching to connect any two events together. When not
+    used with *--profile*, it will save the parameter and this will be
+    used by trace-cmd report --profile, too. That is:
+
+    trace-cmd record -H hrtimer_expire_entry,hrtimer/hrtimer_expire_exit,hrtimer,sp
+    trace-cmd report --profile
+
+    Will profile hrtimer_expire_entry and hrtimer_expire_ext times.
+
+    See trace-cmd-profile(1) for format.
+
 *--stderr*::
     Have output go to stderr instead of stdout, but the output of the command
     executed will not be changed. This is useful if you want to monitor the

@@ -2568,6 +2568,18 @@ add_buffer_stat(struct tracecmd_output *handle, struct buffer_instance *instance
 				    instance->s[i].buffer);
 }
 
+static void add_option_hooks(struct tracecmd_output *handle)
+{
+	struct hook_list *hook;
+	int len;
+
+	for (hook = hooks; hook; hook = hook->next) {
+		len = strlen(hook->hook);
+		tracecmd_add_option(handle, TRACECMD_OPTION_HOOK,
+				    len + 1, hook->hook);
+	}
+}
+
 static void add_uname(struct tracecmd_output *handle)
 {
 	struct utsname buf;
@@ -2652,6 +2664,8 @@ static void record_data(char *date2ts)
 
 		tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK,
 				    0, NULL);
+
+		add_option_hooks(handle);
 
 		add_uname(handle);
 

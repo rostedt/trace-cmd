@@ -160,3 +160,16 @@ invalid_tok:
 	die("Invalid hook format '%s'", arg);
 	return NULL;
 }
+
+void tracecmd_free_hooks(struct hook_list *hooks)
+{
+	struct hook_list *hook;
+
+	while (hooks) {
+		hook = hooks;
+		hooks = hooks->next;
+
+		free(hook->str);
+		free(hook);
+	}
+}

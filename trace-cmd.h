@@ -88,6 +88,7 @@ enum {
 	TRACECMD_OPTION_BUFFER,
 	TRACECMD_OPTION_TRACECLOCK,
 	TRACECMD_OPTION_UNAME,
+	TRACECMD_OPTION_HOOK,
 };
 
 enum {
@@ -124,6 +125,8 @@ struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *ha
 int tracecmd_is_buffer_instance(struct tracecmd_input *handle);
 
 void tracecmd_print_events(struct tracecmd_input *handle, const char *regex);
+
+struct hook_list *tracecmd_hooks(struct tracecmd_input *handle);
 
 int tracecmd_init_data(struct tracecmd_input *handle);
 
@@ -307,6 +310,7 @@ struct hook_list {
 };
 
 struct hook_list *tracecmd_create_event_hook(const char *arg);
+void tracecmd_free_hooks(struct hook_list *hooks);
 
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);
