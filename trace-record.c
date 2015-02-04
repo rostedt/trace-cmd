@@ -841,7 +841,8 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 	int ret;
 	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 
-	options |= WNOHANG;
+	if (type & TRACE_TYPE_STREAM)
+		options |= WNOHANG;
 
 	do {
 		ret = waitpid(pid, status, options);
