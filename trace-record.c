@@ -2034,7 +2034,6 @@ static int expand_event_files(struct buffer_instance *instance,
 	sprintf(p, "events/%s/filter", file);
 
 	path = get_instance_file(instance, p);
-	printf("%s\n", path);
 
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
@@ -2050,6 +2049,7 @@ static int expand_event_files(struct buffer_instance *instance,
 		path = globbuf.gl_pathv[i];
 
 		event = create_event(instance, path, old_event);
+		printf("%s\n", path);
 
 		len = strlen(path);
 
