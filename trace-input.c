@@ -2802,7 +2802,7 @@ int tracecmd_record_at_buffer_start(struct tracecmd_input *handle,
 				    struct pevent_record *record)
 {
 	struct page *page = record->priv;
-	struct kbuffer *kbuf = handle->cpu_data[0].kbuf;
+	struct kbuffer *kbuf = handle->cpu_data[record->cpu].kbuf;
 	int offset;
 
 	if (!page || !kbuf)
