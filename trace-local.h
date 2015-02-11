@@ -155,7 +155,8 @@ struct buffer_instance {
 
 	const char		*clock;
 
-	struct trace_seq	*s;
+	struct trace_seq	*s_save;
+	struct trace_seq	*s_print;
 
 	struct tracecmd_input	*handle;
 
