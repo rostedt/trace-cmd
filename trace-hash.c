@@ -46,6 +46,16 @@ void trace_hash_free(struct trace_hash *hash)
 	free(hash->buckets);
 }
 
+int trace_hash_empty(struct trace_hash *hash)
+{
+	struct trace_hash_item **bucket;
+
+	trace_hash_for_each_bucket(bucket, hash)
+		if (*bucket)
+			return 0;
+	return 1;
+}
+
 int trace_hash_add(struct trace_hash *hash, struct trace_hash_item *item)
 {
 	struct trace_hash_item *next;

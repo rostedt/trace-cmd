@@ -38,6 +38,7 @@ struct trace_hash {
 int trace_hash_init(struct trace_hash *hash, int buckets);
 void trace_hash_free(struct trace_hash *hash);
 int trace_hash_add(struct trace_hash *hash, struct trace_hash_item *item);
+int trace_hash_empty(struct trace_hash *hash);
 
 static inline void trace_hash_del(struct trace_hash_item *item)
 {

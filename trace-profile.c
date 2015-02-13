@@ -87,6 +87,7 @@ struct event_data {
 	handle_event_func	handle_event;
 	void			*private;
 	int			migrate;	/* start/end pairs can migrate cpus */
+	int			global;		/* use global tasks */
 	enum event_data_type	type;
 };
 
@@ -186,6 +187,9 @@ struct handle_data {
 	struct trace_hash	task_hash;
 	struct list_head	*cpu_starts;
 	struct list_head	migrate_starts;
+
+	struct task_data	*global_task;
+	struct task_data	*global_percpu_tasks;
 
 	int			cpus;
 };
@@ -445,6 +449,14 @@ static int match_task(struct trace_hash_item *item, void *data)
 	return task->pid == pid;
 }
 
+static void init_task(struct handle_data *h, struct task_data *task)
+{
+	task->handle = h;
+
+	trace_hash_init(&task->start_hash, 16);
+	trace_hash_init(&task->event_hash, 32);
+}
+
 static struct task_data *
 add_task(struct handle_data *h, int pid)
 {
@@ -453,13 +465,12 @@ add_task(struct handle_data *h, int pid)
 
 	task = malloc_or_die(sizeof(*task));
 	memset(task, 0, sizeof(*task));
+
 	task->pid = pid;
 	task->hash.key = key;
 	trace_hash_add(&h->task_hash, &task->hash);
-	task->handle = h;
 
-	trace_hash_init(&task->start_hash, 16);
-	trace_hash_init(&task->event_hash, 32);
+	init_task(h, task);
 
 	return task;
 }
@@ -548,6 +559,13 @@ static struct task_data *
 find_event_task(struct handle_data *h, struct event_data *event_data,
 		struct pevent_record *record, unsigned long long pid)
 {
+	if (event_data->global) {
+		if (event_data->migrate)
+			return h->global_task;
+		else
+			return &h->global_percpu_tasks[record->cpu];
+	}
+
 	/* If pid_field is defined, use that to find the task */
 	if (event_data->pid_field)
 		pevent_read_number_field(event_data->pid_field,
@@ -746,7 +764,7 @@ static void
 mate_events(struct handle_data *h, struct event_data *start,
 	    const char *pid_field, const char *end_match_field,
 	    struct event_data *end, const char *start_match_field,
-	    int migrate)
+	    int migrate, int global)
 {
 	start->end = end;
 	end->start = start;
@@ -771,6 +789,9 @@ mate_events(struct handle_data *h, struct event_data *start,
 		    end->event->name, start_match_field);
 
 	start->migrate = migrate;
+	start->global = global;
+	end->migrate = migrate;
+	end->global = global;
 }
 
 /**
@@ -782,13 +803,14 @@ mate_events(struct handle_data *h, struct event_data *start,
  * @end_event: The event that ends the transaction
  * @start_match_field: The end event field that matches start's @end_match_field
  * @migrate: Can the transaction switch CPUs? 1 for yes, 0 for no
+ * @global: The events are global and not per task
  */
 void tracecmd_mate_events(struct tracecmd_input *handle,
 			  struct event_format *start_event,
 			  const char *pid_field, const char *end_match_field,
 			  struct event_format *end_event,
 			  const char *start_match_field,
-			  int migrate)
+			  int migrate, int global)
 {
 	struct handle_data *h;
 	struct event_data *start;
@@ -808,7 +830,7 @@ void tracecmd_mate_events(struct tracecmd_input *handle,
 			EVENT_TYPE_USER_MATE);
 
 	mate_events(h, start, pid_field, end_match_field, end, start_match_field,
-		    migrate);
+		    migrate, global);
 }
 
 static void func_print(struct trace_seq *s, struct event_hash *event_hash)
@@ -1158,6 +1180,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 	struct event_data *process_exec;
 	struct event_data *start_event;
 	struct event_data *end_event;
+	int ret;
 	int i;
 
 	h = malloc_or_die(sizeof(*h));
@@ -1188,6 +1211,26 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 
 	h->cpu_data = malloc_or_die(h->cpus * sizeof(*h->cpu_data));
 	memset(h->cpu_data, 0, h->cpus * sizeof(h->cpu_data));
+
+	h->global_task = malloc_or_die(sizeof(struct task_data));
+	memset(h->global_task, 0, sizeof(struct task_data));
+	init_task(h, h->global_task);
+	h->global_task->comm = strdup("Global Events");
+	if (!h->global_task->comm)
+		die("malloc");
+	h->global_task->pid = -1;
+
+	h->global_percpu_tasks = calloc(h->cpus, sizeof(struct task_data));
+	if (!h->global_percpu_tasks)
+		die("malloc");
+	for (i = 0; i < h->cpus; i++) {
+		init_task(h, &h->global_percpu_tasks[i]);
+		ret = asprintf(&h->global_percpu_tasks[i].comm,
+			       "Global CPU[%d] Events", i);
+		if (ret < 0)
+			die("malloc");
+		h->global_percpu_tasks[i].pid = -1 - i;
+	}
 
 	irq_entry = add_event(h, "irq", "irq_handler_entry", EVENT_TYPE_IRQ);
 	irq_exit = add_event(h, "irq", "irq_handler_exit", EVENT_TYPE_IRQ);
@@ -1246,9 +1289,9 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 
 	if (sched_switch && sched_wakeup) {
 		mate_events(h, sched_switch, "prev_pid", "next_pid", 
-			    sched_wakeup, "pid", 1);
+			    sched_wakeup, "pid", 1, 0);
 		mate_events(h, sched_wakeup, "pid", "pid",
-			    sched_switch, "prev_pid", 1);
+			    sched_switch, "prev_pid", 1, 0);
 		sched_wakeup->handle_event = handle_sched_wakeup_event;
 
 		/* The 'success' field may or may not be present */
@@ -1262,7 +1305,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 	}
 
 	if (irq_entry && irq_exit)
-		mate_events(h, irq_entry, NULL, "irq", irq_exit, "irq", 0);
+		mate_events(h, irq_entry, NULL, "irq", irq_exit, "irq", 0, 0);
 
 	if (softirq_entry)
 		softirq_entry->print_func = softirq_print;
@@ -1274,20 +1317,20 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 		softirq_raise->print_func = softirq_print;
 
 	if (softirq_entry && softirq_exit)
-		mate_events(h, softirq_entry, NULL, "vec", softirq_exit, "vec", 0);
+		mate_events(h, softirq_entry, NULL, "vec", softirq_exit, "vec", 0, 0);
 
 	if (softirq_entry && softirq_raise)
-		mate_events(h, softirq_raise, NULL, "vec", softirq_entry, "vec", 0);
+		mate_events(h, softirq_raise, NULL, "vec", softirq_entry, "vec", 0, 0);
 
 	if (fgraph_entry && fgraph_exit) {
-		mate_events(h, fgraph_entry, NULL, "func", fgraph_exit, "func", 1);
+		mate_events(h, fgraph_entry, NULL, "func", fgraph_exit, "func", 1, 0);
 		fgraph_entry->handle_event = handle_fgraph_entry_event;
 		fgraph_exit->handle_event = handle_fgraph_exit_event;
 		fgraph_entry->print_func = func_print;
 	}
 
 	if (syscall_enter && syscall_exit) {
-		mate_events(h, syscall_enter, NULL, "id", syscall_exit, "id", 1);
+		mate_events(h, syscall_enter, NULL, "id", syscall_exit, "id", 1, 0);
 		syscall_enter->print_func = print_int;
 		syscall_exit->print_func = print_int;
 	}
@@ -1318,7 +1361,8 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 			continue;
 		}
 		mate_events(h, start_event, hook->pid, hook->start_match,
-			    end_event, hook->end_match, hook->migrate);
+			    end_event, hook->end_match, hook->migrate,
+			    hook->global);
 	}
 
 	/* Now add any defined event that we haven't processed */
@@ -1827,7 +1871,10 @@ static void output_task(struct handle_data *h, struct task_data *task)
 	else
 		comm = pevent_data_comm_from_pid(h->pevent, task->pid);
 
-	printf("\ntask: %s-%d\n", comm, task->pid);
+	if (task->pid < 0)
+		printf("%s\n", task->comm);
+	else
+		printf("\ntask: %s-%d\n", comm, task->pid);
 
 	trace_hash_for_each_bucket(bucket, &task->event_hash) {
 		trace_hash_for_each_item(item, bucket) {
@@ -1881,7 +1928,7 @@ static void free_event_hash(struct event_hash *event_hash)
 	free(event_hash);
 }
 
-static void free_task(struct task_data *task)
+static void __free_task(struct task_data *task)
 {
 	struct trace_hash_item **bucket;
 	struct trace_hash_item *item;
@@ -1913,8 +1960,21 @@ static void free_task(struct task_data *task)
 
 	if (task->last_stack)
 		free_record(task->last_stack);
+}
 
+static void free_task(struct task_data *task)
+{
+	__free_task(task);
 	free(task);
+}
+
+static void show_global_task(struct handle_data *h,
+			     struct task_data *task)
+{
+	if (trace_hash_empty(&task->event_hash))
+		return;
+
+	output_task(h, task);
 }
 
 static void output_handle(struct handle_data *h)
@@ -1924,6 +1984,10 @@ static void output_handle(struct handle_data *h)
 	struct task_data **tasks;
 	int nr_tasks = 0;
 	int i;
+
+	show_global_task(h, h->global_task);
+	for (i = 0; i < h->cpus; i++)
+		show_global_task(h, &h->global_percpu_tasks[i]);
 
 	trace_hash_for_each_bucket(bucket, &h->task_hash) {
 		trace_hash_for_each_item(item, bucket) {
