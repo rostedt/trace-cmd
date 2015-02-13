@@ -1996,7 +1996,7 @@ static int handle_options(struct tracecmd_input *handle)
 			break;
 		case TRACECMD_OPTION_HOOK:
 			hook = tracecmd_create_event_hook(buf);
-			hook = handle->hooks;
+			hook->next = handle->hooks;
 			handle->hooks = hook;
 			break;
 		default:
