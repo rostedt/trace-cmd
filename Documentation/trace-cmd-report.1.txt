@@ -173,6 +173,10 @@ OPTIONS
 
     See trace-cmd-profile(1) for more details and examples.
 
+*-G*::
+    Set interrupt (soft and hard) events as global (associated to CPU
+    instead of tasks). Only works for --profile.
+
 *-H* 'event-hooks'::
     Add custom event matching to connect any two events together.
 

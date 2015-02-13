@@ -46,6 +46,10 @@ These are the same as trace-cmd-record(1) with the *--profile* option.
     any events (like sched_switch), unless they are specifically specified
     on the command line (i.e. -p function -e sched_switch -e sched_wakeup)
 
+*-G*::
+    Set interrupt (soft and hard) events as global (associated to CPU
+    instead of tasks).
+
 *-o* 'file'::
     Write the output of the profile to 'file'. This supersedes *--stderr*
 

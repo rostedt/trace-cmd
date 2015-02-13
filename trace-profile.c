@@ -1159,7 +1159,8 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 	return 0;
 }
 
-void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
+void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
+			int global)
 {
 	struct pevent *pevent = tracecmd_get_pevent(handle);
 	struct event_format **events;
@@ -1305,7 +1306,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 	}
 
 	if (irq_entry && irq_exit)
-		mate_events(h, irq_entry, NULL, "irq", irq_exit, "irq", 0, 0);
+		mate_events(h, irq_entry, NULL, "irq", irq_exit, "irq", 0, global);
 
 	if (softirq_entry)
 		softirq_entry->print_func = softirq_print;
@@ -1317,10 +1318,12 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook)
 		softirq_raise->print_func = softirq_print;
 
 	if (softirq_entry && softirq_exit)
-		mate_events(h, softirq_entry, NULL, "vec", softirq_exit, "vec", 0, 0);
+		mate_events(h, softirq_entry, NULL, "vec", softirq_exit, "vec",
+			    0, global);
 
 	if (softirq_entry && softirq_raise)
-		mate_events(h, softirq_raise, NULL, "vec", softirq_entry, "vec", 0, 0);
+		mate_events(h, softirq_raise, NULL, "vec", softirq_entry, "vec",
+			    0, global);
 
 	if (fgraph_entry && fgraph_exit) {
 		mate_events(h, fgraph_entry, NULL, "func", fgraph_exit, "func", 1, 0);

@@ -2492,7 +2492,7 @@ static void finish_network(void)
 	free(host);
 }
 
-static void start_threads(enum trace_type type)
+static void start_threads(enum trace_type type, int global)
 {
 	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 	struct buffer_instance *instance;
@@ -2518,7 +2518,8 @@ static void start_threads(enum trace_type type)
 					die("pipe");
 				pids[i].stream = trace_stream_init(instance, x,
 								   brass[0], cpu_count,
-								   profile, hooks);
+								   profile, hooks,
+								   global);
 				if (!pids[i].stream)
 					die("Creating stream for %d", i);
 			} else
@@ -3730,6 +3731,7 @@ void trace_record (int argc, char **argv)
 	int extract = 0;
 	int stream = 0;
 	int profile = 0;
+	int global = 0;
 	int start = 0;
 	int run_command = 0;
 	int neg_event = 0;
@@ -3876,7 +3878,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
 		else
-			opts = "+hae:f:Fp:cC:dDo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:";
+			opts = "+hae:f:Fp:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -3931,6 +3933,9 @@ void trace_record (int argc, char **argv)
 
 		case 'F':
 			filter_task = 1;
+			break;
+		case 'G':
+			global = 1;
 			break;
 		case 'P':
 			pids = strdup(optarg);
@@ -4207,7 +4212,7 @@ void trace_record (int argc, char **argv)
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, finish);
 		if (!latency)
-			start_threads(type);
+			start_threads(type, global);
 	}
 
 	if (extract) {

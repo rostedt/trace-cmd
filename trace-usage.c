@@ -125,6 +125,7 @@ static struct usage_help usage_help[] = {
 		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-R][-E]\\\n"
 		"           [-r events][-n events][-F filter][-v][-V][-T][-O option]\n"
 		"           [-H [start_system:]start_event,start_match[,pid]/[end_system:]end_event,end_match[,flags]\n"
+		"           [-G]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
 		"          -f show function list\n"
@@ -147,6 +148,7 @@ static struct usage_help usage_help[] = {
 		"          --stat - show the buffer stats that were reported at the end of the record.\n"
 		"          --uname - show uname of the record, if it was saved\n"
 		"          --profile report stats on where tasks are blocked and such\n"
+		"          -G when profiling, set soft and hard irqs as global\n"
 		"          -H Allows users to hook two events together for timings\n"
 		"             (used with --profile)\n"
 
@@ -160,7 +162,7 @@ static struct usage_help usage_help[] = {
 	{
 		"profile",
 		"Start profiling and read the output directly",
-		" %s profile [-e event][-p plugin][-d][-O option ][-P pid][-S][-o output]\n"
+		" %s profile [-e event][-p plugin][-d][-O option ][-P pid][-G][-S][-o output]\n"
 		"    [-H [start_system:]start_event,start_match[,pid]/[end_system:]end_event,end_match[,flags]\n\n"
 		"          Uses same options as record --profile.\n"
 		"          -H Allows users to hook two events together for timings\n"

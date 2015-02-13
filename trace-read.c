@@ -1007,7 +1007,8 @@ enum output_type {
 	OUTPUT_UNAME_ONLY,
 };
 
-static void read_data_info(struct list_head *handle_list, enum output_type otype)
+static void read_data_info(struct list_head *handle_list, enum output_type otype,
+			   int global)
 {
 	struct handle_list *handles;
 	struct handle_list *last_handle;
@@ -1064,7 +1065,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		init_wakeup(handles->handle);
 		if (last_hook)
 			last_hook->next = tracecmd_hooks(handles->handle);
-		trace_init_profile(handles->handle, hooks);
+		trace_init_profile(handles->handle, hooks, global);
 
 		process_filters(handles);
 
@@ -1310,6 +1311,7 @@ void trace_report (int argc, char **argv)
 	int test_filters = 0;
 	int nanosec = 0;
 	int no_date = 0;
+	int global = 0;
 	int raw = 0;
 	int neg = 0;
 	int ret = 0;
@@ -1348,7 +1350,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:H:fepRr:tPNn:LlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hi:H:feGpRr:tPNn:LlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1400,6 +1402,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'E':
 			show_events = 1;
+			break;
+		case 'G':
+			global = 1;
 			break;
 		case 'R':
 			raw = 1;
@@ -1589,7 +1594,7 @@ void trace_report (int argc, char **argv)
 	/* yeah yeah, uname overrides stat */
 	if (show_uname)
 		otype = OUTPUT_UNAME_ONLY;
-	read_data_info(&handle_list, otype);
+	read_data_info(&handle_list, otype, global);
 
 	list_for_each_entry(handles, &handle_list, list) {
 		tracecmd_close(handles->handle);
