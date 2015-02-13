@@ -1136,8 +1136,13 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 		add_task_comm(task, h->wakeup_comm, record);
 
 	/* if the task isn't sleeping, then ignore the wake up */
-	if (!task->sleeping)
+	if (!task->sleeping) {
+		/* Ignore any following stack traces */
+		proxy->proxy = NULL;
+		proxy->last_start = NULL;
+		proxy->last_event = NULL;
 		return 0;
+	}
 
 	/* It's being woken up */
 	task->sleeping = 0;
