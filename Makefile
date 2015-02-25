@@ -334,6 +334,7 @@ PLUGIN_OBJS += plugin_xen.o
 PLUGIN_OBJS += plugin_scsi.o
 PLUGIN_OBJS += plugin_cfg80211.o
 PLUGIN_OBJS += plugin_blk.o
+PLUGIN_OBJS += plugin_tlb.o
 
 PLUGINS := $(PLUGIN_OBJS:.o=.so)
 
