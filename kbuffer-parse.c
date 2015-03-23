@@ -37,7 +37,7 @@ enum {
 };
 
 #define ENDIAN_MASK (KBUFFER_FL_HOST_BIG_ENDIAN | KBUFFER_FL_BIG_ENDIAN)
-	
+
 /** kbuffer
  * @timestamp		- timestamp of current event
  * @lost_events		- # of lost events between this subbuffer and previous
@@ -604,7 +604,7 @@ unsigned long long kbuffer_timestamp(struct kbuffer *kbuf)
  * Returns the data of the record that is at @offset. Note, @offset does
  * not need to be the start of the record, the offset just needs to be
  * in the record (or beginning of it).
- * 
+ *
  * Note, the kbuf timestamp and pointers are updated to the
  * returned record. That is, kbuffer_read_event() will return the same
  * data and timestamp, and kbuffer_next_event() will increment from
