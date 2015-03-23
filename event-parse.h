@@ -132,7 +132,7 @@ struct pevent_plugin_option {
  * PEVENT_PLUGIN_UNLOADER:  (optional)
  *   The function called just before unloading
  *
- *   int PEVENT_PLUGIN_UNLOADER(void)
+ *   int PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
  *
  * PEVENT_PLUGIN_OPTIONS:  (optional)
  *   Plugin options that can be set before loading
