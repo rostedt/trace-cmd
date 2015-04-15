@@ -3435,10 +3435,10 @@ static void add_overrun(int cpu, struct trace_seq *src, struct trace_seq *dst)
 	trace_seq_printf(dst, "CPU %d:", cpu);
 
 	if (overrun)
-		trace_seq_printf(dst, " %d bytes lost", overrun);
+		trace_seq_printf(dst, " %d events lost", overrun);
 
 	if (commit_overrun)
-		trace_seq_printf(dst, " %d bytes lost due to commit overrun",
+		trace_seq_printf(dst, " %d events lost due to commit overrun",
 				 commit_overrun);
 
 	trace_seq_putc(dst, '\n');
