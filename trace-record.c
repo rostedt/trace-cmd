@@ -525,17 +525,20 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 
 static void flush_threads(void)
 {
+	struct buffer_instance *instance;
 	long ret;
 	int i;
 
 	if (!cpu_count)
 		return;
 
-	for (i = 0; i < cpu_count; i++) {
-		/* Extract doesn't support sub buffers yet */
-		ret = create_recorder(&top_instance, i, TRACE_TYPE_EXTRACT, NULL);
-		if (ret < 0)
-			die("error reading ring buffer");
+	for_all_instances(instance) {
+		for (i = 0; i < cpu_count; i++) {
+			/* Extract doesn't support sub buffers yet */
+			ret = create_recorder(instance, i, TRACE_TYPE_EXTRACT, NULL);
+			if (ret < 0)
+				die("error reading ring buffer");
+		}
 	}
 }
 
@@ -3875,7 +3878,7 @@ void trace_record (int argc, char **argv)
 		};
 
 		if (extract)
-			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:ksiT";
+			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
 			opts = "+hae:f:Fp:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
@@ -4063,7 +4066,10 @@ void trace_record (int argc, char **argv)
 			instance->cpumask = optarg;
 			break;
 		case 't':
-			use_tcp = 1;
+			if (extract)
+				topt = 1; /* Extract top instance also */
+			else
+				use_tcp = 1;
 			break;
 		case 'b':
 			instance->buffer_size = atoi(optarg);
