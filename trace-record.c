@@ -175,7 +175,7 @@ static struct reset_file *reset_triggers;
 
 struct buffer_instance top_instance = { .keep = 1 };
 struct buffer_instance *buffer_instances;
-struct buffer_instance *first_instance = &top_instance;
+struct buffer_instance *first_instance;
 
 static struct tracecmd_recorder *recorder;
 
@@ -283,6 +283,8 @@ void add_instance(struct buffer_instance *instance)
 {
 	init_instance(instance);
 	instance->next = buffer_instances;
+	if (first_instance == buffer_instances)
+		first_instance = instance;
 	buffer_instances = instance;
 	buffers++;
 }
@@ -3702,6 +3704,14 @@ static void add_hook(struct buffer_instance *instance, const char *arg)
 	}
 }
 
+static void update_first_instance(int topt)
+{
+	if (topt)
+		first_instance = &top_instance;
+	else
+		first_instance = buffer_instances;
+}
+
 enum {
 	OPT_stderr	= 251,
 	OPT_profile	= 252,
@@ -3737,6 +3747,7 @@ void trace_record (int argc, char **argv)
 	int neg_event = 0;
 	int date = 0;
 	int manual = 0;
+	int topt = 0;
 
 	int c;
 
@@ -3756,7 +3767,6 @@ void trace_record (int argc, char **argv)
 		events = 1;
 
 	} else if (strcmp(argv[1], "stop") == 0) {
-		int topt = 0;
 		for (;;) {
 			int c;
 
@@ -3770,25 +3780,21 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				instance = create_instance(optarg);
 				add_instance(instance);
-				/* top instance requires direct access */
-				if (!topt && is_top_instance(first_instance))
-					first_instance = instance;
 				break;
 			case 't':
 				/* Force to use top instance */
 				topt = 1;
 				instance = &top_instance;
-				first_instance = instance;
 				break;
 			default:
 				usage(argv);
 			}
 
 		}
+		update_first_instance(topt);
 		disable_tracing();
 		exit(0);
 	} else if (strcmp(argv[1], "restart") == 0) {
-		int topt = 0;
 		for (;;) {
 			int c;
 
@@ -3802,25 +3808,21 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				instance = create_instance(optarg);
 				add_instance(instance);
-				/* top instance requires direct access */
-				if (!topt && is_top_instance(first_instance))
-					first_instance = instance;
 				break;
 			case 't':
 				/* Force to use top instance */
 				topt = 1;
 				instance = &top_instance;
-				first_instance = instance;
 				break;
 			default:
 				usage(argv);
 			}
 
 		}
+		update_first_instance(topt);
 		enable_tracing();
 		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
-		int topt = 0;
 
 		while ((c = getopt(argc-1, argv+1, "b:B:td")) >= 0) {
 			switch (c) {
@@ -3835,15 +3837,11 @@ void trace_record (int argc, char **argv)
 				add_instance(instance);
 				/* -d will remove keep */
 				instance->keep = 1;
-				/* top instance requires direct access */
-				if (!topt && is_top_instance(first_instance))
-					first_instance = instance;
 				break;
 			case 't':
 				/* Force to use top instance */
 				topt = 1;
 				instance = &top_instance;
-				first_instance = instance;
 				break;
 			case 'd':
 				if (is_top_instance(instance))
@@ -3852,6 +3850,7 @@ void trace_record (int argc, char **argv)
 				break;
 			}
 		}
+		update_first_instance(topt);
 		disable_all(1);
 		set_buffer_size();
 		clear_filters();
@@ -4135,7 +4134,10 @@ void trace_record (int argc, char **argv)
 		if (!buffer_instances)
 			die("No instances reference??");
 		first_instance = buffer_instances;
-	}
+	} else
+		topt = 1;
+
+	update_first_instance(topt);
 
 	if (!extract)
 		check_doing_something();
