@@ -296,15 +296,88 @@ void add_instance(struct buffer_instance *instance)
  * Returns a newly allocated instance. Note that @name will not be
  * copied, and the instance buffer will point to the string itself.
  */
-struct buffer_instance *create_instance(char *name)
+struct buffer_instance *create_instance(const char *name)
 {
 	struct buffer_instance *instance;
 
 	instance = malloc_or_die(sizeof(*instance));
 	memset(instance, 0, sizeof(*instance));
-	instance->name = optarg;
+	instance->name = name;
 
 	return instance;
+}
+
+static int __add_all_instances(const char *tracing_dir)
+{
+	struct dirent *dent;
+	char *instances_dir;
+	struct stat st;
+	DIR *dir;
+	int ret;
+
+	if (!tracing_dir)
+		return -1;
+
+	instances_dir = append_file(tracing_dir, "instances");
+	if (!instances_dir)
+		return -1;
+
+	ret = stat(instances_dir, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode)) {
+		ret = -1;
+		goto out_free;
+	}
+
+	dir = opendir(instances_dir);
+	if (!dir) {
+		ret = -1;
+		goto out_free;
+	}
+
+	while ((dent = readdir(dir))) {
+		const char *name = strdup(dent->d_name);
+		char *instance_path;
+		struct buffer_instance *instance;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		instance_path = append_file(instances_dir, name);
+		ret = stat(instance_path, &st);
+		if (ret < 0 || !S_ISDIR(st.st_mode)) {
+			free(instance_path);
+			continue;
+		}
+		free(instance_path);
+
+		instance = create_instance(name);
+		add_instance(instance);
+	}
+
+	closedir(dir);
+	ret = 0;
+
+ out_free:
+	free(instances_dir);
+	return ret;
+}
+
+/**
+ * add_all_instances - Add all pre-existing instances to the internal list
+ * @tracing_dir: The top-level tracing directory
+ *
+ * Returns whether the operation succeeded
+ */
+void add_all_instances(void)
+{
+	char *tracing_dir = tracecmd_find_tracing_dir();
+	if (!tracing_dir)
+		die("malloc");
+
+	__add_all_instances(tracing_dir);
+
+	tracecmd_put_tracing_file(tracing_dir);
 }
 
 /**
@@ -3889,7 +3962,9 @@ void trace_record (int argc, char **argv)
 			usage(argv);
 			break;
 		case 'a':
-			if (!extract) {
+			if (extract) {
+				add_all_instances();
+			} else {
 				record_all = 1;
 				record_all_events();
 			}

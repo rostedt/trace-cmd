@@ -52,6 +52,22 @@ OPTIONS
     does cause the extract routine to disable all tracing. That is,
     the end of the extract will perform something similar to trace-cmd-reset(1).
 
+*-B* 'buffer-name'::
+    If the kernel supports multiple buffers, this will extract the trace for
+    only the given buffer. It does not affect any other buffer. This may be
+    used multiple times to specify different buffers. When this option is
+    used, the top level instance will not be extracted unless *-t* is given.
+
+*-a*::
+    Extract all existing buffer instances. When this option is used, the
+    top level instance will not be extracted unless *-t* is given.
+
+*-t*::
+    Extracts the top level instance buffer. Without the *-B* or *-a* option
+    this is the same as the default. But if *-B* or *-a* is used, this is
+    required if the top level instance buffer should also be extracted.
+
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

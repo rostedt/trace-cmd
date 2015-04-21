@@ -176,7 +176,7 @@ extern struct buffer_instance *first_instance;
 #define for_all_instances(i) for (i = first_instance; i; \
 				  i = i == &top_instance ? buffer_instances : (i)->next)
 
-struct buffer_instance *create_instance(char *name);
+struct buffer_instance *create_instance(const char *name);
 void add_instance(struct buffer_instance *instance);
 char *get_instance_file(struct buffer_instance *instance, const char *file);
 void update_first_instance(struct buffer_instance *instance, int topt);
