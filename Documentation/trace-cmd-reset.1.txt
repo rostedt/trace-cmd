@@ -22,6 +22,9 @@ the data in the ring buffer, and the options that were used are all lost.
 
 OPTIONS
 -------
+Please note that the order that options are specified on the command line is
+significant. See EXAMPLES.
+
 *-b* 'buffer_size'::
     When the kernel boots, the Ftrace ring buffer is of a minimal size (3
     pages per CPU). The first time the tracer is used, the ring buffer size
@@ -32,6 +35,17 @@ OPTIONS
 
     trace-cmd reset -b 1
 
+    The buffer instance affected is the one (or ones) specified by the most
+    recently preceding *-B*, *-t*, or *-a* option:
+
+    When used after *-B*, resizes the buffer instance that precedes it on
+    the command line.
+
+    When used after *-a*, resizes all buffer instances except the top one.
+
+    When used after *-t* or before any *-B* or *-a*, resizes the top
+    instance.
+
 *-B* 'buffer-name'::
     If the kernel supports multiple buffers, this will reset the trace for
     only the given buffer. It does not affect any other buffer. This may be
@@ -39,15 +53,46 @@ OPTIONS
     will not be reset if this option is given (unless the *-t* option is
     also supplied).
 
+*-a*::
+    Reset the trace for all existing buffer instances. When this option
+    is used, the top level instance will not be reset unless *-t* is given.
+
 *-d*::
-    Delete the previously specified buffer instance that was specified by
-    the *-B* option. It is invalid to use with *-t* as the top level instance
-    can not be deleted.
+    This option deletes the instance buffer(s) specified by the most recently
+    preceding *-B* or *-a* option. Because the top-level instance buffer
+    cannot be deleted, it is invalid to use this immediatly following *-t* or
+    prior to any *-B* or *-a* option on the command line.
 
 *-t*::
-    Resets the top level instance buffer. Without the *-B* option this is the
-    same as the default. But if *-B* is used, this is required if the top
-    level instance buffer should also be reset.
+    Resets the top level instance buffer. Without the *-B* or *-a* option
+    this is the same as the default. But if *-B* or *-a* is used, this is
+    required if the top level instance buffer should also be reset.
+
+EXAMPLES
+--------
+
+Reset tracing for instance-one and set its per-cpu buffer size to 4096kb.
+Also deletes instance-two. The top level instance and any other instances
+remain unaffected:
+
+    trace-cmd reset -B instance-one -b 4096 -B instance-two -d
+
+Delete all instance buffers. Top level instance remains unaffected:
+
+    trace-cmd reset -a -d
+
+Delete all instance buffers and also reset the top instance:
+
+    trace-cmd reset -t -a -d
+
+Invalid. This command implies an attempt to delete the top instance:
+
+    trace-cmd reset -a -t -d
+
+Reset the top instance and set its per-cpu buffer size to 1024kb. If any
+instance buffers exist, they will be unaffected:
+
+    trace-cmd reset -b 1024
 
 
 SEE ALSO

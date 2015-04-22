@@ -72,20 +72,22 @@ static struct usage_help usage_help[] = {
 	{
 		"stop",
 		"stop the kernel from recording trace data",
-		" %s stop [-B buf [-B buf]..] [-t]\n"
+		" %s stop [-B buf [-B buf]..] [-a] [-t]\n"
 		"          Stops the tracer from recording more data.\n"
 		"          Used in conjunction with start\n"
-		"          -B stop a given buffer (more than one may be specified)\n "
-		"          -t stop the top level buffer (needed if -B is specified)\n"
+		"          -B stop a given buffer (more than one may be specified)\n"
+		"          -a stop all buffers (except top one)\n"
+		"          -t stop the top level buffer (useful with -B or -a)\n"
 	},
 	{
 		"restart",
 		"restart the kernel trace data recording",
-		" %s restart [-B buf [-B buf]..] [-t]\n"
+		" %s restart [-B buf [-B buf]..] [-a] [-t]\n"
 		"          Restarts recording after a trace-cmd stop.\n"
 		"          Used in conjunction with stop\n"
-		"          -B restart a given buffer (more than one may be specified)\n "
-		"          -t restart the top level buffer (needed if -B is specified)\n"
+		"          -B restart a given buffer (more than one may be specified)\n"
+		"          -a restart all buffers (except top one)\n"
+		"          -t restart the top level buffer (useful with -B or -a)\n"
 	},
 	{
 		"show",
@@ -114,13 +116,14 @@ static struct usage_help usage_help[] = {
 	{
 		"reset",
 		"disable all kernel tracing and clear the trace buffers",
-		" %s reset [-b size][-B buf][-d][-t]\n"
+		" %s reset [-b size][-B buf][-a][-d][-t]\n"
 		"          Disables the tracer (may reset trace file)\n"
 		"          Used in conjunction with start\n"
 		"          -b change the kernel buffer size (in kilobytes per CPU)\n"
-		"          -B reset the given buffer instance (top instance ignored)\n"
 		"          -d delete the previous specified instance\n"
-		"          -t still reset the top instance if -B option is given\n"
+		"          -B reset the given buffer instance (may specify multiple -B)\n"
+		"          -a reset all instances (except top one)\n"
+		"          -t reset the top level instance (useful with -B or -a)\n"
 	},
 	{
 		"report",

@@ -3846,7 +3846,7 @@ void trace_record (int argc, char **argv)
 		for (;;) {
 			int c;
 
-			c = getopt(argc-1, argv+1, "tB:");
+			c = getopt(argc-1, argv+1, "hatB:");
 			if (c == -1)
 				break;
 			switch (c) {
@@ -3856,6 +3856,9 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				instance = create_instance(optarg);
 				add_instance(instance);
+				break;
+			case 'a':
+				add_all_instances();
 				break;
 			case 't':
 				/* Force to use top instance */
@@ -3874,7 +3877,7 @@ void trace_record (int argc, char **argv)
 		for (;;) {
 			int c;
 
-			c = getopt(argc-1, argv+1, "tB:");
+			c = getopt(argc-1, argv+1, "hatB:");
 			if (c == -1)
 				break;
 			switch (c) {
@@ -3884,6 +3887,9 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				instance = create_instance(optarg);
 				add_instance(instance);
+				break;
+			case 'a':
+				add_all_instances();
 				break;
 			case 't':
 				/* Force to use top instance */
@@ -3899,16 +3905,33 @@ void trace_record (int argc, char **argv)
 		enable_tracing();
 		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
+		/* if last arg is -a, then -b and -d apply to all instances */
+		int last_specified_all = 0;
+		struct buffer_instance *inst; /* iterator */
 
-		while ((c = getopt(argc-1, argv+1, "b:B:td")) >= 0) {
+		while ((c = getopt(argc-1, argv+1, "hab:B:td")) >= 0) {
+
 			switch (c) {
-			case 'b':
-				instance->buffer_size = atoi(optarg);
-				/* Min buffer size is 1 */
-				if (strcmp(optarg, "0") == 0)
-					instance->buffer_size = 1;
+			case 'h':
+				usage(argv);
 				break;
+			case 'b':
+			{
+				int size = atoi(optarg);
+				/* Min buffer size is 1 */
+				if (size <= 1)
+					size = 1;
+				if (last_specified_all) {
+					for_each_instance(inst) {
+						inst->buffer_size = size;
+					}
+				} else {
+					instance->buffer_size = size;
+				}
+				break;
+			}
 			case 'B':
+				last_specified_all = 0;
 				instance = create_instance(optarg);
 				add_instance(instance);
 				/* -d will remove keep */
@@ -3916,13 +3939,27 @@ void trace_record (int argc, char **argv)
 				break;
 			case 't':
 				/* Force to use top instance */
+				last_specified_all = 0;
 				topt = 1;
 				instance = &top_instance;
 				break;
+			case 'a':
+				last_specified_all = 1;
+				add_all_instances();
+				for_each_instance(instance) {
+					instance->keep = 1;
+				}
+				break;
 			case 'd':
-				if (is_top_instance(instance))
-					die("Can not delete top level buffer");
-				instance->keep = 0;
+				if (last_specified_all) {
+					for_each_instance(inst) {
+						inst->keep = 0;
+					}
+				} else {
+					if (is_top_instance(instance))
+						die("Can not delete top level buffer");
+					instance->keep = 0;
+				}
 				break;
 			}
 		}

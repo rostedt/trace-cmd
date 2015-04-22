@@ -30,12 +30,17 @@ OPTIONS
 *-B* 'buffer-name'::
     If the kernel supports multiple buffers, this will stop the trace for
     only the given buffer. It does not affect any other buffer. This may be
-    used multiple times to specify different buffers.
+    used multiple times to specify different buffers. When this option is
+    used, the top level instance will not be stopped unless *-t* is given.
+
+*-a*::
+    Stop the trace for all existing buffer instances. When this option
+    is used, the top level instance will not be stopped unless *-t* is given.
 
 *-t*::
-    Stops the top level instance buffer. Without the *-B* option this is the
-    same as the default. But if *-B* is used, this is required if the top
-    level instance buffer should also be stopped.
+    Stops the top level instance buffer. Without the *-B* or *-a* option this
+    is the same as the default. But if *-B* or *-a* is used, this is
+    required if the top level instance buffer should also be stopped.
 
 SEE ALSO
 --------
