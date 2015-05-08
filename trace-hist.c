@@ -954,13 +954,6 @@ static void do_trace_hist(struct tracecmd_input *handle)
 	int cpu;
 	int ret;
 
-	ret = tracecmd_init_data(handle);
-	if (ret < 0)
-		die("failed to init data");
-
-	if (ret > 0)
-		die("trace-cmd hist does not work with latency traces\n");
-
 	cpus = tracecmd_cpus(handle);
 
 	/* Need to get any event */
@@ -1025,6 +1018,7 @@ void trace_hist(int argc, char **argv)
 {
 	struct tracecmd_input *handle;
 	const char *input_file = NULL;
+	int instances;
 	int ret;
 
 	for (;;) {
@@ -1067,7 +1061,30 @@ void trace_hist(int argc, char **argv)
 	if (ret)
 		return;
 
-	do_trace_hist(handle);
+	ret = tracecmd_init_data(handle);
+	if (ret < 0)
+		die("failed to init data");
+
+	if (ret > 0)
+		die("trace-cmd hist does not work with latency traces\n");
+
+	instances = tracecmd_buffer_instances(handle);
+	if (instances) {
+		struct tracecmd_input *new_handle;
+		int i;
+
+		for (i = 0; i < instances; i++) {
+			new_handle = tracecmd_buffer_instance_handle(handle, i);
+			if (!new_handle) {
+				warning("could not retrieve handle %d", i);
+				continue;
+			}
+			do_trace_hist(new_handle);
+			tracecmd_close(new_handle);
+		}
+	} else {
+		do_trace_hist(handle);
+	}
 
 	tracecmd_close(handle);
 }
