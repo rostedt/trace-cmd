@@ -122,6 +122,11 @@ void tracecmd_clear_flag(struct tracecmd_input *handle, int flag)
 	handle->flags &= ~flag;
 }
 
+unsigned long tracecmd_get_flags(struct tracecmd_input *handle)
+{
+	return handle->flags;
+}
+
 #if DEBUG_RECORD
 static void remove_record(struct page *page, struct pevent_record *record)
 {
@@ -2036,8 +2041,10 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	/*
 	 * Check if this is a latency report or not.
 	 */
-	if (strncmp(buf, "latency", 7) == 0)
+	if (strncmp(buf, "latency", 7) == 0) {
+		handle->flags |= TRACECMD_FL_LATENCY;
 		return 1;
+	}
 
 	/* We expect this to be flyrecord */
 	if (strncmp(buf, "flyrecord", 9) != 0)
@@ -2457,6 +2464,7 @@ struct tracecmd_input *tracecmd_alloc(const char *file)
 struct tracecmd_input *tracecmd_open_fd(int fd)
 {
 	struct tracecmd_input *handle;
+	int ret;
 
 	handle = tracecmd_alloc_fd(fd);
 	if (!handle)
@@ -2465,7 +2473,7 @@ struct tracecmd_input *tracecmd_open_fd(int fd)
 	if (tracecmd_read_headers(handle) < 0)
 		goto fail;
 
-	if (tracecmd_init_data(handle) < 0)
+	if ((ret = tracecmd_init_data(handle)) < 0)
 		goto fail;
 
 	return handle;
