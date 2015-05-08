@@ -1883,6 +1883,10 @@ static int compare_events(const void *a, const void *b)
 		return 1;
 	if (event_data_a->id < event_data_b->id)
 		return -1;
+	if ((*A)->time_total > (*B)->time_total)
+		return -1;
+	if ((*A)->time_total < (*B)->time_total)
+		return 1;
 	return 0;
 }
 
