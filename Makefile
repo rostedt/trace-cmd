@@ -160,7 +160,7 @@ bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 python_dir_SQ = $(subst ','\'',$(python_dir))
 
-LIBS = -L. -ltracecmd -ldl
+LIBS = -L. -ltracecmd -ldl -laudit
 LIB_FILE = libtracecmd.a
 
 PACKAGES= gtk+-2.0 libxml-2.0 gthread-2.0

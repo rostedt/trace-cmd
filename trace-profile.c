@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libaudit.h>
 
 #include "trace-local.h"
 #include "trace-hash.h"
@@ -845,8 +846,20 @@ static void func_print(struct trace_seq *s, struct event_hash *event_hash)
 		trace_seq_printf(s, "func: 0x%llx", event_hash->val);
 }
 
-static void print_int(struct trace_seq *s, struct event_hash *event_hash)
+static void syscall_print(struct trace_seq *s, struct event_hash *event_hash)
 {
+	const char *name = NULL;
+	int machine;
+
+	machine = audit_detect_machine();
+	if (machine < 0)
+		goto fail;
+	name = audit_syscall_to_name(event_hash->val, machine);
+	if (!name)
+		goto fail;
+	trace_seq_printf(s, "syscall:%s", name);
+	return;
+fail:
 	trace_seq_printf(s, "%s:%d", event_hash->event_data->event->name,
 			 (int)event_hash->val);
 }
@@ -1339,8 +1352,8 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 
 	if (syscall_enter && syscall_exit) {
 		mate_events(h, syscall_enter, NULL, "id", syscall_exit, "id", 1, 0);
-		syscall_enter->print_func = print_int;
-		syscall_exit->print_func = print_int;
+		syscall_enter->print_func = syscall_print;
+		syscall_exit->print_func = syscall_print;
 	}
 
 	events = pevent_list_events(pevent, EVENT_SORT_ID);
