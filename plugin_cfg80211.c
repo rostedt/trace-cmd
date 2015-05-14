@@ -4,9 +4,21 @@
 #include <endian.h>
 #include "event-parse.h"
 
+/*
+ * From glibc endian.h, for older systems where it is not present, e.g.: RHEL5,
+ * Fedora6.
+ */
+#ifndef le16toh
+# if __BYTE_ORDER == __LITTLE_ENDIAN
+#  define le16toh(x) (x)
+# else
+#  define le16toh(x) __bswap_16 (x)
+# endif
+#endif
+
+
 static unsigned long long
-process___le16_to_cpup(struct trace_seq *s,
-		       unsigned long long *args)
+process___le16_to_cpup(struct trace_seq *s, unsigned long long *args)
 {
 	uint16_t *val = (uint16_t *) (unsigned long) args[0];
 	return val ? (long long) le16toh(*val) : 0;
