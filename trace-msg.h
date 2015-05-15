@@ -5,6 +5,7 @@
 
 #define UDP_MAX_PACKET	(65536 - 20)
 #define V2_MAGIC	"677768\0"
+#define V2_CPU		"-1V2"
 
 #define V1_PROTOCOL	1
 #define V2_PROTOCOL	2

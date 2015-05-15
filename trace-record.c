@@ -2699,6 +2699,7 @@ static void communicate_with_listener_v2(int fd)
 static void check_protocol_version(int fd)
 {
 	char buf[BUFSIZ];
+	int n;
 
 	check_first_msg_from_server(fd);
 
@@ -2714,19 +2715,28 @@ static void check_protocol_version(int fd)
 	 * So, we add the dummy number (the magic number and 0 option) to the
 	 * first client message.
 	 */
-	write(fd, "V2\0"V2_MAGIC"0", sizeof(V2_MAGIC)+4);
+	write(fd, V2_CPU, sizeof(V2_CPU));
 
 	/* read a reply message */
-	read(fd, buf, BUFSIZ);
+	n = read(fd, buf, BUFSIZ);
 
-	if (!buf[0]) {
+	if (n < 0 || !buf[0]) {
 		/* the server uses the v1 protocol, so we'll use it */
 		proto_ver = V1_PROTOCOL;
 		plog("Use the v1 protocol\n");
 	} else {
-		if (memcmp(buf, "V2", 2) != 0)
+		if (memcmp(buf, "V2", n) != 0)
 			die("Cannot handle the protocol %s", buf);
 		/* OK, let's use v2 protocol */
+		write(fd, V2_MAGIC, sizeof(V2_MAGIC));
+
+		n = read(fd, buf, BUFSIZ - 1);
+		if (n != 2 || memcmp(buf, "OK", 2) != 0) {
+			if (n < 0)
+				n  = 0;
+			buf[n] = 0;
+			die("Cannot handle the protocol %s", buf);
+		}
 	}
 }
 

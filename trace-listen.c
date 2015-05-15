@@ -317,15 +317,18 @@ static int open_udp(const char *node, const char *port, int *pid,
 
 static int communicate_with_client(int fd, int *cpus, int *pagesize)
 {
+	char *last_proto = NULL;
 	char buf[BUFSIZ];
 	char *option;
 	int options;
 	int size;
 	int n, s, t, i;
+	int ret = -EINVAL;
 
 	/* Let the client know what we are */
 	write(fd, "tracecmd", 8);
 
+ try_again:
 	/* read back the CPU count */
 	n = read_string(fd, buf, BUFSIZ);
 	if (n == BUFSIZ)
@@ -335,41 +338,66 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 	*cpus = atoi(buf);
 
 	/* Is the client using the new protocol? */
-	if (!*cpus) {
-		if (memcmp(buf, "V2", 2) != 0) {
-			plog("Cannot handle the protocol %s", buf);
-			return -EINVAL;
+	if (*cpus == -1) {
+		if (memcmp(buf, V2_CPU, n) != 0) {
+			/* If it did not send a version, then bail */
+			if (memcmp(buf, "-1V", 3)) {
+				plog("Unknown string %s\n", buf);
+				goto out;
+			}
+			/* Skip "-1" */
+			plog("Cannot handle the protocol %s\n", buf+2);
+
+			/* If it returned the same command as last time, bail! */
+			if (last_proto && strncmp(last_proto, buf, n) == 0) {
+				plog("Repeat of version %s sent\n", last_proto);
+				goto out;
+			}
+			free(last_proto);
+			last_proto = malloc(n + 1);
+			if (last_proto) {
+				memcpy(last_proto, buf, n);
+				last_proto[n] = 0;
+			}
+			/* Return the highest protocol we can use */
+			write(fd, "V2", 3);
+			goto try_again;
 		}
 
-		/* read the rest of dummy data, but not use */
-		read(fd, buf, sizeof(V2_MAGIC)+1);
+		/* Let the client know we use v2 protocol */
+		write(fd, "V2", 3);
+
+		/* read the rest of dummy data */
+		n = read(fd, buf, sizeof(V2_MAGIC));
+		if (memcmp(buf, V2_MAGIC, n) != 0)
+			goto out;
+
+		/* We're off! */
+		write(fd, "OK", 2);
 
 		proto_ver = V2_PROTOCOL;
 
-		/* Let the client know we use v2 protocol */
-		write(fd, "V2", 2);
-
 		/* read the CPU count, the page size, and options */
 		if (tracecmd_msg_initial_setting(fd, cpus, pagesize) < 0)
-			return -EINVAL;
+			goto out;
 	} else {
 		/* The client is using the v1 protocol */
 
 		plog("cpus=%d\n", *cpus);
 		if (*cpus < 0)
-			return -EINVAL;
+			goto out;
 
 		/* next read the page size */
 		n = read_string(fd, buf, BUFSIZ);
 		if (n == BUFSIZ)
 			/** ERROR **/
-			return -EINVAL;
+			goto out;
 
 		*pagesize = atoi(buf);
 
 		plog("pagesize=%d\n", *pagesize);
 		if (*pagesize <= 0)
-			return -EINVAL;
+			goto out;
 
 		/* Now the number of options */
 		n = read_string(fd, buf, BUFSIZ);
@@ -384,20 +412,24 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 			n = read_string(fd, buf, BUFSIZ);
 			if (n == BUFSIZ)
 				/** ERROR **/
-				return -EINVAL;
+				goto out;
 			size = atoi(buf);
 			/* prevent a client from killing us */
 			if (size > MAX_OPTION_SIZE)
-				return -EINVAL;
+				goto out;
+
+			ret = -ENOMEM;
 			option = malloc(size);
 			if (!option)
-				return -ENOMEM;
+				goto out;
+
+			ret = -EIO;
 			do {
 				t = size;
 				s = 0;
 				s = read(fd, option+s, t);
 				if (s <= 0)
-					return -EIO;
+					goto out;
 				t -= s;
 				s = size - t;
 			} while (t);
@@ -405,15 +437,20 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 			s = process_option(option);
 			free(option);
 			/* do we understand this option? */
+			ret = -EINVAL;
 			if (!s)
-				return -EINVAL;
+				goto out;
 		}
 	}
 
 	if (use_tcp)
 		plog("Using TCP for live connection\n");
 
-	return 0;
+	ret = 0;
+ out:
+	free(last_proto);
+
+	return ret;
 }
 
 static int create_client_file(const char *node, const char *port)
