@@ -23,10 +23,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef NO_AUDIT
 #include <libaudit.h>
-
+#endif
 #include "trace-local.h"
 #include "trace-hash.h"
+
+#ifdef WARN_NO_AUDIT
+# warning "lib audit not found, using raw syscalls "	\
+	"(install libaudit-devel and try again)"
+#endif
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtXZxKWP"
 #define TASK_STATE_MAX		1024
@@ -848,6 +854,7 @@ static void func_print(struct trace_seq *s, struct event_hash *event_hash)
 
 static void syscall_print(struct trace_seq *s, struct event_hash *event_hash)
 {
+#ifndef NO_AUDIT
 	const char *name = NULL;
 	int machine;
 
@@ -860,6 +867,7 @@ static void syscall_print(struct trace_seq *s, struct event_hash *event_hash)
 	trace_seq_printf(s, "syscall:%s", name);
 	return;
 fail:
+#endif
 	trace_seq_printf(s, "%s:%d", event_hash->event_data->event->name,
 			 (int)event_hash->val);
 }

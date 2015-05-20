@@ -160,7 +160,7 @@ bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 python_dir_SQ = $(subst ','\'',$(python_dir))
 
-LIBS = -L. -ltracecmd -ldl -laudit
+LIBS = -L. -ltracecmd -ldl
 LIB_FILE = libtracecmd.a
 
 PACKAGES= gtk+-2.0 libxml-2.0 gthread-2.0
@@ -231,12 +231,25 @@ override CFLAGS += -D_GNU_SOURCE
 ifndef NO_PTRACE
 ifneq ($(call try-cc,$(SOURCE_PTRACE),),y)
 	NO_PTRACE = 1
-	CFLAGS += -DWARN_NO_PTRACE
+	override CFLAGS += -DWARN_NO_PTRACE
 endif
 endif
 
 ifdef NO_PTRACE
-CFLAGS += -DNO_PTRACE
+override CFLAGS += -DNO_PTRACE
+endif
+
+ifndef NO_AUDIT
+ifneq ($(call try-cc,$(SOURCE_AUDIT),-laudit),y)
+	NO_AUDIT = 1
+	override CFLAGS += -DWARN_NO_AUDIT
+endif
+endif
+
+ifdef NO_AUDIT
+override CFLAGS += -DNO_AUDIT
+else
+LIBS += -laudit
 endif
 
 # Append required CFLAGS

@@ -34,3 +34,21 @@ int main (void)
 	return ret;
 }
 endef
+
+define SOURCE_AUDIT
+#include <stdio.h>
+#include <libaudit.h>
+
+int main (void)
+{
+	char *name;
+	int ret;
+	ret = audit_detect_machine();
+	if (ret < 0)
+		return ret;
+	name = audit_syscall_to_name(1, ret);
+	if (!name)
+		return -1;
+	return ret;
+}
+endef
