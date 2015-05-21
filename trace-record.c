@@ -3789,6 +3789,7 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 }
 
 enum {
+	OPT_bycomm	= 250,
 	OPT_stderr	= 251,
 	OPT_profile	= 252,
 	OPT_nosplice	= 253,
@@ -3983,6 +3984,7 @@ void trace_record (int argc, char **argv)
 			{"nosplice", no_argument, NULL, OPT_nosplice},
 			{"profile", no_argument, NULL, OPT_profile},
 			{"stderr", no_argument, NULL, OPT_stderr},
+			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -4218,6 +4220,9 @@ void trace_record (int argc, char **argv)
 			save_stdout = dup(1);
 			close(1);
 			dup2(2, 1);
+			break;
+		case OPT_bycomm:
+			trace_profile_set_merge_like_comms();
 			break;
 		default:
 			usage(argv);

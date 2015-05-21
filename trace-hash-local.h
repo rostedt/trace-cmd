@@ -48,4 +48,13 @@ static inline unsigned int trace_hash(int val)
 	return hash;
 }
 
+static inline unsigned int trace_hash_str(char *str)
+{
+	int val = 0;
+	int i;
+
+	for (i = 0; str[i]; i++)
+		val += ((int)str[i]) << (i & 0xf);
+	return trace_hash(val);
+}
 #endif /* _TRACE_HASH_LOCAL_H */

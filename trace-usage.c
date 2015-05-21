@@ -48,6 +48,7 @@ static struct usage_help usage_help[] = {
 		"          -B create sub buffer and folling events will be enabled here\n"
 		"          -k do not reset the buffers after tracing.\n"
 		"          -i do not fail if an event is not found\n"
+		"          --by-comm used with --profile, merge events for related comms\n"
 		"          --profile enable tracing options needed for report --profile\n"
 		"          --func-stack perform a stack trace for function tracer\n"
 		"             (use with caution)\n"
@@ -157,7 +158,7 @@ static struct usage_help usage_help[] = {
 		"          -G when profiling, set soft and hard irqs as global\n"
 		"          -H Allows users to hook two events together for timings\n"
 		"             (used with --profile)\n"
-
+		"          --by-comm used with --profile, merge events for related comms\n"
 	},
 	{
 		"stream",

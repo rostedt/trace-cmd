@@ -81,6 +81,7 @@ int trace_profile_record(struct tracecmd_input *handle,
 void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hooks,
 			int global);
 int trace_profile(void);
+void trace_profile_set_merge_like_comms(void);
 
 struct tracecmd_input *
 trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,

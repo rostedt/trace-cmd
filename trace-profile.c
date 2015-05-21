@@ -41,6 +41,7 @@
 #define start_from_item(item)	container_of(item, struct start_data, hash)
 #define event_from_item(item)	container_of(item, struct event_hash, hash)
 #define stack_from_item(item)	container_of(item, struct stack_data, hash)
+#define group_from_item(item)	container_of(item, struct group_data, hash)
 #define event_data_from_item(item)	container_of(item, struct event_data, hash)
 
 static unsigned long long nsecs_per_sec(unsigned long long ts)
@@ -148,6 +149,12 @@ struct event_hash {
 	struct trace_hash	stacks;
 };
 
+struct group_data {
+	struct trace_hash_item	hash;
+	char			*comm;
+	struct trace_hash	event_hash;
+};
+
 struct task_data {
 	struct trace_hash_item	hash;
 	int			pid;
@@ -163,6 +170,7 @@ struct task_data {
 	struct event_hash	*last_event;
 	struct pevent_record	*last_stack;
 	struct handle_data	*handle;
+	struct group_data	*group;
 };
 
 struct cpu_info {
@@ -180,6 +188,7 @@ struct handle_data {
 	struct pevent		*pevent;
 
 	struct trace_hash	events;
+	struct trace_hash	group_hash;
 
 	struct cpu_info		**cpu_data;
 
@@ -203,6 +212,12 @@ struct handle_data {
 
 static struct handle_data *handles;
 static struct event_data *stacktrace_event;
+static bool merge_like_comms = false;
+
+void trace_profile_set_merge_like_comms(void)
+{
+	merge_like_comms = true;
+}
 
 static struct start_data *
 add_start(struct task_data *task,
@@ -502,6 +517,14 @@ find_task(struct handle_data *h, int pid)
 
 	return last_task;
 }
+
+static int match_group(struct trace_hash_item *item, void *data)
+{
+	struct group_data *group = group_from_item(item);
+
+	return strcmp(group->comm, (char *)data) == 0;
+}
+
 
 static void
 add_task_comm(struct task_data *task, struct format_field *field,
@@ -1217,6 +1240,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 
 	trace_hash_init(&h->task_hash, 1024);
 	trace_hash_init(&h->events, 1024);
+	trace_hash_init(&h->group_hash, 512);
 
 	h->handle = handle;
 	h->pevent = pevent;
@@ -1899,6 +1923,9 @@ static void output_task(struct handle_data *h, struct task_data *task)
 	int nr_events = 0;
 	int i;
 
+	if (task->group)
+		return;
+
 	if (task->comm)
 		comm = task->comm;
 	else
@@ -1932,6 +1959,39 @@ static void output_task(struct handle_data *h, struct task_data *task)
 	free(events);
 }
 
+static void output_group(struct handle_data *h, struct group_data *group)
+{
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
+	struct event_hash **events;
+	int nr_events = 0;
+	int i;
+
+	printf("\ngroup: %s\n", group->comm);
+
+	trace_hash_for_each_bucket(bucket, &group->event_hash) {
+		trace_hash_for_each_item(item, bucket) {
+			nr_events++;
+		}
+	}
+
+	events = malloc_or_die(sizeof(*events) * nr_events);
+
+	i = 0;
+	trace_hash_for_each_bucket(bucket, &group->event_hash) {
+		trace_hash_for_each_item(item, bucket) {
+			events[i++] = event_from_item(item);
+		}
+	}
+
+	qsort(events, nr_events, sizeof(*events), compare_events);
+
+	for (i = 0; i < nr_events; i++)
+		output_event(events[i]);
+
+	free(events);
+}
+
 static int compare_tasks(const void *a, const void *b)
 {
 	struct task_data * const *A = a;
@@ -1942,6 +2002,14 @@ static int compare_tasks(const void *a, const void *b)
 	else if ((*A)->pid < (*B)->pid)
 		return -1;
 	return 0;
+}
+
+static int compare_groups(const void *a, const void *b)
+{
+	const char *A = a;
+	const char *B = b;
+
+	return strcmp(A, B);
 }
 
 static void free_event_hash(struct event_hash *event_hash)
@@ -2001,6 +2069,25 @@ static void free_task(struct task_data *task)
 	free(task);
 }
 
+static void free_group(struct group_data *group)
+{
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
+	struct event_hash *event_hash;
+
+	free(group->comm);
+
+	trace_hash_for_each_bucket(bucket, &group->event_hash) {
+		trace_hash_while_item(item, bucket) {
+			event_hash = event_from_item(item);
+			trace_hash_del(item);
+			free_event_hash(event_hash);
+		}
+	}
+	trace_hash_free(&group->event_hash);
+	free(group);
+}
+
 static void show_global_task(struct handle_data *h,
 			     struct task_data *task)
 {
@@ -2010,17 +2097,13 @@ static void show_global_task(struct handle_data *h,
 	output_task(h, task);
 }
 
-static void output_handle(struct handle_data *h)
+static void output_tasks(struct handle_data *h)
 {
 	struct trace_hash_item **bucket;
 	struct trace_hash_item *item;
 	struct task_data **tasks;
 	int nr_tasks = 0;
 	int i;
-
-	show_global_task(h, h->global_task);
-	for (i = 0; i < h->cpus; i++)
-		show_global_task(h, &h->global_percpu_tasks[i]);
 
 	trace_hash_for_each_bucket(bucket, &h->task_hash) {
 		trace_hash_for_each_item(item, bucket) {
@@ -2049,11 +2132,220 @@ static void output_handle(struct handle_data *h)
 	free(tasks);
 }
 
+static void output_groups(struct handle_data *h)
+{
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
+	struct group_data **groups;
+	int nr_groups = 0;
+	int i;
+
+	trace_hash_for_each_bucket(bucket, &h->group_hash) {
+		trace_hash_for_each_item(item, bucket) {
+			nr_groups++;
+		}
+	}
+
+	if (nr_groups == 0)
+		return;
+
+	groups = malloc_or_die(sizeof(*groups) * nr_groups);
+
+	nr_groups = 0;
+
+	trace_hash_for_each_bucket(bucket, &h->group_hash) {
+		trace_hash_while_item(item, bucket) {
+			groups[nr_groups++] = group_from_item(item);
+			trace_hash_del(item);
+		}
+	}
+
+	qsort(groups, nr_groups, sizeof(*groups), compare_groups);
+
+	for (i = 0; i < nr_groups; i++) {
+		output_group(h, groups[i]);
+		free_group(groups[i]);
+	}
+
+	free(groups);
+}
+
+static void output_handle(struct handle_data *h)
+{
+	int i;
+
+	show_global_task(h, h->global_task);
+	for (i = 0; i < h->cpus; i++)
+		show_global_task(h, &h->global_percpu_tasks[i]);
+
+	output_groups(h);
+	output_tasks(h);
+}
+
+static void merge_event_stack(struct event_hash *event,
+			      struct stack_data *stack)
+{
+	struct stack_data *exist;
+	struct trace_hash_item *item;
+	struct stack_match match;
+
+	match.caller = stack->caller;
+	match.size = stack->size;
+	item = trace_hash_find(&event->stacks, stack->hash.key, match_stack,
+			       &match);
+	if (!item) {
+		trace_hash_add(&event->stacks, &stack->hash);
+		return;
+	}
+	exist = stack_from_item(item);
+	exist->count += stack->count;
+	exist->time += stack->time;
+
+	if (exist->time_max < stack->time_max) {
+		exist->time_max = stack->time_max;
+		exist->ts_max = stack->ts_max;
+	}
+	if (exist->time_min > stack->time_min) {
+		exist->time_min = stack->time_min;
+		exist->ts_min = stack->ts_min;
+	}
+	free(stack);
+}
+
+static void merge_stacks(struct event_hash *exist, struct event_hash *event)
+{
+	struct stack_data *stack;
+	struct trace_hash_item *item;
+	struct trace_hash_item **bucket;
+
+	trace_hash_for_each_bucket(bucket, &event->stacks) {
+		trace_hash_while_item(item, bucket) {
+			stack = stack_from_item(item);
+			trace_hash_del(&stack->hash);
+			merge_event_stack(exist, stack);
+		}
+	}
+}
+
+/*
+ * We use the pid in some of the fields in the event data which isn't helpful
+ * when we're trying to merge things, so just pay attention to the event_data
+ * field.
+ */
+static int match_event_for_merge(struct trace_hash_item *item, void *data)
+{
+	struct event_data_match *edata = data;
+	struct event_hash *event = event_from_item(item);
+
+	return event->event_data == edata->event_data;
+}
+
+static void merge_event_into_group(struct group_data *group,
+				   struct event_hash *event)
+{
+	struct event_hash *exist;
+	struct trace_hash_item *item;
+	struct event_data_match edata;
+	trace_hash_func match;
+	unsigned long long key;
+
+	if (event->event_data->type == EVENT_TYPE_WAKEUP) {
+		edata.event_data = event->event_data;
+		match = match_event_for_merge;
+		key = trace_hash((unsigned long)event->event_data);
+	} else {
+		edata.event_data = event->event_data;
+		edata.search_val = event->search_val;
+		edata.val = event->val;
+		key = event->hash.key;
+		match = match_event;
+	}
+
+	item = trace_hash_find(&group->event_hash, key, match, &edata);
+	if (!item) {
+		event->hash.key = key;
+		trace_hash_add(&group->event_hash, &event->hash);
+		return;
+	}
+
+	exist = event_from_item(item);
+	exist->count += event->count;
+	exist->time_total += event->time_total;
+
+	if (exist->time_max < event->time_max) {
+		exist->time_max = event->time_max;
+		exist->ts_max = event->ts_max;
+	}
+	if (exist->time_min > event->time_min) {
+		exist->time_min = event->time_min;
+		exist->ts_min = event->ts_min;
+	}
+
+	merge_stacks(exist, event);
+	free_event_hash(event);
+}
+
+static void add_group(struct handle_data *h, struct task_data *task)
+{
+	unsigned long long key;
+	struct trace_hash_item *item;
+	struct group_data *grp;
+	struct trace_hash_item **bucket;
+	void *data = task->comm;
+
+	if (!task->comm)
+		return;
+
+	key = trace_hash_str(task->comm);
+
+	item = trace_hash_find(&h->group_hash, key, match_group, data);
+	if (item) {
+		grp = group_from_item(item);
+	} else {
+		grp = malloc_or_die(sizeof(*grp));
+		memset(grp, 0, sizeof(*grp));
+
+		grp->comm = strdup(task->comm);
+		if (!grp->comm)
+			die("strdup");
+		grp->hash.key = key;
+		trace_hash_add(&h->group_hash, &grp->hash);
+		trace_hash_init(&grp->event_hash, 32);
+	}
+	task->group = grp;
+
+	trace_hash_for_each_bucket(bucket, &task->event_hash) {
+		trace_hash_while_item(item, bucket) {
+			struct event_hash *event_hash;
+
+			event_hash = event_from_item(item);
+			trace_hash_del(&event_hash->hash);
+			merge_event_into_group(grp, event_hash);
+		}
+	}
+}
+
+static void merge_tasks(struct handle_data *h)
+{
+	struct trace_hash_item **bucket;
+	struct trace_hash_item *item;
+
+	if (!merge_like_comms)
+		return;
+
+	trace_hash_for_each_bucket(bucket, &h->task_hash) {
+		trace_hash_for_each_item(item, bucket)
+			add_group(h, task_from_item(item));
+	}
+}
+
 int trace_profile(void)
 {
 	struct handle_data *h;
 
 	for (h = handles; h; h = h->next) {
+		if (merge_like_comms)
+			merge_tasks(h);
 		output_handle(h);
 		trace_hash_free(&h->task_hash);
 	}

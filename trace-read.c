@@ -1321,6 +1321,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_bycomm	= 242,
 	OPT_debug	= 243,
 	OPT_uname	= 244,
 	OPT_profile	= 245,
@@ -1397,6 +1398,7 @@ void trace_report (int argc, char **argv)
 			{"debug", no_argument, NULL, OPT_debug},
 			{"profile", no_argument, NULL, OPT_profile},
 			{"uname", no_argument, NULL, OPT_uname},
+			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1529,6 +1531,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_uname:
 			show_uname = 1;
+			break;
+		case OPT_bycomm:
+			trace_profile_set_merge_like_comms();
 			break;
 		default:
 			usage(argv);
