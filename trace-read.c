@@ -103,6 +103,7 @@ static int stacktrace_id;
 static int profile;
 
 static int buffer_breaks = 0;
+static int debug = 0;
 
 static struct format_field *wakeup_task;
 static struct format_field *wakeup_success;
@@ -760,13 +761,22 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 				 cpu, record->missed_events);
 	else if (record->missed_events < 0)
 		trace_seq_printf(&s, "CPU:%d [EVENTS DROPPED]\n", cpu);
-	if (buffer_breaks && tracecmd_record_at_buffer_start(handle, record))
-		trace_seq_printf(&s, "CPU:%d [SUBBUFFER START]\n", cpu);
-
+	if (buffer_breaks || debug) {
+		if (tracecmd_record_at_buffer_start(handle, record)) {
+			trace_seq_printf(&s, "CPU:%d [SUBBUFFER START]", cpu);
+			if (debug)
+				trace_seq_printf(&s, " [%lld]",
+						 tracecmd_page_ts(handle, record));
+			trace_seq_putc(&s, '\n');
+		}
+	}
 	use_trace_clock = tracecmd_get_use_trace_clock(handle);
 	pevent_print_event(pevent, &s, record, use_trace_clock);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
+	if (debug)
+		trace_seq_printf(&s, " [%d]",
+				 tracecmd_record_ts_delta(handle, record));
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 
@@ -1274,6 +1284,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_debug	= 243,
 	OPT_uname	= 244,
 	OPT_profile	= 245,
 	OPT_event	= 246,
@@ -1346,6 +1357,7 @@ void trace_report (int argc, char **argv)
 			{"nodate", no_argument, NULL, OPT_nodate},
 			{"stat", no_argument, NULL, OPT_stat},
 			{"boundary", no_argument, NULL, OPT_boundary},
+			{"debug", no_argument, NULL, OPT_debug},
 			{"profile", no_argument, NULL, OPT_profile},
 			{"uname", no_argument, NULL, OPT_uname},
 			{"help", no_argument, NULL, '?'},
@@ -1470,6 +1482,10 @@ void trace_report (int argc, char **argv)
 		case OPT_boundary:
 			/* Debug to look at buffer breaks */
 			buffer_breaks = 1;
+			break;
+		case OPT_debug:
+			buffer_breaks = 1;
+			debug = 1;
 			break;
 		case OPT_profile:
 			profile = 1;

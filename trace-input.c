@@ -2820,6 +2820,33 @@ int tracecmd_record_at_buffer_start(struct tracecmd_input *handle,
 	return offset == kbuffer_start_of_data(kbuf);
 }
 
+unsigned long long tracecmd_page_ts(struct tracecmd_input *handle,
+				    struct pevent_record *record)
+{
+	struct page *page = record->priv;
+	struct kbuffer *kbuf = handle->cpu_data[record->cpu].kbuf;
+
+	if (!page || !kbuf)
+		return 0;
+
+	return kbuffer_subbuf_timestamp(kbuf, page->map);
+}
+
+unsigned int tracecmd_record_ts_delta(struct tracecmd_input *handle,
+				      struct pevent_record *record)
+{
+	struct kbuffer *kbuf = handle->cpu_data[record->cpu].kbuf;
+	struct page *page = record->priv;
+	int offset;
+
+	if (!page || !kbuf)
+		return 0;
+
+	offset = record->offset - page->offset;
+
+	return kbuffer_ptr_delta(kbuf, page->map + offset);
+}
+
 int tracecmd_buffer_instances(struct tracecmd_input *handle)
 {
 	return handle->nr_buffers;
