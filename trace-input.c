@@ -2847,6 +2847,34 @@ unsigned int tracecmd_record_ts_delta(struct tracecmd_input *handle,
 	return kbuffer_ptr_delta(kbuf, page->map + offset);
 }
 
+struct kbuffer *tracecmd_record_kbuf(struct tracecmd_input *handle,
+				     struct pevent_record *record)
+{
+	return handle->cpu_data[record->cpu].kbuf;
+}
+
+void *tracecmd_record_page(struct tracecmd_input *handle,
+			   struct pevent_record *record)
+{
+	struct page *page = record->priv;
+
+	return page ? page->map : NULL;
+}
+
+void *tracecmd_record_offset(struct tracecmd_input *handle,
+			     struct pevent_record *record)
+{
+	struct page *page = record->priv;
+	int offset;
+
+	if (!page)
+		return NULL;
+
+	offset = record->offset - page->offset;
+
+	return page->map + offset;
+}
+
 int tracecmd_buffer_instances(struct tracecmd_input *handle)
 {
 	return handle->nr_buffers;

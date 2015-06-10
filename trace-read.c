@@ -37,6 +37,7 @@
 
 #include "trace-local.h"
 #include "trace-hash.h"
+#include "kbuffer.h"
 #include "list.h"
 
 static struct filter_str {
@@ -774,9 +775,45 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 	pevent_print_event(pevent, &s, record, use_trace_clock);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
-	if (debug)
+	if (debug) {
+		struct kbuffer *kbuf;
+		struct kbuffer_raw_info info;
+		void *page;
+		void *offset;
+
 		trace_seq_printf(&s, " [%d]",
 				 tracecmd_record_ts_delta(handle, record));
+		kbuf = tracecmd_record_kbuf(handle, record);
+		page = tracecmd_record_page(handle, record);
+		offset = tracecmd_record_offset(handle, record);
+
+		if (kbuf && page && offset) {
+			struct kbuffer_raw_info *pi = &info;
+
+			/* We need to get the record raw data to get next */
+			pi->next = offset;
+			pi = kbuffer_raw_get(kbuf, page, pi);
+			while ((pi = kbuffer_raw_get(kbuf, page, pi))) {
+				if (pi->type < KBUFFER_TYPE_PADDING)
+					break;
+				switch (pi->type) {
+				case KBUFFER_TYPE_PADDING:
+					trace_seq_printf(&s, "\n PADDING: ");
+					break;
+				case KBUFFER_TYPE_TIME_EXTEND:
+					trace_seq_printf(&s, "\n TIME EXTEND: ");
+					break;
+				case KBUFFER_TYPE_TIME_STAMP:
+					trace_seq_printf(&s, "\n TIME STAMP?: ");
+					break;
+				}
+				trace_seq_printf(&s, "delta:%lld length:%d",
+						 pi->delta,
+						 pi->length);
+			}
+		}
+	}
+		
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 
