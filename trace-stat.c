@@ -865,6 +865,12 @@ static void report_traceon(struct buffer_instance *instance)
 
 static void stat_instance(struct buffer_instance *instance)
 {
+	if (instance != &top_instance) {
+		if (instance != first_instance)
+			printf("---------------\n");
+		printf("Instance: %s\n", instance->name);
+	}
+
 	report_plugin(instance);
 	report_events(instance);
 	report_event_filters(instance);
