@@ -905,12 +905,13 @@ void trace_stat (int argc, char **argv)
 			/* Force to use top instance */
 			topt = 1;
 			instance = &top_instance;
-			first_instance = instance;
 			break;
 		default:
 			usage(argv);
 		}
 	}
+
+	update_first_instance(instance, topt);
 
 	for_all_instances(instance) {
 		stat_instance(instance);
