@@ -147,11 +147,19 @@ static void print_graph_overhead(struct trace_seq *s,
 	if (duration == ~0ULL)
 		return (void)trace_seq_printf(s, "  ");
 
-	/* Duration exceeded 100 msecs */
+	/* Duration exceeded 1 sec */
+	if (duration > 1000000000ULL)
+		return (void)trace_seq_printf(s, "$ ");
+
+	/* Duration exceeded 1000 usecs */
+	if (duration > 1000000ULL)
+		return (void)trace_seq_printf(s, "# ");
+
+	/* Duration exceeded 100 usecs */
 	if (duration > 100000ULL)
 		return (void)trace_seq_printf(s, "! ");
 
-	/* Duration exceeded 10 msecs */
+	/* Duration exceeded 10 usecs */
 	if (duration > 10000ULL)
 		return (void)trace_seq_printf(s, "+ ");
 
