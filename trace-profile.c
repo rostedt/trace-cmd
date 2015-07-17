@@ -2227,41 +2227,34 @@ static void merge_stacks(struct event_hash *exist, struct event_hash *event)
 	}
 }
 
-/*
- * We use the pid in some of the fields in the event data which isn't helpful
- * when we're trying to merge things, so just pay attention to the event_data
- * field.
- */
-static int match_event_for_merge(struct trace_hash_item *item, void *data)
-{
-	struct event_data_match *edata = data;
-	struct event_hash *event = event_from_item(item);
-
-	return event->event_data == edata->event_data;
-}
-
 static void merge_event_into_group(struct group_data *group,
 				   struct event_hash *event)
 {
 	struct event_hash *exist;
 	struct trace_hash_item *item;
 	struct event_data_match edata;
-	trace_hash_func match;
 	unsigned long long key;
 
 	if (event->event_data->type == EVENT_TYPE_WAKEUP) {
 		edata.event_data = event->event_data;
-		match = match_event_for_merge;
+		event->search_val = 0;
+		event->val = 0;
 		key = trace_hash((unsigned long)event->event_data);
-	} else {
+	} else if (event->event_data->type == EVENT_TYPE_SCHED_SWITCH) {
 		edata.event_data = event->event_data;
-		edata.search_val = event->search_val;
-		edata.val = event->val;
+		event->search_val = event->val;
+		key = (unsigned long)event->event_data +
+			((unsigned long)event->val * 2);
+		key = trace_hash(key);
+	} else {
 		key = event->hash.key;
-		match = match_event;
 	}
 
-	item = trace_hash_find(&group->event_hash, key, match, &edata);
+	edata.event_data = event->event_data;
+	edata.search_val = event->search_val;
+	edata.val = event->val;
+
+	item = trace_hash_find(&group->event_hash, key, match_event, &edata);
 	if (!item) {
 		event->hash.key = key;
 		trace_hash_add(&group->event_hash, &event->hash);
