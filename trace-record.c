@@ -4131,7 +4131,7 @@ void trace_record (int argc, char **argv)
 	const char *output = NULL;
 	const char *option;
 	struct event_list *event = NULL;
-	struct event_list *last_event;
+	struct event_list *last_event = NULL;
 	struct buffer_instance *instance = &top_instance;
 	enum trace_type type = 0;
 	char *pids;
