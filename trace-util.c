@@ -434,8 +434,12 @@ void parse_proc_kallsyms(struct pevent *pevent,
 		if (mod)
 			mod[strlen(mod) - 1] = 0;
 
-		/* Hack for arm arch that adds a lot of bogus '$a' functions */
-		if (func[0] != '$')
+		/*
+		 * Hacks for
+		 *  - arm arch that adds a lot of bogus '$a' functions
+		 *  - x86-64 that reports per-cpu variable offsets as absolute
+		 */
+		if (func[0] != '$' && ch != 'A')
 			pevent_register_function(pevent, func, addr, mod);
 		free(func);
 		free(mod);
