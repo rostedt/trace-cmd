@@ -154,16 +154,24 @@ static int tracecmd_msg_alloc(u32 cmd, u32 len, struct tracecmd_msg **msg)
 	return 0;
 }
 
-static void msgcpy(struct tracecmd_msg *msg, u32 offset,
+static int msgcpy(struct tracecmd_msg *msg, u32 offset,
 		   const void *buf, u32 buflen)
 {
+	if (offset + buflen > ntohl(msg->size))
+		return -EINVAL;
+
 	memcpy(((void *)msg)+offset, buf, buflen);
+	return 0;
 }
 
-static void optcpy(struct tracecmd_msg_opt *opt, u32 offset,
+static int optcpy(struct tracecmd_msg_opt *opt, u32 offset,
 		   const void *buf, u32 buflen)
 {
+	if (offset + buflen > ntohl(opt->size))
+		return -EINVAL;
+
 	memcpy(((void *)opt)+offset, buf, buflen);
+	return 0;
 }
 
 enum msg_opt_command {
