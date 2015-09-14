@@ -154,9 +154,16 @@ static int tracecmd_msg_alloc(u32 cmd, u32 len, struct tracecmd_msg **msg)
 	return 0;
 }
 
-static void bufcpy(void *dest, u32 offset, const void *buf, u32 buflen)
+static void msgcpy(struct tracecmd_msg *msg, u32 offset,
+		   const void *buf, u32 buflen)
 {
-	memcpy(dest+offset, buf, buflen);
+	memcpy(((void *)msg)+offset, buf, buflen);
+}
+
+static void optcpy(struct tracecmd_msg_opt *opt, u32 offset,
+		   const void *buf, u32 buflen)
+{
+	memcpy(((void *)opt)+offset, buf, buflen);
 }
 
 enum msg_opt_command {
@@ -184,10 +191,10 @@ static int add_option_to_tinit(u32 cmd, const char *buf,
 	opt->str.size = htonl(buflen);
 
 	if (buf)
-		bufcpy(opt, TRACECMD_OPT_MIN_LEN, buf, buflen);
+		optcpy(opt, TRACECMD_OPT_MIN_LEN, buf, buflen);
 
 	/* add option to msg */
-	bufcpy(msg, offset, opt, ntohl(opt->size));
+	msgcpy(msg, offset, opt, ntohl(opt->size));
 
 	free(opt);
 	return len;
@@ -240,7 +247,7 @@ static int make_rinit(struct tracecmd_msg *msg)
 		/* + rrqports->cpus or rrqports->port_array[i] */
 		offset += sizeof(be32);
 		port = htonl(port_array[i]);
-		bufcpy(msg, offset, &port, sizeof(be32) * cpu_count);
+		msgcpy(msg, offset, &port, sizeof(be32) * cpu_count);
 	}
 
 	return 0;
@@ -590,7 +597,7 @@ static void make_meta(const char *buf, int buflen, struct tracecmd_msg *msg)
 	int offset = offsetof(struct tracecmd_msg, data.meta.str.buf);
 
 	msg->data.meta.str.size = htonl(buflen);
-	bufcpy(msg, offset, buf, buflen);
+	msgcpy(msg, offset, buf, buflen);
 }
 
 int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
