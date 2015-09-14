@@ -411,6 +411,15 @@ error:
 }
 
 #define MSG_WAIT_MSEC	5000
+static int msg_wait_to = MSG_WAIT_MSEC;
+
+void tracecmd_msg_set_debug(int debug)
+{
+	if (debug)
+		msg_wait_to = -1;
+	else
+		msg_wait_to = MSG_WAIT_MSEC;
+}
 
 /*
  * A return value of 0 indicates time-out
@@ -422,7 +431,7 @@ static int tracecmd_msg_recv_wait(int fd, struct tracecmd_msg *msg)
 
 	pfd.fd = fd;
 	pfd.events = POLLIN;
-	ret = poll(&pfd, 1, MSG_WAIT_MSEC);
+	ret = poll(&pfd, 1, msg_wait_to);
 	if (ret < 0)
 		return -errno;
 	else if (ret == 0)

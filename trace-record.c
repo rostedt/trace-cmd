@@ -4103,6 +4103,7 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 }
 
 enum {
+	OPT_debug	= 247,
 	OPT_tsoffset	= 249,
 	OPT_bycomm	= 250,
 	OPT_stderr	= 251,
@@ -4142,6 +4143,7 @@ void trace_record (int argc, char **argv)
 	int topt = 0;
 	int do_child = 0;
 	int data_flags = 0;
+	int debug = 0;
 
 	int c;
 
@@ -4309,6 +4311,7 @@ void trace_record (int argc, char **argv)
 			{"stderr", no_argument, NULL, OPT_stderr},
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
+			{"debug", no_argument, NULL, OPT_debug},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -4571,6 +4574,9 @@ void trace_record (int argc, char **argv)
 				die("Can not use both --date and --ts-offset");
 			data_flags |= DATA_FL_OFFSET;
 			break;
+		case OPT_debug:
+			debug = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -4597,6 +4603,10 @@ void trace_record (int argc, char **argv)
 	 */
 	if (profile && !buffer_instances)
 		top_instance.profile = 1;
+
+	/* Let msg protocol know if we are debugging */
+	if (debug)
+		tracecmd_msg_set_debug(debug);
 
 	/*
 	 * If top_instance doesn't have any plugins or events, then
