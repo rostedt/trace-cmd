@@ -5242,8 +5242,8 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		} else {
 			usecs = (nsecs + 500) / NSECS_PER_USEC;
 			/* To avoid usecs larger than 1 sec */
-			if (usecs >= 1000000) {
-				usecs -= 1000000;
+			if (usecs >= USECS_PER_SEC) {
+				usecs -= USECS_PER_SEC;
 				secs--;
 			}
 			p = 6;
