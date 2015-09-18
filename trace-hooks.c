@@ -37,12 +37,16 @@ struct hook_list *tracecmd_create_event_hook(const char *arg)
 	int ch;
 	int i;
 
-	hook = malloc_or_die(sizeof(*hook));
+	hook = malloc(sizeof(*hook));
+	if (!hook)
+		return NULL;
 	memset(hook, 0, sizeof(*hook));
 
 	str = strdup(arg);
-	if (!str)
-		die("malloc");
+	if (!str) {
+		free(hook);
+		return NULL;
+	}
 
 	hook->str = str;
 	hook->hook = arg;
@@ -157,7 +161,7 @@ struct hook_list *tracecmd_create_event_hook(const char *arg)
 	return hook;
 
 invalid_tok:
-	die("Invalid hook format '%s'", arg);
+	warning("Invalid hook format '%s'", arg);
 	return NULL;
 }
 
