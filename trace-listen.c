@@ -37,6 +37,8 @@
 
 #define MAX_OPTION_SIZE 4096
 
+#define VAR_RUN_DIR		"/var/run"
+
 static char *default_output_dir = ".";
 static char *output_dir;
 static char *default_output_file = "trace";
@@ -49,6 +51,8 @@ static int debug;
 static int backlog = 5;
 
 static int proto_ver;
+
+static int do_daemon;
 
 #define  TEMP_FILE_STR "%s.%s:%s.cpu%d", output_file, host, port, cpu
 static char *get_temp_file(const char *host, const char *port, int cpu)
@@ -155,6 +159,24 @@ void plog(const char *fmt, ...)
 	va_end(ap);
 }
 
+static void make_pid_name(int mode, char *buf)
+{
+	snprintf(buf, PATH_MAX, VAR_RUN_DIR "/trace-cmd-net.pid");
+}
+
+static void remove_pid_file(void)
+{
+	char buf[PATH_MAX];
+	int mode = do_daemon;
+
+	if (!do_daemon)
+		return;
+
+	make_pid_name(mode, buf);
+
+	unlink(buf);
+}
+
 void pdie(const char *fmt, ...)
 {
 	va_list ap;
@@ -169,6 +191,9 @@ void pdie(const char *fmt, ...)
 		fprintf(logfp, "\n%s\n", str);
 	else
 		fprintf(stderr, "\n%s\n", str);
+
+	remove_pid_file();
+
 	exit(-1);
 }
 
@@ -802,6 +827,28 @@ static void do_accept_loop(int sfd)
 	} while (!done);
 }
 
+static void make_pid_file(void)
+{
+	char buf[PATH_MAX];
+	int mode = do_daemon;
+	int fd;
+
+	if (!do_daemon)
+		return;
+
+	make_pid_name(mode, buf);
+
+	fd = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd < 0) {
+		perror(buf);
+		return;
+	}
+
+	sprintf(buf, "%d\n", getpid());
+	write(fd, buf, strlen(buf));
+	close(fd);
+}
+
 static void do_listen(char *port)
 {
 	struct addrinfo hints;
@@ -810,6 +857,8 @@ static void do_listen(char *port)
 
 	if (!debug)
 		signal_setup(SIGCHLD, clean_up);
+
+	make_pid_file();
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -843,10 +892,14 @@ static void do_listen(char *port)
 	do_accept_loop(sfd);
 
 	kill_clients();
+
+	remove_pid_file();
 }
 
 static void start_daemon(void)
 {
+	do_daemon = 1;
+
 	if (daemon(1, 0) < 0)
 		die("starting daemon");
 }
