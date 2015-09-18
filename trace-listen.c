@@ -37,7 +37,10 @@
 
 #define MAX_OPTION_SIZE 4096
 
-#define VAR_RUN_DIR		"/var/run"
+#define _VAR_DIR_Q(dir)		#dir
+#define VAR_DIR_Q(dir)		_VAR_DIR_Q(dir)
+
+#define VAR_RUN_DIR		VAR_DIR_Q(VAR_DIR) "/run"
 
 static char *default_output_dir = ".";
 static char *output_dir;

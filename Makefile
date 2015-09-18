@@ -53,9 +53,16 @@ export man_dir man_dir_SQ html_install html_install_SQ INSTALL
 export img_install img_install_SQ
 export DESTDIR DESTDIR_SQ
 
+ifeq ($(prefix),/usr)
+root = /
+else
+root = $(prefix)/
+endif
+
 ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
 python_dir = $(HOME)/.trace-cmd/python
+var_dir = $(HOME)/.trace-cmd/
 else
 plugin_dir = $(prefix)/$(libdir)/trace-cmd/plugins
 python_dir = $(prefix)/$(libdir)/trace-cmd/python
@@ -63,12 +70,19 @@ PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
 PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
+var_dir = $(root)var
 endif
+
+VAR_DIR = -DVAR_DIR="$(var_dir)"
+VAR_DIR_SQ = '$(subst ','\'',$(VAR_DIR))'
+var_dir_SQ = '$(subst ','\'',$(var_dir))'
 
 HELP_DIR = -DHELP_DIR=$(html_install)
 HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
 BASH_COMPLETE_DIR ?= /etc/bash_completion.d
+
+export var_dir
 
 # copy a bit from Linux kbuild
 
@@ -255,7 +269,7 @@ LIBS += -laudit
 endif
 
 # Append required CFLAGS
-override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
+override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 
 ifeq ($(VERBOSE),1)
