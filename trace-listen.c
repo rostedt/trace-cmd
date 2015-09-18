@@ -56,7 +56,9 @@ static char *get_temp_file(const char *host, const char *port, int cpu)
 	int size;
 
 	size = snprintf(file, 0, TEMP_FILE_STR);
-	file = malloc_or_die(size + 1);
+	file = malloc(size + 1);
+	if (!file)
+		return NULL;
 	sprintf(file, TEMP_FILE_STR);
 
 	return file;
@@ -170,8 +172,8 @@ static void pdie(const char *fmt, ...)
 	exit(-1);
 }
 
-static void process_udp_child(int sfd, const char *host, const char *port,
-			      int cpu, int page_size)
+static int process_udp_child(int sfd, const char *host, const char *port,
+			     int cpu, int page_size)
 {
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
@@ -185,6 +187,9 @@ static void process_udp_child(int sfd, const char *host, const char *port,
 	signal_setup(SIGUSR1, finish);
 
 	tempfile = get_temp_file(host, port, cpu);
+	if (!tempfile)
+		return -ENOMEM;
+
 	fd = open(tempfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
 	if (fd < 0)
 		pdie("creating %s", tempfile);
@@ -275,13 +280,18 @@ static int udp_bind_a_port(int start_port, int *sfd)
 static void fork_udp_reader(int sfd, const char *node, const char *port,
 			    int *pid, int cpu, int pagesize)
 {
+	int ret;
+
 	*pid = fork();
 
 	if (*pid < 0)
 		pdie("creating udp reader");
 
-	if (!*pid)
-		process_udp_child(sfd, node, port, cpu, pagesize);
+	if (!*pid) {
+		ret = process_udp_child(sfd, node, port, cpu, pagesize);
+		if (ret < 0)
+			pdie("Problem with udp reader %d", ret);
+	}
 
 	close(sfd);
 }
@@ -320,31 +330,31 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 	n = read_string(fd, buf, BUFSIZ);
 	if (n == BUFSIZ)
 		/** ERROR **/
-		return -1;
+		return -EINVAL;
 
 	*cpus = atoi(buf);
 
 	plog("cpus=%d\n", *cpus);
 	if (*cpus < 0)
-		return -1;
+		return -EINVAL;
 
 	/* next read the page size */
 	n = read_string(fd, buf, BUFSIZ);
 	if (n == BUFSIZ)
 		/** ERROR **/
-		return -1;
+		return -EINVAL;
 
 	*pagesize = atoi(buf);
 
 	plog("pagesize=%d\n", *pagesize);
 	if (*pagesize <= 0)
-		return -1;
+		return -EINVAL;
 
 	/* Now the number of options */
 	n = read_string(fd, buf, BUFSIZ);
 	if (n == BUFSIZ)
 		/** ERROR **/
-		return -1;
+		return -EINVAL;
 
 	options = atoi(buf);
 
@@ -353,18 +363,20 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 		n = read_string(fd, buf, BUFSIZ);
 		if (n == BUFSIZ)
 			/** ERROR **/
-			return -1;
+			return -EINVAL;
 		size = atoi(buf);
 		/* prevent a client from killing us */
 		if (size > MAX_OPTION_SIZE)
-			return -1;
-		option = malloc_or_die(size);
+			return -EINVAL;
+		option = malloc(size);
+		if (!option)
+			return -ENOMEM;
 		do {
 			t = size;
 			s = 0;
 			s = read(fd, option+s, t);
 			if (s <= 0)
-				return -1;
+				return -EIO;
 			t -= s;
 			s = size - t;
 		} while (t);
@@ -373,7 +385,7 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 		free(option);
 		/* do we understand this option? */
 		if (!s)
-			return -1;
+			return -EINVAL;
 	}
 
 	if (use_tcp)
@@ -421,8 +433,16 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 	int cpu;
 	int pid;
 
-	port_array = malloc_or_die(sizeof(int) * cpus);
-	pid_array = malloc_or_die(sizeof(int) * cpus);
+	port_array = malloc(sizeof(int) * cpus);
+	if (!port_array)
+		return NULL;
+
+	pid_array = malloc(sizeof(int) * cpus);
+	if (!pid_array) {
+		free(port_array);
+		return NULL;
+	}
+
 	memset(pid_array, 0, sizeof(int) * cpus);
 
 	start_port = START_PORT_SEARCH;
@@ -495,37 +515,52 @@ static void stop_all_readers(int cpus, int *pid_array)
 	}
 }
 
-static void put_together_file(int cpus, int ofd, const char *node,
+static int put_together_file(int cpus, int ofd, const char *node,
 			      const char *port)
 {
 	char **temp_files;
 	int cpu;
 
 	/* Now put together the file */
-	temp_files = malloc_or_die(sizeof(*temp_files) * cpus);
+	temp_files = malloc(sizeof(*temp_files) * cpus);
+	if (!temp_files)
+		return -ENOMEM;
 
-	for (cpu = 0; cpu < cpus; cpu++)
+	for (cpu = 0; cpu < cpus; cpu++) {
 		temp_files[cpu] = get_temp_file(node, port, cpu);
+		if (!temp_files[cpu])
+			goto fail;
+	}
 
 	tracecmd_attach_cpu_data_fd(ofd, cpus, temp_files);
 	free(temp_files);
+	return 0;
+
+ fail:
+	for (cpu--; cpu >= 0; cpu--) {
+		put_temp_file(temp_files[cpu]);
+	}
+	free(temp_files);
+	return -ENOMEM;
 }
 
-static void process_client(const char *node, const char *port, int fd)
+static int process_client(const char *node, const char *port, int fd)
 {
 	int *pid_array;
 	int pagesize;
 	int cpus;
 	int ofd;
+	int ret;
 
-	if (communicate_with_client(fd, &cpus, &pagesize) < 0)
-		return;
+	ret = communicate_with_client(fd, &cpus, &pagesize);
+	if (ret < 0)
+		return ret;
 
 	ofd = create_client_file(node, port);
 
 	pid_array = create_all_readers(cpus, node, port, pagesize, fd);
 	if (!pid_array)
-		return;
+		return -ENOMEM;
 
 	/* Now we are ready to start reading data from the client */
 	collect_metadata_from_client(fd, ofd);
@@ -539,9 +574,11 @@ static void process_client(const char *node, const char *port, int fd)
 	/* wait a little to have the readers clean up */
 	sleep(1);
 
-	put_together_file(cpus, ofd, node, port);
+	ret = put_together_file(cpus, ofd, node, port);
 
 	destroy_all_readers(cpus, pid_array, node, port);
+
+	return ret;
 }
 
 static int do_fork(int cfd)
@@ -612,7 +649,9 @@ static void add_process(int pid)
 {
 	if (!client_pids) {
 		size_pids = PIDS_BLOCK;
-		client_pids = malloc_or_die(sizeof(*client_pids) * size_pids);
+		client_pids = malloc(sizeof(*client_pids) * size_pids);
+		if (!client_pids)
+			pdie("allocating pids");
 	} else if (!(saved_pids % PIDS_BLOCK)) {
 		size_pids += PIDS_BLOCK;
 		client_pids = realloc(client_pids,
