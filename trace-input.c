@@ -365,8 +365,10 @@ static int regex_event_buf(const char *file, int size, regex_t *epreg)
 	int ret;
 
 	buf = malloc(size + 1);
-	if (!buf)
-		die("malloc");
+	if (!buf) {
+		warning("Insufficient memory");
+		return 0;
+	}
 
 	strncpy(buf, file, size);
 	buf[size] = 0;
@@ -464,7 +466,7 @@ static int make_preg_files(const char *regex, regex_t *system,
 
 	buf = strdup(regex);
 	if (!buf)
-		die("malloc");
+		return -ENOMEM;
 
 	sstr = strtok(buf, ":");
 	estr = strtok(NULL, ":");
@@ -944,9 +946,11 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	}
 
 	kbuffer_load_subbuffer(kbuf, ptr);
-	if (kbuffer_subbuffer_size(kbuf) > handle->page_size)
-		die("bad page read, with size of %d",
+	if (kbuffer_subbuffer_size(kbuf) > handle->page_size) {
+		warning("bad page read, with size of %d",
 		    kbuffer_subbuffer_size(kbuf));
+		return -1;
+	}
 	handle->cpu_data[cpu].timestamp = kbuffer_timestamp(kbuf) + handle->ts_offset;
 
 	return 0;
@@ -1951,7 +1955,9 @@ static int handle_options(struct tracecmd_input *handle)
 		if (do_read_check(handle, &size, 4))
 			return -1;
 		size = __data2host4(handle->pevent, size);
-		buf = malloc_or_die(size);
+		buf = malloc(size);
+		if (!buf)
+			return -ENOMEM;
 		if (do_read_check(handle, buf, size))
 			return -1;
 
@@ -1974,7 +1980,7 @@ static int handle_options(struct tracecmd_input *handle)
 			buf[size-1] = '\n';
 			cpustats = realloc(cpustats, cpustats_size + size + 1);
 			if (!cpustats)
-				die("realloc");
+				return -ENOMEM;
 			memcpy(cpustats + cpustats_size, buf, size);
 			cpustats_size += size;
 			cpustats[cpustats_size] = 0;
@@ -1985,11 +1991,14 @@ static int handle_options(struct tracecmd_input *handle)
 			handle->buffers = realloc(handle->buffers,
 						  sizeof(*handle->buffers) * handle->nr_buffers);
 			if (!handle->buffers)
-				die("realloc");
+				return -ENOMEM;
 			buffer = &handle->buffers[handle->nr_buffers - 1];
 			buffer->name = strdup(buf + 8);
-			if (!buffer->name)
-				die("strdup");
+			if (!buffer->name) {
+				free(handle->buffers);
+				handle->buffers = NULL;
+				return -ENOMEM;
+			}
 			offset = *(unsigned long long *)buf;
 			buffer->offset = __data2host8(handle->pevent, offset);
 			break;
