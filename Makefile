@@ -53,12 +53,6 @@ export man_dir man_dir_SQ html_install html_install_SQ INSTALL
 export img_install img_install_SQ
 export DESTDIR DESTDIR_SQ
 
-ifeq ($(prefix),/usr)
-root = /
-else
-root = $(prefix)/
-endif
-
 ifeq ($(prefix),$(HOME))
 plugin_dir = $(HOME)/.trace-cmd/plugins
 python_dir = $(HOME)/.trace-cmd/python
@@ -70,7 +64,7 @@ PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
 PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
-var_dir = $(root)var
+var_dir = /var
 endif
 
 VAR_DIR = -DVAR_DIR="$(var_dir)"
