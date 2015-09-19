@@ -169,8 +169,10 @@ static unsigned long get_size(const char *file)
 	int fd;
 
 	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		die("Can't read '%s'", file);
+	if (fd < 0) {
+		warning("Can't read '%s'", file);
+		return 0; /* Caller will fail with zero */
+	}
 	size = get_size_fd(fd);
 	close(fd);
 
@@ -202,8 +204,10 @@ static tsize_t copy_file(struct tracecmd_output *handle,
 	int fd;
 
 	fd = open(file, O_RDONLY);
-	if (fd < 0)
-		die("Can't read '%s'", file);
+	if (fd < 0) {
+		warning("Can't read '%s'", file);
+		return 0;
+	}
 	size = copy_file_fd(handle, fd);
 	close(fd);
 
@@ -231,7 +235,7 @@ static char *get_tracing_file(struct tracecmd_output *handle, const char *name)
 	if (!tracing)
 		return NULL;
 
-	file = malloc_or_die(strlen(tracing) + strlen(name) + 2);
+	file = malloc(strlen(tracing) + strlen(name) + 2);
 	if (!file)
 		return NULL;
 
@@ -258,8 +262,10 @@ int tracecmd_ftrace_enable(int set)
 		return ENODEV;
 
 	fd = open(path, O_WRONLY);
-	if (fd < 0)
-		die ("Can't %s ftrace", set ? "enable" : "disable");
+	if (fd < 0) {
+		warning("Can't %s ftrace", set ? "enable" : "disable");
+		return EIO;
+	}
 
 	if (write(fd, val, 1) < 0)
 		ret = -1;
@@ -325,8 +331,10 @@ static int read_header_files(struct tracecmd_output *handle)
 		return -1;
 
 	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		die("can't read '%s'", path);
+	if (fd < 0) {
+		warning("can't read '%s'", path);
+		return -1;
+	}
 
 	size = get_size_fd(fd);
 
@@ -401,8 +409,14 @@ static void add_list_event_system(struct list_event_system **systems,
 			break;
 
 	if (!slist) {
-		slist = malloc_or_die(sizeof(*slist));
+		slist = malloc(sizeof(*slist));
+		if (!slist)
+			goto err_mem;
 		slist->name = strdup(system);
+		if (!slist->name) {
+			free(slist);
+			goto err_mem;
+		}
 		slist->next = *systems;
 		slist->events = NULL;
 		*systems = slist;
@@ -413,12 +427,23 @@ static void add_list_event_system(struct list_event_system **systems,
 			break;
 
 	if (!elist) {
-		elist = malloc_or_die(sizeof(*elist));
+		elist = malloc(sizeof(*elist));
+		if (!elist)
+			goto err_mem;
 		elist->name = strdup(event);
 		elist->file = strdup(path);
+		if (!elist->name || !elist->file) {
+			free(elist->name);
+			free(elist->file);
+			free(elist);
+			goto err_mem;
+		}
 		elist->next = slist->events;
 		slist->events = elist;
 	}
+	return;
+ err_mem:
+	warning("Insufficient memory");
 }
 
 static void free_list_events(struct list_event_system *list)
@@ -463,8 +488,10 @@ static void glob_events(struct tracecmd_output *handle,
 	events_path = get_tracing_file(handle, "events");
 	events_len = strlen(events_path);
 
-	path = malloc_or_die(events_len + strlen(str) +
-			     strlen("/format") + 2);
+	path = malloc(events_len + strlen(str) +
+		      strlen("/format") + 2);
+	if (!path)
+		return;
 	path[0] = '\0';
 	strcat(path, events_path);
 	strcat(path, "/");
@@ -516,7 +543,7 @@ create_event_list_item(struct tracecmd_output *handle,
 
 	str = strdup(list->glob);
 	if (!str)
-		die("strdup - no memory");
+		goto err_mem;
 
 	/* system and event names are separated by a ':' */
 	ptr = strchr(str, ':');
@@ -533,7 +560,9 @@ create_event_list_item(struct tracecmd_output *handle,
 	}
 
 	ptr = str;
-	str = malloc_or_die(strlen(ptr) + 3);
+	str = malloc(strlen(ptr) + 3);
+	if (!str)
+		goto err_mem;
 	str[0] = '\0';
 	strcat(str, ptr);
 	strcat(str, "/*");
@@ -546,6 +575,9 @@ create_event_list_item(struct tracecmd_output *handle,
 
 	free(ptr);
 	free(str);
+	return;
+ err_mem:
+	warning("Insufficient memory");
 }
 
 static int read_ftrace_files(struct tracecmd_output *handle)
@@ -880,12 +912,19 @@ tracecmd_add_option(struct tracecmd_output *handle,
 	handle->nr_options++;
 
 	option = malloc(sizeof(*option));
-	if (!option)
-		die("Could not allocate space for option");
+	if (!option) {
+		warning("Could not allocate space for option");
+		return NULL;
+	}
 
 	option->id = id;
 	option->size = size;
-	option->data = malloc_or_die(size);
+	option->data = malloc(size);
+	if (!option->data) {
+		warning("Insufficient memory");
+		free(option);
+		return NULL;
+	}
 	memcpy(option->data, data, size);
 	list_add_tail(&option->list, &handle->options);
 
@@ -1044,10 +1083,10 @@ static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
 	if (do_write_check(handle, "flyrecord", 10))
 		goto out_free;
 
-	offsets = malloc_or_die(sizeof(*offsets) * cpus);
+	offsets = malloc(sizeof(*offsets) * cpus);
 	if (!offsets)
 		goto out_free;
-	sizes = malloc_or_die(sizeof(*sizes) * cpus);
+	sizes = malloc(sizeof(*sizes) * cpus);
 	if (!sizes)
 		goto out_free;
 
