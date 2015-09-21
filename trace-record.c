@@ -358,6 +358,8 @@ static int __add_all_instances(const char *tracing_dir)
 		free(instance_path);
 
 		instance = create_instance(name);
+		if (!instance)
+			die("Failed to create instance");
 		add_instance(instance);
 	}
 
@@ -3924,6 +3926,8 @@ void trace_record (int argc, char **argv)
 				break;
 			case 'B':
 				instance = create_instance(optarg);
+				if (!instance)
+					die("Failed to create instance");
 				add_instance(instance);
 				break;
 			case 'a':
@@ -3955,6 +3959,8 @@ void trace_record (int argc, char **argv)
 				break;
 			case 'B':
 				instance = create_instance(optarg);
+				if (!instance)
+					die("Failed to create instance");
 				add_instance(instance);
 				break;
 			case 'a':
@@ -4002,6 +4008,8 @@ void trace_record (int argc, char **argv)
 			case 'B':
 				last_specified_all = 0;
 				instance = create_instance(optarg);
+				if (!instance)
+					die("Failed to create instance");
 				add_instance(instance);
 				/* -d will remove keep */
 				instance->keep = 1;
@@ -4262,6 +4270,8 @@ void trace_record (int argc, char **argv)
 			break;
 		case 'B':
 			instance = create_instance(optarg);
+			if (!instance)
+				die("Failed to create instance");
 			add_instance(instance);
 			if (profile)
 				instance->profile = 1;

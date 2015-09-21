@@ -532,6 +532,8 @@ int main (int argc, char **argv)
 					die("Can only show one buffer at a time");
 				buffer = optarg;
 				instance = create_instance(optarg);
+				if (!instance)
+					die("Failed to create instance");
 				break;
 			case 'c':
 				if (cpu)
