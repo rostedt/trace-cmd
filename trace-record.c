@@ -210,12 +210,14 @@ static void add_reset_file(const char *file, const char *val, int prio)
 	if (keep)
 		return;
 
-	reset = malloc_or_die(sizeof(*reset));
+	reset = malloc(sizeof(*reset));
+	if (!reset)
+		die("Failed to allocate reset");
 	reset->path = strdup(file);
 	reset->reset = strdup(val);
 	reset->prio = prio;
 	if (!reset->path || !reset->reset)
-		die("malloc");
+		die("Failed to allocate reset path or val");
 
 	while (*last && (*last)->prio > prio)
 		last = &(*last)->next;
@@ -232,7 +234,9 @@ static void add_reset_trigger(const char *file)
 	if (keep)
 		return;
 
-	reset = malloc_or_die(sizeof(*reset));
+	reset = malloc(sizeof(*reset));
+	if (!reset)
+		die("Failed to allocate reset");
 	reset->path = strdup(file);
 
 	reset->next = reset_triggers;
@@ -300,7 +304,9 @@ struct buffer_instance *create_instance(const char *name)
 {
 	struct buffer_instance *instance;
 
-	instance = malloc_or_die(sizeof(*instance));
+	instance = malloc(sizeof(*instance));
+	if (!instance)
+		return NULL;
 	memset(instance, 0, sizeof(*instance));
 	instance->name = name;
 
@@ -445,11 +451,15 @@ static char *get_temp_file(struct buffer_instance *instance, int cpu)
 
 	if (name) {
 		size = snprintf(file, 0, "%s.%s.cpu%d", output_file, name, cpu);
-		file = malloc_or_die(size + 1);
+		file = malloc(size + 1);
+		if (!file)
+			die("Failed to allocate temp file for %s", name);
 		sprintf(file, "%s.%s.cpu%d", output_file, name, cpu);
 	} else {
 		size = snprintf(file, 0, "%s.cpu%d", output_file, cpu);
-		file = malloc_or_die(size + 1);
+		file = malloc(size + 1);
+		if (!file)
+			die("Failed to allocate temp file for %s", name);
 		sprintf(file, "%s.cpu%d", output_file, cpu);
 	}
 
@@ -686,8 +696,10 @@ get_instance_file(struct buffer_instance *instance, const char *file)
 	char *path;
 
 	if (instance->name) {
-		buf = malloc_or_die(strlen(instance->name) +
+		buf = malloc(strlen(instance->name) +
 			     strlen(file) + strlen("instances//") + 1);
+		if (!buf)
+			die("Failed to allocate name for %s/%s", instance->name, file);
 		sprintf(buf, "instances/%s/%s", instance->name, file);
 
 		path = tracecmd_get_tracing_file(buf);
@@ -708,8 +720,10 @@ get_instance_dir(struct buffer_instance *instance)
 	if (!instance->name)
 		return NULL;
 
-	buf = malloc_or_die(strlen(instance->name) +
-			    strlen("instances/") + 1);
+	buf = malloc(strlen(instance->name) +
+		     strlen("instances/") + 1);
+	if (!buf)
+		die("Failed to allocate for instance %s", instance->name);
 	sprintf(buf, "instances/%s", instance->name);
 
 	path = tracecmd_get_tracing_file(buf);
@@ -761,7 +775,9 @@ static void add_filter_pid(int pid)
 	struct filter_pids *p;
 	char buf[100];
 
-	p = malloc_or_die(sizeof(*p));
+	p = malloc(sizeof(*p));
+	if (!p)
+		die("Failed to allocate pid filter");
 	p->next = filter_pids;
 	p->pid = pid;
 	filter_pids = p;
@@ -875,7 +891,9 @@ static char *make_pid_filter(char *curr_filter, const char *field)
 		strcat(filter, ")&&(");
 		curr_len = strlen(filter);
 	} else
-		filter = malloc_or_die(len);
+		filter = malloc(len);
+	if (!filter)
+		die("Failed to allocate pid filter");
 
 	/* Last '||' that is not used will cover the \0 */
 	str = filter + curr_len;
@@ -948,7 +966,9 @@ static char *append_pid_filter(char *curr_filter, const char *field, int pid)
 
 	if (!curr_filter) {
 		/* No need for +1 as we don't use the "||" */
-		filter = malloc_or_die(len);
+		filter = malloc(len);
+		if (!filter)
+			die("Failed to allocate pid filter");
 		sprintf(filter, "(%s==%d)", field, pid);
 	} else {
 		int indx = strlen(curr_filter);
@@ -1195,7 +1215,9 @@ static void save_option(const char *option)
 {
 	struct opt_list *opt;
 
-	opt = malloc_or_die(sizeof(*opt));
+	opt = malloc(sizeof(*opt));
+	if (!opt)
+		die("Failed to allocate option");
 	opt->next = options;
 	options = opt;
 	opt->option = option;
@@ -1870,7 +1892,9 @@ static void update_event_filters(struct buffer_instance *instance)
 					free_it = 1;
 					len = common_len + strlen(event->pid_filter) +
 						strlen(event->filter) + strlen("()&&(||)") + 1;
-					event_filter = malloc_or_die(len);
+					event_filter = malloc(len);
+					if (!event_filter)
+						die("Failed to allocate event_filter");
 					sprintf(event_filter, "(%s)&&(%s||%s)",
 						event->filter, common_pid_filter,
 						event->pid_filter);
@@ -1878,7 +1902,9 @@ static void update_event_filters(struct buffer_instance *instance)
 					free_it = 1;
 					len = common_len + strlen(event->filter) +
 						strlen("()&&()") + 1;
-					event_filter = malloc_or_die(len);
+					event_filter = malloc(len);
+					if (!event_filter)
+						die("Failed to allocate event_filter");
 					sprintf(event_filter, "(%s)&&(%s)",
 						event->filter, common_pid_filter);
 				}
@@ -1891,7 +1917,9 @@ static void update_event_filters(struct buffer_instance *instance)
 					free_it = 1;
 					len = common_len + strlen(event->pid_filter) +
 						strlen("||") + 1;
-					event_filter = malloc_or_die(len);
+					event_filter = malloc(len);
+					if (!event_filter)
+						die("Failed to allocate event_filter");
 					sprintf(event_filter, "%s||%s",
 						common_pid_filter, event->pid_filter);
 				} else
@@ -2029,7 +2057,9 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 	char *p;
 	int ret;
 
-	event = malloc_or_die(sizeof(*event));
+	event = malloc(sizeof(*event));
+	if (!event)
+		die("Failed to allocate event");
 	*event = *old_event;
 	add_event(instance, event);
 
@@ -2042,7 +2072,9 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		if (*p == '/')
 			break;
 	*p = '\0';
-	p = malloc_or_die(strlen(path) + strlen("/enable") + 1);
+	p = malloc(strlen(path) + strlen("/enable") + 1);
+	if (!p)
+		die("Failed to allocate enable path for %s", path);
 	sprintf(p, "%s/enable", path);
 	ret = stat(p, &st);
 	if (ret >= 0)
@@ -2051,7 +2083,9 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		free(p);
 
 	if (event->trigger) {
-		p = malloc_or_die(strlen(path) + strlen("/trigger") + 1);
+		p = malloc(strlen(path) + strlen("/trigger") + 1);
+		if (!p)
+			die("Failed to allocate trigger path for %s", path);
 		sprintf(p, "%s/trigger", path);
 		ret = stat(p, &st);
 		if (ret > 0)
@@ -2073,7 +2107,9 @@ static void make_sched_event(struct buffer_instance *instance,
 	if (*event)
 		return;
 
-	path = malloc_or_die(strlen(sched->filter_file) + strlen(sched_path) + 2);
+	path = malloc(strlen(sched->filter_file) + strlen(sched_path) + 2);
+	if (!path)
+		die("Failed to allocate path for %s", sched_path);
 
 	sprintf(path, "%s", sched->filter_file);
 
@@ -2108,7 +2144,9 @@ static int expand_event_files(struct buffer_instance *instance,
 	int ret;
 	int i;
 
-	p = malloc_or_die(strlen(file) + strlen("events//filter") + 1);
+	p = malloc(strlen(file) + strlen("events//filter") + 1);
+	if (!p)
+		die("Failed to allocate event filter path for %s", file);
 	sprintf(p, "events/%s/filter", file);
 
 	path = get_instance_file(instance, p);
@@ -2177,7 +2215,9 @@ static void expand_event(struct buffer_instance *instance, struct event_list *ev
 
 	if (ptr) {
 		len = ptr - name;
-		str = malloc_or_die(strlen(name) + 1); /* may add '*' */
+		str = malloc(strlen(name) + 1); /* may add '*' */
+		if (!str)
+			die("Failed to allocate event for %s", name);
 		strcpy(str, name);
 		str[len] = '/';
 		ptr++;
@@ -2197,7 +2237,9 @@ static void expand_event(struct buffer_instance *instance, struct event_list *ev
 	ret = expand_event_files(instance, name, event);
 
 	len = strlen(name) + strlen("*/") + 1;
-	str = malloc_or_die(len);
+	str = malloc(len);
+	if (!str)
+		die("Failed to allocate event for %s", name);
 	snprintf(str, len, "*/%s", name);
 	ret2 = expand_event_files(instance, str, event);
 	free(str);
@@ -2488,7 +2530,9 @@ static void communicate_with_listener(int fd)
 		/* No options */
 		write(fd, "0", 2);
 
-	client_ports = malloc_or_die(sizeof(int) * cpu_count);
+	client_ports = malloc(sizeof(int) * cpu_count);
+	if (!client_ports)
+		die("Failed to allocate client ports for %d cpus", cpu_count);
 
 	/*
 	 * Now we will receive back a comma deliminated list
@@ -2582,7 +2626,9 @@ static void start_threads(enum trace_type type, int global)
 		setup_network();
 
 	/* make a thread for every CPU we have */
-	pids = malloc_or_die(sizeof(*pids) * cpu_count * (buffers + 1));
+	pids = malloc(sizeof(*pids) * cpu_count * (buffers + 1));
+	if (!pids)
+		die("Failed to allocat pids for %d cpus", cpu_count);
 
 	memset(pids, 0, sizeof(*pids) * cpu_count * (buffers + 1));
 
@@ -2722,7 +2768,9 @@ static void record_data(char *date2ts)
 		if (!cpu_count)
 			return;
 
-		temp_files = malloc_or_die(sizeof(*temp_files) * cpu_count);
+		temp_files = malloc(sizeof(*temp_files) * cpu_count);
+		if (!temp_files)
+			die("Failed to allocate temp_files for %d cpus", cpu_count);
 
 		for (i = 0; i < cpu_count; i++)
 			temp_files[i] = get_temp_file(&top_instance, i);
@@ -2761,7 +2809,9 @@ static void record_data(char *date2ts)
 		add_uname(handle);
 
 		if (buffers) {
-			buffer_options = malloc_or_die(sizeof(*buffer_options) * buffers);
+			buffer_options = malloc(sizeof(*buffer_options) * buffers);
+			if (!buffer_options)
+				die("Failed to allocate buffer options");
 			i = 0;
 			for_each_instance(instance) {
 				buffer_options[i++] = tracecmd_add_buffer_option(handle, instance->name);
@@ -2880,7 +2930,9 @@ static void add_func(struct func_list **list, const char *func)
 {
 	struct func_list *item;
 
-	item = malloc_or_die(sizeof(*item));
+	item = malloc(sizeof(*item));
+	if (!item)
+		die("Failed to allocate function descriptor");
 	item->func = func;
 	item->next = *list;
 	*list = item;
@@ -2942,8 +2994,10 @@ static unsigned long long find_time_stamp(struct pevent *pevent)
 		goto out;
 
 	len = strlen(path);
-	file = malloc_or_die(len + strlen("trace_pipe_raw") + 32);
-	page = malloc_or_die(page_size);
+	file = malloc(len + strlen("trace_pipe_raw") + 32);
+	page = malloc(page_size);
+	if (!file || !page)
+		die("Failed to allocate time_stamp info");
 
 	while ((dent = readdir(dir))) {
 		const char *name = dent->d_name;
@@ -2993,12 +3047,12 @@ static char *read_instance_file(struct buffer_instance *instance, char *file, in
 		r = read(fd, buffer, BUFSIZ);
 		if (r <= 0)
 			continue;
-		if (size) {
+		if (size)
 			buf = realloc(buf, size+r+1);
-			if (!buf)
-				die("malloc");
-		} else
-			buf = malloc_or_die(r+1);
+		else
+			buf = malloc(r+1);
+		if (!buf)
+			die("Failed to allocate instance file buffer");
 		memcpy(buf+size, buffer, r);
 		size += r;
 	} while (r);
@@ -3478,8 +3532,10 @@ static void allocate_seq(void)
 	struct buffer_instance *instance;
 
 	for_all_instances(instance) {
-		instance->s_save = malloc_or_die(sizeof(struct trace_seq) * cpu_count);
-		instance->s_print = malloc_or_die(sizeof(struct trace_seq) * cpu_count);
+		instance->s_save = malloc(sizeof(struct trace_seq) * cpu_count);
+		instance->s_print = malloc(sizeof(struct trace_seq) * cpu_count);
+		if (!instance->s_save || !instance->s_print)
+			die("Failed to allocate instance info");
 	}
 }
 
@@ -3567,7 +3623,9 @@ static void list_event(const char *event)
 {
 	struct tracecmd_event_list *list;
 
-	list = malloc_or_die(sizeof(*list));
+	list = malloc(sizeof(*list));
+	if (!list)
+		die("Failed to allocate list for event");
 	list->next = listed_events;
 	list->glob = event;
 	listed_events = list;
@@ -3584,7 +3642,9 @@ static void record_all_events(void)
 		listed_events = list->next;
 		free(list);
 	}
-	list = malloc_or_die(sizeof(*list));
+	list = malloc(sizeof(*list));
+	if (!list)
+		die("Failed to allocate list for all events");
 	list->next = NULL;
 	list->glob = ALL_EVENTS;
 	listed_events = list;
@@ -3604,7 +3664,9 @@ static void add_trigger(struct event_list *event, const char *trigger)
 		strcat(event->trigger, "\n");
 		strcat(event->trigger, trigger);
 	} else {
-		event->trigger = malloc_or_die(strlen(trigger) + 1);
+		event->trigger = malloc(strlen(trigger) + 1);
+		if (!event->trigger)
+			die("Failed to allocate event trigger");
 		sprintf(event->trigger, "%s", trigger);
 	}
 }
@@ -3663,7 +3725,9 @@ profile_add_event(struct buffer_instance *instance, const char *event_str, int s
 	}
 
 	if (!event) {
-		event = malloc_or_die(sizeof(*event));
+		event = malloc(sizeof(*event));
+		if (!event)
+			die("Failed to allocate event");
 		memset(event, 0, sizeof(*event));
 		event->event = event_str;
 		add_event(instance, event);
@@ -3746,10 +3810,14 @@ create_hook_event(struct buffer_instance *instance,
 	len = strlen(event);
 	len += strlen(system) + 2;
 
-	event_name = malloc_or_die(len);
+	event_name = malloc(len);
+	if (!event_name)
+		die("Failed to allocate %s/%s", system, event);
 	sprintf(event_name, "%s:%s", system, event);
 
-	event_list = malloc_or_die(sizeof(*event_list));
+	event_list = malloc(sizeof(*event_list));
+	if (!event_list)
+		die("Failed to allocate event list for %s", event_name);
 	memset(event_list, 0, sizeof(*event_list));
 	event_list->event = event_name;
 	add_event(instance, event_list);
@@ -4010,7 +4078,9 @@ void trace_record (int argc, char **argv)
 			break;
 		case 'e':
 			events = 1;
-			event = malloc_or_die(sizeof(*event));
+			event = malloc(sizeof(*event));
+			if (!event)
+				die("Failed to allocate event %s", optarg);
 			memset(event, 0, sizeof(*event));
 			event->event = optarg;
 			add_event(instance, event);
@@ -4035,8 +4105,10 @@ void trace_record (int argc, char **argv)
 				strcat(last_event->filter, ")");
 			} else {
 				last_event->filter =
-					malloc_or_die(strlen(optarg) +
-						      strlen("()") + 1);
+					malloc(strlen(optarg) +
+					       strlen("()") + 1);
+				if (!last_event->filter)
+					die("Failed to allocate filter %s", optarg);
 				sprintf(last_event->filter, "(%s)", optarg);
 			}
 			break;
