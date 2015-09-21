@@ -119,7 +119,9 @@ static void process_file_re(process_file_func func,
 	}
 
 	/* Handle the newline at end of names for the user */
-	str = malloc_or_die(l + 3);
+	str = malloc(l + 3);
+	if (!str)
+		die("Failed to allocate reg ex %s", re);
 	strcpy(str, re);
 	if (re[l-1] == '$')
 		strcpy(&str[l-1], "\n*$");
@@ -175,8 +177,10 @@ static char *get_event_file(const char *type, char *buf, int len)
 		die("no event found in %s\n", buf);
 
 	path = tracecmd_get_tracing_file("events");
-	file = malloc_or_die(strlen(path) + strlen(system) + strlen(event) +
-			     strlen(type) + strlen("///") + 1);
+	file = malloc(strlen(path) + strlen(system) + strlen(event) +
+		      strlen(type) + strlen("///") + 1);
+	if (!file)
+		die("Failed to allocate event file %s %s", system, event);
 	sprintf(file, "%s/%s/%s/%s", path, system, event, type);
 	tracecmd_put_tracing_file(path);
 
@@ -610,8 +614,10 @@ int main (int argc, char **argv)
 		}
 			
 		if (buffer) {
-			path = malloc_or_die(strlen(buffer) + strlen("instances//") +
-					     strlen(file) + 1);
+			path = malloc(strlen(buffer) + strlen("instances//") +
+				      strlen(file) + 1);
+			if (path)
+				die("Failed to allocate instance path %s", file);
 			sprintf(path, "instances/%s/%s", buffer, file);
 			file = path;
 		}
