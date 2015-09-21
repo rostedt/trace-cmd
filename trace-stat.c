@@ -74,9 +74,9 @@ char *append_file(const char *dir, const char *name)
 {
 	char *file;
 
-	file = malloc_or_die(strlen(dir) + strlen(name) + 2);
+	file = malloc(strlen(dir) + strlen(name) + 2);
 	if (!file)
-		die("malloc");
+		die("Failed to allocate %s/%s", dir, name);
 
 	sprintf(file, "%s/%s", dir, name);
 	return file;
@@ -158,7 +158,9 @@ struct event_iter *trace_event_iter_alloc(const char *path)
 {
 	struct event_iter *iter;
 
-	iter = malloc_or_die(sizeof(*iter));
+	iter = malloc(sizeof(*iter));
+	if (!iter)
+		die("Failed to allocate event_iter for path %s", path);
 	memset(iter, 0, sizeof(*iter));
 
 	iter->system_dir = opendir(path);
