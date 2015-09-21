@@ -226,7 +226,9 @@ add_start(struct task_data *task,
 {
 	struct start_data *start;
 
-	start = malloc_or_die(sizeof(*start));
+	start = malloc(sizeof(*start));
+	if (!start)
+		return NULL;
 	memset(start, 0, sizeof(*start));
 	start->hash.key = trace_hash(search_val);
 	start->search_val = search_val;
@@ -283,7 +285,9 @@ find_event_hash(struct task_data *task, struct event_data_match *edata)
 	if (item)
 		return event_from_item(item);
 
-	event_hash = malloc_or_die(sizeof(*event_hash));
+	event_hash = malloc(sizeof(*event_hash));
+	if (!event_hash)
+		return NULL;
 	memset(event_hash, 0, sizeof(*event_hash));
 
 	event_hash->event_data = edata->event_data;
@@ -369,7 +373,11 @@ static void add_event_stack(struct event_hash *event_hash,
 
 	item = trace_hash_find(&event_hash->stacks, key, match_stack, &match);
 	if (!item) {
-		stack = malloc_or_die(sizeof(*stack) + size);
+		stack = malloc(sizeof(*stack) + size);
+		if (!stack) {
+			warning("Could not allocate stack");
+			return;
+		}
 		memset(stack, 0, sizeof(*stack));
 		memcpy(&stack->caller, caller, size);
 		stack->size = size;
@@ -419,6 +427,8 @@ add_and_free_start(struct task_data *task, struct start_data *start,
 		delta = 0;
 
 	event_hash = find_start_event_hash(task, event_data, start);
+	if (!event_hash)
+		return NULL;
 	event_hash->count++;
 	event_hash->time_total += delta;
 	event_hash->last_time = delta;
@@ -458,8 +468,10 @@ find_and_update_start(struct task_data *task, struct event_data *event_data,
 	struct start_data *start;
 
 	start = find_start(task, event_data, search_val);
-	if (!start)
+	if (!start) {
+		warning("Could not allocate start for event_hash");
 		return NULL;
+	}
 	return add_and_free_start(task, start, event_data, ts);
 }
 
@@ -485,7 +497,11 @@ add_task(struct handle_data *h, int pid)
 	unsigned long long key = trace_hash(pid);
 	struct task_data *task;
 
-	task = malloc_or_die(sizeof(*task));
+	task = malloc(sizeof(*task));
+	if (!task) {
+		warning("Could not allocate task");
+		return NULL;
+	}
 	memset(task, 0, sizeof(*task));
 
 	task->pid = pid;
@@ -532,7 +548,11 @@ add_task_comm(struct task_data *task, struct format_field *field,
 {
 	const char *comm;
 
-	task->comm = malloc_or_die(field->size + 1);
+	task->comm = malloc(field->size + 1);
+	if (!task->comm) {
+		warning("Could not allocate task comm");
+		return;
+	}
 	comm = record->data + field->offset;
 	memcpy(task->comm, comm, field->size);
 	task->comm[field->size] = 0;
@@ -559,6 +579,8 @@ static void account_task(struct task_data *task, struct event_data *event_data,
 					 record->data, &pid);
 		proxy = task;
 		task = find_task(task->handle, pid);
+		if (!task)
+			return;
 		proxy->proxy = task;
 	}
 
@@ -580,6 +602,10 @@ static void account_task(struct task_data *task, struct event_data *event_data,
 	edata.val = val;
 
 	event_hash = find_event_hash(task, &edata);
+	if (!event_hash) {
+		warning("failed to allocate event_hash");
+		return;
+	}
 
 	event_hash->count++;
 	task->last_event = event_hash;
@@ -612,10 +638,14 @@ handle_end_event(struct handle_data *h, struct event_data *event_data,
 	unsigned long long val;
 
 	task = find_event_task(h, event_data, record, pid);
+	if (!task)
+		return NULL;
 
 	pevent_read_number_field(event_data->start_match_field, record->data,
 				 &val);
 	event_hash = find_and_update_start(task, event_data->start, record->ts, val);
+	if (!event_hash)
+		return NULL;
 	task->last_start = NULL;
 	task->last_event = event_hash;
 
@@ -631,10 +661,17 @@ handle_start_event(struct handle_data *h, struct event_data *event_data,
 	unsigned long long val;
 
 	task = find_event_task(h, event_data, record, pid);
+	if (!task)
+		return NULL;
 
 	pevent_read_number_field(event_data->end_match_field, record->data,
 				 &val);
 	start = add_start(task, event_data, record, val, val);
+	if (!start) {
+		warning("Failed to allocate start of task");
+		return NULL;
+	}
+		
 	task->last_start = start;
 	task->last_event = NULL;
 
@@ -653,11 +690,17 @@ static int handle_event_data(struct handle_data *h,
 		task = handle_end_event(h, event_data, record, pid);
 
 	/* If this is the start of a event pair (end is set) */
-	if (event_data->end)
+	if (event_data->end) {
 		task = handle_start_event(h, event_data, record, pid);
+		/* handle_start_event only returns NULL on error */
+		if (!task)
+			return -1;
+	}
 
 	if (!task) {
 		task = find_task(h, pid);
+		if (!task)
+			return -1;
 		task->proxy = NULL;
 		task->last_start = NULL;
 		task->last_event = NULL;
@@ -745,6 +788,8 @@ int trace_profile_record(struct tracecmd_input *handle,
 	pevent_read_number_field(h->common_pid, record->data, &pid);
 
 	task = find_task(h, pid);
+	if (!task)
+		return -1;
 	stack_record = task->last_stack;
 
 	if (event_data->handle_event)
@@ -778,7 +823,11 @@ add_event(struct handle_data *h, const char *system, const char *event_name,
 			die("No 'common_pid' found in event");
 	}
 
-	event_data = malloc_or_die(sizeof(*event_data));
+	event_data = malloc(sizeof(*event_data));
+	if (!event_data) {
+		warning("Could not allocate event_data");
+		return NULL;
+	}
 	memset(event_data, 0, sizeof(*event_data));
 	event_data->id = event->id;
 	event_data->event = event;
@@ -858,6 +907,9 @@ void tracecmd_mate_events(struct tracecmd_input *handle,
 
 	end = add_event(h, end_event->system, end_event->name,
 			EVENT_TYPE_USER_MATE);
+
+	if (!start || !end)
+		return;
 
 	mate_events(h, start, pid_field, end_match_field, end, start_match_field,
 		    migrate, global);
@@ -975,6 +1027,8 @@ static int handle_sched_switch_event(struct handle_data *h,
 				 record->data, &next_pid);
 
 	task = find_task(h, prev_pid);
+	if (!task)
+		return -1;
 	if (!task->comm)
 		add_task_comm(task, h->switch_prev_comm, record);
 
@@ -989,6 +1043,9 @@ static int handle_sched_switch_event(struct handle_data *h,
 	task->last_event = NULL;
 
 	task = find_task(h, next_pid);
+	if (!task)
+		return -1;
+
 	if (!task->comm)
 		add_task_comm(task, h->switch_next_comm, record);
 
@@ -1023,6 +1080,8 @@ static int handle_stacktrace_event(struct handle_data *h,
 	void *caller;
 
 	task = find_task(h, pid);
+	if (!task)
+		return -1;
 
 	if (task->last_stack) {
 		free_record(task->last_stack);
@@ -1088,6 +1147,8 @@ static int handle_fgraph_entry_event(struct handle_data *h,
 	void *caller;
 
 	task = handle_start_event(h, event_data, record, pid);
+	if (!task)
+		return -1;
 
 	/*
 	 * If a stack trace hasn't been used for a previous task,
@@ -1144,6 +1205,9 @@ static int handle_process_exec(struct handle_data *h,
 	}
 
 	task = find_task(h, pid);
+	if (!task)
+		return -1;
+
 	free(task->comm);
 	task->comm = NULL;
 
@@ -1161,6 +1225,8 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 	unsigned long long success;
 
 	proxy = find_task(h, pid);
+	if (!proxy)
+		return -1;
 
 	/* If present, data_field holds "success" */
 	if (event_data->data_field) {
@@ -1176,6 +1242,9 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 				 record->data, &pid);
 
 	task = find_task(h, pid);
+	if (!task)
+		return -1;
+
 	if (!task->comm)
 		add_task_comm(task, h->wakeup_comm, record);
 
@@ -1233,7 +1302,11 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	int ret;
 	int i;
 
-	h = malloc_or_die(sizeof(*h));
+	h = malloc(sizeof(*h));
+	if (!h) {
+		warning("Could not allocate handle");
+		return;
+	};
 	memset(h, 0, sizeof(*h));
 	h->next = handles;
 	handles = h;
@@ -1256,14 +1329,23 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 		h->cpus = count_cpus();
 
 	list_head_init(&h->migrate_starts);
-	h->cpu_starts = malloc_or_die(sizeof(*h->cpu_starts) * h->cpus);
+	h->cpu_starts = malloc(sizeof(*h->cpu_starts) * h->cpus);
+	if (!h->cpu_starts)
+		goto free_handle;
+
 	for (i = 0; i < h->cpus; i++)
 		list_head_init(&h->cpu_starts[i]);
 
-	h->cpu_data = malloc_or_die(h->cpus * sizeof(*h->cpu_data));
+	h->cpu_data = malloc(h->cpus * sizeof(*h->cpu_data));
+	if (!h->cpu_data)
+		goto free_starts;
+
 	memset(h->cpu_data, 0, h->cpus * sizeof(h->cpu_data));
 
-	h->global_task = malloc_or_die(sizeof(struct task_data));
+	h->global_task = malloc(sizeof(struct task_data));
+	if (!h->global_task)
+		goto free_data;
+
 	memset(h->global_task, 0, sizeof(struct task_data));
 	init_task(h, h->global_task);
 	h->global_task->comm = strdup("Global Events");
@@ -1436,6 +1518,16 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 
 		free(fields);
 	}
+	return;
+
+ free_data:
+	free(h->cpu_data);
+ free_starts:
+	free(h->cpu_starts);
+ free_handle:
+	handles = h->next;
+	free(h);
+	warning("Failed handle allocations");
 }
 
 static void output_event_stack(struct pevent *pevent, struct stack_data *stack)
@@ -1577,7 +1669,11 @@ make_stack_chain(struct stack_data **stacks, int cnt, int longsize, int level,
 		return NULL;
 	}
 
-	chain = malloc_or_die(sizeof(*chain) * nr_chains);
+	chain = malloc(sizeof(*chain) * nr_chains);
+	if (!chain) {
+		warning("Could not allocate chain");
+		return NULL;
+	}
 	memset(chain, 0, sizeof(*chain) * nr_chains);
 
 	x = 0;
@@ -1813,7 +1909,11 @@ static void output_stacks(struct pevent *pevent, struct trace_hash *stack_hash)
 		}
 	}
 
-	stacks = malloc_or_die(sizeof(*stacks) * nr_stacks);
+	stacks = malloc(sizeof(*stacks) * nr_stacks);
+	if (!stacks) {
+		warning("Could not allocate stacks");
+		return;
+	}
 
 	nr_stacks = 0;
 	trace_hash_for_each_bucket(bucket, stack_hash) {
@@ -1942,7 +2042,11 @@ static void output_task(struct handle_data *h, struct task_data *task)
 		}
 	}
 
-	events = malloc_or_die(sizeof(*events) * nr_events);
+	events = malloc(sizeof(*events) * nr_events);
+	if (!events) {
+		warning("Could not allocate events");
+		return;
+	}
 
 	i = 0;
 	trace_hash_for_each_bucket(bucket, &task->event_hash) {
@@ -1975,7 +2079,11 @@ static void output_group(struct handle_data *h, struct group_data *group)
 		}
 	}
 
-	events = malloc_or_die(sizeof(*events) * nr_events);
+	events = malloc(sizeof(*events) * nr_events);
+	if (!events) {
+		warning("Could not allocate events");
+		return;
+	}
 
 	i = 0;
 	trace_hash_for_each_bucket(bucket, &group->event_hash) {
@@ -2111,7 +2219,11 @@ static void output_tasks(struct handle_data *h)
 		}
 	}
 
-	tasks = malloc_or_die(sizeof(*tasks) * nr_tasks);
+	tasks = malloc(sizeof(*tasks) * nr_tasks);
+	if (!tasks) {
+		warning("Could not allocate tasks");
+		return;
+	}
 
 	nr_tasks = 0;
 
@@ -2149,7 +2261,11 @@ static void output_groups(struct handle_data *h)
 	if (nr_groups == 0)
 		return;
 
-	groups = malloc_or_die(sizeof(*groups) * nr_groups);
+	groups = malloc(sizeof(*groups) * nr_groups);
+	if (!groups) {
+		warning("Could not allocate groups");
+		return;
+	}
 
 	nr_groups = 0;
 
@@ -2295,7 +2411,11 @@ static void add_group(struct handle_data *h, struct task_data *task)
 	if (item) {
 		grp = group_from_item(item);
 	} else {
-		grp = malloc_or_die(sizeof(*grp));
+		grp = malloc(sizeof(*grp));
+		if (!grp) {
+			warning("Could not allocate group");
+			return;
+		}
 		memset(grp, 0, sizeof(*grp));
 
 		grp->comm = strdup(task->comm);
