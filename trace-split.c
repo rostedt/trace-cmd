@@ -244,8 +244,11 @@ static int parse_cpu(struct tracecmd_input *handle,
 
 			if (cpu_data[cpu].page)
 				write_page(pevent, &cpu_data[cpu], long_size);
-			else
-				cpu_data[cpu].page = malloc_or_die(page_size);
+			else {
+				cpu_data[cpu].page = malloc(page_size);
+				if (!cpu_data[cpu].page)
+					die("Failed to allocate page");
+			}
 
 			memset(cpu_data[cpu].page, 0, page_size);
 			ptr = cpu_data[cpu].page;
@@ -361,10 +364,14 @@ static double parse_file(struct tracecmd_input *handle,
 	ohandle = tracecmd_copy(handle, output_file);
 
 	cpus = tracecmd_cpus(handle);
-	cpu_data = malloc_or_die(sizeof(*cpu_data) * cpus);
+	cpu_data = malloc(sizeof(*cpu_data) * cpus);
+	if (!cpu_data)
+		die("Failed to allocate cpu_data for %d cpus", cpus);
 
 	for (cpu = 0; cpu < cpus; cpu++) {
-		file = malloc_or_die(strlen(output_file) + 50);
+		file = malloc(strlen(output_file) + 50);
+		if (!file)
+			die("Failed to allocate file for %s %s %d", dir, base, cpu);
 		sprintf(file, "%s/.tmp.%s.%d", dir, base, cpu);
 		fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 		cpu_data[cpu].cpu = cpu;
@@ -386,7 +393,9 @@ static double parse_file(struct tracecmd_input *handle,
 		parse_cpu(handle, cpu_data, start,
 			  end, count, percpu, -1, type);
 
-	cpu_list = malloc_or_die(sizeof(*cpu_list) * cpus);
+	cpu_list = malloc(sizeof(*cpu_list) * cpus);
+	if (!cpu_list)
+		die("Failed to allocate cpu_list for %d cpus", cpus);
 	for (cpu = 0; cpu < cpus; cpu ++)
 		cpu_list[cpu] = cpu_data[cpu].file;
 
@@ -530,7 +539,9 @@ void trace_split (int argc, char **argv)
 	}
 
 	current = start_ns;
-	output_file = malloc_or_die(strlen(output) + 50);
+	output_file = malloc(strlen(output) + 50);
+	if (!output_file)
+		die("Failed to allocate for %s", output);
 	c = 1;
 
 	do {
