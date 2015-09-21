@@ -284,7 +284,9 @@ static void add_input(const char *file)
 {
 	struct input_files *item;
 
-	item = malloc_or_die(sizeof(*item));
+	item = malloc(sizeof(*item));
+	if (!item)
+		die("Failed to allocate for %s", file);
 	item->file = file;
 	list_add_tail(&item->list, &input_files);
 }
@@ -293,7 +295,9 @@ static void add_handle(struct tracecmd_input *handle, const char *file)
 {
 	struct handle_list *item;
 
-	item = malloc_or_die(sizeof(*item));
+	item = malloc(sizeof(*item));
+	if (!item)
+		die("Failed ot allocate for %s", file);
 	memset(item, 0, sizeof(*item));
 	item->handle = handle;
 	if (file) {
@@ -334,7 +338,9 @@ static void add_filter(const char *filter, int neg)
 {
 	struct filter_str *ftr;
 
-	ftr = malloc_or_die(sizeof(*ftr));
+	ftr = malloc(sizeof(*ftr));
+	if (!ftr)
+		die("Failed to allocate for filter %s", filter);
 	ftr->filter = strdup(filter);
 	if (!ftr->filter)
 		die("malloc");
@@ -359,7 +365,9 @@ static void __add_filter(struct pid_list **head, const char *arg)
 
 	pid = strtok_r(pids, ",", &sav);
 	while (pid) {
-		list = malloc_or_die(sizeof(*list));
+		list = malloc(sizeof(*list));
+		if (!list)
+			die("Failed to allocate for arg %s", arg);
 		list->pid = pid;
 		list->free = free;
 		list->next = *head;
@@ -397,7 +405,9 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 #define __STR "%s"
 
 	if (!curr_filter) {
-		filter = malloc_or_die(len);
+		filter = malloc(len);
+		if (!filter)
+			die("Failed to allocate for filter %s", curr_filter);
 		sprintf(filter, ".*:" FILTER_FMT, pid, pid, pid);
 	} else {
 
@@ -493,7 +503,9 @@ static void process_filters(struct handle_list *handles)
 		filter = filter_strings;
 		filter_strings = filter->next;
 
-		event_filter = malloc_or_die(sizeof(*event_filter));
+		event_filter = malloc(sizeof(*event_filter));
+		if (!event_filter)
+			die("Failed to allocate for event filter");
 		event_filter->next = NULL;
 		event_filter->filter = pevent_filter_alloc(pevent);
 		if (!event_filter->filter)
@@ -586,7 +598,9 @@ static void add_wakeup(unsigned int val, unsigned long long start)
 		return;
 	}
 
-	info = malloc_or_die(sizeof(*info));
+	info = malloc(sizeof(*info));
+	if (!info)
+		die("Failed to allocate wakeup info");
 	info->hash.key = val;
 	info->start = start;
 	trace_hash_add(&wakeup_hash, &info->hash);
@@ -890,11 +904,15 @@ test_stacktrace(struct handle_list *handles, struct pevent_record *record,
 		init = 1;
 
 		list_for_each_entry(h, &handle_list, list) {
-			info = malloc_or_die(sizeof(*info));
+			info = malloc(sizeof(*info));
+			if (!info)
+				die("Failed to allocate handle");
 			info->handles = h;
 			info->nr_cpus = tracecmd_cpus(h->handle);
 
-			info->cpus = malloc_or_die(sizeof(*info->cpus) * info->nr_cpus);
+			info->cpus = malloc(sizeof(*info->cpus) * info->nr_cpus);
+			if (!info->cpus)
+				die("Failed to allocate for %d cpus", info->nr_cpus);
 			memset(info->cpus, 0, sizeof(*info->cpus));
 
 			pevent = tracecmd_get_pevent(h->handle);
@@ -1254,7 +1272,9 @@ static void add_functions(struct pevent *pevent, const char *file)
 	if (ret < 0)
 		die("Can't stat file %s", file);
 
-	buf = malloc_or_die(st.st_size);
+	buf = malloc(st.st_size);
+	if (!buf)
+		die("Failed to allocate for function buffer");
 	read_file_fd(fd, buf, st.st_size);
 	close(fd);
 	parse_proc_kallsyms(pevent, buf, st.st_size);
@@ -1292,7 +1312,9 @@ static void set_event_flags(struct pevent *pevent, struct event_str *list,
 	for (str = list; str; str = str->next) {
 		char *match;
 
-		match = malloc_or_die(strlen(str->event) + 3);
+		match = malloc(strlen(str->event) + 3);
+		if (!match)
+			die("Failed to allocate for match string '%s'", str->event);
 		sprintf(match, "^%s$", str->event);
 
 		ret = regcomp(&regex, match, REG_ICASE|REG_NOSUB);
@@ -1442,7 +1464,9 @@ void trace_report (int argc, char **argv)
 			tracecmd_disable_plugins = 1;
 			break;
 		case 'n':
-			*nohandler_ptr = malloc_or_die(sizeof(struct event_str));
+			*nohandler_ptr = malloc(sizeof(struct event_str));
+			if (!*nohandler_ptr)
+				die("Failed to allocate for '-n %s'", optarg);
 			(*nohandler_ptr)->event = optarg;
 			(*nohandler_ptr)->next = NULL;
 			nohandler_ptr = &(*nohandler_ptr)->next;
@@ -1463,7 +1487,9 @@ void trace_report (int argc, char **argv)
 			raw = 1;
 			break;
 		case 'r':
-			*raw_ptr = malloc_or_die(sizeof(struct event_str));
+			*raw_ptr = malloc(sizeof(struct event_str));
+			if (*raw_ptr)
+				die("Failed to allocate '-r %s'", optarg);
 			(*raw_ptr)->event = optarg;
 			(*raw_ptr)->next = NULL;
 			raw_ptr = &(*raw_ptr)->next;
