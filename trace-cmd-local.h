@@ -23,6 +23,7 @@
 /* Local for trace-input.c and trace-output.c */
 
 #include "trace-cmd.h"
+#include "event-utils.h"
 
 static ssize_t __do_write(int fd, const void *data, size_t size)
 {

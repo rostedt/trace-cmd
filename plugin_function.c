@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "trace-cmd.h"
+#include "event-utils.h"
 
 static struct func_stack {
 	int size;

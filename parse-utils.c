@@ -67,14 +67,8 @@ void __pr_stat(const char *fmt, ...)
 
 void __weak vpr_stat(const char *fmt, va_list ap)
 {
-	__vpr_stat(fmt, ap);
 }
 
 void __weak pr_stat(const char *fmt, ...)
 {
-	va_list ap;
-
-	va_start(ap, fmt);
-	__vpr_stat(fmt, ap);
-	va_end(ap);
 }

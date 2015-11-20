@@ -15,6 +15,7 @@
 
 %{
 #include "trace-cmd.h"
+#include "event-utils.h"
 %}
 
 

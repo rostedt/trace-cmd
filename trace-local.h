@@ -24,6 +24,7 @@
 #include <dirent.h>	/* for DIR */
 
 #include "trace-cmd.h"
+#include "event-utils.h"
 
 extern int debug;
 

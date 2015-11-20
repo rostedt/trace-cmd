@@ -26,6 +26,7 @@
 #include <libgen.h>
 
 #include "trace-cmd.h"
+#include "event-utils.h"
 #include "trace-view.h"
 #include "trace-xml.h"
 #include "trace-filter.h"

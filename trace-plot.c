@@ -17,6 +17,7 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
+#include <stdlib.h>
 #include <string.h>
 #include "trace-graph.h"
 #include "trace-local.h"

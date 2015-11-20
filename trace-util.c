@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 
 #include "trace-cmd.h"
+#include "event-utils.h"
 
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
 #define TRACEFS_PATH "/sys/kernel/tracing"

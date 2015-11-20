@@ -20,8 +20,6 @@
 #ifndef _TRACE_CMD_H
 #define _TRACE_CMD_H
 
-#include <stdlib.h>
-#include "event-utils.h"
 #include "event-parse.h"
 
 #define TRACECMD_ERR_MSK	((unsigned long)(-1) & ~((1UL << 14) - 1))

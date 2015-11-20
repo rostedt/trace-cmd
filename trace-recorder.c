@@ -34,6 +34,7 @@
 #include <errno.h>
 
 #include "trace-cmd.h"
+#include "event-utils.h"
 
 struct tracecmd_recorder {
 	int		fd;
