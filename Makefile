@@ -47,7 +47,10 @@ html_install = $(prefix)/share/kernelshark/html
 html_install_SQ = '$(subst ','\'',$(html_install))'
 img_install = $(prefix)/share/kernelshark/html/images
 img_install_SQ = '$(subst ','\'',$(img_install))'
-libdir ?= lib
+libdir ?= $(prefix)/lib
+libdir_SQ = '$(subst ','\'',$(libdir))'
+includedir = $(prefix)/include/trace-cmd
+includedir_SQ = '$(subst ','\'',$(includedir))'
 
 export man_dir man_dir_SQ html_install html_install_SQ INSTALL
 export img_install img_install_SQ
@@ -58,8 +61,8 @@ plugin_dir = $(HOME)/.trace-cmd/plugins
 python_dir = $(HOME)/.trace-cmd/python
 var_dir = $(HOME)/.trace-cmd/
 else
-plugin_dir = $(prefix)/$(libdir)/trace-cmd/plugins
-python_dir = $(prefix)/$(libdir)/trace-cmd/python
+plugin_dir = $(libdir)/trace-cmd/plugins
+python_dir = $(libdir)/trace-cmd/python
 PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
 PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
@@ -426,6 +429,8 @@ libtracecmd.so: $(TCMD_LIB_OBJS)
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
+libs: libtracecmd.so libparsevent.so
+
 trace-util.o: trace_plugin_dir
 
 $(PLUGIN_OBJS): %.o : $(src)/%.c
@@ -587,6 +592,12 @@ install_gui: install_cmd gui
 	$(Q)$(call do_install,trace-view,$(bindir_SQ))
 	$(Q)$(call do_install,trace-graph,$(bindir_SQ))
 	$(Q)$(call do_install,kernelshark,$(bindir_SQ))
+
+install_libs: libs
+	$(Q)$(call do_install,libtracecmd.so,$(libdir_SQ))
+	$(Q)$(call do_install,libparsevent.so,$(libdir_SQ))
+	$(Q)$(call do_install,event-parse.h,$(includedir_SQ))
+	$(Q)$(call do_install,trace-cmd.h,$(includedir_SQ))
 
 doc:
 	$(MAKE) -C $(src)/Documentation all
