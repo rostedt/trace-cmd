@@ -3669,7 +3669,7 @@ static void make_instances(void)
 	}
 }
 
-static void remove_instances(void)
+void tracecmd_remove_instances(void)
 {
 	struct buffer_instance *instance;
 	char *path;
@@ -3689,6 +3689,25 @@ static void remove_instances(void)
 			die("rmdir %s", path);
 		tracecmd_put_tracing_file(path);
 	}
+}
+
+/**
+ * tracecmd_create_top_instance - create a top named instance
+ * @name: name of the instance to use.
+ *
+ * This is a library function for tools that want to do their tracing inside of
+ * an instance.  All it does is create an instance and set it as a top instance,
+ * you don't want to call this more than once, and you want to call
+ * tracecmd_remove_instances to undo your work.
+ */
+void tracecmd_create_top_instance(char *name)
+{
+	struct buffer_instance *instance;
+
+	instance = create_instance(name);
+	add_instance(instance);
+	update_first_instance(instance, 0);
+	make_instances();
 }
 
 static void check_plugin(const char *plugin)
@@ -4319,7 +4338,7 @@ void trace_record (int argc, char **argv)
 		set_buffer_size();
 		clear_filters();
 		clear_triggers();
-		remove_instances();
+		tracecmd_remove_instances();
 		clear_func_filters();
 		exit(0);
 	} else
@@ -4795,7 +4814,7 @@ void trace_record (int argc, char **argv)
 
 	set_plugin("nop");
 
-	remove_instances();
+	tracecmd_remove_instances();
 
 	/* If tracing_on was enabled before we started, set it on now */
 	for_all_instances(instance) {
