@@ -889,7 +889,6 @@ static void update_ftrace_pids(int reset)
 
 static void update_event_filters(struct buffer_instance *instance);
 static void update_pid_event_filters(struct buffer_instance *instance);
-static void enable_tracing(void);
 
 /**
  * make_pid_filter - create a filter string to all pids against @field
@@ -1203,7 +1202,7 @@ static void run_cmd(enum trace_type type, int argc, char **argv)
 	if (!pid) {
 		/* child */
 		update_task_filter();
-		enable_tracing();
+		tracecmd_enable_tracing();
 		enable_ptrace();
 		/*
 		 * If we are using stderr for stdout, switch
@@ -1907,7 +1906,7 @@ static int read_tracing_on(struct buffer_instance *instance)
 	return ret;
 }
 
-static void enable_tracing(void)
+void tracecmd_enable_tracing(void)
 {
 	struct buffer_instance *instance;
 
@@ -1920,7 +1919,7 @@ static void enable_tracing(void)
 		reset_max_latency();
 }
 
-static void disable_tracing(void)
+void tracecmd_disable_tracing(void)
 {
 	struct buffer_instance *instance;
 
@@ -1928,9 +1927,9 @@ static void disable_tracing(void)
 		write_tracing_on(instance, 0);
 }
 
-static void disable_all(int disable_tracer)
+void tracecmd_disable_all_tracing(int disable_tracer)
 {
-	disable_tracing();
+	tracecmd_disable_tracing();
 
 	if (disable_tracer) {
 		disable_func_stack_trace();
@@ -2161,6 +2160,11 @@ static void enable_events(struct buffer_instance *instance)
 		if (event->neg)
 			update_event(event, NULL, 0, '0');
 	}
+}
+
+void tracecmd_enable_events(void)
+{
+	enable_events(first_instance);
 }
 
 static void set_clock(struct buffer_instance *instance)
@@ -3401,15 +3405,15 @@ static char *get_date_to_ts(void)
 	}
 
 	for (i = 0; i < date2ts_tries; i++) {
-		disable_tracing();
+		tracecmd_disable_tracing();
 		clear_trace();
-		enable_tracing();
+		tracecmd_enable_tracing();
 
 		gettimeofday(&start, NULL);
 		write(tfd, STAMP, 5);
 		gettimeofday(&end, NULL);
 
-		disable_tracing();
+		tracecmd_disable_tracing();
 		ts = find_time_stamp(pevent);
 		if (!ts)
 			continue;
@@ -4036,6 +4040,11 @@ profile_add_event(struct buffer_instance *instance, const char *event_str, int s
 	return 0;
 }
 
+int tracecmd_add_event(const char *event_str, int stack)
+{
+	return profile_add_event(first_instance, event_str, stack);
+}
+
 static void enable_profile(struct buffer_instance *instance)
 {
 	int stacktrace = 0;
@@ -4237,7 +4246,7 @@ void trace_record (int argc, char **argv)
 
 		}
 		update_first_instance(instance, topt);
-		disable_tracing();
+		tracecmd_disable_tracing();
 		exit(0);
 	} else if (strcmp(argv[1], "restart") == 0) {
 		for (;;) {
@@ -4270,7 +4279,7 @@ void trace_record (int argc, char **argv)
 
 		}
 		update_first_instance(instance, topt);
-		enable_tracing();
+		tracecmd_enable_tracing();
 		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
 		/* if last arg is -a, then -b and -d apply to all instances */
@@ -4334,7 +4343,7 @@ void trace_record (int argc, char **argv)
 			}
 		}
 		update_first_instance(instance, topt);
-		disable_all(1);
+		tracecmd_disable_all_tracing(1);
 		set_buffer_size();
 		clear_filters();
 		clear_triggers();
@@ -4701,7 +4710,7 @@ void trace_record (int argc, char **argv)
 
 	if (!extract) {
 		fset = set_ftrace(!disable, total_disable);
-		disable_all(1);
+		tracecmd_disable_all_tracing(1);
 
 		for_all_instances(instance)
 			set_clock(instance);
@@ -4758,7 +4767,7 @@ void trace_record (int argc, char **argv)
 	} else {
 		if (!(type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM))) {
 			update_task_filter();
-			enable_tracing();
+			tracecmd_enable_tracing();
 			exit(0);
 		}
 
@@ -4766,7 +4775,7 @@ void trace_record (int argc, char **argv)
 			run_cmd(type, (argc - optind) - 1, &argv[optind + 1]);
 		else {
 			update_task_filter();
-			enable_tracing();
+			tracecmd_enable_tracing();
 			/* We don't ptrace ourself */
 			if (do_ptrace && filter_pid >= 0)
 				ptrace_attach(filter_pid);
@@ -4776,7 +4785,7 @@ void trace_record (int argc, char **argv)
 				trace_or_sleep(type);
 		}
 
-		disable_tracing();
+		tracecmd_disable_tracing();
 		if (!latency)
 			stop_threads(type);
 	}
@@ -4784,7 +4793,7 @@ void trace_record (int argc, char **argv)
 	record_stats();
 
 	if (!keep)
-		disable_all(0);
+		tracecmd_disable_all_tracing(0);
 
 	/* extract records the date after extraction */
 	if (extract && date) {
@@ -4792,7 +4801,7 @@ void trace_record (int argc, char **argv)
 		 * We need to start tracing, don't let other traces
 		 * screw with our trace_marker.
 		 */
-		disable_all(1);
+		tracecmd_disable_all_tracing(1);
 		date2ts = get_date_to_ts();
 	}
 
