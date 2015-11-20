@@ -61,6 +61,7 @@ void free_record(struct pevent_record *record);
 struct tracecmd_input;
 struct tracecmd_output;
 struct tracecmd_recorder;
+struct hook_list;
 
 static inline int tracecmd_host_bigendian(void)
 {
@@ -102,6 +103,11 @@ struct tracecmd_ftrace {
 	int fgraph_ret_id;
 	int long_size;
 };
+
+typedef void (*tracecmd_show_data_func)(struct tracecmd_input *handle,
+					struct pevent_record *record);
+typedef void (*tracecmd_handle_init_func)(struct tracecmd_input *handle,
+					  struct hook_list *hook, int global);
 
 struct tracecmd_input *tracecmd_alloc(const char *file);
 struct tracecmd_input *tracecmd_alloc_fd(int fd);
@@ -193,6 +199,10 @@ tracecmd_get_cursor(struct tracecmd_input *handle, int cpu);
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle, struct tracecmd_ftrace *finfo);
 struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle);
 bool tracecmd_get_use_trace_clock(struct tracecmd_input *handle);
+tracecmd_show_data_func
+tracecmd_get_show_data_func(struct tracecmd_input *handle);
+void tracecmd_set_show_data_func(struct tracecmd_input *handle,
+				 tracecmd_show_data_func func);
 
 char *tracecmd_get_tracing_file(const char *name);
 void tracecmd_put_tracing_file(char *name);

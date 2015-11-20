@@ -745,8 +745,8 @@ find_event_data(struct handle_data *h, int id)
 	return NULL;
 }
 
-int trace_profile_record(struct tracecmd_input *handle,
-			 struct pevent_record *record, int cpu)
+static void trace_profile_record(struct tracecmd_input *handle,
+				struct pevent_record *record)
 {
 	static struct handle_data *last_handle;
 	struct pevent_record *stack_record;
@@ -755,6 +755,7 @@ int trace_profile_record(struct tracecmd_input *handle,
 	struct handle_data *h;
 	struct pevent *pevent;
 	unsigned long long pid;
+	int cpu = record->cpu;
 	int id;
 
 	if (last_handle && last_handle->handle == handle)
@@ -779,7 +780,7 @@ int trace_profile_record(struct tracecmd_input *handle,
 	event_data = find_event_data(h, id);
 
 	if (!event_data)
-		return -1;
+		return;
 
 
 	/* Get this current PID */
@@ -787,7 +788,7 @@ int trace_profile_record(struct tracecmd_input *handle,
 
 	task = find_task(h, pid);
 	if (!task)
-		return -1;
+		return;
 	stack_record = task->last_stack;
 
 	if (event_data->handle_event)
@@ -800,8 +801,6 @@ int trace_profile_record(struct tracecmd_input *handle,
 		free_record(stack_record);
 		task->last_stack = NULL;
 	}
-
-	return 0;
 }
 
 static struct event_data *
@@ -1302,6 +1301,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	int ret;
 	int i;
 
+	tracecmd_set_show_data_func(handle, trace_profile_record);
 	h = malloc(sizeof(*h));
 	if (!h) {
 		warning("Could not allocate handle");

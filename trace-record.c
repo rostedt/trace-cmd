@@ -66,8 +66,9 @@ enum trace_type {
 	TRACE_TYPE_START	= (1 << 1),
 	TRACE_TYPE_STREAM	= (1 << 2),
 	TRACE_TYPE_EXTRACT	= (1 << 3),
-	TRACE_TYPE_PROFILE	= (1 << 4) | TRACE_TYPE_STREAM,
 };
+
+static tracecmd_handle_init_func handle_init = NULL;
 
 static int rt_prio;
 
@@ -603,7 +604,6 @@ static void delete_thread_data(void)
 static void stop_threads(enum trace_type type)
 {
 	struct timeval tv = { 0, 0 };
-	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 	int ret;
 	int i;
 
@@ -620,7 +620,7 @@ static void stop_threads(enum trace_type type)
 	/* Flush out the pipes */
 	if (type & TRACE_TYPE_STREAM) {
 		do {
-			ret = trace_stream_read(pids, recorder_threads, &tv, profile);
+			ret = trace_stream_read(pids, recorder_threads, &tv);
 		} while (ret > 0);
 	}
 
@@ -990,7 +990,6 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 {
 	struct timeval tv = { 1, 0 };
 	int ret;
-	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 
 	if (type & TRACE_TYPE_STREAM)
 		options |= WNOHANG;
@@ -1001,7 +1000,7 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 			return ret;
 
 		if (type & TRACE_TYPE_STREAM)
-			trace_stream_read(pids, recorder_threads, &tv, profile);
+			trace_stream_read(pids, recorder_threads, &tv);
 	} while (1);
 }
 #ifndef NO_PTRACE
@@ -1182,12 +1181,11 @@ static inline void ptrace_attach(int pid) { }
 static void trace_or_sleep(enum trace_type type)
 {
 	struct timeval tv = { 1 , 0 };
-	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 
 	if (do_ptrace && filter_pid >= 0)
 		ptrace_wait(type, filter_pid);
 	else if (type & TRACE_TYPE_STREAM)
-		trace_stream_read(pids, recorder_threads, &tv, profile);
+		trace_stream_read(pids, recorder_threads, &tv);
 	else
 		sleep(10);
 }
@@ -2851,7 +2849,6 @@ static void finish_network(void)
 
 static void start_threads(enum trace_type type, int global)
 {
-	int profile = (type & TRACE_TYPE_PROFILE) == TRACE_TYPE_PROFILE;
 	struct buffer_instance *instance;
 	int *brass = NULL;
 	int i = 0;
@@ -2877,7 +2874,7 @@ static void start_threads(enum trace_type type, int global)
 					die("pipe");
 				pids[i].stream = trace_stream_init(instance, x,
 								   brass[0], cpu_count,
-								   profile, hooks,
+								   hooks, handle_init,
 								   global);
 				if (!pids[i].stream)
 					die("Creating stream for %d", i);
@@ -4213,8 +4210,8 @@ void trace_record (int argc, char **argv)
 	else if ((stream = strcmp(argv[1], "stream") == 0))
 		; /* do nothing */
 	else if ((profile = strcmp(argv[1], "profile") == 0)) {
+		handle_init = trace_init_profile;
 		events = 1;
-
 	} else if (strcmp(argv[1], "stop") == 0) {
 		for (;;) {
 			int c;
@@ -4608,6 +4605,7 @@ void trace_record (int argc, char **argv)
 			recorder_flags |= TRACECMD_RECORD_NOSPLICE;
 			break;
 		case OPT_profile:
+			handle_init = trace_init_profile;
 			instance->profile = 1;
 			events = 1;
 			break;
@@ -4738,8 +4736,7 @@ void trace_record (int argc, char **argv)
 	else if (extract)
 		type = TRACE_TYPE_EXTRACT;
 	else if (profile)
-		/* PROFILE includes the STREAM bit */
-		type = TRACE_TYPE_PROFILE;
+		type = TRACE_TYPE_STREAM;
 	else
 		type = TRACE_TYPE_START;
 

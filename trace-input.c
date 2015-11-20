@@ -125,6 +125,9 @@ struct tracecmd_input {
 	size_t			ftrace_files_start;
 	size_t			event_files_start;
 	size_t			total_file_size;
+
+	/* For custom profilers. */
+	tracecmd_show_data_func	show_data_func;
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
@@ -3202,4 +3205,24 @@ struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle)
 bool tracecmd_get_use_trace_clock(struct tracecmd_input *handle)
 {
 	return handle->use_trace_clock;
+}
+
+/**
+ * tracecmd_get_show_data_func - return the show data func
+ * @handle: input handle for the trace.dat file
+ */
+tracecmd_show_data_func
+tracecmd_get_show_data_func(struct tracecmd_input *handle)
+{
+	return handle->show_data_func;
+}
+
+/**
+ * tracecmd_set_show_data_func - set the show data func
+ * @handle: input handle for the trace.dat file
+ */
+void tracecmd_set_show_data_func(struct tracecmd_input *handle,
+				 tracecmd_show_data_func func)
+{
+	handle->show_data_func = func;
 }

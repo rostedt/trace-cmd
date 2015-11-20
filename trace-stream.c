@@ -35,7 +35,8 @@
  */
 struct tracecmd_input *
 trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
-		  int profile, struct hook_list *hooks, int global)
+		  struct hook_list *hooks,
+		  tracecmd_handle_init_func handle_init, int global)
 {
 	struct tracecmd_input *trace_input;
 	struct tracecmd_output *trace_output;
@@ -75,8 +76,8 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 	if (tracecmd_read_headers(trace_input) < 0)
 		goto fail_free_input;
 
-	if (profile)
-		trace_init_profile(trace_input, hooks, global);
+	if (handle_init)
+		handle_init(trace_input, hooks, global);
 
  make_pipe:
 	/* Do not block on this pipe */
@@ -98,8 +99,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 	return NULL;
 }
 
-int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv,
-		      int profile)
+int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv)
 {
 	struct pevent_record *record;
 	struct pid_record_data *pid;
@@ -127,7 +127,7 @@ int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval 
 			last_pid = pid;
 	}
 	if (last_pid) {
-		trace_show_data(last_pid->instance->handle, last_pid->record, profile);
+		trace_show_data(last_pid->instance->handle, last_pid->record);
 		free_record(last_pid->record);
 		last_pid->record = NULL;
 		return 1;
