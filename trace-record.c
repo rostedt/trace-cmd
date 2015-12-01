@@ -1684,7 +1684,8 @@ static void update_reset_files(void)
 		reset = reset_files;
 		reset_files = reset->next;
 
-		write_file(reset->path, reset->reset, "reset");
+		if (!keep)
+			write_file(reset->path, reset->reset, "reset");
 		free(reset->path);
 		free(reset->reset);
 		free(reset);
