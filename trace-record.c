@@ -128,6 +128,8 @@ static struct filter_pids *filter_pids;
 static int nr_filter_pids;
 static int len_filter_pids;
 
+static int have_set_event_pid;
+
 struct opt_list {
 	struct opt_list *next;
 	const char	*option;
@@ -291,6 +293,26 @@ void add_instance(struct buffer_instance *instance)
 		first_instance = instance;
 	buffer_instances = instance;
 	buffers++;
+}
+
+static void test_set_event_pid(void)
+{
+	static int tested;
+	struct stat st;
+	char *path;
+	int ret;
+
+	if (tested)
+		return;
+
+	path = tracecmd_get_tracing_file("set_event_pid");
+	ret = stat(path, &st);
+	if (!ret) {
+		have_set_event_pid = 1;
+		reset_save_file(path, RESET_DEFAULT_PRIO);
+	}
+	tested = 1;
+	tracecmd_put_tracing_file(path);
 }
 
 /**
@@ -881,6 +903,10 @@ static char *make_pid_filter(char *curr_filter, const char *field)
 	int curr_len = 0;
 	int len;
 
+	/* Use the new method if possible */
+	if (have_set_event_pid)
+		return NULL;
+
 	len = len_filter_pids + (strlen(field) + strlen("(==)||")) * nr_filter_pids;
 
 	if (curr_filter) {
@@ -995,6 +1021,8 @@ static void append_sched_event(struct event_list *event, const char *field, int 
 
 static void update_sched_events(struct buffer_instance *instance, int pid)
 {
+	if (have_set_event_pid)
+		return;
 	/*
 	 * Also make sure that the sched_switch to this pid
 	 * and wakeups of this pid are also traced.
@@ -1005,14 +1033,33 @@ static void update_sched_events(struct buffer_instance *instance, int pid)
 	append_sched_event(instance->sched_wakeup_new_event, "pid", pid);
 }
 
+static int open_instance_fd(struct buffer_instance *instance,
+			    const char *file, int flags);
+
+static void add_event_pid(const char *buf, int len)
+{
+	struct buffer_instance *instance;
+	int fd;
+
+	for_all_instances(instance) {
+		fd = open_instance_fd(instance, "set_event_pid", O_WRONLY);
+		write(fd, buf, len);
+		close(fd);
+	}
+}
+
 static void add_new_filter_pid(int pid)
 {
 	struct buffer_instance *instance;
 	char buf[100];
+	int len;
 
 	add_filter_pid(pid);
-	sprintf(buf, "%d", pid);
+	len = sprintf(buf, "%d", pid);
 	update_ftrace_pid(buf, 0);
+
+	if (have_set_event_pid)
+		return add_event_pid(buf, len);
 
 	common_pid_filter = append_pid_filter(common_pid_filter, "common_pid", pid);
 
@@ -1760,24 +1807,36 @@ static void check_tracing_enabled(void)
 	write(fd, "1", 1);
 }
 
+static int open_instance_fd(struct buffer_instance *instance,
+			    const char *file, int flags)
+{
+	int fd;
+	char *path;
+
+	path = get_instance_file(instance, file);
+	fd = open(path, flags);
+	if (fd < 0) {
+		/* instances may not be created yet */
+		if (is_top_instance(instance))
+			die("opening '%s'", path);
+	}
+	tracecmd_put_tracing_file(path);
+
+	return fd;
+}
+
 static int open_tracing_on(struct buffer_instance *instance)
 {
 	int fd = instance->tracing_on_fd;
-	char *path;
 
 	/* OK, we keep zero for stdin */
 	if (fd > 0)
 		return fd;
 
-	path = get_instance_file(instance, "tracing_on");
-	fd = open(path, O_RDWR | O_CLOEXEC);
+	fd = open_instance_fd(instance, "tracing_on", O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
-		/* instances may not be created yet */
-		if (is_top_instance(instance))
-			die("opening '%s'", path);
 		return fd;
 	}
-	tracecmd_put_tracing_file(path);
 	instance->tracing_on_fd = fd;
 
 	return fd;
@@ -1936,8 +1995,49 @@ static void update_event_filters(struct buffer_instance *instance)
 	}
 }
 
+static void update_pid_filters(struct buffer_instance *instance)
+{
+	struct filter_pids *p;
+	char *filter;
+	char *str;
+	int len;
+	int ret;
+	int fd;
+
+	fd = open_instance_fd(instance, "set_event_pid",
+			      O_WRONLY | O_CLOEXEC | O_TRUNC);
+	if (fd < 0)
+		die("Failed to access set_event_pid");
+
+	len = len_filter_pids + nr_filter_pids;
+	filter = malloc(len);
+	if (!filter)
+		die("Failed to allocate pid filter");
+
+	str = filter;
+
+	for (p = filter_pids; p; p = p->next) {
+		len = sprintf(str, "%d ", p->pid);
+		str += len;
+	}
+
+	len = len_filter_pids + nr_filter_pids;
+	str = filter;
+	do {
+		ret = write(fd, str, len);
+		if (ret < 0)
+			die("Failed to write to set_event_pid");
+		str += ret;
+		len -= ret;
+	} while (ret >= 0 && len);
+
+	close(fd);
+}
+
 static void update_pid_event_filters(struct buffer_instance *instance)
 {
+	if (have_set_event_pid)
+		return update_pid_filters(instance);
 	/*
 	 * Also make sure that the sched_switch to this pid
 	 * and wakeups of this pid are also traced.
@@ -4129,12 +4229,14 @@ void trace_record (int argc, char **argv)
 			break;
 
 		case 'F':
+			test_set_event_pid();
 			filter_task = 1;
 			break;
 		case 'G':
 			global = 1;
 			break;
 		case 'P':
+			test_set_event_pid();
 			pids = strdup(optarg);
 			if (!pids)
 				die("strdup");
@@ -4146,6 +4248,7 @@ void trace_record (int argc, char **argv)
 			free(pids);
 			break;
 		case 'c':
+			test_set_event_pid();
 #ifdef NO_PTRACE
 			die("-c invalid: ptrace not supported");
 #endif
