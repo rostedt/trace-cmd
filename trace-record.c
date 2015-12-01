@@ -1498,7 +1498,7 @@ static int write_file(const char *file, const char *str, const char *type)
 	int fd;
 	int ret;
 
-	fd = open(file, O_WRONLY);
+	fd = open(file, O_WRONLY | O_TRUNC);
 	if (fd < 0)
 		die("opening to '%s'", file);
 	ret = write(fd, str, strlen(str));
