@@ -167,13 +167,13 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 	if (recorder->trace_fd < 0)
 		goto out_free;
 
-	free(path);
-
 	if ((recorder->flags & TRACECMD_RECORD_NOSPLICE) == 0) {
 		ret = pipe(recorder->brass);
 		if (ret < 0)
 			goto out_free;
 	}
+
+	free(path);
 
 	return recorder;
 
