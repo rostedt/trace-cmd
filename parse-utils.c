@@ -63,11 +63,6 @@ void __warning(const char *fmt, ...)
 
 void __weak warning(const char *fmt, ...)
 {
-	va_list ap;
-
-	va_start(ap, fmt);
-	__vwarning(fmt, ap);
-	va_end(ap);
 }
 
 void __vpr_stat(const char *fmt, va_list ap)
