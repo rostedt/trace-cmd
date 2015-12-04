@@ -122,6 +122,7 @@ static int save_stdout = -1;
 struct filter_pids {
 	struct filter_pids *next;
 	int pid;
+	int exclude;
 };
 
 static struct filter_pids *filter_pids;
@@ -804,7 +805,7 @@ static void reset_max_latency(void)
 	fclose(fp);
 }
 
-static void add_filter_pid(int pid)
+static void add_filter_pid(int pid, int exclude)
 {
 	struct filter_pids *p;
 	char buf[100];
@@ -813,6 +814,7 @@ static void add_filter_pid(int pid)
 	if (!p)
 		die("Failed to allocate pid filter");
 	p->next = filter_pids;
+	p->exclude = exclude;
 	p->pid = pid;
 	filter_pids = p;
 	nr_filter_pids++;
@@ -882,6 +884,8 @@ static void update_ftrace_pids(int reset)
 	struct filter_pids *pid;
 
 	for (pid = filter_pids; pid; pid = pid->next) {
+		if (pid->exclude)
+			continue;
 		snprintf(buf, 100, "%d ", pid->pid);
 		update_ftrace_pid(buf, reset);
 		/* Only reset the first entry */
@@ -909,6 +913,7 @@ static char *make_pid_filter(char *curr_filter, const char *field)
 	struct filter_pids *p;
 	char *filter;
 	char *orit;
+	char *match;
 	char *str;
 	int curr_len = 0;
 	int len;
@@ -941,7 +946,11 @@ static char *make_pid_filter(char *curr_filter, const char *field)
 			orit = "";
 		else
 			orit = "||";
-		len = sprintf(str, "%s(%s==%d)", orit, field, p->pid);
+		if (p->exclude)
+			match = "!=";
+		else
+			match = "==";
+		len = sprintf(str, "%s(%s%s%d)", orit, field, match, p->pid);
 		str += len;
 	}
 
@@ -957,12 +966,27 @@ static void update_task_filter(void)
 	int pid = getpid();
 
 	if (filter_task)
-		add_filter_pid(pid);
+		add_filter_pid(pid, 0);
 
 	if (!filter_pids)
 		return;
 
 	common_pid_filter = make_pid_filter(NULL, "common_pid");
+
+	update_ftrace_pids(1);
+	for_all_instances(instance)
+		update_pid_event_filters(instance);
+}
+
+void tracecmd_filter_pid(int pid, int exclude)
+{
+	struct buffer_instance *instance;
+
+	add_filter_pid(pid, exclude);
+	common_pid_filter = make_pid_filter(NULL, "common_pid");
+
+	if (!filter_pids)
+		return;
 
 	update_ftrace_pids(1);
 	for_all_instances(instance)
@@ -1064,7 +1088,7 @@ static void add_new_filter_pid(int pid)
 	char buf[100];
 	int len;
 
-	add_filter_pid(pid);
+	add_filter_pid(pid, 0);
 	len = sprintf(buf, "%d", pid);
 	update_ftrace_pid(buf, 0);
 
@@ -1089,7 +1113,7 @@ static void ptrace_attach(int pid)
 		do_ptrace = 0;
 		return;
 	}
-	add_filter_pid(pid);
+	add_filter_pid(pid, 0);
 }
 
 static void enable_ptrace(void)
@@ -1204,7 +1228,7 @@ static void run_cmd(enum trace_type type, int argc, char **argv)
 		}
 	}
 	if (do_ptrace) {
-		add_filter_pid(pid);
+		add_filter_pid(pid, 0);
 		ptrace_wait(type, pid);
 	} else
 		trace_waitpid(type, pid, &status, 0);
@@ -2746,7 +2770,7 @@ static void start_threads(enum trace_type type, int global)
 	memset(pids, 0, sizeof(*pids) * cpu_count * (buffers + 1));
 
 	for_all_instances(instance) {
-		int x;
+		int x, pid;
 		for (x = 0; x < cpu_count; x++) {
 			if (type & TRACE_TYPE_STREAM) {
 				brass = pids[i].brass;
@@ -2765,9 +2789,11 @@ static void start_threads(enum trace_type type, int global)
 			pids[i].instance = instance;
 			/* Make sure all output is flushed before forking */
 			fflush(stdout);
-			pids[i++].pid = create_recorder(instance, x, type, brass);
+			pid = pids[i++].pid = create_recorder(instance, x, type, brass);
 			if (brass)
 				close(brass[1]);
+			if (pid > 0)
+				add_filter_pid(pid, 1);
 		}
 	}
 	recorder_threads = i;
@@ -4296,7 +4322,7 @@ void trace_record (int argc, char **argv)
 				die("strdup");
 			pid = strtok_r(pids, ",", &sav);
 			while (pid) {
-				add_filter_pid(atoi(pid));
+				add_filter_pid(atoi(pid), 0);
 				pid = strtok_r(NULL, ",", &sav);
 			}
 			free(pids);
