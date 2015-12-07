@@ -1099,7 +1099,7 @@ static void ptrace_wait(enum trace_type type, int main_pid)
 		 (!WIFEXITED(status) || pid != main_pid));
 }
 #else
-static inline void ptrace_wait(int main_pid) { }
+static inline void ptrace_wait(enum trace_type type, int main_pid) { }
 static inline void enable_ptrace(void) { }
 static inline void ptrace_attach(int pid) { }
 
