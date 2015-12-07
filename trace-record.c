@@ -129,6 +129,7 @@ static int nr_filter_pids;
 static int len_filter_pids;
 
 static int have_set_event_pid;
+static int have_event_fork;
 
 struct opt_list {
 	struct opt_list *next;
@@ -311,8 +312,17 @@ static void test_set_event_pid(void)
 		have_set_event_pid = 1;
 		reset_save_file(path, RESET_DEFAULT_PRIO);
 	}
-	tested = 1;
 	tracecmd_put_tracing_file(path);
+
+	path = tracecmd_get_tracing_file("options/event-fork");
+	ret = stat(path, &st);
+	if (!ret) {
+		have_event_fork = 1;
+		reset_save_file(path, RESET_DEFAULT_PRIO);
+	}
+	tracecmd_put_tracing_file(path);
+
+	tested = 1;
 }
 
 /**
@@ -3996,6 +4006,7 @@ void trace_record (int argc, char **argv)
 	int date = 0;
 	int manual = 0;
 	int topt = 0;
+	int do_child = 0;
 
 	int c;
 
@@ -4249,10 +4260,15 @@ void trace_record (int argc, char **argv)
 			break;
 		case 'c':
 			test_set_event_pid();
+			if (!have_event_fork) {
 #ifdef NO_PTRACE
-			die("-c invalid: ptrace not supported");
+				die("-c invalid: ptrace not supported");
 #endif
-			do_ptrace = 1;
+				do_ptrace = 1;
+			} else {
+				save_option("event-fork");
+				do_child = 1;
+			}
 			break;
 		case 'C':
 			instance->clock = optarg;
@@ -4416,7 +4432,9 @@ void trace_record (int argc, char **argv)
 	}
 
 	if (do_ptrace && !filter_task && (filter_pid < 0))
-		die(" -c can only be used with -F or -P");
+		die(" -c can only be used with -F (or -P with event-fork support)");
+	if (do_child && !filter_task &&! filter_pid)
+		die(" -c can only be used with -P or -F");
 
 	if ((argc - optind) >= 2) {
 		if (start)
