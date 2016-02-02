@@ -1305,7 +1305,7 @@ static int update_graph(struct graph_info *ginfo, gdouble percent)
 	ginfo->start_x = (ginfo->view_start_time - ginfo->start_time) *
 		ginfo->resolution;
 
-	dprintf(1, "new resolution = %f\n", resolution);
+	dprintf(1, "new resolution = %.16f\n", resolution);
 	return 0;
 }
 
