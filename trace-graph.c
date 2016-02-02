@@ -1742,7 +1742,7 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 	static PangoFontDescription *font;
 	PangoLayout *layout;
 	static gint width_16;
-	struct plot_info info;
+	struct plot_info *info;
 	gint x;
 
 	/* Calculate the size of 16 characters */
@@ -1760,25 +1760,26 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 		g_object_unref(layout);
 	}
 
-	trace_graph_plot_event(ginfo, plot, record, &info);
+	trace_graph_plot_event(ginfo, plot, record);
+	info = &plot->info;
 
-	if (info.box) {
-		if (info.bcolor != plot->last_color) {
-			plot->last_color = info.bcolor;
+	if (info->box) {
+		if (info->bcolor != plot->last_color) {
+			plot->last_color = info->bcolor;
 			set_color(ginfo->draw, plot->gc, plot->last_color);
 		}
 
-		draw_plot_box(ginfo, plot->pos, info.bstart, info.bend,
-			      info.bfill, plot->gc);
+		draw_plot_box(ginfo, plot->pos, info->bstart, info->bend,
+			      info->bfill, plot->gc);
 	}
 
-	if (info.line) {
-		if (info.lcolor != plot->last_color) {
-			plot->last_color = info.lcolor;
+	if (info->line) {
+		if (info->lcolor != plot->last_color) {
+			plot->last_color = info->lcolor;
 			set_color(ginfo->draw, plot->gc, plot->last_color);
 		}
 
-		x = draw_plot_line(ginfo, plot->pos, info.ltime, plot->gc);
+		x = draw_plot_line(ginfo, plot->pos, info->ltime, plot->gc);
 
 		/* Figure out if we can show the text for the previous record */
 

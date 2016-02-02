@@ -413,10 +413,10 @@ static void update_last_record(struct graph_info *ginfo,
 
 static int task_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   struct pevent_record *record,
-			   struct plot_info *info)
+			   struct pevent_record *record)
 {
 	struct task_plot_info *task_info = plot->private;
+	struct plot_info *info = &plot->info;
 	gboolean match;
 	int sched_pid;
 	int rec_pid;

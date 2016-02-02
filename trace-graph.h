@@ -101,8 +101,7 @@ struct plot_callbacks {
 		      unsigned long long time);
 	int (*plot_event)(struct graph_info *ginfo,
 			  struct graph_plot *plot,
-			  struct pevent_record *record,
-			  struct plot_info *info);
+			  struct pevent_record *record);
 	void (*end)(struct graph_info *, struct graph_plot *);
 	int (*display_last_event)(struct graph_info *ginfo, struct graph_plot *plot,
 				  struct trace_seq *s, unsigned long long time);
@@ -122,7 +121,8 @@ struct graph_plot {
 	void				*private;
 
 	/* Used for drawing */
-	gint				 last_color;
+	struct plot_info		info;
+	gint				last_color;
 	gint				p1, p2, p3;
 	GdkGC				*gc;
 };
@@ -362,8 +362,7 @@ void trace_graph_plot_start(struct graph_info *ginfo,
 
 int trace_graph_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   struct pevent_record *record,
-			   struct plot_info *info);
+			   struct pevent_record *record);
 
 void trace_graph_plot_end(struct graph_info *ginfo,
 			  struct graph_plot *plot);
