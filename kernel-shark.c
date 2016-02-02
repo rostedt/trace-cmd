@@ -221,10 +221,13 @@ static void update_title(GtkWidget *window, const gchar *file)
 {
 	GString *gstr;
 	gchar *str;
+	gchar *gfile;
 
+	gfile = g_strdup(file);
 	gstr = g_string_new("kernelshark");
-	g_string_append_printf(gstr, "(%s)", basename(file));
+	g_string_append_printf(gstr, "(%s)", basename(gfile));
 	str = g_string_free(gstr, FALSE);
+	g_free(gfile);
 
 	gtk_window_set_title(GTK_WINDOW(window), str);
 	g_free(str);
@@ -743,7 +746,6 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 	struct filter_task *hide_tasks;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
-	TraceViewStore *store;
 	gboolean keep;
 	gchar *selections[] = { "Sync List Filter with Graph Filter",
 				"Sync Graph Filter with List Filter",
@@ -760,8 +762,6 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
 		return;
-
-	store = TRACE_VIEW_STORE(model);
 
 	/* If they are already equal, then just perminently sync them */
 	if (filter_task_compare(info->ginfo->task_filter,
@@ -894,7 +894,6 @@ __update_list_task_filter_callback(struct shark_info *info,
 {
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
-	TraceViewStore *store;
 	int i;
 
 	if (!accept)
@@ -903,8 +902,6 @@ __update_list_task_filter_callback(struct shark_info *info,
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
 		return;
-
-	store = TRACE_VIEW_STORE(model);
 
 	filter_task_clear(task_filter);
 
@@ -955,7 +952,6 @@ __list_tasks_clicked (struct shark_info *info,
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	struct graph_info *ginfo = info->ginfo;
 	GtkTreeModel *model;
-	TraceViewStore *store;
 	gint *selected;
 	gint *tasks;
 
@@ -965,8 +961,6 @@ __list_tasks_clicked (struct shark_info *info,
 	model = gtk_tree_view_get_model(trace_tree);
 	if (!model)
 		return;
-
-	store = TRACE_VIEW_STORE(model);
 
 	tasks = trace_graph_task_list(ginfo);
 	selected = filter_task_pids(task_filter);
@@ -1521,7 +1515,6 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	GtkTreeModel *model;
 	const char *comm;
 	gint pid;
-	gint len;
 	guint64 offset;
 	gint row;
 	gint cpu;
@@ -1607,8 +1600,6 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		if (record) {
 			pid = pevent_data_pid(ginfo->pevent, record);
 			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
-
-			len = strlen(comm) + 50;
 
 			if (info->sync_task_filters) {
 				if (trace_graph_filter_task_find_pid(ginfo, pid))
@@ -1773,7 +1764,9 @@ void kernel_shark(int argc, char **argv)
 	int ret;
 	int c;
 
+#if !GLIB_CHECK_VERSION(2, 32, 0)
 	g_thread_init(NULL);
+#endif
 	gdk_threads_init();
 
 	gtk_init(&argc, &argv);

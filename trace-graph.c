@@ -1213,15 +1213,12 @@ static void draw_info_box(struct graph_info *ginfo, const gchar *buffer,
 static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 			   gint x, gint y)
 {
-	struct pevent *pevent;
-	guint64 time;
 	unsigned long sec, usec;
 	struct trace_seq s;
+	guint64 time;
 
 	time =  convert_x_to_time(ginfo, x);
 	convert_nano(time, &sec, &usec);
-
-	pevent = ginfo->pevent;
 
 	trace_seq_init(&s);
 
@@ -1243,7 +1240,6 @@ static void draw_plot_info(struct graph_info *ginfo, struct graph_plot *plot,
 
 static void draw_latency(struct graph_info *ginfo, gint x, gint y)
 {
-	struct pevent *pevent;
 	unsigned long sec, usec;
 	struct trace_seq s;
 	gboolean neg;
@@ -1261,8 +1257,6 @@ static void draw_latency(struct graph_info *ginfo, gint x, gint y)
 		neg = FALSE;
 
 	convert_nano(time, &sec, &usec);
-
-	pevent = ginfo->pevent;
 
 	trace_seq_init(&s);
 	trace_seq_printf(&s, "Diff: %s%ld.%06lu secs", neg ? "-":"", sec, usec);

@@ -83,8 +83,6 @@ static int is_just_ws(const char *str)
 	return !str[i];
 }
 
-static gboolean settings_saved;
-
 static GString *get_home_settings_new(void)
 {
 	char *path = getenv("HOME");
@@ -1584,7 +1582,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 void tracecmd_capture_clicked(gpointer data)
 {
 	struct shark_info *info = data;
-	char *tracing;
+	const char *tracing;
 
 	tracing = tracecmd_get_tracing_dir();
 

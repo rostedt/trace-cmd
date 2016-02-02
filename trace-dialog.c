@@ -209,9 +209,9 @@ void warning(const char *fmt, ...)
 
 	g_string_append(str, "\n");
 
-	if (errno) {
+	if (err) {
 		g_string_prepend(str, "\n");
-		g_string_prepend(str, strerror(errno));
+		g_string_prepend(str, strerror(err));
 	}
 
 	errno = 0;

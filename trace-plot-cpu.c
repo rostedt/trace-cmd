@@ -194,9 +194,7 @@ static void cpu_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 			   unsigned long long time)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	int cpu;
 
-	cpu = cpu_info->cpu;
 	cpu_info->last_time = 0ULL;
 	cpu_info->last_pid = -1;
 	free_record(cpu_info->last_record);
@@ -209,7 +207,6 @@ static void update_last_record(struct graph_info *ginfo,
 {
 	struct tracecmd_input *handle = ginfo->handle;
 	struct pevent_record *trecord;
-	int filter;
 	int sched_pid;
 	int orig_pid;
 	int is_sched_switch;
@@ -226,9 +223,9 @@ static void update_last_record(struct graph_info *ginfo,
 	if (!trecord)
 		return;
 
-	filter = filter_record(ginfo, trecord,
-			       &orig_pid, &sched_pid,
-			       &is_sched_switch);
+	filter_record(ginfo, trecord,
+		      &orig_pid, &sched_pid,
+		      &is_sched_switch);
 	cpu_info->last_pid = is_sched_switch ? sched_pid : orig_pid;
 	cpu_info->last_record = trecord;
 	cpu_info->last_time = trecord->ts;
@@ -249,10 +246,7 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	int filter;
 	int box_filter;
 	int pid;
-	int cpu;
 	int ret = 1;
-
-	cpu = cpu_info->cpu;
 
 	if (!record) {
 		if (!cpu_info->last_record)
@@ -282,8 +276,6 @@ static int cpu_plot_event(struct graph_info *ginfo,
 	free_record(cpu_info->last_record);
 	cpu_info->last_record = record;
 	tracecmd_record_ref(record);
-
-	cpu = cpu_info->cpu;
 
 	filter = filter_record(ginfo, record, &orig_pid, &sched_pid, &is_sched_switch);
 
