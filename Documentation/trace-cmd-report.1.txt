@@ -138,6 +138,10 @@ OPTIONS
     in interrupt context but were called before the kernel "in interrupt"
     flag was set.
 
+*-S*::
+    Do not print events where the SOFTIRQ latency flag is set.
+    This will filter out most events that are from soft interrupt context.
+
 *-v*::
     This causes the following filters of *-F* to filter out the matching
     events.

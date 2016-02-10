@@ -107,6 +107,7 @@ static int buffer_breaks = 0;
 static int debug = 0;
 
 static int no_irqs;
+static int no_softirqs;
 
 static struct format_field *wakeup_task;
 static struct format_field *wakeup_success;
@@ -860,9 +861,11 @@ test_filters(struct pevent *pevent, struct filter *event_filters,
 	int ret = FILTER_NONE;
 	int flags;
 
-	if (no_irqs) {
+	if (no_irqs || no_softirqs) {
 		flags = pevent_data_flags(pevent, record);
-		if (flags & TRACE_FLAG_HARDIRQ)
+		if (no_irqs && (flags & TRACE_FLAG_HARDIRQ))
+			return FILTER_MISS;
+		if (no_softirqs && (flags & TRACE_FLAG_SOFTIRQ))
 			return FILTER_MISS;
 	}
 
@@ -1439,7 +1442,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hIi:H:feGpRr:tPNn:LlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hSIi:H:feGpRr:tPNn:LlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1470,6 +1473,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'I':
 			no_irqs = 1;
+			break;
+		case 'S':
+			no_softirqs = 1;
 			break;
 		case 'P':
 			show_printk = 1;
