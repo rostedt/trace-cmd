@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <gtk/gtk.h>
 
+#include <sys/time.h>
+
 #include "trace-compat.h"
 #include "trace-cmd.h"
 #include "trace-local.h"
@@ -44,6 +46,8 @@
 #else
 # define dprintf(l, x...)	do { if (0) printf(x); } while (0)
 #endif
+
+#define TIME_DRAW	0
 
 #define MAX_WIDTH	10000
 
@@ -1805,6 +1809,7 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 
 static void draw_plots(struct graph_info *ginfo, gint new_width)
 {
+	struct timeval tv_start, tv_stop;
 	struct plot_list *list;
 	struct graph_plot *plot;
 	struct pevent_record *record;
@@ -1835,6 +1840,7 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 	tracecmd_set_all_cpus_to_timestamp(ginfo->handle,
 					   ginfo->view_start_time);
 
+	gettimeofday(&tv_start, NULL);
 	trace_set_cursor(GDK_WATCH);
 
 	/* Shortcut if we don't have any task plots */
@@ -1896,6 +1902,14 @@ out:
 		plot->gc = NULL;
 	}
 	trace_put_cursor();
+	gettimeofday(&tv_stop, NULL);
+	if (tv_start.tv_usec > tv_stop.tv_usec) {
+		tv_stop.tv_usec += 1000000;
+		tv_stop.tv_sec--;
+	}
+	if (TIME_DRAW)
+		printf("Time to draw: %ld.%06ld\n", tv_stop.tv_sec - tv_start.tv_sec,
+		       tv_stop.tv_usec - tv_start.tv_usec);
 }
 
 
