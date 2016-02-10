@@ -1724,16 +1724,9 @@ static gint draw_plot_line(struct graph_info *ginfo, int i,
 }
 
 static void draw_plot_box(struct graph_info *ginfo, int i,
-			  unsigned long long start,
-			  unsigned long long end,
+			  gint x1, gint x2,
 			  gboolean fill, GdkGC *gc)
 {
-	gint x1;
-	gint x2;
-
-	x1 = convert_time_to_x(ginfo, start);
-	x2 = convert_time_to_x(ginfo, end);
-
 	gdk_draw_rectangle(ginfo->curr_pixmap, gc,
 			   fill,
 			   x1, PLOT_BOX_TOP(i),
@@ -1747,7 +1740,8 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 	PangoLayout *layout;
 	static gint width_16;
 	struct plot_info *info;
-	gboolean skip = FALSE;
+	gboolean skip_box = FALSE;
+	gboolean skip_line = FALSE;
 	gint x = 0;
 	gint x2;
 
@@ -1770,29 +1764,35 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 	info = &plot->info;
 
 	if (info->box) {
-		x = convert_time_to_x(ginfo, info->bend);
-		x2 = convert_time_to_x(ginfo, info->bstart);
-		skip = (x == x2 && x == info->last_box_x);
-		info->last_box_x = x;
+		x = convert_time_to_x(ginfo, info->bstart);
+		x2 = convert_time_to_x(ginfo, info->bend);
+		skip_box = (x == x2 && x == info->last_box_x);
+		if (!skip_box && x == info->last_box_x)
+			x++;
+		info->last_box_x = x2;
+		skip_box = 0;
+		if (skip_box)
+			plot->last_color = -1;
 	}
 
-	if (info->box && !skip) {
+	if (info->box && !skip_box) {
 		if (info->bcolor != plot->last_color) {
 			plot->last_color = info->bcolor;
 			set_color(ginfo->draw, plot->gc, plot->last_color);
 		}
 
-		draw_plot_box(ginfo, plot->pos, info->bstart, info->bend,
-			      info->bfill, plot->gc);
+		draw_plot_box(ginfo, plot->pos, x, x2, info->bfill, plot->gc);
 	}
 
 	if (info->line) {
 		x = convert_time_to_x(ginfo, info->ltime);
-		skip = x == info->last_line_x;
+		skip_line = x == info->last_line_x;
 		info->last_line_x = x;
+		if (skip_line)
+			plot->last_color = -1;
 	}
 
-	if (info->line && !skip) {
+	if (info->line && !skip_line) {
 
 		if (info->lcolor != plot->last_color) {
 			plot->last_color = info->lcolor;
@@ -1818,7 +1818,7 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 		plot->p2 = plot->p3;
 	}
 
-	if (!record && plot->p2)
+	if (!skip_line && !skip_box && !record && plot->p2)
 		draw_event_label(ginfo, plot->pos,
 				 plot->p1, plot->p2, ginfo->draw_width, width_16, font);
 }
