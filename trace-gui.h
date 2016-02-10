@@ -23,6 +23,7 @@
 #include <gtk/gtk.h>
 
 enum trace_dialog_type {
+	TRACE_GUI_OTHER,
 	TRACE_GUI_INFO,
 	TRACE_GUI_WARNING,
 	TRACE_GUI_ERROR,
@@ -60,5 +61,11 @@ GtkWidget *
 trace_create_combo_box(GtkWidget *hbox, const gchar *text,
 		       GtkTreeModel *(*combo_model_create)(gpointer data),
 		       gpointer data);
+
+struct pevent;
+struct pevent_record;
+
+void trace_show_record_dialog(GtkWindow *parent, struct pevent *pevent,
+			      struct pevent_record *record, gboolean raw);
 
 #endif /* _TRACE_GUI */

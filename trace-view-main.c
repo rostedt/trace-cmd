@@ -283,6 +283,26 @@ filter_clear_tasks_clicked (gpointer data)
 	info->filter_enabled = 0;
 }
 
+static void
+display_event_clicked (gpointer data)
+{
+	struct trace_tree_info *info = data;
+
+	return;
+	trace_view_update_filters(info->trace_tree, NULL, NULL);
+	info->filter_enabled = 0;
+}
+
+static void
+display_raw_event_clicked (gpointer data)
+{
+	struct trace_tree_info *info = data;
+
+	return;
+	trace_view_update_filters(info->trace_tree, NULL, NULL);
+	info->filter_enabled = 0;
+}
+
 static gboolean
 do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
@@ -292,6 +312,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_add_task;
 	static GtkWidget *menu_filter_hide_task;
 	static GtkWidget *menu_filter_clear_tasks;
+	static GtkWidget *menu_display_event;
+	static GtkWidget *menu_display_raw_event;
 	struct pevent *pevent;
 	struct pevent_record *record;
 	TraceViewRecord *vrec;
@@ -339,6 +361,22 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 					  G_CALLBACK (filter_clear_tasks_clicked),
 					  data);
 
+
+		menu_display_event = gtk_menu_item_new_with_label("Display event");
+		gtk_widget_show(menu_display_event);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_display_event);
+
+		g_signal_connect_swapped (G_OBJECT (menu_display_event), "activate",
+					  G_CALLBACK (display_event_clicked),
+					  data);
+
+		menu_display_raw_event = gtk_menu_item_new_with_label("Display raw event");
+		gtk_widget_show(menu_display_raw_event);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_display_raw_event);
+
+		g_signal_connect_swapped (G_OBJECT (menu_display_raw_event), "activate",
+					  G_CALLBACK (display_raw_event_clicked),
+					  data);
 	}
 
 	row = trace_view_get_selected_row(GTK_WIDGET(info->trace_tree));
@@ -384,11 +422,16 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 			gtk_widget_show(menu_filter_add_task);
 			gtk_widget_show(menu_filter_hide_task);
+
+			gtk_widget_show(menu_display_event);
+			gtk_widget_show(menu_display_raw_event);
 			free_record(record);
 		}
 	} else {
 		gtk_widget_hide(menu_filter_add_task);
 		gtk_widget_hide(menu_filter_hide_task);
+		gtk_widget_hide(menu_display_event);
+		gtk_widget_hide(menu_display_raw_event);
 	}
 
 	if (info->filter_enabled)

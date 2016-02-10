@@ -349,6 +349,9 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 		parent = GTK_WINDOW(parent_window);
 
 	switch (type) {
+	case TRACE_GUI_OTHER:
+		mtype = GTK_MESSAGE_OTHER;
+		break;
 	case TRACE_GUI_INFO:
 		mtype = GTK_MESSAGE_INFO;
 		break;
@@ -380,6 +383,51 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 	gtk_widget_destroy(dialog);
 
 	return result;
+}
+
+static void read_raw_events(struct trace_seq *s,
+			    struct event_format *event,
+			    struct pevent_record *record)
+{
+	struct format_field **fields;
+	int i;
+
+	fields = pevent_event_fields(event);
+	if (!fields)
+		return;
+
+	for (i = 0; fields[i]; i++) {
+		trace_seq_printf(s, "%s: ", fields[i]->name);
+		pevent_print_field(s, record->data, fields[i]);
+		trace_seq_putc(s, '\n');
+	}
+
+	free(fields);
+}
+
+void trace_show_record_dialog(GtkWindow *parent, struct pevent *pevent,
+			      struct pevent_record *record, gboolean raw)
+{
+	struct event_format *event;
+	struct trace_seq s;
+	int type;
+
+	trace_seq_init(&s);
+
+	type = pevent_data_type(pevent, record);
+	event = pevent_data_event_from_type(pevent, type);
+
+	if (raw)
+		read_raw_events(&s, event, record);
+	else
+		pevent_print_event(pevent, &s, record, FALSE);
+
+	if (s.buffer_size) {
+		trace_seq_terminate(&s);
+		trace_dialog(parent, TRACE_GUI_OTHER, s.buffer);
+	}
+
+	trace_seq_destroy(&s);
 }
 
 /**

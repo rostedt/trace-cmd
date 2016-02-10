@@ -1445,6 +1445,49 @@ filter_hide_task_clicked (gpointer data)
 }
 
 static void
+handle_display_event_clicked (gpointer data, gboolean raw)
+{
+	struct shark_info *info = data;
+	struct pevent_record *record;
+	struct pevent *pevent;
+	TraceViewRecord *vrec;
+	GtkTreeModel *model;
+	guint64 offset;
+	gint row;
+	gint cpu;
+
+	row = trace_view_get_selected_row(GTK_WIDGET(info->treeview));
+	if (row < 0)
+		return;
+
+	model = gtk_tree_view_get_model(GTK_TREE_VIEW(info->treeview));
+	vrec = trace_view_store_get_row(TRACE_VIEW_STORE(model), row);
+	offset = vrec->offset;
+
+	record = tracecmd_read_at(info->handle, offset, &cpu);
+	if (!record)
+		return;
+
+	pevent = tracecmd_get_pevent(info->handle);
+	trace_show_record_dialog(GTK_WINDOW(info->window),
+				 pevent, record, raw);
+
+	free_record(record);
+}
+
+static void
+display_event_clicked (gpointer data)
+{
+	handle_display_event_clicked(data, FALSE);
+}
+
+static void
+display_raw_event_clicked (gpointer data)
+{
+	handle_display_event_clicked(data, TRUE);
+}
+
+static void
 filter_graph_hide_task_clicked (gpointer data)
 {
 	struct shark_info *info = data;
@@ -1510,6 +1553,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_graph_add_task;
 	static GtkWidget *menu_filter_graph_hide_task;
 	static GtkWidget *menu_filter_graph_clear_tasks;
+	static GtkWidget *menu_display_event;
+	static GtkWidget *menu_display_raw_event;
 	struct pevent_record *record;
 	TraceViewRecord *vrec;
 	GtkTreeModel *model;
@@ -1586,6 +1631,21 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 					  G_CALLBACK (filter_graph_clear_tasks_clicked),
 					  data);
 
+		menu_display_event = gtk_menu_item_new_with_label("Display event");
+		gtk_widget_show(menu_display_event);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_display_event);
+
+		g_signal_connect_swapped (G_OBJECT (menu_display_event), "activate",
+					  G_CALLBACK (display_event_clicked),
+					  data);
+
+		menu_display_raw_event = gtk_menu_item_new_with_label("Display raw event");
+		gtk_widget_show(menu_display_raw_event);
+		gtk_menu_shell_append(GTK_MENU_SHELL (menu), menu_display_raw_event);
+
+		g_signal_connect_swapped (G_OBJECT (menu_display_raw_event), "activate",
+					  G_CALLBACK (display_raw_event_clicked),
+					  data);
 	}
 
 	row = trace_view_get_selected_row(GTK_WIDGET(info->treeview));
@@ -1658,6 +1718,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 			gtk_widget_show(menu_filter_add_task);
 			gtk_widget_show(menu_filter_hide_task);
+			gtk_widget_show(menu_display_event);
+			gtk_widget_show(menu_display_raw_event);
 			free_record(record);
 		}
 	} else {
@@ -1665,6 +1727,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		gtk_widget_hide(menu_filter_hide_task);
 		gtk_widget_hide(menu_filter_graph_add_task);
 		gtk_widget_hide(menu_filter_graph_hide_task);
+		gtk_widget_hide(menu_display_event);
+		gtk_widget_hide(menu_display_raw_event);
 	}
 
 	if (ginfo->filter_enabled)
