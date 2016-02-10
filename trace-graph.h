@@ -50,6 +50,8 @@ struct plot_info {
 	unsigned long long	bstart;
 	unsigned long long	bend;
 	gboolean		bfill;
+	gint			last_box_x;
+	gint			last_line_x;
 };
 
 /*

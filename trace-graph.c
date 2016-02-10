@@ -1747,7 +1747,9 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 	PangoLayout *layout;
 	static gint width_16;
 	struct plot_info *info;
-	gint x;
+	gboolean skip = FALSE;
+	gint x = 0;
+	gint x2;
 
 	/* Calculate the size of 16 characters */
 	if (!width_16) {
@@ -1768,6 +1770,13 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 	info = &plot->info;
 
 	if (info->box) {
+		x = convert_time_to_x(ginfo, info->bend);
+		x2 = convert_time_to_x(ginfo, info->bstart);
+		skip = (x == x2 && x == info->last_box_x);
+		info->last_box_x = x;
+	}
+
+	if (info->box && !skip) {
 		if (info->bcolor != plot->last_color) {
 			plot->last_color = info->bcolor;
 			set_color(ginfo->draw, plot->gc, plot->last_color);
@@ -1778,6 +1787,13 @@ static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
 	}
 
 	if (info->line) {
+		x = convert_time_to_x(ginfo, info->ltime);
+		skip = x == info->last_line_x;
+		info->last_line_x = x;
+	}
+
+	if (info->line && !skip) {
+
 		if (info->lcolor != plot->last_color) {
 			plot->last_color = info->lcolor;
 			set_color(ginfo->draw, plot->gc, plot->last_color);
@@ -1828,6 +1844,8 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 		plot->p2 = 0;
 		plot->p3 = 0;
 		plot->last_color = -1;
+		plot->info.last_line_x = -1;
+		plot->info.last_box_x = -1;
 
 		gdk_draw_line(ginfo->curr_pixmap, ginfo->draw->style->black_gc,
 			      0, PLOT_LINE(i), new_width, PLOT_LINE(i));
