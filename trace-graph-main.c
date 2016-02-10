@@ -481,7 +481,9 @@ void trace_graph(int argc, char **argv)
 
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
 
+	ginfo->no_draw = TRUE;
 	gtk_widget_show (window);
+	ginfo->no_draw = FALSE;
 	gtk_main ();
 }
 

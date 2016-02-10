@@ -185,6 +185,8 @@ struct graph_info {
 	guint64			view_end_time;	/* visible end time */
 	gint			start_x;	/* virutal start of visible area */
 
+	gboolean		no_draw;	/* skip drawing the events */
+
 	guint64			cursor;		/* time of cursor (double clicked) */
 
 	gdouble			resolution;	/* pixels / time */

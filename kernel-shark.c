@@ -2372,8 +2372,16 @@ void kernel_shark(int argc, char **argv)
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
 
 	gdk_threads_enter();
+
+	/*
+	 * The showing of the window will configure the graph and it will
+	 * waste time drawing the events. But after the window appears and
+	 * a border is displayed, the graph gets shown again.
+	 */
+	info->ginfo->no_draw = TRUE;
 	gtk_widget_show (window);
 
+	info->ginfo->no_draw = FALSE;
 	gtk_main ();
 	gdk_threads_leave();
 }

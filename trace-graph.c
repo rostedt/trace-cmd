@@ -2263,7 +2263,8 @@ configure_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 	gtk_widget_set_size_request(widget, ginfo->draw_width, ginfo->draw_height);
 
-	redraw_pixmap_backend(ginfo);
+	if (!ginfo->no_draw)
+		redraw_pixmap_backend(ginfo);
 
 	/* debug */
 	ginfo->hadj_value = gtk_adjustment_get_value(ginfo->hadj);
