@@ -69,7 +69,7 @@ static gboolean is_running(struct graph_info *ginfo, struct pevent_record *recor
 		return FALSE;
 
 	pevent_read_number_field(ginfo->event_prev_state, record->data, &val);
-	return val ? FALSE : TRUE;
+	return val & ((1 << 11) - 1)? FALSE : TRUE;
 }
 
 static gboolean record_matches_pid(struct graph_info *ginfo,
