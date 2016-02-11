@@ -197,6 +197,11 @@ static void init_event_cache(struct graph_info *ginfo)
 	ginfo->event_wakeup_id = -1;
 	ginfo->event_wakeup_new_id = -1;
 
+	ginfo->hard_irq_entry_ids = NULL;
+	ginfo->hard_irq_exit_ids = NULL;
+	ginfo->soft_irq_entry_ids = NULL;
+	ginfo->soft_irq_exit_ids = NULL;
+
 	ginfo->event_pid_field = NULL;
 	ginfo->event_comm_field = NULL;
 	ginfo->ftrace_pid_field = NULL;
@@ -1142,6 +1147,97 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 	}
 
 	return ret;
+}
+
+static void enter_id(gint **ids, gint id, gint *len)
+{
+	*ids = realloc(*ids, sizeof(gint) * (*len + 2));
+	(*ids)[*len] = id;
+	(*len)++;
+	(*ids)[*len] = -1;
+}
+
+enum graph_irq_type
+trace_graph_check_irq(struct graph_info *ginfo,
+		      struct pevent_record *record)
+{
+	struct event_format *event;
+	struct event_format **events;
+	gint id;
+	int i;
+
+	if (!ginfo->hard_irq_entry_ids) {
+		gint hard_irq_entry_len = 0;
+		gint hard_irq_exit_len = 0;
+		gint soft_irq_entry_len = 0;
+		gint soft_irq_exit_len = 0;
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  NULL, "irq_handler_exit");
+		if (event)
+			enter_id(&ginfo->hard_irq_exit_ids, event->id,
+				 &hard_irq_exit_len);
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  NULL, "irq_handler_entry");
+		if (event)
+			enter_id(&ginfo->hard_irq_entry_ids, event->id,
+				 &hard_irq_entry_len);
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  NULL, "softirq_exit");
+		if (event)
+			enter_id(&ginfo->soft_irq_exit_ids, event->id,
+				 &soft_irq_exit_len);
+
+		event = pevent_find_event_by_name(ginfo->pevent,
+						  NULL, "softirq_entry");
+		if (event)
+			enter_id(&ginfo->soft_irq_entry_ids, event->id,
+				 &soft_irq_entry_len);
+
+		events = pevent_list_events(ginfo->pevent, EVENT_SORT_SYSTEM);
+
+		for (i = 0; events[i]; i++) {
+			event = events[i];
+			if (strcmp(event->system, "irq_vectors") == 0)
+				break;
+		}
+
+		for (; events[i]; i++) {
+			event = events[i];
+			if (strcmp(event->system, "irq_vectors") != 0)
+				break;
+			if (strcmp(event->name + strlen(event->name) - 5,
+				   "_exit") == 0)
+				enter_id(&ginfo->hard_irq_exit_ids, event->id,
+					 &hard_irq_exit_len);
+			else if (strcmp(event->name + strlen(event->name) - 6,
+					"_entry") == 0)
+				enter_id(&ginfo->hard_irq_entry_ids, event->id,
+					 &hard_irq_entry_len);
+		}
+	}
+
+	id = pevent_data_type(ginfo->pevent, record);
+
+	for (i = 0; ginfo->hard_irq_exit_ids[i] != -1; i++)
+		if (id == ginfo->hard_irq_exit_ids[i])
+			return GRAPH_HARDIRQ_EXIT;
+
+	for (i = 0; ginfo->hard_irq_entry_ids[i] != -1; i++)
+		if (id == ginfo->hard_irq_entry_ids[i])
+			return GRAPH_HARDIRQ_ENTRY;
+
+	for (i = 0; ginfo->soft_irq_exit_ids[i] != -1; i++)
+		if (id == ginfo->soft_irq_exit_ids[i])
+			return GRAPH_SOFTIRQ_EXIT;
+
+	for (i = 0; ginfo->soft_irq_entry_ids[i] != -1; i++)
+		if (id == ginfo->soft_irq_entry_ids[i])
+			return GRAPH_SOFTIRQ_ENTRY;
+
+	return GRAPH_IRQ_NONE;
 }
 
 static void draw_info_box(struct graph_info *ginfo, const gchar *buffer,
@@ -2418,6 +2514,16 @@ void trace_graph_free_info(struct graph_info *ginfo)
 		ginfo->cursor = 0;
 	}
 	ginfo->handle = NULL;
+
+	free(ginfo->hard_irq_entry_ids);
+	free(ginfo->hard_irq_exit_ids);
+	free(ginfo->soft_irq_entry_ids);
+	free(ginfo->soft_irq_exit_ids);
+
+	ginfo->hard_irq_entry_ids = NULL;
+	ginfo->hard_irq_exit_ids = NULL;
+	ginfo->soft_irq_entry_ids = NULL;
+	ginfo->soft_irq_exit_ids = NULL;
 }
 
 static int load_handle(struct graph_info *ginfo,

@@ -39,6 +39,14 @@ enum graph_plot_type {
 	PLOT_TYPE_TASK,
 };
 
+enum graph_irq_type {
+	GRAPH_IRQ_NONE,
+	GRAPH_HARDIRQ_ENTRY,
+	GRAPH_HARDIRQ_EXIT,
+	GRAPH_SOFTIRQ_ENTRY,
+	GRAPH_SOFTIRQ_EXIT
+};
+
 struct graph_plot;
 
 struct plot_info {
@@ -222,6 +230,10 @@ struct graph_info {
 	gint			event_sched_switch_id;
 	gint			event_wakeup_id;
 	gint			event_wakeup_new_id;
+	gint			*hard_irq_entry_ids;
+	gint			*hard_irq_exit_ids;
+	gint			*soft_irq_entry_ids;
+	gint			*soft_irq_exit_ids;
 	struct format_field	*event_prev_state;
 	struct format_field	*event_pid_field;
 	struct format_field	*event_comm_field;
@@ -302,6 +314,8 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 				   struct pevent_record *record,
 				   gint *pid);
+enum graph_irq_type trace_graph_check_irq(struct graph_info *ginfo,
+		      struct pevent_record *record);
 gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid);
 gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct pevent_record *record);
 

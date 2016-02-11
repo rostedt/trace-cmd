@@ -34,6 +34,7 @@ struct task_plot_info {
 	unsigned long long	display_wake_time;
 	int			wake_color;
 	int			last_cpu;
+	gboolean		in_irq;
 };
 
 static void convert_nano(unsigned long long time, unsigned long *sec,
@@ -328,6 +329,34 @@ static void task_plot_start(struct graph_info *ginfo, struct graph_plot *plot,
 	task_info->last_cpu = -1;
 	task_info->wake_time = 0ULL;
 	task_info->display_wake_time = 0ULL;
+	task_info->in_irq = FALSE;
+}
+
+static gboolean record_is_interrupt(struct graph_info *ginfo,
+				    struct pevent_record *record,
+				    gboolean check_type)
+{
+	gboolean in_irq;
+
+	in_irq = !!(pevent_data_flags(ginfo->pevent, record) &
+		    (TRACE_FLAG_HARDIRQ | TRACE_FLAG_SOFTIRQ));
+
+	/*
+	 * An irq exit event can also cause us to exit irq
+	 * even if the next event is an irq.
+	 * Treat exiting irqs (hard and soft) as non interrupts.
+	 */
+	if (check_type && in_irq) {
+		switch (trace_graph_check_irq(ginfo, record)) {
+		case GRAPH_HARDIRQ_EXIT:
+		case GRAPH_SOFTIRQ_EXIT:
+			in_irq = FALSE;
+			break;
+		default:
+			break;
+		}
+	}
+	return in_irq;
 }
 
 static void update_last_record(struct graph_info *ginfo,
@@ -404,6 +433,7 @@ static void update_last_record(struct graph_info *ginfo,
 			task_info->last_records[cpu] = trecord;
 			task_info->last_cpu = trecord->cpu;
 			task_info->last_time = trecord->ts;
+			task_info->in_irq = record_is_interrupt(ginfo, trecord, TRUE);
 			break;
 		}
 
@@ -417,7 +447,9 @@ static int task_plot_event(struct graph_info *ginfo,
 {
 	struct task_plot_info *task_info = plot->private;
 	struct plot_info *info = &plot->info;
+	struct pevent_record *next_record;
 	gboolean match;
+	gboolean in_irq;
 	int sched_pid;
 	int rec_pid;
 	int is_wakeup;
@@ -435,6 +467,8 @@ static int task_plot_event(struct graph_info *ginfo,
 			info->bstart = task_info->last_time;
 			info->bend = ginfo->view_end_time;
 			info->bcolor = hash_cpu(task_info->last_cpu);
+			info->bfill = !task_info->in_irq;
+			task_info->in_irq = FALSE;
 		}
 		for (cpu = 0; cpu < ginfo->cpus; cpu++) {
 			free_record(task_info->last_records[cpu]);
@@ -445,7 +479,6 @@ static int task_plot_event(struct graph_info *ginfo,
 
 	match = record_matches_pid(ginfo, record, pid, &rec_pid,
 				   &sched_pid, &is_sched, &is_wakeup);
-
 
 	if (!match && record->cpu != task_info->last_cpu) {
 		if (!task_info->last_records[record->cpu]) {
@@ -489,6 +522,14 @@ static int task_plot_event(struct graph_info *ginfo,
 			return 1;
 		}
 
+		in_irq = record_is_interrupt(ginfo, record, TRUE);
+
+		/* It takes two events to be in an irq */
+		if (in_irq) {
+			next_record = tracecmd_peek_data(ginfo->handle, record->cpu);
+			in_irq = record_is_interrupt(ginfo, next_record, FALSE);
+		}
+
 		if (task_info->last_cpu != record->cpu) {
 			if (task_info->last_cpu >= 0) {
 				/* Switched CPUs */
@@ -496,6 +537,7 @@ static int task_plot_event(struct graph_info *ginfo,
 				info->bcolor = hash_cpu(task_info->last_cpu);
 				info->bstart = task_info->last_time;
 				info->bend = record->ts;
+				info->bfill = !task_info->in_irq;
 			}
 			task_info->last_time = record->ts;
 		}
@@ -521,16 +563,30 @@ static int task_plot_event(struct graph_info *ginfo,
 				info->bcolor = hash_cpu(task_info->last_cpu);
 				info->bstart = task_info->last_time;
 				info->bend = record->ts;
+				info->bfill = !task_info->in_irq;
 				task_info->last_cpu = -1;
 				if (is_running(ginfo, record)) {
 					task_info->wake_time = record->ts;
 					task_info->wake_color = RED;
 				} else
 					task_info->wake_time = 0;
-			} else
+			} else {
 				task_info->wake_time = 0;
-		} else
+				task_info->in_irq = in_irq;
+			}
+		} else {
+			/* Hollow out when we are in an irq */
+			if (task_info->in_irq != in_irq) {
+				info->box = TRUE;
+				info->bcolor = hash_cpu(task_info->last_cpu);
+				info->bstart = task_info->last_time;
+				info->bend = record->ts;
+				info->bfill = !task_info->in_irq;
+				task_info->last_time = record->ts;
+			}
 			task_info->wake_time = 0;
+			task_info->in_irq = in_irq;
+		}
 
 		return 1;
 	}
@@ -725,6 +781,14 @@ int task_plot_display_info(struct graph_info *ginfo,
 	trace_seq_printf(s, "%lu.%06lu", sec, usec);
 	if (pid == task_info->pid || sched_pid == task_info->pid)
 		trace_seq_printf(s, " CPU: %03d", cpu);
+
+	if (record_is_interrupt(ginfo, record, TRUE)) {
+		struct pevent_record *next_record;
+
+		next_record = tracecmd_peek_data(ginfo->handle, record->cpu);
+		if (record_is_interrupt(ginfo, next_record, FALSE))
+			trace_seq_puts(s, "\n(in interrupt)");
+	}
 
 	free_record(record);
 
