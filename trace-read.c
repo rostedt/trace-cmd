@@ -106,6 +106,8 @@ static int profile;
 static int buffer_breaks = 0;
 static int debug = 0;
 
+static int no_irqs;
+
 static struct format_field *wakeup_task;
 static struct format_field *wakeup_success;
 static struct format_field *wakeup_new_task;
@@ -851,10 +853,18 @@ static void read_rest(void)
 }
 
 static int
-test_filters(struct filter *event_filters, struct pevent_record *record, int neg)
+test_filters(struct pevent *pevent, struct filter *event_filters,
+	     struct pevent_record *record, int neg)
 {
 	int found = 0;
 	int ret = FILTER_NONE;
+	int flags;
+
+	if (no_irqs) {
+		flags = pevent_data_flags(pevent, record);
+		if (flags & TRACE_FLAG_HARDIRQ)
+			return FILTER_MISS;
+	}
 
 	while (event_filters) {
 		ret = pevent_filter_match(event_filters->filter, record);
@@ -950,7 +960,7 @@ test_stacktrace(struct handle_list *handles, struct pevent_record *record,
 	 * being filtered out.
 	 */
 	if (id == info->stacktrace_id) {
-		ret = test_filters(handles->event_filter_out, record, 1);
+		ret = test_filters(pevent, handles->event_filter_out, record, 1);
 		if (ret != FILTER_MATCH)
 			return cpu_info->last_printed;
 		return 0;
@@ -963,6 +973,7 @@ test_stacktrace(struct handle_list *handles, struct pevent_record *record,
 static struct pevent_record *get_next_record(struct handle_list *handles)
 {
 	struct pevent_record *record;
+	struct pevent *pevent;
 	int found = 0;
 	int cpu;
 	int ret;
@@ -972,6 +983,8 @@ static struct pevent_record *get_next_record(struct handle_list *handles)
 
 	if (handles->done)
 		return NULL;
+
+	pevent = tracecmd_get_pevent(handles->handle);
 
 	do {
 		if (filter_cpus) {
@@ -998,7 +1011,7 @@ static struct pevent_record *get_next_record(struct handle_list *handles)
 			record = tracecmd_read_next_data(handles->handle, &cpu);
 
 		if (record) {
-			ret = test_filters(handles->event_filters, record, 0);
+			ret = test_filters(pevent, handles->event_filters, record, 0);
 			switch (ret) {
 			case FILTER_NOEXIST:
 				/* Stack traces may still filter this */
@@ -1011,7 +1024,8 @@ static struct pevent_record *get_next_record(struct handle_list *handles)
 			case FILTER_NONE:
 			case FILTER_MATCH:
 				/* Test the negative filters (-v) */
-				ret = test_filters(handles->event_filter_out, record, 1);
+				ret = test_filters(pevent, handles->event_filter_out,
+						   record, 1);
 				if (ret != FILTER_MATCH) {
 					found = 1;
 					break;
@@ -1425,7 +1439,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hi:H:feGpRr:tPNn:LlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hIi:H:feGpRr:tPNn:LlEwF:VvTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1453,6 +1467,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'f':
 			show_funcs = 1;
+			break;
+		case 'I':
+			no_irqs = 1;
 			break;
 		case 'P':
 			show_printk = 1;
