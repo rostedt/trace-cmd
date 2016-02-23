@@ -1179,6 +1179,8 @@ static int handle_fgraph_exit_event(struct handle_data *h,
 	struct task_data *task;
 
 	task = handle_end_event(h, event_data, record, pid);
+	if (!task)
+		return -1;
 	/* Do not match stacks with function graph exit events */
 	task->last_event = NULL;
 
