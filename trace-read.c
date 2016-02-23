@@ -73,6 +73,7 @@ struct input_files {
 	struct list_head	list;
 	const char		*file;
 	unsigned long long	tsoffset;
+	unsigned long long	ts2secs;
 };
 static struct list_head input_files;
 static struct input_files *last_input_file;
@@ -1363,6 +1364,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_ts2secs	= 240,
 	OPT_tsoffset	= 241,
 	OPT_bycomm	= 242,
 	OPT_debug	= 243,
@@ -1394,6 +1396,8 @@ void trace_report (int argc, char **argv)
 	struct handle_list *handles;
 	enum output_type otype;
 	unsigned long long tsoffset = 0;
+	unsigned long long ts2secs = 0;
+	unsigned long long ts2sc;
 	int show_stat = 0;
 	int show_funcs = 0;
 	int show_endian = 0;
@@ -1444,6 +1448,7 @@ void trace_report (int argc, char **argv)
 			{"uname", no_argument, NULL, OPT_uname},
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
+			{"ts2secs", required_argument, NULL, OPT_ts2secs},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1593,6 +1598,13 @@ void trace_report (int argc, char **argv)
 		case OPT_bycomm:
 			trace_profile_set_merge_like_comms();
 			break;
+		case OPT_ts2secs:
+			ts2sc = atoll(optarg);
+			if (multi_inputs)
+				last_input_file->ts2secs = ts2sc;
+			else
+				ts2secs = ts2sc;
+			break;
 		case OPT_tsoffset:
 			tsoffset = atoll(optarg);
 			if (multi_inputs)
@@ -1643,6 +1655,11 @@ void trace_report (int argc, char **argv)
 
 		if (inputs->tsoffset)
 			tracecmd_set_ts_offset(handle, inputs->tsoffset);
+
+		if (inputs->ts2secs)
+			tracecmd_set_ts2secs(handle, inputs->ts2secs);
+		else if (ts2secs)
+			tracecmd_set_ts2secs(handle, ts2secs);
 
 		pevent = tracecmd_get_pevent(handle);
 

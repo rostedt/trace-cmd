@@ -96,6 +96,7 @@ struct tracecmd_input {
 	bool			use_pipe;
 	struct cpu_data 	*cpu_data;
 	unsigned long long	ts_offset;
+	double			ts2secs;
 	char *			cpustats;
 	char *			uname;
 	struct input_buffer_instance	*buffers;
@@ -953,6 +954,9 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	}
 	handle->cpu_data[cpu].timestamp = kbuffer_timestamp(kbuf) + handle->ts_offset;
 
+	if (handle->ts2secs)
+		handle->cpu_data[cpu].timestamp *= handle->ts2secs;
+
 	return 0;
 }
 
@@ -1673,6 +1677,11 @@ read_again:
 
 	handle->cpu_data[cpu].timestamp = ts + handle->ts_offset;
 
+	if (handle->ts2secs) {
+		handle->cpu_data[cpu].timestamp *= handle->ts2secs;
+		ts *= handle->ts2secs;
+	}
+
 	index = kbuffer_curr_offset(kbuf);
 
 	record = malloc(sizeof(*record));
@@ -1939,6 +1948,16 @@ void tracecmd_set_ts_offset(struct tracecmd_input *handle,
 	handle->ts_offset = offset;
 }
 
+void tracecmd_set_ts2secs(struct tracecmd_input *handle,
+			 unsigned long long hz)
+{
+	double ts2secs;
+
+	ts2secs = (double)NSECS_PER_SEC / (double)hz;
+	handle->ts2secs = ts2secs;
+	handle->use_trace_clock = false;
+}
+
 static int handle_options(struct tracecmd_input *handle)
 {
 	unsigned long long offset;
@@ -2019,7 +2038,8 @@ static int handle_options(struct tracecmd_input *handle)
 			buffer->offset = __data2host8(handle->pevent, offset);
 			break;
 		case TRACECMD_OPTION_TRACECLOCK:
-			handle->use_trace_clock = true;
+			if (!handle->ts2secs)
+				handle->use_trace_clock = true;
 			break;
 		case TRACECMD_OPTION_UNAME:
 			handle->uname = strdup(buf);

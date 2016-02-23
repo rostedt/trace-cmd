@@ -163,6 +163,10 @@ static struct usage_help usage_help[] = {
 		"          --by-comm used with --profile, merge events for related comms\n"
 		"          --ts-offset will add amount to timestamp of all events of the\n"
 		"                     previous data file.\n"
+		"          --ts2secs HZ, pass in the timestamp frequency (per second)\n"
+		"                     to convert the displayed timestamps to seconds\n"
+		"                     Affects the previous data file, unless there was no\n"
+		"                     previous data file, in which case it becomes default\n"
 	},
 	{
 		"stream",

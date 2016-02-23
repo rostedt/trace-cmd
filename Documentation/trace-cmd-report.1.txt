@@ -262,6 +262,30 @@ OPTIONS
     the trace. If the units are nanoseconds, the addition (or subtraction) from
     the offset will be nanoseconds even if the displayed units are microseconds.
 
+*--ts2secs* HZ::
+    Convert the current clock source into a second (nanosecond resolution)
+    output. When using clocks like x86-tsc, if the frequency is known,
+    by passing in the clock frequency, this will convert the time to seconds.
+
+    This option affects any trace.dat file given with *-i* proceeding it.
+    If this option comes before any *-i* option, then that value becomes
+    the default conversion for all other trace.dat files. If another
+    --ts2secs option appears after a *-i* trace.dat file, than that option
+    will override the default value.
+
+    Example: On a 3.4 GHz machine
+
+      trace-cmd record -p function -C x86-tsc
+
+      trace-cmd report --ts2ns 3400000000
+
+     The report will convert the cycles timestamps into a readable second
+     display. The default display resolution is microseconds, unless *-t*
+     is used.
+
+     The value of --ts-offset must still be in the raw timestamp units, even
+     with this option. The offset will be converted as well.
+
 EXAMPLES
 --------
 
