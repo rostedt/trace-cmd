@@ -161,6 +161,8 @@ static struct usage_help usage_help[] = {
 		"          -H Allows users to hook two events together for timings\n"
 		"             (used with --profile)\n"
 		"          --by-comm used with --profile, merge events for related comms\n"
+		"          --ts-offset will add amount to timestamp of all events of the\n"
+		"                     previous data file.\n"
 	},
 	{
 		"stream",

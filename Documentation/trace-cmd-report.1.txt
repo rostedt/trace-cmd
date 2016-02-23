@@ -248,6 +248,20 @@ OPTIONS
     If the trace.dat file recorded uname during the run, this will retrieve that
     information.
 
+*--ts-offset* offset::
+    Add (or subtract if negative) an offset for all timestamps of the previous
+    data file specified with *-i*. This is useful to merge sort multiple trace.dat
+    files where the difference in the timestamp is known. For example if a trace
+    is done on a virtual guest, and another trace is done on the host. If the
+    host timestamp is 1000 units ahead of the guest, the following can be done:
+
+    trace-cmd report -i host.dat --ts-offset -1000 -i guest.dat
+
+    This will subtract 1000 timestamp units from all the host events as it merges
+    with the guest.dat events. Note, the units is for the raw units recorded in
+    the trace. If the units are nanoseconds, the addition (or subtraction) from
+    the offset will be nanoseconds even if the displayed units are microseconds.
+
 EXAMPLES
 --------
 

@@ -1933,6 +1933,12 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	return 0;
 }
 
+void tracecmd_set_ts_offset(struct tracecmd_input *handle,
+			    unsigned long long offset)
+{
+	handle->ts_offset = offset;
+}
+
 static int handle_options(struct tracecmd_input *handle)
 {
 	unsigned long long offset;

@@ -72,8 +72,10 @@ static struct list_head handle_list;
 struct input_files {
 	struct list_head	list;
 	const char		*file;
+	unsigned long long	tsoffset;
 };
 static struct list_head input_files;
+static struct input_files *last_input_file;
 
 struct pid_list {
 	struct pid_list		*next;
@@ -292,6 +294,7 @@ static void add_input(const char *file)
 		die("Failed to allocate for %s", file);
 	item->file = file;
 	list_add_tail(&item->list, &input_files);
+	last_input_file = item;
 }
 
 static void add_handle(struct tracecmd_input *handle, const char *file)
@@ -1360,6 +1363,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_tsoffset	= 241,
 	OPT_bycomm	= 242,
 	OPT_debug	= 243,
 	OPT_uname	= 244,
@@ -1389,6 +1393,7 @@ void trace_report (int argc, char **argv)
 	struct input_files *inputs;
 	struct handle_list *handles;
 	enum output_type otype;
+	unsigned long long tsoffset = 0;
 	int show_stat = 0;
 	int show_funcs = 0;
 	int show_endian = 0;
@@ -1438,6 +1443,7 @@ void trace_report (int argc, char **argv)
 			{"profile", no_argument, NULL, OPT_profile},
 			{"uname", no_argument, NULL, OPT_uname},
 			{"by-comm", no_argument, NULL, OPT_bycomm},
+			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1452,8 +1458,11 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'i':
 			if (input_file) {
-				if (!multi_inputs)
+				if (!multi_inputs) {
 					add_input(input_file);
+					if (tsoffset)
+						last_input_file->tsoffset = tsoffset;
+				}
 				multi_inputs++;
 				add_input(optarg);
 			} else
@@ -1584,6 +1593,13 @@ void trace_report (int argc, char **argv)
 		case OPT_bycomm:
 			trace_profile_set_merge_like_comms();
 			break;
+		case OPT_tsoffset:
+			tsoffset = atoll(optarg);
+			if (multi_inputs)
+				last_input_file->tsoffset = tsoffset;
+			if (!input_file)
+				die("--ts-offset must come after -i");
+			break;
 		default:
 			usage(argv);
 		}
@@ -1598,9 +1614,11 @@ void trace_report (int argc, char **argv)
 	if (!input_file)
 		input_file = default_input_file;
 
-	if (!multi_inputs)
+	if (!multi_inputs) {
 		add_input(input_file);
-	else if (show_wakeup)
+		if (tsoffset)
+			last_input_file->tsoffset = tsoffset;
+	} else if (show_wakeup)
 		die("Wakeup tracing can only be done on a single input file");
 
 	list_for_each_entry(inputs, &input_files, list) {
@@ -1622,6 +1640,9 @@ void trace_report (int argc, char **argv)
 			       getpagesize());
 			return;
 		}
+
+		if (inputs->tsoffset)
+			tracecmd_set_ts_offset(handle, inputs->tsoffset);
 
 		pevent = tracecmd_get_pevent(handle);
 
