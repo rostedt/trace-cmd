@@ -1980,7 +1980,17 @@ static int handle_options(struct tracecmd_input *handle)
 			offset = strtoll(buf, NULL, 0);
 			/* Convert from micro to nano */
 			offset *= 1000;
-			handle->ts_offset = offset;
+			handle->ts_offset += offset;
+			break;
+		case TRACECMD_OPTION_OFFSET:
+			/*
+			 * Similar to date option, but just adds an
+			 * offset to the timestamp.
+			 */
+			if (handle->flags & TRACECMD_FL_IGNORE_DATE)
+				break;
+			offset = strtoll(buf, NULL, 0);
+			handle->ts_offset += offset;
 			break;
 		case TRACECMD_OPTION_CPUSTAT:
 			buf[size-1] = '\n';

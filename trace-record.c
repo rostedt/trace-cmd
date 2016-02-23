@@ -2862,7 +2862,13 @@ static void print_stat(struct buffer_instance *instance)
 		trace_seq_do_printf(&instance->s_print[cpu]);
 }
 
-static void record_data(char *date2ts)
+enum {
+	DATA_FL_NONE		= 0,
+	DATA_FL_DATE		= 1,
+	DATA_FL_OFFSET		= 2,
+};
+
+static void record_data(char *date2ts, int flags)
 {
 	struct tracecmd_option **buffer_options;
 	struct tracecmd_output *handle;
@@ -2901,9 +2907,18 @@ static void record_data(char *date2ts)
 		if (!handle)
 			die("Error creating output file");
 
-		if (date2ts)
-			tracecmd_add_option(handle, TRACECMD_OPTION_DATE,
-					    strlen(date2ts)+1, date2ts);
+		if (date2ts) {
+			int type = 0;
+
+			if (flags & DATA_FL_DATE)
+				type = TRACECMD_OPTION_DATE;
+			else if (flags & DATA_FL_OFFSET)
+				type = TRACECMD_OPTION_OFFSET;
+
+			if (type)
+				tracecmd_add_option(handle, type,
+						    strlen(date2ts)+1, date2ts);
+		}
 
 		/* Only record the top instance under TRACECMD_OPTION_CPUSTAT*/
 		if (!no_top_instance()) {
@@ -3995,6 +4010,7 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 }
 
 enum {
+	OPT_tsoffset	= 249,
 	OPT_bycomm	= 250,
 	OPT_stderr	= 251,
 	OPT_profile	= 252,
@@ -4032,6 +4048,7 @@ void trace_record (int argc, char **argv)
 	int manual = 0;
 	int topt = 0;
 	int do_child = 0;
+	int data_flags = 0;
 
 	int c;
 
@@ -4198,6 +4215,7 @@ void trace_record (int argc, char **argv)
 			{"profile", no_argument, NULL, OPT_profile},
 			{"stderr", no_argument, NULL, OPT_stderr},
 			{"by-comm", no_argument, NULL, OPT_bycomm},
+			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -4429,6 +4447,9 @@ void trace_record (int argc, char **argv)
 			break;
 		case OPT_date:
 			date = 1;
+			if (data_flags & DATA_FL_OFFSET)
+				die("Can not use both --date and --ts-offset");
+			data_flags |= DATA_FL_DATE;
 			break;
 		case OPT_funcstack:
 			func_stack = 1;
@@ -4450,6 +4471,12 @@ void trace_record (int argc, char **argv)
 			break;
 		case OPT_bycomm:
 			trace_profile_set_merge_like_comms();
+			break;
+		case OPT_tsoffset:
+			date2ts = strdup(optarg);
+			if (data_flags & DATA_FL_DATE)
+				die("Can not use both --date and --ts-offset");
+			data_flags |= DATA_FL_OFFSET;
 			break;
 		default:
 			usage(argv);
@@ -4614,7 +4641,7 @@ void trace_record (int argc, char **argv)
 	}
 
 	if (record || extract) {
-		record_data(date2ts);
+		record_data(date2ts, data_flags);
 		delete_thread_data();
 	} else
 		print_stats();

@@ -286,6 +286,14 @@ OPTIONS
 
     See trace-cmd-profile(1) for format.
 
+*--ts-offset offset*::
+    Add an offset for the timestamp in the trace.dat file. This will add a
+    offset option into the trace.dat file such that a trace-cmd report will
+    offset all the timestamps of the events by the given offset. The offset
+    is in raw units. That is, if the event timestamps are in nanoseconds
+    the offset will also be in nanoseconds even if the displayed units are
+    in microseconds.
+
 *--stderr*::
     Have output go to stderr instead of stdout, but the output of the command
     executed will not be changed. This is useful if you want to monitor the
