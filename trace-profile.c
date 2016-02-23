@@ -468,10 +468,8 @@ find_and_update_start(struct task_data *task, struct event_data *event_data,
 	struct start_data *start;
 
 	start = find_start(task, event_data, search_val);
-	if (!start) {
-		warning("Could not allocate start for event_hash");
+	if (!start)
 		return NULL;
-	}
 	return add_and_free_start(task, start, event_data, ts);
 }
 
@@ -644,8 +642,6 @@ handle_end_event(struct handle_data *h, struct event_data *event_data,
 	pevent_read_number_field(event_data->start_match_field, record->data,
 				 &val);
 	event_hash = find_and_update_start(task, event_data->start, record->ts, val);
-	if (!event_hash)
-		return NULL;
 	task->last_start = NULL;
 	task->last_event = event_hash;
 
