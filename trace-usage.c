@@ -167,6 +167,7 @@ static struct usage_help usage_help[] = {
 		"                     to convert the displayed timestamps to seconds\n"
 		"                     Affects the previous data file, unless there was no\n"
 		"                     previous data file, in which case it becomes default\n"
+		"           --ts-diff Show the delta timestamp between events.\n"
 	},
 	{
 		"stream",

@@ -112,6 +112,8 @@ static int debug = 0;
 static int no_irqs;
 static int no_softirqs;
 
+static int tsdiff;
+
 static struct format_field *wakeup_task;
 static struct format_field *wakeup_success;
 static struct format_field *wakeup_new_task;
@@ -767,6 +769,9 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 	struct trace_seq s;
 	int cpu = record->cpu;
 	bool use_trace_clock;
+	static unsigned long long last_ts;
+	unsigned long long diff_ts;
+	char buf[50];
 
 	pevent = tracecmd_get_pevent(handle);
 
@@ -793,7 +798,27 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 		}
 	}
 	use_trace_clock = tracecmd_get_use_trace_clock(handle);
-	pevent_print_event(pevent, &s, record, use_trace_clock);
+	if (tsdiff) {
+		struct event_format *event;
+		unsigned long long rec_ts = record->ts;
+
+		event = pevent_find_event_by_record(pevent, record);
+		pevent_print_event_task(pevent, &s, event, record);
+		pevent_print_event_time(pevent, &s, event, record,
+					use_trace_clock);
+		buf[0] = 0;
+		if (use_trace_clock && !(pevent->flags & PEVENT_NSEC_OUTPUT))
+			rec_ts = (rec_ts + 500) / 1000;
+		if (last_ts) {
+			diff_ts = rec_ts - last_ts;
+			snprintf(buf, 50, "(+%lld)", diff_ts);
+			buf[49] = 0;
+		}
+		last_ts = rec_ts;
+		trace_seq_printf(&s, " %-8s", buf);
+		pevent_print_event_data(pevent, &s, event, record);
+	} else
+		pevent_print_event(pevent, &s, record, use_trace_clock);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
 	if (debug) {
@@ -834,7 +859,7 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 			}
 		}
 	}
-		
+
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 
@@ -1364,6 +1389,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_tsdiff	= 239,
 	OPT_ts2secs	= 240,
 	OPT_tsoffset	= 241,
 	OPT_bycomm	= 242,
@@ -1449,6 +1475,7 @@ void trace_report (int argc, char **argv)
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"ts2secs", required_argument, NULL, OPT_ts2secs},
+			{"ts-diff", no_argument, NULL, OPT_tsdiff},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1611,6 +1638,9 @@ void trace_report (int argc, char **argv)
 				last_input_file->tsoffset = tsoffset;
 			if (!input_file)
 				die("--ts-offset must come after -i");
+			break;
+		case OPT_tsdiff:
+			tsdiff = 1;
 			break;
 		default:
 			usage(argv);

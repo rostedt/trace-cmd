@@ -286,6 +286,10 @@ OPTIONS
      The value of --ts-offset must still be in the raw timestamp units, even
      with this option. The offset will be converted as well.
 
+*--ts-diff*::
+     Show the time differences between events. The difference will appear in
+     parenthesis just after the timestamp.
+
 EXAMPLES
 --------
 
