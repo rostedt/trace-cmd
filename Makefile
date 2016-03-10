@@ -68,6 +68,8 @@ endif
 HELP_DIR = -DHELP_DIR=$(html_install)
 HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
+BASH_COMPLETE_DIR ?= /etc/bash_completion.d
+
 # copy a bit from Linux kbuild
 
 ifeq ("$(origin V)", "command line")
@@ -562,7 +564,10 @@ $(PYTHON_PY_PLUGINS): %.install : %.py force
 
 install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_PROGS) $(PYTHON_PY_LIBS) $(PYTHON_PY_PLUGINS)
 
-install_cmd: all_cmd install_plugins install_python
+install_bash_completion: force
+	$(Q)$(call do_install_data,trace-cmd.bash,$(BASH_COMPLETE_DIR))
+
+install_cmd: all_cmd install_plugins install_python install_bash_completion
 	$(Q)$(call do_install,trace-cmd,$(bindir_SQ))
 
 install: install_cmd
