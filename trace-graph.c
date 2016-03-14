@@ -190,6 +190,8 @@ static void print_time(unsigned long long time)
 	printf("%lu.%06lu", sec, usec);
 }
 
+static int null_int_array[] = { -1 };
+
 static void init_event_cache(struct graph_info *ginfo)
 {
 	ginfo->ftrace_sched_switch_id = -1;
@@ -1177,24 +1179,32 @@ trace_graph_check_irq(struct graph_info *ginfo,
 		if (event)
 			enter_id(&ginfo->hard_irq_exit_ids, event->id,
 				 &hard_irq_exit_len);
+		else
+			ginfo->hard_irq_exit_ids = null_int_array;
 
 		event = pevent_find_event_by_name(ginfo->pevent,
 						  NULL, "irq_handler_entry");
 		if (event)
 			enter_id(&ginfo->hard_irq_entry_ids, event->id,
 				 &hard_irq_entry_len);
+		else
+			ginfo->hard_irq_entry_ids = null_int_array;
 
 		event = pevent_find_event_by_name(ginfo->pevent,
 						  NULL, "softirq_exit");
 		if (event)
 			enter_id(&ginfo->soft_irq_exit_ids, event->id,
 				 &soft_irq_exit_len);
+		else
+			ginfo->soft_irq_exit_ids = null_int_array;
 
 		event = pevent_find_event_by_name(ginfo->pevent,
 						  NULL, "softirq_entry");
 		if (event)
 			enter_id(&ginfo->soft_irq_entry_ids, event->id,
 				 &soft_irq_entry_len);
+		else
+			ginfo->soft_irq_entry_ids = null_int_array;
 
 		events = pevent_list_events(ginfo->pevent, EVENT_SORT_SYSTEM);
 
