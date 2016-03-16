@@ -2513,6 +2513,13 @@ create_graph_info(struct graph_info *ginfo)
 	return info;
 }
 
+static void free_int_array(int **array)
+{
+	if (*array != null_int_array)
+		free(*array);
+	*array = NULL;
+}
+
 void trace_graph_free_info(struct graph_info *ginfo)
 {
 	if (ginfo->handle) {
@@ -2525,15 +2532,10 @@ void trace_graph_free_info(struct graph_info *ginfo)
 	}
 	ginfo->handle = NULL;
 
-	free(ginfo->hard_irq_entry_ids);
-	free(ginfo->hard_irq_exit_ids);
-	free(ginfo->soft_irq_entry_ids);
-	free(ginfo->soft_irq_exit_ids);
-
-	ginfo->hard_irq_entry_ids = NULL;
-	ginfo->hard_irq_exit_ids = NULL;
-	ginfo->soft_irq_entry_ids = NULL;
-	ginfo->soft_irq_exit_ids = NULL;
+	free_int_array(&ginfo->hard_irq_entry_ids);
+	free_int_array(&ginfo->hard_irq_exit_ids);
+	free_int_array(&ginfo->soft_irq_entry_ids);
+	free_int_array(&ginfo->soft_irq_exit_ids);
 }
 
 static int load_handle(struct graph_info *ginfo,
