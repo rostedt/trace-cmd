@@ -42,8 +42,9 @@ _trace_cmd_complete()
             COMPREPLY=( $(compgen -W "${funcs}" -- "${cur}") )
             ;;
         *)
-            # By default, we do not provide any hints.
-            COMPREPLY=()
+            # By default, we list files
+            local files=$(ls --color=never)
+            COMPREPLY=( $(compgen -W "${files}" -- "$cur") )
             ;;
     esac
 }
