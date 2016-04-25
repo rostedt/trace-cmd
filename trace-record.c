@@ -3606,7 +3606,7 @@ static void clear_func_filters(void)
 	struct buffer_instance *instance;
 	char *path;
 	int i;
-	const char const *files[] = { "set_ftrace_filter",
+	const char * const files[] = { "set_ftrace_filter",
 				      "set_ftrace_notrace",
 				      "set_graph_function",
 				      "set_graph_notrace",
