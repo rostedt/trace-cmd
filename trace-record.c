@@ -2180,6 +2180,20 @@ static void set_clock(struct buffer_instance *instance)
 	write_instance_file(instance, "trace_clock", instance->clock, "clock");
 }
 
+static void set_max_graph_depth(struct buffer_instance *instance, char *max_graph_depth)
+{
+	char *path;
+	int ret;
+
+	path = get_instance_file(instance, "max_graph_depth");
+	reset_save_file(path, RESET_DEFAULT_PRIO);
+	tracecmd_put_tracing_file(path);
+	ret = write_instance_file(instance, "max_graph_depth", max_graph_depth,
+				  NULL);
+	if (ret < 0)
+		die("could not write to max_graph_depth");
+}
+
 static struct event_list *
 create_event(struct buffer_instance *instance, char *path, struct event_list *old_event)
 {
@@ -3993,7 +4007,6 @@ profile_add_event(struct buffer_instance *instance, const char *event_str, int s
 static void enable_profile(struct buffer_instance *instance)
 {
 	int stacktrace = 0;
-	int ret;
 	int i;
 	char *trigger_events[] = {
 		"sched:sched_switch",
@@ -4015,10 +4028,7 @@ static void enable_profile(struct buffer_instance *instance)
 	if (!instance->plugin) {
 		if (trace_check_file_exists(instance, "max_graph_depth")) {
 			instance->plugin = "function_graph";
-			ret = write_instance_file(instance, "max_graph_depth",
-						  "1", NULL);
-			if (ret < 0)
-				die("could not write to max_graph_depth");
+			set_max_graph_depth(instance, "1");
 		} else
 			warning("Kernel does not support max_graph_depth\n"
 				" Skipping user/kernel profiling");
@@ -4103,14 +4113,16 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 }
 
 enum {
-	OPT_debug	= 247,
-	OPT_tsoffset	= 249,
-	OPT_bycomm	= 250,
-	OPT_stderr	= 251,
-	OPT_profile	= 252,
-	OPT_nosplice	= 253,
-	OPT_funcstack	= 254,
-	OPT_date	= 255,
+
+	OPT_debug		= 247,
+	OPT_max_graph_depth	= 248,
+	OPT_tsoffset		= 249,
+	OPT_bycomm		= 250,
+	OPT_stderr		= 251,
+	OPT_profile		= 252,
+	OPT_nosplice		= 253,
+	OPT_funcstack		= 254,
+	OPT_date		= 255,
 };
 
 void trace_record (int argc, char **argv)
@@ -4140,6 +4152,7 @@ void trace_record (int argc, char **argv)
 	int neg_event = 0;
 	int date = 0;
 	int manual = 0;
+	char *max_graph_depth = NULL;
 	int topt = 0;
 	int do_child = 0;
 	int data_flags = 0;
@@ -4311,6 +4324,7 @@ void trace_record (int argc, char **argv)
 			{"stderr", no_argument, NULL, OPT_stderr},
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
+			{"max-graph-depth", required_argument, NULL, OPT_max_graph_depth},
 			{"debug", no_argument, NULL, OPT_debug},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
@@ -4574,6 +4588,12 @@ void trace_record (int argc, char **argv)
 				die("Can not use both --date and --ts-offset");
 			data_flags |= DATA_FL_OFFSET;
 			break;
+		case OPT_max_graph_depth:
+			free(max_graph_depth);
+			max_graph_depth = strdup(optarg);
+			if (!max_graph_depth)
+				die("Could not allocate option");
+			break;
 		case OPT_debug:
 			debug = 1;
 			break;
@@ -4690,6 +4710,12 @@ void trace_record (int argc, char **argv)
 	update_plugins(type);
 
 	set_options();
+
+	if (max_graph_depth) {
+		for_all_instances(instance)
+			set_max_graph_depth(instance, max_graph_depth);
+		free(max_graph_depth);
+	}
 
 	allocate_seq();
 

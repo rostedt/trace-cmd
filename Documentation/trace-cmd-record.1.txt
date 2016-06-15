@@ -263,6 +263,11 @@ OPTIONS
     timestamp to gettimeofday which will allow wall time output from the
     timestamps reading the created 'trace.dat' file.
 
+*--max-graph-depth* 'depth'::
+    Set the maximum depth the function_graph tracer will trace into a function.
+    A value of one will only show where userspace enters the kernel but not any
+    functions called in the kernel. The default is zero, which means no limit.
+
 *--profile*::
     With the *--profile* option, "trace-cmd" will enable tracing that can
     be used with trace-cmd-report(1) --profile option. If a tracer *-p* is

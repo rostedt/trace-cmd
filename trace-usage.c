@@ -52,6 +52,7 @@ static struct usage_help usage_help[] = {
 		"          --profile enable tracing options needed for report --profile\n"
 		"          --func-stack perform a stack trace for function tracer\n"
 		"             (use with caution)\n"
+		"          --max-graph-depth limit function_graph depth\n"
 	},
 	{
 		"start",
