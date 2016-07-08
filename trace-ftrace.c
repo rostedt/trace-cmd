@@ -297,7 +297,7 @@ fgraph_ent_handler(struct trace_seq *s, struct pevent_record *record,
 	struct tracecmd_ftrace *finfo = context;
 	struct pevent_record *rec;
 	unsigned long long val, pid;
-	int cpu = record->cpu;
+	int cpu;
 
 	ret_event_check(finfo, event->pevent);
 
@@ -307,7 +307,7 @@ fgraph_ent_handler(struct trace_seq *s, struct pevent_record *record,
 	if (pevent_get_field_val(s, event, "func", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	rec = tracecmd_peek_data(tracecmd_curr_thread_handle, cpu);
+	rec = tracecmd_peek_next_data(tracecmd_curr_thread_handle, &cpu);
 	if (rec)
 		rec = get_return_for_leaf(s, cpu, pid, val, rec, finfo);
 
