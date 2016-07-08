@@ -1787,6 +1787,49 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 }
 
 /**
+ * tracecmd_peek_next_data - return the next record
+ * @handle: input handle to the trace.dat file
+ * @rec_cpu: return pointer to the CPU that the record belongs to
+ *
+ * This returns the next record by time. This is different than
+ * tracecmd_peek_data in that it looks at all CPUs. It does a peek
+ * at each CPU and the record with the earliest time stame is
+ * returned. If @rec_cpu is not NULL it gets the CPU id the record was
+ * on. It does not increment the CPU iterator.
+ */
+struct pevent_record *
+tracecmd_peek_next_data(struct tracecmd_input *handle, int *rec_cpu)
+{
+	unsigned long long ts;
+	struct pevent_record *record, *next_record = NULL;
+	int next_cpu;
+	int cpu;
+
+	if (rec_cpu)
+		*rec_cpu = -1;
+
+	next_cpu = -1;
+	ts = 0;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		record = tracecmd_peek_data(handle, cpu);
+		if (record && (!next_record || record->ts < ts)) {
+			ts = record->ts;
+			next_cpu = cpu;
+			next_record = record;
+		}
+	}
+
+	if (next_record) {
+		if (rec_cpu)
+			*rec_cpu = next_cpu;
+		return next_record;
+	}
+
+	return NULL;
+}
+
+/**
  * tracecmd_read_prev - read the record before the given record
  * @handle: input handle to the trace.dat file
  * @record: the record to use to find the previous record.

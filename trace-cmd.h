@@ -164,6 +164,9 @@ struct pevent_record *
 tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu);
 
 struct pevent_record *
+tracecmd_peek_next_data(struct tracecmd_input *handle, int *rec_cpu);
+
+struct pevent_record *
 tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *cpu);
 struct pevent_record *
