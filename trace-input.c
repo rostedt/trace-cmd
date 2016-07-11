@@ -1756,34 +1756,17 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 struct pevent_record *
 tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 {
-	unsigned long long ts;
 	struct pevent_record *record;
-	int first_record = 1;
-	int next;
-	int cpu;
+	int next_cpu;
+
+	record = tracecmd_peek_next_data(handle, &next_cpu);
+	if (!record)
+		return NULL;
 
 	if (rec_cpu)
-		*rec_cpu = -1;
+		*rec_cpu = next_cpu;
 
-	next = -1;
-	ts = 0;
-
-	for (cpu = 0; cpu < handle->cpus; cpu++) {
-		record = tracecmd_peek_data(handle, cpu);
-		if (record && (first_record || record->ts < ts)) {
-			ts = record->ts;
-			next = cpu;
-			first_record = 0;
-		}
-	}
-
-	if (next >= 0) {
-		if (rec_cpu)
-			*rec_cpu = next;
-		return tracecmd_read_data(handle, next);
-	}
-
-	return NULL;
+	return tracecmd_read_data(handle, next_cpu);
 }
 
 /**
