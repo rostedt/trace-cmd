@@ -79,7 +79,6 @@ static inline void dprint(const char *fmt, ...)
 bool use_tcp;
 
 /* for client */
-static int psfd;
 unsigned int page_size;
 
 /* for server */
@@ -545,12 +544,12 @@ int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 	return 0;
 }
 
-void tracecmd_msg_send_close_msg(void)
+void tracecmd_msg_send_close_msg(int fd)
 {
 	struct tracecmd_msg msg;
 
 	tracecmd_msg_init(MSG_CLOSE, &msg);
-	tracecmd_msg_send(psfd, &msg);
+	tracecmd_msg_send(fd, &msg);
 }
 
 int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
@@ -599,9 +598,6 @@ int tracecmd_msg_finish_sending_metadata(int fd)
 	ret = tracecmd_msg_send(fd, &msg);
 	if (ret < 0)
 		return ret;
-
-	/* psfd will be used for closing */
-	psfd = fd;
 	return 0;
 }
 

@@ -300,7 +300,7 @@ void tracecmd_enable_tracing(void);
 int tracecmd_msg_send_init_data(int fd, int total_cpus, int **client_ports);
 int tracecmd_msg_metadata_send(int fd, const char *buf, int size);
 int tracecmd_msg_finish_sending_metadata(int fd);
-void tracecmd_msg_send_close_msg(void);
+void tracecmd_msg_send_close_msg(int fd);
 
 /* for server */
 int tracecmd_msg_initial_setting(int fd, int *cpus, int *pagesize);
