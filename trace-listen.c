@@ -240,7 +240,7 @@ static int process_udp_child(int sfd, const char *host, const char *port,
 		if (r < 0) {
 			if (errno == EINTR)
 				break;
-			pdie("reading client");
+			pdie("reading pages from client");
 		}
 		if (!r)
 			break;
@@ -558,8 +558,10 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 
 	if (proto_ver == V2_PROTOCOL) {
 		/* send set of port numbers to the client */
-		if (tracecmd_msg_send_port_array(fd, cpus, port_array) < 0)
+		if (tracecmd_msg_send_port_array(fd, cpus, port_array) < 0) {
+			plog("Failed sending port array\n");
 			goto out_free;
+		}
 	} else {
 		/* send the client a comma deliminated set of port numbers */
 		for (cpu = 0; cpu < cpus; cpu++) {
