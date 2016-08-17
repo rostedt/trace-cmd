@@ -90,7 +90,6 @@ static int clear_function_filters;
 static char *host;
 static int *client_ports;
 static int sfd;
-static int psfd;
 static struct tracecmd_output *network_handle;
 
 /* Max size to let a per cpu file get */
@@ -2680,36 +2679,36 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 	exit(0);
 }
 
-static void check_first_msg_from_server(int fd)
+static void check_first_msg_from_server(struct tracecmd_msg_handle *msg_handle)
 {
 	char buf[BUFSIZ];
 
-	read(fd, buf, 8);
+	read(msg_handle->fd, buf, 8);
 
 	/* Make sure the server is the tracecmd server */
 	if (memcmp(buf, "tracecmd", 8) != 0)
 		die("server not tracecmd server");
 }
 
-static void communicate_with_listener_v1(int fd)
+static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle)
 {
 	char buf[BUFSIZ];
 	ssize_t n;
 	int cpu, i;
 
-	check_first_msg_from_server(fd);
+	check_first_msg_from_server(msg_handle);
 
 	/* write the number of CPUs we have (in ASCII) */
 	sprintf(buf, "%d", cpu_count);
 
 	/* include \0 */
-	write(fd, buf, strlen(buf)+1);
+	write(msg_handle->fd, buf, strlen(buf)+1);
 
 	/* write the pagesize (in ASCII) */
 	sprintf(buf, "%d", page_size);
 
 	/* include \0 */
-	write(fd, buf, strlen(buf)+1);
+	write(msg_handle->fd, buf, strlen(buf)+1);
 
 	/*
 	 * If we are using IPV4 and our page size is greater than
@@ -2724,14 +2723,14 @@ static void communicate_with_listener_v1(int fd)
 
 	if (use_tcp) {
 		/* Send one option */
-		write(fd, "1", 2);
+		write(msg_handle->fd, "1", 2);
 		/* Size 4 */
-		write(fd, "4", 2);
+		write(msg_handle->fd, "4", 2);
 		/* use TCP */
-		write(fd, "TCP", 4);
+		write(msg_handle->fd, "TCP", 4);
 	} else
 		/* No options */
-		write(fd, "0", 2);
+		write(msg_handle->fd, "0", 2);
 
 	client_ports = malloc(sizeof(int) * cpu_count);
 	if (!client_ports)
@@ -2743,7 +2742,7 @@ static void communicate_with_listener_v1(int fd)
 	 */
 	for (cpu = 0; cpu < cpu_count; cpu++) {
 		for (i = 0; i < BUFSIZ; i++) {
-			n = read(fd, buf+i, 1);
+			n = read(msg_handle->fd, buf+i, 1);
 			if (n != 1)
 				die("Error, reading server ports");
 			if (!buf[i] || buf[i] == ',')
@@ -2756,18 +2755,19 @@ static void communicate_with_listener_v1(int fd)
 	}
 }
 
-static void communicate_with_listener_v2(int fd)
+static void communicate_with_listener_v2(struct tracecmd_msg_handle *msg_handle)
 {
-	if (tracecmd_msg_send_init_data(fd, cpu_count, &client_ports) < 0)
+	if (tracecmd_msg_send_init_data(msg_handle, cpu_count, &client_ports) < 0)
 		die("Cannot communicate with server");
 }
 
-static void check_protocol_version(int fd)
+static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 {
 	char buf[BUFSIZ];
+	int fd = msg_handle->fd;
 	int n;
 
-	check_first_msg_from_server(fd);
+	check_first_msg_from_server(msg_handle);
 
 	/*
 	 * Write the protocol version, the magic number, and the dummy
@@ -2806,8 +2806,9 @@ static void check_protocol_version(int fd)
 	}
 }
 
-static void setup_network(void)
+static struct tracecmd_msg_handle *setup_network(void)
 {
+	struct tracecmd_msg_handle *msg_handle;
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, s;
@@ -2854,48 +2855,65 @@ again:
 
 	freeaddrinfo(result);
 
+	msg_handle = tracecmd_msg_handle_alloc(sfd, TRACECMD_MSG_FL_CLIENT);
+	if (!msg_handle)
+		die("Failed to allocate message handle");
+
 	if (proto_ver == V2_PROTOCOL) {
-		check_protocol_version(sfd);
+		check_protocol_version(msg_handle);
 		if (proto_ver == V1_PROTOCOL) {
 			/* reconnect to the server for using the v1 protocol */
 			close(sfd);
 			goto again;
 		}
-		communicate_with_listener_v2(sfd);
+		communicate_with_listener_v2(msg_handle);
 	}
 
 	if (proto_ver == V1_PROTOCOL)
-		communicate_with_listener_v1(sfd);
+		communicate_with_listener_v1(msg_handle);
 
-	/* Now create the handle through this socket */
-	network_handle = tracecmd_create_init_fd_glob(sfd, listed_events,
-						      proto_ver == V2_PROTOCOL);
-
-	if (proto_ver == V2_PROTOCOL) {
-		psfd = sfd; /* used for closing */
-		tracecmd_msg_finish_sending_metadata(sfd);
-	}
-
-	/* OK, we are all set, let'r rip! */
+	return msg_handle;
 }
 
-static void finish_network(void)
+static struct tracecmd_msg_handle *setup_connection(void)
+{
+	struct tracecmd_msg_handle *msg_handle;
+
+	msg_handle = setup_network();
+
+	/* Now create the handle through this socket */
+	if (proto_ver == V2_PROTOCOL) {
+		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
+		tracecmd_msg_finish_sending_metadata(msg_handle);
+	} else
+		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,
+							      listed_events);
+
+	/* OK, we are all set, let'r rip! */
+	return msg_handle;
+}
+
+static void finish_network(struct tracecmd_msg_handle *msg_handle)
 {
 	if (proto_ver == V2_PROTOCOL)
-		tracecmd_msg_send_close_msg(psfd);
-	close(sfd);
+		tracecmd_msg_send_close_msg(msg_handle);
+	tracecmd_msg_handle_close(msg_handle);
 	free(host);
 }
 
-static void start_threads(enum trace_type type, int global)
+static struct tracecmd_msg_handle *start_threads(enum trace_type type, int global)
 {
+	struct tracecmd_msg_handle *msg_handle = NULL;
 	struct buffer_instance *instance;
 	int *brass = NULL;
 	int i = 0;
 	int ret;
 
-	if (host)
-		setup_network();
+	if (host) {
+		msg_handle = setup_connection();
+		if (!msg_handle)
+			die("Failed to make connection");
+	}
 
 	/* make a thread for every CPU we have */
 	pids = malloc(sizeof(*pids) * cpu_count * (buffers + 1));
@@ -2932,6 +2950,8 @@ static void start_threads(enum trace_type type, int global)
 		}
 	}
 	recorder_threads = i;
+
+	return msg_handle;
 }
 
 static void append_buffer(struct tracecmd_output *handle,
@@ -3031,7 +3051,8 @@ enum {
 	DATA_FL_OFFSET		= 2,
 };
 
-static void record_data(char *date2ts, int flags)
+static void record_data(struct tracecmd_msg_handle *msg_handle,
+			char *date2ts, int flags)
 {
 	struct tracecmd_option **buffer_options;
 	struct tracecmd_output *handle;
@@ -3039,8 +3060,8 @@ static void record_data(char *date2ts, int flags)
 	char **temp_files;
 	int i;
 
-	if (host) {
-		finish_network();
+	if (msg_handle) {
+		finish_network(msg_handle);
 		return;
 	}
 
@@ -4823,6 +4844,7 @@ static void record_trace(int argc, char **argv,
 			 struct common_record_context *ctx)
 {
 	enum trace_type type = get_trace_cmd_type(ctx->curr_cmd);
+	struct tracecmd_msg_handle *msg_handle = NULL;
 	struct buffer_instance *instance;
 
 	/*
@@ -4895,7 +4917,7 @@ static void record_trace(int argc, char **argv,
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, finish);
 		if (!latency)
-			start_threads(type, ctx->global);
+			msg_handle = start_threads(type, ctx->global);
 	} else {
 		update_task_filter();
 		tracecmd_enable_tracing();
@@ -4926,7 +4948,7 @@ static void record_trace(int argc, char **argv,
 		tracecmd_disable_all_tracing(0);
 
 	if (IS_RECORD(ctx)) {
-		record_data(ctx->date2ts, ctx->data_flags);
+		record_data(msg_handle, ctx->date2ts, ctx->data_flags);
 		delete_thread_data();
 	} else
 		print_stats();
@@ -5006,7 +5028,7 @@ void trace_extract(int argc, char **argv)
 		ctx.date2ts = get_date_to_ts();
 	}
 
-	record_data(ctx.date2ts, ctx.data_flags);
+	record_data(NULL, ctx.date2ts, ctx.data_flags);
 	delete_thread_data();
 	destroy_stats();
 	finalize_record_trace(&ctx);

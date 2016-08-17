@@ -118,6 +118,26 @@ static int process_option(char *option)
 	return 0;
 }
 
+struct tracecmd_msg_handle *
+tracecmd_msg_handle_alloc(int fd, unsigned long flags)
+{
+	struct tracecmd_msg_handle *handle;
+
+	handle = calloc(1, sizeof(struct tracecmd_msg_handle));
+	if (!handle)
+		return NULL;
+
+	handle->fd = fd;
+	handle->flags = flags;
+	return handle;
+}
+
+void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle)
+{
+	close(msg_handle->fd);
+	free(msg_handle);
+}
+
 static void finish(int sig)
 {
 	done = true;
@@ -348,7 +368,8 @@ static int open_udp(const char *node, const char *port, int *pid,
 	return num_port;
 }
 
-static int communicate_with_client(int fd, int *cpus, int *pagesize)
+static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
+				   int *cpus, int *pagesize)
 {
 	char *last_proto = NULL;
 	char buf[BUFSIZ];
@@ -357,6 +378,7 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 	int size;
 	int n, s, t, i;
 	int ret = -EINVAL;
+	int fd = msg_handle->fd;
 
 	/* Let the client know what we are */
 	write(fd, "tracecmd", 8);
@@ -411,7 +433,7 @@ static int communicate_with_client(int fd, int *cpus, int *pagesize)
 		proto_ver = V2_PROTOCOL;
 
 		/* read the CPU count, the page size, and options */
-		if (tracecmd_msg_initial_setting(fd, cpus, pagesize) < 0)
+		if (tracecmd_msg_initial_setting(msg_handle, cpus, pagesize) < 0)
 			goto out;
 	} else {
 		/* The client is using the v1 protocol */
@@ -517,7 +539,7 @@ static void destroy_all_readers(int cpus, int *pid_array, const char *node,
 }
 
 static int *create_all_readers(int cpus, const char *node, const char *port,
-			       int pagesize, int fd)
+			       int pagesize, struct tracecmd_msg_handle *msg_handle)
 {
 	char buf[BUFSIZ];
 	int *port_array;
@@ -558,7 +580,7 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 
 	if (proto_ver == V2_PROTOCOL) {
 		/* send set of port numbers to the client */
-		if (tracecmd_msg_send_port_array(fd, cpus, port_array) < 0) {
+		if (tracecmd_msg_send_port_array(msg_handle, cpus, port_array) < 0) {
 			plog("Failed sending port array\n");
 			goto out_free;
 		}
@@ -567,10 +589,10 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 		for (cpu = 0; cpu < cpus; cpu++) {
 			snprintf(buf, BUFSIZ, "%s%d",
 				 cpu ? "," : "", port_array[cpu]);
-			write(fd, buf, strlen(buf));
+			write(msg_handle->fd, buf, strlen(buf));
 		}
 		/* end with null terminator */
-		write(fd, "\0", 1);
+		write(msg_handle->fd, "\0", 1);
 	}
 
 	return pid_array;
@@ -645,7 +667,8 @@ static int put_together_file(int cpus, int ofd, const char *node,
 	return ret;
 }
 
-static int process_client(const char *node, const char *port, int fd)
+static int process_client(struct tracecmd_msg_handle *msg_handle,
+			  const char *node, const char *port)
 {
 	int *pid_array;
 	int pagesize;
@@ -653,21 +676,21 @@ static int process_client(const char *node, const char *port, int fd)
 	int ofd;
 	int ret;
 
-	ret = communicate_with_client(fd, &cpus, &pagesize);
+	ret = communicate_with_client(msg_handle, &cpus, &pagesize);
 	if (ret < 0)
 		return ret;
 
 	ofd = create_client_file(node, port);
 
-	pid_array = create_all_readers(cpus, node, port, pagesize, fd);
+	pid_array = create_all_readers(cpus, node, port, pagesize, msg_handle);
 	if (!pid_array)
 		return -ENOMEM;
 
 	/* Now we are ready to start reading data from the client */
 	if (proto_ver == V2_PROTOCOL)
-		tracecmd_msg_collect_metadata(fd, ofd);
+		tracecmd_msg_collect_metadata(msg_handle, ofd);
 	else
-		collect_metadata_from_client(fd, ofd);
+		collect_metadata_from_client(msg_handle->fd, ofd);
 
 	/* wait a little to let our readers finish reading */
 	sleep(1);
@@ -712,6 +735,7 @@ static int do_fork(int cfd)
 static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 			  socklen_t peer_addr_len)
 {
+	struct tracecmd_msg_handle *msg_handle;
 	char host[NI_MAXHOST], service[NI_MAXSERV];
 	int s;
 	int ret;
@@ -719,6 +743,8 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 	ret = do_fork(cfd);
 	if (ret)
 		return ret;
+
+	msg_handle = tracecmd_msg_handle_alloc(cfd, TRACECMD_MSG_FL_SERVER);
 
 	s = getnameinfo((struct sockaddr *)peer_addr, peer_addr_len,
 			host, NI_MAXHOST,
@@ -734,9 +760,9 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 		return -1;
 	}
 
-	process_client(host, service, cfd);
+	process_client(msg_handle, host, service);
 
-	close(cfd);
+	tracecmd_msg_handle_close(msg_handle);
 
 	if (!debug)
 		exit(0);

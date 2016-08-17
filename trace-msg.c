@@ -395,10 +395,12 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	return 0;
 }
 
-int tracecmd_msg_send_init_data(int fd, int total_cpus, int **client_ports)
+int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
+				int total_cpus, int **client_ports)
 {
 	struct tracecmd_msg send_msg;
 	struct tracecmd_msg recv_msg;
+	int fd = msg_handle->fd;
 	int *ports;
 	int i, cpus;
 	int ret;
@@ -452,7 +454,8 @@ static void error_operation_for_server(struct tracecmd_msg *msg)
 
 #define MAX_OPTION_SIZE 4096
 
-int tracecmd_msg_initial_setting(int fd, int *cpus, int *pagesize)
+int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle,
+				 int *cpus, int *pagesize)
 {
 	struct tracecmd_msg_opt *opt;
 	struct tracecmd_msg msg;
@@ -462,7 +465,7 @@ int tracecmd_msg_initial_setting(int fd, int *cpus, int *pagesize)
 	u32 size = MIN_TINIT_SIZE;
 	u32 cmd;
 
-	ret = tracecmd_msg_recv_wait(fd, &msg);
+	ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 	if (ret < 0) {
 		if (ret == -ETIMEDOUT)
 			warning("Connection timed out\n");
@@ -527,7 +530,8 @@ error:
 	return ret;
 }
 
-int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
+int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
+				 int total_cpus, int *ports)
 {
 	struct tracecmd_msg msg;
 	int ret;
@@ -537,24 +541,26 @@ int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 	if (ret < 0)
 		return ret;
 
-	ret = tracecmd_msg_send(fd, &msg);
+	ret = tracecmd_msg_send(msg_handle->fd, &msg);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-void tracecmd_msg_send_close_msg(int fd)
+void tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle)
 {
 	struct tracecmd_msg msg;
 
 	tracecmd_msg_init(MSG_CLOSE, &msg);
-	tracecmd_msg_send(fd, &msg);
+	tracecmd_msg_send(msg_handle->fd, &msg);
 }
 
-int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
+int tracecmd_msg_metadata_send(struct tracecmd_msg_handle *msg_handle,
+			       const char *buf, int size)
 {
 	struct tracecmd_msg msg;
+	int fd = msg_handle->fd;
 	int n;
 	int ret;
 	int count = 0;
@@ -589,19 +595,19 @@ int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
 	return ret;
 }
 
-int tracecmd_msg_finish_sending_metadata(int fd)
+int tracecmd_msg_finish_sending_metadata(struct tracecmd_msg_handle *msg_handle)
 {
 	struct tracecmd_msg msg;
 	int ret;
 
 	tracecmd_msg_init(MSG_FINMETA, &msg);
-	ret = tracecmd_msg_send(fd, &msg);
+	ret = tracecmd_msg_send(msg_handle->fd, &msg);
 	if (ret < 0)
 		return ret;
 	return 0;
 }
 
-int tracecmd_msg_collect_metadata(int ifd, int ofd)
+int tracecmd_msg_collect_metadata(struct tracecmd_msg_handle *msg_handle, int ofd)
 {
 	struct tracecmd_msg msg;
 	u32 t, n, cmd;
@@ -609,7 +615,7 @@ int tracecmd_msg_collect_metadata(int ifd, int ofd)
 	int ret;
 
 	do {
-		ret = tracecmd_msg_recv_wait(ifd, &msg);
+		ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 		if (ret < 0) {
 			if (ret == -ETIMEDOUT)
 				warning("Connection timed out\n");
@@ -643,7 +649,7 @@ int tracecmd_msg_collect_metadata(int ifd, int ofd)
 
 	/* check the finish message of the client */
 	while (!done) {
-		ret = tracecmd_msg_recv(ifd, &msg);
+		ret = tracecmd_msg_recv(msg_handle->fd, &msg);
 		if (ret < 0) {
 			warning("reading client");
 			return ret;

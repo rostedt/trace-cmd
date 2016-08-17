@@ -65,12 +65,12 @@ struct tracecmd_output {
 	int		fd;
 	int		page_size;
 	int		cpus;
-	int		flags;
 	struct pevent	*pevent;
 	char		*tracing_dir;
 	int		options_written;
 	int		nr_options;
 	struct list_head options;
+	struct tracecmd_msg_handle *msg_handle;
 };
 
 struct list_event {
@@ -88,8 +88,8 @@ struct list_event_system {
 static stsize_t
 do_write_check(struct tracecmd_output *handle, const void *data, tsize_t size)
 {
-	if (handle->flags & OUTPUT_FL_SEND_META)
-		return tracecmd_msg_metadata_send(handle->fd, data, size);
+	if (handle->msg_handle)
+		return tracecmd_msg_metadata_send(handle->msg_handle, data, size);
 
 	return __do_write_check(handle->fd, data, size);
 }
@@ -782,7 +782,8 @@ static struct tracecmd_output *
 create_file_fd(int fd, struct tracecmd_input *ihandle,
 	       const char *tracing_dir,
 	       const char *kallsyms,
-	       struct tracecmd_event_list *list, bool send_meta)
+	       struct tracecmd_event_list *list,
+	       struct tracecmd_msg_handle *msg_handle)
 {
 	struct tracecmd_output *handle;
 	struct pevent *pevent;
@@ -794,15 +795,14 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 		return NULL;
 	memset(handle, 0, sizeof(*handle));
 
-	if (send_meta)
-		handle->flags |= OUTPUT_FL_SEND_META;
-
 	handle->fd = fd;
 	if (tracing_dir) {
 		handle->tracing_dir = strdup(tracing_dir);
 		if (!handle->tracing_dir)
 			goto out_free;
 	}
+
+	handle->msg_handle = msg_handle;
 
 	list_head_init(&handle->options);
 
@@ -888,7 +888,7 @@ static struct tracecmd_output *create_file(const char *output_file,
 	if (fd < 0)
 		return NULL;
 
-	handle = create_file_fd(fd, ihandle, tracing_dir, kallsyms, list, false);
+	handle = create_file_fd(fd, ihandle, tracing_dir, kallsyms, list, NULL);
 	if (!handle) {
 		close(fd);
 		unlink(output_file);
@@ -1318,13 +1318,20 @@ struct tracecmd_output *tracecmd_create_file(const char *output_file,
 
 struct tracecmd_output *tracecmd_create_init_fd(int fd)
 {
-	return create_file_fd(fd, NULL, NULL, NULL, &all_event_list, false);
+	return create_file_fd(fd, NULL, NULL, NULL, &all_event_list, NULL);
 }
 
 struct tracecmd_output *
-tracecmd_create_init_fd_glob(int fd, struct tracecmd_event_list *list, bool send_meta)
+tracecmd_create_init_fd_msg(struct tracecmd_msg_handle *msg_handle,
+			    struct tracecmd_event_list *list)
 {
-	return create_file_fd(fd, NULL, NULL, NULL, list, send_meta);
+	return create_file_fd(msg_handle->fd, NULL, NULL, NULL, list, msg_handle);
+}
+
+struct tracecmd_output *
+tracecmd_create_init_fd_glob(int fd, struct tracecmd_event_list *list)
+{
+	return create_file_fd(fd, NULL, NULL, NULL, list, NULL);
 }
 
 struct tracecmd_output *
