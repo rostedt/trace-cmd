@@ -81,8 +81,20 @@ bool use_tcp;
 /* for client */
 unsigned int page_size;
 
-/* for server */
-bool done;
+struct tracecmd_msg_server {
+	struct tracecmd_msg_handle handle;
+	int			done;
+};
+
+static struct tracecmd_msg_server *
+make_server(struct tracecmd_msg_handle *msg_handle)
+{
+	if (!(msg_handle->flags & TRACECMD_MSG_FL_SERVER)) {
+		plog("Message handle not of type server\n");
+		return NULL;
+	}
+	return (struct tracecmd_msg_server *)msg_handle;
+}
 
 struct tracecmd_msg_opt {
 	be32 size;
@@ -357,6 +369,20 @@ error:
 #define MSG_WAIT_MSEC	5000
 static int msg_wait_to = MSG_WAIT_MSEC;
 
+bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle)
+{
+	struct tracecmd_msg_server *msg_server = make_server(msg_handle);
+
+	return (volatile int)msg_server->done;
+}
+
+void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle)
+{
+	struct tracecmd_msg_server *msg_server = make_server(msg_handle);
+
+	msg_server->done = true;
+}
+
 /*
  * A return value of 0 indicates time-out
  */
@@ -450,6 +476,32 @@ static void error_operation_for_server(struct tracecmd_msg *msg)
 	cmd = ntohl(msg->hdr.cmd);
 
 	warning("Message: cmd=%d size=%d\n", cmd, ntohl(msg->hdr.size));
+}
+
+struct tracecmd_msg_handle *
+tracecmd_msg_handle_alloc(int fd, unsigned long flags)
+{
+	struct tracecmd_msg_handle *handle;
+	int size;
+
+	if (flags == TRACECMD_MSG_FL_SERVER)
+		size = sizeof(struct tracecmd_msg_server);
+	else
+		size = sizeof(struct tracecmd_msg_handle);
+
+	handle = calloc(1, size);
+	if (!handle)
+		return NULL;
+
+	handle->fd = fd;
+	handle->flags = flags;
+	return handle;
+}
+
+void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle)
+{
+	close(msg_handle->fd);
+	free(msg_handle);
 }
 
 #define MAX_OPTION_SIZE 4096
@@ -648,7 +700,7 @@ int tracecmd_msg_collect_metadata(struct tracecmd_msg_handle *msg_handle, int of
 	} while (cmd == MSG_SENDMETA);
 
 	/* check the finish message of the client */
-	while (!done) {
+	while (!tracecmd_msg_done(msg_handle)) {
 		ret = tracecmd_msg_recv(msg_handle->fd, &msg);
 		if (ret < 0) {
 			warning("reading client");

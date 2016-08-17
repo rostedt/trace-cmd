@@ -336,6 +336,8 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle,
 int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
 				 int total_cpus, int *ports);
 int tracecmd_msg_collect_metadata(struct tracecmd_msg_handle *msg_handle, int ofd);
+bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle);
+void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
 
 /* --- Plugin handling --- */
 extern struct pevent_plugin_option trace_ftrace_options[];

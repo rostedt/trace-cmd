@@ -16,9 +16,6 @@ extern bool use_tcp;
 /* for client */
 extern unsigned int page_size;
 
-/* for server */
-extern bool done;
-
 void plog(const char *fmt, ...);
 void pdie(const char *fmt, ...);
 
