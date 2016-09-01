@@ -29,6 +29,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -40,6 +41,18 @@
 
 typedef __u32 u32;
 typedef __be32 be32;
+
+static inline void dprint(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!debug)
+		return;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+}
 
 /* Two (4k) pages is the max transfer for now */
 #define MSG_MAX_LEN			8192
@@ -119,6 +132,18 @@ enum tracecmd_msg_cmd {
 
 static be32 msg_min_sizes[] = { MSG_MAP };
 
+#undef C
+#define C(a,b,c)	#a
+
+static const char *msg_names[] = { MSG_MAP };
+
+static const char *cmd_to_name(int cmd)
+{
+	if (cmd <= MSG_FINMETA)
+		return msg_names[cmd];
+	return "Unkown";
+}
+
 struct tracecmd_msg {
 	struct tracecmd_msg_header		hdr;
 	union {
@@ -143,6 +168,8 @@ static int msg_write(int fd, struct tracecmd_msg *msg)
 
 	if (cmd > MSG_FINMETA)
 		return -EINVAL;
+
+	dprint("msg send: %d (%s)\n", cmd, cmd_to_name(cmd));
 
 	size = msg_min_sizes[cmd];
 	if (!size)
@@ -308,6 +335,9 @@ static int tracecmd_msg_recv(int fd, struct tracecmd_msg *msg)
 	ret = msg_read(fd, msg, MSG_HDR_LEN, &n);
 	if (ret < 0)
 		return ret;
+
+	dprint("msg received: %d (%s)\n",
+	       ntohl(msg->hdr.cmd), cmd_to_name(ntohl(msg->hdr.cmd)));
 
 	size = ntohl(msg->hdr.size);
 	if (size > MSG_MAX_LEN)
