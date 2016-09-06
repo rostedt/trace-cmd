@@ -160,6 +160,8 @@ void plog(const char *fmt, ...)
 	va_start(ap, fmt);
 	__plog("", fmt, ap, stdout);
 	va_end(ap);
+	/* Make sure it gets to the screen, in case we crash afterward */
+	fflush(stdout);
 }
 
 static void make_pid_name(int mode, char *buf)
