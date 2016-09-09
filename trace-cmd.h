@@ -303,11 +303,13 @@ void tracecmd_enable_tracing(void);
 enum tracecmd_msg_bits {
 	TRACECMD_MSG_BIT_CLIENT		= 0,
 	TRACECMD_MSG_BIT_SERVER		= 1,
+	TRACECMD_MSG_BIT_USE_TCP	= 2,
 };
 
 enum tracecmd_msg_flags {
 	TRACECMD_MSG_FL_CLIENT		= (1 << TRACECMD_MSG_BIT_CLIENT),
 	TRACECMD_MSG_FL_SERVER		= (1 << TRACECMD_MSG_BIT_SERVER),
+	TRACECMD_MSG_FL_USE_TCP		= (1 << TRACECMD_MSG_BIT_USE_TCP),
 };
 
 /* for both client and server */

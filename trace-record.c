@@ -95,6 +95,8 @@ static struct tracecmd_output *network_handle;
 /* Max size to let a per cpu file get */
 static int max_kb;
 
+static bool use_tcp;
+
 static int do_ptrace;
 
 static int filter_task;
@@ -2719,6 +2721,7 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle)
 	if (page_size >= UDP_MAX_PACKET) {
 		warning("page size too big for UDP using TCP in live read");
 		use_tcp = 1;
+		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 	}
 
 	if (use_tcp) {
@@ -2858,6 +2861,9 @@ again:
 	msg_handle = tracecmd_msg_handle_alloc(sfd, TRACECMD_MSG_FL_CLIENT);
 	if (!msg_handle)
 		die("Failed to allocate message handle");
+
+	if (use_tcp)
+		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 
 	if (proto_ver == V2_PROTOCOL) {
 		check_protocol_version(msg_handle);
