@@ -352,12 +352,12 @@ static int open_udp(const char *node, const char *port, int *pid,
 	return num_port;
 }
 
-static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
-				   int *pagesize)
+static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 {
 	char *last_proto = NULL;
 	char buf[BUFSIZ];
 	char *option;
+	int pagesize = 0;
 	int options;
 	int size;
 	int cpus;
@@ -418,7 +418,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
 		msg_handle->version = V2_PROTOCOL;
 
 		/* read the CPU count, the page size, and options */
-		if (tracecmd_msg_initial_setting(msg_handle, pagesize) < 0)
+		if ((pagesize = tracecmd_msg_initial_setting(msg_handle)) < 0)
 			goto out;
 	} else {
 		/* The client is using the v1 protocol */
@@ -435,10 +435,10 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
 			/** ERROR **/
 			goto out;
 
-		*pagesize = atoi(buf);
+		pagesize = atoi(buf);
 
-		plog("pagesize=%d\n", *pagesize);
-		if (*pagesize <= 0)
+		plog("pagesize=%d\n", pagesize);
+		if (pagesize <= 0)
 			goto out;
 
 		/* Now the number of options */
@@ -488,7 +488,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
 	if (msg_handle->flags & TRACECMD_MSG_FL_USE_TCP)
 		plog("Using TCP for live connection\n");
 
-	ret = 0;
+	ret = pagesize;
  out:
 	free(last_proto);
 
@@ -537,6 +537,9 @@ static int *create_all_readers(const char *node, const char *port,
 	int cpus = msg_handle->cpu_count;
 	int cpu;
 	int pid;
+
+	if (!pagesize)
+		return NULL;
 
 	port_array = malloc(sizeof(int) * cpus);
 	if (!port_array)
@@ -668,9 +671,9 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	int ofd;
 	int ret;
 
-	ret = communicate_with_client(msg_handle, &pagesize);
-	if (ret < 0)
-		return ret;
+	pagesize = communicate_with_client(msg_handle);
+	if (pagesize < 0)
+		return pagesize;
 
 	ofd = create_client_file(node, port);
 
