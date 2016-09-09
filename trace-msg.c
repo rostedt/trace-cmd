@@ -505,11 +505,12 @@ void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle)
 #define MAX_OPTION_SIZE 4096
 
 int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle,
-				 int *cpus, int *pagesize)
+				 int *pagesize)
 {
 	struct tracecmd_msg_opt *opt;
 	struct tracecmd_msg msg;
 	int options, i, s;
+	int cpus;
 	int ret;
 	int offset = 0;
 	u32 size = MIN_TINIT_SIZE;
@@ -528,12 +529,14 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle,
 		goto error;
 	}
 
-	*cpus = ntohl(msg.tinit.cpus);
-	plog("cpus=%d\n", *cpus);
-	if (*cpus < 0) {
+	cpus = ntohl(msg.tinit.cpus);
+	plog("cpus=%d\n", cpus);
+	if (cpus < 0) {
 		ret = -EINVAL;
 		goto error;
 	}
+
+	msg_handle->cpu_count = cpus;
 
 	*pagesize = ntohl(msg.tinit.page_size);
 	plog("pagesize=%d\n", *pagesize);
@@ -581,13 +584,13 @@ error:
 }
 
 int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
-				 int total_cpus, int *ports)
+				 int *ports)
 {
 	struct tracecmd_msg msg;
 	int ret;
 
 	tracecmd_msg_init(MSG_RINIT, &msg);
-	ret = make_rinit(&msg, total_cpus, ports);
+	ret = make_rinit(&msg, msg_handle->cpu_count, ports);
 	if (ret < 0)
 		return ret;
 

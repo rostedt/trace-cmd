@@ -353,13 +353,14 @@ static int open_udp(const char *node, const char *port, int *pid,
 }
 
 static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
-				   int *cpus, int *pagesize)
+				   int *pagesize)
 {
 	char *last_proto = NULL;
 	char buf[BUFSIZ];
 	char *option;
 	int options;
 	int size;
+	int cpus;
 	int n, s, t, i;
 	int ret = -EINVAL;
 	int fd = msg_handle->fd;
@@ -374,10 +375,10 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
 		/** ERROR **/
 		return -EINVAL;
 
-	*cpus = atoi(buf);
+	cpus = atoi(buf);
 
 	/* Is the client using the new protocol? */
-	if (*cpus == -1) {
+	if (cpus == -1) {
 		if (memcmp(buf, V2_CPU, n) != 0) {
 			/* If it did not send a version, then bail */
 			if (memcmp(buf, "-1V", 3)) {
@@ -417,14 +418,16 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
 		msg_handle->version = V2_PROTOCOL;
 
 		/* read the CPU count, the page size, and options */
-		if (tracecmd_msg_initial_setting(msg_handle, cpus, pagesize) < 0)
+		if (tracecmd_msg_initial_setting(msg_handle, pagesize) < 0)
 			goto out;
 	} else {
 		/* The client is using the v1 protocol */
 
-		plog("cpus=%d\n", *cpus);
-		if (*cpus < 0)
+		plog("cpus=%d\n", cpus);
+		if (cpus < 0)
 			goto out;
+
+		msg_handle->cpu_count = cpus;
 
 		/* next read the page size */
 		n = read_string(fd, buf, BUFSIZ);
@@ -522,7 +525,7 @@ static void destroy_all_readers(int cpus, int *pid_array, const char *node,
 	free(pid_array);
 }
 
-static int *create_all_readers(int cpus, const char *node, const char *port,
+static int *create_all_readers(const char *node, const char *port,
 			       int pagesize, struct tracecmd_msg_handle *msg_handle)
 {
 	int use_tcp = msg_handle->flags & TRACECMD_MSG_FL_USE_TCP;
@@ -531,6 +534,7 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 	int *pid_array;
 	int start_port;
 	int udp_port;
+	int cpus = msg_handle->cpu_count;
 	int cpu;
 	int pid;
 
@@ -565,7 +569,7 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 
 	if (msg_handle->version == V2_PROTOCOL) {
 		/* send set of port numbers to the client */
-		if (tracecmd_msg_send_port_array(msg_handle, cpus, port_array) < 0) {
+		if (tracecmd_msg_send_port_array(msg_handle, port_array) < 0) {
 			plog("Failed sending port array\n");
 			goto out_free;
 		}
@@ -664,13 +668,13 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	int ofd;
 	int ret;
 
-	ret = communicate_with_client(msg_handle, &cpus, &pagesize);
+	ret = communicate_with_client(msg_handle, &pagesize);
 	if (ret < 0)
 		return ret;
 
 	ofd = create_client_file(node, port);
 
-	pid_array = create_all_readers(cpus, node, port, pagesize, msg_handle);
+	pid_array = create_all_readers(node, port, pagesize, msg_handle);
 	if (!pid_array)
 		return -ENOMEM;
 
@@ -687,6 +691,8 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 
 	/* wait a little to let our readers finish reading */
 	sleep(1);
+
+	cpus = msg_handle->cpu_count;
 
 	/* stop our readers */
 	stop_all_readers(cpus, pid_array);

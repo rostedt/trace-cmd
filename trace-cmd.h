@@ -315,7 +315,8 @@ enum tracecmd_msg_flags {
 /* for both client and server */
 struct tracecmd_msg_handle {
 	int			fd;
-	int			version;	/* Current protocol version */
+	short			cpu_count;
+	short			version;	/* Current protocol version */
 	unsigned long		flags;
 };
 
@@ -335,9 +336,9 @@ void tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle);
 
 /* for server */
 int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle,
-				 int *cpus, int *pagesize);
+				 int *pagesize);
 int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
-				 int total_cpus, int *ports);
+				 int *ports);
 int tracecmd_msg_collect_metadata(struct tracecmd_msg_handle *msg_handle, int ofd);
 bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle);
 void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
