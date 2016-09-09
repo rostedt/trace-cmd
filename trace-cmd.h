@@ -314,8 +314,9 @@ enum tracecmd_msg_flags {
 
 /* for both client and server */
 struct tracecmd_msg_handle {
-	unsigned long		flags;
 	int			fd;
+	int			version;	/* Current protocol version */
+	unsigned long		flags;
 };
 
 struct tracecmd_msg_handle *

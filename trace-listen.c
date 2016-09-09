@@ -51,8 +51,6 @@ static FILE *logfp;
 
 static int backlog = 5;
 
-static int proto_ver;
-
 static int do_daemon;
 
 /* Used for signaling INT to finish */
@@ -416,7 +414,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle,
 		/* We're off! */
 		write(fd, "OK", 2);
 
-		proto_ver = V2_PROTOCOL;
+		msg_handle->version = V2_PROTOCOL;
 
 		/* read the CPU count, the page size, and options */
 		if (tracecmd_msg_initial_setting(msg_handle, cpus, pagesize) < 0)
@@ -565,7 +563,7 @@ static int *create_all_readers(int cpus, const char *node, const char *port,
 		start_port = udp_port + 1;
 	}
 
-	if (proto_ver == V2_PROTOCOL) {
+	if (msg_handle->version == V2_PROTOCOL) {
 		/* send set of port numbers to the client */
 		if (tracecmd_msg_send_port_array(msg_handle, cpus, port_array) < 0) {
 			plog("Failed sending port array\n");
@@ -680,7 +678,7 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	stop_msg_handle = msg_handle;
 
 	/* Now we are ready to start reading data from the client */
-	if (proto_ver == V2_PROTOCOL)
+	if (msg_handle->version == V2_PROTOCOL)
 		tracecmd_msg_collect_metadata(msg_handle, ofd);
 	else
 		collect_metadata_from_client(msg_handle, ofd);
