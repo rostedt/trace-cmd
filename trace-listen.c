@@ -742,8 +742,6 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 static int *client_pids;
 static int free_pids;
 static int saved_pids;
-static int size_pids;
-#define PIDS_BLOCK 32
 
 static void add_process(int pid)
 {
@@ -762,18 +760,10 @@ static void add_process(int pid)
 			warning("Could not find free pid");
 	}
 	if (!client) {
-		if (!client_pids) {
-			size_pids = PIDS_BLOCK;
-			client_pids = malloc(sizeof(*client_pids) * size_pids);
-			if (!client_pids)
-				pdie("allocating pids");
-		} else if (!(saved_pids % PIDS_BLOCK)) {
-			size_pids += PIDS_BLOCK;
-			client_pids = realloc(client_pids,
-					      sizeof(*client_pids) * size_pids);
-			if (!client_pids)
-				pdie("realloc of pids");
-		}
+		client_pids = realloc(client_pids,
+				      sizeof(*client_pids) * (saved_pids + 1));
+		if (!client_pids)
+			pdie("allocating pids");
 		client = &client_pids[saved_pids++];
 	}
 	*client = pid;
