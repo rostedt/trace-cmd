@@ -739,25 +739,43 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 }
 
 static int *client_pids;
+static int free_pids;
 static int saved_pids;
 static int size_pids;
 #define PIDS_BLOCK 32
 
 static void add_process(int pid)
 {
-	if (!client_pids) {
-		size_pids = PIDS_BLOCK;
-		client_pids = malloc(sizeof(*client_pids) * size_pids);
-		if (!client_pids)
-			pdie("allocating pids");
-	} else if (!(saved_pids % PIDS_BLOCK)) {
-		size_pids += PIDS_BLOCK;
-		client_pids = realloc(client_pids,
-				      sizeof(*client_pids) * size_pids);
-		if (!client_pids)
-			pdie("realloc of pids");
+	int *client = NULL;
+	int i;
+
+	if (free_pids) {
+		for (i = 0; i < saved_pids; i++) {
+			if (!client_pids[i]) {
+				client = &client_pids[i];
+				break;
+			}
+		}
+		free_pids--;
+		if (!client)
+			warning("Could not find free pid");
 	}
-	client_pids[saved_pids++] = pid;
+	if (!client) {
+		if (!client_pids) {
+			size_pids = PIDS_BLOCK;
+			client_pids = malloc(sizeof(*client_pids) * size_pids);
+			if (!client_pids)
+				pdie("allocating pids");
+		} else if (!(saved_pids % PIDS_BLOCK)) {
+			size_pids += PIDS_BLOCK;
+			client_pids = realloc(client_pids,
+					      sizeof(*client_pids) * size_pids);
+			if (!client_pids)
+				pdie("realloc of pids");
+		}
+		client = &client_pids[saved_pids++];
+	}
+	*client = pid;
 }
 
 static void remove_process(int pid)
@@ -772,14 +790,8 @@ static void remove_process(int pid)
 	if (i == saved_pids)
 		return;
 
-	saved_pids--;
-
-	if (saved_pids == i)
-		return;
-
-	memmove(&client_pids[i], &client_pids[i+1],
-		sizeof(*client_pids) * (saved_pids - i));
-
+	client_pids[i] = 0;
+	free_pids++;
 }
 
 static void kill_clients(void)
@@ -788,6 +800,8 @@ static void kill_clients(void)
 	int i;
 
 	for (i = 0; i < saved_pids; i++) {
+		if (!client_pids[i])
+			continue;
 		kill(client_pids[i], SIGINT);
 		waitpid(client_pids[i], &status, 0);
 	}
