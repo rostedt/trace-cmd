@@ -509,6 +509,8 @@ static void destroy_all_readers(int cpus, int *pid_array, const char *node,
 			pid_array[cpu] = 0;
 		}
 	}
+
+	free(pid_array);
 }
 
 static int *create_all_readers(int cpus, const char *node, const char *port,
