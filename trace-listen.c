@@ -795,7 +795,7 @@ static void kill_clients(void)
 	saved_pids = 0;
 }
 
-static void clean_up(int sig)
+static void clean_up(void)
 {
 	int status;
 	int ret;
@@ -819,9 +819,10 @@ static void do_accept_loop(int sfd)
 	do {
 		cfd = accept(sfd, (struct sockaddr *)&peer_addr,
 			     &peer_addr_len);
-		printf("connected!\n");
-		if (cfd < 0 && errno == EINTR)
+		if (cfd < 0 && errno == EINTR) {
+			clean_up();
 			continue;
+		}
 		if (cfd < 0)
 			pdie("connecting");
 
@@ -830,6 +831,8 @@ static void do_accept_loop(int sfd)
 			add_process(pid);
 
 	} while (!done);
+	/* Get any final stragglers */
+	clean_up();
 }
 
 static void make_pid_file(void)
@@ -854,6 +857,10 @@ static void make_pid_file(void)
 	close(fd);
 }
 
+static void sigstub(int sig)
+{
+}
+
 static void do_listen(char *port)
 {
 	struct addrinfo hints;
@@ -861,7 +868,7 @@ static void do_listen(char *port)
 	int sfd, s;
 
 	if (!debug)
-		signal_setup(SIGCHLD, clean_up);
+		signal_setup(SIGCHLD, sigstub);
 
 	make_pid_file();
 
