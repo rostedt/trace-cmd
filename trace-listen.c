@@ -617,6 +617,7 @@ static int put_together_file(int cpus, int ofd, const char *node,
 {
 	char **temp_files;
 	int cpu;
+	int ret = -ENOMEM;
 
 	/* Now put together the file */
 	temp_files = malloc(sizeof(*temp_files) * cpus);
@@ -626,19 +627,17 @@ static int put_together_file(int cpus, int ofd, const char *node,
 	for (cpu = 0; cpu < cpus; cpu++) {
 		temp_files[cpu] = get_temp_file(node, port, cpu);
 		if (!temp_files[cpu])
-			goto fail;
+			goto out;
 	}
 
 	tracecmd_attach_cpu_data_fd(ofd, cpus, temp_files);
-	free(temp_files);
-	return 0;
-
- fail:
+	ret = 0;
+ out:
 	for (cpu--; cpu >= 0; cpu--) {
 		put_temp_file(temp_files[cpu]);
 	}
 	free(temp_files);
-	return -ENOMEM;
+	return ret;
 }
 
 static int process_client(const char *node, const char *port, int fd)
