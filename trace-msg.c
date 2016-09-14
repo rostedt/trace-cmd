@@ -309,6 +309,26 @@ static int msg_read(int fd, void *buf, u32 size, int *n)
 	return 0;
 }
 
+static int msg_read_extra(int fd, void *buf, int *n,
+			  int size, int min_size, void **addr)
+{
+	int rsize;
+	int ret;
+
+	rsize = min_size - *n;
+	ret = msg_read(fd, buf, rsize, n);
+	if (ret < 0)
+		return ret;
+	size -= *n;
+	if (size < 0)
+		return -ENOMSG;
+	*addr = malloc(size);
+	if (!*addr)
+		return -ENOMEM;
+	*n = 0;
+	return msg_read(fd, *addr, size, n);
+}
+
 static int tracecmd_msg_read_extra(int fd, struct tracecmd_msg *msg, int *n)
 {
 	int size = ntohl(msg->size);
@@ -335,31 +355,11 @@ static int tracecmd_msg_read_extra(int fd, struct tracecmd_msg *msg, int *n)
 		}
 		return 0;
 	case MSG_RINIT:
-		rsize = MIN_RINIT_SIZE - *n;
-		ret = msg_read(fd, msg, rsize, n);
-		if (ret < 0)
-			return ret;
-		size -= *n;
-		if (size < 0)
-			return -ENOMSG;
-		msg->data.rinit.port_array = malloc(size);
-		if (!msg->data.rinit.port_array)
-			return -ENOMEM;
-		*n = 0;
-		return msg_read(fd, msg->data.rinit.port_array, size, n);
+		return msg_read_extra(fd, msg, n, size, MIN_RINIT_SIZE,
+				      (void **)&msg->data.rinit.port_array);
 	case MSG_SENDMETA:
-		rsize = MIN_META_SIZE - *n;
-		ret = msg_read(fd, msg, rsize, n);
-		if (ret < 0)
-			return ret;
-		size -= *n;
-		if (size < 0)
-			return -ENOMSG;
-		msg->data.meta.buf = malloc(size);
-		if (!msg->data.meta.buf)
-			return -ENOMEM;
-		*n = 0;
-		return msg_read(fd, msg->data.meta.buf, size, n);
+		return msg_read_extra(fd, msg, n, size, MIN_META_SIZE,
+				      (void **)&msg->data.meta.buf);
 	}
 
 	return msg_read(fd, msg, size - MSG_HDR_LEN, n);
