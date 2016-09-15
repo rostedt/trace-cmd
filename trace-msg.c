@@ -294,7 +294,7 @@ static int msg_read(int fd, void *buf, u32 size, int *n)
 {
 	int r;
 
-	do {
+	while (size) {
 		r = read(fd, buf + *n, size);
 		if (r < 0) {
 			if (errno == EINTR)
@@ -304,7 +304,7 @@ static int msg_read(int fd, void *buf, u32 size, int *n)
 			return -ENOTCONN;
 		size -= r;
 		*n += r;
-	} while (size);
+	}
 
 	return 0;
 }
