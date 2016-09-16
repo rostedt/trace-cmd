@@ -288,9 +288,6 @@ int tracecmd_msg_initial_setting(int fd, int *cpus, int *pagesize);
 int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports);
 int tracecmd_msg_collect_metadata(int ifd, int ofd);
 
-/* msg debugging */
-void tracecmd_msg_set_debug(int debug);
-
 /* --- Plugin handling --- */
 extern struct pevent_plugin_option trace_ftrace_options[];
 

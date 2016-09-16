@@ -1004,9 +1004,6 @@ void trace_listen(int argc, char **argv)
 	signal_setup(SIGINT, finish);
 	signal_setup(SIGTERM, finish);
 
-	if (debug)
-		tracecmd_msg_set_debug(debug);
-
 	do_listen(port);
 
 	return;

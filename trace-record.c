@@ -4636,10 +4636,6 @@ void trace_record (int argc, char **argv)
 	if (profile && !buffer_instances)
 		top_instance.profile = 1;
 
-	/* Let msg protocol know if we are debugging */
-	if (debug)
-		tracecmd_msg_set_debug(debug);
-
 	/*
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
