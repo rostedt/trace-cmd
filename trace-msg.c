@@ -132,37 +132,31 @@ struct tracecmd_msg {
 
 struct tracecmd_msg *errmsg;
 
+static int msg_write(int fd, struct tracecmd_msg *msg, int size, void *addr)
+{
+	int ret;
+
+	ret = __do_write_check(fd, msg, size);
+	if (ret < 0)
+		return ret;
+	if (ntohl(msg->size) <= size)
+		return 0;
+	return __do_write_check(fd, addr, ntohl(msg->size) - size);
+}
+
 static ssize_t msg_do_write_check(int fd, struct tracecmd_msg *msg)
 {
-	int wsize;
 	int ret;
 
 	switch (ntohl(msg->cmd)) {
 	case MSG_TINIT:
-		wsize = MIN_TINIT_SIZE;
-		ret = __do_write_check(fd, msg, wsize);
-		if (ret < 0)
-			break;
-		if (ntohl(msg->size) <= MIN_TINIT_SIZE)
-			break;
-		ret = __do_write_check(fd, msg->data.tinit.opt,
-				       ntohl(msg->size) - wsize);
+		ret = msg_write(fd, msg, MIN_TINIT_SIZE, msg->data.tinit.opt);
 		break;
 	case MSG_RINIT:
-		wsize = MIN_RINIT_SIZE;
-		ret = __do_write_check(fd, msg, wsize);
-		if (ret < 0)
-			break;
-		ret = __do_write_check(fd, msg->data.rinit.port_array,
-				       ntohl(msg->size) - wsize);
+		ret = msg_write(fd, msg, MIN_RINIT_SIZE, msg->data.rinit.port_array);
 		break;
 	case MSG_SENDMETA:
-		wsize = MIN_META_SIZE;
-		ret = __do_write_check(fd, msg, wsize);
-		if (ret < 0)
-			break;
-		ret = __do_write_check(fd, msg->data.meta.buf,
-				       ntohl(msg->size) - wsize);
+		ret = msg_write(fd, msg, MIN_META_SIZE, msg->data.meta.buf);
 		break;
 	default:
 		ret = __do_write_check(fd, msg, ntohl(msg->size));
