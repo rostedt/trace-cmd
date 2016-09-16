@@ -49,8 +49,6 @@ static char *output_file;
 
 static FILE *logfp;
 
-static int debug;
-
 static int backlog = 5;
 
 static int proto_ver;

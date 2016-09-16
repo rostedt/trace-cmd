@@ -4169,7 +4169,6 @@ void trace_record (int argc, char **argv)
 	int topt = 0;
 	int do_child = 0;
 	int data_flags = 0;
-	int debug = 0;
 
 	int c;
 

@@ -25,6 +25,8 @@
 
 #include "trace-cmd.h"
 
+extern int debug;
+
 /* fix stupid glib guint64 typecasts and printf formats */
 typedef unsigned long long u64;
 

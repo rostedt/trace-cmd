@@ -107,7 +107,6 @@ static int stacktrace_id;
 static int profile;
 
 static int buffer_breaks = 0;
-static int debug = 0;
 
 static int no_irqs;
 static int no_softirqs;
