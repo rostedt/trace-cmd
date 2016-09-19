@@ -93,6 +93,7 @@ enum {
 	TRACECMD_OPTION_UNAME,
 	TRACECMD_OPTION_HOOK,
 	TRACECMD_OPTION_OFFSET,
+	TRACECMD_OPTION_CPUCOUNT,
 };
 
 enum {
@@ -257,7 +258,7 @@ struct tracecmd_option *tracecmd_add_option(struct tracecmd_output *handle,
 					    unsigned short id, int size,
 					    const void *data);
 struct tracecmd_option *tracecmd_add_buffer_option(struct tracecmd_output *handle,
-						   const char *name);
+						   const char *name, int cpus);
 int tracecmd_update_option(struct tracecmd_output *handle,
 			   struct tracecmd_option *option, int size,
 			   const void *data);

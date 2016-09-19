@@ -2102,6 +2102,7 @@ static int handle_options(struct tracecmd_input *handle)
 	struct input_buffer_instance *buffer;
 	struct hook_list *hook;
 	char *buf;
+	int cpus;
 
 	for (;;) {
 		if (do_read_check(handle, &option, 2))
@@ -2183,6 +2184,10 @@ static int handle_options(struct tracecmd_input *handle)
 			hook->next = handle->hooks;
 			handle->hooks = hook;
 			break;
+		case TRACECMD_OPTION_CPUCOUNT:
+			cpus = *(int *)buf;
+			handle->cpus = __data2host4(handle->pevent, cpus);
+			break;
 		default:
 			warning("unknown option %d", option);
 			break;
@@ -2206,10 +2211,13 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	unsigned long long max_size = 0;
 	unsigned long long pages;
 	char buf[10];
+	int cpus;
 	int cpu;
 
 	if (do_read_check(handle, buf, 10))
 		return -1;
+
+	cpus = handle->cpus;
 
 	/* check if this handles options */
 	if (strncmp(buf, "options", 7) == 0) {
@@ -2291,6 +2299,25 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		if (init_cpu(handle, cpu))
 			goto out_free;
+	}
+
+	/*
+	 * It is possible that an option changed the number of CPUs.
+	 * If that happened, then there's "empty" cpu data saved for
+	 * backward compatibility.
+	 */
+	if (cpus < handle->cpus) {
+		unsigned long long ignore;
+		int once = 0;
+
+		read8(handle, &ignore); /* offset */
+		read8(handle, &ignore); /* size */
+		if (ignore != 0) {
+			if (!once) {
+				warning("ignored CPU data not zero size");
+				once++;
+			}
+		}
 	}
 
 	return 0;

@@ -1029,7 +1029,8 @@ int tracecmd_update_option(struct tracecmd_output *handle,
 }
 
 struct tracecmd_option *
-tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name)
+tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name,
+			   int cpus)
 {
 	struct tracecmd_option *option;
 	char *buf;
@@ -1045,6 +1046,14 @@ tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name)
 
 	option = tracecmd_add_option(handle, TRACECMD_OPTION_BUFFER, size, buf);
 	free(buf);
+
+	/*
+	 * In case a buffer instance has different number of CPUs as the
+	 * local machine.
+	 */
+	if (cpus)
+		tracecmd_add_option(handle, TRACECMD_OPTION_CPUCOUNT,
+				    sizeof(int), &cpus);
 
 	return option;
 }

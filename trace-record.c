@@ -2970,21 +2970,53 @@ static struct tracecmd_msg_handle *start_threads(enum trace_type type, int globa
 	return msg_handle;
 }
 
+static void touch_file(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd < 0)
+		die("could not create file %s\n", file);
+	close(fd);
+}
+
 static void append_buffer(struct tracecmd_output *handle,
 			  struct tracecmd_option *buffer_option,
 			  struct buffer_instance *instance,
 			  char **temp_files)
 {
+	int cpu_count = instance->cpu_count;
 	int i;
 
-	for (i = 0; i < instance->cpu_count; i++)
+	/*
+	 * Since we can record remote and virtual machines in the same file
+	 * as the host, the buffers may no longer have matching number of
+	 * CPU data as the host. For backward compatibility for older
+	 * trace-cmd versions, which will blindly read the number of CPUs
+	 * for each buffer instance as there are for the host, if there are
+	 * fewer CPUs on the remote machine than on the host, an "empty"
+	 * CPU is needed for each CPU that the host has that the remote does
+	 * not. If there are more CPUs on the remote, older executables will
+	 * simply ignore them (which is OK, we only need to guarantee that
+	 * old executables don't crash).
+	 */
+	if (instance->cpu_count < local_cpu_count)
+		cpu_count = local_cpu_count;
+
+	for (i = 0; i < cpu_count; i++) {
 		temp_files[i] = get_temp_file(instance, i);
+		if (i >= instance->cpu_count)
+			touch_file(temp_files[i]);
+	}
 
 	tracecmd_append_buffer_cpu_data(handle, buffer_option,
-					instance->cpu_count, temp_files);
+					cpu_count, temp_files);
 
-	for (i = 0; i < instance->cpu_count; i++)
+	for (i = 0; i < instance->cpu_count; i++) {
+		if (i >= instance->cpu_count)
+			delete_temp_file(instance, i);
 		put_temp_file(temp_files[i]);
+	}
 }
 
 static void
@@ -3037,16 +3069,6 @@ static void add_uname(struct tracecmd_output *handle)
 	sprintf(str, "%s %s %s %s", buf.sysname, buf.nodename, buf.release, buf.machine);
 	tracecmd_add_option(handle, TRACECMD_OPTION_UNAME, len, str);
 	free(str);
-}
-
-static void touch_file(const char *file)
-{
-	int fd;
-
-	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (fd < 0)
-		die("could not create file %s\n", file);
-	close(fd);
 }
 
 static void print_stat(struct buffer_instance *instance)
@@ -3150,7 +3172,12 @@ static void record_data(struct tracecmd_msg_handle *msg_handle,
 				die("Failed to allocate buffer options");
 			i = 0;
 			for_each_instance(instance) {
-				buffer_options[i++] = tracecmd_add_buffer_option(handle, instance->name);
+				int cpus = instance->cpu_count != local_cpu_count ?
+					instance->cpu_count : 0;
+
+				buffer_options[i++] = tracecmd_add_buffer_option(handle,
+										 instance->name,
+										 cpus);
 				add_buffer_stat(handle, instance);
 			}
 		}
