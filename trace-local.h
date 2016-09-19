@@ -194,6 +194,7 @@ struct buffer_instance {
 	int			keep;
 	int			buffer_size;
 	int			profile;
+	int			cpu_count;
 };
 
 extern struct buffer_instance top_instance;
@@ -205,7 +206,7 @@ extern struct buffer_instance *first_instance;
 				  i = i == &top_instance ? buffer_instances : (i)->next)
 
 struct buffer_instance *create_instance(const char *name);
-void add_instance(struct buffer_instance *instance);
+void add_instance(struct buffer_instance *instance, int cpu_count);
 char *get_instance_file(struct buffer_instance *instance, const char *file);
 void update_first_instance(struct buffer_instance *instance, int topt);
 

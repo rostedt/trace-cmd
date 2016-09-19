@@ -195,9 +195,10 @@ enum msg_opt_command {
 };
 
 static int make_tinit(struct tracecmd_msg_handle *msg_handle,
-		      struct tracecmd_msg *msg, int total_cpus)
+		      struct tracecmd_msg *msg)
 {
 	struct tracecmd_msg_opt *opt;
+	int cpu_count = msg_handle->cpu_count;
 	int opt_num = 0;
 	int size = MIN_TINIT_SIZE;
 
@@ -212,7 +213,7 @@ static int make_tinit(struct tracecmd_msg_handle *msg_handle,
 		size += sizeof(*opt);
 	}
 
-	msg->tinit.cpus = htonl(total_cpus);
+	msg->tinit.cpus = htonl(cpu_count);
 	msg->tinit.page_size = htonl(page_size);
 	msg->tinit.opt_num = htonl(opt_num);
 
@@ -419,7 +420,7 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 }
 
 int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
-				int total_cpus, int **client_ports)
+				int **client_ports)
 {
 	struct tracecmd_msg send_msg;
 	struct tracecmd_msg recv_msg;
@@ -431,7 +432,7 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 	*client_ports = NULL;
 
 	tracecmd_msg_init(MSG_TINIT, &send_msg);
-	ret = make_tinit(msg_handle, &send_msg, total_cpus);
+	ret = make_tinit(msg_handle, &send_msg);
 	if (ret < 0)
 		return ret;
 
