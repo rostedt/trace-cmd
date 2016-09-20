@@ -189,6 +189,8 @@ struct buffer_instance {
 
 	struct tracecmd_input	*handle;
 
+	struct tracecmd_msg_handle *msg_handle;
+
 	int			tracing_on_init_val;
 	int			tracing_on_fd;
 	int			keep;
