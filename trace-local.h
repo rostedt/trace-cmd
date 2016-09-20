@@ -195,6 +195,7 @@ struct buffer_instance {
 	struct tracecmd_input	*handle;
 
 	struct tracecmd_msg_handle *msg_handle;
+	struct tracecmd_output *network_handle;
 
 	int			flags;
 	int			tracing_on_init_val;

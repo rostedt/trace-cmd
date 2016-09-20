@@ -89,7 +89,6 @@ static int clear_function_filters;
 static char *host;
 static int *client_ports;
 static int sfd;
-static struct tracecmd_output *network_handle;
 
 /* Max size to let a per cpu file get */
 static int max_kb;
@@ -2892,9 +2891,11 @@ again:
 	return msg_handle;
 }
 
-static struct tracecmd_msg_handle *setup_connection(void)
+static struct tracecmd_msg_handle *
+setup_connection(struct buffer_instance *instance)
 {
 	struct tracecmd_msg_handle *msg_handle;
+	struct tracecmd_output *network_handle;
 
 	msg_handle = setup_network();
 
@@ -2905,6 +2906,8 @@ static struct tracecmd_msg_handle *setup_connection(void)
 	} else
 		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,
 							      listed_events);
+
+	instance->network_handle = network_handle;
 
 	/* OK, we are all set, let'r rip! */
 	return msg_handle;
@@ -2940,7 +2943,7 @@ void start_threads(enum trace_type type, int global)
 		int x, pid;
 
 		if (host) {
-			instance->msg_handle = setup_connection();
+			instance->msg_handle = setup_connection(instance);
 			if (!instance->msg_handle)
 				die("Failed to make connection");
 		}
@@ -4902,7 +4905,7 @@ static void finalize_record_trace(struct common_record_context *ctx)
 	}
 
 	if (host)
-		tracecmd_output_close(network_handle);
+		tracecmd_output_close(ctx->instance->network_handle);
 }
 
 /*
