@@ -2629,10 +2629,6 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 	char *file;
 	int pid;
 
-	/* network for buffer instances not supported yet */
-	if (client_ports && instance->name)
-		return 0;
-
 	if (type != TRACE_TYPE_EXTRACT) {
 		signal(SIGUSR1, flush);
 
@@ -2651,8 +2647,18 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 	}
 
 	if (client_ports) {
+		char *path;
+
 		connect_port(cpu);
-		recorder = tracecmd_create_recorder_fd(client_ports[cpu], cpu, recorder_flags);
+		if (instance->name)
+			path = get_instance_dir(instance);
+		else
+			path = tracecmd_find_tracing_dir();
+		recorder = tracecmd_create_buffer_recorder_fd(client_ports[cpu],
+							      cpu, recorder_flags,
+							      path);
+		if (instance->name)
+			tracecmd_put_tracing_file(path);
 	} else {
 		file = get_temp_file(instance, cpu);
 		recorder = create_recorder_instance(instance, file, cpu, brass);
