@@ -706,6 +706,13 @@ int main (int argc, char **argv)
 					funcre = arg;
 					show_all = 0;
 					break;
+				case '-':
+					if (strcmp(argv[i], "--debug") == 0) {
+						debug = true;
+						break;
+					}
+					fprintf(stderr, "list: invalid option -- '%s'\n",
+						argv[i]);
 				default:
 					fprintf(stderr, "list: invalid option -- '%c'\n",
 						argv[optind][1]);
