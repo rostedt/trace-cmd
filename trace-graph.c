@@ -204,6 +204,8 @@ static void init_event_cache(struct graph_info *ginfo)
 	ginfo->soft_irq_entry_ids = NULL;
 	ginfo->soft_irq_exit_ids = NULL;
 
+	ginfo->no_irqs = TRUE;
+
 	ginfo->event_pid_field = NULL;
 	ginfo->event_comm_field = NULL;
 	ginfo->ftrace_pid_field = NULL;
@@ -1210,8 +1212,10 @@ trace_graph_check_irq(struct graph_info *ginfo,
 
 		for (i = 0; events[i]; i++) {
 			event = events[i];
-			if (strcmp(event->system, "irq_vectors") == 0)
+			if (strcmp(event->system, "irq_vectors") == 0) {
+				ginfo->no_irqs = FALSE;
 				break;
+			}
 		}
 
 		for (; events[i]; i++) {

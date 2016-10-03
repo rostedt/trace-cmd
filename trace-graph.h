@@ -244,6 +244,8 @@ struct graph_info {
 	struct format_field	*wakeup_new_pid_field;
 	struct format_field	*wakeup_new_success_field;
 
+	gboolean		no_irqs;
+
 	gboolean		read_comms;	/* Read all comms on first load */
 
 	struct filter_task	*task_filter;

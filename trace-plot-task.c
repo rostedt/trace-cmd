@@ -338,6 +338,9 @@ static gboolean record_is_interrupt(struct graph_info *ginfo,
 {
 	gboolean in_irq;
 
+	if (ginfo->no_irqs)
+		return FALSE;
+
 	in_irq = !!(pevent_data_flags(ginfo->pevent, record) &
 		    (TRACE_FLAG_HARDIRQ | TRACE_FLAG_SOFTIRQ));
 
