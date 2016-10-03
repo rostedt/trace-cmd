@@ -527,7 +527,10 @@ static int task_plot_event(struct graph_info *ginfo,
 		/* It takes two events to be in an irq */
 		if (in_irq) {
 			next_record = tracecmd_peek_data(ginfo->handle, record->cpu);
-			in_irq = record_is_interrupt(ginfo, next_record, FALSE);
+			if (next_record)
+				in_irq = record_is_interrupt(ginfo, next_record, FALSE);
+			else
+				in_irq = 0;
 		}
 
 		if (task_info->last_cpu != record->cpu) {
