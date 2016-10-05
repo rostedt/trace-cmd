@@ -29,12 +29,14 @@
 #include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <dlfcn.h>
 
 #include "trace-compat.h"
 #include "trace-capture.h"
 #include "trace-cmd.h"
 #include "trace-gui.h"
 #include "kernel-shark.h"
+#include "kshark-plugin.h"
 #include "event-utils.h"
 #include "version.h"
 
@@ -1799,6 +1801,57 @@ button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	return FALSE;
 }
 
+static struct plugin_list {
+	struct plugin_list		*next;
+	const char			*file;
+} *plugins;
+static struct plugin_list **plugin_next = &plugins;
+
+static void add_plugin(const char *file)
+{
+	struct stat st;
+	int ret;
+
+	ret = stat(default_input_file, &st);
+	if (ret < 0) {
+		warning("plugin %s not found", file);
+		return;
+	}
+
+	*plugin_next = calloc(sizeof(struct plugin_list), 1);
+	if (!*plugin_next)
+		die("failed to allocat memory for plugin");
+
+	(*plugin_next)->file = file;
+	plugin_next = &(*plugin_next)->next;
+}
+
+static void handle_plugins(struct shark_info *info)
+{
+	kshark_plugin_load_func func;
+	struct plugin_list *plugin;
+	void *handle;
+
+	while ((plugin = plugins)) {
+		plugins = plugin->next;
+
+		handle = dlopen(plugin->file, RTLD_NOW | RTLD_GLOBAL);
+		free(plugin);
+		if (!handle) {
+			warning("cound not load plugin '%s'\n%s\n",
+				plugin->file, dlerror());
+			continue;
+		}
+		func = dlsym(handle, KSHARK_PLUGIN_LOADER_NAME);
+		if (!func) {
+			warning("cound not find func '%s' in plugin '%s'\n%s\n",
+				KSHARK_PLUGIN_LOADER_NAME, plugin->file, dlerror());
+			continue;
+		}
+		func(info);
+	}
+}
+
 static void sig_end(int sig)
 {
 	fprintf(stderr, "kernelshark: Received SIGINT\n");
@@ -1835,7 +1888,7 @@ void kernel_shark(int argc, char **argv)
 
 	gtk_init(&argc, &argv);
 
-	while ((c = getopt(argc, argv, "hvi:")) != -1) {
+	while ((c = getopt(argc, argv, "hvi:p:")) != -1) {
 		switch(c) {
 		case 'h':
 			usage(basename(argv[0]));
@@ -1847,6 +1900,9 @@ void kernel_shark(int argc, char **argv)
 			return;
 		case 'i':
 			input_file = optarg;
+			break;
+		case 'p':
+			add_plugin(optarg);
 			break;
 		default:
 			/* assume the other options are for gtk */
@@ -2434,6 +2490,8 @@ void kernel_shark(int argc, char **argv)
 			    (gpointer) info);
 
 	gtk_widget_set_size_request(window, TRACE_WIDTH, TRACE_HEIGHT);
+
+	handle_plugins(info);
 
 	gdk_threads_enter();
 
