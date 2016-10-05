@@ -366,6 +366,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 	struct cpu_plot_info *cpu_info = plot->private;
 	struct event_format *event;
 	struct pevent_record *record;
+	struct pevent_record *next_record;
 	struct pevent *pevent;
 	unsigned long sec, usec;
 	const char *comm;
@@ -426,10 +427,18 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 	}
 
 	trace_seq_printf(s, "%lu.%06lu", sec, usec);
-	if (pid)
-		trace_seq_printf(s, " %s-%d", comm, pid);
-	else
-		trace_seq_puts(s, " <idle>");
+
+	next_record = tracecmd_peek_data(ginfo->handle, cpu);
+
+	if (next_record && next_record->missed_events) {
+		trace_seq_puts(s, " MISSED EVENTS");
+	} else {
+
+		if (pid)
+			trace_seq_printf(s, " %s-%d", comm, pid);
+		else
+			trace_seq_puts(s, " <idle>");
+	}
 
 	free_record(record);
 
