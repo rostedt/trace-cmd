@@ -20,45 +20,48 @@
 #ifndef _CPU_H
 #define _CPU_H
 
-static inline int cpu_isset(guint64 *cpu_mask, gint cpu)
+#include <stdint.h>
+#include <stdbool.h>
+
+static inline int cpu_isset(uint64_t *cpu_mask, int cpu)
 {
-	guint64 mask;
+	uint64_t mask;
 
 	mask = *(cpu_mask + (cpu >> 6));
 
 	return mask & (1ULL << (cpu & ((1ULL << 6) - 1)));
 }
 
-static inline gboolean cpu_allset(guint64 *cpu_mask, gint max_cpus)
+static inline bool cpu_allset(uint64_t *cpu_mask, int max_cpus)
 {
-	gint cpu;
+	int cpu;
 
 	for (cpu = 0; cpu < max_cpus; cpu++) {
 		if (!cpu_isset(cpu_mask, cpu))
-			return FALSE;
+			return false;
 	}
-	return TRUE;
+	return true;
 }
 
-static inline void cpu_set(guint64 *cpu_mask, gint cpu)
+static inline void cpu_set(uint64_t *cpu_mask, int cpu)
 {
-	guint64 *mask;
+	uint64_t *mask;
 
 	mask = cpu_mask + (cpu >> 6);
 	*mask |= (1ULL << (cpu & ((1ULL << 6) - 1)));
 }
 
-static inline void cpu_clear(guint64 *cpu_mask, gint cpu)
+static inline void cpu_clear(uint64_t *cpu_mask, int cpu)
 {
-	guint64 *mask;
+	uint64_t *mask;
 
 	mask = cpu_mask + (cpu >> 6);
 	*mask &= ~(1ULL << (cpu & ((1ULL << 6) - 1)));
 }
 
-static inline void set_cpus(guint64 *cpu_mask, gint cpus)
+static inline void set_cpus(uint64_t *cpu_mask, int cpus)
 {
-	gint idx;
+	int idx;
 
 	for (idx = 0; idx < (cpus >> 6); idx++) {
 		*(cpu_mask + idx) = -1ULL;
@@ -67,22 +70,22 @@ static inline void set_cpus(guint64 *cpu_mask, gint cpus)
 	*(cpu_mask) = (1ULL << (cpus & ((1ULL << 6) - 1))) - 1;
 }
 
-static inline gboolean cpus_equal(guint64 *a_mask, guint64 *b_mask,
-				  gint cpus)
+static inline bool cpus_equal(uint64_t *a_mask, uint64_t *b_mask,
+				  int cpus)
 {
-	gint idx;
+	int idx;
 
 	for (idx = 0; idx < (cpus >> 6) + 1; idx++) {
 		if (*(a_mask + idx) != *(b_mask + idx))
-			return FALSE;
+			return false;
 	}
-	return TRUE;
+	return true;
 }
 
 /* Hamming weight */
-static inline guint hweight(guint mask)
+static inline unsigned int hweight(unsigned int mask)
 {
-	guint64 w = mask;
+	uint64_t w = mask;
 
 	w -= (w >> 1) & 0x5555555555555555ul;
 	w =  (w & 0x3333333333333333ul) + ((w >> 2) & 0x3333333333333333ul);
@@ -90,10 +93,10 @@ static inline guint hweight(guint mask)
 	return (w * 0x0101010101010101ul) >> 56;
 }
 
-static inline guint cpu_weight(guint64 *cpu_mask, guint cpus)
+static inline unsigned int cpu_weight(uint64_t *cpu_mask, unsigned int cpus)
 {
-	guint weight = 0;
-	gint idx;
+	unsigned int weight = 0;
+	int idx;
 
 	for (idx = 0; idx < (cpus >> 6) + 1; idx++)
 		weight += hweight(*(cpu_mask + idx));
