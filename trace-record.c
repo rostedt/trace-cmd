@@ -2078,27 +2078,25 @@ static void update_pid_event_filters(struct buffer_instance *instance)
 	update_event_filters(instance);
 }
 
-static void set_mask(struct buffer_instance *instance)
+#define MASK_STR_MAX 4096 /* Don't expect more than 32768 CPUS */
+
+static char *alloc_mask_from_hex(const char *str)
 {
-	const char *mask = instance->cpumask;
-	struct stat st;
-	char cpumask[4096]; /* Don't expect more than 32768 CPUS */
-	char *path;
-	int fd;
-	int ret;
+	char *cpumask;
 
-	if (!mask)
-		return;
-
-	if (strcmp(mask, "-1") == 0) {
+	if (strcmp(str, "-1") == 0) {
 		/* set all CPUs */
 		int bytes = (cpu_count + 7) / 8;
 		int last = cpu_count % 8;
 		int i;
 
-		if (bytes > 4095) {
+		cpumask = malloc(MASK_STR_MAX);
+		if (!cpumask)
+			die("can't allocate cpumask");
+
+		if (bytes > (MASK_STR_MAX-1)) {
 			warning("cpumask can't handle more than 32768 CPUS!");
-			bytes = 4095;
+			bytes = MASK_STR_MAX-1;
 		}
 
 		sprintf(cpumask, "%x", (1 << last) - 1);
@@ -2107,9 +2105,24 @@ static void set_mask(struct buffer_instance *instance)
 			cpumask[i] = 'f';
 
 		cpumask[i+1] = 0;
-
-		mask = cpumask;
+	} else {
+		cpumask = strdup(str);
+		if (!cpumask)
+			die("can't allocate cpumask");
 	}
+
+	return cpumask;
+}
+
+static void set_mask(struct buffer_instance *instance)
+{
+	struct stat st;
+	char *path;
+	int fd;
+	int ret;
+
+	if (!instance->cpumask)
+		return;
 
 	path = get_instance_file(instance, "tracing_cpumask");
 	if (!path)
@@ -2117,8 +2130,7 @@ static void set_mask(struct buffer_instance *instance)
 
 	ret = stat(path, &st);
 	if (ret < 0) {
-		if (mask)
-			warning("%s not found", path);
+		warning("%s not found", path);
 		goto out;
 	}
 
@@ -2126,12 +2138,13 @@ static void set_mask(struct buffer_instance *instance)
 	if (fd < 0)
 		die("could not open %s\n", path);
 
-	if (mask)
-		write(fd, mask, strlen(mask));
+	write(fd, instance->cpumask, strlen(instance->cpumask));
 	
 	close(fd);
  out:
 	tracecmd_put_tracing_file(path);
+	free(instance->cpumask);
+	instance->cpumask = NULL;
 }
 
 static void enable_events(struct buffer_instance *instance)
@@ -4530,7 +4543,7 @@ void trace_record (int argc, char **argv)
 			max_kb = atoi(optarg);
 			break;
 		case 'M':
-			instance->cpumask = optarg;
+			instance->cpumask = alloc_mask_from_hex(optarg);
 			break;
 		case 't':
 			if (extract)

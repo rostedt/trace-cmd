@@ -143,7 +143,7 @@ struct func_list {
 struct buffer_instance {
 	struct buffer_instance	*next;
 	const char		*name;
-	const char		*cpumask;
+	char			*cpumask;
 	struct event_list	*events;
 	struct event_list	**event_next;
 
