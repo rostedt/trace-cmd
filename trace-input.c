@@ -48,12 +48,22 @@
 /* for debugging read instead of mmap */
 static int force_read = 0;
 
+struct page_map {
+	struct list_head	list;
+	off64_t			offset;
+	off64_t			size;
+	void			*map;
+	int			ref_count;
+};
+
 struct page {
 	struct list_head	list;
 	off64_t			offset;
 	struct tracecmd_input	*handle;
+	struct page_map		*page_map;
 	void			*map;
 	int			ref_count;
+	int			cpu;
 	long long		lost_events;
 #if DEBUG_RECORD
 	struct pevent_record	*records;
@@ -67,7 +77,9 @@ struct cpu_data {
 	unsigned long long	offset;
 	unsigned long long	size;
 	unsigned long long	timestamp;
+	struct list_head	page_maps;
 	struct list_head	pages;
+	struct page_map		*page_map;
 	struct pevent_record	*next;
 	struct page		*page;
 	struct kbuffer		*kbuf;
@@ -88,6 +100,7 @@ struct tracecmd_input {
 	int			fd;
 	int			long_size;
 	int			page_size;
+	int			page_map_size;
 	int			cpus;
 	int			ref;
 	int			nr_buffers;	/* buffer instances */
@@ -795,12 +808,121 @@ static int read_page(struct tracecmd_input *handle, off64_t offset,
 	return 0;
 }
 
+static unsigned long long normalize_size(unsigned long long size)
+{
+	/* page_map_size must be a power of two */
+	if (!(size & (size - 1)))
+		return size;
+
+	do {
+		size &= size - 1;
+	} while (size & (size - 1));
+
+	return size;
+}
+
+static void free_page_map(struct page_map *page_map)
+{
+	page_map->ref_count--;
+	if (page_map->ref_count)
+		return;
+
+	munmap(page_map->map, page_map->size);
+	list_del(&page_map->list);
+	free(page_map);
+}
+
+static void *allocate_page_map(struct tracecmd_input *handle,
+			       struct page *page, int cpu, off64_t offset)
+{
+	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	struct page_map *page_map;
+	off64_t map_size;
+	off64_t map_offset;
+	void *map;
+	int ret;
+
+	if (handle->read_page) {
+		map = malloc(handle->page_size);
+		if (!map)
+			return NULL;
+		ret = read_page(handle, offset, cpu, map);
+		if (ret < 0) {
+			free(map);
+			return NULL;
+		}
+		return map;
+	}
+
+	map_size = handle->page_map_size;
+	map_offset = offset & ~(map_size - 1);
+
+	if (map_offset < cpu_data->file_offset) {
+		map_size -= cpu_data->file_offset - map_offset;
+		map_offset = cpu_data->file_offset;
+	}
+
+	page_map = cpu_data->page_map;
+
+	if (page_map && page_map->offset == map_offset)
+		goto out;
+
+	list_for_each_entry(page_map, &cpu_data->page_maps, list) {
+		if (page_map->offset == map_offset)
+			goto out;
+	}
+
+	page_map = calloc(1, sizeof(*page_map));
+	if (!page_map)
+		return NULL;
+
+	if (map_offset + map_size > cpu_data->file_offset + cpu_data->file_size)
+		map_size -= map_offset + map_size -
+			(cpu_data->file_offset + cpu_data->file_size);
+
+ again:
+	page_map->size = map_size;
+	page_map->offset = map_offset;
+
+	page_map->map = mmap(NULL, map_size, PROT_READ, MAP_PRIVATE,
+			 handle->fd, map_offset);
+
+	if (page->map == MAP_FAILED) {
+		/* Try a smaller map */
+		map_size >>= 1;
+		if (map_size < handle->page_size) {
+			free(page_map);
+			return NULL;
+		}
+		handle->page_map_size = map_size;
+		map_offset = offset & ~(map_size - 1);
+		/*
+		 * Note, it is now possible to get duplicate memory
+		 * maps. But that's fine, the previous maps with
+		 * larger sizes will eventually be unmapped.
+		 */
+		goto again;
+	}
+
+	list_add(&page_map->list, &cpu_data->page_maps);
+ out:
+	if (cpu_data->page_map != page_map) {
+		struct page_map *old_map = cpu_data->page_map;
+		cpu_data->page_map = page_map;
+		page_map->ref_count++;
+		if (old_map)
+			free_page_map(old_map);
+	}
+	page->page_map = page_map;
+	page_map->ref_count++;
+	return page_map->map + offset - page_map->offset;
+}
+
 static struct page *allocate_page(struct tracecmd_input *handle,
 				  int cpu, off64_t offset)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
 	struct page *page;
-	int ret;
 
 	list_for_each_entry(page, &cpu_data->pages, list) {
 		if (page->offset == offset) {
@@ -816,22 +938,9 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 	memset(page, 0, sizeof(*page));
 	page->offset = offset;
 	page->handle = handle;
+	page->cpu = cpu;
 
-	if (handle->read_page) {
-		page->map = malloc(handle->page_size);
-		if (page->map) {
-			ret = read_page(handle, offset, cpu, page->map);
-			if (ret < 0) {
-				free(page->map);
-				page->map = NULL;
-			}
-		}
-	} else {
-		page->map = mmap(NULL, handle->page_size, PROT_READ, MAP_PRIVATE,
-				 handle->fd, offset);
-		if (page->map == MAP_FAILED)
-			page->map = NULL;
-	}
+	page->map = allocate_page_map(handle, page, cpu, offset);
 
 	if (!page->map) {
 		free(page);
@@ -856,7 +965,7 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	if (handle->read_page)
 		free(page->map);
 	else
-		munmap(page->map, handle->page_size);
+		free_page_map(page->page_map);
 
 	list_del(&page->list);
 	free(page);
@@ -1920,6 +2029,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	cpu_data->timestamp = 0;
 
 	list_head_init(&cpu_data->pages);
+	list_head_init(&cpu_data->page_maps);
 
 	if (!cpu_data->size) {
 		printf("CPU %d is empty\n", cpu);
@@ -2095,6 +2205,8 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	enum kbuffer_long_size long_size;
 	enum kbuffer_endian endian;
 	unsigned long long size;
+	unsigned long long max_size = 0;
+	unsigned long long pages;
 	char buf[10];
 	int cpu;
 
@@ -2155,6 +2267,8 @@ static int read_cpu_data(struct tracecmd_input *handle)
 
 		handle->cpu_data[cpu].file_offset = offset;
 		handle->cpu_data[cpu].file_size = size;
+		if (size > max_size)
+			max_size = size;
 
 		if (size && (offset + size > handle->total_file_size)) {
 			/* this happens if the file got truncated */
@@ -2164,7 +2278,19 @@ static int read_cpu_data(struct tracecmd_input *handle)
 			errno = EINVAL;
 			goto out_free;
 		}
+	}
 
+	/* Calculate about a meg of pages for buffering */
+	pages = handle->page_size ? max_size / handle->page_size : 0;
+	if (!pages)
+		pages = 1;
+	pages = normalize_size(pages);
+	handle->page_map_size = handle->page_size * pages;
+	if (handle->page_map_size < handle->page_size)
+		handle->page_map_size = handle->page_size;
+
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		if (init_cpu(handle, cpu))
 			goto out_free;
 	}
@@ -2613,6 +2739,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 		free_page(handle, cpu);
 		if (handle->cpu_data && handle->cpu_data[cpu].kbuf) {
 			kbuffer_free(handle->cpu_data[cpu].kbuf);
+			if (handle->cpu_data[cpu].page_map)
+				free_page_map(handle->cpu_data[cpu].page_map);
 
 			if (!list_empty(&handle->cpu_data[cpu].pages))
 				warning("pages still allocated on cpu %d%s",
