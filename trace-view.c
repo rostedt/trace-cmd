@@ -864,6 +864,8 @@ static void search_tree(gpointer data)
 	path = gtk_tree_model_get_path(model, &iter);
 	select_row_from_path(info->treeview, path);
 	gtk_tree_path_free(path);
+
+	gtk_widget_grab_focus(GTK_WIDGET(info->entry));
 }
 
 void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
