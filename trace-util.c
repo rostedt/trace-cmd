@@ -723,8 +723,10 @@ char *tracecmd_find_tracing_dir(void)
 			break;
 		if (!debug_str && strcmp(type, "debugfs") == 0) {
 			debug_str = strdup(fspath);
-			if (!debug_str)
+			if (!debug_str) {
+				fclose(fp);
 				return NULL;
+			}
 		}
 	}
 	fclose(fp);
