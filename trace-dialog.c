@@ -28,6 +28,7 @@
 #include "trace-compat.h"
 #include "trace-cmd.h"
 #include "trace-gui.h"
+#include "trace-local.h"
 
 #define DIALOG_WIDTH	500
 #define DIALOG_HEIGHT	550

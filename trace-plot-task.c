@@ -21,6 +21,7 @@
 
 #include "trace-graph.h"
 #include "trace-filter.h"
+#include "trace-local.h"
 
 #define RED 0xff
 #define GREEN (0xff<<16)

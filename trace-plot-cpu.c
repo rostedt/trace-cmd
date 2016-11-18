@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "trace-graph.h"
+#include "trace-local.h"
 #include "cpu.h"
 
 struct cpu_plot_info {

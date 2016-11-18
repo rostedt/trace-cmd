@@ -37,6 +37,7 @@
 #include <errno.h>
 
 #include "trace-cmd-local.h"
+#include "trace-local.h"
 #include "kbuffer.h"
 #include "list.h"
 

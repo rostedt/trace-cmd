@@ -28,6 +28,7 @@
 
 #include "trace-cmd.h"
 #include "trace-xml.h"
+#include "trace-local.h"
 
 struct tracecmd_xml_handle {
 	xmlTextWriterPtr	writer;

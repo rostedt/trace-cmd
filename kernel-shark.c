@@ -34,6 +34,7 @@
 #include "trace-compat.h"
 #include "trace-capture.h"
 #include "trace-cmd.h"
+#include "trace-local.h"
 #include "trace-gui.h"
 #include "kernel-shark.h"
 #include "kshark-plugin.h"
@@ -60,8 +61,10 @@
 #define default_input_file "trace.dat"
 static char *input_file;
 
-void usage(char *prog)
+void usage(char **argv)
 {
+	char *prog = basename(argv[0]);
+
 	printf("Usage: %s\n", prog);
 	printf("  -h	Display this help message\n");
 	printf("  -v	Display version and exit\n");
@@ -1891,7 +1894,7 @@ void kernel_shark(int argc, char **argv)
 	while ((c = getopt(argc, argv, "hvi:p:")) != -1) {
 		switch(c) {
 		case 'h':
-			usage(basename(argv[0]));
+			usage(argv);
 			return;
 		case 'v':
 			printf("%s - %s\n",
@@ -1912,7 +1915,7 @@ void kernel_shark(int argc, char **argv)
 
 	if ((argc - optind) >= 1) {
 		if (input_file)
-			usage(basename(argv[0]));
+			usage(argv);
 		input_file = argv[optind];
 	}
 

@@ -37,6 +37,7 @@
 
 #include "trace-cmd.h"
 #include "trace-gui.h"
+#include "trace-local.h"
 #include "kernel-shark.h"
 #include "version.h"
 
