@@ -331,7 +331,7 @@ TRACE_GUI_OBJS = trace-filter.o trace-compat.o trace-filter-hash.o trace-dialog.
 		trace-xml.o
 TRACE_CMD_OBJS = trace-cmd.o trace-record.o trace-read.o trace-split.o trace-listen.o \
 	 trace-stack.o trace-hist.o trace-mem.o trace-snapshot.o trace-stat.o \
-	 trace-hash.o trace-profile.o trace-stream.o
+	 trace-hash.o trace-profile.o trace-stream.o trace-record.o trace-restore.o
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o
 TRACE_GRAPH_OBJS = trace-graph.o trace-plot.o trace-plot-cpu.o trace-plot-task.o
 TRACE_VIEW_MAIN_OBJS = trace-view-main.o $(TRACE_VIEW_OBJS) $(TRACE_GUI_OBJS)
@@ -341,8 +341,8 @@ KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS) \
 
 PEVENT_LIB_OBJS = event-parse.o trace-seq.o parse-filter.o parse-utils.o str_error_r.o
 TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
-			trace-output.o trace-record.o trace-recorder.o \
-			trace-restore.o trace-usage.o trace-blk-hack.o \
+			trace-output.o trace-recorder.o \
+			trace-usage.o trace-blk-hack.o \
 			kbuffer-parse.o event-plugin.o trace-hooks.o \
 			trace-msg.o
 
