@@ -29,6 +29,8 @@
 #include "trace-local.h"
 #include "trace-hash.h"
 
+#include <linux/time64.h>
+
 #ifdef WARN_NO_AUDIT
 # warning "lib audit not found, using raw syscalls "	\
 	"(install libaudit-devel and try again)"
@@ -46,12 +48,12 @@
 
 static unsigned long long nsecs_per_sec(unsigned long long ts)
 {
-	return ts / NSECS_PER_SEC;
+	return ts / NSEC_PER_SEC;
 }
 
 static unsigned long long mod_to_usec(unsigned long long ts)
 {
-	return ((ts % NSECS_PER_SEC) + NSECS_PER_USEC / 2) / NSECS_PER_USEC;
+	return ((ts % NSEC_PER_SEC) + NSEC_PER_USEC / 2) / NSEC_PER_USEC;
 }
 
 struct handle_data;

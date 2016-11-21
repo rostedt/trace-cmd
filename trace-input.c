@@ -36,6 +36,8 @@
 #include <ctype.h>
 #include <errno.h>
 
+#include <linux/time64.h>
+
 #include "trace-cmd-local.h"
 #include "trace-local.h"
 #include "kbuffer.h"
@@ -2090,7 +2092,7 @@ void tracecmd_set_ts2secs(struct tracecmd_input *handle,
 {
 	double ts2secs;
 
-	ts2secs = (double)NSECS_PER_SEC / (double)hz;
+	ts2secs = (double)NSEC_PER_SEC / (double)hz;
 	handle->ts2secs = ts2secs;
 	handle->use_trace_clock = false;
 }
