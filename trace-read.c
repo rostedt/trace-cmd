@@ -1322,7 +1322,7 @@ static void add_functions(struct pevent *pevent, const char *file)
 		die("Failed to allocate for function buffer");
 	read_file_fd(fd, buf, st.st_size);
 	close(fd);
-	parse_proc_kallsyms(pevent, buf, st.st_size);
+	tracecmd_parse_proc_kallsyms(pevent, buf, st.st_size);
 	free(buf);
 }
 

@@ -379,8 +379,8 @@ void trace_util_print_plugin_options(struct trace_seq *s)
 	}
 }
 
-void parse_cmdlines(struct pevent *pevent,
-		    char *file, int size __maybe_unused)
+void tracecmd_parse_cmdlines(struct pevent *pevent,
+			     char *file, int size __maybe_unused)
 {
 	char *comm;
 	char *line;
@@ -408,8 +408,8 @@ static void extract_trace_clock(struct pevent *pevent, char *line)
 	free(clock);
 }
 
-void parse_trace_clock(struct pevent *pevent,
-			char *file, int size __maybe_unused)
+void tracecmd_parse_trace_clock(struct pevent *pevent,
+				char *file, int size __maybe_unused)
 {
 	char *line;
 	char *next = NULL;
@@ -423,7 +423,7 @@ void parse_trace_clock(struct pevent *pevent,
 	}
 }
 
-void parse_proc_kallsyms(struct pevent *pevent,
+void tracecmd_parse_proc_kallsyms(struct pevent *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
@@ -468,7 +468,7 @@ void parse_proc_kallsyms(struct pevent *pevent,
 	}
 }
 
-void parse_ftrace_printk(struct pevent *pevent,
+void tracecmd_parse_ftrace_printk(struct pevent *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;

@@ -694,7 +694,7 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 	}
 	buf[size] = 0;
 
-	parse_proc_kallsyms(pevent, buf, size);
+	tracecmd_parse_proc_kallsyms(pevent, buf, size);
 
 	free(buf);
 	return 0;
@@ -722,7 +722,7 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 
 	buf[size] = 0;
 
-	parse_ftrace_printk(handle->pevent, buf, size);
+	tracecmd_parse_ftrace_printk(handle->pevent, buf, size);
 
 	free(buf);
 
@@ -2338,7 +2338,7 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 	if (read_data_and_size(handle, &cmdlines, &size) < 0)
 		return -1;
 	cmdlines[size] = 0;
-	parse_cmdlines(pevent, cmdlines, size);
+	tracecmd_parse_cmdlines(pevent, cmdlines, size);
 	free(cmdlines);
 	return 0;
 }
@@ -2352,7 +2352,7 @@ static int read_and_parse_trace_clock(struct tracecmd_input *handle,
 	if (read_data_and_size(handle, &trace_clock, &size) < 0)
 		return -1;
 	trace_clock[size] = 0;
-	parse_trace_clock(pevent, trace_clock, size);
+	tracecmd_parse_trace_clock(pevent, trace_clock, size);
 	free(trace_clock);
 	return 0;
 }
@@ -2389,7 +2389,7 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		if (read_and_parse_trace_clock(handle, pevent) < 0) {
 			char clock[] = "[local]";
 			warning("File has trace_clock bug, using local clock");
-			parse_trace_clock(pevent, clock, 8);
+			tracecmd_parse_trace_clock(pevent, clock, 8);
 		}
 	}
 

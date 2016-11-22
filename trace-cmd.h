@@ -27,10 +27,10 @@
 #define TRACECMD_ERROR(ret)	((void *)((unsigned long)(ret) | TRACECMD_ERR_MSK))
 #define TRACECMD_PTR2ERR(ptr)	((unisgned long)(ptr) & ~TRACECMD_ERR_MSK)
 
-void parse_cmdlines(struct pevent *pevent, char *file, int size);
-void parse_trace_clock(struct pevent *pevent, char *file, int size);
-void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
-void parse_ftrace_printk(struct pevent *pevent, char *file, unsigned int size);
+void tracecmd_parse_cmdlines(struct pevent *pevent, char *file, int size);
+void tracecmd_parse_trace_clock(struct pevent *pevent, char *file, int size);
+void tracecmd_parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
+void tracecmd_parse_ftrace_printk(struct pevent *pevent, char *file, unsigned int size);
 
 extern int tracecmd_disable_sys_plugins;
 extern int tracecmd_disable_plugins;
