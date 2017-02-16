@@ -1177,7 +1177,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			last_hook->next = tracecmd_hooks(handles->handle);
 		else
 			hooks = tracecmd_hooks(handles->handle);
-		trace_init_profile(handles->handle, hooks, global);
+		if (profile)
+			trace_init_profile(handles->handle, hooks, global);
 
 		process_filters(handles);
 
