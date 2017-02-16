@@ -90,6 +90,12 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
+SWIG_DEFINED := $(shell if swig -help &> /dev/null; then echo 1; else echo 0; fi)
+ifeq ($(SWIG_DEFINED), 0)
+BUILD_PYTHON := report_noswig
+NO_PYTHON = 1
+endif
+
 ifndef NO_PYTHON
 PYTHON		:= ctracecmd.so
 PYTHON_GUI	:= ctracecmd.so ctracecmdgui.so
@@ -614,6 +620,11 @@ clean:
 
 
 ##### PYTHON STUFF #####
+
+report_noswig: force
+	$(Q)echo
+	$(Q)echo "    NO_PYTHON forced: swig not installed, not compling python plugins"
+	$(Q)echo
 
 PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_VERS)`
 PYTHON_LDFLAGS = `pkg-config --libs $(PYTHON_VERS)` \
