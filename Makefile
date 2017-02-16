@@ -76,6 +76,7 @@ var_dir_SQ = '$(subst ','\'',$(var_dir))'
 
 HELP_DIR = -DHELP_DIR=$(html_install)
 HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
+#' emacs highlighting gets confused by the above escaped quote.
 
 BASH_COMPLETE_DIR ?= /etc/bash_completion.d
 
