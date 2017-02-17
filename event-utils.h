@@ -20,7 +20,6 @@
 #ifndef __UTIL_H
 #define __UTIL_H
 
-#include <string.h>
 #include <ctype.h>
 
 /* Can be overridden */
