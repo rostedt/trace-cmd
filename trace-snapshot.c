@@ -42,7 +42,8 @@ static void write_file(const char *name, char *val)
 
 	n = write(fd, val, strlen(val));
 	if (n < 0)
-		die("failed to write '%d' to %s\n", path);
+		die("failed to write to %s\n", path);
+
 	tracecmd_put_tracing_file(path);
 	close(fd);
 }
