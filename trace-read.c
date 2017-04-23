@@ -294,6 +294,7 @@ static void add_input(const char *file)
 	item = malloc(sizeof(*item));
 	if (!item)
 		die("Failed to allocate for %s", file);
+	memset(item, 0, sizeof(*item));
 	item->file = file;
 	list_add_tail(&item->list, &input_files);
 	last_input_file = item;
