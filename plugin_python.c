@@ -24,6 +24,7 @@ static int load_plugin(struct pevent *pevent, const char *path,
 			const char *name, void *data)
 {
 	PyObject *globals = data;
+	int err;
 	int len = strlen(path) + strlen(name) + 2;
 	int nlen = strlen(name) + 1;
 	char *full = malloc(len);
@@ -41,9 +42,9 @@ static int load_plugin(struct pevent *pevent, const char *path,
 	strcpy(n, name);
 	n[nlen - 4] = '\0';
 
-	asprintf(&load, pyload, full, n);
-	if (!load)
-		return -ENOMEM;
+	err = asprintf(&load, pyload, full, n);
+	if (err < 0)
+		return err;
 
 	res = PyRun_String(load, Py_file_input, globals, globals);
 	if (!res) {
