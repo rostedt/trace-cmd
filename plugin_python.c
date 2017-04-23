@@ -20,7 +20,7 @@ static const char pyload[] =
 "finally:\n"
 "   file.close()\n";
 
-static void load_plugin(struct pevent *pevent, const char *path,
+static int load_plugin(struct pevent *pevent, const char *path,
 			const char *name, void *data)
 {
 	PyObject *globals = data;
@@ -32,7 +32,7 @@ static void load_plugin(struct pevent *pevent, const char *path,
 	PyObject *res;
 
 	if (!full || !n)
-		return;
+		return -ENOMEM;
 
 	strcpy(full, path);
 	strcat(full, "/");
@@ -43,7 +43,7 @@ static void load_plugin(struct pevent *pevent, const char *path,
 
 	asprintf(&load, pyload, full, n);
 	if (!load)
-		return;
+		return -ENOMEM;
 
 	res = PyRun_String(load, Py_file_input, globals, globals);
 	if (!res) {
@@ -53,6 +53,8 @@ static void load_plugin(struct pevent *pevent, const char *path,
 		Py_DECREF(res);
 
 	free(load);
+
+	return 0;
 }
 
 int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
