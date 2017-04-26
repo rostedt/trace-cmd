@@ -65,6 +65,8 @@ void trace_listen(int argc, char **argv);
 
 void trace_restore(int argc, char **argv);
 
+void trace_check_events(int argc, char **argv);
+
 void trace_stack(int argc, char **argv);
 
 void trace_option(int argc, char **argv);
@@ -76,6 +78,10 @@ void trace_snapshot(int argc, char **argv);
 void trace_mem(int argc, char **argv);
 
 void trace_stat(int argc, char **argv);
+
+void trace_show(int argc, char **argv);
+
+void trace_list(int argc, char **argv);
 
 struct hook_list;
 
@@ -183,6 +189,7 @@ char *get_instance_file(struct buffer_instance *instance, const char *file);
 void update_first_instance(struct buffer_instance *instance, int topt);
 
 void show_instance_file(struct buffer_instance *instance, const char *name);
+void show_plugin_options(void);
 int count_cpus(void);
 
 /* No longer in event-utils.h */
