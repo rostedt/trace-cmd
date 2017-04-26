@@ -327,3 +327,9 @@ void usage(char **argv)
 	printf("\n");
 	exit(-1);
 }
+
+
+void trace_usage(int argc, char **argv)
+{
+	usage(argv);
+}

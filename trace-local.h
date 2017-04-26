@@ -83,6 +83,8 @@ void trace_show(int argc, char **argv);
 
 void trace_list(int argc, char **argv);
 
+void trace_usage(int argc, char **argv);
+
 struct hook_list;
 
 void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hooks,
@@ -189,7 +191,7 @@ char *get_instance_file(struct buffer_instance *instance, const char *file);
 void update_first_instance(struct buffer_instance *instance, int topt);
 
 void show_instance_file(struct buffer_instance *instance, const char *name);
-void show_plugin_options(void);
+
 int count_cpus(void);
 
 /* No longer in event-utils.h */

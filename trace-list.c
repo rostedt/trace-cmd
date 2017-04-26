@@ -319,7 +319,7 @@ static void show_buffers(void)
 }
 
 
-void show_plugin_options(void)
+static void show_plugin_options(void)
 {
 	struct pevent *pevent;
 	struct plugin_list *list;
@@ -338,6 +338,12 @@ void show_plugin_options(void)
 	trace_seq_do_printf(&s);
 	tracecmd_unload_plugins(list, pevent);
 	pevent_free(pevent);
+}
+
+
+void trace_option(int argc, char **argv)
+{
+	show_plugin_options();
 }
 
 

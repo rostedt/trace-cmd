@@ -76,72 +76,66 @@ void *malloc_or_die(unsigned int size)
 }
 
 
+/**
+ * struct command
+ * @name command name
+ * @run function to execute on command `name`
+ */
+struct command {
+	char *name;
+	void (*run)(int argc, char **argv);
+};
+
+
+/**
+ * Lookup table that maps command names to functions
+ */
+struct command commands[] = {
+	{"report", trace_report},
+	{"snapshot", trace_snapshot},
+	{"hist", trace_hist},
+	{"mem", trace_mem},
+	{"listen", trace_listen},
+	{"split", trace_split},
+	{"restore", trace_restore},
+	{"stack", trace_stack},
+	{"check-events", trace_check_events},
+	{"record", trace_record},
+	{"start", trace_record},
+	{"extract", trace_record},
+	{"stop", trace_record},
+	{"stream", trace_record},
+	{"profile", trace_record},
+	{"restart", trace_record},
+	{"reset", trace_record},
+	{"stat", trace_stat},
+	{"options", trace_option},
+	{"show", trace_show},
+	{"list", trace_list},
+	{"help", trace_usage},
+	{"-h", trace_usage},
+};
+
+#define ARRAY_SIZE(_a) (sizeof(_a) / sizeof(_a[0]))
+
 int main (int argc, char **argv)
 {
+	int i;
+
 	errno = 0;
 
 	if (argc < 2)
-		usage(argv);
+		trace_usage(argc, argv);
 
-	if (strcmp(argv[1], "report") == 0) {
-		trace_report(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "snapshot") == 0) {
-		trace_snapshot(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "hist") == 0) {
-		trace_hist(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "mem") == 0) {
-		trace_mem(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "listen") == 0) {
-		trace_listen(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "split") == 0) {
-		trace_split(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "restore") == 0) {
-		trace_restore(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "stack") == 0) {
-		trace_stack(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "check-events") == 0) {
-		trace_check_events(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "record") == 0 ||
-		   strcmp(argv[1], "start") == 0 ||
-		   strcmp(argv[1], "extract") == 0 ||
-		   strcmp(argv[1], "stop") == 0 ||
-		   strcmp(argv[1], "stream") == 0 ||
-		   strcmp(argv[1], "profile") == 0 ||
-		   strcmp(argv[1], "restart") == 0 ||
-		   strcmp(argv[1], "reset") == 0) {
-		trace_record(argc, argv);
-		exit(0);
-
-	} else if (strcmp(argv[1], "stat") == 0) {
-		trace_stat(argc, argv);
-		exit(0);
-
-	} else if (strcmp(argv[1], "options") == 0) {
-		show_plugin_options();
-		exit(0);
-	} else if (strcmp(argv[1], "show") == 0) {
-		trace_show(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "list") == 0) {
-		trace_list(argc, argv);
-		exit(0);
-	} else if (strcmp(argv[1], "-h") == 0 ||
-		   strcmp(argv[1], "help") == 0) {
-		usage(argv);
-	} else {
-		fprintf(stderr, "unknown command: %s\n", argv[1]);
-		usage(argv);
+	for (i = 0; i < ARRAY_SIZE(commands); ++i) {
+		if (strcmp(argv[1], commands[i].name) == 0 ){
+			commands[i].run(argc, argv);
+			goto out;
+		}
 	}
 
-	return 0;
+	/* No valid command found, show help */
+	trace_usage(argc, argv);
+out:
+	exit(0);
 }
-
