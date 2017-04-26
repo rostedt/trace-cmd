@@ -337,9 +337,7 @@ void trace_view_update_filters(GtkWidget *treeview,
 
 static void select_row_from_path(GtkTreeView *tree, GtkTreePath *path)
 {
-	GtkTreeSelection *selection;
-
-	selection = gtk_tree_view_get_selection(tree);
+	gtk_tree_view_get_selection(tree);
 	gtk_tree_view_set_cursor(tree, path, NULL, FALSE);
 }
 
