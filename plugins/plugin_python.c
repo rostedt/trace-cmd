@@ -55,7 +55,7 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 
 	free(load);
 
-	return 0;
+	return res ? 0 : -1;
 }
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
