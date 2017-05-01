@@ -2042,11 +2042,16 @@ static void update_pid_filters(struct buffer_instance *instance)
 	str = filter;
 
 	for (p = filter_pids; p; p = p->next) {
+		if (p->exclude)
+			continue;
 		len = sprintf(str, "%d ", p->pid);
 		str += len;
 	}
 
-	len = len_filter_pids + nr_filter_pids;
+	if (filter == str)
+		goto out;
+
+	len = str - filter;
 	str = filter;
 	do {
 		ret = write(fd, str, len);
@@ -2056,6 +2061,7 @@ static void update_pid_filters(struct buffer_instance *instance)
 		len -= ret;
 	} while (ret >= 0 && len);
 
+ out:
 	close(fd);
 }
 
