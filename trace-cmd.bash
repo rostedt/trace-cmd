@@ -1,23 +1,43 @@
-_trace_cmd_complete()
+__trace_cmd_list_complete()
 {
-    local cur=""
-    local prev=""
-
-    # Not to use COMP_WORDS to avoid buggy behavior of Bash when
-    # handling with words including ":", like:
-    #
-    # prev="${COMP_WORDS[COMP_CWORD-1]}"
-    # cur="${COMP_WORDS[COMP_CWORD]}"
-    #
-    # Instead, we use _get_comp_words_by_ref() magic.
-    _get_comp_words_by_ref -n : cur prev
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
 
     case "$prev" in
-        trace-cmd)
-            local cmds=$(trace-cmd --help 2>/dev/null | \
-                                grep " - " | sed 's/^ *//; s/ -.*//')
-            COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
-            ;;
+	list)
+	    local cmds=$(trace-cmd list -h |egrep "^ {10}-" | \
+				 sed -e 's/.*\(-.\).*/\1/')
+	    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+	    ;;
+	*)
+	    size=${#words[@]}
+	    if [ $size -gt 3 ]; then
+		if [ "$cur" == "-" ]; then
+		    let size=$size-3
+		else
+		    let size=$size-2
+		fi
+		local w="${words[$size]}"
+		if [ "$w" == "-e" ]; then
+		    local cmds=$(trace-cmd list -h |egrep "^ {12}-" | \
+				 sed -e 's/.*\(-.\).*/\1/')
+		    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+		fi
+	    fi
+	    ;;
+    esac
+}
+
+__trace_cmd_record_complete()
+{
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
+
+    case "$prev" in
         -e)
             local events=$(trace-cmd list -e)
             local prefix=${cur%%:*}
@@ -34,7 +54,8 @@ _trace_cmd_complete()
             ;;
         -p)
             local plugins=$(trace-cmd list -p)
-            COMPREPLY=( $(compgen -W "${plugins}" -- "${cur}") )
+	    COMPREPLY=( $(compgen -W "${plugins}" -- "${cur}" ) )
+	    COMPREPLY="a$w"
             ;;
         -l|-n|-g)
             # This is extremely slow still (may take >1sec).
@@ -43,8 +64,47 @@ _trace_cmd_complete()
             ;;
         *)
             # By default, we list files
-            local files=$(ls --color=never)
-            COMPREPLY=( $(compgen -W "${files}" -- "$cur") )
+            COMPREPLY=( $(compgen -f -- "$cur") )
+            ;;
+    esac
+}
+
+_trace_cmd_complete()
+{
+    local cur=""
+    local prev=""
+    local words=()
+
+    # Not to use COMP_WORDS to avoid buggy behavior of Bash when
+    # handling with words including ":", like:
+    #
+    # prev="${COMP_WORDS[COMP_CWORD-1]}"
+    # cur="${COMP_WORDS[COMP_CWORD]}"
+    #
+    # Instead, we use _get_comp_words_by_ref() magic.
+    _get_comp_words_by_ref -n : cur prev words
+
+    if [ "$prev" == "trace-cmd" ]; then
+            local cmds=$(trace-cmd --help 2>/dev/null | \
+                                grep " - " | sed 's/^ *//; s/ -.*//')
+            COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+	    return;
+    fi
+
+    local w="${words[1]}"
+
+    case "$w" in
+	list)
+	    __trace_cmd_list_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+	record)
+	    __trace_cmd_record_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+        *)
+            # By default, we list files
+            COMPREPLY=( $(compgen -f -- "$cur") )
             ;;
     esac
 }
