@@ -1,3 +1,14 @@
+show_instances()
+{
+   local cur="$1"
+   local bufs=$(trace-cmd list -B)
+   if [ "$bufs" == "No buffer instances defined" ]; then
+	return 0
+   fi
+   COMPREPLY=( $(compgen -W "${bufs}" -- "${cur}") )
+   return 0
+}
+
 __trace_cmd_list_complete()
 {
     local prev=$1
@@ -38,10 +49,30 @@ __trace_cmd_show_complete()
     local words=("$@")
 
     case "$prev" in
-	show)
+	-B)
+	    show_instances "$cur"
+	    ;;
+	*)
 	    local cmds=$(trace-cmd show -h 2>/dev/null|grep "^ *-" | \
 				 sed -e 's/ *\(-[^ ]*\).*/\1/')
 	    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+	    ;;
+    esac
+}
+
+__trace_cmd_extract_complete()
+{
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
+
+    case "$prev" in
+	-B)
+	    show_instances "$cur"
+	    ;;
+	*)
+	    COMPREPLY=( $(compgen -f -- "${cur}") )
 	    ;;
     esac
 }
@@ -77,6 +108,9 @@ __trace_cmd_record_complete()
             local funcs=$(trace-cmd list -f | sed 's/ .*//')
             COMPREPLY=( $(compgen -W "${funcs}" -- "${cur}") )
             ;;
+	-B)
+	    show_instances "$cur"
+	    ;;
         *)
             # By default, we list files
             COMPREPLY=( $(compgen -f -- "$cur") )
@@ -115,6 +149,10 @@ _trace_cmd_complete()
 	    ;;
 	show)
 	    __trace_cmd_show_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+	extract)
+	    __trace_cmd_extract_complete "${prev}" "${cur}" ${words[@]}
 	    return 0
 	    ;;
 	record)
