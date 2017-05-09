@@ -226,7 +226,7 @@ static struct usage_help usage_help[] = {
 		"          -D create it in daemon mode.\n"
 		"          -o file name to use for clients.\n"
 		"          -d diretory to store client files.\n"
-		"	   -l logfile to write messages to.\n"
+		"          -l logfile to write messages to.\n"
 	},
 	{
 		"list",
