@@ -9,6 +9,16 @@ show_instances()
    return 0
 }
 
+cmd_options()
+{
+    local type="$1"
+    local cur="$2"
+    local flags="$3"
+    local cmds=$(trace-cmd $type -h 2>/dev/null|grep "^ *-" | \
+				 sed -e 's/ *\(-[^ ]*\).*/\1/')
+    COMPREPLY=( $(compgen $flags -W "${cmds}" -- "${cur}") )
+}
+
 __trace_cmd_list_complete()
 {
     local prev=$1
@@ -53,9 +63,7 @@ __trace_cmd_show_complete()
 	    show_instances "$cur"
 	    ;;
 	*)
-	    local cmds=$(trace-cmd show -h 2>/dev/null|grep "^ *-" | \
-				 sed -e 's/ *\(-[^ ]*\).*/\1/')
-	    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+	    cmd_options show "$cur"
 	    ;;
     esac
 }
@@ -68,11 +76,14 @@ __trace_cmd_extract_complete()
     local words=("$@")
 
     case "$prev" in
+	extract)
+	    cmd_options "$prev" "$cur" -f
+	    ;;
 	-B)
 	    show_instances "$cur"
 	    ;;
 	*)
-	    COMPREPLY=( $(compgen -f -- "${cur}") )
+	    COMPREPLY=( $(compgen -f -- "$cur") )
 	    ;;
     esac
 }
@@ -112,10 +123,29 @@ __trace_cmd_record_complete()
 	    show_instances "$cur"
 	    ;;
         *)
-            # By default, we list files
-            COMPREPLY=( $(compgen -f -- "$cur") )
-            ;;
+	    # stream start and profile do not show all options
+	    cmd_options record "$cur" -f
+	    ;;
     esac
+}
+
+__show_command_options()
+{
+    local command="$1"
+    local cur="$2"
+    local cmds=( $(trace-cmd --help 2>/dev/null | \
+		    grep " - " | sed 's/^ *//; s/ -.*//') )
+
+    for cmd in ${cmds[@]}; do
+	if [ $cmd == "$command" ]; then
+	    local opts=$(trace-cmd $cmd -h 2>/dev/null|grep "^ *-" | \
+				 sed -e 's/ *\(-[^ ]*\).*/\1/')
+            # By default, we list files
+	    COMPREPLY=( $(compgen -f -W "${opts}" -- "$cur") )
+	    return 0
+	fi
+    done
+    COMPREPLY=( $(compgen -f -- "$cur") )
 }
 
 _trace_cmd_complete()
@@ -172,8 +202,7 @@ _trace_cmd_complete()
 	    return 0
 	    ;;
         *)
-            # By default, we list files
-            COMPREPLY=( $(compgen -f -- "$cur") )
+	    __show_command_options "$w" "${cur}"
             ;;
     esac
 }
