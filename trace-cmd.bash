@@ -55,7 +55,6 @@ __trace_cmd_record_complete()
         -p)
             local plugins=$(trace-cmd list -p)
 	    COMPREPLY=( $(compgen -W "${plugins}" -- "${cur}" ) )
-	    COMPREPLY="a$w"
             ;;
         -l|-n|-g)
             # This is extremely slow still (may take >1sec).
