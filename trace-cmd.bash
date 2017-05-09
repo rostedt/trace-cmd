@@ -30,6 +30,22 @@ __trace_cmd_list_complete()
     esac
 }
 
+__trace_cmd_show_complete()
+{
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
+
+    case "$prev" in
+	show)
+	    local cmds=$(trace-cmd show -h 2>/dev/null|grep "^ *-" | \
+				 sed -e 's/ *\(-[^ ]*\).*/\1/')
+	    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+	    ;;
+    esac
+}
+
 __trace_cmd_record_complete()
 {
     local prev=$1
@@ -95,6 +111,10 @@ _trace_cmd_complete()
     case "$w" in
 	list)
 	    __trace_cmd_list_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+	show)
+	    __trace_cmd_show_complete "${prev}" "${cur}" ${words[@]}
 	    return 0
 	    ;;
 	record)
