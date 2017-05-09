@@ -19,6 +19,14 @@ cmd_options()
     COMPREPLY=( $(compgen $flags -W "${cmds}" -- "${cur}") )
 }
 
+plugin_options()
+{
+    local cur="$1"
+
+    local opts=$(trace-cmd list -O | sed -ne 's/option://p')
+    COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+}
+
 __trace_cmd_list_complete()
 {
     local prev=$1
@@ -129,6 +137,23 @@ __trace_cmd_record_complete()
     esac
 }
 
+__trace_cmd_report_complete()
+{
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
+
+    case "$prev" in
+	-O)
+	    plugin_options "$cur"
+	    ;;
+        *)
+	    cmd_options report "$cur" -f
+	    ;;
+    esac
+}
+
 __show_command_options()
 {
     local command="$1"
@@ -199,6 +224,10 @@ _trace_cmd_complete()
 	    ;;
 	profile)
 	    __trace_cmd_record_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+	report)
+	    __trace_cmd_report_complete "${prev}" "${cur}" ${words[@]}
 	    return 0
 	    ;;
         *)
