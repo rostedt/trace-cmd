@@ -1553,7 +1553,7 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'r':
 			*raw_ptr = malloc(sizeof(struct event_str));
-			if (*raw_ptr)
+			if (!*raw_ptr)
 				die("Failed to allocate '-r %s'", optarg);
 			(*raw_ptr)->event = optarg;
 			(*raw_ptr)->next = NULL;
