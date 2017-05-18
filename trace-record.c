@@ -3098,7 +3098,7 @@ static void record_data(char *date2ts, int flags)
 }
 
 static int write_func_file(struct buffer_instance *instance,
-			    const char *file, struct func_list **list)
+			    const char *file, const char *prefix, struct func_list **list)
 {
 	struct func_list *item;
 	char *path;
@@ -3117,6 +3117,11 @@ static int write_func_file(struct buffer_instance *instance,
 	while (*list) {
 		item = *list;
 		*list = item->next;
+		if (prefix) {
+			ret = write(fd, prefix, strlen(prefix));
+			if (ret < 0)
+				goto failed;
+		}
 		ret = write(fd, item->func, strlen(item->func));
 		if (ret < 0)
 			goto failed;
@@ -3173,29 +3178,32 @@ static void set_funcs(struct buffer_instance *instance)
 	int set_notrace = 0;
 	int ret;
 
-	ret = write_func_file(instance, "set_ftrace_filter", &instance->filter_funcs);
+	ret = write_func_file(instance, "set_ftrace_filter", NULL, &instance->filter_funcs);
 	if (ret < 0)
 		die("set_ftrace_filter does not exist. Can not filter functions");
+	ret = write_func_file(instance, "set_ftrace_filter", ":mod:", &instance->filter_mods);
+	if (ret < 0)
+		die("set_ftrace_filter does not exist. Can not filter modules");
 
 	/* graph tracing currently only works for top instance */
 	if (is_top_instance(instance)) {
-		ret = write_func_file(instance, "set_graph_function", &graph_funcs);
+		ret = write_func_file(instance, "set_graph_function", NULL, &graph_funcs);
 		if (ret < 0)
 			die("set_graph_function does not exist.");
 		if (instance->plugin && strcmp(instance->plugin, "function_graph") == 0) {
-			ret = write_func_file(instance, "set_graph_notrace",
+			ret = write_func_file(instance, "set_graph_notrace", NULL,
 					      &instance->notrace_funcs);
 			if (!ret)
 				set_notrace = 1;
 		}
 		if (!set_notrace) {
-			ret = write_func_file(instance, "set_ftrace_notrace",
+			ret = write_func_file(instance, "set_ftrace_notrace", NULL,
 					      &instance->notrace_funcs);
 			if (ret < 0)
 				die("set_ftrace_notrace does not exist. Can not filter functions");
 		}
 	} else
-		write_func_file(instance, "set_ftrace_notrace", &instance->notrace_funcs);
+		write_func_file(instance, "set_ftrace_notrace", NULL, &instance->notrace_funcs);
 
 	/* make sure we are filtering functions */
 	if (func_stack && is_top_instance(instance)) {
@@ -4167,6 +4175,7 @@ enum {
 	OPT_nosplice		= 253,
 	OPT_funcstack		= 254,
 	OPT_date		= 255,
+	OPT_module		= 256,
 };
 
 void trace_record (int argc, char **argv)
@@ -4370,6 +4379,7 @@ void trace_record (int argc, char **argv)
 			{"max-graph-depth", required_argument, NULL, OPT_max_graph_depth},
 			{"debug", no_argument, NULL, OPT_debug},
 			{"help", no_argument, NULL, '?'},
+			{"module", required_argument, NULL, OPT_module},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -4640,6 +4650,9 @@ void trace_record (int argc, char **argv)
 			break;
 		case OPT_debug:
 			debug = 1;
+			break;
+		case OPT_module:
+			add_func(&instance->filter_mods, optarg);
 			break;
 		default:
 			usage(argv);

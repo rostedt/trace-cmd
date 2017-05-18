@@ -162,6 +162,7 @@ struct buffer_instance {
 	const char		*plugin;
 	struct func_list	*filter_funcs;
 	struct func_list	*notrace_funcs;
+	struct func_list	*filter_mods;
 
 	const char		*clock;
 
