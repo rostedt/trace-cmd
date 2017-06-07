@@ -804,17 +804,19 @@ static int read_page(struct tracecmd_input *handle, off64_t offset,
 	return 0;
 }
 
+/* page_map_size must be a power of two */
 static unsigned long long normalize_size(unsigned long long size)
 {
-	/* page_map_size must be a power of two */
-	if (!(size & (size - 1)))
-		return size;
+	/* From Hacker's Delight: or bits after first set bit to all 1s */
+	size |= (size >> 1);
+	size |= (size >> 2);
+	size |= (size >> 4);
+	size |= (size >> 8);
+	size |= (size >> 16);
+	size |= (size >> 32);
 
-	do {
-		size &= size - 1;
-	} while (size & (size - 1));
-
-	return size;
+	/* Clear all bits except first one for previous power of two */
+	return size - (size >> 1);
 }
 
 static void free_page_map(struct page_map *page_map)
