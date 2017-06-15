@@ -31,8 +31,8 @@ void vpr_stat(const char *fmt, va_list ap);
 void __warning(const char *fmt, ...);
 void __pr_stat(const char *fmt, ...);
 
-void __vwarning(const char *fmt, ...);
-void __vpr_stat(const char *fmt, ...);
+void __vwarning(const char *fmt, va_list ap);
+void __vpr_stat(const char *fmt, va_list ap);
 
 #define min(x, y) ({				\
 	typeof(x) _min1 = (x);			\

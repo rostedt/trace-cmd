@@ -198,6 +198,6 @@ int count_cpus(void);
 void die(const char *fmt, ...); /* Can be overriden */
 void *malloc_or_die(unsigned int size); /* Can be overridden */
 void __die(const char *fmt, ...);
-void __vdie(const char *fmt, ...);
+void __vdie(const char *fmt, va_list ap);
 
 #endif /* __TRACE_LOCAL_H */
