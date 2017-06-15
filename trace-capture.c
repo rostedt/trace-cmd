@@ -1019,7 +1019,7 @@ static void save_events(struct trace_capture *cap,
 	tracecmd_xml_write_element(handle, "CaptureType", "Events");
 
 	for (i = 0; systems && systems[i]; i++)
-		tracecmd_xml_write_element(handle, "System", systems[i]);
+		tracecmd_xml_write_element(handle, "System", "%s", systems[i]);
 
 	if (!events || events[0] < 0)
 		return;
@@ -1029,8 +1029,8 @@ static void save_events(struct trace_capture *cap,
 		event = pevent_find_event(pevent, events[i]);
 		if (event) {
 			tracecmd_xml_start_sub_system(handle, "Event");
-			tracecmd_xml_write_element(handle, "System", event->system);
-			tracecmd_xml_write_element(handle, "Name", event->name);
+			tracecmd_xml_write_element(handle, "System", "%s", event->system);
+			tracecmd_xml_write_element(handle, "Name", "%s", event->name);
 			tracecmd_xml_end_sub_system(handle);
 		}
 	}
@@ -1068,15 +1068,15 @@ static void save_settings(struct trace_capture *cap, const char *filename)
 
 	update_plugin(cap);
 	if (info->cap_plugin)
-		tracecmd_xml_write_element(handle, "Plugin", info->cap_plugin);
+		tracecmd_xml_write_element(handle, "Plugin", "%s", info->cap_plugin);
 
 	command = gtk_entry_get_text(GTK_ENTRY(cap->command_entry));
 	if (command && strlen(command) && !is_just_ws(command))
-		tracecmd_xml_write_element(handle, "Command", command);
+		tracecmd_xml_write_element(handle, "Command", "%s", command);
 
 	file = gtk_entry_get_text(GTK_ENTRY(cap->file_entry));
 	if (file && strlen(file) && !is_just_ws(file))
-		tracecmd_xml_write_element(handle, "File", file);
+		tracecmd_xml_write_element(handle, "File", "%s", file);
 
 	tracecmd_xml_end_system(handle);
 

@@ -218,7 +218,7 @@ void warning(const char *fmt, ...)
 	errno = 0;
 
 	trace_dialog(GTK_WINDOW(parent_window), TRACE_GUI_WARNING,
-		     str->str);
+		     "%s", str->str);
 
 	g_string_free(str, TRUE);
 }
@@ -425,7 +425,7 @@ void trace_show_record_dialog(GtkWindow *parent, struct pevent *pevent,
 
 	if (s.buffer_size) {
 		trace_seq_terminate(&s);
-		trace_dialog(parent, TRACE_GUI_OTHER, s.buffer);
+		trace_dialog(parent, TRACE_GUI_OTHER, "%s", s.buffer);
 	}
 
 	trace_seq_destroy(&s);

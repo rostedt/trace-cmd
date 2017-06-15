@@ -2043,7 +2043,7 @@ int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 					     &event_ids);
 
 	for (i = 0; systems && systems[i]; i++)
-		tracecmd_xml_write_element(handle, "System", systems[i]);
+		tracecmd_xml_write_element(handle, "System", "%s", systems[i]);
 
 	for (i = 0; event_ids && event_ids[i] > 0; i++) {
 		str = pevent_filter_make_string(filter, event_ids[i]);
@@ -2060,11 +2060,11 @@ int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 			}
 
 			tracecmd_xml_start_sub_system(handle, "Event");
-			tracecmd_xml_write_element(handle, "System", event->system);
-			tracecmd_xml_write_element(handle, "Name", event->name);
+			tracecmd_xml_write_element(handle, "System", "%s", event->system);
+			tracecmd_xml_write_element(handle, "Name", "%s", event->name);
 			/* If this is has an advanced filter, include that too */
 			if (strcmp(str, "TRUE") != 0) {
-				tracecmd_xml_write_element(handle, "Advanced",
+				tracecmd_xml_write_element(handle, "Advanced", "%s",
 							   str);
 			}
 			tracecmd_xml_end_sub_system(handle);
@@ -2088,7 +2088,7 @@ int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
 
 	for (i = 0; pids[i] >= 0; i++) {
 		snprintf(buffer, 100, "%d", pids[i]);
-		tracecmd_xml_write_element(handle, "Task", buffer);
+		tracecmd_xml_write_element(handle, "Task", "%s", buffer);
 	}
 
 	free(pids);
