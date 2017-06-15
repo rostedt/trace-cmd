@@ -31,7 +31,7 @@ static ssize_t __do_write(int fd, const void *data, size_t size)
 	ssize_t w;
 
 	do {
-		w = write(fd, data, size - tot);
+		w = write(fd, data + tot, size - tot);
 		tot += w;
 
 		if (!w)

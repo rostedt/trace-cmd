@@ -202,7 +202,7 @@ static ssize_t do_read(struct tracecmd_input *handle, void *data, size_t size)
 	ssize_t r;
 
 	do {
-		r = read(handle->fd, data, size - tot);
+		r = read(handle->fd, data + tot, size - tot);
 		tot += r;
 
 		if (!r)
