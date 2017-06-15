@@ -288,7 +288,7 @@ static int tracecmd_msg_send(int fd, u32 cmd)
 
 static int msg_read(int fd, void *buf, u32 size, int *n)
 {
-	int r;
+	ssize_t r;
 
 	while (size) {
 		r = read(fd, buf + *n, size);
@@ -637,7 +637,8 @@ int tracecmd_msg_finish_sending_metadata(int fd)
 int tracecmd_msg_collect_metadata(int ifd, int ofd)
 {
 	struct tracecmd_msg msg;
-	u32 s, t, n, cmd;
+	u32 t, n, cmd;
+	ssize_t s;
 	int ret;
 
 	do {
