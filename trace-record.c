@@ -44,13 +44,13 @@
 #include <sched.h>
 #include <glob.h>
 #include <errno.h>
+#include <limits.h>
 
 #include "trace-local.h"
 #include "trace-msg.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
-#define MAX_PATH 256
 
 #define TRACE_CTRL	"tracing_on"
 #define TRACE		"trace"
@@ -504,12 +504,12 @@ static void put_temp_file(char *file)
 static void delete_temp_file(struct buffer_instance *instance, int cpu)
 {
 	const char *name = instance->name;
-	char file[MAX_PATH];
+	char file[PATH_MAX];
 
 	if (name)
-		snprintf(file, MAX_PATH, "%s.%s.cpu%d", output_file, name, cpu);
+		snprintf(file, PATH_MAX, "%s.%s.cpu%d", output_file, name, cpu);
 	else
-		snprintf(file, MAX_PATH, "%s.cpu%d", output_file, cpu);
+		snprintf(file, PATH_MAX, "%s.cpu%d", output_file, cpu);
 	unlink(file);
 }
 

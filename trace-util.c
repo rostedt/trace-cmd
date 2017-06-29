@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <limits.h>
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -55,10 +56,6 @@ static struct trace_plugin_options {
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
-
-#ifndef MAX_PATH
-# define MAX_PATH 1024
-#endif
 
 struct plugin_list {
 	struct plugin_list	*next;
@@ -705,7 +702,7 @@ static int mount_tracefs(void)
 char *tracecmd_find_tracing_dir(void)
 {
 	char *debug_str = NULL;
-	char fspath[MAX_PATH+1];
+	char fspath[PATH_MAX+1];
 	char *tracing_dir;
 	char type[100];
 	int use_debug = 0;
@@ -717,7 +714,7 @@ char *tracecmd_find_tracing_dir(void)
 	}
 
 	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
+		      STR(PATH_MAX)
 		      "s %99s %*s %*d %*d\n",
 		      fspath, type) == 2) {
 		if (strcmp(type, "tracefs") == 0)
@@ -735,8 +732,8 @@ char *tracecmd_find_tracing_dir(void)
 	if (strcmp(type, "tracefs") != 0) {
 		if (mount_tracefs() < 0) {
 			if (debug_str) {
-				strncpy(fspath, debug_str, MAX_PATH);
-				fspath[MAX_PATH] = 0;
+				strncpy(fspath, debug_str, PATH_MAX);
+				fspath[PATH_MAX] = 0;
 			} else {
 				if (mount_debugfs() < 0) {
 					warning("debugfs not mounted, please mount");
