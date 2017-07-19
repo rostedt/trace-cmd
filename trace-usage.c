@@ -17,7 +17,7 @@ static struct usage_help usage_help[] = {
 		"record",
 		"record a trace into a trace.dat file",
 		" %s record [-v][-e event [-f filter]][-p plugin][-F][-d][-D][-o file] \\\n"
-		"           [-s usecs][-O option ][-l func][-g func][-n func] \\\n"
+		"           [-q][-s usecs][-O option ][-l func][-g func][-n func] \\\n"
 		"           [-P pid][-N host:port][-t][-r prio][-b size][-B buf][command ...]\n"
 		"           [-m max][-C clock]\n"
 		"          -e run command with event enabled\n"
@@ -48,6 +48,8 @@ static struct usage_help usage_help[] = {
 		"          -B create sub buffer and folling events will be enabled here\n"
 		"          -k do not reset the buffers after tracing.\n"
 		"          -i do not fail if an event is not found\n"
+		"          -q print no output to the screen\n"
+		"          --quiet print no output to the screen\n"
 		"          --module filter module name\n"
 		"          --by-comm used with --profile, merge events for related comms\n"
 		"          --profile enable tracing options needed for report --profile\n"

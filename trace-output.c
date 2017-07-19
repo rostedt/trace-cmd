@@ -1146,8 +1146,9 @@ static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
 		goto out_free;
 
 	for (i = 0; i < cpus; i++) {
-		fprintf(stderr, "CPU%d data recorded at offset=0x%llx\n",
-			i, (unsigned long long) offsets[i]);
+		if (!quiet)
+			fprintf(stderr, "CPU%d data recorded at offset=0x%llx\n",
+				i, (unsigned long long) offsets[i]);
 		offset = lseek64(handle->fd, offsets[i], SEEK_SET);
 		if (offset == (off64_t)-1) {
 			warning("could not seek to %lld\n", offsets[i]);
@@ -1160,7 +1161,9 @@ static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			    check_size, sizes[i]);
 			goto out_free;
 		}
-		fprintf(stderr, "    %llu bytes in size\n", (unsigned long long)check_size);
+		if (!quiet)
+			fprintf(stderr, "    %llu bytes in size\n",
+				(unsigned long long)check_size);
 	}
 
 	free(offsets);

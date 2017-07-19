@@ -2983,10 +2983,12 @@ static void print_stat(struct buffer_instance *instance)
 	int cpu;
 
 	if (!is_top_instance(instance))
-		printf("\nBuffer: %s\n\n", instance->name);
+		if (!quiet)
+			printf("\nBuffer: %s\n\n", instance->name);
 
 	for (cpu = 0; cpu < cpu_count; cpu++)
-		trace_seq_do_printf(&instance->s_print[cpu]);
+		if (!quiet)
+			trace_seq_do_printf(&instance->s_print[cpu]);
 }
 
 enum {
@@ -3750,7 +3752,8 @@ static void check_plugin(const char *plugin)
 	}
 	die ("Plugin '%s' does not exist", plugin);
  out:
-	fprintf(stderr, "  plugin '%s'\n", plugin);
+	if (!quiet)
+		fprintf(stderr, "  plugin '%s'\n", plugin);
 	free(buf);
 }
 
@@ -4166,6 +4169,7 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 
 enum {
 
+	OPT_quiet		= 246,
 	OPT_debug		= 247,
 	OPT_max_graph_depth	= 248,
 	OPT_tsoffset		= 249,
@@ -4378,6 +4382,7 @@ void trace_record (int argc, char **argv)
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"max-graph-depth", required_argument, NULL, OPT_max_graph_depth},
 			{"debug", no_argument, NULL, OPT_debug},
+			{"quiet", no_argument, NULL, OPT_quiet},
 			{"help", no_argument, NULL, '?'},
 			{"module", required_argument, NULL, OPT_module},
 			{NULL, 0, NULL, 0}
@@ -4386,7 +4391,7 @@ void trace_record (int argc, char **argv)
 		if (extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
-			opts = "+hae:f:Fp:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:";
+			opts = "+hae:f:Fp:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -4653,6 +4658,10 @@ void trace_record (int argc, char **argv)
 			break;
 		case OPT_module:
 			add_func(&instance->filter_mods, optarg);
+			break;
+		case OPT_quiet:
+		case 'q':
+			quiet = 1;
 			break;
 		default:
 			usage(argv);

@@ -31,6 +31,7 @@ int silence_warnings;
 int show_status;
 
 int debug;
+int quiet;
 
 void warning(const char *fmt, ...)
 {
