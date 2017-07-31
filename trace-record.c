@@ -3100,9 +3100,10 @@ static void record_data(char *date2ts, int flags)
 }
 
 static int write_func_file(struct buffer_instance *instance,
-			    const char *file, const char *prefix, struct func_list **list)
+			    const char *file, struct func_list **list)
 {
 	struct func_list *item;
+	const char *prefix = ":mod:";
 	char *path;
 	int fd;
 	int ret = -1;
@@ -3119,14 +3120,17 @@ static int write_func_file(struct buffer_instance *instance,
 	while (*list) {
 		item = *list;
 		*list = item->next;
-		if (prefix) {
-			ret = write(fd, prefix, strlen(prefix));
-			if (ret < 0)
-				goto failed;
-		}
 		ret = write(fd, item->func, strlen(item->func));
 		if (ret < 0)
 			goto failed;
+		if (item->mod) {
+			ret = write(fd, prefix, strlen(prefix));
+			if (ret < 0)
+				goto failed;
+			ret = write(fd, item->mod, strlen(item->mod));
+			if (ret < 0)
+				goto failed;
+		}
 		ret = write(fd, " ", 1);
 		if (ret < 0)
 			goto failed;
@@ -3180,32 +3184,29 @@ static void set_funcs(struct buffer_instance *instance)
 	int set_notrace = 0;
 	int ret;
 
-	ret = write_func_file(instance, "set_ftrace_filter", NULL, &instance->filter_funcs);
+	ret = write_func_file(instance, "set_ftrace_filter", &instance->filter_funcs);
 	if (ret < 0)
 		die("set_ftrace_filter does not exist. Can not filter functions");
-	ret = write_func_file(instance, "set_ftrace_filter", ":mod:", &instance->filter_mods);
-	if (ret < 0)
-		die("set_ftrace_filter does not exist. Can not filter modules");
 
 	/* graph tracing currently only works for top instance */
 	if (is_top_instance(instance)) {
-		ret = write_func_file(instance, "set_graph_function", NULL, &graph_funcs);
+		ret = write_func_file(instance, "set_graph_function", &graph_funcs);
 		if (ret < 0)
 			die("set_graph_function does not exist.");
 		if (instance->plugin && strcmp(instance->plugin, "function_graph") == 0) {
-			ret = write_func_file(instance, "set_graph_notrace", NULL,
+			ret = write_func_file(instance, "set_graph_notrace",
 					      &instance->notrace_funcs);
 			if (!ret)
 				set_notrace = 1;
 		}
 		if (!set_notrace) {
-			ret = write_func_file(instance, "set_ftrace_notrace", NULL,
+			ret = write_func_file(instance, "set_ftrace_notrace",
 					      &instance->notrace_funcs);
 			if (ret < 0)
 				die("set_ftrace_notrace does not exist. Can not filter functions");
 		}
 	} else
-		write_func_file(instance, "set_ftrace_notrace", NULL, &instance->notrace_funcs);
+		write_func_file(instance, "set_ftrace_notrace", &instance->notrace_funcs);
 
 	/* make sure we are filtering functions */
 	if (func_stack && is_top_instance(instance)) {
@@ -3216,7 +3217,7 @@ static void set_funcs(struct buffer_instance *instance)
 	clear_function_filters = 1;
 }
 
-static void add_func(struct func_list **list, const char *func)
+static void add_func(struct func_list **list, const char *mod, const char *func)
 {
 	struct func_list *item;
 
@@ -3224,6 +3225,7 @@ static void add_func(struct func_list **list, const char *func)
 	if (!item)
 		die("Failed to allocate function descriptor");
 	item->func = func;
+	item->mod = mod;
 	item->next = *list;
 	*list = item;
 }
@@ -4205,6 +4207,7 @@ void trace_record (int argc, char **argv)
 	int profile = 0;
 	int global = 0;
 	int start = 0;
+	int filtered = 0;
 	int run_command = 0;
 	int neg_event = 0;
 	int date = 0;
@@ -4488,13 +4491,18 @@ void trace_record (int argc, char **argv)
 			neg_event = 1;
 			break;
 		case 'l':
-			add_func(&instance->filter_funcs, optarg);
+			add_func(&instance->filter_funcs,
+				 instance->filter_mod, optarg);
+			filtered = 1;
 			break;
 		case 'n':
-			add_func(&instance->notrace_funcs, optarg);
+			add_func(&instance->notrace_funcs,
+				 instance->filter_mod, optarg);
+			filtered = 1;
 			break;
 		case 'g':
-			add_func(&graph_funcs, optarg);
+			add_func(&graph_funcs, instance->filter_mod, optarg);
+			filtered = 1;
 			break;
 		case 'p':
 			if (instance->plugin)
@@ -4657,7 +4665,11 @@ void trace_record (int argc, char **argv)
 			debug = 1;
 			break;
 		case OPT_module:
-			add_func(&instance->filter_mods, optarg);
+			if (instance->filter_mod)
+				add_func(&instance->filter_funcs,
+					 instance->filter_mod, "*");
+			instance->filter_mod = optarg;
+			filtered = 0;
 			break;
 		case OPT_quiet:
 		case 'q':
@@ -4667,6 +4679,10 @@ void trace_record (int argc, char **argv)
 			usage(argv);
 		}
 	}
+
+	if (!filtered)
+		add_func(&instance->filter_funcs,
+			 instance->filter_mod, "*");
 
 	if (do_ptrace && !filter_task && (filter_pid < 0))
 		die(" -c can only be used with -F (or -P with event-fork support)");

@@ -274,8 +274,15 @@ OPTIONS
 
 *--module* 'module'::
     Filter a module's name in function tracing. It is equivalent to adding
+    ':mod:module' after all other functions being filtered. If no other function
+    filter is listed, then all modules functions will be filtered in the filter.
 
-    *-l :mod:module*
+    '--module snd'  is equivalent to  '-l :mod:snd'
+
+    '--module snd -l "*jack*"' is equivalent to '-l "*jack*:mod:snd"'
+
+    '--module snd -n "*"' is equivalent to '-n :mod:snd'
+
 
 *--profile*::
     With the *--profile* option, "trace-cmd" will enable tracing that can

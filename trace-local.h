@@ -147,6 +147,7 @@ char *strstrip(char *str);
 struct func_list {
 	struct func_list *next;
 	const char *func;
+	const char *mod;
 };
 
 struct buffer_instance {
@@ -161,9 +162,9 @@ struct buffer_instance {
 	struct event_list	*sched_wakeup_new_event;
 
 	const char		*plugin;
+	char			*filter_mod;
 	struct func_list	*filter_funcs;
 	struct func_list	*notrace_funcs;
-	struct func_list	*filter_mods;
 
 	const char		*clock;
 
