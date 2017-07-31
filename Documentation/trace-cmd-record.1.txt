@@ -257,6 +257,10 @@ OPTIONS
     reliable, the amount of data is not that intensive, and a guarantee is
     needed that all traced information is transfered successfully.
 
+*-q* | *--quiet*::
+    For use with recording an application. Suppresses normal output
+    (except for errors) to allow only the application's output to be displayed.
+
 *--date*::
     With the *--date* option, "trace-cmd" will write timestamps into the
     trace buffer after it has finished recording. It will then map the
@@ -267,6 +271,11 @@ OPTIONS
     Set the maximum depth the function_graph tracer will trace into a function.
     A value of one will only show where userspace enters the kernel but not any
     functions called in the kernel. The default is zero, which means no limit.
+
+*--module* 'module'::
+    Filter a module's name in function tracing. It is equivalent to adding
+
+    *-l :mod:module*
 
 *--profile*::
     With the *--profile* option, "trace-cmd" will enable tracing that can
@@ -290,6 +299,12 @@ OPTIONS
     Will profile hrtimer_expire_entry and hrtimer_expire_ext times.
 
     See trace-cmd-profile(1) for format.
+
+*-S*:: (for --profile only)
+    Only enable the tracer or events speficied on the command line.
+    With this option, the function_graph tracer is not enabled, nor are
+    any events (like sched_switch), unless they are specifically specified
+    on the command line (i.e. -p function -e sched_switch -e sched_wakeup)
 
 *--ts-offset offset*::
     Add an offset for the timestamp in the trace.dat file. This will add a
