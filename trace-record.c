@@ -45,6 +45,7 @@
 #include <glob.h>
 #include <errno.h>
 #include <limits.h>
+#include <libgen.h>
 
 #include "trace-local.h"
 #include "trace-msg.h"
@@ -2217,11 +2218,24 @@ static void set_max_graph_depth(struct buffer_instance *instance, char *max_grap
 		die("could not write to max_graph_depth");
 }
 
+
+/**
+ * create_event - create and event descriptor
+ * @instance: instance to use
+ * @path: path to event attribute
+ * @old_event: event descriptor to use as base
+ *
+ * NOTE: the function purpose is to create a data structure to describe
+ * an ftrace event. During the process it becomes handy to change the
+ * string `path`. So, do not rely on the content of `path` after you
+ * invoke this function.
+ */
 static struct event_list *
 create_event(struct buffer_instance *instance, char *path, struct event_list *old_event)
 {
 	struct event_list *event;
 	struct stat st;
+	char *path_dirname;
 	char *p;
 	int ret;
 
@@ -2236,14 +2250,14 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		if (!event->filter_file)
 			die("malloc filter file");
 	}
-	for (p = path + strlen(path) - 1; p > path; p--)
-		if (*p == '/')
-			break;
-	*p = '\0';
-	p = malloc(strlen(path) + strlen("/enable") + 1);
+
+	path_dirname = dirname(path);
+
+	p = malloc(strlen(path_dirname) + strlen("/enable") + 1);
 	if (!p)
 		die("Failed to allocate enable path for %s", path);
-	sprintf(p, "%s/enable", path);
+	sprintf(p, "%s/enable", path_dirname);
+
 	ret = stat(p, &st);
 	if (ret >= 0)
 		event->enable_file = p;
@@ -2251,10 +2265,11 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		free(p);
 
 	if (event->trigger) {
-		p = malloc(strlen(path) + strlen("/trigger") + 1);
+		p = malloc(strlen(path_dirname) + strlen("/trigger") + 1);
 		if (!p)
 			die("Failed to allocate trigger path for %s", path);
-		sprintf(p, "%s/trigger", path);
+		sprintf(p, "%s/trigger", path_dirname);
+
 		ret = stat(p, &st);
 		if (ret > 0)
 			die("trigger specified but not supported by this kernel");
@@ -2268,8 +2283,9 @@ static void make_sched_event(struct buffer_instance *instance,
 			     struct event_list **event, struct event_list *sched,
 			     const char *sched_path)
 {
+	char *path_dirname;
+	char *tmp_file;
 	char *path;
-	char *p;
 
 	/* Do nothing if the event already exists */
 	if (*event)
@@ -2279,11 +2295,13 @@ static void make_sched_event(struct buffer_instance *instance,
 	if (!path)
 		die("Failed to allocate path for %s", sched_path);
 
-	sprintf(path, "%s", sched->filter_file);
+	/* we do not want to corrupt sched->filter_file when using dirname() */
+	tmp_file = strdup(sched->filter_file);
+	if (!tmp_file)
+		die("Failed to allocate path for %s", sched_path);
+	path_dirname = dirname(tmp_file);
 
-	/* Remove the /filter from filter file */
-	p = path + strlen(path) - strlen("filter");
-	sprintf(p, "%s/filter", sched_path);
+	sprintf(path, "%s/%s/filter", path_dirname, sched_path);
 
 	*event = create_event(instance, path, sched);
 	free(path);
