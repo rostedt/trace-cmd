@@ -369,10 +369,11 @@ static double parse_file(struct tracecmd_input *handle,
 		die("Failed to allocate cpu_data for %d cpus", cpus);
 
 	for (cpu = 0; cpu < cpus; cpu++) {
-		file = malloc(strlen(output_file) + 50);
-		if (!file)
+		int ret;
+
+		ret = asprintf(&file, "%s/.tmp.%s.%d", dir, base, cpu);
+		if (ret < 0)
 			die("Failed to allocate file for %s %s %d", dir, base, cpu);
-		sprintf(file, "%s/.tmp.%s.%d", dir, base, cpu);
 		fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 		cpu_data[cpu].cpu = cpu;
 		cpu_data[cpu].fd = fd;

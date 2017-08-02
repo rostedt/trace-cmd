@@ -234,16 +234,16 @@ static char *get_tracing_file(struct tracecmd_output *handle, const char *name)
 {
 	const char *tracing;
 	char *file;
+	int ret;
 
 	tracing = find_tracing_dir(handle);
 	if (!tracing)
 		return NULL;
 
-	file = malloc(strlen(tracing) + strlen(name) + 2);
-	if (!file)
+	ret = asprintf(&file, "%s/%s", tracing, name);
+	if (ret < 0)
 		return NULL;
 
-	sprintf(file, "%s/%s", tracing, name);
 	return file;
 }
 

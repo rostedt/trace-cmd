@@ -85,14 +85,15 @@ char **trace_util_list_plugin_options(void)
 	for (reg = registered_options; reg; reg = reg->next) {
 		for (op = reg->options; op->name; op++) {
 			char *alias = op->plugin_alias ? op->plugin_alias : op->file;
+			int ret;
 
-			name = malloc(strlen(op->name) + strlen(alias) + 2);
-			if (!name) {
+			ret = asprintf(&name, "%s:%s", alias, op->name);
+			if (ret < 0) {
 				warning("Failed to allocate plugin option %s:%s",
 					alias, op->name);
 				break;
 			}
-			sprintf(name, "%s:%s", alias, op->name);
+
 			list = realloc(list, count + 2);
 			if (!list) {
 				warning("Failed to allocate plugin list for %s", name);
@@ -614,13 +615,9 @@ static int load_plugin(struct pevent *pevent, const char *path,
 	void *handle;
 	int ret;
 
-	plugin = malloc(strlen(path) + strlen(file) + 2);
-	if (!plugin)
+	ret = asprintf(&plugin, "%s/%s", path, file);
+	if (ret < 0)
 		return -ENOMEM;
-
-	strcpy(plugin, path);
-	strcat(plugin, "/");
-	strcat(plugin, file);
 
 	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
@@ -707,7 +704,7 @@ char *tracecmd_find_tracing_dir(void)
 	char type[100];
 	int use_debug = 0;
 	FILE *fp;
-	
+
 	if ((fp = fopen("/proc/mounts","r")) == NULL) {
 		warning("Can't open /proc/mounts for read");
 		return NULL;
@@ -749,16 +746,16 @@ char *tracecmd_find_tracing_dir(void)
 	free(debug_str);
 
 	if (use_debug) {
-		tracing_dir = malloc(strlen(fspath) + 9);
-		if (!tracing_dir)
-			return NULL;
+		int ret;
 
-		sprintf(tracing_dir, "%s/tracing", fspath);
+		ret = asprintf(&tracing_dir, "%s/tracing", fspath);
+		if (ret < 0)
+			return NULL;
 	} else {
 		tracing_dir = strdup(fspath);
 		if (!tracing_dir)
 			return NULL;
-	}		
+	}
 
 	return tracing_dir;
 }
@@ -774,16 +771,15 @@ const char *tracecmd_get_tracing_dir(void)
 	return tracing_dir;
 }
 
+/* FIXME: append_file() is duplicated and could be consolidated */
 static char *append_file(const char *dir, const char *name)
 {
 	char *file;
+	int ret;
 
-	file = malloc(strlen(dir) + strlen(name) + 2);
-	if (!file)
-		return NULL;
+	ret = asprintf(&file, "%s/%s", dir, name);
 
-	sprintf(file, "%s/%s", dir, name);
-	return file;
+	return ret < 0 ? NULL : file;
 }
 
 /**
@@ -1389,7 +1385,8 @@ int trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 {
 	char *home;
 	char *path;
-        char *envdir;
+	char *envdir;
+	int ret;
 
 	if (tracecmd_disable_plugins)
 		return -EBUSY;
@@ -1412,13 +1409,9 @@ int trace_util_load_plugins(struct pevent *pevent, const char *suffix,
 	if (!home)
 		return -EINVAL;
 
-	path = malloc(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
-	if (!path)
+	ret = asprintf(&path, "%s/%s", home, LOCAL_PLUGIN_DIR);
+	if (ret < 0)
 		return -ENOMEM;
-
-	strcpy(path, home);
-	strcat(path, "/");
-	strcat(path, LOCAL_PLUGIN_DIR);
 
 	trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
 
@@ -1506,14 +1499,11 @@ static int read_options(struct pevent *pevent, const char *path,
 	int unload = 0;
 	char *plugin;
 	void *handle;
+	int ret;
 
-	plugin = malloc(strlen(path) + strlen(file) + 2);
-	if (!plugin)
+	ret = asprintf(&plugin, "%s/%s", path, file);
+	if (ret < 0)
 		return -ENOMEM;
-
-	strcpy(plugin, path);
-	strcat(plugin, "/");
-	strcat(plugin, file);
 
 	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
@@ -1603,6 +1593,7 @@ char *tracecmd_get_tracing_file(const char *name)
 {
 	static const char *tracing;
 	char *file;
+	int ret;
 
 	if (!tracing) {
 		tracing = tracecmd_find_tracing_dir();
@@ -1610,11 +1601,10 @@ char *tracecmd_get_tracing_file(const char *name)
 			return NULL;
 	}
 
-	file = malloc(strlen(tracing) + strlen(name) + 2);
-	if (!file)
+	ret = asprintf(&file, "%s/%s", tracing, name);
+	if (ret < 0)
 		return NULL;
 
-	sprintf(file, "%s/%s", tracing, name);
 	return file;
 }
 

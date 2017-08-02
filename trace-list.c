@@ -133,6 +133,7 @@ static char *get_event_file(const char *type, char *buf, int len)
 	char *event;
 	char *path;
 	char *file;
+	int ret;
 
 	if (buf[len-1] == '\n')
 		buf[len-1] = '\0';
@@ -146,11 +147,10 @@ static char *get_event_file(const char *type, char *buf, int len)
 		die("no event found in %s\n", buf);
 
 	path = tracecmd_get_tracing_file("events");
-	file = malloc(strlen(path) + strlen(system) + strlen(event) +
-		      strlen(type) + strlen("///") + 1);
-	if (!file)
+	ret = asprintf(&file, "%s/%s/%s/%s", path, system, event, type);
+	if (ret < 0)
 		die("Failed to allocate event file %s %s", system, event);
-	sprintf(file, "%s/%s/%s/%s", path, system, event, type);
+
 	tracecmd_put_tracing_file(path);
 
 	return file;

@@ -724,14 +724,12 @@ get_instance_file(struct buffer_instance *instance, const char *file)
 {
 	char *buf;
 	char *path;
+	int ret;
 
 	if (instance->name) {
-		buf = malloc(strlen(instance->name) +
-			     strlen(file) + strlen("instances//") + 1);
-		if (!buf)
+		ret = asprintf(&buf, "instances/%s/%s", instance->name, file);
+		if (ret < 0)
 			die("Failed to allocate name for %s/%s", instance->name, file);
-		sprintf(buf, "instances/%s/%s", instance->name, file);
-
 		path = tracecmd_get_tracing_file(buf);
 		free(buf);
 	} else
@@ -745,17 +743,15 @@ get_instance_dir(struct buffer_instance *instance)
 {
 	char *buf;
 	char *path;
+	int ret;
 
 	/* only works for instances */
 	if (!instance->name)
 		return NULL;
 
-	buf = malloc(strlen(instance->name) +
-		     strlen("instances/") + 1);
-	if (!buf)
+	ret = asprintf(&buf, "instances/%s", instance->name);
+	if (ret < 0)
 		die("Failed to allocate for instance %s", instance->name);
-	sprintf(buf, "instances/%s", instance->name);
-
 	path = tracecmd_get_tracing_file(buf);
 	free(buf);
 
@@ -2253,11 +2249,9 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 
 	path_dirname = dirname(path);
 
-	p = malloc(strlen(path_dirname) + strlen("/enable") + 1);
-	if (!p)
+	ret = asprintf(&p, "%s/enable", path_dirname);
+	if (ret < 0)
 		die("Failed to allocate enable path for %s", path);
-	sprintf(p, "%s/enable", path_dirname);
-
 	ret = stat(p, &st);
 	if (ret >= 0)
 		event->enable_file = p;
@@ -2265,11 +2259,9 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		free(p);
 
 	if (event->trigger) {
-		p = malloc(strlen(path_dirname) + strlen("/trigger") + 1);
-		if (!p)
+		ret = asprintf(&p, "%s/trigger", path_dirname);
+		if (ret < 0)
 			die("Failed to allocate trigger path for %s", path);
-		sprintf(p, "%s/trigger", path_dirname);
-
 		ret = stat(p, &st);
 		if (ret > 0)
 			die("trigger specified but not supported by this kernel");
@@ -2286,14 +2278,11 @@ static void make_sched_event(struct buffer_instance *instance,
 	char *path_dirname;
 	char *tmp_file;
 	char *path;
+	int ret;
 
 	/* Do nothing if the event already exists */
 	if (*event)
 		return;
-
-	path = malloc(strlen(sched->filter_file) + strlen(sched_path) + 2);
-	if (!path)
-		die("Failed to allocate path for %s", sched_path);
 
 	/* we do not want to corrupt sched->filter_file when using dirname() */
 	tmp_file = strdup(sched->filter_file);
@@ -2301,7 +2290,10 @@ static void make_sched_event(struct buffer_instance *instance,
 		die("Failed to allocate path for %s", sched_path);
 	path_dirname = dirname(tmp_file);
 
-	sprintf(path, "%s/%s/filter", path_dirname, sched_path);
+	ret = asprintf(&path, "%s/%s/filter", path_dirname, sched_path);
+	free(tmp_file);
+	if (ret < 0)
+		die("Failed to allocate path for %s", sched_path);
 
 	*event = create_event(instance, path, sched);
 	free(path);
@@ -2330,10 +2322,9 @@ static int expand_event_files(struct buffer_instance *instance,
 	int ret;
 	int i;
 
-	p = malloc(strlen(file) + strlen("events//filter") + 1);
-	if (!p)
+	ret = asprintf(&p, "events/%s/filter", file);
+	if (ret < 0)
 		die("Failed to allocate event filter path for %s", file);
-	sprintf(p, "events/%s/filter", file);
 
 	path = get_instance_file(instance, p);
 
@@ -3991,6 +3982,8 @@ static int recording_all_events(void)
 
 static void add_trigger(struct event_list *event, const char *trigger)
 {
+	int ret;
+
 	if (event->trigger) {
 		event->trigger = realloc(event->trigger,
 					 strlen(event->trigger) + strlen("\n") +
@@ -3998,10 +3991,9 @@ static void add_trigger(struct event_list *event, const char *trigger)
 		strcat(event->trigger, "\n");
 		strcat(event->trigger, trigger);
 	} else {
-		event->trigger = malloc(strlen(trigger) + 1);
-		if (!event->trigger)
+		ret = asprintf(&event->trigger, "%s", trigger);
+		if (ret < 0)
 			die("Failed to allocate event trigger");
-		sprintf(event->trigger, "%s", trigger);
 	}
 }
 
@@ -4396,6 +4388,7 @@ void trace_record (int argc, char **argv)
 
 	for (;;) {
 		int option_index = 0;
+		int ret;
 		const char *opts;
 		static struct option long_options[] = {
 			{"date", no_argument, NULL, OPT_date},
@@ -4460,12 +4453,9 @@ void trace_record (int argc, char **argv)
 				strcat(last_event->filter, optarg);
 				strcat(last_event->filter, ")");
 			} else {
-				last_event->filter =
-					malloc(strlen(optarg) +
-					       strlen("()") + 1);
-				if (!last_event->filter)
+				ret = asprintf(&last_event->filter, "(%s)", optarg);
+				if (ret < 0)
 					die("Failed to allocate filter %s", optarg);
-				sprintf(last_event->filter, "(%s)", optarg);
 			}
 			break;
 

@@ -70,15 +70,16 @@ char *strstrip(char *str)
 	return s;
 }
 
+/* FIXME: append_file() is duplicated and could be consolidated */
 char *append_file(const char *dir, const char *name)
 {
 	char *file;
+	int ret;
 
-	file = malloc(strlen(dir) + strlen(name) + 2);
-	if (!file)
+	ret = asprintf(&file, "%s/%s", dir, name);
+	if (ret < 0)
 		die("Failed to allocate %s/%s", dir, name);
 
-	sprintf(file, "%s/%s", dir, name);
 	return file;
 }
 

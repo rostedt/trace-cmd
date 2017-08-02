@@ -154,11 +154,11 @@ void trace_show(int argc, char **argv)
 	}
 
 	if (buffer) {
-		path = malloc(strlen(buffer) + strlen("instances//") +
-			      strlen(file) + 1);
-		if (!path)
+		int ret;
+
+		ret = asprintf(&path, "instances/%s/%s", buffer, file);
+		if (ret < 0)
 			die("Failed to allocate instance path %s", file);
-		sprintf(path, "instances/%s/%s", buffer, file);
 		file = path;
 	}
 

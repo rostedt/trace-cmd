@@ -156,14 +156,13 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 	recorder->fd1 = fd;
 	recorder->fd2 = fd2;
 
-	path = malloc(strlen(buffer) + 40);
-	if (!path)
+	if (flags & TRACECMD_RECORD_SNAPSHOT)
+		ret = asprintf(&path, "%s/per_cpu/cpu%d/snapshot_raw", buffer, cpu);
+	else
+		ret = asprintf(&path, "%s/per_cpu/cpu%d/trace_pipe_raw", buffer, cpu);
+	if (ret < 0)
 		goto out_free;
 
-	if (flags & TRACECMD_RECORD_SNAPSHOT)
-		sprintf(path, "%s/per_cpu/cpu%d/snapshot_raw", buffer, cpu);
-	else
-		sprintf(path, "%s/per_cpu/cpu%d/trace_pipe_raw", buffer, cpu);
 	recorder->trace_fd = open(path, O_RDONLY);
 	if (recorder->trace_fd < 0)
 		goto out_free;
