@@ -97,7 +97,7 @@ static void push_cursor(GdkCursor *cursor)
 {
 	struct cursor_stack *item;
 
-	item = malloc_or_die(sizeof(item));
+	item = malloc_or_die(sizeof(*item));
 	item->next = cursor_stack;
 	cursor_stack = item;
 	item->cursor = cursor;
