@@ -610,7 +610,7 @@ static void add_wakeup(unsigned int val, unsigned long long start)
 	info = malloc(sizeof(*info));
 	if (!info)
 		die("Failed to allocate wakeup info");
-	info->hash.key = val;
+	info->hash.key = key;
 	info->start = start;
 	trace_hash_add(&wakeup_hash, &info->hash);
 }
