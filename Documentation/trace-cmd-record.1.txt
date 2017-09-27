@@ -112,7 +112,7 @@ OPTIONS
      Similar to *-F* but lets you specify a process ID to trace.
 
 *-c*::
-     Used with either *-F* to trace the process' children too.
+     Used with either *-F* or *-P* to trace the process' children too.
 
 *-C* 'clock'::
      Set the trace clock to "clock".
