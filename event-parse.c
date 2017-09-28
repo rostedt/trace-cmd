@@ -3960,6 +3960,8 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 				break;
 			}
 		}
+		if (!flag)
+			trace_seq_printf(s, "0x%llx", val);
 		break;
 	case PRINT_HEX:
 		if (arg->hex.field->type == PRINT_DYNAMIC_ARRAY) {
