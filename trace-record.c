@@ -4680,7 +4680,7 @@ void trace_record (int argc, char **argv)
 		}
 	}
 
-	if (!filtered)
+	if (!filtered && instance->filter_mod)
 		add_func(&instance->filter_funcs,
 			 instance->filter_mod, "*");
 
