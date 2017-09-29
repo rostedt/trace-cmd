@@ -1254,7 +1254,7 @@ static void update_filter_tasks(TraceViewStore *store)
 						      "pid");
 
 		store->sched_wakeup_new_event =
-			pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
+			pevent_find_event_by_name(pevent, "sched", "sched_wakeup_new");
 		if (store->sched_wakeup_new_event)
 			store->sched_wakeup_new_pid_field =
 				pevent_find_any_field(store->sched_wakeup_new_event,
