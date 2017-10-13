@@ -935,14 +935,16 @@ static char *make_pid_filter(char *curr_filter, const char *field)
 	str = filter + curr_len;
 
 	for (p = filter_pids; p; p = p->next) {
+		if (p->exclude) {
+			match = "!=";
+			orit = "&&";
+		} else {
+			match = "==";
+			orit = "||";
+		}
 		if (p == filter_pids)
 			orit = "";
-		else
-			orit = "||";
-		if (p->exclude)
-			match = "!=";
-		else
-			match = "==";
+
 		len = sprintf(str, "%s(%s%s%d)", orit, field, match, p->pid);
 		str += len;
 	}
