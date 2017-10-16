@@ -929,7 +929,11 @@ tracecmd_add_option(struct tracecmd_output *handle,
 		free(option);
 		return NULL;
 	}
-	memcpy(option->data, data, size);
+
+	/* Some IDs (like TRACECMD_OPTION_TRACECLOCK) pass 0 / NULL data */
+	if (size)
+		memcpy(option->data, data, size);
+
 	list_add_tail(&option->list, &handle->options);
 
 	return option;
