@@ -20,9 +20,9 @@
 #ifndef _TRACE_HASH_LOCAL_H
 #define _TRACE_HASH_LOCAL_H
 
-static inline unsigned int trace_hash(int val)
+static inline unsigned int trace_hash(unsigned int val)
 {
-	int hash, tmp;
+	unsigned int hash, tmp;
 
 	hash = 12546869;	/* random prime */
 
