@@ -1816,7 +1816,7 @@ static void add_plugin(const char *file)
 	struct stat st;
 	int ret;
 
-	ret = stat(default_input_file, &st);
+	ret = stat(file, &st);
 	if (ret < 0) {
 		warning("plugin %s not found", file);
 		return;
