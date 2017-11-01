@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # trace-cmd version
 TC_VERSION = 2
 TC_PATCHLEVEL = 7
