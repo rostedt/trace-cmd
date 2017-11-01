@@ -26,7 +26,7 @@ static struct usage_help usage_help[] = {
 		"          -p run command with plugin enabled\n"
 		"          -F filter only on the given process\n"
 		"          -P trace the given pid like -F for the command\n"
-		"          -c also trace the childen of -F (or -P if kernel supports it)\n"
+		"          -c also trace the children of -F (or -P if kernel supports it)\n"
 		"          -C set the trace clock\n"
 		"          -T do a stacktrace on all events\n"
 		"          -l filter function name\n"
@@ -45,7 +45,7 @@ static struct usage_help usage_help[] = {
 		"          -N host:port to connect to (see listen)\n"
 		"          -t used with -N, forces use of tcp in live trace\n"
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
-		"          -B create sub buffer and folling events will be enabled here\n"
+		"          -B create sub buffer and following events will be enabled here\n"
 		"          -k do not reset the buffers after tracing.\n"
 		"          -i do not fail if an event is not found\n"
 		"          -q print no output to the screen\n"
@@ -194,7 +194,7 @@ static struct usage_help usage_help[] = {
 	},
 	{
 		"hist",
-		"show a historgram of the trace.dat information",
+		"show a histogram of the trace.dat information",
 		" %s hist [-i file][-P] [file]"
 		"          -P ignore pids (compact all functions)\n"
 	},
@@ -233,7 +233,7 @@ static struct usage_help usage_help[] = {
 		"          Creates a socket to listen for clients.\n"
 		"          -D create it in daemon mode.\n"
 		"          -o file name to use for clients.\n"
-		"          -d diretory to store client files.\n"
+		"          -d directory to store client files.\n"
 		"          -l logfile to write messages to.\n"
 	},
 	{
@@ -258,7 +258,7 @@ static struct usage_help usage_help[] = {
 		" %s restore [-c][-o file][-i file] cpu-file [cpu-file ...]\n"
 		"          -c create a partial trace.dat file only\n"
 		"          -o output file\n"
-		"          -i parital trace.dat file for input\n"
+		"          -i partial trace.dat file for input\n"
 	},
 	{
 		"snapshot",
