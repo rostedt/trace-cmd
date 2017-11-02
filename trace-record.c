@@ -2639,6 +2639,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 	if (type == TRACE_TYPE_EXTRACT) {
 		ret = tracecmd_flush_recording(recorder);
 		tracecmd_free_recorder(recorder);
+		recorder = NULL;
 		return ret;
 	}
 
@@ -2647,6 +2648,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 			break;
 	}
 	tracecmd_free_recorder(recorder);
+	recorder = NULL;
 
 	exit(0);
 }
