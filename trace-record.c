@@ -3880,11 +3880,11 @@ static void add_overrun(int cpu, struct trace_seq *src, struct trace_seq *dst)
 		return;
 	}
 
-	overrun = atoi(p + sizeof(overrun_str));
+	overrun = atoi(p + strlen(overrun_str));
 
 	p = strstr(p + 9, commit_overrun_str);
 	if (p)
-		commit_overrun = atoi(p + sizeof(commit_overrun_str));
+		commit_overrun = atoi(p + strlen(commit_overrun_str));
 	else
 		commit_overrun = -1;
 
