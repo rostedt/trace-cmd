@@ -4722,11 +4722,9 @@ void trace_record (int argc, char **argv)
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!extract && !__check_doing_something(&top_instance)) {
-		if (!buffer_instances)
-			die("No instances reference??");
+	if (!extract && !__check_doing_something(&top_instance))
 		first_instance = buffer_instances;
-	} else
+	else
 		topt = 1;
 
 	update_first_instance(instance, topt);
