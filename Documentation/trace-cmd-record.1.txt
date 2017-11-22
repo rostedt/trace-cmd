@@ -25,12 +25,11 @@ file that can later be read (see trace-cmd-report(1)).
 
 OPTIONS
 -------
-*-p* 'plugin'::
-    Specify a trace plugin. Plugins are special Ftrace tracers that usually do
-    more than just trace an event. Common plugins are *function*,
-    *function_graph*, *preemptirqsoff*, *irqsoff*, *preemptoff*, and *wakeup*.
-    A plugin must be supported by the running kernel. To see a list of
-    available plugins, see trace-cmd-list(1).
+*-p* 'tracer'::
+    Specify a tracer. Tracers usually do more than just trace an event.
+    Common tracers are: *function*, *function_graph*, *preemptirqsoff*,
+    *irqsoff*, *preemptoff* and *wakeup*. A tracer must be supported by the
+    running kernel. To see a list of available tracers, see trace-cmd-list(1).
 
 *-e* 'event'::
     Specify an event to trace. Various static trace points have been added to
