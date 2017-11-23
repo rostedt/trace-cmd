@@ -1613,7 +1613,7 @@ void tracecmd_put_tracing_file(char *name)
 	free(name);
 }
 
-void __vdie(const char *fmt, va_list ap)
+void __noreturn __vdie(const char *fmt, va_list ap)
 {
 	int ret = errno;
 
@@ -1629,7 +1629,7 @@ void __vdie(const char *fmt, va_list ap)
 	exit(ret);
 }
 
-void __die(const char *fmt, ...)
+void __noreturn __die(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -1638,9 +1638,7 @@ void __die(const char *fmt, ...)
 	va_end(ap);
 }
 
-#define __weak __attribute__((weak))
-
-void __weak die(const char *fmt, ...)
+void __weak __noreturn die(const char *fmt, ...)
 {
 	va_list ap;
 
