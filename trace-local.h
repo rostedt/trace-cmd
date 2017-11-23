@@ -60,6 +60,8 @@ void trace_record(int argc, char **argv);
 
 void trace_stop(int argc, char **argv);
 
+void trace_restart(int argc, char **argv);
+
 void trace_report(int argc, char **argv);
 
 void trace_split(int argc, char **argv);

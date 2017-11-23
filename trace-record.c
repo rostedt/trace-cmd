@@ -4239,6 +4239,47 @@ void trace_stop(int argc, char **argv)
 	exit(0);
 }
 
+void trace_restart(int argc, char **argv)
+{
+	int topt = 0;
+	struct buffer_instance *instance = &top_instance;
+
+	init_instance(instance);
+
+	for (;;) {
+		int c;
+
+		c = getopt(argc-1, argv+1, "hatB:");
+		if (c == -1)
+			break;
+		switch (c) {
+		case 'h':
+			usage(argv);
+			break;
+		case 'B':
+			instance = create_instance(optarg);
+			if (!instance)
+				die("Failed to create instance");
+			add_instance(instance);
+			break;
+		case 'a':
+			add_all_instances();
+			break;
+		case 't':
+			/* Force to use top instance */
+			topt = 1;
+			instance = &top_instance;
+			break;
+		default:
+			usage(argv);
+		}
+
+	}
+	update_first_instance(instance, topt);
+	tracecmd_enable_tracing();
+	exit(0);
+}
+
 void trace_record(int argc, char **argv)
 {
 	const char *plugin = NULL;
@@ -4289,39 +4330,6 @@ void trace_record(int argc, char **argv)
 	else if ((profile = strcmp(argv[1], "profile") == 0)) {
 		handle_init = trace_init_profile;
 		events = 1;
-	} else if (strcmp(argv[1], "restart") == 0) {
-		for (;;) {
-			int c;
-
-			c = getopt(argc-1, argv+1, "hatB:");
-			if (c == -1)
-				break;
-			switch (c) {
-			case 'h':
-				usage(argv);
-				break;
-			case 'B':
-				instance = create_instance(optarg);
-				if (!instance)
-					die("Failed to create instance");
-				add_instance(instance);
-				break;
-			case 'a':
-				add_all_instances();
-				break;
-			case 't':
-				/* Force to use top instance */
-				topt = 1;
-				instance = &top_instance;
-				break;
-			default:
-				usage(argv);
-			}
-
-		}
-		update_first_instance(instance, topt);
-		tracecmd_enable_tracing();
-		exit(0);
 	} else if (strcmp(argv[1], "reset") == 0) {
 		/* if last arg is -a, then -b and -d apply to all instances */
 		int last_specified_all = 0;
