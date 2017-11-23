@@ -117,8 +117,6 @@ struct command commands[] = {
 	{"-h", trace_usage},
 };
 
-#define ARRAY_SIZE(_a) (sizeof(_a) / sizeof(_a[0]))
-
 int main (int argc, char **argv)
 {
 	int i;
