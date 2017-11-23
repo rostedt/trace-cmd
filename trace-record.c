@@ -4280,6 +4280,84 @@ void trace_restart(int argc, char **argv)
 	exit(0);
 }
 
+void trace_reset(int argc, char **argv)
+{
+	int c;
+	int topt = 0;
+	struct buffer_instance *instance = &top_instance;
+
+	init_instance(instance);
+
+	/* if last arg is -a, then -b and -d apply to all instances */
+	int last_specified_all = 0;
+	struct buffer_instance *inst; /* iterator */
+
+	while ((c = getopt(argc-1, argv+1, "hab:B:td")) >= 0) {
+
+		switch (c) {
+		case 'h':
+			usage(argv);
+			break;
+		case 'b':
+		{
+			int size = atoi(optarg);
+			/* Min buffer size is 1 */
+			if (size <= 1)
+				size = 1;
+			if (last_specified_all) {
+				for_each_instance(inst) {
+					inst->buffer_size = size;
+				}
+			} else {
+				instance->buffer_size = size;
+			}
+			break;
+		}
+		case 'B':
+			last_specified_all = 0;
+			instance = create_instance(optarg);
+			if (!instance)
+				die("Failed to create instance");
+			add_instance(instance);
+			/* -d will remove keep */
+			instance->keep = 1;
+			break;
+		case 't':
+			/* Force to use top instance */
+			last_specified_all = 0;
+			topt = 1;
+			instance = &top_instance;
+			break;
+		case 'a':
+			last_specified_all = 1;
+			add_all_instances();
+			for_each_instance(instance) {
+				instance->keep = 1;
+			}
+			break;
+		case 'd':
+			if (last_specified_all) {
+				for_each_instance(inst) {
+					inst->keep = 0;
+				}
+			} else {
+				if (is_top_instance(instance))
+					die("Can not delete top level buffer");
+				instance->keep = 0;
+			}
+			break;
+		}
+	}
+	update_first_instance(instance, topt);
+	tracecmd_disable_all_tracing(1);
+	set_buffer_size();
+	clear_filters();
+	clear_triggers();
+	tracecmd_remove_instances();
+	clear_func_filters();
+	exit(0);
+}
+
 void trace_record(int argc, char **argv)
 {
 	const char *plugin = NULL;
@@ -4330,75 +4408,6 @@ void trace_record(int argc, char **argv)
 	else if ((profile = strcmp(argv[1], "profile") == 0)) {
 		handle_init = trace_init_profile;
 		events = 1;
-	} else if (strcmp(argv[1], "reset") == 0) {
-		/* if last arg is -a, then -b and -d apply to all instances */
-		int last_specified_all = 0;
-		struct buffer_instance *inst; /* iterator */
-
-		while ((c = getopt(argc-1, argv+1, "hab:B:td")) >= 0) {
-
-			switch (c) {
-			case 'h':
-				usage(argv);
-				break;
-			case 'b':
-			{
-				int size = atoi(optarg);
-				/* Min buffer size is 1 */
-				if (size <= 1)
-					size = 1;
-				if (last_specified_all) {
-					for_each_instance(inst) {
-						inst->buffer_size = size;
-					}
-				} else {
-					instance->buffer_size = size;
-				}
-				break;
-			}
-			case 'B':
-				last_specified_all = 0;
-				instance = create_instance(optarg);
-				if (!instance)
-					die("Failed to create instance");
-				add_instance(instance);
-				/* -d will remove keep */
-				instance->keep = 1;
-				break;
-			case 't':
-				/* Force to use top instance */
-				last_specified_all = 0;
-				topt = 1;
-				instance = &top_instance;
-				break;
-			case 'a':
-				last_specified_all = 1;
-				add_all_instances();
-				for_each_instance(instance) {
-					instance->keep = 1;
-				}
-				break;
-			case 'd':
-				if (last_specified_all) {
-					for_each_instance(inst) {
-						inst->keep = 0;
-					}
-				} else {
-					if (is_top_instance(instance))
-						die("Can not delete top level buffer");
-					instance->keep = 0;
-				}
-				break;
-			}
-		}
-		update_first_instance(instance, topt);
-		tracecmd_disable_all_tracing(1);
-		set_buffer_size();
-		clear_filters();
-		clear_triggers();
-		tracecmd_remove_instances();
-		clear_func_filters();
-		exit(0);
 	} else
 		usage(argv);
 
