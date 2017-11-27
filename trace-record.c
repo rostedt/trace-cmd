@@ -773,12 +773,27 @@ static void __clear_trace(struct buffer_instance *instance)
 	fclose(fp);
 }
 
-static void clear_trace(void)
+static void clear_trace_instances(void)
 {
 	struct buffer_instance *instance;
 
 	for_all_instances(instance)
 		__clear_trace(instance);
+}
+
+static void clear_trace(void)
+{
+	FILE *fp;
+	char *path;
+
+	/* reset the trace */
+	path = tracecmd_get_tracing_file("trace");
+	fp = fopen(path, "w");
+	if (!fp)
+		die("writing to '%s'", path);
+	tracecmd_put_tracing_file(path);
+	fwrite("0", 1, 1, fp);
+	fclose(fp);
 }
 
 static void reset_max_latency(void)
@@ -1939,7 +1954,7 @@ void tracecmd_disable_all_tracing(int disable_tracer)
 	update_ftrace_pid("", 1);
 	update_ftrace_pid(NULL, 0);
 
-	clear_trace();
+	clear_trace_instances();
 }
 
 static void
@@ -3434,7 +3449,7 @@ static char *get_date_to_ts(void)
 
 	for (i = 0; i < date2ts_tries; i++) {
 		tracecmd_disable_tracing();
-		clear_trace();
+		clear_trace_instances();
 		tracecmd_enable_tracing();
 
 		gettimeofday(&start, NULL);
@@ -5014,6 +5029,15 @@ void trace_profile(int argc, char **argv)
 
 	record_trace(argc, argv, &ctx);
 	do_trace_profile();
+	exit(0);
+}
+
+void trace_clear(int argc, char **argv)
+{
+	if (argc > 2)
+		usage(argv);
+	else
+		clear_trace();
 	exit(0);
 }
 

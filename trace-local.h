@@ -80,6 +80,8 @@ void trace_listen(int argc, char **argv);
 
 void trace_restore(int argc, char **argv);
 
+void trace_clear(int argc, char **argv);
+
 void trace_check_events(int argc, char **argv);
 
 void trace_stack(int argc, char **argv);

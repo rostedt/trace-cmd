@@ -108,6 +108,7 @@ struct command commands[] = {
 	{"stream", trace_stream},
 	{"profile", trace_profile},
 	{"restart", trace_restart},
+	{"clear", trace_clear},
 	{"reset", trace_reset},
 	{"stat", trace_stat},
 	{"options", trace_option},

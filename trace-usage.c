@@ -131,6 +131,11 @@ static struct usage_help usage_help[] = {
 		"          -t reset the top level instance (useful with -B or -a)\n"
 	},
 	{
+		"clear",
+		"clear the trace buffers",
+		" %s clear\n"
+	},
+	{
 		"report",
 		"read out the trace stored in a trace.dat file",
 		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-R][-E]\\\n"
