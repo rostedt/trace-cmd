@@ -4358,7 +4358,16 @@ void trace_reset(int argc, char **argv)
 	exit(0);
 }
 
+enum trace_cmd {
+	CMD_extract,
+	CMD_start,
+	CMD_stream,
+	CMD_profile,
+	CMD_record
+};
+
 struct common_record_context {
+	enum trace_cmd curr_cmd;
 	struct buffer_instance *instance;
 	const char *output;
 	char *date2ts;
@@ -4376,12 +4385,6 @@ struct common_record_context {
 	int topt;
 	int do_child;
 	int run_command;
-
-	int extract;
-	int start;
-	int stream;
-	int profile;
-	int record;
 };
 
 static void init_common_record_context(struct common_record_context *ctx)
@@ -4391,6 +4394,12 @@ static void init_common_record_context(struct common_record_context *ctx)
 	init_instance(ctx->instance);
 	cpu_count = count_cpus();
 }
+
+#define IS_EXTRACT(ctx) ((ctx)->curr_cmd == CMD_extract)
+#define IS_START(ctx) ((ctx)->curr_cmd == CMD_start)
+#define IS_STREAM(ctx) ((ctx)->curr_cmd == CMD_stream)
+#define IS_PROFILE(ctx) ((ctx)->curr_cmd == CMD_profile)
+#define IS_RECORD(ctx) ((ctx)->curr_cmd == CMD_record)
 
 static void parse_record_options(int argc,
 				 char **argv,
@@ -4426,7 +4435,7 @@ static void parse_record_options(int argc,
 			{NULL, 0, NULL, 0}
 		};
 
-		if (ctx->extract)
+		if (IS_EXTRACT(ctx))
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
 			opts = "+hae:f:Fp:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
@@ -4438,7 +4447,7 @@ static void parse_record_options(int argc,
 			usage(argv);
 			break;
 		case 'a':
-			if (ctx->extract) {
+			if (IS_EXTRACT(ctx)) {
 				add_all_instances();
 			} else {
 				ctx->record_all = 1;
@@ -4557,17 +4566,17 @@ static void parse_record_options(int argc,
 		case 'o':
 			if (host)
 				die("-o incompatible with -N");
-			if (ctx->start)
+			if (IS_START(ctx))
 				die("start does not take output\n"
 				    "Did you mean 'record'?");
-			if (ctx->stream)
+			if (IS_STREAM(ctx))
 				die("stream does not take output\n"
 				    "Did you mean 'record'?");
 			if (ctx->output)
 				die("only one output file allowed");
 			ctx->output = optarg;
 
-			if (ctx->profile) {
+			if (IS_PROFILE(ctx)) {
 				int fd;
 
 				/* pipe the output to this file instead of stdout */
@@ -4594,7 +4603,7 @@ static void parse_record_options(int argc,
 			ctx->events = 1;
 			break;
 		case 's':
-			if (ctx->extract) {
+			if (IS_EXTRACT(ctx)) {
 				if (optarg)
 					usage(argv);
 				recorder_flags |= TRACECMD_RECORD_SNAPSHOT;
@@ -4614,7 +4623,7 @@ static void parse_record_options(int argc,
 			rt_prio = atoi(optarg);
 			break;
 		case 'N':
-			if (!ctx->record)
+			if (!IS_RECORD(ctx))
 				die("-N only available with record");
 			if (ctx->output)
 				die("-N incompatible with -o");
@@ -4623,7 +4632,7 @@ static void parse_record_options(int argc,
 		case 'm':
 			if (max_kb)
 				die("-m can only be specified once");
-			if (!ctx->record)
+			if (!IS_RECORD(ctx))
 				die("only record take 'm' option");
 			max_kb = atoi(optarg);
 			break;
@@ -4631,7 +4640,7 @@ static void parse_record_options(int argc,
 			ctx->instance->cpumask = alloc_mask_from_hex(optarg);
 			break;
 		case 't':
-			if (ctx->extract)
+			if (IS_EXTRACT(ctx))
 				ctx->topt = 1; /* Extract top instance also */
 			else
 				use_tcp = 1;
@@ -4644,7 +4653,7 @@ static void parse_record_options(int argc,
 			if (!ctx->instance)
 				die("Failed to create instance");
 			add_instance(ctx->instance);
-			if (ctx->profile)
+			if (IS_PROFILE(ctx))
 				ctx->instance->profile = 1;
 			break;
 		case 'k':
@@ -4722,10 +4731,10 @@ static void parse_record_options(int argc,
 		die(" -c can only be used with -P or -F");
 
 	if ((argc - optind) >= 2) {
-		if (ctx->start)
+		if (IS_START(ctx))
 			die("Command start does not take any commands\n"
 			    "Did you mean 'record'?");
-		if (ctx->extract)
+		if (IS_EXTRACT(ctx))
 			die("Command extract does not take any commands\n"
 			    "Did you mean 'record'?");
 		ctx->run_command = 1;
@@ -4740,15 +4749,16 @@ void trace_record(int argc, char **argv)
 
 	init_common_record_context(&ctx);
 
-	if ((ctx.record = (strcmp(argv[1], "record") == 0)))
-		; /* do nothing */
-	else if ((ctx.start = strcmp(argv[1], "start") == 0))
-		; /* do nothing */
-	else if ((ctx.extract = strcmp(argv[1], "extract") == 0))
-		; /* do nothing */
-	else if ((ctx.stream = strcmp(argv[1], "stream") == 0))
-		; /* do nothing */
-	else if ((ctx.profile = strcmp(argv[1], "profile") == 0)) {
+	if (strcmp(argv[1], "record") == 0)
+		ctx.curr_cmd = CMD_record;
+	else if (strcmp(argv[1], "start") == 0)
+		ctx.curr_cmd = CMD_start;
+	else if (strcmp(argv[1], "extract") == 0)
+		ctx.curr_cmd = CMD_extract;
+	else if (strcmp(argv[1], "stream") == 0)
+		ctx.curr_cmd = CMD_stream;
+	else if (strcmp(argv[1], "profile") == 0) {
+		ctx.curr_cmd = CMD_profile;
 		handle_init = trace_init_profile;
 		ctx.events = 1;
 	} else
@@ -4762,21 +4772,21 @@ void trace_record(int argc, char **argv)
 	 * If this is a profile run, and no instances were set,
 	 * then enable profiling on the top instance.
 	 */
-	if (ctx.profile && !buffer_instances)
+	if (IS_PROFILE(&ctx) && !buffer_instances)
 		top_instance.profile = 1;
 
 	/*
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!ctx.extract && !__check_doing_something(&top_instance))
+	if (!IS_EXTRACT(&ctx) && !__check_doing_something(&top_instance))
 		first_instance = buffer_instances;
 	else
 		ctx.topt = 1;
 
 	update_first_instance(ctx.instance, ctx.topt);
 
-	if (!ctx.extract)
+	if (!IS_EXTRACT(&ctx))
 		check_doing_something();
 	check_function_plugin();
 
@@ -4796,10 +4806,10 @@ void trace_record(int argc, char **argv)
 	}
 
 	/* Extracting data records all events in the system. */
-	if (ctx.extract && !ctx.record_all)
+	if (IS_EXTRACT(&ctx) && !ctx.record_all)
 		record_all_events();
 
-	if (!ctx.extract)
+	if (!IS_EXTRACT(&ctx))
 		make_instances();
 
 	if (ctx.events)
@@ -4807,7 +4817,7 @@ void trace_record(int argc, char **argv)
 
 	page_size = getpagesize();
 
-	if (!ctx.extract) {
+	if (!IS_EXTRACT(&ctx)) {
 		fset = set_ftrace(!ctx.disable, ctx.total_disable);
 		tracecmd_disable_all_tracing(1);
 
@@ -4815,7 +4825,7 @@ void trace_record(int argc, char **argv)
 			set_clock(ctx.instance);
 
 		/* Record records the date first */
-		if (ctx.record && ctx.date)
+		if (IS_RECORD(&ctx) && ctx.date)
 			ctx.date2ts = get_date_to_ts();
 
 		for_all_instances(ctx.instance) {
@@ -4830,13 +4840,13 @@ void trace_record(int argc, char **argv)
 		set_buffer_size();
 	}
 
-	if (ctx.record)
+	if (IS_RECORD(&ctx))
 		type = TRACE_TYPE_RECORD;
-	else if (ctx.stream)
+	else if (IS_STREAM(&ctx))
 		type = TRACE_TYPE_STREAM;
-	else if (ctx.extract)
+	else if (IS_EXTRACT(&ctx))
 		type = TRACE_TYPE_EXTRACT;
-	else if (ctx.profile)
+	else if (IS_PROFILE(&ctx))
 		type = TRACE_TYPE_STREAM;
 	else
 		type = TRACE_TYPE_START;
@@ -4859,7 +4869,7 @@ void trace_record(int argc, char **argv)
 			start_threads(type, ctx.global);
 	}
 
-	if (ctx.extract) {
+	if (IS_EXTRACT(&ctx)) {
 		flush_threads();
 
 	} else {
@@ -4894,7 +4904,7 @@ void trace_record(int argc, char **argv)
 		tracecmd_disable_all_tracing(0);
 
 	/* extract records the date after extraction */
-	if (ctx.extract && ctx.date) {
+	if (IS_EXTRACT(&ctx) && ctx.date) {
 		/*
 		 * We need to start tracing, don't let other traces
 		 * screw with our trace_marker.
@@ -4903,7 +4913,7 @@ void trace_record(int argc, char **argv)
 		ctx.date2ts = get_date_to_ts();
 	}
 
-	if (ctx.record || ctx.extract) {
+	if (IS_RECORD(&ctx) || IS_EXTRACT(&ctx)) {
 		record_data(ctx.date2ts, ctx.data_flags);
 		delete_thread_data();
 	} else
@@ -4933,7 +4943,7 @@ void trace_record(int argc, char **argv)
 	if (host)
 		tracecmd_output_close(network_handle);
 
-	if (ctx.profile)
+	if (IS_PROFILE(&ctx))
 		trace_profile();
 
 	exit(0);
