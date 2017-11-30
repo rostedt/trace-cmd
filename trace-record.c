@@ -4405,6 +4405,7 @@ static void init_common_record_context(struct common_record_context *ctx,
 
 static void parse_record_options(int argc,
 				 char **argv,
+				 enum trace_cmd curr_cmd,
 				 struct common_record_context *ctx)
 {
 	const char *plugin = NULL;
@@ -4415,6 +4416,8 @@ static void parse_record_options(int argc,
 	char *pid;
 	char *sav;
 	int neg_event = 0;
+
+	init_common_record_context(ctx, curr_cmd);
 
 	for (;;) {
 		int option_index = 0;
@@ -4925,8 +4928,7 @@ void trace_start(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
-	init_common_record_context(&ctx, CMD_start);
-	parse_record_options(argc, argv, &ctx);
+	parse_record_options(argc, argv, CMD_start, &ctx);
 	record_trace(argc, argv, &ctx);
 	exit(0);
 }
@@ -4935,8 +4937,7 @@ void trace_extract(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
-	init_common_record_context(&ctx, CMD_extract);
-	parse_record_options(argc, argv, &ctx);
+	parse_record_options(argc, argv, CMD_extract, &ctx);
 	record_trace(argc, argv, &ctx);
 	exit(0);
 }
@@ -4945,8 +4946,7 @@ void trace_stream(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
-	init_common_record_context(&ctx, CMD_stream);
-	parse_record_options(argc, argv, &ctx);
+	parse_record_options(argc, argv, CMD_stream, &ctx);
 	record_trace(argc, argv, &ctx);
 	exit(0);
 }
@@ -4955,12 +4955,10 @@ void trace_profile(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
-	init_common_record_context(&ctx, CMD_profile);
+	parse_record_options(argc, argv, CMD_profile, &ctx);
 
 	handle_init = trace_init_profile;
 	ctx.events = 1;
-
-	parse_record_options(argc, argv, &ctx);
 
 	/*
 	 * If no instances were set, then enable profiling on the top instance.
@@ -4977,8 +4975,7 @@ void trace_record(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
-	init_common_record_context(&ctx, CMD_record);
-	parse_record_options(argc, argv, &ctx);
+	parse_record_options(argc, argv, CMD_record, &ctx);
 	record_trace(argc, argv, &ctx);
 	exit(0);
 }
