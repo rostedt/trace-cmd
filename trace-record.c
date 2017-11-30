@@ -4794,7 +4794,7 @@ static void finalize_record_trace(struct common_record_context *ctx)
 
 /*
  * This function contains common code for the following commands:
- * record, start, extract, stream, profile.
+ * record, start, stream, profile.
  */
 static void record_trace(int argc, char **argv,
 			 struct common_record_context *ctx)
@@ -4805,15 +4805,13 @@ static void record_trace(int argc, char **argv,
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!IS_EXTRACT(ctx) && !__check_doing_something(&top_instance))
+	if (!__check_doing_something(&top_instance))
 		first_instance = buffer_instances;
 	else
 		ctx->topt = 1;
 
 	update_first_instance(ctx->instance, ctx->topt);
-
-	if (!IS_EXTRACT(ctx))
-		check_doing_something();
+	check_doing_something();
 	check_function_plugin();
 
 	if (ctx->output)
@@ -4831,43 +4829,35 @@ static void record_trace(int argc, char **argv,
 			ctx->instance->tracing_on_init_val = 1;
 	}
 
-	/* Extracting data records all events in the system. */
-	if (IS_EXTRACT(ctx) && !ctx->record_all)
-		record_all_events();
-
-	if (!IS_EXTRACT(ctx))
-		make_instances();
+	make_instances();
 
 	if (ctx->events)
 		expand_event_list();
 
 	page_size = getpagesize();
 
-	if (!IS_EXTRACT(ctx)) {
-		fset = set_ftrace(!ctx->disable, ctx->total_disable);
-		tracecmd_disable_all_tracing(1);
+	fset = set_ftrace(!ctx->disable, ctx->total_disable);
+	tracecmd_disable_all_tracing(1);
 
-		for_all_instances(ctx->instance)
-			set_clock(ctx->instance);
+	for_all_instances(ctx->instance)
+		set_clock(ctx->instance);
 
-		/* Record records the date first */
-		if (IS_RECORD(ctx) && ctx->date)
-			ctx->date2ts = get_date_to_ts();
+	/* Record records the date first */
+	if (IS_RECORD(ctx) && ctx->date)
+		ctx->date2ts = get_date_to_ts();
 
-		for_all_instances(ctx->instance) {
-			set_funcs(ctx->instance);
-			set_mask(ctx->instance);
-		}
-
-		if (ctx->events) {
-			for_all_instances(ctx->instance)
-				enable_events(ctx->instance);
-		}
-		set_buffer_size();
+	for_all_instances(ctx->instance) {
+		set_funcs(ctx->instance);
+		set_mask(ctx->instance);
 	}
 
-	update_plugins(type);
+	if (ctx->events) {
+		for_all_instances(ctx->instance)
+			enable_events(ctx->instance);
+	}
 
+	set_buffer_size();
+	update_plugins(type);
 	set_options();
 
 	if (ctx->max_graph_depth) {
@@ -4882,53 +4872,36 @@ static void record_trace(int argc, char **argv,
 		signal(SIGINT, finish);
 		if (!latency)
 			start_threads(type, ctx->global);
-	}
-
-	if (IS_EXTRACT(ctx)) {
-		flush_threads();
-
 	} else {
-		if (!(type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM))) {
-			update_task_filter();
-			tracecmd_enable_tracing();
-			exit(0);
-		}
-
-		if (ctx->run_command)
-			run_cmd(type, (argc - optind) - 1, &argv[optind + 1]);
-		else {
-			update_task_filter();
-			tracecmd_enable_tracing();
-			/* We don't ptrace ourself */
-			if (do_ptrace && filter_pid >= 0)
-				ptrace_attach(filter_pid);
-			/* sleep till we are woken with Ctrl^C */
-			printf("Hit Ctrl^C to stop recording\n");
-			while (!finished)
-				trace_or_sleep(type);
-		}
-
-		tracecmd_disable_tracing();
-		if (!latency)
-			stop_threads(type);
+		update_task_filter();
+		tracecmd_enable_tracing();
+		exit(0);
 	}
+
+	if (ctx->run_command)
+		run_cmd(type, (argc - optind) - 1, &argv[optind + 1]);
+	else {
+		update_task_filter();
+		tracecmd_enable_tracing();
+		/* We don't ptrace ourself */
+		if (do_ptrace && filter_pid >= 0)
+			ptrace_attach(filter_pid);
+		/* sleep till we are woken with Ctrl^C */
+		printf("Hit Ctrl^C to stop recording\n");
+		while (!finished)
+			trace_or_sleep(type);
+	}
+
+	tracecmd_disable_tracing();
+	if (!latency)
+		stop_threads(type);
 
 	record_stats();
 
 	if (!keep)
 		tracecmd_disable_all_tracing(0);
 
-	/* extract records the date after extraction */
-	if (IS_EXTRACT(ctx) && ctx->date) {
-		/*
-		 * We need to start tracing, don't let other traces
-		 * screw with our trace_marker.
-		 */
-		tracecmd_disable_all_tracing(1);
-		ctx->date2ts = get_date_to_ts();
-	}
-
-	if (IS_RECORD(ctx) || IS_EXTRACT(ctx)) {
+	if (IS_RECORD(ctx)) {
 		record_data(ctx->date2ts, ctx->data_flags);
 		delete_thread_data();
 	} else
@@ -4950,9 +4923,68 @@ void trace_start(int argc, char **argv)
 void trace_extract(int argc, char **argv)
 {
 	struct common_record_context ctx;
+	enum trace_type type;
 
 	parse_record_options(argc, argv, CMD_extract, &ctx);
-	record_trace(argc, argv, &ctx);
+
+	type = get_trace_cmd_type(ctx.curr_cmd);
+
+	update_first_instance(ctx.instance, 1);
+	check_function_plugin();
+
+	if (ctx.output)
+		output_file = ctx.output;
+
+	/* Save the state of tracing_on before starting */
+	for_all_instances(ctx.instance) {
+
+		if (!ctx.manual && ctx.instance->profile)
+			enable_profile(ctx.instance);
+
+		ctx.instance->tracing_on_init_val = read_tracing_on(ctx.instance);
+		/* Some instances may not be created yet */
+		if (ctx.instance->tracing_on_init_val < 0)
+			ctx.instance->tracing_on_init_val = 1;
+	}
+
+	/* Extracting data records all events in the system. */
+	if (!ctx.record_all)
+		record_all_events();
+
+	if (ctx.events)
+		expand_event_list();
+
+	page_size = getpagesize();
+	update_plugins(type);
+	set_options();
+
+	if (ctx.max_graph_depth) {
+		for_all_instances(ctx.instance)
+			set_max_graph_depth(ctx.instance, ctx.max_graph_depth);
+		free(ctx.max_graph_depth);
+	}
+
+	allocate_seq();
+	flush_threads();
+	record_stats();
+
+	if (!keep)
+		tracecmd_disable_all_tracing(0);
+
+	/* extract records the date after extraction */
+	if (ctx.date) {
+		/*
+		 * We need to start tracing, don't let other traces
+		 * screw with our trace_marker.
+		 */
+		tracecmd_disable_all_tracing(1);
+		ctx.date2ts = get_date_to_ts();
+	}
+
+	record_data(ctx.date2ts, ctx.data_flags);
+	delete_thread_data();
+	destroy_stats();
+	finalize_record_trace(&ctx);
 	exit(0);
 }
 
