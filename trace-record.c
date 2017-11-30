@@ -4923,7 +4923,7 @@ static void record_trace(int argc, char **argv,
 		tracecmd_output_close(network_handle);
 
 	if (IS_PROFILE(ctx))
-		trace_profile();
+		do_trace_profile();
 
 	exit(0);
 }

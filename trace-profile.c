@@ -2452,7 +2452,7 @@ static void merge_tasks(struct handle_data *h)
 	}
 }
 
-int trace_profile(void)
+int do_trace_profile(void)
 {
 	struct handle_data *h;
 

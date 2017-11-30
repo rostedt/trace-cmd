@@ -1227,7 +1227,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	} while (last_record);
 
 	if (profile)
-		trace_profile();
+		do_trace_profile();
 
 	list_for_each_entry(handles, handle_list, list) {
 		free_filters(handles->event_filters);

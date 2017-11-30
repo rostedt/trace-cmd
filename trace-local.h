@@ -96,7 +96,7 @@ struct hook_list;
 
 void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hooks,
 			int global);
-int trace_profile(void);
+int do_trace_profile(void);
 void trace_profile_set_merge_like_comms(void);
 
 struct tracecmd_input *
