@@ -4767,6 +4767,31 @@ static enum trace_type get_trace_cmd_type(enum trace_cmd cmd)
 	die("Trace type UNKNOWN for the given cmd_fun");
 }
 
+static void finalize_record_trace(struct common_record_context *ctx)
+{
+	if (keep)
+		return;
+
+	update_reset_files();
+	update_reset_triggers();
+	if (clear_function_filters)
+		clear_func_filters();
+
+	set_plugin("nop");
+
+	tracecmd_remove_instances();
+
+	/* If tracing_on was enabled before we started, set it on now */
+	for_all_instances(ctx->instance) {
+		if (ctx->instance->keep)
+			write_tracing_on(ctx->instance,
+					 ctx->instance->tracing_on_init_val);
+	}
+
+	if (host)
+		tracecmd_output_close(network_handle);
+}
+
 /*
  * This function contains common code for the following commands:
  * record, start, extract, stream, profile.
@@ -4910,28 +4935,7 @@ static void record_trace(int argc, char **argv,
 		print_stats();
 
 	destroy_stats();
-
-	if (keep)
-		return;
-
-	update_reset_files();
-	update_reset_triggers();
-	if (clear_function_filters)
-		clear_func_filters();
-
-	set_plugin("nop");
-
-	tracecmd_remove_instances();
-
-	/* If tracing_on was enabled before we started, set it on now */
-	for_all_instances(ctx->instance) {
-		if (ctx->instance->keep)
-			write_tracing_on(ctx->instance,
-					 ctx->instance->tracing_on_init_val);
-	}
-
-	if (host)
-		tracecmd_output_close(network_handle);
+	finalize_record_trace(ctx);
 }
 
 void trace_start(int argc, char **argv)
