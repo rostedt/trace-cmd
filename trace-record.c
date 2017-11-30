@@ -4753,13 +4753,6 @@ static void record_trace(int argc, char **argv,
 	enum trace_type type = 0;
 
 	/*
-	 * If this is a profile run, and no instances were set,
-	 * then enable profiling on the top instance.
-	 */
-	if (IS_PROFILE(ctx) && !buffer_instances)
-		top_instance.profile = 1;
-
-	/*
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
@@ -4926,9 +4919,6 @@ static void record_trace(int argc, char **argv,
 
 	if (host)
 		tracecmd_output_close(network_handle);
-
-	if (IS_PROFILE(ctx))
-		do_trace_profile();
 }
 
 void trace_start(int argc, char **argv)
@@ -4971,7 +4961,15 @@ void trace_profile(int argc, char **argv)
 	ctx.events = 1;
 
 	parse_record_options(argc, argv, &ctx);
+
+	/*
+	 * If no instances were set, then enable profiling on the top instance.
+	 */
+	if (!buffer_instances)
+		top_instance.profile = 1;
+
 	record_trace(argc, argv, &ctx);
+	do_trace_profile();
 	exit(0);
 }
 
