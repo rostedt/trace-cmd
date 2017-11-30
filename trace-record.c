@@ -4746,6 +4746,27 @@ static void parse_record_options(int argc,
 	}
 }
 
+static enum trace_type get_trace_cmd_type(enum trace_cmd cmd)
+{
+	const static struct {
+		enum trace_cmd cmd;
+		enum trace_type ttype;
+	} trace_type_per_command[] = {
+		{CMD_record, TRACE_TYPE_RECORD},
+		{CMD_stream, TRACE_TYPE_STREAM},
+		{CMD_extract, TRACE_TYPE_EXTRACT},
+		{CMD_profile, TRACE_TYPE_STREAM},
+		{CMD_start, TRACE_TYPE_START}
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(trace_type_per_command); i++) {
+		if (trace_type_per_command[i].cmd == cmd)
+			return trace_type_per_command[i].ttype;
+	}
+
+	die("Trace type UNKNOWN for the given cmd_fun");
+}
+
 /*
  * This function contains common code for the following commands:
  * record, start, extract, stream, profile.
@@ -4753,7 +4774,7 @@ static void parse_record_options(int argc,
 static void record_trace(int argc, char **argv,
 			 struct common_record_context *ctx)
 {
-	enum trace_type type = 0;
+	enum trace_type type = get_trace_cmd_type(ctx->curr_cmd);
 
 	/*
 	 * If top_instance doesn't have any plugins or events, then
@@ -4819,17 +4840,6 @@ static void record_trace(int argc, char **argv,
 		}
 		set_buffer_size();
 	}
-
-	if (IS_RECORD(ctx))
-		type = TRACE_TYPE_RECORD;
-	else if (IS_STREAM(ctx))
-		type = TRACE_TYPE_STREAM;
-	else if (IS_EXTRACT(ctx))
-		type = TRACE_TYPE_EXTRACT;
-	else if (IS_PROFILE(ctx))
-		type = TRACE_TYPE_STREAM;
-	else
-		type = TRACE_TYPE_START;
 
 	update_plugins(type);
 
