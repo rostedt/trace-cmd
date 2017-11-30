@@ -64,6 +64,14 @@ void trace_restart(int argc, char **argv);
 
 void trace_reset(int argc, char **argv);
 
+void trace_start(int argc, char **argv);
+
+void trace_extract(int argc, char **argv);
+
+void trace_stream(int argc, char **argv);
+
+void trace_profile(int argc, char **argv);
+
 void trace_report(int argc, char **argv);
 
 void trace_split(int argc, char **argv);

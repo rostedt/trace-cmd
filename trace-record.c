@@ -4387,10 +4387,12 @@ struct common_record_context {
 	int run_command;
 };
 
-static void init_common_record_context(struct common_record_context *ctx)
+static void init_common_record_context(struct common_record_context *ctx,
+				       enum trace_cmd curr_cmd)
 {
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->instance = &top_instance;
+	ctx->curr_cmd = curr_cmd;
 	init_instance(ctx->instance);
 	cpu_count = count_cpus();
 }
@@ -4739,9 +4741,12 @@ static void parse_record_options(int argc,
 			    "Did you mean 'record'?");
 		ctx->run_command = 1;
 	}
-
 }
 
+/*
+ * This function contains common code for the following commands:
+ * record, start, extract, stream, profile.
+ */
 static void record_trace(int argc, char **argv,
 			 struct common_record_context *ctx)
 {
@@ -4901,7 +4906,7 @@ static void record_trace(int argc, char **argv,
 	destroy_stats();
 
 	if (keep)
-		exit(0);
+		return;
 
 	update_reset_files();
 	update_reset_triggers();
@@ -4924,7 +4929,49 @@ static void record_trace(int argc, char **argv,
 
 	if (IS_PROFILE(ctx))
 		do_trace_profile();
+}
 
+void trace_start(int argc, char **argv)
+{
+	struct common_record_context ctx;
+
+	init_common_record_context(&ctx, CMD_start);
+	parse_record_options(argc, argv, &ctx);
+	record_trace(argc, argv, &ctx);
+	exit(0);
+}
+
+void trace_extract(int argc, char **argv)
+{
+	struct common_record_context ctx;
+
+	init_common_record_context(&ctx, CMD_extract);
+	parse_record_options(argc, argv, &ctx);
+	record_trace(argc, argv, &ctx);
+	exit(0);
+}
+
+void trace_stream(int argc, char **argv)
+{
+	struct common_record_context ctx;
+
+	init_common_record_context(&ctx, CMD_stream);
+	parse_record_options(argc, argv, &ctx);
+	record_trace(argc, argv, &ctx);
+	exit(0);
+}
+
+void trace_profile(int argc, char **argv)
+{
+	struct common_record_context ctx;
+
+	init_common_record_context(&ctx, CMD_profile);
+
+	handle_init = trace_init_profile;
+	ctx.events = 1;
+
+	parse_record_options(argc, argv, &ctx);
+	record_trace(argc, argv, &ctx);
 	exit(0);
 }
 
@@ -4932,23 +4979,8 @@ void trace_record(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
-	init_common_record_context(&ctx);
-
-	if (strcmp(argv[1], "record") == 0)
-		ctx.curr_cmd = CMD_record;
-	else if (strcmp(argv[1], "start") == 0)
-		ctx.curr_cmd = CMD_start;
-	else if (strcmp(argv[1], "extract") == 0)
-		ctx.curr_cmd = CMD_extract;
-	else if (strcmp(argv[1], "stream") == 0)
-		ctx.curr_cmd = CMD_stream;
-	else if (strcmp(argv[1], "profile") == 0) {
-		ctx.curr_cmd = CMD_profile;
-		handle_init = trace_init_profile;
-		ctx.events = 1;
-	} else
-		usage(argv);
-
+	init_common_record_context(&ctx, CMD_record);
 	parse_record_options(argc, argv, &ctx);
 	record_trace(argc, argv, &ctx);
+	exit(0);
 }
