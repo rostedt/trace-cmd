@@ -4358,62 +4358,57 @@ void trace_reset(int argc, char **argv)
 	exit(0);
 }
 
-void trace_record(int argc, char **argv)
+struct common_record_context {
+	struct buffer_instance *instance;
+	const char *output;
+	char *date2ts;
+	char *max_graph_depth;
+	int data_flags;
+
+	int record_all;
+	int total_disable;
+	int disable;
+	int events;
+	int global;
+	int filtered;
+	int date;
+	int manual;
+	int topt;
+	int do_child;
+	int run_command;
+
+	int extract;
+	int start;
+	int stream;
+	int profile;
+	int record;
+};
+
+static void init_common_record_context(struct common_record_context *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->instance = &top_instance;
+	init_instance(ctx->instance);
+	cpu_count = count_cpus();
+}
+
+static void parse_record_options(int argc,
+				 char **argv,
+				 struct common_record_context *ctx)
 {
 	const char *plugin = NULL;
-	const char *output = NULL;
 	const char *option;
 	struct event_list *event = NULL;
 	struct event_list *last_event = NULL;
-	struct buffer_instance *instance = &top_instance;
-	enum trace_type type = 0;
 	char *pids;
 	char *pid;
 	char *sav;
-	char *date2ts = NULL;
-	int record_all = 0;
-	int total_disable = 0;
-	int disable = 0;
-	int events = 0;
-	int record = 0;
-	int extract = 0;
-	int stream = 0;
-	int profile = 0;
-	int global = 0;
-	int start = 0;
-	int filtered = 0;
-	int run_command = 0;
 	int neg_event = 0;
-	int date = 0;
-	int manual = 0;
-	char *max_graph_depth = NULL;
-	int topt = 0;
-	int do_child = 0;
-	int data_flags = 0;
-
-	int c;
-
-	init_instance(instance);
-
-	cpu_count = count_cpus();
-
-	if ((record = (strcmp(argv[1], "record") == 0)))
-		; /* do nothing */
-	else if ((start = strcmp(argv[1], "start") == 0))
-		; /* do nothing */
-	else if ((extract = strcmp(argv[1], "extract") == 0))
-		; /* do nothing */
-	else if ((stream = strcmp(argv[1], "stream") == 0))
-		; /* do nothing */
-	else if ((profile = strcmp(argv[1], "profile") == 0)) {
-		handle_init = trace_init_profile;
-		events = 1;
-	} else
-		usage(argv);
 
 	for (;;) {
 		int option_index = 0;
 		int ret;
+		int c;
 		const char *opts;
 		static struct option long_options[] = {
 			{"date", no_argument, NULL, OPT_date},
@@ -4431,7 +4426,7 @@ void trace_record(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		if (extract)
+		if (ctx->extract)
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
 			opts = "+hae:f:Fp:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
@@ -4443,26 +4438,26 @@ void trace_record(int argc, char **argv)
 			usage(argv);
 			break;
 		case 'a':
-			if (extract) {
+			if (ctx->extract) {
 				add_all_instances();
 			} else {
-				record_all = 1;
+				ctx->record_all = 1;
 				record_all_events();
 			}
 			break;
 		case 'e':
-			events = 1;
+			ctx->events = 1;
 			event = malloc(sizeof(*event));
 			if (!event)
 				die("Failed to allocate event %s", optarg);
 			memset(event, 0, sizeof(*event));
 			event->event = optarg;
-			add_event(instance, event);
+			add_event(ctx->instance, event);
 			event->neg = neg_event;
 			event->filter = NULL;
 			last_event = event;
 
-			if (!record_all)
+			if (!ctx->record_all)
 				list_event(optarg);
 			break;
 		case 'f':
@@ -4495,7 +4490,7 @@ void trace_record(int argc, char **argv)
 			filter_task = 1;
 			break;
 		case 'G':
-			global = 1;
+			ctx->global = 1;
 			break;
 		case 'P':
 			test_set_event_pid();
@@ -4518,35 +4513,35 @@ void trace_record(int argc, char **argv)
 				do_ptrace = 1;
 			} else {
 				save_option("event-fork");
-				do_child = 1;
+				ctx->do_child = 1;
 			}
 			break;
 		case 'C':
-			instance->clock = optarg;
+			ctx->instance->clock = optarg;
 			break;
 		case 'v':
 			neg_event = 1;
 			break;
 		case 'l':
-			add_func(&instance->filter_funcs,
-				 instance->filter_mod, optarg);
-			filtered = 1;
+			add_func(&ctx->instance->filter_funcs,
+				 ctx->instance->filter_mod, optarg);
+			ctx->filtered = 1;
 			break;
 		case 'n':
-			add_func(&instance->notrace_funcs,
-				 instance->filter_mod, optarg);
-			filtered = 1;
+			add_func(&ctx->instance->notrace_funcs,
+				 ctx->instance->filter_mod, optarg);
+			ctx->filtered = 1;
 			break;
 		case 'g':
-			add_func(&graph_funcs, instance->filter_mod, optarg);
-			filtered = 1;
+			add_func(&graph_funcs, ctx->instance->filter_mod, optarg);
+			ctx->filtered = 1;
 			break;
 		case 'p':
-			if (instance->plugin)
+			if (ctx->instance->plugin)
 				die("only one plugin allowed");
 			for (plugin = optarg; isspace(*plugin); plugin++)
 				;
-			instance->plugin = plugin;
+			ctx->instance->plugin = plugin;
 			for (optarg += strlen(optarg) - 1;
 			     optarg > plugin && isspace(*optarg); optarg--)
 				;
@@ -4554,25 +4549,25 @@ void trace_record(int argc, char **argv)
 			optarg[0] = '\0';
 			break;
 		case 'D':
-			total_disable = 1;
+			ctx->total_disable = 1;
 			/* fall through */
 		case 'd':
-			disable = 1;
+			ctx->disable = 1;
 			break;
 		case 'o':
 			if (host)
 				die("-o incompatible with -N");
-			if (start)
+			if (ctx->start)
 				die("start does not take output\n"
 				    "Did you mean 'record'?");
-			if (stream)
+			if (ctx->stream)
 				die("stream does not take output\n"
 				    "Did you mean 'record'?");
-			if (output)
+			if (ctx->output)
 				die("only one output file allowed");
-			output = optarg;
+			ctx->output = optarg;
 
-			if (profile) {
+			if (ctx->profile) {
 				int fd;
 
 				/* pipe the output to this file instead of stdout */
@@ -4595,11 +4590,11 @@ void trace_record(int argc, char **argv)
 			save_option("stacktrace");
 			break;
 		case 'H':
-			add_hook(instance, optarg);
-			events = 1;
+			add_hook(ctx->instance, optarg);
+			ctx->events = 1;
 			break;
 		case 's':
-			if (extract) {
+			if (ctx->extract) {
 				if (optarg)
 					usage(argv);
 				recorder_flags |= TRACECMD_RECORD_SNAPSHOT;
@@ -4610,47 +4605,47 @@ void trace_record(int argc, char **argv)
 			sleep_time = atoi(optarg);
 			break;
 		case 'S':
-			manual = 1;
+			ctx->manual = 1;
 			/* User sets events for profiling */
 			if (!event)
-				events = 0;
+				ctx->events = 0;
 			break;
 		case 'r':
 			rt_prio = atoi(optarg);
 			break;
 		case 'N':
-			if (!record)
+			if (!ctx->record)
 				die("-N only available with record");
-			if (output)
+			if (ctx->output)
 				die("-N incompatible with -o");
 			host = optarg;
 			break;
 		case 'm':
 			if (max_kb)
 				die("-m can only be specified once");
-			if (!record)
+			if (!ctx->record)
 				die("only record take 'm' option");
 			max_kb = atoi(optarg);
 			break;
 		case 'M':
-			instance->cpumask = alloc_mask_from_hex(optarg);
+			ctx->instance->cpumask = alloc_mask_from_hex(optarg);
 			break;
 		case 't':
-			if (extract)
-				topt = 1; /* Extract top instance also */
+			if (ctx->extract)
+				ctx->topt = 1; /* Extract top instance also */
 			else
 				use_tcp = 1;
 			break;
 		case 'b':
-			instance->buffer_size = atoi(optarg);
+			ctx->instance->buffer_size = atoi(optarg);
 			break;
 		case 'B':
-			instance = create_instance(optarg);
-			if (!instance)
+			ctx->instance = create_instance(optarg);
+			if (!ctx->instance)
 				die("Failed to create instance");
-			add_instance(instance);
-			if (profile)
-				instance->profile = 1;
+			add_instance(ctx->instance);
+			if (ctx->profile)
+				ctx->instance->profile = 1;
 			break;
 		case 'k':
 			keep = 1;
@@ -4659,10 +4654,10 @@ void trace_record(int argc, char **argv)
 			ignore_event_not_found = 1;
 			break;
 		case OPT_date:
-			date = 1;
-			if (data_flags & DATA_FL_OFFSET)
+			ctx->date = 1;
+			if (ctx->data_flags & DATA_FL_OFFSET)
 				die("Can not use both --date and --ts-offset");
-			data_flags |= DATA_FL_DATE;
+			ctx->data_flags |= DATA_FL_DATE;
 			break;
 		case OPT_funcstack:
 			func_stack = 1;
@@ -4672,8 +4667,8 @@ void trace_record(int argc, char **argv)
 			break;
 		case OPT_profile:
 			handle_init = trace_init_profile;
-			instance->profile = 1;
-			events = 1;
+			ctx->instance->profile = 1;
+			ctx->events = 1;
 			break;
 		case OPT_stderr:
 			/* if -o was used (for profile), ignore this */
@@ -4687,26 +4682,26 @@ void trace_record(int argc, char **argv)
 			trace_profile_set_merge_like_comms();
 			break;
 		case OPT_tsoffset:
-			date2ts = strdup(optarg);
-			if (data_flags & DATA_FL_DATE)
+			ctx->date2ts = strdup(optarg);
+			if (ctx->data_flags & DATA_FL_DATE)
 				die("Can not use both --date and --ts-offset");
-			data_flags |= DATA_FL_OFFSET;
+			ctx->data_flags |= DATA_FL_OFFSET;
 			break;
 		case OPT_max_graph_depth:
-			free(max_graph_depth);
-			max_graph_depth = strdup(optarg);
-			if (!max_graph_depth)
+			free(ctx->max_graph_depth);
+			ctx->max_graph_depth = strdup(optarg);
+			if (!ctx->max_graph_depth)
 				die("Could not allocate option");
 			break;
 		case OPT_debug:
 			debug = 1;
 			break;
 		case OPT_module:
-			if (instance->filter_mod)
-				add_func(&instance->filter_funcs,
-					 instance->filter_mod, "*");
-			instance->filter_mod = optarg;
-			filtered = 0;
+			if (ctx->instance->filter_mod)
+				add_func(&ctx->instance->filter_funcs,
+					 ctx->instance->filter_mod, "*");
+			ctx->instance->filter_mod = optarg;
+			ctx->filtered = 0;
 			break;
 		case OPT_quiet:
 		case 'q':
@@ -4717,104 +4712,131 @@ void trace_record(int argc, char **argv)
 		}
 	}
 
-	if (!filtered && instance->filter_mod)
-		add_func(&instance->filter_funcs,
-			 instance->filter_mod, "*");
+	if (!ctx->filtered && ctx->instance->filter_mod)
+		add_func(&ctx->instance->filter_funcs,
+			 ctx->instance->filter_mod, "*");
 
 	if (do_ptrace && !filter_task && (filter_pid < 0))
 		die(" -c can only be used with -F (or -P with event-fork support)");
-	if (do_child && !filter_task &&! filter_pid)
+	if (ctx->do_child && !filter_task &&! filter_pid)
 		die(" -c can only be used with -P or -F");
 
 	if ((argc - optind) >= 2) {
-		if (start)
+		if (ctx->start)
 			die("Command start does not take any commands\n"
 			    "Did you mean 'record'?");
-		if (extract)
+		if (ctx->extract)
 			die("Command extract does not take any commands\n"
 			    "Did you mean 'record'?");
-		run_command = 1;
+		ctx->run_command = 1;
 	}
+
+}
+
+void trace_record(int argc, char **argv)
+{
+	struct common_record_context ctx;
+	enum trace_type type = 0;
+
+	init_common_record_context(&ctx);
+
+	if ((ctx.record = (strcmp(argv[1], "record") == 0)))
+		; /* do nothing */
+	else if ((ctx.start = strcmp(argv[1], "start") == 0))
+		; /* do nothing */
+	else if ((ctx.extract = strcmp(argv[1], "extract") == 0))
+		; /* do nothing */
+	else if ((ctx.stream = strcmp(argv[1], "stream") == 0))
+		; /* do nothing */
+	else if ((ctx.profile = strcmp(argv[1], "profile") == 0)) {
+		handle_init = trace_init_profile;
+		ctx.events = 1;
+	} else
+		usage(argv);
+
+
+	parse_record_options(argc, argv, &ctx);
+
 
 	/*
 	 * If this is a profile run, and no instances were set,
 	 * then enable profiling on the top instance.
 	 */
-	if (profile && !buffer_instances)
+	if (ctx.profile && !buffer_instances)
 		top_instance.profile = 1;
 
 	/*
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
 	 */
-	if (!extract && !__check_doing_something(&top_instance))
+	if (!ctx.extract && !__check_doing_something(&top_instance))
 		first_instance = buffer_instances;
 	else
-		topt = 1;
+		ctx.topt = 1;
 
-	update_first_instance(instance, topt);
+	update_first_instance(ctx.instance, ctx.topt);
 
-	if (!extract)
+	if (!ctx.extract)
 		check_doing_something();
 	check_function_plugin();
 
-	if (output)
-		output_file = output;
+	if (ctx.output)
+		output_file = ctx.output;
 
 	/* Save the state of tracing_on before starting */
-	for_all_instances(instance) {
+	for_all_instances(ctx.instance) {
 
-		if (!manual && instance->profile)
-			enable_profile(instance);
+		if (!ctx.manual && ctx.instance->profile)
+			enable_profile(ctx.instance);
 
-		instance->tracing_on_init_val = read_tracing_on(instance);
+		ctx.instance->tracing_on_init_val = read_tracing_on(ctx.instance);
 		/* Some instances may not be created yet */
-		if (instance->tracing_on_init_val < 0)
-			instance->tracing_on_init_val = 1;
+		if (ctx.instance->tracing_on_init_val < 0)
+			ctx.instance->tracing_on_init_val = 1;
 	}
 
 	/* Extracting data records all events in the system. */
-	if (extract && !record_all)
+	if (ctx.extract && !ctx.record_all)
 		record_all_events();
 
-	if (!extract)
+	if (!ctx.extract)
 		make_instances();
 
-	if (events)
+	if (ctx.events)
 		expand_event_list();
 
 	page_size = getpagesize();
 
-	if (!extract) {
-		fset = set_ftrace(!disable, total_disable);
+	if (!ctx.extract) {
+		fset = set_ftrace(!ctx.disable, ctx.total_disable);
 		tracecmd_disable_all_tracing(1);
 
-		for_all_instances(instance)
-			set_clock(instance);
+		for_all_instances(ctx.instance)
+			set_clock(ctx.instance);
 
 		/* Record records the date first */
-		if (record && date)
-			date2ts = get_date_to_ts();
+		if (ctx.record && ctx.date)
+			ctx.date2ts = get_date_to_ts();
 
-		for_all_instances(instance) {
-			set_funcs(instance);
-			set_mask(instance);
+		for_all_instances(ctx.instance) {
+			set_funcs(ctx.instance);
+			set_mask(ctx.instance);
 		}
 
-		if (events) {
-			for_all_instances(instance)
-				enable_events(instance);
+		if (ctx.events) {
+			for_all_instances(ctx.instance)
+				enable_events(ctx.instance);
 		}
 		set_buffer_size();
 	}
 
-	if (record)
+	if (ctx.record)
 		type = TRACE_TYPE_RECORD;
-	else if (stream)
+	else if (ctx.stream)
 		type = TRACE_TYPE_STREAM;
-	else if (extract)
+	else if (ctx.extract)
 		type = TRACE_TYPE_EXTRACT;
-	else if (profile)
+	else if (ctx.profile)
 		type = TRACE_TYPE_STREAM;
 	else
 		type = TRACE_TYPE_START;
@@ -4823,10 +4845,10 @@ void trace_record(int argc, char **argv)
 
 	set_options();
 
-	if (max_graph_depth) {
-		for_all_instances(instance)
-			set_max_graph_depth(instance, max_graph_depth);
-		free(max_graph_depth);
+	if (ctx.max_graph_depth) {
+		for_all_instances(ctx.instance)
+			set_max_graph_depth(ctx.instance, ctx.max_graph_depth);
+		free(ctx.max_graph_depth);
 	}
 
 	allocate_seq();
@@ -4834,10 +4856,10 @@ void trace_record(int argc, char **argv)
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, finish);
 		if (!latency)
-			start_threads(type, global);
+			start_threads(type, ctx.global);
 	}
 
-	if (extract) {
+	if (ctx.extract) {
 		flush_threads();
 
 	} else {
@@ -4847,7 +4869,7 @@ void trace_record(int argc, char **argv)
 			exit(0);
 		}
 
-		if (run_command)
+		if (ctx.run_command)
 			run_cmd(type, (argc - optind) - 1, &argv[optind + 1]);
 		else {
 			update_task_filter();
@@ -4872,17 +4894,17 @@ void trace_record(int argc, char **argv)
 		tracecmd_disable_all_tracing(0);
 
 	/* extract records the date after extraction */
-	if (extract && date) {
+	if (ctx.extract && ctx.date) {
 		/*
 		 * We need to start tracing, don't let other traces
 		 * screw with our trace_marker.
 		 */
 		tracecmd_disable_all_tracing(1);
-		date2ts = get_date_to_ts();
+		ctx.date2ts = get_date_to_ts();
 	}
 
-	if (record || extract) {
-		record_data(date2ts, data_flags);
+	if (ctx.record || ctx.extract) {
+		record_data(ctx.date2ts, ctx.data_flags);
 		delete_thread_data();
 	} else
 		print_stats();
@@ -4902,15 +4924,16 @@ void trace_record(int argc, char **argv)
 	tracecmd_remove_instances();
 
 	/* If tracing_on was enabled before we started, set it on now */
-	for_all_instances(instance) {
-		if (instance->keep)
-			write_tracing_on(instance, instance->tracing_on_init_val);
+	for_all_instances(ctx.instance) {
+		if (ctx.instance->keep)
+			write_tracing_on(ctx.instance,
+					 ctx.instance->tracing_on_init_val);
 	}
 
 	if (host)
 		tracecmd_output_close(network_handle);
 
-	if (profile)
+	if (ctx.profile)
 		trace_profile();
 
 	exit(0);
