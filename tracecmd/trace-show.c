@@ -149,7 +149,14 @@ void trace_show(int argc, char **argv)
 		file = "snapshot";
 
 	if (cpu) {
-		snprintf(cpu_path, 128, "per_cpu/cpu%d/%s", atoi(cpu), file);
+		char *endptr;
+		long val;
+
+		errno = 0;
+		val = strtol(cpu, &endptr, 0);
+		if (errno || cpu == endptr)
+			die("Invalid CPU index '%s'", cpu);
+		snprintf(cpu_path, 128, "per_cpu/cpu%ld/%s", val, file);
 		file = cpu_path;
 	}
 
