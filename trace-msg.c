@@ -74,15 +74,10 @@ bool send_metadata;
 static int *port_array;
 bool done;
 
-struct tracecmd_msg_str {
-	be32 size;
-	char buf[];
-} __attribute__((packed));
-
 struct tracecmd_msg_opt {
 	be32 size;
 	be32 opt_cmd;
-	struct tracecmd_msg_str str;
+	be32 padding;	/* for backward compatibility */
 };
 
 struct tracecmd_msg_tinit {
