@@ -334,6 +334,7 @@ static inline void update_fd(struct tracecmd_recorder *recorder, int size)
  */
 static long splice_data(struct tracecmd_recorder *recorder)
 {
+	long total_read = 0;
 	long read;
 	long ret;
 
@@ -348,6 +349,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	} else if (read == 0)
 		return 0;
 
+ again:
 	ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
 		     read, recorder->fd_flags);
 	if (ret < 0) {
@@ -355,11 +357,15 @@ static long splice_data(struct tracecmd_recorder *recorder)
 			warning("recorder error in splice output");
 			return -1;
 		}
-		ret = 0;
+		return total_read;
 	} else
 		update_fd(recorder, ret);
+	total_read = ret;
+	read -= ret;
+	if (read)
+		goto again;
 
-	return ret;
+	return total_read;
 }
 
 /*
