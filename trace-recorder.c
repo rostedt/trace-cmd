@@ -42,6 +42,7 @@ struct tracecmd_recorder {
 	int		fd2;
 	int		trace_fd;
 	int		brass[2];
+	int		pipe_size;
 	int		page_size;
 	int		cpu;
 	int		stop;
@@ -115,6 +116,7 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 {
 	struct tracecmd_recorder *recorder;
 	char *path = NULL;
+	int pipe_size;
 	int ret;
 
 	recorder = malloc(sizeof(*recorder));
@@ -171,6 +173,17 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 		ret = pipe(recorder->brass);
 		if (ret < 0)
 			goto out_free;
+
+		ret = fcntl(recorder->brass[0], F_GETPIPE_SZ, &pipe_size);
+		/*
+		 * F_GETPIPE_SZ was introduced in 2.6.35, ftrace was introduced
+		 * in 2.6.31. If we are running on an older kernel, just fall
+		 * back to using page_size for splice().
+		 */
+		if (ret < 0)
+			pipe_size = recorder->page_size;
+
+		recorder->pipe_size = pipe_size;
 	}
 
 	free(path);
@@ -339,7 +352,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	long ret;
 
 	read = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
-		      recorder->page_size, 1 /* SPLICE_F_MOVE */);
+		      recorder->pipe_size, 1 /* SPLICE_F_MOVE */);
 	if (read < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in splice input");
