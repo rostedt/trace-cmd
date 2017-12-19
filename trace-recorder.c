@@ -334,21 +334,22 @@ static inline void update_fd(struct tracecmd_recorder *recorder, int size)
  */
 static long splice_data(struct tracecmd_recorder *recorder)
 {
+	long read;
 	long ret;
 
-	ret = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
-		     recorder->page_size, 1 /* SPLICE_F_MOVE */);
-	if (ret < 0) {
+	read = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
+		      recorder->page_size, 1 /* SPLICE_F_MOVE */);
+	if (read < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in splice input");
 			return -1;
 		}
 		return 0;
-	} else if (ret == 0)
+	} else if (read == 0)
 		return 0;
 
 	ret = splice(recorder->brass[0], NULL, recorder->fd, NULL,
-		     recorder->page_size, recorder->fd_flags);
+		     read, recorder->fd_flags);
 	if (ret < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in splice output");
