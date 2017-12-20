@@ -233,12 +233,12 @@ static int process_udp_child(int sfd, const char *host, const char *port,
 		sfd = cfd;
 	}
 
-	do {
+	for (;;) {
 		/* TODO, make this copyless! */
 		n = read(sfd, buf, page_size);
 		if (n < 0) {
 			if (errno == EINTR)
-				continue;
+				break;
 			pdie("reading client");
 		}
 		if (!n)
@@ -249,7 +249,7 @@ static int process_udp_child(int sfd, const char *host, const char *port,
 			warning("read %d bytes, expected %d", n, page_size);
 		}
 		write(fd, buf, n);
-	} while (!done);
+	}
 
  done:
 	put_temp_file(tempfile);
@@ -789,7 +789,9 @@ static void kill_clients(void)
 	for (i = 0; i < saved_pids; i++) {
 		if (!client_pids[i])
 			continue;
-		kill(client_pids[i], SIGINT);
+		/* Only kill the clients if we received SIGINT or SIGTERM */
+		if (done)
+			kill(client_pids[i], SIGINT);
 		waitpid(client_pids[i], &status, 0);
 	}
 
