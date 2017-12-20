@@ -36,6 +36,11 @@
 #include "trace-cmd.h"
 #include "event-utils.h"
 
+/* F_GETPIPE_SZ was introduced in 2.6.35, older systems don't have it */
+#ifndef F_GETPIPE_SZ
+# define F_GETPIPE_SZ	1032 /* The Linux number for the option */
+#endif
+
 struct tracecmd_recorder {
 	int		fd;
 	int		fd1;
