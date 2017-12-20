@@ -205,9 +205,10 @@ static int process_udp_child(int sfd, const char *host, const char *port,
 	socklen_t peer_addr_len;
 	char buf[page_size];
 	char *tempfile;
+	int left;
 	int cfd;
 	int fd;
-	int n;
+	int r, w;
 	int once = 0;
 
 	signal_setup(SIGUSR1, finish);
@@ -235,20 +236,26 @@ static int process_udp_child(int sfd, const char *host, const char *port,
 
 	for (;;) {
 		/* TODO, make this copyless! */
-		n = read(sfd, buf, page_size);
-		if (n < 0) {
+		r = read(sfd, buf, page_size);
+		if (r < 0) {
 			if (errno == EINTR)
 				break;
 			pdie("reading client");
 		}
-		if (!n)
+		if (!r)
 			break;
 		/* UDP requires that we get the full size in one go */
-		if (!use_tcp && n < page_size && !once) {
+		if (!use_tcp && r < page_size && !once) {
 			once = 1;
-			warning("read %d bytes, expected %d", n, page_size);
+			warning("read %d bytes, expected %d", r, page_size);
 		}
-		write(fd, buf, n);
+
+		left = r;
+		do {
+			w = write(fd, buf + (r - left), left);
+			if (w > 0)
+				left -= w;
+		} while (w >= 0 && left);
 	}
 
  done:
