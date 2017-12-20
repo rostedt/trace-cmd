@@ -771,7 +771,10 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 	bool use_trace_clock;
 	static unsigned long long last_ts;
 	unsigned long long diff_ts;
+	unsigned long page_size;
 	char buf[50];
+
+	page_size = tracecmd_page_size(handle);
 
 	test_save(record, cpu);
 
@@ -792,8 +795,9 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 		if (tracecmd_record_at_buffer_start(handle, record)) {
 			trace_seq_printf(&s, "CPU:%d [SUBBUFFER START]", cpu);
 			if (debug)
-				trace_seq_printf(&s, " [%lld]",
-						 tracecmd_page_ts(handle, record));
+				trace_seq_printf(&s, " [%lld:0x%llx]",
+						 tracecmd_page_ts(handle, record),
+						 record->offset & ~(page_size - 1));
 			trace_seq_putc(&s, '\n');
 		}
 	}
@@ -827,8 +831,9 @@ void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record
 		void *page;
 		void *offset;
 
-		trace_seq_printf(&s, " [%d]",
-				 tracecmd_record_ts_delta(handle, record));
+		trace_seq_printf(&s, " [%d:0x%llx:%d]",
+				 tracecmd_record_ts_delta(handle, record),
+				 record->offset & (page_size - 1), record->size);
 		kbuf = tracecmd_record_kbuf(handle, record);
 		page = tracecmd_record_page(handle, record);
 		offset = tracecmd_record_offset(handle, record);
