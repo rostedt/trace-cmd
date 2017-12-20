@@ -388,22 +388,31 @@ static long splice_data(struct tracecmd_recorder *recorder)
 static long read_data(struct tracecmd_recorder *recorder)
 {
 	char buf[recorder->page_size];
-	long ret;
+	long left;
+	long r, w;
 
-	ret = read(recorder->trace_fd, buf, recorder->page_size);
-	if (ret < 0) {
+	r = read(recorder->trace_fd, buf, recorder->page_size);
+	if (r < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in read output");
 			return -1;
 		}
-		ret = 0;
-	}
-	if (ret > 0) {
-		write(recorder->fd, buf, ret);
-		update_fd(recorder, ret);
+		return 0;
 	}
 
-	return ret;
+	left = r;
+	do {
+		w = write(recorder->fd, buf + (r - left), left);
+		if (w > 0) {
+			left -= w;
+			update_fd(recorder, w);
+		}
+	} while (w >= 0 && left);
+
+	if (w < 0)
+		r = w;
+
+	return r;
 }
 
 static void set_nonblock(struct tracecmd_recorder *recorder)
