@@ -226,31 +226,6 @@ static void tracecmd_msg_init(u32 cmd, struct tracecmd_msg *msg)
 	msg->hdr.size = htonl(MSG_HDR_LEN);
 }
 
-static int tracecmd_msg_create(u32 cmd, struct tracecmd_msg *msg)
-{
-	int ret = 0;
-
-	if (cmd > MSG_FINMETA) {
-		plog("Unsupported command: %d\n", cmd);
-		return -EINVAL;
-	}
-
-	tracecmd_msg_init(cmd, msg);
-
-	switch (cmd) {
-	case MSG_TINIT:
-		return make_tinit(msg);
-	case MSG_RINIT:
-		return make_rinit(msg);
-	case MSG_CLOSE:
-	case MSG_SENDMETA: /* meta data is not stored here. */
-	case MSG_FINMETA:
-		break;
-	}
-
-	return ret;
-}
-
 static void msg_free(struct tracecmd_msg *msg)
 {
 	int cmd = ntohl(msg->hdr.cmd);
@@ -425,7 +400,8 @@ int tracecmd_msg_send_init_data(int fd)
 	int i, cpus;
 	int ret;
 
-	ret = tracecmd_msg_create(MSG_TINIT, &send_msg);
+	tracecmd_msg_init(MSG_TINIT, &send_msg);
+	ret = make_tinit(&send_msg);
 	if (ret < 0)
 		return ret;
 
@@ -552,7 +528,8 @@ int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 	cpu_count = total_cpus;
 	port_array = ports;
 
-	ret = tracecmd_msg_create(MSG_RINIT, &msg);
+	tracecmd_msg_init(MSG_RINIT, &msg);
+	ret = make_rinit(&msg);
 	if (ret < 0)
 		return ret;
 
@@ -566,12 +543,8 @@ int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 void tracecmd_msg_send_close_msg(void)
 {
 	struct tracecmd_msg msg;
-	int ret;
 
-	ret = tracecmd_msg_create(MSG_CLOSE, &msg);
-	if (ret < 0)
-		return;
-
+	tracecmd_msg_init(MSG_CLOSE, &msg);
 	tracecmd_msg_send(psfd, &msg);
 }
 
@@ -582,9 +555,7 @@ int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
 	int ret;
 	int count = 0;
 
-	ret = tracecmd_msg_create(MSG_SENDMETA, &msg);
-	if (ret < 0)
-		return ret;
+	tracecmd_msg_init(MSG_SENDMETA, &msg);
 
 	msg.buf = malloc(MSG_META_MAX_LEN);
 	if (!msg.buf)
@@ -619,10 +590,7 @@ int tracecmd_msg_finish_sending_metadata(int fd)
 	struct tracecmd_msg msg;
 	int ret;
 
-	ret = tracecmd_msg_create(MSG_FINMETA, &msg);
-	if (ret < 0)
-		return ret;
-
+	tracecmd_msg_init(MSG_FINMETA, &msg);
 	ret = tracecmd_msg_send(fd, &msg);
 	if (ret < 0)
 		return ret;
