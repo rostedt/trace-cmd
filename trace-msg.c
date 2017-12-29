@@ -267,60 +267,35 @@ static int msg_read(int fd, void *buf, u32 size, int *n)
 	return 0;
 }
 
-static int msg_read_extra(int fd, void *buf, int *n,
-			  int size, int min_size, void **addr)
+static int msg_read_extra(int fd, struct tracecmd_msg *msg,
+			  int *n, int size)
 {
+	u32 cmd;
 	int rsize;
 	int ret;
 
-	rsize = min_size - *n;
-	ret = msg_read(fd, buf, rsize, n);
+	cmd = ntohl(msg->hdr.cmd);
+	if (cmd > MSG_FINMETA)
+		return -EINVAL;
+
+	rsize = msg_min_sizes[cmd] - *n;
+	if (rsize <= 0)
+		return 0;
+
+	ret = msg_read(fd, msg, rsize, n);
 	if (ret < 0)
 		return ret;
-	size -= *n;
-	if (size < 0)
-		return -ENOMSG;
-	*addr = malloc(size);
-	if (!*addr)
-		return -ENOMEM;
-	*n = 0;
-	return msg_read(fd, *addr, size, n);
-}
 
-static int tracecmd_msg_read_extra(int fd, struct tracecmd_msg *msg, int *n)
-{
-	int size = ntohl(msg->hdr.size);
-	int rsize;
-	int ret;
-
-	switch (ntohl(msg->hdr.cmd)) {
-	case MSG_TINIT:
-		msg->opt = NULL;
-
-		rsize = MIN_TINIT_SIZE - *n;
-
-		ret = msg_read(fd, msg, rsize, n);
-		if (ret < 0)
-			return ret;
-
-		if (size > *n) {
-			size -= *n;
-			msg->opt = malloc(size);
-			if (!msg->opt)
-				return -ENOMEM;
-			*n = 0;
-			return msg_read(fd, msg->opt, size, n);
-		}
-		return 0;
-	case MSG_RINIT:
-		return msg_read_extra(fd, msg, n, size, MIN_RINIT_SIZE,
-				      (void **)&msg->port_array);
-	case MSG_SENDMETA:
-		return msg_read_extra(fd, msg, n, size, MIN_META_SIZE,
-				      (void **)&msg->buf);
+	if (size > *n) {
+		size -= *n;
+		msg->buf = malloc(size);
+		if (!msg->buf)
+			return -ENOMEM;
+		*n = 0;
+		return msg_read(fd, msg->buf, size, n);
 	}
 
-	return msg_read(fd, msg, size - MSG_HDR_LEN, n);
+	return 0;
 }
 
 /*
@@ -344,7 +319,7 @@ static int tracecmd_msg_recv(int fd, struct tracecmd_msg *msg)
 		/* too small */
 		goto error;
 	else if (size > MSG_HDR_LEN)
-		return tracecmd_msg_read_extra(fd, msg, &n);
+		return msg_read_extra(fd, msg, &n, size);
 
 	return 0;
 error:
