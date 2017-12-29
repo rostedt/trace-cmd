@@ -96,18 +96,32 @@ struct tracecmd_msg_meta {
 	be32 size;
 } __attribute__((packed));
 
-enum tracecmd_msg_cmd {
-	MSG_CLOSE	= 1,
-	MSG_TINIT	= 4,
-	MSG_RINIT	= 5,
-	MSG_SENDMETA	= 6,
-	MSG_FINMETA	= 7,
-};
-
 struct tracecmd_msg_header {
 	be32	size;
 	be32	cmd;
 } __attribute__((packed));
+
+#define MSG_MAP						\
+	C(UNUSED_0,	0,	-1),			\
+	C(CLOSE,	1,	0),			\
+	C(USUSED_2,	2,	-1),			\
+	C(UNUSED_3,	3,	-1),			\
+	C(TINIT,	4,	MIN_TINIT_SIZE),	\
+	C(RINIT,	5,	MIN_RINIT_SIZE),	\
+	C(SENDMETA,	6,	MIN_META_SIZE),		\
+	C(FINMETA,	7,	0),
+
+#undef C
+#define C(a,b,c)	MSG_##a = b
+
+enum tracecmd_msg_cmd {
+	MSG_MAP
+};
+
+#undef C
+#define C(a,b,c)	c
+
+static be32 msg_min_sizes[] = { MSG_MAP };
 
 struct tracecmd_msg {
 	struct tracecmd_msg_header		hdr;
@@ -139,21 +153,18 @@ static int msg_write(int fd, struct tracecmd_msg *msg, int size)
 
 static ssize_t msg_do_write_check(int fd, struct tracecmd_msg *msg)
 {
+	int size;
 	int ret;
+	int cmd = ntohl(msg->hdr.cmd);
 
-	switch (ntohl(msg->hdr.cmd)) {
-	case MSG_TINIT:
-		ret = msg_write(fd, msg, MIN_TINIT_SIZE);
-		break;
-	case MSG_RINIT:
-		ret = msg_write(fd, msg, MIN_RINIT_SIZE);
-		break;
-	case MSG_SENDMETA:
-		ret = msg_write(fd, msg, MIN_META_SIZE);
-		break;
-	default:
-		ret = __do_write_check(fd, msg, ntohl(msg->hdr.size));
-	}
+	if (cmd > MSG_FINMETA)
+		return -EINVAL;
+
+	size = msg_min_sizes[cmd];
+	if (!size)
+		size = ntohl(msg->hdr.size);
+
+	ret = msg_write(fd, msg, size);
 
 	return ret;
 }
