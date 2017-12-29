@@ -224,6 +224,11 @@ static int tracecmd_msg_create(u32 cmd, struct tracecmd_msg *msg)
 {
 	int ret = 0;
 
+	if (cmd > MSG_FINMETA) {
+		plog("Unsupported command: %d\n", cmd);
+		return -EINVAL;
+	}
+
 	memset(msg, 0, sizeof(*msg));
 	msg->cmd = htonl(cmd);
 
@@ -258,25 +263,15 @@ static void msg_free(struct tracecmd_msg *msg)
 	}
 }
 
-static int tracecmd_msg_send(int fd, u32 cmd)
+static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
 {
-	struct tracecmd_msg msg;
 	int ret = 0;
 
-	if (cmd > MSG_FINMETA) {
-		plog("Unsupported command: %d\n", cmd);
-		return -EINVAL;
-	}
-
-	ret = tracecmd_msg_create(cmd, &msg);
-	if (ret < 0)
-		return ret;
-
-	ret = msg_do_write_check(fd, &msg);
+	ret = msg_do_write_check(fd, msg);
 	if (ret < 0)
 		ret = -ECOMM;
 
-	msg_free(&msg);
+	msg_free(msg);
 
 	return ret;
 }
@@ -426,15 +421,21 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	return 0;
 }
 
-static int tracecmd_msg_send_and_wait_for_msg(int fd, u32 cmd, struct tracecmd_msg *msg)
+static int tracecmd_msg_send_and_wait_for_msg(int fd, u32 cmd,
+					      struct tracecmd_msg *recv_msg)
 {
+	struct tracecmd_msg msg;
 	int ret;
 
-	ret = tracecmd_msg_send(fd, cmd);
+	ret = tracecmd_msg_create(cmd, &msg);
 	if (ret < 0)
 		return ret;
 
-	ret = tracecmd_msg_wait_for_msg(fd, msg);
+	ret = tracecmd_msg_send(fd, &msg);
+	if (ret < 0)
+		return ret;
+
+	ret = tracecmd_msg_wait_for_msg(fd, recv_msg);
 	if (ret < 0)
 		return ret;
 
@@ -560,12 +561,17 @@ error:
 
 int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 {
+	struct tracecmd_msg msg;
 	int ret;
 
 	cpu_count = total_cpus;
 	port_array = ports;
 
-	ret = tracecmd_msg_send(fd, MSG_RINIT);
+	ret = tracecmd_msg_create(MSG_RINIT, &msg);
+	if (ret < 0)
+		return ret;
+
+	ret = tracecmd_msg_send(fd, &msg);
 	if (ret < 0)
 		return ret;
 
@@ -574,7 +580,14 @@ int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 
 void tracecmd_msg_send_close_msg(void)
 {
-	tracecmd_msg_send(psfd, MSG_CLOSE);
+	struct tracecmd_msg msg;
+	int ret;
+
+	ret = tracecmd_msg_create(MSG_CLOSE, &msg);
+	if (ret < 0)
+		return;
+
+	tracecmd_msg_send(psfd, &msg);
 }
 
 int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
@@ -618,9 +631,14 @@ int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
 
 int tracecmd_msg_finish_sending_metadata(int fd)
 {
+	struct tracecmd_msg msg;
 	int ret;
 
-	ret = tracecmd_msg_send(fd, MSG_FINMETA);
+	ret = tracecmd_msg_create(MSG_FINMETA, &msg);
+	if (ret < 0)
+		return ret;
+
+	ret = tracecmd_msg_send(fd, &msg);
 	if (ret < 0)
 		return ret;
 
