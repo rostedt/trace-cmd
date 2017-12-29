@@ -15,7 +15,6 @@ extern bool use_tcp;
 
 /* for client */
 extern unsigned int page_size;
-extern int *client_ports;
 
 /* for server */
 extern bool done;

@@ -68,7 +68,6 @@ bool use_tcp;
 /* for client */
 static int psfd;
 unsigned int page_size;
-int *client_ports;
 
 /* for server */
 bool done;
@@ -367,12 +366,15 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	return 0;
 }
 
-int tracecmd_msg_send_init_data(int fd, int total_cpus)
+int tracecmd_msg_send_init_data(int fd, int total_cpus, int **client_ports)
 {
 	struct tracecmd_msg send_msg;
 	struct tracecmd_msg recv_msg;
+	int *ports;
 	int i, cpus;
 	int ret;
+
+	*client_ports = NULL;
 
 	tracecmd_msg_init(MSG_TINIT, &send_msg);
 	ret = make_tinit(&send_msg, total_cpus);
@@ -391,9 +393,11 @@ int tracecmd_msg_send_init_data(int fd, int total_cpus)
 		return -EINVAL;
 
 	cpus = ntohl(recv_msg.rinit.cpus);
-	client_ports = malloc_or_die(sizeof(int) * cpus);
+	ports = malloc_or_die(sizeof(int) * cpus);
 	for (i = 0; i < cpus; i++)
-		client_ports[i] = ntohl(recv_msg.port_array[i]);
+		ports[i] = ntohl(recv_msg.port_array[i]);
+
+	*client_ports = ports;
 
 	return 0;
 }

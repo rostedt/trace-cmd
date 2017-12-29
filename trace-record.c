@@ -88,6 +88,7 @@ static int buffers;
 static int clear_function_filters;
 
 static char *host;
+static int *client_ports;
 static int sfd;
 static struct tracecmd_output *network_handle;
 
@@ -2756,7 +2757,7 @@ static void communicate_with_listener_v1(int fd)
 
 static void communicate_with_listener_v2(int fd)
 {
-	if (tracecmd_msg_send_init_data(fd, cpu_count) < 0)
+	if (tracecmd_msg_send_init_data(fd, cpu_count, &client_ports) < 0)
 		die("Cannot communicate with server");
 }
 
