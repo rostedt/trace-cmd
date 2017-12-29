@@ -390,6 +390,9 @@ int tracecmd_msg_send_init_data(int fd)
 	if (ret < 0)
 		return ret;
 
+	if (ntohl(recv_msg.hdr.cmd) != MSG_RINIT)
+		return -EINVAL;
+
 	cpus = ntohl(recv_msg.rinit.cpus);
 	client_ports = malloc_or_die(sizeof(int) * cpus);
 	for (i = 0; i < cpus; i++)
