@@ -17,7 +17,6 @@ extern int cpu_count;
 /* for client */
 extern unsigned int page_size;
 extern int *client_ports;
-extern bool send_metadata;
 
 /* for server */
 extern bool done;

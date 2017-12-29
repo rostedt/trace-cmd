@@ -2865,7 +2865,8 @@ again:
 		communicate_with_listener_v1(sfd);
 
 	/* Now create the handle through this socket */
-	network_handle = tracecmd_create_init_fd_glob(sfd, listed_events);
+	network_handle = tracecmd_create_init_fd_glob(sfd, listed_events,
+						      proto_ver == V2_PROTOCOL);
 
 	if (proto_ver == V2_PROTOCOL)
 		tracecmd_msg_finish_sending_metadata(sfd);

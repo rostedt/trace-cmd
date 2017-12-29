@@ -70,7 +70,6 @@ int cpu_count;
 static int psfd;
 unsigned int page_size;
 int *client_ports;
-bool send_metadata;
 
 /* for server */
 static int *port_array;
@@ -397,9 +396,6 @@ int tracecmd_msg_send_init_data(int fd)
 	client_ports = malloc_or_die(sizeof(int) * cpus);
 	for (i = 0; i < cpus; i++)
 		client_ports[i] = ntohl(recv_msg.port_array[i]);
-
-	/* Next, send meta data */
-	send_metadata = true;
 
 	return 0;
 }
