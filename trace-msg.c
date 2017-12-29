@@ -233,6 +233,8 @@ static void msg_free(struct tracecmd_msg *msg)
 	/* If a min size is defined, then the buf needs to be freed */
 	if (cmd < MSG_FINMETA && (msg_min_sizes[cmd] > 0))
 		free(msg->buf);
+
+	memset(msg, 0, sizeof(*msg));
 }
 
 static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
