@@ -139,23 +139,11 @@ struct tracecmd_msg {
 
 struct tracecmd_msg *errmsg;
 
-static int msg_write(int fd, struct tracecmd_msg *msg, int size)
+static int msg_write(int fd, struct tracecmd_msg *msg)
 {
-	int ret;
-
-	ret = __do_write_check(fd, msg, size);
-	if (ret < 0)
-		return ret;
-	if (ntohl(msg->hdr.size) <= size)
-		return 0;
-	return __do_write_check(fd, msg->buf, ntohl(msg->hdr.size) - size);
-}
-
-static ssize_t msg_do_write_check(int fd, struct tracecmd_msg *msg)
-{
+	int cmd = ntohl(msg->hdr.cmd);
 	int size;
 	int ret;
-	int cmd = ntohl(msg->hdr.cmd);
 
 	if (cmd > MSG_FINMETA)
 		return -EINVAL;
@@ -164,9 +152,12 @@ static ssize_t msg_do_write_check(int fd, struct tracecmd_msg *msg)
 	if (!size)
 		size = ntohl(msg->hdr.size);
 
-	ret = msg_write(fd, msg, size);
-
-	return ret;
+	ret = __do_write_check(fd, msg, size);
+	if (ret < 0)
+		return ret;
+	if (ntohl(msg->hdr.size) <= size)
+		return 0;
+	return __do_write_check(fd, msg->buf, ntohl(msg->hdr.size) - size);
 }
 
 enum msg_opt_command {
@@ -275,7 +266,7 @@ static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
 {
 	int ret = 0;
 
-	ret = msg_do_write_check(fd, msg);
+	ret = msg_write(fd, msg);
 	if (ret < 0)
 		ret = -ECOMM;
 
@@ -616,7 +607,7 @@ int tracecmd_msg_metadata_send(int fd, const char *buf, int size)
 			memcpy(msg.buf, buf+count, n);
 			n = 0;
 		}
-		ret = msg_do_write_check(fd, &msg);
+		ret = msg_write(fd, &msg);
 		if (ret < 0)
 			break;
 	} while (n);
