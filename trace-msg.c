@@ -72,7 +72,6 @@ unsigned int page_size;
 int *client_ports;
 
 /* for server */
-static int *port_array;
 bool done;
 
 struct tracecmd_msg_opt {
@@ -189,26 +188,26 @@ static int make_tinit(struct tracecmd_msg *msg)
 	return 0;
 }
 
-static int make_rinit(struct tracecmd_msg *msg)
+static int make_rinit(struct tracecmd_msg *msg, int total_cpus, int *ports)
 {
 	int size = MIN_RINIT_SIZE;
 	be32 *ptr;
 	be32 port;
 	int i;
 
-	msg->rinit.cpus = htonl(cpu_count);
+	msg->rinit.cpus = htonl(total_cpus);
 
-	msg->port_array = malloc(sizeof(*port_array) * cpu_count);
+	msg->port_array = malloc(sizeof(*ports) * total_cpus);
 	if (!msg->port_array)
 		return -ENOMEM;
 
-	size += sizeof(*port_array) * cpu_count;
+	size += sizeof(*ports) * total_cpus;
 
 	ptr = msg->port_array;
 
-	for (i = 0; i < cpu_count; i++) {
+	for (i = 0; i < total_cpus; i++) {
 		/* + rrqports->cpus or rrqports->port_array[i] */
-		port = htonl(port_array[i]);
+		port = htonl(ports[i]);
 		*ptr = port;
 		ptr++;
 	}
@@ -501,11 +500,8 @@ int tracecmd_msg_send_port_array(int fd, int total_cpus, int *ports)
 	struct tracecmd_msg msg;
 	int ret;
 
-	cpu_count = total_cpus;
-	port_array = ports;
-
 	tracecmd_msg_init(MSG_RINIT, &msg);
-	ret = make_rinit(&msg);
+	ret = make_rinit(&msg, total_cpus, ports);
 	if (ret < 0)
 		return ret;
 
