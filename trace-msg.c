@@ -219,6 +219,13 @@ static int make_rinit(struct tracecmd_msg *msg)
 	return 0;
 }
 
+static void tracecmd_msg_init(u32 cmd, struct tracecmd_msg *msg)
+{
+	memset(msg, 0, sizeof(*msg));
+	msg->hdr.cmd = htonl(cmd);
+	msg->hdr.size = htonl(MSG_HDR_LEN);
+}
+
 static int tracecmd_msg_create(u32 cmd, struct tracecmd_msg *msg)
 {
 	int ret = 0;
@@ -228,8 +235,7 @@ static int tracecmd_msg_create(u32 cmd, struct tracecmd_msg *msg)
 		return -EINVAL;
 	}
 
-	memset(msg, 0, sizeof(*msg));
-	msg->hdr.cmd = htonl(cmd);
+	tracecmd_msg_init(cmd, msg);
 
 	switch (cmd) {
 	case MSG_TINIT:
@@ -241,8 +247,6 @@ static int tracecmd_msg_create(u32 cmd, struct tracecmd_msg *msg)
 	case MSG_FINMETA:
 		break;
 	}
-
-	msg->hdr.size = htonl(MSG_HDR_LEN);
 
 	return ret;
 }
