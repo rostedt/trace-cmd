@@ -421,41 +421,29 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	return 0;
 }
 
-static int tracecmd_msg_send_and_wait_for_msg(int fd, u32 cmd,
-					      struct tracecmd_msg *recv_msg)
-{
-	struct tracecmd_msg msg;
-	int ret;
-
-	ret = tracecmd_msg_create(cmd, &msg);
-	if (ret < 0)
-		return ret;
-
-	ret = tracecmd_msg_send(fd, &msg);
-	if (ret < 0)
-		return ret;
-
-	ret = tracecmd_msg_wait_for_msg(fd, recv_msg);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 int tracecmd_msg_send_init_data(int fd)
 {
-	struct tracecmd_msg msg;
+	struct tracecmd_msg send_msg;
+	struct tracecmd_msg recv_msg;
 	int i, cpus;
 	int ret;
 
-	ret = tracecmd_msg_send_and_wait_for_msg(fd, MSG_TINIT, &msg);
+	ret = tracecmd_msg_create(MSG_TINIT, &send_msg);
 	if (ret < 0)
 		return ret;
 
-	cpus = ntohl(msg.data.rinit.cpus);
+	ret = tracecmd_msg_send(fd, &send_msg);
+	if (ret < 0)
+		return ret;
+
+	ret = tracecmd_msg_wait_for_msg(fd, &recv_msg);
+	if (ret < 0)
+		return ret;
+
+	cpus = ntohl(recv_msg.data.rinit.cpus);
 	client_ports = malloc_or_die(sizeof(int) * cpus);
 	for (i = 0; i < cpus; i++)
-		client_ports[i] = ntohl(msg.data.rinit.port_array[i]);
+		client_ports[i] = ntohl(recv_msg.data.rinit.port_array[i]);
 
 	/* Next, send meta data */
 	send_metadata = true;
