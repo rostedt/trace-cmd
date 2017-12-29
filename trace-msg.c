@@ -249,17 +249,11 @@ static int tracecmd_msg_create(u32 cmd, struct tracecmd_msg *msg)
 
 static void msg_free(struct tracecmd_msg *msg)
 {
-	switch (ntohl(msg->hdr.cmd)) {
-	case MSG_TINIT:
-		free(msg->opt);
-		break;
-	case MSG_RINIT:
-		free(msg->port_array);
-		break;
-	case MSG_SENDMETA:
+	int cmd = ntohl(msg->hdr.cmd);
+
+	/* If a min size is defined, then the buf needs to be freed */
+	if (cmd < MSG_FINMETA && (msg_min_sizes[cmd] > 0))
 		free(msg->buf);
-		break;
-	}
 }
 
 static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
