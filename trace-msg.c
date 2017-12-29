@@ -97,16 +97,6 @@ struct tracecmd_msg_meta {
 	void *buf;
 } __attribute__((packed));
 
-struct tracecmd_msg_error {
-	be32 size;
-	be32 cmd;
-	union {
-		struct tracecmd_msg_tinit tinit;
-		struct tracecmd_msg_rinit rinit;
-		struct tracecmd_msg_meta meta;
-	} data;
-} __attribute__((packed));
-
 enum tracecmd_msg_cmd {
 	MSG_CLOSE	= 1,
 	MSG_TINIT	= 4,
@@ -122,7 +112,6 @@ struct tracecmd_msg {
 		struct tracecmd_msg_tinit tinit;
 		struct tracecmd_msg_rinit rinit;
 		struct tracecmd_msg_meta meta;
-		struct tracecmd_msg_error err;
 	};
 } __attribute__((packed));
 
