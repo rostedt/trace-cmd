@@ -79,6 +79,7 @@ static const char *output_file = "trace.dat";
 
 static int latency;
 static int sleep_time = 1000;
+static int cpu_count;
 static int recorder_threads;
 static struct pid_record_data *pids;
 static int buffers;
@@ -2755,7 +2756,7 @@ static void communicate_with_listener_v1(int fd)
 
 static void communicate_with_listener_v2(int fd)
 {
-	if (tracecmd_msg_send_init_data(fd) < 0)
+	if (tracecmd_msg_send_init_data(fd, cpu_count) < 0)
 		die("Cannot communicate with server");
 }
 

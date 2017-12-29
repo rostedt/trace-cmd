@@ -12,7 +12,6 @@
 
 /* for both client and server */
 extern bool use_tcp;
-extern int cpu_count;
 
 /* for client */
 extern unsigned int page_size;

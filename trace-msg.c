@@ -64,7 +64,6 @@ typedef __be32 be32;
 
 /* for both client and server */
 bool use_tcp;
-int cpu_count;
 
 /* for client */
 static int psfd;
@@ -162,7 +161,7 @@ enum msg_opt_command {
 	MSGOPT_USETCP = 1,
 };
 
-static int make_tinit(struct tracecmd_msg *msg)
+static int make_tinit(struct tracecmd_msg *msg, int total_cpus)
 {
 	struct tracecmd_msg_opt *opt;
 	int opt_num = 0;
@@ -179,7 +178,7 @@ static int make_tinit(struct tracecmd_msg *msg)
 		size += sizeof(*opt);
 	}
 
-	msg->tinit.cpus = htonl(cpu_count);
+	msg->tinit.cpus = htonl(total_cpus);
 	msg->tinit.page_size = htonl(page_size);
 	msg->tinit.opt_num = htonl(opt_num);
 
@@ -368,7 +367,7 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	return 0;
 }
 
-int tracecmd_msg_send_init_data(int fd)
+int tracecmd_msg_send_init_data(int fd, int total_cpus)
 {
 	struct tracecmd_msg send_msg;
 	struct tracecmd_msg recv_msg;
@@ -376,7 +375,7 @@ int tracecmd_msg_send_init_data(int fd)
 	int ret;
 
 	tracecmd_msg_init(MSG_TINIT, &send_msg);
-	ret = make_tinit(&send_msg);
+	ret = make_tinit(&send_msg, total_cpus);
 	if (ret < 0)
 		return ret;
 
