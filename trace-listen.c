@@ -587,9 +587,11 @@ static int *create_all_readers(const char *node, const char *port,
 		write(msg_handle->fd, "\0", 1);
 	}
 
+	free(port_array);
 	return pid_array;
 
  out_free:
+	free(port_array);
 	destroy_all_readers(cpus, pid_array, node, port);
 	return NULL;
 }
