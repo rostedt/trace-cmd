@@ -255,7 +255,10 @@ static void tracecmd_msg_init(u32 cmd, struct tracecmd_msg *msg)
 {
 	memset(msg, 0, sizeof(*msg));
 	msg->hdr.cmd = htonl(cmd);
-	msg->hdr.size = htonl(MSG_HDR_LEN);
+	if (!msg_min_sizes[cmd])
+		msg->hdr.size = htonl(MSG_HDR_LEN);
+	else
+		msg->hdr.size = htonl(msg_min_sizes[cmd]);
 }
 
 static void msg_free(struct tracecmd_msg *msg)
