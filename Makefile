@@ -537,17 +537,22 @@ show_gui_done:
 
 PHONY += show_gui_make
 
+define find_tag_files
+	find . -name '\.pc' -prune -o -name '*\.[ch]' \
+		! -name '\.#' -print
+endef
+
 tags:	force
 	$(RM) tags
-	find . -name '*.[ch]' | xargs ctags --extra=+f --c-kinds=+px
+	$(call find_tag_files) | xargs ctags --extra=+f --c-kinds=+px
 
 TAGS:	force
 	$(RM) TAGS
-	find . -name '*.[ch]' | xargs etags
+	$(call find_tag_files) | xargs etags
 
 cscope: force
 	$(RM) cscope*
-	find . -name '*.[ch]' | cscope -b -q
+	$(call find_tag_files) | cscope -b -q
 
 PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS)) $(subst .so,.install,$(PYTHON_PLUGINS))
 
