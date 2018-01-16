@@ -893,6 +893,7 @@ void trace_stat (int argc, char **argv)
 {
 	struct buffer_instance *instance = &top_instance;
 	int topt = 0;
+	int status;
 	int c;
 
 	for (;;) {
@@ -926,6 +927,13 @@ void trace_stat (int argc, char **argv)
 
 	for_all_instances(instance) {
 		stat_instance(instance);
+	}
+
+	if (tracecmd_stack_tracer_status(&status) >= 0) {
+		if (status > 0)
+			printf("Stack tracing is enabled\n\n");
+	} else {
+		printf("Error reading stack tracer status\n\n");
 	}
 
 	exit(0);

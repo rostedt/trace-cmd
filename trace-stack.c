@@ -96,6 +96,12 @@ static int read_proc(int *status)
 	return 1; /* full success */
 }
 
+/* Public wrapper of read_proc() */
+int tracecmd_stack_tracer_status(int *status)
+{
+	return read_proc(status);
+}
+
 /* NOTE: this implementation only accepts new_status in the range [0..9]. */
 static void change_stack_tracer_status(unsigned new_status)
 {

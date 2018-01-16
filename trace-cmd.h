@@ -394,6 +394,8 @@ void tracecmd_free_hooks(struct hook_list *hooks);
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);
 
+/* --- Stack tracer functions --- */
+int tracecmd_stack_tracer_status(int *status);
 
 /* --- Debugging --- */
 struct kbuffer *tracecmd_record_kbuf(struct tracecmd_input *handle,
