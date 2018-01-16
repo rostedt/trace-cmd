@@ -79,7 +79,7 @@ static int read_proc(int *status)
 	close(fd);
 
 	if (n <= 0)
-		die("error reading %s", PROC_FILE);
+		return -1;
 
 	if (n >= sizeof(buf))
 		return -1;
@@ -101,6 +101,7 @@ static void change_stack_tracer_status(unsigned new_status)
 {
 	char buf[1];
 	int status;
+	int ret;
 	int fd;
 	int n;
 
@@ -109,7 +110,11 @@ static void change_stack_tracer_status(unsigned new_status)
 		return;
 	}
 
-	if (read_proc(&status) > 0 && status == new_status)
+	ret = read_proc(&status);
+	if (ret < 0)
+		die("error reading %s", PROC_FILE);
+
+	if (ret > 0 && status == new_status)
 		return; /* nothing to do */
 
 	fd = open(PROC_FILE, O_WRONLY);
