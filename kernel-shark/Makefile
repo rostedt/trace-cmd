@@ -34,9 +34,11 @@ TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS)
 KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS) \
 	trace-capture.o kernel-shark.o
 
-GUI_OBJS = $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) $(TRACE_GRAPH_MAIN_OBJS)
+ALL_OBJS = $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) $(TRACE_GRAPH_MAIN_OBJS)
+PIC_OBJS = $(TRACE_VIEW_OBJS)
 
-all_objs := $(sort $(GUI_OBJS))
+all_objs := $(sort $(ALL_OBJS))
+pic_objs = $(sort $(PIC_OBJS))
 all_deps := $(all_objs:%.o=.%.d)
 
 # Temporary HACK!
@@ -61,6 +63,8 @@ trace-view: $(TRACE_VIEW_MAIN_OBJS)
 trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
 	$(Q)$(do_app_build)
 
+$(pic_objs): GENERATE_PIC := 1
+
 %.o: %.c
 	$(Q)$(call do_compile)
 
@@ -69,7 +73,7 @@ $(all_deps): .%.d: %.c
 
 $(all_deps): $(KS_VERSION)
 
-$(GUI_OBJS): %.o : .%.d
+$(all_objs): %.o : .%.d
 
 dep_includes := $(wildcard $(DEPS))
 

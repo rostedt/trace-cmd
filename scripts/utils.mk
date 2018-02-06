@@ -33,14 +33,14 @@ else
   print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	$(DESTDIR_SQ)$2';
 endif
 
-
-do_compile =				\
-	($(print_compile)			\
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(EXT) $< -o $@)
-
 do_fpic_compile =					\
 	($(print_fpic_compile)				\
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(EXT) -fPIC $< -o $@)
+
+do_compile =							\
+	($(if $(GENERATE_PIC), $(do_fpic_compile),		\
+	 $(print_compile)					\
+	 $(CC) -c $(CPPFLAGS) $(CFLAGS) $(EXT) $< -o $@))
 
 do_app_build =						\
 	($(print_app_build)				\
