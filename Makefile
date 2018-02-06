@@ -268,10 +268,10 @@ $(LIBTRACEEVENT_STATIC): force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
 $(LIBTRACECMD_STATIC): force $(obj)/plugins/trace_plugin_dir
-	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.a
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
 
 $(LIBTRACECMD_SHARED): force $(obj)/plugins/trace_plugin_dir
-	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.so
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
 
 libtraceevent.so: $(LIBTRACEEVENT_SHARED)
 libtraceevent.a: $(LIBTRACEEVENT_STATIC)

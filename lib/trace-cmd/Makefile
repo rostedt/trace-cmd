@@ -2,7 +2,9 @@
 
 include $(src)/scripts/utils.mk
 
-DEFAULT_TARGET = libtracecmd.a
+bdir:=$(obj)/lib/trace-cmd
+
+DEFAULT_TARGET = $(bdir)/libtracecmd.a
 
 OBJS =
 OBJS += trace-hash.o
@@ -15,25 +17,32 @@ OBJS += trace-util.o
 OBJS += trace-blk-hack.o
 OBJS += trace-ftrace.o
 
-DEPS := $(OBJS:%.o=.%.d)
+OBJS := $(OBJS:%.o=$(bdir)/%.o)
+DEPS := $(OBJS:$(bdir)/%.o=$(bdir)/.%.d)
 
 all: $(DEFAULT_TARGET)
 
-libtracecmd.a: $(OBJS)
+$(bdir):
+	@mkdir -p $(bdir)
+
+$(OBJS): | $(bdir)
+$(DEPS): | $(bdir)
+
+$(bdir)/libtracecmd.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
-libtracecmd.so: $(OBJS)
+$(bdir)/libtracecmd.so: $(OBJS)
 	$(Q)$(call do_compile_shared_library)
 
-%.o: %.c
+$(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 
-trace-util.o: $(obj)/plugins/trace_plugin_dir
+$(bdir)/trace-util.o: $(obj)/plugins/trace_plugin_dir
 
-$(DEPS): .%.d: %.c
+$(DEPS): $(bdir)/.%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
 
-$(OBJS): %.o : .%.d
+$(OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
 dep_includes := $(wildcard $(DEPS))
 
@@ -42,6 +51,6 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) *.a *.so *.o .*.d
+	$(RM) $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d
 
 .PHONY: clean
