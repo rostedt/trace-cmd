@@ -351,8 +351,8 @@ TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS)
 KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS) \
 	trace-capture.o kernel-shark.o
 
-PEVENT_LIB_OBJS = event-parse.o trace-seq.o parse-filter.o parse-utils.o str_error_r.o
-TCMD_LIB_OBJS = $(PEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
+TRACEEVENT_LIB_OBJS = event-parse.o trace-seq.o parse-filter.o parse-utils.o str_error_r.o
+TCMD_LIB_OBJS = $(TRACEEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
 			trace-output.o trace-recorder.o \
 			trace-usage.o trace-blk-hack.o \
 			kbuffer-parse.o event-plugin.o trace-hooks.o \
@@ -377,7 +377,7 @@ PLUGINS := $(PLUGIN_OBJS:.o=.so)
 ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) \
 	$(TRACE_GRAPH_MAIN_OBJS) $(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
 
-CMD_TARGETS = trace_plugin_dir trace_python_dir tc_version.h libparsevent.a $(LIB_FILE) \
+CMD_TARGETS = trace_plugin_dir trace_python_dir tc_version.h libtraceevent.a $(LIB_FILE) \
 	trace-cmd  $(PLUGINS) $(BUILD_PYTHON)
 
 GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
@@ -423,10 +423,10 @@ kernelshark: libtracecmd.a
 trace-view: libtracecmd.a
 trace-graph: libtracecmd.a
 
-libparsevent.so: $(PEVENT_LIB_OBJS)
+libtraceevent.so: $(TRACEEVENT_LIB_OBJS)
 	$(Q)$(do_compile_shared_library)
 
-libparsevent.a: $(PEVENT_LIB_OBJS)
+libtraceevent.a: $(TRACEEVENT_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
 $(TCMD_LIB_OBJS): %.o: $(src)/%.c
@@ -438,7 +438,7 @@ libtracecmd.so: $(TCMD_LIB_OBJS)
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
-libs: libtracecmd.so libparsevent.so
+libs: libtracecmd.so libtraceevent.so
 
 trace-util.o: trace_plugin_dir
 
@@ -609,7 +609,7 @@ install_gui: install_cmd gui
 
 install_libs: libs
 	$(Q)$(call do_install,libtracecmd.so,$(libdir_SQ))
-	$(Q)$(call do_install,libparsevent.so,$(libdir_SQ))
+	$(Q)$(call do_install,libtraceevent.so,$(libdir_SQ))
 	$(Q)$(call do_install,event-parse.h,$(includedir_SQ))
 	$(Q)$(call do_install,trace-cmd.h,$(includedir_SQ))
 
