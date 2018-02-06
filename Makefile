@@ -121,6 +121,8 @@ ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && echo
 	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
 	BUILD_PYTHON_WORKS := 1
+else
+	BUILD_PYTHON := report_nopythondev
 endif
 endif # NO_PYTHON
 
@@ -371,6 +373,11 @@ clean:
 report_noswig: force
 	$(Q)echo
 	$(Q)echo "    NO_PYTHON forced: swig not installed, not compiling python plugins"
+	$(Q)echo
+
+report_nopythondev: force
+	$(Q)echo
+	$(Q)echo "    python-dev is not installed, not compiling python plugins"
 	$(Q)echo
 
 PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_VERS)`
