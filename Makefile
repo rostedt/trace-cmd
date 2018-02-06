@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # trace-cmd version
 TC_VERSION = 2
-TC_PATCHLEVEL = 7
-TC_EXTRAVERSION =
+TC_PATCHLEVEL = 8
+TC_EXTRAVERSION = dev
 
 # Kernel Shark version
 KS_VERSION = 0
