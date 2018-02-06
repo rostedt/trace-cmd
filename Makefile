@@ -92,7 +92,7 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
-SWIG_DEFINED := $(shell if swig -help &> /dev/null; then echo 1; else echo 0; fi)
+SWIG_DEFINED := $(shell if command -v swig; then echo 1; else echo 0; fi)
 ifeq ($(SWIG_DEFINED), 0)
 BUILD_PYTHON := report_noswig
 NO_PYTHON = 1
@@ -105,7 +105,7 @@ PYTHON_GUI	:= ctracecmd.so ctracecmdgui.so
 PYTHON_VERS ?= python
 
 # Can build python?
-ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && which swig && echo y"), y)
+ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
 	PYTHON_SO_INSTALL := ctracecmd.install
