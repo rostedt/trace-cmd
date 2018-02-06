@@ -204,10 +204,6 @@ VERSION		= $(KS_VERSION)
 PATCHLEVEL	= $(KS_PATCHLEVEL)
 EXTRAVERSION	= $(KS_EXTRAVERSION)
 
-GUI		= 'GUI '
-GOBJ		= $@
-GSPACE		=
-
 REBUILD_GUI	= /bin/true
 G		=
 N 		= @/bin/true ||
@@ -223,16 +219,15 @@ VERSION		= $(TC_VERSION)
 PATCHLEVEL	= $(TC_PATCHLEVEL)
 EXTRAVERSION	= $(TC_EXTRAVERSION)
 
-GUI		=
-GSPACE		= "    "
-GOBJ		= $(GSPACE)$@
-
 REBUILD_GUI	= $(MAKE) -f $(src)/Makefile BUILDGUI=1 $@
 G		= $(REBUILD_GUI); /bin/true ||
 N		=
 endif
 
 export Q VERBOSE
+
+# Include the utils
+include scripts/utils.mk
 
 TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
 KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
@@ -279,52 +274,6 @@ endif
 # Append required CFLAGS
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
-
-ifeq ($(VERBOSE),1)
-  Q =
-  print_compile =
-  print_app_build =
-  print_fpic_compile =
-  print_shared_lib_compile =
-  print_plugin_obj_compile =
-  print_plugin_build =
-  print_install =
-else
-  Q = @
-  print_compile =		echo '  $(GUI)COMPILE            '$(GOBJ);
-  print_app_build =		echo '  $(GUI)BUILD              '$(GOBJ);
-  print_fpic_compile =		echo '  $(GUI)COMPILE FPIC       '$(GOBJ);
-  print_shared_lib_compile =	echo '  $(GUI)COMPILE SHARED LIB '$(GOBJ);
-  print_plugin_obj_compile =	echo '  $(GUI)COMPILE PLUGIN OBJ '$(GOBJ);
-  print_plugin_build =		echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
-  print_static_lib_build =	echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
-  print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	$(DESTDIR_SQ)$2';
-endif
-
-do_fpic_compile =					\
-	($(print_fpic_compile)				\
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(EXT) -fPIC $< -o $@)
-
-do_app_build =						\
-	($(print_app_build)				\
-	$(CC) $^ -rdynamic -o $@ $(LDFLAGS) $(CONFIG_LIBS) $(LIBS))
-
-do_compile_shared_library =			\
-	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@)
-
-do_compile_plugin_obj =				\
-	($(print_plugin_obj_compile)		\
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -fPIC -o $@ $<)
-
-do_plugin_build =				\
-	($(print_plugin_build)			\
-	$(CC) $(CFLAGS) $(LDFLAGS) -shared -nostartfiles -o $@ $<)
-
-do_build_static_lib =				\
-	($(print_static_lib_build)		\
-	$(RM) $@;  $(AR) rcs $@ $^)
-
 
 define check_gui
 	if [ $(BUILDGUI) -ne 1 -a ! -z "$(filter $(gui_objs),$(@))" ];	then	\
