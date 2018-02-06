@@ -181,7 +181,11 @@ bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 python_dir_SQ = $(subst ','\'',$(python_dir))
 
-LIBS = -L. -ltracecmd -ldl
+LIBS = -L. -ldl
+LIBTRACEEVENT_DIR = $(obj)/lib/traceevent
+LIBTRACEEVENT_STATIC = $(LIBTRACEEVENT_DIR)/libtraceevent.a
+LIBTRACEEVENT_SHARED = $(LIBTRACEEVENT_DIR)/libtraceevent.so
+
 LIB_FILE = libtracecmd.a
 
 PACKAGES= gtk+-2.0 libxml-2.0 gthread-2.0
@@ -232,7 +236,7 @@ include scripts/utils.mk
 TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
 KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
-INCLUDES = -I. -I ./include -I $(srctree)/../../include $(CONFIG_INCLUDES)
+INCLUDES = -I$(src) -I $(src)/include -I $(srctree)/../../include $(CONFIG_INCLUDES)
 INCLUDES += -I$(src)/include/traceevent
 INCLUDES += -I$(src)/include/trace-cmd
 INCLUDES += -I$(src)/lib/traceevent/include
@@ -243,6 +247,8 @@ include $(src)/features.mk
 CFLAGS ?= -g -Wall
 CPPFLAGS ?=
 LDFLAGS ?=
+
+export CFLAGS
 
 # Required CFLAGS
 override CFLAGS += -D_GNU_SOURCE
@@ -303,12 +309,10 @@ TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS)
 KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS) \
 	trace-capture.o kernel-shark.o
 
-TRACEEVENT_LIB_OBJS = event-parse.o trace-seq.o parse-filter.o parse-utils.o str_error_r.o
-TCMD_LIB_OBJS = $(TRACEEVENT_LIB_OBJS) trace-util.o trace-input.o trace-ftrace.o \
+TCMD_LIB_OBJS = trace-util.o trace-input.o trace-ftrace.o \
 			trace-output.o trace-recorder.o \
 			trace-usage.o trace-blk-hack.o \
-			kbuffer-parse.o event-plugin.o trace-hooks.o \
-			trace-msg.o
+			trace-hooks.o trace-msg.o
 
 PLUGIN_OBJS =
 PLUGIN_OBJS += plugin_jbd2.o
@@ -329,7 +333,7 @@ PLUGINS := $(PLUGIN_OBJS:.o=.so)
 ALL_OBJS = $(TRACE_CMD_OBJS) $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) \
 	$(TRACE_GRAPH_MAIN_OBJS) $(TCMD_LIB_OBJS) $(PLUGIN_OBJS)
 
-CMD_TARGETS = trace_plugin_dir trace_python_dir tc_version.h libtraceevent.a $(LIB_FILE) \
+CMD_TARGETS = trace_plugin_dir trace_python_dir tc_version.h $(LIB_FILE) \
 	trace-cmd  $(PLUGINS) $(BUILD_PYTHON)
 
 GUI_TARGETS = ks_version.h trace-graph trace-view kernelshark
@@ -370,16 +374,19 @@ trace-view: $(TRACE_VIEW_MAIN_OBJS)
 trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
 	$(Q)$(G)$(do_app_build)
 
-trace-cmd: libtracecmd.a
-kernelshark: libtracecmd.a
-trace-view: libtracecmd.a
-trace-graph: libtracecmd.a
+trace-cmd: libtracecmd.a $(LIBTRACEEVENT_STATIC)
+kernelshark: libtracecmd.a $(LIBTRACEEVENT_STATIC)
+trace-view: libtracecmd.a $(LIBTRACEEVENT_STATIC)
+trace-graph: libtracecmd.a $(LIBTRACEEVENT_STATIC)
 
-libtraceevent.so: $(TRACEEVENT_LIB_OBJS)
-	$(Q)$(do_compile_shared_library)
+$(LIBTRACEEVENT_SHARED): force
+	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent.so
 
-libtraceevent.a: $(TRACEEVENT_LIB_OBJS)
-	$(Q)$(do_build_static_lib)
+$(LIBTRACEEVENT_STATIC): force
+	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent.a
+
+libtraceevent.so: $(LIBTRACEEVENT_SHARED)
+libtraceevent.a: $(LIBTRACEEVENT_STATIC)
 
 $(TCMD_LIB_OBJS): %.o: $(src)/%.c
 	$(Q)$(do_fpic_compile)
@@ -390,7 +397,7 @@ libtracecmd.so: $(TCMD_LIB_OBJS)
 libtracecmd.a: $(TCMD_LIB_OBJS)
 	$(Q)$(do_build_static_lib)
 
-libs: libtracecmd.so libtraceevent.so
+libs: libtracecmd.so $(LIBTRACEEVENT_SHARED)
 
 trace-util.o: trace_plugin_dir
 
@@ -561,7 +568,7 @@ install_gui: install_cmd gui
 
 install_libs: libs
 	$(Q)$(call do_install,libtracecmd.so,$(libdir_SQ))
-	$(Q)$(call do_install,libtraceevent.so,$(libdir_SQ))
+	$(Q)$(call do_install,$(LIBTRACEEVENT_SHARED),$(libdir_SQ))
 	$(Q)$(call do_install,$(src)/include/traceevent/event-parse.h,$(includedir_SQ))
 	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ))
 
@@ -577,6 +584,7 @@ install_doc:
 clean:
 	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
 	$(RM) tags TAGS cscope*
+	$(MAKE) -C $(src)/lib/traceevent clean
 
 
 ##### PYTHON STUFF #####
