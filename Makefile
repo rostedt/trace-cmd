@@ -238,6 +238,7 @@ TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
 KERNELSHARK_VERSION = $(KS_VERSION).$(KS_PATCHLEVEL).$(KS_EXTRAVERSION)
 
 INCLUDES = -I. -I ./include -I $(srctree)/../../include $(CONFIG_INCLUDES)
+INCLUDES += -I$(src)/include/traceevent
 
 include $(src)/features.mk
 
@@ -610,7 +611,7 @@ install_gui: install_cmd gui
 install_libs: libs
 	$(Q)$(call do_install,libtracecmd.so,$(libdir_SQ))
 	$(Q)$(call do_install,libtraceevent.so,$(libdir_SQ))
-	$(Q)$(call do_install,event-parse.h,$(includedir_SQ))
+	$(Q)$(call do_install,$(src)/include/traceevent/event-parse.h,$(includedir_SQ))
 	$(Q)$(call do_install,trace-cmd.h,$(includedir_SQ))
 
 doc:
@@ -640,7 +641,7 @@ PYTHON_LDFLAGS = `pkg-config --libs $(PYTHON_VERS)` \
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
 
 ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
-	swig -Wall -python -noproxy ctracecmd.i
+	swig -Wall -python -noproxy -I$(src)/include/traceevent ctracecmd.i
 	$(CC) -fpic -c $(CPPFLAGS) $(CFLAGS) $(PYTHON_INCLUDES)  ctracecmd_wrap.c
 	$(CC) --shared $(TCMD_LIB_OBJS) $(LDFLAGS) ctracecmd_wrap.o -o ctracecmd.so
 
