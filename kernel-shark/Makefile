@@ -5,6 +5,8 @@ PATCHLEVEL	= 2
 EXTRAVERSION	=
 KERNELSHARK_VERSION = $(VERSION).$(PATCHLEVEL).$(EXTRAVERSION)
 
+bdir:=$(obj)/kernel-shark
+
 BUILDGUI := 1
 include $(src)/scripts/utils.mk
 
@@ -21,9 +23,9 @@ CONFIG_LIBS = $(shell pkg-config --libs $(PACKAGES))
 
 CONFIG_FLAGS += $(HELP_DIR_SQ)
 
-KS_VERSION := $(obj)/kernel-shark/include/ks_version.h
+KS_VERSION := $(bdir)/include/ks_version.h
 
-GUI_TARGETS = $(KS_VERSION) trace-graph trace-view kernelshark
+GUI_TARGETS = $(KS_VERSION) $(bdir)/trace-graph $(bdir)/trace-view $(bdir)/kernelshark
 
 TRACE_GUI_OBJS = trace-filter.o trace-compat.o trace-filter-hash.o \
 		 trace-dialog.o trace-xml.o
@@ -34,16 +36,17 @@ TRACE_GRAPH_MAIN_OBJS = trace-graph-main.o $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS)
 KERNEL_SHARK_OBJS = $(TRACE_VIEW_OBJS) $(TRACE_GRAPH_OBJS) $(TRACE_GUI_OBJS) \
 	trace-capture.o kernel-shark.o
 
+KERNEL_SHARK_OBJS := $(KERNEL_SHARK_OBJS:%.o=$(bdir)/%.o)
+TRACE_VIEW_MAIN_OBJS := $(TRACE_VIEW_MAIN_OBJS:%.o=$(bdir)/%.o)
+TRACE_GRAPH_MAIN_OBJS := $(TRACE_GRAPH_MAIN_OBJS:%.o=$(bdir)/%.o)
+
 ALL_OBJS = $(KERNEL_SHARK_OBJS) $(TRACE_VIEW_MAIN_OBJS) $(TRACE_GRAPH_MAIN_OBJS)
 PIC_OBJS = $(TRACE_VIEW_OBJS)
 
 all_objs := $(sort $(ALL_OBJS))
 pic_objs = $(sort $(PIC_OBJS))
-all_deps := $(all_objs:%.o=.%.d)
+all_deps := $(all_objs:$(bdir)/%.o=$(bdir)/.%.d)
 
-# Temporary HACK!
-# This hack is OK only until the non-gui builds do not have any config_includes
-# nor config flags. In case they do, keeping this hack might be a problem.
 override CFLAGS += $(CONFIG_INCLUDES) $(CONFIG_FLAGS)
 
 LIBS += -L$(LIBTRACEEVENT_DIR) -L$(LIBTRACECMD_DIR)
@@ -51,29 +54,38 @@ LIBS += -ltracecmd -ltraceevent -ldl
 
 all: $(GUI_TARGETS)
 
-$(KS_VERSION): force
+$(bdir):
+	@mkdir -p $(bdir)
+
+$(bdir)/include: | $(bdir)
+	@mkdir -p $(bdir)/include
+
+$(all_objs): | $(bdir)
+$(all_deps): | $(bdir)
+
+$(KS_VERSION): force | $(bdir)/include
 	$(Q)$(call update_version.h)
 
-kernelshark: $(KERNEL_SHARK_OBJS)
+$(bdir)/kernelshark: $(KERNEL_SHARK_OBJS)
 	$(Q)$(do_app_build)
 
-trace-view: $(TRACE_VIEW_MAIN_OBJS)
+$(bdir)/trace-view: $(TRACE_VIEW_MAIN_OBJS)
 	$(Q)$(do_app_build)
 
-trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
+$(bdir)/trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
 	$(Q)$(do_app_build)
 
 $(pic_objs): GENERATE_PIC := 1
 
-%.o: %.c
+$(bdir)/%.o: %.c
 	$(Q)$(call do_compile)
 
-$(all_deps): .%.d: %.c
+$(all_deps): $(bdir)/.%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
 
 $(all_deps): $(KS_VERSION)
 
-$(all_objs): %.o : .%.d
+$(all_objs): $(bdir)/%.o : $(bdir)/.%.d
 
 dep_includes := $(wildcard $(DEPS))
 
@@ -82,7 +94,7 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) *.a *.so *.o .*.d $(GUI_TARGETS)
+	$(RM) $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d $(GUI_TARGETS)
 
 force:
 .PHONY: clean

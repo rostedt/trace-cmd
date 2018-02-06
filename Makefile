@@ -191,6 +191,7 @@ INCLUDES += -I$(src)/lib/trace-cmd/include
 INCLUDES += -I$(src)/kernel-shark/include
 INCLUDES += -I$(src)/tracecmd/include
 INCLUDES += -I$(obj)/tracecmd/include
+INCLUDES += -I$(obj)/kernel-shark/include
 
 include $(src)/features.mk
 
@@ -230,7 +231,7 @@ LIBS += -laudit
 endif
 
 # Append required CFLAGS
-override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
+override CFLAGS += $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 
 
@@ -254,13 +255,13 @@ trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 
 kernelshark: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark $@
+	$(Q)$(MAKE) -C $(src)/kernel-shark $(obj)/kernel-shark/$@
 
 trace-view: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark $@
+	$(Q)$(MAKE) -C $(src)/kernel-shark $(obj)/kernel-shark/$@
 
 trace-graph: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark $@
+	$(Q)$(MAKE) -C $(src)/kernel-shark $(obj)/kernel-shark/$@
 
 $(LIBTRACEEVENT_SHARED): force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
