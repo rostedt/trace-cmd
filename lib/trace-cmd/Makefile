@@ -28,6 +28,8 @@ libtracecmd.so: $(OBJS)
 %.o: %.c
 	$(Q)$(call do_fpic_compile)
 
+trace-util.o: $(obj)/plugins/trace_plugin_dir
+
 $(DEPS): .%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
 

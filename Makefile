@@ -66,6 +66,12 @@ PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
 var_dir = /var
 endif
 
+# Shell quotes
+bindir_SQ = $(subst ','\'',$(bindir))
+bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
+plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
+python_dir_SQ = $(subst ','\'',$(python_dir))
+
 VAR_DIR = -DVAR_DIR="$(var_dir)"
 VAR_DIR_SQ = '$(subst ','\'',$(VAR_DIR))'
 var_dir_SQ = '$(subst ','\'',$(var_dir))'
@@ -76,6 +82,10 @@ HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
 BASH_COMPLETE_DIR ?= /etc/bash_completion.d
 
+export PLUGIN_DIR
+export PYTHON_DIR
+export PYTHON_DIR_SQ
+export plugin_dir_SQ
 export var_dir
 
 # copy a bit from Linux kbuild
@@ -108,6 +118,8 @@ ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && echo
 	PYTHON_PY_LIBS := tracecmd.install tracecmdgui.install
 endif
 endif # NO_PYTHON
+
+export PYTHON_PLUGINS
 
 # $(call test-build, snippet, ret) -> ret if snippet compiles
 #                                  -> empty otherwise
@@ -151,12 +163,6 @@ src		:= $(srctree)
 obj		:= $(objtree)
 
 export prefix bindir src obj
-
-# Shell quotes
-bindir_SQ = $(subst ','\'',$(bindir))
-bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
-plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
-python_dir_SQ = $(subst ','\'',$(python_dir))
 
 LIBS = -ldl
 
@@ -252,26 +258,9 @@ TRACE_CMD_OBJS = trace-cmd.o trace-record.o trace-read.o trace-split.o trace-lis
 	 trace-check-events.o trace-show.o trace-list.o  \
 	 trace-output.o trace-usage.o trace-msg.o
 
-PLUGIN_OBJS =
-PLUGIN_OBJS += plugin_jbd2.o
-PLUGIN_OBJS += plugin_hrtimer.o
-PLUGIN_OBJS += plugin_kmem.o
-PLUGIN_OBJS += plugin_kvm.o
-PLUGIN_OBJS += plugin_mac80211.o
-PLUGIN_OBJS += plugin_sched_switch.o
-PLUGIN_OBJS += plugin_function.o
-PLUGIN_OBJS += plugin_xen.o
-PLUGIN_OBJS += plugin_scsi.o
-PLUGIN_OBJS += plugin_cfg80211.o
-PLUGIN_OBJS += plugin_blk.o
-PLUGIN_OBJS += plugin_tlb.o
+ALL_OBJS = $(TRACE_CMD_OBJS)
 
-PLUGINS := $(PLUGIN_OBJS:.o=.so)
-
-ALL_OBJS = $(TRACE_CMD_OBJS) $(PLUGIN_OBJS)
-
-CMD_TARGETS = trace_plugin_dir trace_python_dir tc_version.h \
-	trace-cmd  $(PLUGINS) $(BUILD_PYTHON)
+CMD_TARGETS = tc_version.h trace-cmd $(BUILD_PYTHON)
 
 
 TARGETS = $(CMD_TARGETS)
@@ -285,7 +274,7 @@ TARGETS = $(CMD_TARGETS)
 #    If you want kernelshark, then do:  make gui
 ###
 
-all: all_cmd show_gui_make
+all: all_cmd plugins show_gui_make
 
 all_cmd: $(CMD_TARGETS)
 
@@ -313,10 +302,10 @@ $(LIBTRACEEVENT_SHARED): force
 $(LIBTRACEEVENT_STATIC): force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent.a
 
-$(LIBTRACECMD_STATIC): force trace_plugin_dir
+$(LIBTRACECMD_STATIC): force $(obj)/plugins/trace_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.a
 
-$(LIBTRACECMD_SHARED): force trace_plugin_dir
+$(LIBTRACECMD_SHARED): force $(obj)/plugins/trace_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.so
 
 libtraceevent.so: $(LIBTRACEEVENT_SHARED)
@@ -326,30 +315,18 @@ libtracecmd.so: $(LIBTRACECMD_SHARED)
 
 libs: $(LIBTRACECMD_SHARED) $(LIBTRACEEVENT_SHARED)
 
-$(PLUGIN_OBJS): %.o : $(src)/%.c
-	$(Q)$(do_compile_plugin_obj)
-
-$(PLUGINS): %.so: %.o
-	$(Q)$(do_plugin_build)
+plugins: force $(obj)/plugins/trace_plugin_dir $(obj)/plugins/trace_python_dir
+	$(Q)$(MAKE) -C $(src)/plugins
 
 tc_version.h: force
 	$(Q)$(N)$(call update_version.h)
 
-define update_dir
-	(echo $1 > $@.tmp;	\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then		\
-		rm -f $@.tmp;				\
-	else						\
-		echo '  UPDATE                 $@';	\
-		mv -f $@.tmp $@;			\
-	fi);
-endef
+$(obj)/plugins/trace_plugin_dir: force
+	$(Q)$(MAKE) -C $(src)/plugins trace_plugin_dir
 
-trace_plugin_dir: force
-	$(Q)$(N)$(call update_dir, 'PLUGIN_DIR=$(PLUGIN_DIR)')
+$(obj)/plugins/trace_python_dir: force
+	$(Q)$(MAKE) -C $(src)/plugins trace_python_dir
 
-trace_python_dir: force
-	$(Q)$(N)$(call update_dir, 'PYTHON_DIR=$(PYTHON_DIR)')
 
 ## make deps
 
@@ -392,28 +369,8 @@ cscope: force
 	$(RM) cscope*
 	$(call find_tag_files) | cscope -b -q
 
-PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS)) $(subst .so,.install,$(PYTHON_PLUGINS))
-
-define do_install
-	$(print_install)				\
-	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
-	fi;						\
-	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
-endef
-
-define do_install_data
-	$(print_install)				\
-	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
-	fi;						\
-	$(INSTALL) -m 644 $1 '$(DESTDIR_SQ)$2'
-endef
-
-$(PLUGINS_INSTALL): %.install : %.so force
-	$(Q)$(call do_install_data,$<,$(plugin_dir_SQ))
-
-install_plugins: $(PLUGINS_INSTALL)
+install_plugins: force
+	$(Q)$(MAKE) -C $(src)/plugins $@
 
 $(PYTHON_SO_INSTALL): %.install : %.so force
 	$(Q)$(call do_install_data,$<,$(python_dir_SQ))
@@ -465,6 +422,7 @@ clean:
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
 	$(MAKE) -C $(src)/kernel-shark clean
+	$(MAKE) -C $(src)/plugins clean
 
 
 ##### PYTHON STUFF #####
@@ -478,6 +436,10 @@ PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_VERS)`
 PYTHON_LDFLAGS = `pkg-config --libs $(PYTHON_VERS)` \
 		$(shell python2 -c "import distutils.sysconfig; print distutils.sysconfig.get_config_var('LINKFORSHARED')")
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
+
+export PYTHON_INCLUDES
+export PYTHON_LDFLAGS
+export PYGTK_CFLAGS
 
 ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
 	swig -Wall -python -noproxy -I$(src)/include/traceevent -I$(src)/include/trace-cmd ctracecmd.i
@@ -498,21 +460,8 @@ python-gui: $(PYTHON_GUI)
 PHONY += python-plugin
 python-plugin: $(PYTHON_PLUGINS)
 
-CFLAGS_plugin_python.o += $(PYTHON_DIR_SQ)
-
-do_compile_python_plugin_obj =			\
-	($(print_plugin_obj_compile)		\
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$@) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
-
-do_python_plugin_build =			\
-	($(print_plugin_build)			\
-	$(CC) $< -shared $(LDFLAGS) $(PYTHON_LDFLAGS) -o $@)
-
-plugin_python.o: %.o : $(src)/%.c trace_python_dir
-	$(Q)$(do_compile_python_plugin_obj)
-
-plugin_python.so: %.so: %.o
-	$(Q)$(do_python_plugin_build)
+plugin_python.so: force $(obj)/plugins/trace_python_dir
+	$(Q)$(MAKE) -C $(src)/plugins plugin_python.so
 
 dist:
 	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \
