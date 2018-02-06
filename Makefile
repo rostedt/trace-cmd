@@ -201,6 +201,7 @@ INCLUDES += -I$(src)/include/trace-cmd
 INCLUDES += -I$(src)/lib/traceevent/include
 INCLUDES += -I$(src)/lib/trace-cmd/include
 INCLUDES += -I$(src)/kernel-shark/include
+INCLUDES += -I$(src)/tracecmd/include
 
 include $(src)/features.mk
 
