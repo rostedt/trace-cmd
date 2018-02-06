@@ -240,6 +240,7 @@ INCLUDES = -I$(src) -I $(src)/include -I $(srctree)/../../include $(CONFIG_INCLU
 INCLUDES += -I$(src)/include/traceevent
 INCLUDES += -I$(src)/include/trace-cmd
 INCLUDES += -I$(src)/lib/traceevent/include
+INCLUDES += -I$(src)/lib/trace-cmd/include
 
 include $(src)/features.mk
 
