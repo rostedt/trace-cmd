@@ -262,10 +262,10 @@ trace-graph: force $(CMD_TARGETS)
 	$(Q)$(MAKE) -C $(src)/kernel-shark $@
 
 $(LIBTRACEEVENT_SHARED): force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent $(obj)/lib/traceevent/libtraceevent.so
+	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
 $(LIBTRACEEVENT_STATIC): force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent $(obj)/lib/traceevent/libtraceevent.a
+	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
 $(LIBTRACECMD_STATIC): force $(obj)/plugins/trace_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.a
@@ -284,10 +284,10 @@ plugins: force $(obj)/plugins/trace_plugin_dir $(obj)/plugins/trace_python_dir
 	$(Q)$(MAKE) -C $(src)/plugins
 
 $(obj)/plugins/trace_plugin_dir: force
-	$(Q)$(MAKE) -C $(src)/plugins trace_plugin_dir
+	$(Q)$(MAKE) -C $(src)/plugins $@
 
 $(obj)/plugins/trace_python_dir: force
-	$(Q)$(MAKE) -C $(src)/plugins trace_python_dir
+	$(Q)$(MAKE) -C $(src)/plugins $@
 
 show_gui_make:
 	@echo "Note: to build the gui, type \"make gui\""
@@ -396,7 +396,7 @@ PHONY += python-plugin
 python-plugin: $(PYTHON_PLUGINS)
 
 plugin_python.so: force $(obj)/plugins/trace_python_dir
-	$(Q)$(MAKE) -C $(src)/plugins plugin_python.so
+	$(Q)$(MAKE) -C $(src)/plugins $(obj)/plugins/plugin_python.so
 
 dist:
 	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \

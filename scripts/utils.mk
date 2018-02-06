@@ -64,7 +64,7 @@ do_plugin_build =				\
 
 do_compile_python_plugin_obj =			\
 	($(print_plugin_obj_compile)		\
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$@) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(PYTHON_DIR_SQ) $(PYTHON_INCLUDES) -fPIC -o $@ $<)
 
 do_python_plugin_build =			\
 	($(print_plugin_build)			\
