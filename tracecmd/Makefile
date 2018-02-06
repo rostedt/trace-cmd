@@ -3,8 +3,10 @@ VERSION := $(TC_VERSION)
 PATCHLEVEL := $(TC_PATCHLEVEL)
 EXTRAVERSION := $(TC_EXTRAVERSION)
 
-TC_VERSION := $(obj)/tracecmd/include/tc_version.h
-TARGETS = trace-cmd $(TC_VERSION)
+bdir:=$(obj)/tracecmd
+
+TC_VERSION := $(bdir)/include/tc_version.h
+TARGETS = $(bdir)/trace-cmd $(TC_VERSION)
 
 BUILDGUI := 0
 include $(src)/scripts/utils.mk
@@ -31,10 +33,10 @@ TRACE_CMD_OBJS += trace-output.o
 TRACE_CMD_OBJS += trace-usage.o
 TRACE_CMD_OBJS += trace-msg.o
 
-ALL_OBJS = $(TRACE_CMD_OBJS)
+ALL_OBJS := $(TRACE_CMD_OBJS:%.o=$(bdir)/%.o)
 
 all_objs := $(sort $(ALL_OBJS))
-all_deps := $(all_objs:%.o=.%.d)
+all_deps := $(all_objs:$(bdir)/%.o=$(bdir)/.%.d)
 
 CONFIG_INCLUDES =
 CONFIG_LIBS	=
@@ -42,23 +44,32 @@ CONFIG_FLAGS	=
 
 all: $(TARGETS)
 
-$(TC_VERSION): force
+$(bdir):
+	@mkdir -p $(bdir)
+
+$(bdir)/include: | $(bidr)
+	@mkdir -p $(bdir)/include
+
+$(TC_VERSION): force | $(bdir)/include
 	$(Q)$(call update_version.h)
 
-trace-cmd: $(ALL_OBJS)
+$(all_deps): | $(bdir)
+$(all_objs): | $(bdir)
+
+$(bdir)/trace-cmd: $(ALL_OBJS)
 	$(Q)$(do_app_build)
 
-trace-cmd: $(LIBTRACECMD_STATIC) $(LIBTRACEEVENT_STATIC)
+$(bdir)/trace-cmd: $(LIBTRACECMD_STATIC) $(LIBTRACEEVENT_STATIC)
 
-%.o: %.c
+$(bdir)/%.o: %.c
 	$(Q)$(call do_compile)
 
-$(all_deps): .%.d: %.c
+$(all_deps): $(bdir)/.%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
 
 $(all_deps): $(TC_VERSION)
 
-$(all_objs): %.o : .%.d
+$(all_objs): $(bdir)/%.o : $(bdir)/.%.d
 
 dep_includes := $(wildcard $(DEPS))
 
@@ -67,7 +78,7 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) *.a *.so *.o .*.d $(TARGETS)
+	$(RM) $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d $(TARGETS)
 
 force:
 .PHONY: clean

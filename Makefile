@@ -190,6 +190,7 @@ INCLUDES += -I$(src)/lib/traceevent/include
 INCLUDES += -I$(src)/lib/trace-cmd/include
 INCLUDES += -I$(src)/kernel-shark/include
 INCLUDES += -I$(src)/tracecmd/include
+INCLUDES += -I$(obj)/tracecmd/include
 
 include $(src)/features.mk
 
@@ -250,7 +251,7 @@ gui: force $(CMD_TARGETS)
 	echo "gui build complete"
 
 trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
-	$(Q)$(MAKE) -C $(src)/tracecmd $@
+	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 
 kernelshark: force $(CMD_TARGETS)
 	$(Q)$(MAKE) -C $(src)/kernel-shark $@
