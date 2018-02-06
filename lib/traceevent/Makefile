@@ -2,7 +2,9 @@
 
 include $(src)/scripts/utils.mk
 
-DEFAULT_TARGET = libtraceevent.a
+bdir:=$(obj)/lib/traceevent
+
+DEFAULT_TARGET = $(bdir)/libtraceevent.a
 
 OBJS =
 OBJS += event-parse.o
@@ -15,23 +17,30 @@ OBJS += parse-utils.o
 # Additional util objects
 OBJS += str_error_r.o
 
-DEPS := $(OBJS:%.o=.%.d)
+OBJS := $(OBJS:%.o=$(bdir)/%.o)
+DEPS := $(OBJS:$(bdir)/%.o=$(bdir)/.%.d)
 
 all: $(DEFAULT_TARGET)
 
-libtraceevent.a: $(OBJS)
+$(bdir):
+	@mkdir -p $(bdir)
+
+$(OBJS): | $(bdir)
+$(DEPS): | $(bdir)
+
+$(bdir)/libtraceevent.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
-libtraceevent.so: $(OBJS)
+$(bdir)/libtraceevent.so: $(OBJS)
 	$(Q)$(call do_compile_shared_library)
 
-%.o: %.c
+$(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 
-$(DEPS): .%.d: %.c
+$(DEPS): $(bdir)/.%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
 
-$(OBJS): %.o : .%.d
+$(OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
 dep_includes := $(wildcard $(DEPS))
 
@@ -40,6 +49,6 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) *.a *.so *.o .*.d
+	$(RM) -f $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d
 
 .PHONY: clean

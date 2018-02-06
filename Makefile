@@ -146,27 +146,18 @@ endef
 blk-flags := $(call test-build,$(BLK_TC_FLUSH_SOURCE),-DHAVE_BLK_TC_FLUSH)
 
 ifeq ("$(origin O)", "command line")
-  BUILD_OUTPUT := $(O)
+
+  saved-output := $(O)
+  BUILD_OUTPUT := $(shell cd $(O) && /bin/pwd)
+  $(if $(BUILD_OUTPUT),, \
+    $(error output directory "$(saved-output)" does not exist))
+
+else
+  BUILD_OUTPUT = $(CURDIR)
 endif
 
-ifeq ($(BUILD_SRC),)
-ifneq ($(BUILD_OUTPUT),)
-
-define build_output
-	$(if $(VERBOSE:1=),@)$(MAKE) -C $(BUILD_OUTPUT) 	\
-	BUILD_SRC=$(CURDIR) -f $(CURDIR)/Makefile $1
-endef
-
-saved-output := $(BUILD_OUTPUT)
-BUILD_OUTPUT := $(shell cd $(BUILD_OUTPUT) && /bin/pwd)
-$(if $(BUILD_OUTPUT),, \
-     $(error output directory "$(saved-output)" does not exist))
-
-endif # BUILD_OUTPUT
-endif # BUILD_SRC
-
 srctree		:= $(if $(BUILD_SRC),$(BUILD_SRC),$(CURDIR))
-objtree		:= $(CURDIR)
+objtree		:= $(BUILD_OUTPUT)
 src		:= $(srctree)
 obj		:= $(objtree)
 
@@ -271,10 +262,10 @@ trace-graph: force $(CMD_TARGETS)
 	$(Q)$(MAKE) -C $(src)/kernel-shark $@
 
 $(LIBTRACEEVENT_SHARED): force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent.so
+	$(Q)$(MAKE) -C $(src)/lib/traceevent $(obj)/lib/traceevent/libtraceevent.so
 
 $(LIBTRACEEVENT_STATIC): force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent.a
+	$(Q)$(MAKE) -C $(src)/lib/traceevent $(obj)/lib/traceevent/libtraceevent.a
 
 $(LIBTRACECMD_STATIC): force $(obj)/plugins/trace_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.a
