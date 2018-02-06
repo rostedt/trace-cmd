@@ -86,6 +86,7 @@ export PLUGIN_DIR
 export PYTHON_DIR
 export PYTHON_DIR_SQ
 export plugin_dir_SQ
+export python_dir_SQ
 export var_dir
 
 # copy a bit from Linux kbuild
@@ -113,13 +114,12 @@ PYTHON_VERS ?= python
 ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && echo y"), y)
 	PYTHON_PLUGINS := plugin_python.so
 	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
-	PYTHON_SO_INSTALL := ctracecmd.install
-	PYTHON_PY_PROGS := event-viewer.install
-	PYTHON_PY_LIBS := tracecmd.install tracecmdgui.install
+	BUILD_PYTHON_WORKS := 1
 endif
 endif # NO_PYTHON
 
 export PYTHON_PLUGINS
+export BUILD_PYTHON_WORKS
 
 # $(call test-build, snippet, ret) -> ret if snippet compiles
 #                                  -> empty otherwise
@@ -176,6 +176,7 @@ LIBTRACECMD_SHARED = $(LIBTRACECMD_DIR)/libtracecmd.so
 
 export LIBS
 export LIBTRACEEVENT_DIR LIBTRACECMD_DIR
+export LIBTRACECMD_STATIC LIBTRACECMD_SHARED
 
 CONFIG_INCLUDES = 
 CONFIG_LIBS	=
@@ -247,10 +248,6 @@ $(obj)/%.o: $(src)/%.c
 
 %.o: $(src)/%.c
 	$(Q)$(call do_compile)
-
-TRACE_VIEW_OBJS =
-TRACE_VIEW_OBJS += $(obj)/kernel-shark/trace-view.o
-TRACE_VIEW_OBJS += $(obj)/kernel-shark/trace-view-store.o
 
 TRACE_CMD_OBJS = trace-cmd.o trace-record.o trace-read.o trace-split.o trace-listen.o \
 	 trace-stack.o trace-hist.o trace-mem.o trace-snapshot.o trace-stat.o \
@@ -372,19 +369,8 @@ cscope: force
 install_plugins: force
 	$(Q)$(MAKE) -C $(src)/plugins $@
 
-$(PYTHON_SO_INSTALL): %.install : %.so force
-	$(Q)$(call do_install_data,$<,$(python_dir_SQ))
-
-$(PYTHON_PY_PROGS): %.install : %.py force
-	$(Q)$(call do_install,$<,$(python_dir_SQ))
-
-$(PYTHON_PY_LIBS): %.install : %.py force
-	$(Q)$(call do_install_data,$<,$(python_dir_SQ))
-
-$(PYTHON_PY_PLUGINS): %.install : %.py force
-	$(Q)$(call do_install_data,$<,$(plugin_dir_SQ))
-
-install_python: $(PYTHON_SO_INSTALL) $(PYTHON_PY_PROGS) $(PYTHON_PY_LIBS) $(PYTHON_PY_PLUGINS)
+install_python: force
+	$(Q)$(MAKE) -C $(src)/python $@
 
 install_bash_completion: force
 	$(Q)$(call do_install_data,trace-cmd.bash,$(BASH_COMPLETE_DIR))
@@ -417,19 +403,20 @@ install_doc:
 	$(MAKE) -C $(src)/Documentation install
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so ctracecmd_wrap.c .*.d
+	$(RM) *.o *~ $(TARGETS) *.a *.so .*.d
 	$(RM) tags TAGS cscope*
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
 	$(MAKE) -C $(src)/kernel-shark clean
 	$(MAKE) -C $(src)/plugins clean
+	$(MAKE) -C $(src)/python clean
 
 
 ##### PYTHON STUFF #####
 
 report_noswig: force
 	$(Q)echo
-	$(Q)echo "    NO_PYTHON forced: swig not installed, not compling python plugins"
+	$(Q)echo "    NO_PYTHON forced: swig not installed, not compiling python plugins"
 	$(Q)echo
 
 PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_VERS)`
@@ -441,15 +428,11 @@ export PYTHON_INCLUDES
 export PYTHON_LDFLAGS
 export PYGTK_CFLAGS
 
-ctracecmd.so: $(TCMD_LIB_OBJS) ctracecmd.i
-	swig -Wall -python -noproxy -I$(src)/include/traceevent -I$(src)/include/trace-cmd ctracecmd.i
-	$(CC) -fpic -c $(CPPFLAGS) $(CFLAGS) $(PYTHON_INCLUDES)  ctracecmd_wrap.c
-	$(CC) --shared $(LIBTRACECMD_STATIC) $(LDFLAGS) ctracecmd_wrap.o -o ctracecmd.so
+ctracecmd.so: force $(LIBTRACECMD_STATIC)
+	$(Q)$(MAKE) -C $(src)/python $@
 
-ctracecmdgui.so: trace-view $(LIBTRACECMD_STATIC)
-	swig -Wall -python -noproxy -I$(src)/kernel-shark/include ctracecmdgui.i
-	$(CC) -fpic -c  $(CPPFLAGS) $(CFLAGS) $(INCLUDES) $(PYTHON_INCLUDES) $(PYGTK_CFLAGS) ctracecmdgui_wrap.c
-	$(CC) --shared $(TRACE_VIEW_OBJS) $(LIBTRACECMD_STATIC) $(LDFLAGS) $(LIBS) $(CONFIG_LIBS) ctracecmdgui_wrap.o -o ctracecmdgui.so
+ctracecmdgui.so: force $(LIBTRACECMD_STATIC) trace-view
+	$(Q)$(MAKE) -C $(src)/python $@
 
 PHONY += python
 python: $(PYTHON)
