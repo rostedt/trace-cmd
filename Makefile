@@ -3,6 +3,12 @@
 TC_VERSION = 2
 TC_PATCHLEVEL = 8
 TC_EXTRAVERSION = dev
+TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
+
+export TC_VERSION
+export TC_PATCHLEVEL
+export TC_EXTRAVERSION
+export TRACECMD_VERSION
 
 # file format version
 FILE_VERSION = 6
@@ -177,25 +183,14 @@ LIBTRACECMD_SHARED = $(LIBTRACECMD_DIR)/libtracecmd.so
 export LIBS
 export LIBTRACEEVENT_DIR LIBTRACECMD_DIR
 export LIBTRACECMD_STATIC LIBTRACECMD_SHARED
-
-CONFIG_INCLUDES = 
-CONFIG_LIBS	=
-CONFIG_FLAGS	=
-
-VERSION		= $(TC_VERSION)
-PATCHLEVEL	= $(TC_PATCHLEVEL)
-EXTRAVERSION	= $(TC_EXTRAVERSION)
-
-N		=
+export LIBTRACEEVENT_STATIC LIBTRACEEVENT_SHARED
 
 export Q VERBOSE EXT
 
 # Include the utils
 include scripts/utils.mk
 
-TRACECMD_VERSION = $(TC_VERSION).$(TC_PATCHLEVEL).$(TC_EXTRAVERSION)
-
-INCLUDES = -I$(src) -I $(src)/include -I $(srctree)/../../include $(CONFIG_INCLUDES)
+INCLUDES = -I$(src)/include -I$(src)/../../include
 INCLUDES += -I$(src)/include/traceevent
 INCLUDES += -I$(src)/include/trace-cmd
 INCLUDES += -I$(src)/lib/traceevent/include
@@ -244,27 +239,8 @@ endif
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 
-$(obj)/%.o: $(src)/%.c
-	$(Q)$(call do_compile)
 
-%.o: $(src)/%.c
-	$(Q)$(call do_compile)
-
-TRACE_CMD_OBJS = trace-cmd.o trace-record.o trace-read.o trace-split.o trace-listen.o \
-	 trace-stack.o trace-hist.o trace-mem.o trace-snapshot.o trace-stat.o \
-	 trace-profile.o trace-stream.o trace-record.o trace-restore.o \
-	 trace-check-events.o trace-show.o trace-list.o  \
-	 trace-output.o trace-usage.o trace-msg.o
-
-ALL_OBJS = $(TRACE_CMD_OBJS)
-
-CMD_TARGETS = tc_version.h trace-cmd $(BUILD_PYTHON)
-
-
-TARGETS = $(CMD_TARGETS)
-
-
-#	cpp $(INCLUDES)
+CMD_TARGETS = trace-cmd $(BUILD_PYTHON)
 
 ###
 #    Default we just build trace-cmd
@@ -280,10 +256,8 @@ gui: force $(CMD_TARGETS)
 	$(Q)$(MAKE) -C $(src)/kernel-shark; \
 	echo "gui build complete"
 
-trace-cmd: $(TRACE_CMD_OBJS)
-	$(Q)$(do_app_build)
-
-trace-cmd: $(LIBTRACECMD_STATIC) $(LIBTRACEEVENT_STATIC)
+trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
+	$(Q)$(MAKE) -C $(src)/tracecmd $@
 
 kernelshark: force $(CMD_TARGETS)
 	$(Q)$(MAKE) -C $(src)/kernel-shark $@
@@ -316,33 +290,11 @@ libs: $(LIBTRACECMD_SHARED) $(LIBTRACEEVENT_SHARED)
 plugins: force $(obj)/plugins/trace_plugin_dir $(obj)/plugins/trace_python_dir
 	$(Q)$(MAKE) -C $(src)/plugins
 
-tc_version.h: force
-	$(Q)$(N)$(call update_version.h)
-
 $(obj)/plugins/trace_plugin_dir: force
 	$(Q)$(MAKE) -C $(src)/plugins trace_plugin_dir
 
 $(obj)/plugins/trace_python_dir: force
 	$(Q)$(MAKE) -C $(src)/plugins trace_python_dir
-
-
-## make deps
-
-all_objs := $(sort $(ALL_OBJS))
-all_deps := $(all_objs:%.o=.%.d)
-
-$(all_deps): tc_version.h
-
-$(all_deps): .%.d: $(src)/%.c
-	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@;
-
-$(all_objs) : %.o : .%.d
-
-dep_includes := $(wildcard $(all_deps))
-
-ifneq ($(dep_includes),)
- include $(dep_includes)
-endif
 
 show_gui_make:
 	@echo "Note: to build the gui, type \"make gui\""
@@ -374,10 +326,10 @@ install_python: force
 	$(Q)$(MAKE) -C $(src)/python $@
 
 install_bash_completion: force
-	$(Q)$(call do_install_data,trace-cmd.bash,$(BASH_COMPLETE_DIR))
+	$(Q)$(call do_install_data,$(src)/tracecmd/trace-cmd.bash,$(BASH_COMPLETE_DIR))
 
 install_cmd: all_cmd install_plugins install_python install_bash_completion
-	$(Q)$(call do_install,trace-cmd,$(bindir_SQ))
+	$(Q)$(call do_install,$(obj)/tracecmd/trace-cmd,$(bindir_SQ))
 
 install: install_cmd
 	@echo "Note: to install the gui, type \"make install_gui\""
@@ -404,13 +356,14 @@ install_doc:
 	$(MAKE) -C $(src)/Documentation install
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so .*.d
+	$(RM) *.o *~ *.a *.so .*.d
 	$(RM) tags TAGS cscope*
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
 	$(MAKE) -C $(src)/kernel-shark clean
 	$(MAKE) -C $(src)/plugins clean
 	$(MAKE) -C $(src)/python clean
+	$(MAKE) -C $(src)/tracecmd clean
 
 
 ##### PYTHON STUFF #####
