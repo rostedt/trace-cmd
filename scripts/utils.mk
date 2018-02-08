@@ -3,13 +3,13 @@
 
 ifeq ($(BUILDGUI), 1)
   GUI		= 'GUI '
-  GOBJ		= $@
   GSPACE	=
 else
   GUI		=
   GSPACE	= "    "
-  GOBJ		= $(GSPACE)$@
 endif
+
+ GOBJ		= $(GSPACE)$(notdir $(strip $@))
 
 
 ifeq ($(VERBOSE),1)
@@ -81,22 +81,22 @@ define make_version.h
 endef
 
 define update_version.h
-	($(call make_version.h, $@.tmp);		\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then		\
-		rm -f $@.tmp;				\
-	else						\
-		echo '  UPDATE                 $@';	\
-		mv -f $@.tmp $@;			\
+	($(call make_version.h, $@.tmp);				\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then				\
+		rm -f $@.tmp;						\
+	else								\
+		echo '  UPDATE                 '$(notdir $(strip $@));	\
+		mv -f $@.tmp $@;					\
 	fi);
 endef
 
 define update_dir
 	(echo $1 > $@.tmp;	\
-	if [ -r $@ ] && cmp -s $@ $@.tmp; then		\
-		rm -f $@.tmp;				\
-	else						\
-		echo '  UPDATE                 $@';	\
-		mv -f $@.tmp $@;			\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then				\
+		rm -f $@.tmp;						\
+	else								\
+		echo '  UPDATE                 '$(notdir $(strip $@));	\
+		mv -f $@.tmp $@;					\
 	fi);
 endef
 
