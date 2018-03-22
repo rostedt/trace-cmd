@@ -373,10 +373,16 @@ report_nopythondev: force
 	$(Q)echo "    python-dev is not installed, not compiling python plugins"
 	$(Q)echo
 
+ifndef NO_PYTHON
 PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_VERS)`
 PYTHON_LDFLAGS = `pkg-config --libs $(PYTHON_VERS)` \
 		$(shell $(PYTHON_VERS)-config --ldflags)
 PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
+else
+PYTHON_INCLUDES =
+PYTHON_LDFLAGS =
+PYGTK_CFLAGS =
+endif
 
 export PYTHON_INCLUDES
 export PYTHON_LDFLAGS
