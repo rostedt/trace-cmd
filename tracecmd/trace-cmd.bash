@@ -9,14 +9,32 @@ show_instances()
    return 0
 }
 
+__show_files()
+{
+    COMPREPLY=( $(compgen -f -- "$cur") )
+    if [ ${#COMPREPLY[@]} -gt 1 ]; then
+	    return 0;
+    fi
+    # directories get '/' instead of space
+    DIRS=( $(compgen -d -- "$cur"))
+    if [ ${#DIRS[@]} -eq 1 ]; then
+	compopt -o nospace
+	COMPREPLY="$DIRS/"
+	return 0;
+    fi
+    return 0
+}
+
 cmd_options()
 {
     local type="$1"
     local cur="$2"
-    local flags="$3"
     local cmds=$(trace-cmd $type -h 2>/dev/null|grep "^ *-" | \
 				 sed -e 's/ *\(-[^ ]*\).*/\1/')
-    COMPREPLY=( $(compgen $flags -W "${cmds}" -- "${cur}") )
+    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
+    if [ ${#COMPREPLY[@]} -eq 0 ]; then
+	__show_files "$cur"
+    fi
 }
 
 plugin_options()
@@ -85,13 +103,13 @@ __trace_cmd_extract_complete()
 
     case "$prev" in
 	extract)
-	    cmd_options "$prev" "$cur" -f
+	    cmd_options "$prev" "$cur"
 	    ;;
 	-B)
 	    show_instances "$cur"
 	    ;;
 	*)
-	    COMPREPLY=( $(compgen -f -- "$cur") )
+	    __show_files
 	    ;;
     esac
 }
@@ -132,7 +150,7 @@ __trace_cmd_record_complete()
 	    ;;
         *)
 	    # stream start and profile do not show all options
-	    cmd_options record "$cur" -f
+	    cmd_options record "$cur"
 	    ;;
     esac
 }
@@ -149,7 +167,7 @@ __trace_cmd_report_complete()
 	    plugin_options "$cur"
 	    ;;
         *)
-	    cmd_options report "$cur" -f
+	    cmd_options report "$cur"
 	    ;;
     esac
 }
@@ -165,12 +183,11 @@ __show_command_options()
 	if [ $cmd == "$command" ]; then
 	    local opts=$(trace-cmd $cmd -h 2>/dev/null|grep "^ *-" | \
 				 sed -e 's/ *\(-[^ ]*\).*/\1/')
-            # By default, we list files
-	    COMPREPLY=( $(compgen -f -W "${opts}" -- "$cur") )
+	    COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
 	    return 0
 	fi
     done
-    COMPREPLY=( $(compgen -f -- "$cur") )
+    __show_files "$cur"
 }
 
 _trace_cmd_complete()
