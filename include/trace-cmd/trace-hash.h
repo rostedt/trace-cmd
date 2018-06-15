@@ -20,9 +20,6 @@
 #ifndef _TRACE_HASH_H
 #define _TRACE_HASH_H
 
-#include "trace-hash-local.h"
-#include "list.h"
-
 struct trace_hash_item {
 	struct trace_hash_item	*next;
 	struct trace_hash_item	*prev;

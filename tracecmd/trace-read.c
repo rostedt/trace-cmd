@@ -37,6 +37,7 @@
 
 #include "trace-local.h"
 #include "trace-hash.h"
+#include "trace-hash-local.h"
 #include "kbuffer.h"
 #include "list.h"
 

@@ -28,6 +28,8 @@
 #endif
 #include "trace-local.h"
 #include "trace-hash.h"
+#include "trace-hash-local.h"
+#include "list.h"
 
 #include <linux/time64.h>
 

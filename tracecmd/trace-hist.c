@@ -28,6 +28,7 @@
 #include <getopt.h>
 #include <signal.h>
 
+#include "trace-hash-local.h"
 #include "trace-local.h"
 #include "list.h"
 
