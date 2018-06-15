@@ -21,15 +21,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include "trace-filter-hash.h"
 
 #define FILTER_TASK_HASH_SIZE	256
 
 struct filter_task_item *
-filter_task_find_pid(struct filter_task *hash, gint pid)
+filter_task_find_pid(struct filter_task *hash, int pid)
 {
-	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
+	int key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
 	struct filter_task_item *task = hash->hash[key];
 
 	while (task) {
@@ -40,13 +41,13 @@ filter_task_find_pid(struct filter_task *hash, gint pid)
 	return task;
 }
 
-void filter_task_add_pid(struct filter_task *hash, gint pid)
+void filter_task_add_pid(struct filter_task *hash, int pid)
 {
-	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
+	int key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
 	struct filter_task_item *task;
 
-	task = g_new0(typeof(*task), 1);
-	g_assert(task);
+	task = calloc(1, sizeof(*task));
+	assert(task);
 
 	task->pid = pid;
 	task->next = hash->hash[key];
@@ -55,9 +56,9 @@ void filter_task_add_pid(struct filter_task *hash, gint pid)
 	hash->count++;
 }
 
-void filter_task_remove_pid(struct filter_task *hash, gint pid)
+void filter_task_remove_pid(struct filter_task *hash, int pid)
 {
-	gint key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
+	int key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
 	struct filter_task_item **next = &hash->hash[key];
 	struct filter_task_item *task;
 
@@ -69,20 +70,20 @@ void filter_task_remove_pid(struct filter_task *hash, gint pid)
 	if (!*next)
 		return;
 
-	g_assert(hash->count);
+	assert(hash->count);
 	hash->count--;
 
 	task = *next;
 
 	*next = task->next;
 
-	g_free(task);
+	free(task);
 }
 
 void filter_task_clear(struct filter_task *hash)
 {
 	struct filter_task_item *task, *next;;
-	gint i;
+	int i;
 
 	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
 		next = hash->hash[i];
@@ -93,7 +94,7 @@ void filter_task_clear(struct filter_task *hash)
 		while (next) {
 			task = next;
 			next = task->next;
-			g_free(task);
+			free(task);
 		}
 	}
 
@@ -104,9 +105,10 @@ struct filter_task *filter_task_hash_alloc(void)
 {
 	struct filter_task *hash;
 
-	hash = g_new0(typeof(*hash), 1);
-	g_assert(hash);
-	hash->hash = g_new0(typeof(*hash->hash), FILTER_TASK_HASH_SIZE);
+	hash = calloc(1, sizeof(*hash));
+	assert(hash);
+	hash->hash = calloc(FILTER_TASK_HASH_SIZE, sizeof(*hash->hash));
+	hash->count = 0;
 
 	return hash;
 }
@@ -117,21 +119,21 @@ void filter_task_hash_free(struct filter_task *hash)
 		return;
 
 	filter_task_clear(hash);
-	g_free(hash->hash);
-	g_free(hash);
+	free(hash->hash);
+	free(hash);
 }
 
 struct filter_task *filter_task_hash_copy(struct filter_task *hash)
 {
 	struct filter_task *new_hash;
 	struct filter_task_item *task, **ptask;
-	gint i;
+	int i;
 
 	if (!hash)
 		return NULL;
 
 	new_hash = filter_task_hash_alloc();
-	g_assert(new_hash);
+	assert(new_hash);
 
 	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
 		task = hash->hash[i];
@@ -141,9 +143,8 @@ struct filter_task *filter_task_hash_copy(struct filter_task *hash)
 		ptask = &new_hash->hash[i];
 
 		while (task) {
-
-			*ptask = g_new0(typeof(*task), 1);
-			g_assert(*ptask);
+			*ptask = calloc(1, sizeof(*ptask));
+			assert(*ptask);
 			**ptask = *task;
 
 			ptask = &(*ptask)->next;
