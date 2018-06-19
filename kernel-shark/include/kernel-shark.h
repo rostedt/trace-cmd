@@ -48,8 +48,8 @@ struct shark_info {
 	gboolean			graph_follows;
 	gboolean			sync_task_filters;
 	gboolean			sync_event_filters;
-	struct filter_task		*list_task_filter;
-	struct filter_task		*list_hide_tasks;
+	struct filter_id		*list_task_filter;
+	struct filter_id		*list_hide_tasks;
 
 	/* Save capture state. */
 	gboolean			cap_all_events;

@@ -34,8 +34,8 @@ void trace_view_reload(GtkWidget *view, struct tracecmd_input *handle,
 void trace_view(int argc, char **argv);
 
 void trace_view_update_filters(GtkWidget *treeview,
-			       struct filter_task *task_filter,
-			       struct filter_task *hide_tasks);
+			       struct filter_id *task_filter,
+			       struct filter_id *hide_tasks);
 
 void trace_view_make_selection_visible(GtkWidget *treeview);
 

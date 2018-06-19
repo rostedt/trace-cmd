@@ -117,8 +117,8 @@ struct trace_view_store
 	gint			all_events; /* set 1 when all events are enabled */
 						/* else */
 	struct event_filter	*event_filter; /* Filtered events */
-	struct filter_task	*task_filter;	/* hash of tasks to filter on */
-	struct filter_task	*hide_tasks;	/* hash of tasks to not display */
+	struct filter_id	*task_filter;	/* hash of tasks to filter on */
+	struct filter_id	*hide_tasks;	/* hash of tasks to not display */
 
 	gint			all_cpus;   /* set 1 when all cpus are enabled */
 						/* else */
@@ -141,13 +141,13 @@ gint trace_view_store_get_timestamp_page(TraceViewStore *store, guint64 ts);
 
 gint trace_view_store_get_timestamp_visible_row(TraceViewStore *store, guint64 ts);
 
-void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter);
+void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_id *filter);
 
-void trace_view_store_hide_tasks(TraceViewStore *store, struct filter_task *filter);
+void trace_view_store_hide_tasks(TraceViewStore *store, struct filter_id *filter);
 
 void trace_view_store_assign_filters(TraceViewStore *store,
-				     struct filter_task *task_filter,
-				     struct filter_task *hide_tasks);
+				     struct filter_id *task_filter,
+				     struct filter_id *hide_tasks);
 
 TraceViewRecord *trace_view_store_get_row(TraceViewStore *store, gint row);
 

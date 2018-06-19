@@ -25,174 +25,175 @@
 
 #include "trace-filter-hash.h"
 
-#define FILTER_TASK_HASH_SIZE	256
+#define FILTER_HASH_SIZE	256
 
-struct filter_task_item *
-filter_task_find_pid(struct filter_task *hash, int pid)
+struct filter_id_item *
+filter_id_find(struct filter_id *hash, int id)
 {
-	int key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
-	struct filter_task_item *task = hash->hash[key];
+	int key = trace_hash(id) % FILTER_HASH_SIZE;
+	struct filter_id_item *item = hash->hash[key];
 
-	while (task) {
-		if (task->pid == pid)
+	while (item) {
+		if (item->id == id)
 			break;
-		task = task->next;
+		item = item->next;
 	}
-	return task;
+
+	return item;
 }
 
-void filter_task_add_pid(struct filter_task *hash, int pid)
+void filter_id_add(struct filter_id *hash, int id)
 {
-	int key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
-	struct filter_task_item *task;
+	int key = trace_hash(id) % FILTER_HASH_SIZE;
+	struct filter_id_item *item;
 
-	task = calloc(1, sizeof(*task));
-	assert(task);
+	item = calloc(1, sizeof(*item));
+	assert(item);
 
-	task->pid = pid;
-	task->next = hash->hash[key];
-	hash->hash[key] = task;
+	item->id = id;
+	item->next = hash->hash[key];
+	hash->hash[key] = item;
 
 	hash->count++;
 }
 
-void filter_task_remove_pid(struct filter_task *hash, int pid)
+void filter_id_remove(struct filter_id *hash, int id)
 {
-	int key = trace_hash(pid) % FILTER_TASK_HASH_SIZE;
-	struct filter_task_item **next = &hash->hash[key];
-	struct filter_task_item *task;
+	int key = trace_hash(id) % FILTER_HASH_SIZE;
+	struct filter_id_item **next = &hash->hash[key];
+	struct filter_id_item *item;
 
 	while (*next) {
-		if ((*next)->pid == pid)
+		if ((*next)->id == id)
 			break;
 		next = &(*next)->next;
 	}
+
 	if (!*next)
 		return;
 
 	assert(hash->count);
 	hash->count--;
 
-	task = *next;
+	item = *next;
 
-	*next = task->next;
+	*next = item->next;
 
-	free(task);
+	free(item);
 }
 
-void filter_task_clear(struct filter_task *hash)
+void filter_id_clear(struct filter_id *hash)
 {
-	struct filter_task_item *task, *next;;
+	struct filter_id_item *item, *next;
 	int i;
 
-	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
+	for (i = 0; i < FILTER_HASH_SIZE; i++) {
 		next = hash->hash[i];
 		if (!next)
 			continue;
 
 		hash->hash[i] = NULL;
 		while (next) {
-			task = next;
-			next = task->next;
-			free(task);
+			item = next;
+			next = item->next;
+			free(item);
 		}
 	}
 
 	hash->count = 0;
 }
 
-struct filter_task *filter_task_hash_alloc(void)
+struct filter_id *filter_id_hash_alloc(void)
 {
-	struct filter_task *hash;
+	struct filter_id *hash;
 
 	hash = calloc(1, sizeof(*hash));
 	assert(hash);
-	hash->hash = calloc(FILTER_TASK_HASH_SIZE, sizeof(*hash->hash));
+	hash->hash = calloc(FILTER_HASH_SIZE, sizeof(*hash->hash));
 	hash->count = 0;
 
 	return hash;
 }
 
-void filter_task_hash_free(struct filter_task *hash)
+void filter_id_hash_free(struct filter_id *hash)
 {
 	if (!hash)
 		return;
 
-	filter_task_clear(hash);
+	filter_id_clear(hash);
 	free(hash->hash);
 	free(hash);
 }
 
-struct filter_task *filter_task_hash_copy(struct filter_task *hash)
+struct filter_id *filter_id_hash_copy(struct filter_id *hash)
 {
-	struct filter_task *new_hash;
-	struct filter_task_item *task, **ptask;
+	struct filter_id *new_hash;
+	struct filter_id_item *item, **pitem;
 	int i;
 
 	if (!hash)
 		return NULL;
 
-	new_hash = filter_task_hash_alloc();
+	new_hash = filter_id_hash_alloc();
 	assert(new_hash);
 
-	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
-		task = hash->hash[i];
-		if (!task)
+	for (i = 0; i < FILTER_HASH_SIZE; i++) {
+		item = hash->hash[i];
+		if (!item)
 			continue;
 
-		ptask = &new_hash->hash[i];
+		pitem = &new_hash->hash[i];
 
-		while (task) {
-			*ptask = calloc(1, sizeof(*ptask));
-			assert(*ptask);
-			**ptask = *task;
+		while (item) {
+			*pitem = calloc(1, sizeof(*item));
+			assert(*pitem);
+			**pitem = *item;
 
-			ptask = &(*ptask)->next;
-			task = task->next;
+			pitem = &(*pitem)->next;
+			item = item->next;
 		}
 	}
 
 	new_hash->count = hash->count;
-
 	return new_hash;
 }
 
-int *filter_task_pids(struct filter_task *hash)
+int *filter_ids(struct filter_id *hash)
 {
-	struct filter_task_item *task;
-	int *pids;
+	struct filter_id_item *item;
+	int *ids;
 	int count = 0;
 	int i;
 
 	if (!hash->count)
 		return NULL;
 
-	pids = malloc(sizeof(*pids) * (hash->count + 1));
-	if (!pids)
+	ids = malloc(sizeof(*ids) * (hash->count + 1));
+	if (!ids)
 		return NULL;
 
-	for (i = 0; i < FILTER_TASK_HASH_SIZE; i++) {
-		task = hash->hash[i];
-		while (task) {
-			pids[count++] = task->pid;
-			task = task->next;
+	for (i = 0; i < FILTER_HASH_SIZE; i++) {
+		item = hash->hash[i];
+		while (item) {
+			ids[count++] = item->id;
+			item = item->next;
 		}
 	}
-	pids[count] = -1;
 
-	return pids;
+	ids[count] = -1;
+	return ids;
 }
 
 /**
- * filter_task_compare - compare two task hashs to see if they are equal
+ * filter_id_compare - compare two id hashes to see if they are equal
  * @hash1: one hash to compare
  * @hash2: another hash to compare to @hash1
  *
  * Returns 1 if the two hashes are the same, 0 otherwise.
  */
-int filter_task_compare(struct filter_task *hash1, struct filter_task *hash2)
+int filter_id_compare(struct filter_id *hash1, struct filter_id *hash2)
 {
-	int *pids;
+	int *ids;
 	int ret = 0;
 	int i;
 
@@ -205,16 +206,16 @@ int filter_task_compare(struct filter_task *hash1, struct filter_task *hash2)
 		return 1;
 
 	/* Now compare the pids of one hash with the other */
-	pids = filter_task_pids(hash1);
-	for (i = 0; pids[i] >= 0; i++) {
-		if (!filter_task_find_pid(hash2, pids[i]))
+	ids = filter_ids(hash1);
+	for (i = 0; ids[i] >= 0; i++) {
+		if (!filter_id_find(hash2, ids[i]))
 			break;
 	}
 
-	if (pids[i] == -1)
+	if (ids[i] == -1)
 		ret = 1;
 
-	free(pids);
+	free(ids);
 
 	return ret;
 }

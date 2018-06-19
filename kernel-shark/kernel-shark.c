@@ -137,8 +137,8 @@ static int trace_sync_select_menu(const gchar *title,
 }
 
 static void update_tree_view_filters(struct shark_info *info,
-				     struct filter_task *task_filter,
-				     struct filter_task *hide_tasks)
+				     struct filter_id *task_filter,
+				     struct filter_id *hide_tasks)
 {
 	if (info->list_filter_enabled)
 		trace_view_update_filters(info->treeview,
@@ -193,8 +193,8 @@ static void ks_graph_select(struct graph_info *ginfo, guint64 cursor)
 }
 
 static void ks_graph_filter(struct graph_info *ginfo,
-			    struct filter_task *task_filter,
-			    struct filter_task *hide_tasks)
+			    struct filter_id *task_filter,
+			    struct filter_id *hide_tasks)
 {
 	struct graph_callbacks *cbs;
 	struct shark_info *info;
@@ -213,8 +213,8 @@ static void free_info(struct shark_info *info)
 	tracecmd_close(info->handle);
 	trace_graph_free_info(info->ginfo);
 
-	filter_task_hash_free(info->list_task_filter);
-	filter_task_hash_free(info->list_hide_tasks);
+	filter_id_hash_free(info->list_task_filter);
+	filter_id_hash_free(info->list_hide_tasks);
 
 	kernel_shark_clear_capture(info);
 
@@ -253,8 +253,8 @@ static void unsync_task_filters(struct shark_info *info)
 	gtk_widget_show(info->list_hide_task_menu);
 
 	/* The list now uses its own hash */
-	info->list_task_filter = filter_task_hash_copy(info->ginfo->task_filter);
-	info->list_hide_tasks = filter_task_hash_copy(info->ginfo->hide_tasks);
+	info->list_task_filter = filter_id_hash_copy(info->ginfo->task_filter);
+	info->list_hide_tasks = filter_id_hash_copy(info->ginfo->hide_tasks);
 }
 
 static void sync_task_filters(struct shark_info *info)
@@ -407,8 +407,8 @@ static void load_filter(struct shark_info *info, const char *filename)
 	GtkTreeModel *model;
 	TraceViewStore *store;
 	struct tracecmd_xml_handle *handle;
-	struct filter_task *task_filter;
-	struct filter_task *hide_tasks;
+	struct filter_id *task_filter;
+	struct filter_id *hide_tasks;
 	struct event_filter *event_filter;
 	int ret;
 
@@ -427,8 +427,8 @@ static void load_filter(struct shark_info *info, const char *filename)
 	ret = tracecmd_xml_system_exists(handle,
 					 "GraphTaskFilter");
 	if (ret) {
-		filter_task_clear(ginfo->task_filter);
-		filter_task_clear(ginfo->hide_tasks);
+		filter_id_clear(ginfo->task_filter);
+		filter_id_clear(ginfo->hide_tasks);
 
 		trace_filter_load_filters(handle,
 					  "GraphTaskFilter",
@@ -442,8 +442,8 @@ static void load_filter(struct shark_info *info, const char *filename)
 	if (ret) {
 		task_filter = info->list_task_filter;
 		hide_tasks = info->list_hide_tasks;
-		filter_task_clear(task_filter);
-		filter_task_clear(hide_tasks);
+		filter_id_clear(task_filter);
+		filter_id_clear(hide_tasks);
 
 		trace_filter_load_filters(handle,
 					  "ListTaskFilter",
@@ -461,9 +461,9 @@ static void load_filter(struct shark_info *info, const char *filename)
 	 * If the events or tasks filters are the same for both
 	 * the list and graph, then sync them back.
 	 */
-	if (filter_task_compare(ginfo->task_filter,
+	if (filter_id_compare(ginfo->task_filter,
 				info->list_task_filter) &&
-	    filter_task_compare(ginfo->hide_tasks,
+	    filter_id_compare(ginfo->hide_tasks,
 				info->list_hide_tasks))
 		sync_task_filters(info);
 
@@ -516,8 +516,8 @@ static void save_filters(struct shark_info *info, const char *filename)
 	struct graph_info *ginfo = info->ginfo;
 	struct tracecmd_xml_handle *handle;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
-	struct filter_task *task_filter;
-	struct filter_task *hide_tasks;
+	struct filter_id *task_filter;
+	struct filter_id *hide_tasks;
 
 	handle = tracecmd_xml_create(filename, VERSION_STRING);
 	if (!handle) {
@@ -748,8 +748,8 @@ static void
 sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 {
 	struct shark_info *info = data;
-	struct filter_task *task_filter;
-	struct filter_task *hide_tasks;
+	struct filter_id *task_filter;
+	struct filter_id *hide_tasks;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	gboolean keep;
@@ -770,9 +770,9 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 		return;
 
 	/* If they are already equal, then just perminently sync them */
-	if (filter_task_compare(info->ginfo->task_filter,
+	if (filter_id_compare(info->ginfo->task_filter,
 				info->list_task_filter) &&
-	    filter_task_compare(info->ginfo->hide_tasks,
+	    filter_id_compare(info->ginfo->hide_tasks,
 				info->list_hide_tasks))
 		result = 2;
 
@@ -784,8 +784,8 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 	switch (result) {
 	case 0:
 		/* Sync List Filter with Graph Filter */
-		filter_task_hash_free(info->list_task_filter);
-		filter_task_hash_free(info->list_hide_tasks);
+		filter_id_hash_free(info->list_task_filter);
+		filter_id_hash_free(info->list_hide_tasks);
 
 		info->list_task_filter = NULL;
 		info->list_hide_tasks = NULL;
@@ -794,8 +794,8 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 		hide_tasks = info->ginfo->hide_tasks;
 
 		if (!keep) {
-			info->list_task_filter = filter_task_hash_copy(task_filter);
-			info->list_hide_tasks = filter_task_hash_copy(hide_tasks);
+			info->list_task_filter = filter_id_hash_copy(task_filter);
+			info->list_hide_tasks = filter_id_hash_copy(hide_tasks);
 		}
 
 		update_tree_view_filters(info, task_filter, hide_tasks);
@@ -808,8 +808,8 @@ sync_task_filter_clicked (GtkWidget *subitem, gpointer data)
 					   info->list_hide_tasks);
 
 		if (keep) {
-			filter_task_hash_free(info->list_task_filter);
-			filter_task_hash_free(info->list_hide_tasks);
+			filter_id_hash_free(info->list_task_filter);
+			filter_id_hash_free(info->list_hide_tasks);
 
 			info->list_task_filter = NULL;
 			info->list_hide_tasks = NULL;
@@ -896,7 +896,7 @@ static void
 __update_list_task_filter_callback(struct shark_info *info,
 				   gboolean accept,
 				   gint *selected,
-				   struct filter_task *task_filter)
+				   struct filter_id *task_filter)
 {
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
@@ -909,11 +909,11 @@ __update_list_task_filter_callback(struct shark_info *info,
 	if (!model)
 		return;
 
-	filter_task_clear(task_filter);
+	filter_id_clear(task_filter);
 
 	if (selected) {
 		for (i = 0; selected[i] >= 0; i++)
-			filter_task_add_pid(task_filter, selected[i]);
+			filter_id_add(task_filter, selected[i]);
 	}
 
 	update_tree_view_filters(info, info->list_task_filter, info->list_hide_tasks);
@@ -952,7 +952,7 @@ update_list_hide_task_filter_callback(gboolean accept,
 /* Callback for the clicked signal of the List Tasks filter button */
 static void
 __list_tasks_clicked (struct shark_info *info,
-		      struct filter_task *task_filter,
+		      struct filter_id *task_filter,
 		      trace_task_cb_func func)
 {
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
@@ -969,7 +969,7 @@ __list_tasks_clicked (struct shark_info *info,
 		return;
 
 	tasks = trace_graph_task_list(ginfo);
-	selected = filter_task_pids(task_filter);
+	selected = filter_ids(task_filter);
 
 	trace_task_dialog(info->handle, tasks, selected, func, info);
 
@@ -999,7 +999,7 @@ static void
 __update_graph_task_filter_callback(struct shark_info *info,
 				  gboolean accept,
 				  gint *selected,
-				  struct filter_task *task_filter)
+				  struct filter_id *task_filter)
 {
 	struct graph_info *ginfo = info->ginfo;
 	int i;
@@ -1007,11 +1007,11 @@ __update_graph_task_filter_callback(struct shark_info *info,
 	if (!accept)
 		return;
 
-	filter_task_clear(task_filter);
+	filter_id_clear(task_filter);
 
 	if (selected) {
 		for (i = 0; selected[i] >= 0; i++)
-			filter_task_add_pid(task_filter, selected[i]);
+			filter_id_add(task_filter, selected[i]);
 	}
 
 	trace_graph_refresh_filters(ginfo);
@@ -1057,7 +1057,7 @@ update_graph_hide_task_filter_callback(gboolean accept,
 /* Callback for the clicked signal of the Tasks filter button */
 static void
 __graph_tasks_clicked (struct shark_info *info,
-		       struct filter_task *task_filter,
+		       struct filter_id *task_filter,
 		       trace_task_cb_func func)
 {
 	struct graph_info *ginfo = info->ginfo;
@@ -1068,7 +1068,7 @@ __graph_tasks_clicked (struct shark_info *info,
 		return;
 
 	tasks = trace_graph_task_list(ginfo);
-	selected = filter_task_pids(task_filter);
+	selected = filter_ids(task_filter);
 
 	trace_task_dialog(ginfo->handle, tasks, selected, func, info);
 
@@ -1369,8 +1369,8 @@ static void
 filter_list_enable_clicked (gpointer data)
 {
 	struct shark_info *info = data;
-	struct filter_task *task_filter;
-	struct filter_task *hide_tasks;
+	struct filter_id *task_filter;
+	struct filter_id *hide_tasks;
 
 	info->list_filter_enabled ^= 1;
 
@@ -1391,22 +1391,22 @@ filter_list_enable_clicked (gpointer data)
 
 static void
 filter_update_list_filter(struct shark_info *info,
-			  struct filter_task *filter,
-			  struct filter_task *other_filter)
+			  struct filter_id *filter,
+			  struct filter_id *other_filter)
 {
-	struct filter_task_item *task;
+	struct filter_id_item *task;
 	int pid = info->selected_task;
 
-	task = filter_task_find_pid(filter, pid);
+	task = filter_id_find(filter, pid);
 	if (task) {
-		filter_task_remove_pid(filter, pid);
+		filter_id_remove(filter, pid);
 		if (!filter_task_count(filter) &&
 		    !filter_task_count(other_filter)) {
 			info->list_filter_enabled = 0;
 			info->list_filter_available = 0;
 		}
 	} else {
-		filter_task_add_pid(filter, pid);
+		filter_id_add(filter, pid);
 		info->list_filter_available = 1;
 	}
 }
@@ -1511,8 +1511,8 @@ filter_clear_tasks_clicked (gpointer data)
 		return;
 	}
 
-	filter_task_clear(info->list_task_filter);
-	filter_task_clear(info->list_hide_tasks);
+	filter_id_clear(info->list_task_filter);
+	filter_id_clear(info->list_hide_tasks);
 	trace_view_update_filters(info->treeview, NULL, NULL);
 
 	info->list_filter_available = 0;
@@ -1686,14 +1686,14 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 				gtk_widget_hide(menu_filter_graph_hide_task);
 
 			} else {
-				if (filter_task_find_pid(info->list_task_filter, pid))
+				if (filter_id_find(info->list_task_filter, pid))
 					set_menu_label(menu_filter_add_task, comm, pid,
 						       "Remove %s-%d from List filter");
 				else
 					set_menu_label(menu_filter_add_task, comm, pid,
 						       "Add %s-%d to List filter");
 
-				if (filter_task_find_pid(info->list_hide_tasks, pid))
+				if (filter_id_find(info->list_hide_tasks, pid))
 					set_menu_label(menu_filter_hide_task, comm, pid,
 						       "Show %s-%d in List");
 				else

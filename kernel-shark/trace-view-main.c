@@ -49,8 +49,8 @@ struct trace_tree_info {
 	GtkWidget		*spin;
 	gint			filter_enabled;
 	gint			filter_task_selected;
-	struct filter_task	*task_filter;
-	struct filter_task	*hide_tasks;
+	struct filter_id	*task_filter;
+	struct filter_id	*hide_tasks;
 };
 
 void usage(char *prog)
@@ -243,17 +243,17 @@ filter_list_clicked (gpointer data)
 }
 
 static void update_task_filter(struct trace_tree_info *info,
-			       struct filter_task *filter)
+			       struct filter_id *filter)
 {
-	struct filter_task_item *task;
+	struct filter_id_item *task;
 	gint pid = info->filter_task_selected;
 
-	task = filter_task_find_pid(filter, pid);
+	task = filter_id_find(filter, pid);
 
 	if (task)
-		filter_task_remove_pid(filter, pid);
+		filter_id_remove(filter, pid);
 	else
-		filter_task_add_pid(filter, pid);
+		filter_id_add(filter, pid);
 
 	if (info->filter_enabled)
 		trace_view_update_filters(info->trace_tree,
@@ -399,7 +399,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 			text = g_malloc(len);
 			g_assert(text);
 
-			if (filter_task_find_pid(info->task_filter, pid))
+			if (filter_id_find(info->task_filter, pid))
 				snprintf(text, len, "Remove %s-%d from filter", comm, pid);
 			else
 				snprintf(text, len, "Add %s-%d to filter", comm, pid);
@@ -409,7 +409,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 			gtk_menu_item_set_label(GTK_MENU_ITEM(menu_filter_add_task),
 						text);
 
-			if (filter_task_find_pid(info->hide_tasks, pid))
+			if (filter_id_find(info->hide_tasks, pid))
 				snprintf(text, len, "Show %s-%d", comm, pid);
 			else
 				snprintf(text, len, "Hide %s-%d", comm, pid);
@@ -519,8 +519,8 @@ void trace_view(int argc, char **argv)
 
 	memset(&tree_info, 0, sizeof(tree_info));
 	tree_info.handle = handle;
-	tree_info.task_filter = filter_task_hash_alloc();
-	tree_info.hide_tasks = filter_task_hash_alloc();
+	tree_info.task_filter = filter_id_hash_alloc();
+	tree_info.hide_tasks = filter_id_hash_alloc();
 
 	/* --- Main window --- */
 

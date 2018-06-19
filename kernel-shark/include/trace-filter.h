@@ -146,21 +146,21 @@ void trace_array_add(gint **array, gint *count, gint val);
 int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 			     struct event_filter *filter);
 int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
-			    struct filter_task *filter);
+			    struct filter_id *filter);
 int trace_filter_load_events(struct event_filter *event_filter,
 			     struct tracecmd_xml_handle *handle,
 			     struct tracecmd_xml_system_node *node);
-int trace_filter_load_task_filter(struct filter_task *filter,
+int trace_filter_load_task_filter(struct filter_id *filter,
 				  struct tracecmd_xml_handle *handle,
 				  struct tracecmd_xml_system_node *node);
 int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
 			      const char *system_name,
-			      struct filter_task *task_filter,
-			      struct filter_task *hide_tasks);
+			      struct filter_id *task_filter,
+			      struct filter_id *hide_tasks);
 int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
 			      const char *system_name,
-			      struct filter_task *task_filter,
-			      struct filter_task *hide_tasks);
+			      struct filter_id *task_filter,
+			      struct filter_id *hide_tasks);
 
 GtkWidget *trace_create_event_list_view(struct pevent *pevent,
 					struct event_filter *filter,

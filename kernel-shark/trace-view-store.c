@@ -231,7 +231,7 @@ trace_view_store_finalize (GObject *object)
 	g_free(store->rows);
 	g_free(store->cpu_items);
 
-	filter_task_hash_free(store->task_filter);
+	filter_id_hash_free(store->task_filter);
 
 	if (store->spin) {
 		g_object_unref(store->spin);
@@ -1184,10 +1184,10 @@ static gboolean view_task(TraceViewStore *store, gint pid)
 {
 	return (!store->task_filter ||
 		!filter_task_count(store->task_filter) ||
-		filter_task_find_pid(store->task_filter, pid)) &&
+		filter_id_find(store->task_filter, pid)) &&
 		(!store->hide_tasks ||
 		 !filter_task_count(store->hide_tasks) ||
-		 !filter_task_find_pid(store->hide_tasks, pid));
+		 !filter_id_find(store->hide_tasks, pid));
 }
 
 static gboolean show_task(TraceViewStore *store, struct pevent *pevent,
@@ -1295,30 +1295,30 @@ static void update_filter_tasks(TraceViewStore *store)
 	merge_sort_rows_ts(store);
 }
 
-void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_task *filter)
+void trace_view_store_filter_tasks(TraceViewStore *store, struct filter_id *filter)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 
 	/* We may pass in the store->task_filter. Don't free it if we do */
 	if (store->task_filter && store->task_filter != filter)
-		filter_task_hash_free(store->task_filter);
+		filter_id_hash_free(store->task_filter);
 
 	if (store->task_filter != filter)
-		store->task_filter = filter_task_hash_copy(filter);
+		store->task_filter = filter_id_hash_copy(filter);
 
 	update_filter_tasks(store);
 }
 
-void trace_view_store_hide_tasks(TraceViewStore *store, struct filter_task *filter)
+void trace_view_store_hide_tasks(TraceViewStore *store, struct filter_id *filter)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 
 	/* We may pass in the store->task_filter. Don't free it if we do */
 	if (store->hide_tasks && store->hide_tasks != filter)
-		filter_task_hash_free(store->hide_tasks);
+		filter_id_hash_free(store->hide_tasks);
 
 	if (store->hide_tasks != filter)
-		store->hide_tasks = filter_task_hash_copy(filter);
+		store->hide_tasks = filter_id_hash_copy(filter);
 
 	update_filter_tasks(store);
 }
@@ -1331,23 +1331,23 @@ void trace_view_store_update_filter(TraceViewStore *store)
 }
 
 void trace_view_store_assign_filters(TraceViewStore *store,
-				     struct filter_task *task_filter,
-				     struct filter_task *hide_tasks)
+				     struct filter_id *task_filter,
+				     struct filter_id *hide_tasks)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 
 	/* We may pass in the store->task_filter. Don't free it if we do */
 	if (store->task_filter && store->task_filter != task_filter)
-		filter_task_hash_free(store->task_filter);
+		filter_id_hash_free(store->task_filter);
 
 	if (store->hide_tasks && store->hide_tasks != hide_tasks)
-		filter_task_hash_free(store->hide_tasks);
+		filter_id_hash_free(store->hide_tasks);
 
 	if (store->hide_tasks != hide_tasks)
-		store->hide_tasks = filter_task_hash_copy(hide_tasks);
+		store->hide_tasks = filter_id_hash_copy(hide_tasks);
 
 	if (store->task_filter != task_filter)
-		store->task_filter = filter_task_hash_copy(task_filter);
+		store->task_filter = filter_id_hash_copy(task_filter);
 }
 
 /*****************************************************************************
