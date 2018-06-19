@@ -33,6 +33,7 @@
 #include "trace-graph.h"
 #include "trace-filter-hash.h"
 #include "trace-filter.h"
+#include "trace-hash-local.h"
 #include "trace-gui.h"
 
 #include "event-utils.h"

@@ -21,6 +21,7 @@
 #include <string.h>
 #include "trace-graph.h"
 #include "trace-local.h"
+#include "trace-hash-local.h"
 
 void trace_graph_plot_free(struct graph_info *ginfo)
 {

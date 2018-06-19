@@ -30,7 +30,7 @@
 struct filter_id_item *
 filter_id_find(struct filter_id *hash, int id)
 {
-	int key = trace_hash(id) % FILTER_HASH_SIZE;
+	int key = knuth_hash8(id);
 	struct filter_id_item *item = hash->hash[key];
 
 	while (item) {
@@ -44,7 +44,7 @@ filter_id_find(struct filter_id *hash, int id)
 
 void filter_id_add(struct filter_id *hash, int id)
 {
-	int key = trace_hash(id) % FILTER_HASH_SIZE;
+	int key = knuth_hash8(id);
 	struct filter_id_item *item;
 
 	item = calloc(1, sizeof(*item));
@@ -59,7 +59,7 @@ void filter_id_add(struct filter_id *hash, int id)
 
 void filter_id_remove(struct filter_id *hash, int id)
 {
-	int key = trace_hash(id) % FILTER_HASH_SIZE;
+	int key = knuth_hash8(id);
 	struct filter_id_item **next = &hash->hash[key];
 	struct filter_id_item *item;
 
