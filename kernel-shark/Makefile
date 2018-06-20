@@ -27,7 +27,7 @@ KS_VERSION := $(bdir)/include/ks_version.h
 
 GUI_TARGETS = $(KS_VERSION) $(bdir)/trace-graph $(bdir)/trace-view $(bdir)/kernelshark
 
-TRACE_GUI_OBJS = trace-filter.o trace-compat.o trace-filter-hash.o \
+TRACE_GUI_OBJS = trace-filter.o trace-compat.o \
 		 trace-dialog.o trace-xml.o
 TRACE_VIEW_OBJS = trace-view.o trace-view-store.o
 TRACE_GRAPH_OBJS = trace-graph.o trace-plot.o trace-plot-cpu.o trace-plot-task.o

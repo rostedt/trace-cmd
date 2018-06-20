@@ -12,6 +12,7 @@ OBJS += trace-hooks.o
 OBJS += trace-input.o
 OBJS += trace-recorder.o
 OBJS += trace-util.o
+OBJS += trace-filter-hash.o
 
 # Additional util objects
 OBJS += trace-blk-hack.o
