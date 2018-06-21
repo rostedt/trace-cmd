@@ -29,8 +29,8 @@ struct graph_info;
 
 typedef void (graph_select_cb)(struct graph_info *ginfo, guint64 time);
 typedef void (graph_filter_cb)(struct graph_info *ginfo,
-			       struct filter_id *task_filter,
-			       struct filter_id *hide_tasks);
+			       struct tracecmd_filter_id *task_filter,
+			       struct tracecmd_filter_id *hide_tasks);
 
 /* Used for quereing what plots are defined */
 enum graph_plot_type {
@@ -248,10 +248,10 @@ struct graph_info {
 
 	gboolean		read_comms;	/* Read all comms on first load */
 
-	struct filter_id	*task_filter;
+	struct tracecmd_filter_id *task_filter;
 	gint			filter_task_selected;
 
-	struct filter_id	*hide_tasks;
+	struct tracecmd_filter_id *hide_tasks;
 
 	/* Box info for plot data info window */
 	gint			plot_data_x;
@@ -296,9 +296,9 @@ static inline GtkWidget *trace_graph_get_window(struct graph_info *ginfo)
 
 void trace_graph_refresh(struct graph_info *ginfo);
 
-struct filter_id_item *
+struct tracecmd_filter_id_item *
 trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid);
-struct filter_id_item *
+struct tracecmd_filter_id_item *
 trace_graph_hide_task_find_pid(struct graph_info *ginfo, gint pid);
 void trace_graph_filter_toggle(struct graph_info *ginfo);
 void trace_graph_filter_add_remove_task(struct graph_info *info,
@@ -331,8 +331,8 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 int trace_graph_save_filters(struct graph_info *ginfo,
 			     struct tracecmd_xml_handle *handle);
 void trace_graph_update_filters(struct graph_info *ginfo,
-				struct filter_id *task_filter,
-				struct filter_id *hide_tasks);
+				struct tracecmd_filter_id *task_filter,
+				struct tracecmd_filter_id *hide_tasks);
 void trace_graph_refresh_filters(struct graph_info *ginfo);
 
 /* plots */

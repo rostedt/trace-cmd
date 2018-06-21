@@ -63,11 +63,11 @@ static inline uint32_t knuth_hash(uint32_t val)
 	return val * UINT32_C(2654435761);
 }
 
-struct filter_id_item *
-filter_id_find(struct filter_id *hash, int id)
+struct tracecmd_filter_id_item *
+tracecmd_filter_id_find(struct tracecmd_filter_id *hash, int id)
 {
 	int key = knuth_hash8(id);
-	struct filter_id_item *item = hash->hash[key];
+	struct tracecmd_filter_id_item *item = hash->hash[key];
 
 	while (item) {
 		if (item->id == id)
@@ -78,10 +78,10 @@ filter_id_find(struct filter_id *hash, int id)
 	return item;
 }
 
-void filter_id_add(struct filter_id *hash, int id)
+void tracecmd_filter_id_add(struct tracecmd_filter_id *hash, int id)
 {
 	int key = knuth_hash8(id);
-	struct filter_id_item *item;
+	struct tracecmd_filter_id_item *item;
 
 	item = calloc(1, sizeof(*item));
 	assert(item);
@@ -93,11 +93,11 @@ void filter_id_add(struct filter_id *hash, int id)
 	hash->count++;
 }
 
-void filter_id_remove(struct filter_id *hash, int id)
+void tracecmd_filter_id_remove(struct tracecmd_filter_id *hash, int id)
 {
 	int key = knuth_hash8(id);
-	struct filter_id_item **next = &hash->hash[key];
-	struct filter_id_item *item;
+	struct tracecmd_filter_id_item **next = &hash->hash[key];
+	struct tracecmd_filter_id_item *item;
 
 	while (*next) {
 		if ((*next)->id == id)
@@ -118,9 +118,9 @@ void filter_id_remove(struct filter_id *hash, int id)
 	free(item);
 }
 
-void filter_id_clear(struct filter_id *hash)
+void tracecmd_filter_id_clear(struct tracecmd_filter_id *hash)
 {
-	struct filter_id_item *item, *next;
+	struct tracecmd_filter_id_item *item, *next;
 	int i;
 
 	for (i = 0; i < FILTER_HASH_SIZE; i++) {
@@ -139,9 +139,9 @@ void filter_id_clear(struct filter_id *hash)
 	hash->count = 0;
 }
 
-struct filter_id *filter_id_hash_alloc(void)
+struct tracecmd_filter_id *tracecmd_filter_id_hash_alloc(void)
 {
-	struct filter_id *hash;
+	struct tracecmd_filter_id *hash;
 
 	hash = calloc(1, sizeof(*hash));
 	assert(hash);
@@ -151,26 +151,27 @@ struct filter_id *filter_id_hash_alloc(void)
 	return hash;
 }
 
-void filter_id_hash_free(struct filter_id *hash)
+void tracecmd_filter_id_hash_free(struct tracecmd_filter_id *hash)
 {
 	if (!hash)
 		return;
 
-	filter_id_clear(hash);
+	tracecmd_filter_id_clear(hash);
 	free(hash->hash);
 	free(hash);
 }
 
-struct filter_id *filter_id_hash_copy(struct filter_id *hash)
+struct tracecmd_filter_id *
+tracecmd_filter_id_hash_copy(struct tracecmd_filter_id *hash)
 {
-	struct filter_id *new_hash;
-	struct filter_id_item *item, **pitem;
+	struct tracecmd_filter_id *new_hash;
+	struct tracecmd_filter_id_item *item, **pitem;
 	int i;
 
 	if (!hash)
 		return NULL;
 
-	new_hash = filter_id_hash_alloc();
+	new_hash = tracecmd_filter_id_hash_alloc();
 	assert(new_hash);
 
 	for (i = 0; i < FILTER_HASH_SIZE; i++) {
@@ -194,9 +195,9 @@ struct filter_id *filter_id_hash_copy(struct filter_id *hash)
 	return new_hash;
 }
 
-int *filter_ids(struct filter_id *hash)
+int *tracecmd_filter_ids(struct tracecmd_filter_id *hash)
 {
-	struct filter_id_item *item;
+	struct tracecmd_filter_id_item *item;
 	int *ids;
 	int count = 0;
 	int i;
@@ -227,7 +228,8 @@ int *filter_ids(struct filter_id *hash)
  *
  * Returns 1 if the two hashes are the same, 0 otherwise.
  */
-int filter_id_compare(struct filter_id *hash1, struct filter_id *hash2)
+int tracecmd_filter_id_compare(struct tracecmd_filter_id *hash1,
+			       struct tracecmd_filter_id *hash2)
 {
 	int *ids;
 	int ret = 0;
@@ -242,9 +244,9 @@ int filter_id_compare(struct filter_id *hash1, struct filter_id *hash2)
 		return 1;
 
 	/* Now compare the pids of one hash with the other */
-	ids = filter_ids(hash1);
+	ids = tracecmd_filter_ids(hash1);
 	for (i = 0; ids[i] >= 0; i++) {
-		if (!filter_id_find(hash2, ids[i]))
+		if (!tracecmd_filter_id_find(hash2, ids[i]))
 			break;
 	}
 

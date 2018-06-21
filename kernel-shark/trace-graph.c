@@ -226,31 +226,31 @@ static void init_event_cache(struct graph_info *ginfo)
 	ginfo->read_comms = TRUE;
 }
 
-struct filter_id_item *
+struct tracecmd_filter_id_item *
 trace_graph_filter_task_find_pid(struct graph_info *ginfo, gint pid)
 {
-	return filter_id_find(ginfo->task_filter, pid);
+	return tracecmd_filter_id_find(ginfo->task_filter, pid);
 }
 
-struct filter_id_item *
+struct tracecmd_filter_id_item *
 trace_graph_hide_task_find_pid(struct graph_info *ginfo, gint pid)
 {
-	return filter_id_find(ginfo->hide_tasks, pid);
+	return tracecmd_filter_id_find(ginfo->hide_tasks, pid);
 }
 
 static void graph_filter_task_add_pid(struct graph_info *ginfo, gint pid)
 {
-	filter_id_add(ginfo->task_filter, pid);
+	tracecmd_filter_id_add(ginfo->task_filter, pid);
 
 	ginfo->filter_available = 1;
 }
 
 static void graph_filter_task_remove_pid(struct graph_info *ginfo, gint pid)
 {
-	filter_id_remove(ginfo->task_filter, pid);
+	tracecmd_filter_id_remove(ginfo->task_filter, pid);
 
-	if (!filter_task_count(ginfo->task_filter) &&
-	    !filter_task_count(ginfo->hide_tasks)) {
+	if (!tracecmd_filter_task_count(ginfo->task_filter) &&
+	    !tracecmd_filter_task_count(ginfo->hide_tasks)) {
 		ginfo->filter_available = 0;
 		ginfo->filter_enabled = 0;
 	}
@@ -258,17 +258,17 @@ static void graph_filter_task_remove_pid(struct graph_info *ginfo, gint pid)
 
 static void graph_hide_task_add_pid(struct graph_info *ginfo, gint pid)
 {
-	filter_id_add(ginfo->hide_tasks, pid);
+	tracecmd_filter_id_add(ginfo->hide_tasks, pid);
 
 	ginfo->filter_available = 1;
 }
 
 static void graph_hide_task_remove_pid(struct graph_info *ginfo, gint pid)
 {
-	filter_id_remove(ginfo->hide_tasks, pid);
+	tracecmd_filter_id_remove(ginfo->hide_tasks, pid);
 
-	if (!filter_task_count(ginfo->task_filter) &&
-	    !filter_task_count(ginfo->hide_tasks)) {
+	if (!tracecmd_filter_task_count(ginfo->task_filter) &&
+	    !tracecmd_filter_task_count(ginfo->hide_tasks)) {
 		ginfo->filter_available = 0;
 		ginfo->filter_enabled = 0;
 	}
@@ -276,8 +276,8 @@ static void graph_hide_task_remove_pid(struct graph_info *ginfo, gint pid)
 
 static void graph_filter_task_clear(struct graph_info *ginfo)
 {
-	filter_id_clear(ginfo->task_filter);
-	filter_id_clear(ginfo->hide_tasks);
+	tracecmd_filter_id_clear(ginfo->task_filter);
+	tracecmd_filter_id_clear(ginfo->hide_tasks);
 
 	ginfo->filter_available = 0;
 	ginfo->filter_enabled = 0;
@@ -304,9 +304,9 @@ gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid)
 	filter = FALSE;
 
 	if (ginfo->filter_enabled &&
-	    ((filter_task_count(ginfo->task_filter) &&
+	    ((tracecmd_filter_task_count(ginfo->task_filter) &&
 	      !trace_graph_filter_task_find_pid(ginfo, pid)) ||
-	     (filter_task_count(ginfo->hide_tasks) &&
+	     (tracecmd_filter_task_count(ginfo->hide_tasks) &&
 	      trace_graph_hide_task_find_pid(ginfo, pid))))
 		filter = TRUE;
 
@@ -496,7 +496,7 @@ void trace_graph_filter_add_remove_task(struct graph_info *ginfo,
 					gint pid)
 {
 	gint filter_enabled = ginfo->filter_enabled;
-	struct filter_id_item *task;
+	struct tracecmd_filter_id_item *task;
 
 	task = trace_graph_filter_task_find_pid(ginfo, pid);
 
@@ -517,7 +517,7 @@ void trace_graph_filter_hide_show_task(struct graph_info *ginfo,
 				       gint pid)
 {
 	gint filter_enabled = ginfo->filter_enabled;
-	struct filter_id_item *task;
+	struct tracecmd_filter_id_item *task;
 
 	task = trace_graph_hide_task_find_pid(ginfo, pid);
 
@@ -565,18 +565,18 @@ void trace_graph_clear_tasks(struct graph_info *ginfo)
 }
 
 void trace_graph_update_filters(struct graph_info *ginfo,
-				struct filter_id *task_filter,
-				struct filter_id *hide_tasks)
+				struct tracecmd_filter_id *task_filter,
+				struct tracecmd_filter_id *hide_tasks)
 {
 	/* Make sure the filter passed in is not the filter we use */
 	if (task_filter != ginfo->task_filter) {
-		filter_id_hash_free(ginfo->task_filter);
-		ginfo->task_filter = filter_id_hash_copy(task_filter);
+		tracecmd_filter_id_hash_free(ginfo->task_filter);
+		ginfo->task_filter = tracecmd_filter_id_hash_copy(task_filter);
 	}
 
 	if (hide_tasks != ginfo->hide_tasks) {
-		filter_id_hash_free(ginfo->hide_tasks);
-		ginfo->hide_tasks = filter_id_hash_copy(hide_tasks);
+		tracecmd_filter_id_hash_free(ginfo->hide_tasks);
+		ginfo->hide_tasks = tracecmd_filter_id_hash_copy(hide_tasks);
 	}
 
 	if (ginfo->callbacks && ginfo->callbacks->filter)
@@ -586,8 +586,8 @@ void trace_graph_update_filters(struct graph_info *ginfo,
 	if (ginfo->filter_enabled)
 		redraw_graph(ginfo);
 
-	if (filter_task_count(ginfo->task_filter) ||
-	    filter_task_count(ginfo->hide_tasks))
+	if (tracecmd_filter_task_count(ginfo->task_filter) ||
+	    tracecmd_filter_task_count(ginfo->hide_tasks))
 		ginfo->filter_available = 1;
 	else {
 		ginfo->filter_enabled = 0;
@@ -742,8 +742,8 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	else
 		gtk_widget_set_sensitive(menu_filter_enable, FALSE);
 
-	if (filter_task_count(ginfo->task_filter) ||
-	    filter_task_count(ginfo->hide_tasks))
+	if (tracecmd_filter_task_count(ginfo->task_filter) ||
+	    tracecmd_filter_task_count(ginfo->hide_tasks))
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, TRUE);
 	else
 		gtk_widget_set_sensitive(menu_filter_clear_tasks, FALSE);
@@ -2393,8 +2393,8 @@ destroy_event(GtkWidget *widget, gpointer data)
 
 	trace_graph_free_info(ginfo);
 
-	filter_id_hash_free(ginfo->task_filter);
-	filter_id_hash_free(ginfo->hide_tasks);
+	tracecmd_filter_id_hash_free(ginfo->task_filter);
+	tracecmd_filter_id_hash_free(ginfo->hide_tasks);
 
 	return TRUE;
 }
@@ -2674,8 +2674,8 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 	struct tracecmd_xml_system_node *syschild;
 	const char *name;
 
-	if (filter_task_count(ginfo->task_filter) ||
-	    filter_task_count(ginfo->hide_tasks))
+	if (tracecmd_filter_task_count(ginfo->task_filter) ||
+	    tracecmd_filter_task_count(ginfo->hide_tasks))
 		ginfo->filter_available = 1;
 	else
 		ginfo->filter_available = 0;
@@ -2697,8 +2697,8 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 		syschild = tracecmd_xml_node_next(syschild);
 	} while (syschild);
 
-	if (filter_task_count(ginfo->task_filter) ||
-	    filter_task_count(ginfo->hide_tasks))
+	if (tracecmd_filter_task_count(ginfo->task_filter) ||
+	    tracecmd_filter_task_count(ginfo->hide_tasks))
 		ginfo->filter_available = 1;
 	else
 		ginfo->filter_available = 0;
@@ -2782,8 +2782,8 @@ trace_graph_create_with_callbacks(struct tracecmd_input *handle,
 
 	ginfo->callbacks = cbs;
 
-	ginfo->task_filter = filter_id_hash_alloc();
-	ginfo->hide_tasks = filter_id_hash_alloc();
+	ginfo->task_filter = tracecmd_filter_id_hash_alloc();
+	ginfo->hide_tasks = tracecmd_filter_id_hash_alloc();
 
 	ginfo->widget = gtk_vbox_new(FALSE, 0);
 	gtk_widget_show(ginfo->widget);

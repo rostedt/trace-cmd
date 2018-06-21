@@ -2076,13 +2076,13 @@ int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 }
 
 int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
-			    struct filter_id *filter)
+			    struct tracecmd_filter_id *filter)
 {
 	char buffer[100];
 	int *pids;
 	int i;
 
-	pids = filter_ids(filter);
+	pids = tracecmd_filter_ids(filter);
 	if (!pids)
 		return -1;
 
@@ -2171,7 +2171,7 @@ int trace_filter_load_events(struct event_filter *event_filter,
 	return 0;
 }
 
-int trace_filter_load_task_filter(struct filter_id *filter,
+int trace_filter_load_task_filter(struct tracecmd_filter_id *filter,
 				  struct tracecmd_xml_handle *handle,
 				  struct tracecmd_xml_system_node *node)
 {
@@ -2190,8 +2190,8 @@ int trace_filter_load_task_filter(struct filter_id *filter,
 		if (strcmp(name, "Task") == 0) {
 			task = tracecmd_xml_node_value(handle, node);
 			pid = atoi(task);
-			if (!filter_id_find(filter, pid))
-				filter_id_add(filter, pid);
+			if (!tracecmd_filter_id_find(filter, pid))
+				tracecmd_filter_id_add(filter, pid);
 		}
 		node = tracecmd_xml_node_next(node);
 	}
@@ -2201,8 +2201,8 @@ int trace_filter_load_task_filter(struct filter_id *filter,
 
 int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
 			      const char *system_name,
-			      struct filter_id *task_filter,
-			      struct filter_id *hide_tasks)
+			      struct tracecmd_filter_id *task_filter,
+			      struct tracecmd_filter_id *hide_tasks)
 {
 	struct tracecmd_xml_system *system;
 	struct tracecmd_xml_system_node *syschild;
@@ -2240,19 +2240,19 @@ int trace_filter_load_filters(struct tracecmd_xml_handle *handle,
 
 int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
 			      const char *system_name,
-			      struct filter_id *task_filter,
-			      struct filter_id *hide_tasks)
+			      struct tracecmd_filter_id *task_filter,
+			      struct tracecmd_filter_id *hide_tasks)
 {
 
 	tracecmd_xml_start_system(handle, system_name);
 
-	if (task_filter && filter_task_count(task_filter)) {
+	if (task_filter && tracecmd_filter_task_count(task_filter)) {
 		tracecmd_xml_start_sub_system(handle, "TaskFilter");
 		trace_filter_save_tasks(handle, task_filter);
 		tracecmd_xml_end_sub_system(handle);
 	}
 
-	if (hide_tasks && filter_task_count(hide_tasks)) {
+	if (hide_tasks && tracecmd_filter_task_count(hide_tasks)) {
 		tracecmd_xml_start_sub_system(handle, "HideTasks");
 		trace_filter_save_tasks(handle, hide_tasks);
 		tracecmd_xml_end_sub_system(handle);
