@@ -66,13 +66,13 @@ $(all_deps): | $(bdir)
 $(KS_VERSION): force | $(bdir)/include
 	$(Q)$(call update_version.h)
 
-$(bdir)/kernelshark: $(KERNEL_SHARK_OBJS)
+$(bdir)/kernelshark: $(KERNEL_SHARK_OBJS) $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(do_app_build)
 
-$(bdir)/trace-view: $(TRACE_VIEW_MAIN_OBJS)
+$(bdir)/trace-view: $(TRACE_VIEW_MAIN_OBJS) $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(do_app_build)
 
-$(bdir)/trace-graph: $(TRACE_GRAPH_MAIN_OBJS)
+$(bdir)/trace-graph: $(TRACE_GRAPH_MAIN_OBJS) $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(do_app_build)
 
 $(pic_objs): GENERATE_PIC := 1
