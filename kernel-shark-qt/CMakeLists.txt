@@ -14,6 +14,8 @@ set(KS_DIR ${CMAKE_SOURCE_DIR})
 
 include(${KS_DIR}/build/FindTraceCmd.cmake)
 
+find_package(Doxygen)
+
 set(LIBRARY_OUTPUT_PATH    "${KS_DIR}/lib")
 set(EXECUTABLE_OUTPUT_PATH "${KS_DIR}/bin")
 
@@ -31,5 +33,20 @@ message(STATUS "CXX flags    : " ${CMAKE_CXX_FLAGS})
 message(STATUS "Linker flags : " ${CMAKE_EXE_LINKER_FLAGS})
 
 add_subdirectory(${KS_DIR}/src)
+
+if (_DOXYGEN_DOC AND DOXYGEN_FOUND)
+
+    message("\n doxygen documentation ...")
+    add_custom_target(doc ALL)
+    add_custom_command(TARGET doc
+                       COMMAND doxygen dox_config > dox_build.log
+                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/doc)
+
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+                                          "${KS_DIR}/doc/dox_build.log"
+                                          "${KS_DIR}/doc/html"
+                                          "${KS_DIR}/doc/latex")
+
+endif ()
 
 message("")

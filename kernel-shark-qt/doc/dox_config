@@ -1,0 +1,15 @@
+# For detailed description of all Doxygen Configuration Parameters see:
+# http://www.doxygen.org/manual/config.html
+
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = "kernel-shark-qt"
+PROJECT_BRIEF = "Kernel Shark is a front-end reader of the Linux kernel tracing data."
+INPUT                  = "../src/"
+SOURCE_BROWSER         = YES
+QT_AUTOBRIEF           = YES
+TAB_SIZE               = 8
+OPTIMIZE_OUTPUT_FOR_C  = YES
+CASE_SENSE_NAMES       = YES
+SORT_MEMBER_DOCS       = NO
+STRICT_PROTO_MATCHING  = YES
+DOT_MULTI_TARGETS      = YES
