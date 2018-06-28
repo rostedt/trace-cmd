@@ -37,6 +37,8 @@
 /* for debugging read instead of mmap */
 static int force_read = 0;
 
+#define PAGE_STOPPER		((struct page *)-1L)
+
 struct page_map {
 	struct list_head	list;
 	off64_t			offset;
@@ -67,11 +69,12 @@ struct cpu_data {
 	unsigned long long	size;
 	unsigned long long	timestamp;
 	struct list_head	page_maps;
-	struct list_head	pages;
 	struct page_map		*page_map;
+	struct page		**pages;
 	struct pevent_record	*next;
 	struct page		*page;
 	struct kbuffer		*kbuf;
+	int			page_cnt;
 	int			cpu;
 	int			pipe_fd;
 };
@@ -151,7 +154,7 @@ static void add_record(struct page *page, struct pevent_record *record)
 	record->prev = NULL;
 	page->records = record;
 }
-static const char *show_records(struct list_head *pages)
+static const char *show_records(struct page **pages)
 {
 	static char buf[BUFSIZ + 1];
 	struct pevent_record *record;
@@ -160,7 +163,10 @@ static const char *show_records(struct list_head *pages)
 
 	memset(buf, 0, sizeof(buf));
 	len = 0;
-	list_for_each_entry(page, pages, list) {
+	for (i = 0; pages[i] != PAGE_STOPPER; i--) {
+		page = pages[i];
+		if (!page)
+			continue;
 		for (record = page->records; record; record = record->next) {
 			int n;
 			n = snprintf(buf+len, BUFSIZ - len, " 0x%lx", record->alloc_addr);
@@ -174,7 +180,7 @@ static const char *show_records(struct list_head *pages)
 #else
 static inline void remove_record(struct page *page, struct pevent_record *record) {}
 static inline void add_record(struct page *page, struct pevent_record *record) {}
-static const char *show_records(struct list_head *pages)
+static const char *show_records(struct page **pages)
 {
 	return "";
 }
@@ -907,12 +913,12 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
 	struct page *page;
+	int index;
 
-	list_for_each_entry(page, &cpu_data->pages, list) {
-		if (page->offset == offset) {
-			page->ref_count++;
-			return page;
-		}
+	index = (offset - cpu_data->file_offset) / handle->page_size;
+	if (cpu_data->pages[index]) {
+		cpu_data->pages[index]->ref_count++;
+		return cpu_data->pages[index];
 	}
 
 	page = malloc(sizeof(*page));
@@ -931,7 +937,8 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 		return NULL;
 	}
 
-	list_add(&page->list, &cpu_data->pages);
+	cpu_data->pages[index] = page;
+	cpu_data->page_cnt++;
 	page->ref_count = 1;
 
 	return page;
@@ -939,6 +946,9 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 
 static void __free_page(struct tracecmd_input *handle, struct page *page)
 {
+	struct cpu_data *cpu_data = &handle->cpu_data[page->cpu];
+	int index;
+
 	if (!page->ref_count)
 		die("Page ref count is zero!\n");
 
@@ -951,7 +961,10 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	else
 		free_page_map(page->page_map);
 
-	list_del(&page->list);
+	index = (page->offset - cpu_data->file_offset) / handle->page_size;
+	cpu_data->pages[index] = NULL;
+	cpu_data->page_cnt--;
+
 	free(page);
 }
 
@@ -2006,13 +2019,13 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct pevent_record *record)
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	int num_pages;
 	int i;
 
 	cpu_data->offset = cpu_data->file_offset;
 	cpu_data->size = cpu_data->file_size;
 	cpu_data->timestamp = 0;
 
-	list_head_init(&cpu_data->pages);
 	list_head_init(&cpu_data->page_maps);
 
 	if (!cpu_data->size) {
@@ -2020,14 +2033,23 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 		return 0;
 	}
 
+	num_pages = (cpu_data->size + handle->page_size - 1) / handle->page_size;
+	cpu_data->pages = calloc(num_pages + 1, sizeof(*cpu_data->pages));
+	if (!cpu_data->pages)
+		return -1;
+
+	/* Add stopper */
+	cpu_data->pages[num_pages] = PAGE_STOPPER;
+
 	if (handle->use_pipe) {
 		/* Just make a page, it will be nuked later */
 		cpu_data->page = malloc(sizeof(*cpu_data->page));
 		if (!cpu_data->page)
-			return -1;
+			goto fail;
 
 		memset(cpu_data->page, 0, sizeof(*cpu_data->page));
-		list_add(&cpu_data->page->list, &cpu_data->pages);
+		cpu_data->pages[0] = cpu_data->page;
+		cpu_data->page_cnt = 1;
 		cpu_data->page->ref_count = 1;
 		return 0;
 	}
@@ -2044,7 +2066,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 			 */
 			for (i = 0; i < cpu; i++) {
 				if (handle->cpu_data[i].size)
-					return -1;
+					goto fail;
 			}
 		}
 
@@ -2053,13 +2075,19 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 		cpu_data->page = allocate_page(handle, cpu, cpu_data->offset);
 		if (!cpu_data->page)
 			/* Still no luck, bail! */
-			return -1;
+			goto fail;
 	}
 
 	if (update_page_info(handle, cpu))
-		return -1;
+		goto fail;
 
 	return 0;
+ fail:
+	free(cpu_data->pages);
+	cpu_data->pages = NULL;
+	free(cpu_data->page);
+	cpu_data->page = NULL;
+	return -1;
 }
 
 void tracecmd_set_ts_offset(struct tracecmd_input *handle,
@@ -2755,9 +2783,11 @@ void tracecmd_close(struct tracecmd_input *handle)
 			if (handle->cpu_data[cpu].page_map)
 				free_page_map(handle->cpu_data[cpu].page_map);
 
-			if (!list_empty(&handle->cpu_data[cpu].pages))
-				warning("pages still allocated on cpu %d%s",
-					cpu, show_records(&handle->cpu_data[cpu].pages));
+			if (handle->cpu_data[cpu].page_cnt)
+				warning("%d pages still allocated on cpu %d%s",
+					handle->cpu_data[cpu].page_cnt,
+					cpu, show_records(handle->cpu_data[cpu].pages));
+			free(handle->cpu_data[cpu].pages);
 		}
 	}
 
