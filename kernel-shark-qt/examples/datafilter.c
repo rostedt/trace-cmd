@@ -108,6 +108,35 @@ int main(int argc, char **argv)
 		++i;
 	}
 
+	puts("\n\n");
+
+	/* Clear all filters. */
+	kshark_filter_clear(kshark_ctx, KS_HIDE_TASK_FILTER);
+	kshark_filter_clear(kshark_ctx, KS_SHOW_EVENT_FILTER);
+
+	/* Use the Advanced filter to do event content based filtering. */
+	struct event_filter *adv_filter = kshark_ctx->advanced_event_filter;
+	pevent_filter_add_filter_str(adv_filter,
+				     "sched/sched_wakeup:target_cpu==1");
+
+	/* The Advanced filter requires reloading the data. */
+	for (i = 0; i < n_rows; ++i)
+		free(data[i]);
+
+	n_rows = kshark_load_data_entries(kshark_ctx, &data);
+
+	count = 0;
+	for (i = 0; i < n_rows; ++i) {
+		if (data[i]->visible & KS_EVENT_VIEW_FILTER_MASK) {
+			entry_str = kshark_dump_entry(data[i]);
+			puts(entry_str);
+			free(entry_str);
+
+			if(++count > 10)
+				break;
+		}
+	}
+
 	/* Free the memory. */
 	for (i = 0; i < n_rows; ++i)
 		free(data[i]);
