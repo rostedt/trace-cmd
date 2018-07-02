@@ -275,6 +275,9 @@ ssize_t kshark_get_task_pids(struct kshark_context *kshark_ctx, int **pids)
 	if (!temp_pids)
 		goto fail;
 
+	/* Paranoid: In the unlikely case of shrinking *pids, realloc moves it */
+	*pids = temp_pids;
+
 	return pid_count;
 
 fail:
