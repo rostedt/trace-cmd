@@ -18,6 +18,8 @@ int main(int argc, char **argv)
 	size_t i, n_rows, n_tasks, n_evts, count;
 	struct kshark_context *kshark_ctx;
 	struct kshark_entry **data = NULL;
+	struct event_filter *adv_filter;
+	struct event_format *event;
 	char *entry_str;
 	bool status;
 	int *pids;
@@ -81,7 +83,6 @@ int main(int argc, char **argv)
 	puts("\n\n");
 
 	/* Show only "sched" events. */
-	struct event_format *event;
 	n_evts = kshark_ctx->pevent->nr_events;
 	for (i = 0; i < n_evts; ++i) {
 		event = kshark_ctx->pevent->events[i];
@@ -115,7 +116,7 @@ int main(int argc, char **argv)
 	kshark_filter_clear(kshark_ctx, KS_SHOW_EVENT_FILTER);
 
 	/* Use the Advanced filter to do event content based filtering. */
-	struct event_filter *adv_filter = kshark_ctx->advanced_event_filter;
+	adv_filter = kshark_ctx->advanced_event_filter;
 	pevent_filter_add_filter_str(adv_filter,
 				     "sched/sched_wakeup:target_cpu==1");
 
