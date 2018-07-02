@@ -570,6 +570,25 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 	return -ENOMEM;
 }
 
+static int pick_next_cpu(struct rec_list **rec_list, int n_cpus)
+{
+	uint64_t ts = 0;
+	int next_cpu = -1;
+	int cpu;
+
+	for (cpu = 0; cpu < n_cpus; ++cpu) {
+		if (!rec_list[cpu])
+			continue;
+
+		if (!ts || rec_list[cpu]->rec->ts < ts) {
+			ts = rec_list[cpu]->rec->ts;
+			next_cpu = cpu;
+		}
+	}
+
+	return next_cpu;
+}
+
 /**
  * @brief Load the content of the trace data file into an array of
  *	  kshark_entries. This function provides an abstraction of the
@@ -598,9 +617,8 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 	struct rec_list **rec_list;
 	struct rec_list *temp_rec;
 	struct pevent_record *rec;
-	int cpu, n_cpus, next_cpu;
 	size_t count, total = 0;
-	uint64_t ts;
+	int n_cpus;
 	int ret;
 
 	if (*data_rows)
@@ -624,17 +642,9 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 	n_cpus = tracecmd_cpus(kshark_ctx->handle);
 
 	for (count = 0; count < total; count++) {
-		ts = 0;
-		next_cpu = -1;
-		for (cpu = 0; cpu < n_cpus; ++cpu) {
-			if (!rec_list[cpu])
-				continue;
+		int next_cpu;
 
-			if (!ts || rec_list[cpu]->rec->ts < ts) {
-				ts = rec_list[cpu]->rec->ts;
-				next_cpu = cpu;
-			}
-		}
+		next_cpu = pick_next_cpu(rec_list, n_cpus);
 
 		if (next_cpu >= 0) {
 			entry = malloc(sizeof(struct kshark_entry));
@@ -707,9 +717,8 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	struct pevent_record *rec;
 	struct rec_list **rec_list;
 	struct rec_list *temp_rec;
-	int cpu, n_cpus, next_cpu;
 	size_t count, total = 0;
-	uint64_t ts;
+	int n_cpus;
 	int pid;
 
 	total = get_records(kshark_ctx, &rec_list);
@@ -723,17 +732,9 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	n_cpus = tracecmd_cpus(kshark_ctx->handle);
 
 	for (count = 0; count < total; count++) {
-		ts = 0;
-		next_cpu = -1;
-		for (cpu = 0; cpu < n_cpus; ++cpu) {
-			if (!rec_list[cpu])
-				continue;
+		int next_cpu;
 
-			if (!ts || rec_list[cpu]->rec->ts < ts) {
-				ts = rec_list[cpu]->rec->ts;
-				next_cpu = cpu;
-			}
-		}
+		next_cpu = pick_next_cpu(rec_list, n_cpus);
 
 		if (next_cpu >= 0) {
 			rec = rec_list[next_cpu]->rec;
