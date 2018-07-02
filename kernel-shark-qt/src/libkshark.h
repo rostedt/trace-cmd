@@ -22,6 +22,7 @@ extern "C" {
 
 // trace-cmd
 #include "trace-cmd.h"
+#include "trace-filter-hash.h"
 #include "event-parse.h"
 #include "trace-filter-hash.h"
 
@@ -34,7 +35,9 @@ extern "C" {
 struct kshark_entry {
 	/**
 	 * A bit mask controlling the visibility of the entry. A value of OxFF
-	 * would mean that the entry is visible everywhere.
+	 * would mean that the entry is visible everywhere. Use
+	 * kshark_filter_masks to check the level of visibility/invisibility
+	 * of the entry.
 	 */
 	uint8_t		visible;
 
@@ -87,6 +90,25 @@ struct kshark_context {
 
 	/** A mutex, used to protect the access to the input file. */
 	pthread_mutex_t		input_mutex;
+
+	/** Hash of tasks to filter on. */
+	struct tracecmd_filter_id	*show_task_filter;
+
+	/** Hash of tasks to not display. */
+	struct tracecmd_filter_id	*hide_task_filter;
+
+	/** Hash of events to filter on. */
+	struct tracecmd_filter_id	*show_event_filter;
+
+	/** Hash of events to not display. */
+	struct tracecmd_filter_id	*hide_event_filter;
+
+	/**
+	 * Bit mask, controlling the visibility of the entries after filtering.
+	 * If given bit is set here, all entries which are filtered-out will
+	 * have this bit unset in their "visible" fields.
+	 */
+	uint8_t				filter_mask;
 };
 
 bool kshark_instance(struct kshark_context **kshark_ctx);
@@ -106,6 +128,61 @@ void kshark_close(struct kshark_context *kshark_ctx);
 void kshark_free(struct kshark_context *kshark_ctx);
 
 char* kshark_dump_entry(struct kshark_entry *entry);
+
+/** Bit masks used to control the visibility of the entry after filtering. */
+enum kshark_filter_masks {
+	/**
+	 * Use this mask to check the visibility of the entry in the text
+	 * view.
+	 */
+	KS_TEXT_VIEW_FILTER_MASK	= 1 << 0,
+
+	/**
+	 * Use this mask to check the visibility of the entry in the graph
+	 * view.
+	 */
+	KS_GRAPH_VIEW_FILTER_MASK	= 1 << 1,
+
+	/** Special mask used whene filtering events. */
+	KS_EVENT_VIEW_FILTER_MASK	= 1 << 2,
+};
+
+/** Filter type identifier. */
+enum kshark_filter_type {
+	/** Dummy filter identifier reserved for future use. */
+	KS_NO_FILTER,
+
+	/**
+	 * Identifier of the filter, used to specified the events to be shown.
+	 */
+	KS_SHOW_EVENT_FILTER,
+
+	/**
+	 * Identifier of the filter, used to specified the events to be
+	 * filtered-out.
+	 */
+	KS_HIDE_EVENT_FILTER,
+
+	/**
+	 * Identifier of the filter, used to specified the tasks to be shown.
+	 */
+	KS_SHOW_TASK_FILTER,
+
+	/**
+	 * Identifier of the filter, used to specified the tasks to be
+	 * filtered-out.
+	 */
+	KS_HIDE_TASK_FILTER,
+};
+
+void kshark_filter_add_id(struct kshark_context *kshark_ctx,
+			  int filter_id, int id);
+
+void kshark_filter_clear(struct kshark_context *kshark_ctx, int filter_id);
+
+void kshark_filter_entries(struct kshark_context *kshark_ctx,
+			   struct kshark_entry **data,
+			   size_t n_entries);
 
 #ifdef __cplusplus
 }
