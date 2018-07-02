@@ -109,6 +109,12 @@ struct kshark_context {
 	 * have this bit unset in their "visible" fields.
 	 */
 	uint8_t				filter_mask;
+
+	/**
+	 * Filter allowing sophisticated filtering based on the content of
+	 * the event.
+	 */
+	struct event_filter		*advanced_event_filter;
 };
 
 bool kshark_instance(struct kshark_context **kshark_ctx);
