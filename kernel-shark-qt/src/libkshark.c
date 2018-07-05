@@ -500,10 +500,13 @@ static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
 	entry->pid = pevent_data_pid(kshark_ctx->pevent, record);
 }
 
+/* Quiet warnings over documenting simple structures */
+//! @cond Doxygen_Suppress
 struct rec_list {
 	struct pevent_record	*rec;
 	struct rec_list		*next;
 };
+//! @endcond
 
 static void free_rec_list(struct rec_list **rec_list, int n_cpus)
 {
