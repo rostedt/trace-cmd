@@ -500,15 +500,35 @@ static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
 	entry->pid = pevent_data_pid(kshark_ctx->pevent, record);
 }
 
-/* Quiet warnings over documenting simple structures */
-//! @cond Doxygen_Suppress
+/**
+ * rec_list is used to pass the data to the load functions.
+ * The rec_list will contain the list of entries from the source,
+ * and will be a link list of per CPU entries.
+ */
 struct rec_list {
-	struct pevent_record	*rec;
-	struct rec_list		*next;
+	union {
+		/* Used by kshark_load_data_records */
+		struct {
+			/** next pointer, matches entry->next */
+			struct rec_list		*next;
+			/** pointer to the raw record data */
+			struct pevent_record	*rec;
+		};
+		/** entry - Used for kshark_load_data_entries() */
+		struct kshark_entry		entry;
+	};
 };
-//! @endcond
 
-static void free_rec_list(struct rec_list **rec_list, int n_cpus)
+/**
+ * rec_type defines what type of rec_list is being used.
+ */
+enum rec_type {
+	REC_RECORD,
+	REC_ENTRY,
+};
+
+static void free_rec_list(struct rec_list **rec_list, int n_cpus,
+			  enum rec_type type)
 {
 	struct rec_list *temp_rec;
 	int cpu;
@@ -517,7 +537,8 @@ static void free_rec_list(struct rec_list **rec_list, int n_cpus)
 		while (rec_list[cpu]) {
 			temp_rec = rec_list[cpu];
 			rec_list[cpu] = temp_rec->next;
-			free_record(temp_rec->rec);
+			if (type == REC_RECORD)
+				free_record(temp_rec->rec);
 			free(temp_rec);
 		}
 	}
@@ -525,20 +546,27 @@ static void free_rec_list(struct rec_list **rec_list, int n_cpus)
 }
 
 static size_t get_records(struct kshark_context *kshark_ctx,
-			  struct rec_list ***rec_list)
+			  struct rec_list ***rec_list, enum rec_type type)
 {
+	struct event_filter *adv_filter;
+	struct kshark_task_list *task;
 	struct pevent_record *rec;
 	struct rec_list **temp_next;
 	struct rec_list **cpu_list;
 	struct rec_list *temp_rec;
 	size_t count, total = 0;
 	int n_cpus;
+	int pid;
 	int cpu;
 
 	n_cpus = tracecmd_cpus(kshark_ctx->handle);
 	cpu_list = calloc(n_cpus, sizeof(*cpu_list));
 	if (!cpu_list)
 		return -ENOMEM;
+
+	/* Just to shorten the name */
+	if (type == REC_ENTRY)
+		adv_filter = kshark_ctx->advanced_event_filter;
 
 	for (cpu = 0; cpu < n_cpus; ++cpu) {
 		count = 0;
@@ -547,12 +575,49 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 
 		rec = tracecmd_read_cpu_first(kshark_ctx->handle, cpu);
 		while (rec) {
-			*temp_next = temp_rec = malloc(sizeof(*temp_rec));
+			*temp_next = temp_rec = calloc(1, sizeof(*temp_rec));
 			if (!temp_rec)
 				goto fail;
 
-			temp_rec->rec = rec;
 			temp_rec->next = NULL;
+
+			switch (type) {
+			case REC_RECORD:
+				temp_rec->rec = rec;
+				pid = pevent_data_pid(kshark_ctx->pevent, rec);
+				break;
+			case REC_ENTRY: {
+				struct kshark_entry *entry;
+				int ret;
+
+				entry = &temp_rec->entry;
+				kshark_set_entry_values(kshark_ctx, rec, entry);
+				pid = entry->pid;
+				/* Apply event filtering. */
+				ret = FILTER_NONE;
+				if (adv_filter->filters)
+					ret = pevent_filter_match(adv_filter, rec);
+
+				if (!kshark_show_event(kshark_ctx, entry->event_id) ||
+				    ret != FILTER_MATCH) {
+					unset_event_filter_flag(kshark_ctx, entry);
+				}
+
+				/* Apply task filtering. */
+				if (!kshark_show_task(kshark_ctx, entry->pid)) {
+					entry->visible &= ~kshark_ctx->filter_mask;
+				}
+				free_record(rec);
+				break;
+			} /* REC_ENTRY */
+			}
+
+			task = kshark_add_task(kshark_ctx, pid);
+			if (!task) {
+				free_record(rec);
+				goto fail;
+			}
+
 			temp_next = &temp_rec->next;
 
 			++count;
@@ -566,13 +631,15 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 	return total;
 
  fail:
-	free_rec_list(cpu_list, n_cpus);
+	free_rec_list(cpu_list, n_cpus, type);
 	return -ENOMEM;
 }
 
-static int pick_next_cpu(struct rec_list **rec_list, int n_cpus)
+static int pick_next_cpu(struct rec_list **rec_list, int n_cpus,
+			 enum rec_type type)
 {
 	uint64_t ts = 0;
+	uint64_t rec_ts;
 	int next_cpu = -1;
 	int cpu;
 
@@ -580,8 +647,16 @@ static int pick_next_cpu(struct rec_list **rec_list, int n_cpus)
 		if (!rec_list[cpu])
 			continue;
 
-		if (!ts || rec_list[cpu]->rec->ts < ts) {
-			ts = rec_list[cpu]->rec->ts;
+		switch (type) {
+		case REC_RECORD:
+			rec_ts = rec_list[cpu]->rec->ts;
+			break;
+		case REC_ENTRY:
+			rec_ts = rec_list[cpu]->entry.ts;
+			break;
+		}
+		if (!ts || rec_ts < ts) {
+			ts = rec_ts;
 			next_cpu = cpu;
 		}
 	}
@@ -610,16 +685,11 @@ static int pick_next_cpu(struct rec_list **rec_list, int n_cpus)
 ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 				struct kshark_entry ***data_rows)
 {
-	struct event_filter *adv_filter = kshark_ctx->advanced_event_filter;
-	struct kshark_task_list *task;
 	struct kshark_entry **rows;
-	struct kshark_entry *entry;
 	struct rec_list **rec_list;
-	struct rec_list *temp_rec;
-	struct pevent_record *rec;
+	enum rec_type type = REC_ENTRY;
 	size_t count, total = 0;
 	int n_cpus;
-	int ret;
 
 	if (*data_rows)
 		free(*data_rows);
@@ -631,63 +701,33 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 	 *	 code simplier. We should revisit to see if we can
 	 *	 bring back the performance.
 	 */
-	total = get_records(kshark_ctx, &rec_list);
+	total = get_records(kshark_ctx, &rec_list, type);
 	if (total < 0)
-		goto fail;
-
-	rows = calloc(total, sizeof(struct kshark_entry *));
-	if(!rows)
 		goto fail;
 
 	n_cpus = tracecmd_cpus(kshark_ctx->handle);
 
+	rows = calloc(total, sizeof(struct kshark_entry *));
+	if(!rows)
+		goto fail_free;
+
 	for (count = 0; count < total; count++) {
 		int next_cpu;
 
-		next_cpu = pick_next_cpu(rec_list, n_cpus);
+		next_cpu = pick_next_cpu(rec_list, n_cpus, type);
 
 		if (next_cpu >= 0) {
-			entry = malloc(sizeof(struct kshark_entry));
-			if (!entry)
-				goto fail_free;
-
-			rec = rec_list[next_cpu]->rec;
-			rows[count] = entry;
-
-			kshark_set_entry_values(kshark_ctx, rec, entry);
-			task = kshark_add_task(kshark_ctx, entry->pid);
-			if (!task)
-				goto fail_free;
-
-			/* Apply event filtering. */
-			ret = FILTER_NONE;
-			if (adv_filter->filters)
-				ret = pevent_filter_match(adv_filter, rec);
-
-			if (!kshark_show_event(kshark_ctx, entry->event_id) ||
-			    ret != FILTER_MATCH) {
-				unset_event_filter_flag(kshark_ctx, entry);
-			}
-
-			/* Apply task filtering. */
-			if (!kshark_show_task(kshark_ctx, entry->pid)) {
-				entry->visible &= ~kshark_ctx->filter_mask;
-			}
-
-			temp_rec = rec_list[next_cpu];
+			rows[count] = &rec_list[next_cpu]->entry;
 			rec_list[next_cpu] = rec_list[next_cpu]->next;
-			free(temp_rec);
-			/* The record is no longer be referenced */
-			free_record(rec);
 		}
 	}
 
-	free_rec_list(rec_list, n_cpus);
+	free_rec_list(rec_list, n_cpus, type);
 	*data_rows = rows;
 	return total;
 
  fail_free:
-	free_rec_list(rec_list, n_cpus);
+	free_rec_list(rec_list, n_cpus, type);
 	for (count = 0; count < total; count++) {
 		if (!rows[count])
 			break;
@@ -712,16 +752,15 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 				struct pevent_record ***data_rows)
 {
-	struct kshark_task_list *task;
 	struct pevent_record **rows;
 	struct pevent_record *rec;
 	struct rec_list **rec_list;
 	struct rec_list *temp_rec;
+	enum rec_type type = REC_RECORD;
 	size_t count, total = 0;
 	int n_cpus;
-	int pid;
 
-	total = get_records(kshark_ctx, &rec_list);
+	total = get_records(kshark_ctx, &rec_list, REC_RECORD);
 	if (total < 0)
 		goto fail;
 
@@ -734,16 +773,11 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	for (count = 0; count < total; count++) {
 		int next_cpu;
 
-		next_cpu = pick_next_cpu(rec_list, n_cpus);
+		next_cpu = pick_next_cpu(rec_list, n_cpus, type);
 
 		if (next_cpu >= 0) {
 			rec = rec_list[next_cpu]->rec;
 			rows[count] = rec;
-
-			pid = pevent_data_pid(kshark_ctx->pevent, rec);
-			task = kshark_add_task(kshark_ctx, pid);
-			if (!task)
-				goto fail;
 
 			temp_rec = rec_list[next_cpu];
 			rec_list[next_cpu] = rec_list[next_cpu]->next;
@@ -753,7 +787,7 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	}
 
 	/* There should be no records left in rec_list */
-	free_rec_list(rec_list, n_cpus);
+	free_rec_list(rec_list, n_cpus, type);
 	*data_rows = rows;
 	return total;
 

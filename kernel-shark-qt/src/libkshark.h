@@ -33,6 +33,9 @@ extern "C" {
  * info etc.) is available on-demand via the offset into the trace file.
  */
 struct kshark_entry {
+	/** Pointer to the next (in time) kshark_entry on the same CPU core. */
+	struct kshark_entry *next; /* MUST BE FIRST ENTRY */
+
 	/**
 	 * A bit mask controlling the visibility of the entry. A value of OxFF
 	 * would mean that the entry is visible everywhere. Use
@@ -60,9 +63,6 @@ struct kshark_entry {
 	 * started.
 	 */
 	uint64_t	ts;
-
-	/** Pointer to the next (in time) kshark_entry on the same CPU core. */
-	struct kshark_entry *next;
 };
 
 /** Size of the task's hash table. */
