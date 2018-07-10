@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 			puts(entry_str);
 			free(entry_str);
 
-			if(++count > 10)
+			if (++count > 10)
 				break;
 		}
 	}

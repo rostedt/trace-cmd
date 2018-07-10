@@ -284,7 +284,7 @@ ssize_t kshark_get_task_pids(struct kshark_context *kshark_ctx, int **pids)
 	int *temp_pids;
 
 	*pids = calloc(pid_size, sizeof(int));
-	if(!*pids)
+	if (!*pids)
 		goto fail;
 
 	for (i = 0; i < KS_TASK_HASH_SIZE; ++i) {
@@ -708,7 +708,7 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 	n_cpus = tracecmd_cpus(kshark_ctx->handle);
 
 	rows = calloc(total, sizeof(struct kshark_entry *));
-	if(!rows)
+	if (!rows)
 		goto fail_free;
 
 	for (count = 0; count < total; count++) {
@@ -765,7 +765,7 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 		goto fail;
 
 	rows = calloc(total, sizeof(struct pevent_record *));
-	if(!rows)
+	if (!rows)
 		goto fail;
 
 	n_cpus = tracecmd_cpus(kshark_ctx->handle);
