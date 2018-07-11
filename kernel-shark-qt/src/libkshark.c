@@ -594,7 +594,7 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 				kshark_set_entry_values(kshark_ctx, rec, entry);
 				pid = entry->pid;
 				/* Apply event filtering. */
-				ret = FILTER_NONE;
+				ret = FILTER_MATCH;
 				if (adv_filter->filters)
 					ret = pevent_filter_match(adv_filter, rec);
 
