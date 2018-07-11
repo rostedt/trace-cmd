@@ -303,12 +303,17 @@ ssize_t kshark_get_task_pids(struct kshark_context *kshark_ctx, int **pids)
 		}
 	}
 
-	temp_pids = realloc(*pids, pid_count * sizeof(int));
-	if (!temp_pids)
-		goto fail;
+	if (pid_count) {
+		temp_pids = realloc(*pids, pid_count * sizeof(int));
+		if (!temp_pids)
+			goto fail;
 
-	/* Paranoid: In the unlikely case of shrinking *pids, realloc moves it */
-	*pids = temp_pids;
+		/* Paranoid: In the unlikely case of shrinking *pids, realloc moves it */
+		*pids = temp_pids;
+	} else {
+		free(*pids);
+		*pids = NULL;
+	}
 
 	return pid_count;
 
