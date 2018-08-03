@@ -42,16 +42,16 @@ struct kshark_entry {
 	 * kshark_filter_masks to check the level of visibility/invisibility
 	 * of the entry.
 	 */
-	uint8_t		visible;
+	uint16_t	visible;
 
 	/** The CPU core of the record. */
-	uint8_t		cpu;
+	int16_t		cpu;
 
 	/** The PID of the task the record was generated. */
-	int16_t		pid;
+	int32_t		pid;
 
 	/** Unique Id ot the trace event type. */
-	int		event_id;
+	int32_t		event_id;
 
 	/** The offset into the trace file, used to find the record. */
 	uint64_t	offset;
