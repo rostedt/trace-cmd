@@ -65,11 +65,13 @@ static bool init_thread_seq(void)
  *	  calling any other kshark function. If the session has been
  *	  initialized, this function can be used to obtain the session's
  *	  context.
+ *
  * @param kshark_ctx: Optional input/output location for context pointer.
  *		      If it points to a context, that context will become
  *		      the new session. If it points to NULL, it will obtain
  *		      the current (or new) session. The result is only
  *		      valid on return of true.
+ *
  * @returns True on success, or false on failure.
  */
 bool kshark_instance(struct kshark_context **kshark_ctx)
@@ -121,8 +123,10 @@ static void kshark_free_task_list(struct kshark_context *kshark_ctx)
  * @brief Open and prepare for reading a trace data file specified by "file".
  *	  If the specified file does not exist, or contains no trace data,
  *	  the function returns false.
+ *
  * @param kshark_ctx: Input location for context pointer.
  * @param file: The file to load.
+ *
  * @returns True on success, or false on failure.
  */
 bool kshark_open(struct kshark_context *kshark_ctx, const char *file)
@@ -158,6 +162,7 @@ bool kshark_open(struct kshark_context *kshark_ctx, const char *file)
 
 /**
  * @brief Close the trace data file and free the trace data handle.
+ *
  * @param kshark_ctx: Input location for the session context pointer.
  */
 void kshark_close(struct kshark_context *kshark_ctx)
@@ -190,6 +195,7 @@ void kshark_close(struct kshark_context *kshark_ctx)
 /**
  * @brief Deinitialize kshark session. Should be called after closing all
  *	  open trace data files and before your application terminates.
+ *
  * @param kshark_ctx: Optional input location for session context pointer.
  *		      If it points to a context of a sessuin, that sessuin
  *		      will be deinitialize. If it points to NULL, it will
@@ -271,9 +277,11 @@ kshark_add_task(struct kshark_context *kshark_ctx, int pid)
 /**
  * @brief Get an array containing the Process Ids of all tasks presented in
  *	  the loaded trace data file.
+ *
  * @param kshark_ctx: Input location for context pointer.
  * @param pids: Output location for the Pids of the tasks. The user is
  *		responsible for freeing the elements of the outputted array.
+ *
  * @returns The size of the outputted array of Pids in the case of success,
  *	    or a negative error code on failure.
  */
@@ -345,6 +353,7 @@ static bool kshark_show_event(struct kshark_context *kshark_ctx, int pid)
 
 /**
  * @brief Add an Id value to the filster specified by "filter_id".
+ *
  * @param kshark_ctx: Input location for the session context pointer.
  * @param filter_id: Identifier of the filter.
  * @param id: Id value to be added to the filter.
@@ -376,6 +385,7 @@ void kshark_filter_add_id(struct kshark_context *kshark_ctx,
 
 /**
  * @brief Clear (reset) the filster specified by "filter_id".
+ *
  * @param kshark_ctx: Input location for the session context pointer.
  * @param filter_id: Identifier of the filter.
  */
@@ -442,6 +452,7 @@ static void unset_event_filter_flag(struct kshark_context *kshark_ctx,
  *	  WARNING: Do not use this function if the advanced filter is set.
  *	  Applying the advanced filter requires access to prevent_record,
  *	  hence the data has to be reloaded using kshark_load_data_entries().
+ *
  * @param kshark_ctx: Input location for the session context pointer.
  * @param data: Input location for the trace data to be filtered.
  * @param n_entries: The size of the inputted data.
@@ -680,10 +691,12 @@ static int pick_next_cpu(struct rec_list **rec_list, int n_cpus,
  *	  is updated according to the criteria provided by the filters. The
  *	  field "filter_mask" of the session's context is used to control the
  *	  level of visibility/invisibility of the filtered entries.
+ *
  * @param kshark_ctx: Input location for context pointer.
  * @param data_rows: Output location for the trace data. The user is
  *		     responsible for freeing the elements of the outputted
  *		     array.
+ *
  * @returns The size of the outputted data in the case of success, or a
  *	    negative error code on failure.
  */
@@ -748,9 +761,11 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
  * @brief Load the content of the trace data file into an array of
  *	  pevent_records. Use this function only if you need fast access
  *	  to all fields of the record.
+ *
  * @param kshark_ctx: Input location for the session context pointer.
  * @param data_rows: Output location for the trace data. Use free_record()
  *	 	     to free the elements of the outputted array.
+ *
  * @returns The size of the outputted data in the case of success, or a
  *	    negative error code on failure.
  */
@@ -856,7 +871,9 @@ static const char *kshark_get_info(struct pevent *pe,
  * @brief Dump into a string the content of one entry. The function allocates
  *	  a null terminated string and returns a pointer to this string. The
  *	  user has to free the returned string.
+ *
  * @param entry: A Kernel Shark entry to be printed.
+ *
  * @returns The returned string contains a semicolon-separated list of data
  *	    fields.
  */
