@@ -133,7 +133,7 @@ void kshark_close(struct kshark_context *kshark_ctx);
 
 void kshark_free(struct kshark_context *kshark_ctx);
 
-char* kshark_dump_entry(struct kshark_entry *entry);
+char* kshark_dump_entry(const struct kshark_entry *entry);
 
 /** Bit masks used to control the visibility of the entry after filtering. */
 enum kshark_filter_masks {

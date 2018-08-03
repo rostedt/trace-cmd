@@ -860,7 +860,7 @@ static const char *kshark_get_info(struct pevent *pe,
  * @returns The returned string contains a semicolon-separated list of data
  *	    fields.
  */
-char* kshark_dump_entry(struct kshark_entry *entry)
+char* kshark_dump_entry(const struct kshark_entry *entry)
 {
 	const char *event_name, *task, *lat, *info;
 	struct kshark_context *kshark_ctx;
