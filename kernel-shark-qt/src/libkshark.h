@@ -225,7 +225,11 @@ bool kshark_match_pid(struct kshark_context *kshark_ctx,
 bool kshark_match_cpu(struct kshark_context *kshark_ctx,
 		      struct kshark_entry *e, int cpu);
 
-/** Empty bin identifier. */
+/**
+ * Empty bin identifier.
+ * KS_EMPTY_BIN is used to reset entire arrays to empty with memset(), thus it
+ * must be -1 for that to work.
+ */
 #define KS_EMPTY_BIN		-1
 
 /** Filtered bin identifier. */
