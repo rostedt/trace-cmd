@@ -190,6 +190,99 @@ void kshark_filter_entries(struct kshark_context *kshark_ctx,
 			   struct kshark_entry **data,
 			   size_t n_entries);
 
+/** Search failed identifiers. */
+enum kshark_search_failed {
+	/** All entries have timestamps greater timestamps. */
+	BSEARCH_ALL_GREATER = -1,
+
+	/** All entries have timestamps smaller timestamps. */
+	BSEARCH_ALL_SMALLER = -2,
+};
+
+/** General purpose Binary search macro. */
+#define BSEARCH(h, l, cond) 				\
+	({						\
+		while (h - l > 1) {			\
+			mid = (l + h) / 2;		\
+			if (cond)			\
+				l = mid;		\
+			else				\
+				h = mid;		\
+		}					\
+	})
+
+ssize_t kshark_find_entry_by_time(uint64_t time,
+				  struct kshark_entry **data_rows,
+				  size_t l, size_t h);
+
+ssize_t kshark_find_record_by_time(uint64_t time,
+				   struct pevent_record **data_rows,
+				   size_t l, size_t h);
+
+bool kshark_match_pid(struct kshark_context *kshark_ctx,
+		      struct kshark_entry *e, int pid);
+
+bool kshark_match_cpu(struct kshark_context *kshark_ctx,
+		      struct kshark_entry *e, int cpu);
+
+/** Empty bin identifier. */
+#define KS_EMPTY_BIN		-1
+
+/** Filtered bin identifier. */
+#define KS_FILTERED_BIN		-2
+
+/** Matching condition function type. To be user for data requests */
+typedef bool (matching_condition_func)(struct kshark_context*,
+				       struct kshark_entry*,
+				       int);
+
+/**
+ * Data request structure, defining the properties of the required
+ * kshark_entry.
+ */
+struct kshark_entry_request {
+	/**
+	 * Array index specifying the position inside the array from where
+	 * the search starts.
+	 */
+	size_t first;
+
+	/** Number of array elements to search in. */
+	size_t n;
+
+	/** Matching condition function. */
+	matching_condition_func *cond;
+
+	/**
+	 * Matching condition value, used by the Matching condition function.
+	 */
+	int val;
+
+	/** If true, a visible entry is requested. */
+	bool vis_only;
+
+	/**
+	 * If "vis_only" is true, use this mask to specify the level of
+	 * visibility of the requested entry.
+	 */
+	uint8_t vis_mask;
+};
+
+struct kshark_entry_request *
+kshark_entry_request_alloc(size_t first, size_t n,
+			   matching_condition_func cond, int val,
+			   bool vis_only, int vis_mask);
+
+const struct kshark_entry *
+kshark_get_entry_front(const struct kshark_entry_request *req,
+		       struct kshark_entry **data,
+		       ssize_t *index);
+
+const struct kshark_entry *
+kshark_get_entry_back(const struct kshark_entry_request *req,
+		      struct kshark_entry **data,
+		      ssize_t *index);
+
 #ifdef __cplusplus
 }
 #endif
