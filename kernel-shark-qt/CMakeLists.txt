@@ -6,7 +6,7 @@ project(kernel-shark-qt)
 
 set(KS_VERSION_MAJOR 0)
 set(KS_VERSION_MINOR 7)
-set(KS_VERSION_PATCH 0)
+set(KS_VERSION_PATCH 1)
 set(KS_VERSION_STRING ${KS_VERSION_MAJOR}.${KS_VERSION_MINOR}.${KS_VERSION_PATCH})
 message("\n project: Kernel Shark: (version: ${KS_VERSION_STRING})\n")
 
