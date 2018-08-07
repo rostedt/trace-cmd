@@ -115,6 +115,9 @@ struct kshark_context {
 	 * the event.
 	 */
 	struct event_filter		*advanced_event_filter;
+
+	/** List of Data collections. */
+	struct kshark_entry_collection *collections;
 };
 
 bool kshark_instance(struct kshark_context **kshark_ctx);
@@ -245,6 +248,9 @@ typedef bool (matching_condition_func)(struct kshark_context*,
  * kshark_entry.
  */
 struct kshark_entry_request {
+	/** Pointer to the next Data request. */
+	struct kshark_entry_request *next;
+
 	/**
 	 * Array index specifying the position inside the array from where
 	 * the search starts.
@@ -277,6 +283,8 @@ kshark_entry_request_alloc(size_t first, size_t n,
 			   matching_condition_func cond, int val,
 			   bool vis_only, int vis_mask);
 
+void kshark_free_entry_request(struct kshark_entry_request *req);
+
 const struct kshark_entry *
 kshark_get_entry_front(const struct kshark_entry_request *req,
 		       struct kshark_entry **data,
@@ -286,6 +294,78 @@ const struct kshark_entry *
 kshark_get_entry_back(const struct kshark_entry_request *req,
 		      struct kshark_entry **data,
 		      ssize_t *index);
+
+/**
+ * Data collections are used to optimize the search for an entry having an
+ * abstract property, defined by a Matching condition function and a value.
+ * When a collection is processed, the data which is relevant for the
+ * collection is enclosed in "Data intervals", defined by pairs of "Resume" and
+ * "Break" points. It is guaranteed that the data outside of the intervals
+ * contains no entries satisfying the abstract matching condition. However, the
+ * intervals may (will) contain data that do not satisfy the matching condition.
+ * Once defined, the Data collection can be used when searching for an entry
+ * having the same (ore related) abstract property. The collection allows to
+ * ignore the irrelevant data, thus it eliminates the linear worst-case time
+ * complexity of the search.
+ */
+struct kshark_entry_collection {
+	/** Pointer to the next Data collection. */
+	struct kshark_entry_collection *next;
+
+	/** Matching condition function, used to define the collections. */
+	matching_condition_func *cond;
+
+	/**
+	 * Matching condition value, used by the Matching condition finction
+	 * to define the collections.
+	 */
+	int val;
+
+	/**
+	 * Array of indexes defining the beginning of each individual data
+	 * interval.
+	 */
+	size_t *resume_points;
+
+	/**
+	 * Array of indexes defining the end of each individual data interval.
+	 */
+	size_t *break_points;
+
+	/** Number of data intervals in this collection. */
+	size_t size;
+};
+
+struct kshark_entry_collection *
+kshark_register_data_collection(struct kshark_context *kshark_ctx,
+				struct kshark_entry **data, size_t n_rows,
+				matching_condition_func cond, int val,
+				size_t margin);
+
+void kshark_unregister_data_collection(struct kshark_entry_collection **col,
+				       matching_condition_func cond,
+				       int val);
+
+struct kshark_entry_collection *
+kshark_find_data_collection(struct kshark_entry_collection *col,
+			    matching_condition_func cond,
+			    int val);
+
+void kshark_reset_data_collection(struct kshark_entry_collection *col);
+
+void kshark_free_collection_list(struct kshark_entry_collection *col);
+
+const struct kshark_entry *
+kshark_get_collection_entry_front(struct kshark_entry_request **req,
+				  struct kshark_entry **data,
+				  const struct kshark_entry_collection *col,
+				  ssize_t *index);
+
+const struct kshark_entry *
+kshark_get_collection_entry_back(struct kshark_entry_request **req,
+				 struct kshark_entry **data,
+				 const struct kshark_entry_collection *col,
+				 ssize_t *index);
 
 #ifdef __cplusplus
 }

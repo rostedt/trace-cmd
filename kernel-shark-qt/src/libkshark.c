@@ -1066,6 +1066,7 @@ kshark_entry_request_alloc(size_t first, size_t n,
 		return NULL;
 	}
 
+	req->next = NULL;
 	req->first = first;
 	req->n = n;
 	req->cond = cond;
@@ -1074,6 +1075,21 @@ kshark_entry_request_alloc(size_t first, size_t n,
 	req->vis_mask = vis_mask;
 
 	return req;
+}
+
+/**
+ * @brief Free all Data requests in a given list.
+ * @param req: Intput location for the Data request list.
+ */
+void kshark_free_entry_request(struct kshark_entry_request *req)
+{
+	struct kshark_entry_request *last;
+
+	while (req) {
+		last = req;
+		req = req->next;
+		free(last);
+	}
 }
 
 /** Dummy entry, used to indicate the existence of filtered entries. */
