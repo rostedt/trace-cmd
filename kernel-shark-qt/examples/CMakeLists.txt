@@ -11,3 +11,7 @@ target_link_libraries(dfilter   kshark)
 message(STATUS "datahisto")
 add_executable(dhisto          datahisto.c)
 target_link_libraries(dhisto   kshark)
+
+message(STATUS "confogio")
+add_executable(confio          configio.c)
+target_link_libraries(confio   kshark)
