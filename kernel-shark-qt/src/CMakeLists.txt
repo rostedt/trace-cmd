@@ -6,6 +6,7 @@ add_library(kshark SHARED libkshark.c
                           libkshark-collection.c)
 
 target_link_libraries(kshark ${CMAKE_DL_LIBS}
+                             ${JSONC_LIBRARY}
                              ${TRACEEVENT_LIBRARY}
                              ${TRACECMD_LIBRARY})
 

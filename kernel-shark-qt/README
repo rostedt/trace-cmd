@@ -6,14 +6,14 @@ Third Party Software:
 ------------------------------------------------------------
 The external dependencies:
 1. In order to install the packages on Ubuntu do the following:
-    sudo apt-get install build-essential git cmake -y
+    sudo apt-get install build-essential git cmake libjson-c-dev -y
 
 1.1 I you want to be able to generate Doxygen documentation:
     sudo apt-get install graphviz doxygen-gui -y
 
 
 2. In order to install the packages on Fedora, as root do the following:
-    dnf install gcc gcc-c++ git cmake -y
+    dnf install gcc gcc-c++ git cmake json-c-devel -y
 
 2.1 I you want to be able to generate Doxygen documentation:
     dnf install graphviz doxygen -y

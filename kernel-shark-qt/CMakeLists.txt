@@ -13,6 +13,7 @@ message("\n project: Kernel Shark: (version: ${KS_VERSION_STRING})\n")
 set(KS_DIR ${CMAKE_SOURCE_DIR})
 
 include(${KS_DIR}/build/FindTraceCmd.cmake)
+include(${KS_DIR}/build/FindJSONC.cmake)
 
 find_package(Doxygen)
 
@@ -24,6 +25,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -pthread")
 
 include_directories(${KS_DIR}/src/
                     ${KS_DIR}/build/src/
+                    ${JSONC_INCLUDE_DIR}
                     ${TRACECMD_INCLUDE_DIR}
                     ${TRACEEVENT_INCLUDE_DIR})
 
