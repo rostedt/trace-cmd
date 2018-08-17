@@ -16,6 +16,9 @@
 #include <stdint.h>
 #include <pthread.h>
 
+// Json-C
+#include <json.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -366,6 +369,163 @@ kshark_get_collection_entry_back(struct kshark_entry_request **req,
 				 struct kshark_entry **data,
 				 const struct kshark_entry_collection *col,
 				 ssize_t *index);
+
+/** Structure representing a KernelShark Configuration document. */
+struct kshark_config_doc {
+	/** Document format identifier. */
+	int	format;
+
+	/** Configuration document instance. */
+	void	*conf_doc;
+};
+
+/** Configuration format identifiers. */
+enum kshark_config_formats {
+	/** Unformatted Configuration document identifier. */
+	KS_CONFIG_AUTO = 0,
+
+	/**
+	 * String Configuration document identifier. The String format is
+	 * meant to be used only by kshark_config_doc_add() and
+	 * kshark_config_doc_get(), when adding/getting simple string fields.
+	 */
+	KS_CONFIG_STRING,
+
+	/** Json Configuration document identifier. */
+	KS_CONFIG_JSON,
+};
+
+/**
+ * Field name for the Configuration document describing the Hide Event filter.
+ */
+#define KS_HIDE_EVENT_FILTER_NAME	"hide event filter"
+
+/**
+ * Field name for the Configuration document describing the Show Event filter.
+ */
+#define KS_SHOW_EVENT_FILTER_NAME	"show event filter"
+
+/**
+ * Field name for the Configuration document describing the Hide Task filter.
+ */
+#define KS_HIDE_TASK_FILTER_NAME	"hide task filter"
+
+/**
+ * Field name for the Configuration document describing the Show Task filter.
+ */
+#define KS_SHOW_TASK_FILTER_NAME	"show task filter"
+
+/**
+ * Field name for the Configuration document describing the Advanced event
+ * filter.
+ */
+#define KS_ADV_EVENT_FILTER_NAME	"adv event filter"
+
+/**
+ * Field name for the Configuration document describing the state of the Vis.
+ * model.
+ */
+#define KS_HISTO_NAME			"vis. model"
+
+/**
+ * Field name for the Configuration document describing the currently loaded
+ * trace data file.
+ */
+#define KS_DATA_SOURCE_NAME		"trace data"
+
+struct kshark_config_doc *
+kshark_config_alloc(enum kshark_config_formats);
+
+struct kshark_config_doc *
+kshark_config_new(const char *type, enum kshark_config_formats);
+
+void kshark_free_config_doc(struct kshark_config_doc *conf);
+
+struct kshark_config_doc *
+kshark_record_config_new(enum kshark_config_formats);
+
+struct kshark_config_doc *
+kshark_filter_config_new(enum kshark_config_formats);
+
+struct kshark_config_doc *kshark_string_config_alloc();
+
+bool kshark_type_check(struct kshark_config_doc *conf, const char *type);
+
+bool kshark_config_doc_add(struct kshark_config_doc *conf,
+			   const char *key,
+			   struct kshark_config_doc *val);
+
+bool kshark_config_doc_get(struct kshark_config_doc *conf,
+			   const char *key,
+			   struct kshark_config_doc *val);
+
+struct kshark_trace_histo;
+
+struct kshark_config_doc *
+kshark_export_trace_file(const char *file,
+			 enum kshark_config_formats format);
+
+const char *kshark_import_trace_file(struct kshark_context *kshark_ctx,
+				     struct kshark_config_doc *conf);
+
+struct kshark_config_doc *
+kshark_export_model(struct kshark_trace_histo *histo,
+		     enum kshark_config_formats format);
+
+
+bool kshark_import_model(struct kshark_trace_histo *histo,
+			 struct kshark_config_doc *conf);
+
+bool kshark_export_adv_filters(struct kshark_context *kshark_ctx,
+			       struct kshark_config_doc **conf);
+
+bool kshark_import_adv_filters(struct kshark_context *kshark_ctx,
+			       struct kshark_config_doc *conf);
+
+bool kshark_export_event_filter(struct pevent *pevent,
+				struct tracecmd_filter_id *filter,
+				const char *filter_name,
+				struct kshark_config_doc *conf);
+
+bool kshark_import_event_filter(struct pevent *pevent,
+				struct tracecmd_filter_id *filter,
+				const char *filter_name,
+				struct kshark_config_doc *conf);
+
+bool kshark_export_task_filter(struct tracecmd_filter_id *filter,
+			       const char *filter_name,
+			       struct kshark_config_doc *conf);
+
+bool kshark_import_task_filter(struct tracecmd_filter_id *filter,
+			       const char *filter_name,
+			       struct kshark_config_doc *conf);
+
+bool kshark_export_all_event_filters(struct kshark_context *kshark_ctx,
+				     struct kshark_config_doc **conf);
+
+bool kshark_export_all_task_filters(struct kshark_context *kshark_ctx,
+				    struct kshark_config_doc **conf);
+
+struct kshark_config_doc *
+kshark_export_all_filters(struct kshark_context *kshark_ctx,
+			  enum kshark_config_formats format);
+
+bool kshark_import_all_event_filters(struct kshark_context *kshark_ctx,
+				     struct kshark_config_doc *conf);
+
+bool kshark_import_all_task_filters(struct kshark_context *kshark_ctx,
+				    struct kshark_config_doc *conf);
+
+bool kshark_import_all_filters(struct kshark_context *kshark_ctx,
+			       struct kshark_config_doc *conf);
+
+bool kshark_save_config_file(const char *file_name,
+			     struct kshark_config_doc *conf);
+
+struct kshark_config_doc *kshark_open_config_file(const char *file_name,
+						  const char *type);
+
+struct kshark_config_doc *kshark_json_to_conf(struct json_object *jobj);
 
 #ifdef __cplusplus
 }

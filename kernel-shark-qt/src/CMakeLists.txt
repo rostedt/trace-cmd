@@ -3,6 +3,7 @@ message("\n src ...")
 message(STATUS "libkshark")
 add_library(kshark SHARED libkshark.c
                           libkshark-model.c
+                          libkshark-configio.c
                           libkshark-collection.c)
 
 target_link_libraries(kshark ${CMAKE_DL_LIBS}
