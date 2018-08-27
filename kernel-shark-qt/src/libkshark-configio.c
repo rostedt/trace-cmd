@@ -1028,7 +1028,7 @@ static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 	if (!jfilter_data)
 		goto fail;
 
-	events = pevent_list_events(kshark_ctx->pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(kshark_ctx->pevent, EVENT_SORT_SYSTEM);
 	if (!events)
 		return false;
 
@@ -1148,7 +1148,7 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 	fprintf(stderr, "Failed to laod Advanced filters.\n");
 	char error_str[200];
 	int error_status =
-		pevent_strerror(kshark_ctx->pevent, ret, error_str,
+		tep_strerror(kshark_ctx->pevent, ret, error_str,
 							 sizeof(error_str));
 
 	if (error_status == 0)

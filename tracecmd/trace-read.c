@@ -510,7 +510,7 @@ static void process_filters(struct handle_list *handles)
 		ret = tep_filter_add_filter_str(event_filter->filter,
 						   filter->filter);
 		if (ret < 0) {
-			pevent_strerror(pevent, ret, errstr, sizeof(errstr));
+			tep_strerror(pevent, ret, errstr, sizeof(errstr));
 			die("Error filtering: %s\n%s",
 			    filter->filter, errstr);
 		}
@@ -1346,7 +1346,7 @@ static void set_event_flags(struct tep_handle *pevent, struct event_str *list,
 	if (!list)
 		return;
 
-	events = pevent_list_events(pevent, 0);
+	events = tep_list_events(pevent, 0);
 
 	for (str = list; str; str = str->next) {
 		char *match;
@@ -1740,7 +1740,7 @@ void trace_report (int argc, char **argv)
 			struct event_format *event;
 			int i;
 
-			events = pevent_list_events(pevent, EVENT_SORT_SYSTEM);
+			events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
 			for (i = 0; events[i]; i++) {
 				event = events[i];
 				if (event->system)

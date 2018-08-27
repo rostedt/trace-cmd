@@ -472,8 +472,8 @@ void trace_view_adv_filter_callback(gboolean accept,
 
 		ret = tep_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
-			pevent_strerror(event_filter->pevent, ret,
-					error_str, sizeof(error_str));
+			tep_strerror(event_filter->pevent, ret,
+				     error_str, sizeof(error_str));
 			warning("filter failed due to: %s", error_str);
 			return;
 		}

@@ -379,7 +379,7 @@ static void read_raw_events(struct trace_seq *s,
 	struct format_field **fields;
 	int i;
 
-	fields = pevent_event_fields(event);
+	fields = tep_event_fields(event);
 	if (!fields)
 		return;
 

@@ -1458,7 +1458,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 		syscall_exit->print_func = syscall_print;
 	}
 
-	events = pevent_list_events(pevent, EVENT_SORT_ID);
+	events = tep_list_events(pevent, EVENT_SORT_ID);
 	if (!events)
 		die("malloc");
 
@@ -1497,7 +1497,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 		event_data = add_event(h, events[i]->system, events[i]->name,
 				       EVENT_TYPE_UNDEFINED);
 
-		fields = pevent_event_fields(events[i]);
+		fields = tep_event_fields(events[i]);
 		if (!fields)
 			die("malloc");
 

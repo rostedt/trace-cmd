@@ -1196,7 +1196,7 @@ trace_graph_check_irq(struct graph_info *ginfo,
 		else
 			ginfo->soft_irq_entry_ids = null_int_array;
 
-		events = pevent_list_events(ginfo->pevent, EVENT_SORT_SYSTEM);
+		events = tep_list_events(ginfo->pevent, EVENT_SORT_SYSTEM);
 
 		for (i = 0; events[i]; i++) {
 			event = events[i];
@@ -2283,8 +2283,8 @@ void trace_graph_adv_filter_callback(gboolean accept,
 
 		ret = tep_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
-			pevent_strerror(event_filter->pevent, ret,
-					error_str, sizeof(error_str));
+			tep_strerror(event_filter->pevent, ret,
+				     error_str, sizeof(error_str));
 			warning("filter failed due to: %s", error_str);
 			return;
 		}

@@ -116,7 +116,7 @@ void tracecmd_output_free(struct tracecmd_output *handle)
 		free(handle->tracing_dir);
 
 	if (handle->pevent)
-		pevent_unref(handle->pevent);
+		tep_unref(handle->pevent);
 
 	while (!list_empty(&handle->options)) {
 		option = container_of(handle->options.next,
@@ -808,7 +808,7 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 		pevent = tracecmd_get_pevent(ihandle);
 		/* Use the pevent of the ihandle for later writes */
 		handle->pevent = tracecmd_get_pevent(ihandle);
-		pevent_ref(pevent);
+		tep_ref(pevent);
 		if (pevent->file_bigendian)
 			buf[0] = 1;
 		else
@@ -1261,7 +1261,7 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
 	pevent = tracecmd_get_pevent(ihandle);
 	/* Use the pevent of the ihandle for later writes */
 	handle->pevent = tracecmd_get_pevent(ihandle);
-	pevent_ref(pevent);
+	tep_ref(pevent);
 	handle->page_size = tracecmd_page_size(ihandle);
 	list_head_init(&handle->options);
 
