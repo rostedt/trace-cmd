@@ -74,7 +74,7 @@ struct event_handler {
 	int				id;
 	const char			*sys_name;
 	const char			*event_name;
-	pevent_event_handler_func	func;
+	tep_event_handler_func		func;
 	void				*context;
 };
 
@@ -6619,7 +6619,7 @@ static struct event_format *pevent_search_event(struct tep_handle *pevent, int i
  */
 int pevent_register_event_handler(struct tep_handle *pevent, int id,
 				  const char *sys_name, const char *event_name,
-				  pevent_event_handler_func func, void *context)
+				  tep_event_handler_func func, void *context)
 {
 	struct event_format *event;
 	struct event_handler *handle;
@@ -6668,7 +6668,7 @@ int pevent_register_event_handler(struct tep_handle *pevent, int id,
 
 static int handle_matches(struct event_handler *handler, int id,
 			  const char *sys_name, const char *event_name,
-			  pevent_event_handler_func func, void *context)
+			  tep_event_handler_func func, void *context)
 {
 	if (id >= 0 && id != handler->id)
 		return 0;
@@ -6703,7 +6703,7 @@ static int handle_matches(struct event_handler *handler, int id,
  */
 int pevent_unregister_event_handler(struct tep_handle *pevent, int id,
 				    const char *sys_name, const char *event_name,
-				    pevent_event_handler_func func, void *context)
+				    tep_event_handler_func func, void *context)
 {
 	struct event_format *event;
 	struct event_handler *handle;

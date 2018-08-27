@@ -58,7 +58,7 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	PyObject *globals, *m, *py_pevent, *str, *res;
 	char **plugin_list;
@@ -100,7 +100,7 @@ int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
 	return 0;
 }
 
-int PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
+int TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	Py_Finalize();
 	return 0;

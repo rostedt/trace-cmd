@@ -330,10 +330,10 @@ bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle);
 void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
 
 /* --- Plugin handling --- */
-extern struct pevent_plugin_option trace_ftrace_options[];
+extern struct tep_plugin_option trace_ftrace_options[];
 
-int trace_util_add_options(const char *name, struct pevent_plugin_option *options);
-void trace_util_remove_options(struct pevent_plugin_option *options);
+int trace_util_add_options(const char *name, struct tep_plugin_option *options);
+void trace_util_remove_options(struct tep_plugin_option *options);
 int trace_util_add_option(const char *name, const char *val);
 int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
 			    int (*load_plugin)(struct tep_handle *pevent,
@@ -341,8 +341,8 @@ int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
 					       const char *name,
 					       void *data),
 			    void *data);
-struct pevent_plugin_option *trace_util_read_plugin_options(void);
-void trace_util_free_options(struct pevent_plugin_option *options);
+struct tep_plugin_option *trace_util_read_plugin_options(void);
+void trace_util_free_options(struct tep_plugin_option *options);
 char **trace_util_find_plugin_files(const char *suffix);
 void trace_util_free_plugin_files(char **files);
 void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,

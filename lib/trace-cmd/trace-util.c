@@ -30,7 +30,7 @@ int tracecmd_disable_plugins;
 
 static struct registered_plugin_options {
 	struct registered_plugin_options	*next;
-	struct pevent_plugin_option			*options;
+	struct tep_plugin_option			*options;
 } *registered_options;
 
 static struct trace_plugin_options {
@@ -63,7 +63,7 @@ struct plugin_list {
 char **trace_util_list_plugin_options(void)
 {
 	struct registered_plugin_options *reg;
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 	char **list = NULL;
 	char *name;
 	int count = 0;
@@ -101,7 +101,7 @@ void trace_util_free_plugin_options_list(char **list)
 }
 
 static int process_option(const char *plugin, const char *option, const char *val);
-static int update_option(const char *file, struct pevent_plugin_option *option);
+static int update_option(const char *file, struct tep_plugin_option *option);
 
 /**
  * trace_util_add_options - Add a set of options by a plugin
@@ -110,7 +110,7 @@ static int update_option(const char *file, struct pevent_plugin_option *option);
  *
  * Sets the options with the values that have been added by user.
  */
-int trace_util_add_options(const char *name, struct pevent_plugin_option *options)
+int trace_util_add_options(const char *name, struct tep_plugin_option *options)
 {
 	struct registered_plugin_options *reg;
 	int ret;
@@ -135,7 +135,7 @@ int trace_util_add_options(const char *name, struct pevent_plugin_option *option
  * trace_util_remove_options - remove plugin options that were registered
  * @options: Options to removed that were registered with trace_util_add_options
  */
-void trace_util_remove_options(struct pevent_plugin_option *options)
+void trace_util_remove_options(struct tep_plugin_option *options)
 {
 	struct registered_plugin_options **last;
 	struct registered_plugin_options *reg;
@@ -187,11 +187,11 @@ static void parse_option_name(char **option, char **plugin)
 	}
 }
 
-static struct pevent_plugin_option *
+static struct tep_plugin_option *
 find_registered_option(const char *plugin, const char *option)
 {
 	struct registered_plugin_options *reg;
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 	const char *op_plugin;
 
 	for (reg = registered_options; reg; reg = reg->next) {
@@ -213,10 +213,10 @@ find_registered_option(const char *plugin, const char *option)
 	return NULL;
 }
 
-static struct pevent_plugin_option *
+static struct tep_plugin_option *
 find_registered_option_parse(const char *name)
 {
-	struct pevent_plugin_option *option;
+	struct tep_plugin_option *option;
 	char *option_str;
 	char *plugin;
 
@@ -243,7 +243,7 @@ find_registered_option_parse(const char *name)
  */
 const char *trace_util_plugin_option_value(const char *name)
 {
-	struct pevent_plugin_option *option;
+	struct tep_plugin_option *option;
 
 	option = find_registered_option_parse(name);
 	if (!option)
@@ -345,7 +345,7 @@ static void print_op_data(struct trace_seq *s, const char *name,
 void trace_util_print_plugin_options(struct trace_seq *s)
 {
 	struct registered_plugin_options *reg;
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 
 	for (reg = registered_options; reg; reg = reg->next) {
 		if (reg != registered_options)
@@ -486,7 +486,7 @@ static void lower_case(char *str)
 		*str = tolower(*str);
 }
 
-static int update_option_value(struct pevent_plugin_option *op, const char *val)
+static int update_option_value(struct tep_plugin_option *op, const char *val)
 {
 	char *op_val;
 	int ret = 1;
@@ -530,7 +530,7 @@ static int update_option_value(struct pevent_plugin_option *op, const char *val)
 
 static int process_option(const char *plugin, const char *option, const char *val)
 {
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 
 	op = find_registered_option(plugin, option);
 	if (!op)
@@ -539,7 +539,7 @@ static int process_option(const char *plugin, const char *option, const char *va
 	return update_option_value(op, val);
 }
 
-static int update_option(const char *file, struct pevent_plugin_option *option)
+static int update_option(const char *file, struct tep_plugin_option *option)
 {
 	struct trace_plugin_options *op;
 	char *plugin;
@@ -593,9 +593,9 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 		       const char *file, void *data)
 {
 	struct plugin_list **plugin_list = data;
-	pevent_plugin_load_func func;
+	tep_plugin_load_func func;
 	struct plugin_list *list;
-	struct pevent_plugin_option *options;
+	struct tep_plugin_option *options;
 	const char *alias;
 	char *plugin;
 	void *handle;
@@ -612,11 +612,11 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 		goto out_free;
 	}
 
-	alias = dlsym(handle, PEVENT_PLUGIN_ALIAS_NAME);
+	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
 	if (!alias)
 		alias = file;
 
-	options = dlsym(handle, PEVENT_PLUGIN_OPTIONS_NAME);
+	options = dlsym(handle, TEP_PLUGIN_OPTIONS_NAME);
 	if (options) {
 		while (options->name) {
 			ret = update_option(alias, options);
@@ -626,10 +626,10 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 		}
 	}
 
-	func = dlsym(handle, PEVENT_PLUGIN_LOADER_NAME);
+	func = dlsym(handle, TEP_PLUGIN_LOADER_NAME);
 	if (!func) {
 		warning("cound not find func '%s' in plugin '%s'\n%s\n",
-			PEVENT_PLUGIN_LOADER_NAME, plugin, dlerror());
+			TEP_PLUGIN_LOADER_NAME, plugin, dlerror());
 		goto out_free;
 	}
 
@@ -1453,14 +1453,14 @@ void trace_util_free_plugin_files(char **files)
 }
 
 struct plugin_option_read {
-	struct pevent_plugin_option	*options;
+	struct tep_plugin_option	*options;
 };
 
 static int append_option(struct plugin_option_read *options,
-			 struct pevent_plugin_option *option,
+			 struct tep_plugin_option *option,
 			 const char *alias, void *handle)
 {
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 
 	while (option->name) {
 		op = malloc(sizeof(*op));
@@ -1480,7 +1480,7 @@ static int read_options(struct tep_handle *pevent, const char *path,
 			 const char *file, void *data)
 {
 	struct plugin_option_read *options = data;
-	struct pevent_plugin_option *option;
+	struct tep_plugin_option *option;
 	const char *alias;
 	int unload = 0;
 	char *plugin;
@@ -1498,11 +1498,11 @@ static int read_options(struct tep_handle *pevent, const char *path,
 		goto out_free;
 	}
 
-	alias = dlsym(handle, PEVENT_PLUGIN_ALIAS_NAME);
+	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
 	if (!alias)
 		alias = file;
 
-	option = dlsym(handle, PEVENT_PLUGIN_OPTIONS_NAME);
+	option = dlsym(handle, TEP_PLUGIN_OPTIONS_NAME);
 	if (!option) {
 		unload = 1;
 		goto out_unload;
@@ -1518,7 +1518,7 @@ static int read_options(struct tep_handle *pevent, const char *path,
 	return 0;
 }
 
-struct pevent_plugin_option *trace_util_read_plugin_options(void)
+struct tep_plugin_option *trace_util_read_plugin_options(void)
 {
 	struct plugin_option_read option = {
 		.options = NULL,
@@ -1531,9 +1531,9 @@ struct pevent_plugin_option *trace_util_read_plugin_options(void)
 	return option.options;
 }
 
-void trace_util_free_options(struct pevent_plugin_option *options)
+void trace_util_free_options(struct tep_plugin_option *options)
 {
-	struct pevent_plugin_option *op;
+	struct tep_plugin_option *op;
 	void *last_handle = NULL;
 
 	while (options) {
@@ -1560,13 +1560,13 @@ struct plugin_list *tracecmd_load_plugins(struct tep_handle *pevent)
 void
 tracecmd_unload_plugins(struct plugin_list *plugin_list, struct tep_handle *pevent)
 {
-	pevent_plugin_unload_func func;
+	tep_plugin_unload_func func;
 	struct plugin_list *list;
 
 	while (plugin_list) {
 		list = plugin_list;
 		plugin_list = list->next;
-		func = dlsym(list->handle, PEVENT_PLUGIN_UNLOADER_NAME);
+		func = dlsym(list->handle, TEP_PLUGIN_UNLOADER_NAME);
 		if (func)
 			func(pevent);
 		dlclose(list->handle);
