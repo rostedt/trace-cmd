@@ -84,10 +84,10 @@ static void update_kmalloc(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kmalloc_callsite_field = pevent_find_field(event, "call_site");
-	kmalloc_bytes_req_field = pevent_find_field(event, "bytes_req");
-	kmalloc_bytes_alloc_field = pevent_find_field(event, "bytes_alloc");
-	kmalloc_ptr_field = pevent_find_field(event, "ptr");
+	kmalloc_callsite_field = tep_find_field(event, "call_site");
+	kmalloc_bytes_req_field = tep_find_field(event, "bytes_req");
+	kmalloc_bytes_alloc_field = tep_find_field(event, "bytes_alloc");
+	kmalloc_ptr_field = tep_find_field(event, "ptr");
 }
 
 static void update_kmalloc_node(struct tep_handle *pevent)
@@ -98,10 +98,10 @@ static void update_kmalloc_node(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kmalloc_node_callsite_field = pevent_find_field(event, "call_site");
-	kmalloc_node_bytes_req_field = pevent_find_field(event, "bytes_req");
-	kmalloc_node_bytes_alloc_field = pevent_find_field(event, "bytes_alloc");
-	kmalloc_node_ptr_field = pevent_find_field(event, "ptr");
+	kmalloc_node_callsite_field = tep_find_field(event, "call_site");
+	kmalloc_node_bytes_req_field = tep_find_field(event, "bytes_req");
+	kmalloc_node_bytes_alloc_field = tep_find_field(event, "bytes_alloc");
+	kmalloc_node_ptr_field = tep_find_field(event, "ptr");
 }
 
 static void update_kfree(struct tep_handle *pevent)
@@ -112,7 +112,7 @@ static void update_kfree(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kfree_ptr_field = pevent_find_field(event, "ptr");
+	kfree_ptr_field = tep_find_field(event, "ptr");
 }
 
 static void update_kmem_cache_alloc(struct tep_handle *pevent)
@@ -123,10 +123,10 @@ static void update_kmem_cache_alloc(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kmem_cache_callsite_field = pevent_find_field(event, "call_site");
-	kmem_cache_bytes_req_field = pevent_find_field(event, "bytes_req");
-	kmem_cache_bytes_alloc_field = pevent_find_field(event, "bytes_alloc");
-	kmem_cache_ptr_field = pevent_find_field(event, "ptr");
+	kmem_cache_callsite_field = tep_find_field(event, "call_site");
+	kmem_cache_bytes_req_field = tep_find_field(event, "bytes_req");
+	kmem_cache_bytes_alloc_field = tep_find_field(event, "bytes_alloc");
+	kmem_cache_ptr_field = tep_find_field(event, "ptr");
 }
 
 static void update_kmem_cache_alloc_node(struct tep_handle *pevent)
@@ -138,10 +138,10 @@ static void update_kmem_cache_alloc_node(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kmem_cache_node_callsite_field = pevent_find_field(event, "call_site");
-	kmem_cache_node_bytes_req_field = pevent_find_field(event, "bytes_req");
-	kmem_cache_node_bytes_alloc_field = pevent_find_field(event, "bytes_alloc");
-	kmem_cache_node_ptr_field = pevent_find_field(event, "ptr");
+	kmem_cache_node_callsite_field = tep_find_field(event, "call_site");
+	kmem_cache_node_bytes_req_field = tep_find_field(event, "bytes_req");
+	kmem_cache_node_bytes_alloc_field = tep_find_field(event, "bytes_alloc");
+	kmem_cache_node_ptr_field = tep_find_field(event, "ptr");
 }
 
 static void update_kmem_cache_free(struct tep_handle *pevent)
@@ -152,7 +152,7 @@ static void update_kmem_cache_free(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kmem_cache_free_ptr_field = pevent_find_field(event, "ptr");
+	kmem_cache_free_ptr_field = tep_find_field(event, "ptr");
 }
 
 struct func_descr {
@@ -490,7 +490,7 @@ static void do_trace_mem(struct tracecmd_input *handle)
 	ret = pevent_data_type(pevent, record);
 	event = pevent_data_event_from_type(pevent, ret);
 
-	common_type_field = pevent_find_common_field(event, "common_type");
+	common_type_field = tep_find_common_field(event, "common_type");
 	if (!common_type_field)
 		die("Can't find a 'type' field?");
 

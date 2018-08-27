@@ -544,20 +544,20 @@ static void init_wakeup(struct tracecmd_input *handle)
 	if (!event)
 		goto fail;
 	wakeup_id = event->id;
-	wakeup_task = pevent_find_field(event, "pid");
+	wakeup_task = tep_find_field(event, "pid");
 	if (!wakeup_task)
 		goto fail;
-	wakeup_success = pevent_find_field(event, "success");
+	wakeup_success = tep_find_field(event, "success");
 
 	event = pevent_find_event_by_name(pevent, "sched", "sched_switch");
 	if (!event)
 		goto fail;
 	sched_id = event->id;
-	sched_task = pevent_find_field(event, "next_pid");
+	sched_task = tep_find_field(event, "next_pid");
 	if (!sched_task)
 		goto fail;
 
-	sched_prio = pevent_find_field(event, "next_prio");
+	sched_prio = tep_find_field(event, "next_prio");
 	if (!sched_prio)
 		goto fail;
 
@@ -568,10 +568,10 @@ static void init_wakeup(struct tracecmd_input *handle)
 	if (!event)
 		goto skip;
 	wakeup_new_id = event->id;
-	wakeup_new_task = pevent_find_field(event, "pid");
+	wakeup_new_task = tep_find_field(event, "pid");
 	if (!wakeup_new_task)
 		goto fail;
-	wakeup_new_success = pevent_find_field(event, "success");
+	wakeup_new_success = tep_find_field(event, "success");
 
  skip:
 	return;

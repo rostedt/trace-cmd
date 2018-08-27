@@ -288,53 +288,53 @@ static int blktrace_handler(struct trace_seq *s, struct tep_record *record,
 	unsigned short what;
 	int long_act = 0;
 
-	field = pevent_find_field(event, "action");
+	field = tep_find_field(event, "action");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &val))
 		return 1;
 	blk_data.action = val;
 
-	field = pevent_find_field(event, "bytes");
+	field = tep_find_field(event, "bytes");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &val))
 		return 1;
 	blk_data.bytes = val;
 
-	field = pevent_find_field(event, "device");
+	field = tep_find_field(event, "device");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &val))
 		return 1;
 	blk_data.device = val;
 
-	field = pevent_find_field(event, "pdu_len");
+	field = tep_find_field(event, "pdu_len");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &val))
 		return 1;
 	blk_data.pdu_len = val;
 
-	field = pevent_find_field(event, "data");
+	field = tep_find_field(event, "data");
 	if (!field)
 		return 1;
 	blk_data.pdu_data = data + field->offset;
 
-	field = pevent_find_field(event, "sector");
+	field = tep_find_field(event, "sector");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &blk_data.sector))
 		return 1;
 
-	field = pevent_find_field(event, "pid");
+	field = tep_find_field(event, "pid");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &val))
 		return 1;
 	blk_data.pid = val;
 
-	field = pevent_find_field(event, "error");
+	field = tep_find_field(event, "error");
 	if (!field)
 		return 1;
 	if (pevent_read_number_field(field, data, &val))

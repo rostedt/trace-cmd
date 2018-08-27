@@ -803,7 +803,7 @@ add_event(struct handle_data *h, const char *system, const char *event_name,
 		return NULL;
 
 	if (!h->common_pid) {
-		h->common_pid = pevent_find_common_field(event, "common_pid");
+		h->common_pid = tep_find_common_field(event, "common_pid");
 		if (!h->common_pid)
 			die("No 'common_pid' found in event");
 	}
@@ -834,20 +834,20 @@ mate_events(struct handle_data *h, struct event_data *start,
 	end->start = start;
 
 	if (pid_field) {
-		start->pid_field = pevent_find_field(start->event, pid_field);
+		start->pid_field = tep_find_field(start->event, pid_field);
 		if (!start->pid_field)
 			die("Event: %s does not have field %s",
 			    start->event->name, pid_field);
 	}
 
 	/* Field to match with end */
-	start->end_match_field = pevent_find_field(start->event, end_match_field);
+	start->end_match_field = tep_find_field(start->event, end_match_field);
 	if (!start->end_match_field)
 		die("Event: %s does not have field %s",
 		    start->event->name, end_match_field);
 
 	/* Field to match with start */
-	end->start_match_field = pevent_find_field(end->event, start_match_field);
+	end->start_match_field = tep_find_field(end->event, start_match_field);
 	if (!end->start_match_field)
 		die("Event: %s does not have field %s",
 		    end->event->name, start_match_field);
@@ -1372,7 +1372,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	if (stacktrace_event) {
 		stacktrace_event->handle_event = handle_stacktrace_event;
 
-		stacktrace_event->data_field = pevent_find_field(stacktrace_event->event,
+		stacktrace_event->data_field = tep_find_field(stacktrace_event->event,
 							    "caller");
 		if (!stacktrace_event->data_field)
 			die("Event: %s does not have field caller",
@@ -1381,25 +1381,25 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 
 	if (process_exec) {
 		process_exec->handle_event = handle_process_exec;
-		process_exec->data_field = pevent_find_field(process_exec->event,
+		process_exec->data_field = tep_find_field(process_exec->event,
 							     "old_pid");
 	}
 
 	if (sched_switch) {
 		sched_switch->handle_event = handle_sched_switch_event;
-		sched_switch->data_field = pevent_find_field(sched_switch->event,
+		sched_switch->data_field = tep_find_field(sched_switch->event,
 							     "prev_state");
 		if (!sched_switch->data_field)
 			die("Event: %s does not have field prev_state",
 			    sched_switch->event->name);
 
-		h->switch_prev_comm = pevent_find_field(sched_switch->event,
+		h->switch_prev_comm = tep_find_field(sched_switch->event,
 							"prev_comm");
 		if (!h->switch_prev_comm)
 			die("Event: %s does not have field prev_comm",
 			    sched_switch->event->name);
 
-		h->switch_next_comm = pevent_find_field(sched_switch->event,
+		h->switch_next_comm = tep_find_field(sched_switch->event,
 							"next_comm");
 		if (!h->switch_next_comm)
 			die("Event: %s does not have field next_comm",
@@ -1416,10 +1416,10 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 		sched_wakeup->handle_event = handle_sched_wakeup_event;
 
 		/* The 'success' field may or may not be present */
-		sched_wakeup->data_field = pevent_find_field(sched_wakeup->event,
+		sched_wakeup->data_field = tep_find_field(sched_wakeup->event,
 							     "success");
 
-		h->wakeup_comm = pevent_find_field(sched_wakeup->event, "comm");
+		h->wakeup_comm = tep_find_field(sched_wakeup->event, "comm");
 		if (!h->wakeup_comm)
 			die("Event: %s does not have field comm",
 			    sched_wakeup->event->name);
@@ -1466,7 +1466,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	event_data = add_event(h, "ftrace", "function", EVENT_TYPE_FUNC);
 	if (event_data) {
 		event_data->data_field =
-			pevent_find_field(event_data->event, "ip");
+			tep_find_field(event_data->event, "ip");
 	}
 
 	/* Add any user defined hooks */

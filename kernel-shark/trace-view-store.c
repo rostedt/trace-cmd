@@ -1230,20 +1230,20 @@ static void update_filter_tasks(TraceViewStore *store)
 			pevent_find_event_by_name(pevent, "sched", "sched_switch");
 		if (store->sched_switch_event)
 			store->sched_switch_next_field =
-				pevent_find_any_field(store->sched_switch_event,
+				tep_find_any_field(store->sched_switch_event,
 						      "next_pid");
 		store->sched_wakeup_event =
 			pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
 		if (store->sched_wakeup_event)
 			store->sched_wakeup_pid_field =
-				pevent_find_any_field(store->sched_wakeup_event,
+				tep_find_any_field(store->sched_wakeup_event,
 						      "pid");
 
 		store->sched_wakeup_new_event =
 			pevent_find_event_by_name(pevent, "sched", "sched_wakeup_new");
 		if (store->sched_wakeup_new_event)
 			store->sched_wakeup_new_pid_field =
-				pevent_find_any_field(store->sched_wakeup_new_event,
+				tep_find_any_field(store->sched_wakeup_new_event,
 						      "pid");
 	}
 

@@ -1021,8 +1021,8 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 		if (event) {
 			found = TRUE;
 			ginfo->event_wakeup_id = event->id;
-			ginfo->wakeup_pid_field = pevent_find_field(event, "pid");
-			ginfo->wakeup_success_field = pevent_find_field(event, "success");
+			ginfo->wakeup_pid_field = tep_find_field(event, "pid");
+			ginfo->wakeup_success_field = tep_find_field(event, "success");
 		}
 
 
@@ -1031,8 +1031,8 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 		if (event) {
 			found = TRUE;
 			ginfo->event_wakeup_new_id = event->id;
-			ginfo->wakeup_new_pid_field = pevent_find_field(event, "pid");
-			ginfo->wakeup_new_success_field = pevent_find_field(event, "success");
+			ginfo->wakeup_new_pid_field = tep_find_field(event, "pid");
+			ginfo->wakeup_new_success_field = tep_find_field(event, "success");
 		}
 		if (!found)
 			return 0;
@@ -1092,16 +1092,16 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 			return 0;
 
 		ginfo->event_sched_switch_id = event->id;
-		ginfo->event_prev_state = pevent_find_field(event, "prev_state");
-		ginfo->event_pid_field = pevent_find_field(event, "next_pid");
-		ginfo->event_comm_field = pevent_find_field(event, "next_comm");
+		ginfo->event_prev_state = tep_find_field(event, "prev_state");
+		ginfo->event_pid_field = tep_find_field(event, "next_pid");
+		ginfo->event_comm_field = tep_find_field(event, "next_comm");
 
 		event = pevent_find_event_by_name(ginfo->pevent,
 						  "ftrace", "context_switch");
 		if (event) {
 			ginfo->ftrace_sched_switch_id = event->id;
-			ginfo->ftrace_pid_field = pevent_find_field(event, "next_pid");
-			ginfo->ftrace_comm_field = pevent_find_field(event, "next_comm");
+			ginfo->ftrace_pid_field = tep_find_field(event, "next_pid");
+			ginfo->ftrace_comm_field = tep_find_field(event, "next_comm");
 		}
 	}
 

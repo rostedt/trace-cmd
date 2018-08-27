@@ -371,7 +371,7 @@ trace_stack_handler(struct trace_seq *s, struct tep_record *record,
 	const char *func;
 	void *data = record->data;
 
-	field = pevent_find_any_field(event, "caller");
+	field = tep_find_any_field(event, "caller");
 	if (!field) {
 		trace_seq_printf(s, "<CANT FIND FIELD %s>", "caller");
 		return 0;

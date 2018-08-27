@@ -111,23 +111,23 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	 */
 
 	/* Make sure the common fields exist */
-	field = pevent_find_common_field(event, "common_type");
+	field = tep_find_common_field(event, "common_type");
 	if (!field || field->offset != 0 || field->size != 2)
 		goto fail;
-	field = pevent_find_common_field(event, "common_flags");
+	field = tep_find_common_field(event, "common_flags");
 	if (!field || field->offset != 2 || field->size != 1)
 		goto fail;
-	field = pevent_find_common_field(event, "common_preempt_count");
+	field = tep_find_common_field(event, "common_preempt_count");
 	if (!field || field->offset != 3 || field->size != 1)
 		goto fail;
-	field = pevent_find_common_field(event, "common_pid");
+	field = tep_find_common_field(event, "common_pid");
 	if (!field || field->offset != 4 || field->size != 4)
 		goto fail;
 	r = sprintf(buf, blk_event_start, id);
 	l = r;
 
 	/* lock depth is optional */
-	field = pevent_find_common_field(event, "common_lock_depth");
+	field = tep_find_common_field(event, "common_lock_depth");
 	if (field) {
 		if (field->offset != 8 || field->size != 4)
 			return -1;

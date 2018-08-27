@@ -3366,7 +3366,7 @@ find_ts_in_page(struct tep_handle *pevent, void *page, int size)
 		event = pevent_data_event_from_type(pevent, id);
 		if (event) {
 			/* Make sure this is our event */
-			field = pevent_find_field(event, "buf");
+			field = tep_find_field(event, "buf");
 			/* the trace_marker adds a '\n' */
 			if (field && strcmp(STAMP"\n", record->data + field->offset) == 0)
 				ts = record->ts;

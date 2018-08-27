@@ -91,7 +91,7 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 	const char *func = NULL;
 	unsigned long addr;
 
-	field = pevent_find_any_field(event, "caller");
+	field = tep_find_any_field(event, "caller");
 	if (!field) {
 		PyErr_SetString(PyExc_TypeError,
 				"Event doesn't have caller field");

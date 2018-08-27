@@ -385,7 +385,7 @@ static int add_trace_cmd_words(struct trace_capture *cap, char **args)
 
 		if (events) {
 			for (i = 0; events[i] >= 0; i++) {
-				event = pevent_find_event(cap->pevent, events[i]);
+				event = tep_find_event(cap->pevent, events[i]);
 				if (!event)
 					continue;
 				args[words++] = strdup("-e");
@@ -1012,7 +1012,7 @@ static void save_events(struct trace_capture *cap,
 
 	tracecmd_xml_start_sub_system(handle, "Events");
 	for (i = 0; events[i] > 0; i++) {
-		event = pevent_find_event(pevent, events[i]);
+		event = tep_find_event(pevent, events[i]);
 		if (event) {
 			tracecmd_xml_start_sub_system(handle, "Event");
 			tracecmd_xml_write_element(handle, "System", "%s", event->system);

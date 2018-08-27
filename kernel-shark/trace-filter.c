@@ -2004,7 +2004,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 
 	if (events) {
 		for (i = 0; events[i] >= 0; i++) {
-			event = pevent_find_event(filter->pevent, events[i]);
+			event = tep_find_event(filter->pevent, events[i]);
 			if (event)
 				pevent_filter_add_filter_str(filter,
 							     event->name);
@@ -2036,7 +2036,7 @@ int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 		if (!str)
 			continue;
 
-		event = pevent_find_event(filter->pevent, event_ids[i]);
+		event = tep_find_event(filter->pevent, event_ids[i]);
 		if (event) {
 
 			/* skip not filtered items */

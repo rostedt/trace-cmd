@@ -70,7 +70,7 @@ class Event(object, DictMixin):
         free_record(self._record)
 
     def __getitem__(self, n):
-        f = pevent_find_field(self._format, n)
+        f = tep_find_field(self._format, n)
         if f is None:
             raise KeyError("no field '%s'" % n)
         return Field(self._record, f)
@@ -103,7 +103,7 @@ class Event(object, DictMixin):
         return pevent_data_type(self._pevent, self._record)
 
     def num_field(self, name):
-        f = pevent_find_any_field(self._format, name)
+        f = tep_find_any_field(self._format, name)
         if f is None:
             return None
         ret, val = pevent_read_number_field(f, pevent_record_data_get(self._record))
@@ -112,7 +112,7 @@ class Event(object, DictMixin):
         return val
 
     def str_field(self, name):
-        f = pevent_find_any_field(self._format, name)
+        f = tep_find_any_field(self._format, name)
         if f is None:
             return None
         return py_field_get_str(f, self._record)

@@ -615,8 +615,8 @@ static void update_sched_wakeup(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	sched_wakeup_comm_field = pevent_find_field(event, "comm");
-	sched_wakeup_pid_field = pevent_find_field(event, "pid");
+	sched_wakeup_comm_field = tep_find_field(event, "comm");
+	sched_wakeup_pid_field = tep_find_field(event, "pid");
 }
 
 static void update_sched_wakeup_new(struct tep_handle *pevent)
@@ -627,8 +627,8 @@ static void update_sched_wakeup_new(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	sched_wakeup_new_comm_field = pevent_find_field(event, "comm");
-	sched_wakeup_new_pid_field = pevent_find_field(event, "pid");
+	sched_wakeup_new_comm_field = tep_find_field(event, "comm");
+	sched_wakeup_new_pid_field = tep_find_field(event, "pid");
 }
 
 static void update_sched_switch(struct tep_handle *pevent)
@@ -639,10 +639,10 @@ static void update_sched_switch(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	sched_switch_prev_field = pevent_find_field(event, "prev_comm");
-	sched_switch_next_field = pevent_find_field(event, "next_comm");
-	sched_switch_prev_pid_field = pevent_find_field(event, "prev_pid");
-	sched_switch_next_pid_field = pevent_find_field(event, "next_pid");
+	sched_switch_prev_field = tep_find_field(event, "prev_comm");
+	sched_switch_next_field = tep_find_field(event, "next_comm");
+	sched_switch_prev_pid_field = tep_find_field(event, "prev_pid");
+	sched_switch_next_pid_field = tep_find_field(event, "next_pid");
 }
 
 static void update_function(struct tep_handle *pevent)
@@ -653,8 +653,8 @@ static void update_function(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	function_ip_field = pevent_find_field(event, "ip");
-	function_parent_ip_field = pevent_find_field(event, "parent_ip");
+	function_ip_field = tep_find_field(event, "ip");
+	function_parent_ip_field = tep_find_field(event, "parent_ip");
 }
 
 static void update_function_graph_entry(struct tep_handle *pevent)
@@ -665,8 +665,8 @@ static void update_function_graph_entry(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	function_graph_entry_func_field = pevent_find_field(event, "func");
-	function_graph_entry_depth_field = pevent_find_field(event, "depth");
+	function_graph_entry_func_field = tep_find_field(event, "func");
+	function_graph_entry_depth_field = tep_find_field(event, "depth");
 }
 
 static void update_function_graph_exit(struct tep_handle *pevent)
@@ -677,11 +677,11 @@ static void update_function_graph_exit(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	function_graph_exit_func_field = pevent_find_field(event, "func");
-	function_graph_exit_depth_field = pevent_find_field(event, "depth");
-	function_graph_exit_calltime_field = pevent_find_field(event, "calltime");
-	function_graph_exit_rettime_field = pevent_find_field(event, "rettime");
-	function_graph_exit_overrun_field = pevent_find_field(event, "overrun");
+	function_graph_exit_func_field = tep_find_field(event, "func");
+	function_graph_exit_depth_field = tep_find_field(event, "depth");
+	function_graph_exit_calltime_field = tep_find_field(event, "calltime");
+	function_graph_exit_rettime_field = tep_find_field(event, "rettime");
+	function_graph_exit_overrun_field = tep_find_field(event, "overrun");
 }
 
 static void update_kernel_stack(struct tep_handle *pevent)
@@ -692,7 +692,7 @@ static void update_kernel_stack(struct tep_handle *pevent)
 	if (!event)
 		return;
 
-	kernel_stack_caller_field = pevent_find_field(event, "caller");
+	kernel_stack_caller_field = tep_find_field(event, "caller");
 }
 
 enum field { NEXT_PTR, SIB_PTR };
@@ -956,11 +956,11 @@ static void do_trace_hist(struct tracecmd_input *handle)
 
 	long_size = tracecmd_long_size(handle);
 
-	common_type_field = pevent_find_common_field(event, "common_type");
+	common_type_field = tep_find_common_field(event, "common_type");
 	if (!common_type_field)
 		die("Can't find a 'type' field?");
 
-	common_pid_field = pevent_find_common_field(event, "common_pid");
+	common_pid_field = tep_find_common_field(event, "common_pid");
 	if (!common_pid_field)
 		die("Can't find a 'pid' field?");
 
