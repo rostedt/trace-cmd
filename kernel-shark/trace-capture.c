@@ -1561,7 +1561,7 @@ static void tracing_dialog(struct shark_info *info, const char *tracing)
 	gtk_widget_destroy(dialog);
 
 	if (pevent)
-		pevent_free(pevent);
+		tep_free(pevent);
 
 	if (plugins)
 		tracecmd_free_list(plugins);

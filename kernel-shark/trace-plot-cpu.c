@@ -406,7 +406,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 			trace_seq_putc(s, '\n');
 			pevent_data_lat_fmt(pevent, s, record);
 			trace_seq_putc(s, '\n');
-			pevent_event_info(s, event, record);
+			tep_event_info(s, event, record);
 			trace_seq_putc(s, '\n');
 		} else
 			trace_seq_printf(s, "UNKNOW EVENT %d\n", type);

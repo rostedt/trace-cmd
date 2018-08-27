@@ -3497,7 +3497,7 @@ static char *get_date_to_ts(void)
 	int i;
 
 	/* Set up a pevent to read the raw format */
-	pevent = pevent_alloc();
+	pevent = tep_alloc();
 	if (!pevent) {
 		warning("failed to alloc pevent, --date ignored");
 		return NULL;
@@ -3578,7 +3578,7 @@ static char *get_date_to_ts(void)
 	snprintf(date2ts, 19, "0x%llx", min_stamp - min_ts / 1000);
 
  out_pevent:
-	pevent_free(pevent);
+	tep_free(pevent);
 
 	return date2ts;
 }

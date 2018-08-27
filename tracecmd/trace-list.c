@@ -313,7 +313,7 @@ static void show_plugin_options(void)
 
 	tracecmd_ftrace_load_options();
 
-	pevent = pevent_alloc();
+	pevent = tep_alloc();
 	if (!pevent)
 		die("Can not allocate pevent\n");
 
@@ -323,7 +323,7 @@ static void show_plugin_options(void)
 	trace_util_print_plugin_options(&s);
 	trace_seq_do_printf(&s);
 	tracecmd_unload_plugins(list, pevent);
-	pevent_free(pevent);
+	tep_free(pevent);
 }
 
 
@@ -339,7 +339,7 @@ static void show_plugins(void)
 	struct plugin_list *list;
 	struct trace_seq s;
 
-	pevent = pevent_alloc();
+	pevent = tep_alloc();
 	if (!pevent)
 		die("Can not allocate pevent\n");
 
@@ -349,7 +349,7 @@ static void show_plugins(void)
 	trace_util_print_plugins(&s, "  ", "\n", list);
 	trace_seq_do_printf(&s);
 	tracecmd_unload_plugins(list, pevent);
-	pevent_free(pevent);
+	tep_free(pevent);
 }
 
 

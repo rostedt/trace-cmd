@@ -1130,12 +1130,12 @@ struct tep_handle *tracecmd_local_events(const char *tracing_dir)
 {
 	struct tep_handle *pevent = NULL;
 
-	pevent = pevent_alloc();
+	pevent = tep_alloc();
 	if (!pevent)
 		return NULL;
 
 	if (tracecmd_fill_local_events(tracing_dir, pevent)) {
-		pevent_free(pevent);
+		tep_free(pevent);
 		pevent = NULL;
 	}
 

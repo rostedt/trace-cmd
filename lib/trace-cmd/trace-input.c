@@ -2635,7 +2635,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 	if (do_read_check(handle, buf, 1))
 		goto failed_read;
 
-	handle->pevent = pevent_alloc();
+	handle->pevent = tep_alloc();
 	if (!handle->pevent)
 		goto failed_read;
 
@@ -2804,7 +2804,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	else {
 		/* Only main handle frees plugins and pevent */
 		tracecmd_unload_plugins(handle->plugin_list, handle->pevent);
-		pevent_free(handle->pevent);
+		tep_free(handle->pevent);
 	}
 	free(handle);
 }

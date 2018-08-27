@@ -499,7 +499,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 			}
 
 			trace_seq_init(&s);
-			pevent_event_info(&s, event, data);
+			tep_event_info(&s, event, data);
 			g_value_set_string(value, s.buffer);
 			trace_seq_destroy(&s);
 			break;

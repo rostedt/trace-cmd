@@ -38,7 +38,7 @@ void trace_check_events(int argc, char **argv)
 		exit(EINVAL);
 	}
 
-	pevent = pevent_alloc();
+	pevent = tep_alloc();
 	if (!pevent)
 		exit(EINVAL);
 	list = tracecmd_load_plugins(pevent);
@@ -46,7 +46,7 @@ void trace_check_events(int argc, char **argv)
 	if (ret || pevent->parsing_failures)
 		ret = EINVAL;
 	tracecmd_unload_plugins(list, pevent);
-	pevent_free(pevent);
+	tep_free(pevent);
 
 	return;
 }

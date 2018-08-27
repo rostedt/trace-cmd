@@ -855,7 +855,7 @@ static const char *kshark_get_info(struct tep_handle *pe,
 		return NULL;
 
 	trace_seq_reset(&seq);
-	pevent_event_info(&seq, event, record);
+	tep_event_info(&seq, event, record);
 
 	/*
 	 * The event info string contains a trailing newline.
