@@ -407,7 +407,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	struct trace_seq s;
 	struct tep_handle *pevent;
 	struct event_format *event;
-	struct pevent_record *data;
+	struct tep_record *data;
 	const gchar *comm;
 	gchar *str;
 	guint64 secs, usecs;
@@ -840,7 +840,7 @@ TraceViewStore *
 trace_view_store_new (struct tracecmd_input *handle)
 {
 	TraceViewStore *newstore;
-	struct pevent_record *data;
+	struct tep_record *data;
 	gint cpu, count, total=0;
 	struct temp {
 		guint64		offset;
@@ -1139,7 +1139,7 @@ gint trace_view_store_get_num_actual_rows(TraceViewStore *store)
 	return store->actual_rows;
 }
 
-gint get_next_pid(TraceViewStore *store, struct tep_handle *pevent, struct pevent_record *record)
+gint get_next_pid(TraceViewStore *store, struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 
@@ -1148,7 +1148,7 @@ gint get_next_pid(TraceViewStore *store, struct tep_handle *pevent, struct peven
 	return val;
 }
 
-gint get_wakeup_pid(TraceViewStore *store, struct tep_handle *pevent, struct pevent_record *record)
+gint get_wakeup_pid(TraceViewStore *store, struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 
@@ -1157,7 +1157,7 @@ gint get_wakeup_pid(TraceViewStore *store, struct tep_handle *pevent, struct pev
 	return val;
 }
 
-gint get_wakeup_new_pid(TraceViewStore *store, struct tep_handle *pevent, struct pevent_record *record)
+gint get_wakeup_new_pid(TraceViewStore *store, struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 
@@ -1177,7 +1177,7 @@ static gboolean view_task(TraceViewStore *store, gint pid)
 }
 
 static gboolean show_task(TraceViewStore *store, struct tep_handle *pevent,
-			  struct pevent_record *record, gint pid)
+			  struct tep_record *record, gint pid)
 {
 	gint event_id;
 
@@ -1217,7 +1217,7 @@ static void update_filter_tasks(TraceViewStore *store)
 {
 	struct tracecmd_input *handle;
 	struct tep_handle *pevent;
-	struct pevent_record *record;
+	struct tep_record *record;
 	gint pid;
 	gint cpu;
 	gint i;

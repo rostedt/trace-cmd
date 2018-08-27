@@ -8,7 +8,7 @@
 
 #include "trace-cmd.h"
 
-static int call_site_handler(struct trace_seq *s, struct pevent_record *record,
+static int call_site_handler(struct trace_seq *s, struct tep_record *record,
 			     struct event_format *event, void *context)
 {
 	struct format_field *field;

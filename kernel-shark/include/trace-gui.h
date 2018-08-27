@@ -49,9 +49,9 @@ trace_create_combo_box(GtkWidget *hbox, const gchar *text,
 		       gpointer data);
 
 struct tep_handle;
-struct pevent_record;
+struct tep_record;
 
 void trace_show_record_dialog(GtkWindow *parent, struct tep_handle *pevent,
-			      struct pevent_record *record, gboolean raw);
+			      struct tep_record *record, gboolean raw);
 
 #endif /* _TRACE_GUI */

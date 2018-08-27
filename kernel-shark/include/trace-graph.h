@@ -97,12 +97,12 @@ struct plot_callbacks {
 		      unsigned long long time);
 	int (*plot_event)(struct graph_info *ginfo,
 			  struct graph_plot *plot,
-			  struct pevent_record *record);
+			  struct tep_record *record);
 	void (*end)(struct graph_info *, struct graph_plot *);
 	int (*display_last_event)(struct graph_info *ginfo, struct graph_plot *plot,
 				  struct trace_seq *s, unsigned long long time);
-	struct pevent_record *(*find_record)(struct graph_info *, struct graph_plot *,
-				      unsigned long long time);
+	struct tep_record *(*find_record)(struct graph_info *, struct graph_plot *,
+					  unsigned long long time);
 	int (*display_info)(struct graph_info *, struct graph_plot *,
 			    struct trace_seq *s,
 			    unsigned long long time);
@@ -297,15 +297,15 @@ int trace_graph_load_handle(struct graph_info *ginfo,
 			    struct tracecmd_input *handle);
 
 int trace_graph_check_sched_switch(struct graph_info *ginfo,
-				   struct pevent_record *record,
+				   struct tep_record *record,
 				   gint *pid, const char **comm);
 int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
-				   struct pevent_record *record,
+				   struct tep_record *record,
 				   gint *pid);
 enum graph_irq_type trace_graph_check_irq(struct graph_info *ginfo,
-		      struct pevent_record *record);
+		      struct tep_record *record);
 gboolean trace_graph_filter_on_task(struct graph_info *ginfo, gint pid);
-gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct pevent_record *record);
+gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct tep_record *record);
 
 void trace_graph_copy_filter(struct graph_info *ginfo,
 			     gboolean all_events,
@@ -368,12 +368,12 @@ void trace_graph_plot_start(struct graph_info *ginfo,
 
 int trace_graph_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   struct pevent_record *record);
+			   struct tep_record *record);
 
 void trace_graph_plot_end(struct graph_info *ginfo,
 			  struct graph_plot *plot);
 
-struct pevent_record *
+struct tep_record *
 trace_graph_plot_find_record(struct graph_info *ginfo,
 			     struct graph_plot *plot,
 			     unsigned long long time);

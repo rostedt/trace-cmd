@@ -252,7 +252,7 @@ static void pop_stack_func(void)
 }
 
 static void
-process_function(struct tep_handle *pevent, struct pevent_record *record)
+process_function(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long parent_ip;
 	unsigned long long ip;
@@ -309,7 +309,7 @@ process_function(struct tep_handle *pevent, struct pevent_record *record)
 }
 
 static void
-process_function_graph_entry(struct tep_handle *pevent, struct pevent_record *record)
+process_function_graph_entry(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long depth;
 	unsigned long long ip;
@@ -355,7 +355,7 @@ process_function_graph_entry(struct tep_handle *pevent, struct pevent_record *re
 }
 
 static void
-process_function_graph_exit(struct tep_handle *pevent, struct pevent_record *record)
+process_function_graph_exit(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long depth;
 	unsigned long long val;
@@ -410,7 +410,7 @@ static void copy_stack_to_pending(int pid)
 }
 
 static void
-process_kernel_stack(struct tep_handle *pevent, struct pevent_record *record)
+process_kernel_stack(struct tep_handle *pevent, struct tep_record *record)
 {
 	struct format_field *field = kernel_stack_caller_field;
 	unsigned long long val;
@@ -480,7 +480,7 @@ process_kernel_stack(struct tep_handle *pevent, struct pevent_record *record)
 }
 
 static void
-process_sched_wakeup(struct tep_handle *pevent, struct pevent_record *record, int type)
+process_sched_wakeup(struct tep_handle *pevent, struct tep_record *record, int type)
 {
 	unsigned long long val;
 	const char *comm;
@@ -505,7 +505,7 @@ process_sched_wakeup(struct tep_handle *pevent, struct pevent_record *record, in
 }
 
 static void
-process_sched_switch(struct tep_handle *pevent, struct pevent_record *record)
+process_sched_switch(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 	const char *comm;
@@ -528,7 +528,7 @@ process_sched_switch(struct tep_handle *pevent, struct pevent_record *record)
 }
 
 static void
-process_event(struct tep_handle *pevent, struct pevent_record *record, int type)
+process_event(struct tep_handle *pevent, struct tep_record *record, int type)
 {
 	struct event_format *event;
 	const char *event_name;
@@ -563,7 +563,7 @@ process_event(struct tep_handle *pevent, struct pevent_record *record, int type)
 }
 
 static void
-process_record(struct tep_handle *pevent, struct pevent_record *record)
+process_record(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 	int type;
@@ -935,7 +935,7 @@ static void do_trace_hist(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = tracecmd_get_pevent(handle);
 	struct event_format *event;
-	struct pevent_record *record;
+	struct tep_record *record;
 	int cpus;
 	int cpu;
 	int ret;
@@ -974,7 +974,7 @@ static void do_trace_hist(struct tracecmd_input *handle)
 
 	for (cpu = 0; cpu < cpus; cpu++) {
 		for (;;) {
-			struct pevent_record *record;
+			struct tep_record *record;
 
 			record = tracecmd_read_data(handle, cpu);
 			if (!record)

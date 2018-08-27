@@ -325,7 +325,7 @@ void trace_graph_plot_start(struct graph_info *ginfo,
 
 int trace_graph_plot_event(struct graph_info *ginfo,
 			   struct graph_plot *plot,
-			   struct pevent_record *record)
+			   struct tep_record *record)
 
 {
 	struct plot_info *info = &plot->info;
@@ -360,7 +360,7 @@ int trace_graph_plot_display_last_event(struct graph_info *ginfo,
 	return plot->cb->display_last_event(ginfo, plot, s, time);
 }
 
-struct pevent_record *
+struct tep_record *
 trace_graph_plot_find_record(struct graph_info *ginfo,
 			     struct graph_plot *plot,
 			     unsigned long long time)

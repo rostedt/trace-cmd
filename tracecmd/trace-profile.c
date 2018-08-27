@@ -51,7 +51,7 @@ struct event_data;
 typedef void (*event_data_print)(struct trace_seq *s, struct event_hash *hash);
 typedef int (*handle_event_func)(struct handle_data *h, unsigned long long pid,
 				 struct event_data *data,
-				 struct pevent_record *record, int cpu);
+				 struct tep_record *record, int cpu);
 
 enum event_data_type {
 	EVENT_TYPE_UNDEFINED,
@@ -105,7 +105,7 @@ struct stack_data {
 struct stack_holder {
 	unsigned long		size;
 	void			*caller;
-	struct pevent_record	*record;
+	struct tep_record	*record;
 };
 
 struct start_data {
@@ -158,7 +158,7 @@ struct task_data {
 	struct task_data	*proxy;
 	struct start_data	*last_start;
 	struct event_hash	*last_event;
-	struct pevent_record	*last_stack;
+	struct tep_record	*last_stack;
 	struct handle_data	*handle;
 	struct group_data	*group;
 };
@@ -211,7 +211,7 @@ void trace_profile_set_merge_like_comms(void)
 
 static struct start_data *
 add_start(struct task_data *task,
-	  struct event_data *event_data, struct pevent_record *record,
+	  struct event_data *event_data, struct tep_record *record,
 	  unsigned long long search_val, unsigned long long val)
 {
 	struct start_data *start;
@@ -532,7 +532,7 @@ static int match_group(struct trace_hash_item *item, void *data)
 
 static void
 add_task_comm(struct task_data *task, struct format_field *field,
-	      struct pevent_record *record)
+	      struct tep_record *record)
 {
 	const char *comm;
 
@@ -548,7 +548,7 @@ add_task_comm(struct task_data *task, struct format_field *field,
 
 /* Account for tasks that don't have starts */
 static void account_task(struct task_data *task, struct event_data *event_data,
-			 struct pevent_record *record)
+			 struct tep_record *record)
 {
 	struct event_data_match edata;
 	struct event_hash *event_hash;
@@ -601,7 +601,7 @@ static void account_task(struct task_data *task, struct event_data *event_data,
 
 static struct task_data *
 find_event_task(struct handle_data *h, struct event_data *event_data,
-		struct pevent_record *record, unsigned long long pid)
+		struct tep_record *record, unsigned long long pid)
 {
 	if (event_data->global) {
 		if (event_data->migrate)
@@ -619,7 +619,7 @@ find_event_task(struct handle_data *h, struct event_data *event_data,
 
 static struct task_data *
 handle_end_event(struct handle_data *h, struct event_data *event_data,
-		 struct pevent_record *record, int pid)
+		 struct tep_record *record, int pid)
 {
 	struct event_hash *event_hash;
 	struct task_data *task;
@@ -640,7 +640,7 @@ handle_end_event(struct handle_data *h, struct event_data *event_data,
 
 static struct task_data *
 handle_start_event(struct handle_data *h, struct event_data *event_data,
-		   struct pevent_record *record, unsigned long long pid)
+		   struct tep_record *record, unsigned long long pid)
 {
 	struct start_data *start;
 	struct task_data *task;
@@ -667,7 +667,7 @@ handle_start_event(struct handle_data *h, struct event_data *event_data,
 static int handle_event_data(struct handle_data *h,
 			     unsigned long long pid,
 			     struct event_data *event_data,
-			     struct pevent_record *record, int cpu)
+			     struct tep_record *record, int cpu)
 {
 	struct task_data *task = NULL;
 
@@ -734,10 +734,10 @@ find_event_data(struct handle_data *h, int id)
 }
 
 static void trace_profile_record(struct tracecmd_input *handle,
-				struct pevent_record *record)
+				 struct tep_record *record)
 {
 	static struct handle_data *last_handle;
-	struct pevent_record *stack_record;
+	struct tep_record *stack_record;
 	struct event_data *event_data;
 	struct task_data *task;
 	struct handle_data *h;
@@ -989,7 +989,7 @@ static void sched_switch_print(struct trace_seq *s, struct event_hash *event_has
 static int handle_sched_switch_event(struct handle_data *h,
 				     unsigned long long pid,
 				     struct event_data *event_data,
-				     struct pevent_record *record, int cpu)
+				     struct tep_record *record, int cpu)
 {
 	struct task_data *task;
 	unsigned long long prev_pid;
@@ -1054,7 +1054,7 @@ static int handle_sched_switch_event(struct handle_data *h,
 static int handle_stacktrace_event(struct handle_data *h,
 				   unsigned long long pid,
 				   struct event_data *event_data,
-				   struct pevent_record *record, int cpu)
+				   struct tep_record *record, int cpu)
 {
 	struct task_data *orig_task;
 	struct task_data *proxy;
@@ -1124,7 +1124,7 @@ static int handle_stacktrace_event(struct handle_data *h,
 static int handle_fgraph_entry_event(struct handle_data *h,
 				    unsigned long long pid,
 				    struct event_data *event_data,
-				    struct pevent_record *record, int cpu)
+				    struct tep_record *record, int cpu)
 {
 	unsigned long long size;
 	struct start_data *start;
@@ -1163,7 +1163,7 @@ static int handle_fgraph_entry_event(struct handle_data *h,
 static int handle_fgraph_exit_event(struct handle_data *h,
 				    unsigned long long pid,
 				    struct event_data *event_data,
-				    struct pevent_record *record, int cpu)
+				    struct tep_record *record, int cpu)
 {
 	struct task_data *task;
 
@@ -1179,7 +1179,7 @@ static int handle_fgraph_exit_event(struct handle_data *h,
 static int handle_process_exec(struct handle_data *h,
 			       unsigned long long pid,
 			       struct event_data *event_data,
-			       struct pevent_record *record, int cpu)
+			       struct tep_record *record, int cpu)
 {
 	struct task_data *task;
 	unsigned long long val;
@@ -1204,7 +1204,7 @@ static int handle_process_exec(struct handle_data *h,
 static int handle_sched_wakeup_event(struct handle_data *h,
 				     unsigned long long pid,
 				     struct event_data *event_data,
-				     struct pevent_record *record, int cpu)
+				     struct tep_record *record, int cpu)
 {
 	struct task_data *proxy;
 	struct task_data *task = NULL;

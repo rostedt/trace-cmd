@@ -269,7 +269,7 @@ static void graph_filter_task_clear(struct graph_info *ginfo)
 	ginfo->filter_enabled = 0;
 }
 
-gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct pevent_record *record)
+gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct tep_record *record)
 {
 	int ret;
 
@@ -653,7 +653,7 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_clear_tasks;
 	static GtkWidget *menu_plot_task;
 	static GtkWidget *menu_remove_plot;
-	struct pevent_record *record = NULL;
+	struct tep_record *record = NULL;
 	struct graph_plot *plot;
 	const char *comm;
 	guint64 time;
@@ -1004,7 +1004,7 @@ info_button_release_event(GtkWidget *widget, GdkEventMotion *event, gpointer dat
 #define PLOT_BOARDER 5
 
 int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
-				   struct pevent_record *record,
+				   struct tep_record *record,
 				   gint *pid)
 {
 	struct event_format *event;
@@ -1070,7 +1070,7 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 }
 
 int trace_graph_check_sched_switch(struct graph_info *ginfo,
-				   struct pevent_record *record,
+				   struct tep_record *record,
 				   gint *pid, const char **comm)
 {
 	unsigned long long val;
@@ -1151,7 +1151,7 @@ static void enter_id(gint **ids, gint id, gint *len)
 
 enum graph_irq_type
 trace_graph_check_irq(struct graph_info *ginfo,
-		      struct pevent_record *record)
+		      struct tep_record *record)
 {
 	struct event_format *event;
 	struct event_format **events;
@@ -1832,7 +1832,7 @@ static void draw_plot_box(struct graph_info *ginfo, int i,
 }
 
 static void draw_plot(struct graph_info *ginfo, struct graph_plot *plot,
-		      struct pevent_record *record)
+		      struct tep_record *record)
 {
 	static PangoFontDescription *font;
 	PangoLayout *layout;
@@ -1926,7 +1926,7 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 	struct timeval tv_start, tv_stop;
 	struct plot_list *list;
 	struct graph_plot *plot;
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct plot_hash *hash;
 	gint pid;
 	gint cpu;
@@ -2533,7 +2533,7 @@ void trace_graph_free_info(struct graph_info *ginfo)
 static int load_handle(struct graph_info *ginfo,
 		       struct tracecmd_input *handle)
 {
-	struct pevent_record *record;
+	struct tep_record *record;
 	unsigned long sec, usec;
 	gint cpu;
 

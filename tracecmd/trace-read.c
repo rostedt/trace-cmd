@@ -50,7 +50,7 @@ struct handle_list {
 	const char		*file;
 	int			cpus;
 	int			done;
-	struct pevent_record	*record;
+	struct tep_record	*record;
 	struct filter		*event_filters;
 	struct filter		*event_filter_out;
 };
@@ -135,7 +135,7 @@ static int test_read_at_index;
 static void show_test(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent;
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct trace_seq s;
 	int cpu;
 
@@ -157,7 +157,7 @@ static void show_test(struct tracecmd_input *handle)
 	free_record(record);
 }
 
-static void test_save(struct pevent_record *record, int cpu)
+static void test_save(struct tep_record *record, int cpu)
 {
 	if (test_read_at_index++ == test_read_at_copy) {
 		test_read_at_offset = record->offset;
@@ -177,7 +177,7 @@ static int test_at_timestamp_index;
 static void show_test(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent;
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct trace_seq s;
 	int cpu = test_at_timestamp_cpu;
 
@@ -204,7 +204,7 @@ static void show_test(struct tracecmd_input *handle)
 	free_record(record);
 }
 
-static void test_save(struct pevent_record *record, int cpu)
+static void test_save(struct tep_record *record, int cpu)
 {
 	if (test_at_timestamp_index++ == test_at_timestamp_copy) {
 		test_at_timestamp_ts = record->ts;
@@ -222,7 +222,7 @@ static void test_save(struct pevent_record *record, int cpu)
 static void show_test(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent;
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct trace_seq s;
 	int cpu = 0;
 
@@ -260,7 +260,7 @@ static void show_test(struct tracecmd_input *handle)
 
 	free_record(record);
 }
-static void test_save(struct pevent_record *record, int cpu)
+static void test_save(struct tep_record *record, int cpu)
 {
 }
 #endif /* TEST_FIRST_LAST */
@@ -269,7 +269,7 @@ static void test_save(struct pevent_record *record, int cpu)
 static void show_test(struct tracecmd_input *handle)
 {
 }
-static void test_save(struct pevent_record *record, int cpu)
+static void test_save(struct tep_record *record, int cpu)
 {
 }
 #endif
@@ -661,7 +661,7 @@ static void add_sched(unsigned int val, unsigned long long end, int rt)
 	free(info);
 }
 
-static void process_wakeup(struct tep_handle *pevent, struct pevent_record *record)
+static void process_wakeup(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 	int id;
@@ -749,7 +749,7 @@ static void finish_wakeup(void)
 	trace_hash_free(&wakeup_hash);
 }
 
-void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record)
+void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
 	struct tep_handle *pevent;
@@ -876,7 +876,7 @@ static void read_rest(void)
 
 static int
 test_filters(struct tep_handle *pevent, struct filter *event_filters,
-	     struct pevent_record *record, int neg)
+	     struct tep_record *record, int neg)
 {
 	int found = 0;
 	int ret = FILTER_NONE;
@@ -920,7 +920,7 @@ struct stack_info {
 };
 
 static int
-test_stacktrace(struct handle_list *handles, struct pevent_record *record,
+test_stacktrace(struct handle_list *handles, struct tep_record *record,
 		int last_printed)
 {
 	static struct stack_info *infos;
@@ -994,9 +994,9 @@ test_stacktrace(struct handle_list *handles, struct pevent_record *record,
 	return 0;
 }
 
-static struct pevent_record *get_next_record(struct handle_list *handles)
+static struct tep_record *get_next_record(struct handle_list *handles)
 {
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct tep_handle *pevent;
 	int found = 0;
 	int cpu;
@@ -1013,7 +1013,7 @@ static struct pevent_record *get_next_record(struct handle_list *handles)
 	do {
 		if (filter_cpus) {
 			long long last_stamp = -1;
-			struct pevent_record *precord;
+			struct tep_record *precord;
 			int first_record = 1;
 			int next_cpu = -1;
 			int i;
@@ -1115,8 +1115,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 {
 	struct handle_list *handles;
 	struct handle_list *last_handle;
-	struct pevent_record *record;
-	struct pevent_record *last_record;
+	struct tep_record *record;
+	struct tep_record *last_record;
 	struct event_format *event;
 	struct tep_handle *pevent;
 	int cpus;

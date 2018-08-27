@@ -131,7 +131,7 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 				 struct kshark_entry ***data_rows);
 
 ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
-				 struct pevent_record ***data_rows);
+				 struct tep_record ***data_rows);
 
 ssize_t kshark_get_task_pids(struct kshark_context *kshark_ctx, int **pids);
 
@@ -222,7 +222,7 @@ ssize_t kshark_find_entry_by_time(uint64_t time,
 				  size_t l, size_t h);
 
 ssize_t kshark_find_record_by_time(uint64_t time,
-				   struct pevent_record **data_rows,
+				   struct tep_record **data_rows,
 				   size_t l, size_t h);
 
 bool kshark_match_pid(struct kshark_context *kshark_ctx,

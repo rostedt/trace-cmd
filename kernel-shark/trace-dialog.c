@@ -374,7 +374,7 @@ GtkResponseType trace_dialog(GtkWindow *parent, enum trace_dialog_type type,
 
 static void read_raw_events(struct trace_seq *s,
 			    struct event_format *event,
-			    struct pevent_record *record)
+			    struct tep_record *record)
 {
 	struct format_field **fields;
 	int i;
@@ -393,7 +393,7 @@ static void read_raw_events(struct trace_seq *s,
 }
 
 void trace_show_record_dialog(GtkWindow *parent, struct tep_handle *pevent,
-			      struct pevent_record *record, gboolean raw)
+			      struct tep_record *record, gboolean raw)
 {
 	struct event_format *event;
 	struct trace_seq s;

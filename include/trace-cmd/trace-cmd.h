@@ -45,8 +45,8 @@ enum {
 	RINGBUF_TYPE_TIME_STAMP		= 31,
 };
 
-void tracecmd_record_ref(struct pevent_record *record);
-void free_record(struct pevent_record *record);
+void tracecmd_record_ref(struct tep_record *record);
+void free_record(struct tep_record *record);
 
 struct tracecmd_input;
 struct tracecmd_output;
@@ -96,7 +96,7 @@ struct tracecmd_ftrace {
 };
 
 typedef void (*tracecmd_show_data_func)(struct tracecmd_input *handle,
-					struct pevent_record *record);
+					struct tep_record *record);
 typedef void (*tracecmd_handle_init_func)(struct tracecmd_input *handle,
 					  struct hook_list *hook, int global);
 
@@ -136,45 +136,45 @@ int tracecmd_init_data(struct tracecmd_input *handle);
 void tracecmd_print_stats(struct tracecmd_input *handle);
 void tracecmd_print_uname(struct tracecmd_input *handle);
 
-struct pevent_record *
+struct tep_record *
 tracecmd_read_page_record(struct tep_handle *pevent, void *page, int size,
-			  struct pevent_record *last_record);
-struct pevent_record *
+			  struct tep_record *last_record);
+struct tep_record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
 
-static inline struct pevent_record *
+static inline struct tep_record *
 tracecmd_peek_data_ref(struct tracecmd_input *handle, int cpu)
 {
-	struct pevent_record *rec = tracecmd_peek_data(handle, cpu);
+	struct tep_record *rec = tracecmd_peek_data(handle, cpu);
 	if (rec)
 		rec->ref_count++;
 	return rec;
 }
 
-struct pevent_record *
+struct tep_record *
 tracecmd_read_data(struct tracecmd_input *handle, int cpu);
 
-struct pevent_record *
-tracecmd_read_prev(struct tracecmd_input *handle, struct pevent_record *record);
+struct tep_record *
+tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record);
 
-struct pevent_record *
+struct tep_record *
 tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu);
 
-struct pevent_record *
+struct tep_record *
 tracecmd_peek_next_data(struct tracecmd_input *handle, int *rec_cpu);
 
-struct pevent_record *
+struct tep_record *
 tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *cpu);
-struct pevent_record *
+struct tep_record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size);
-struct pevent_record *
+struct tep_record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu);
-struct pevent_record *
+struct tep_record *
 tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu);
 int tracecmd_refresh_record(struct tracecmd_input *handle,
-			    struct pevent_record *record);
+			    struct tep_record *record);
 
 int tracecmd_set_cpu_to_timestamp(struct tracecmd_input *handle,
 				  int cpu, unsigned long long ts);
@@ -198,11 +198,11 @@ void tracecmd_set_show_data_func(struct tracecmd_input *handle,
 char *tracecmd_get_tracing_file(const char *name);
 void tracecmd_put_tracing_file(char *name);
 
-int tracecmd_record_at_buffer_start(struct tracecmd_input *handle, struct pevent_record *record);
+int tracecmd_record_at_buffer_start(struct tracecmd_input *handle, struct tep_record *record);
 unsigned long long tracecmd_page_ts(struct tracecmd_input *handle,
-				    struct pevent_record *record);
+				    struct tep_record *record);
 unsigned int tracecmd_record_ts_delta(struct tracecmd_input *handle,
-				      struct pevent_record *record);
+				      struct tep_record *record);
 
 #ifndef SWIG
 /* hack for function graph work around */
@@ -385,10 +385,10 @@ int tracecmd_stack_tracer_status(int *status);
 
 /* --- Debugging --- */
 struct kbuffer *tracecmd_record_kbuf(struct tracecmd_input *handle,
-				     struct pevent_record *record);
+				     struct tep_record *record);
 void *tracecmd_record_page(struct tracecmd_input *handle,
-			   struct pevent_record *record);
+			   struct tep_record *record);
 void *tracecmd_record_offset(struct tracecmd_input *handle,
-			     struct pevent_record *record);
+			     struct tep_record *record);
 
 #endif /* _TRACE_CMD_H */

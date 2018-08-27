@@ -302,7 +302,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_display_event;
 	static GtkWidget *menu_display_raw_event;
 	struct tep_handle *pevent;
-	struct pevent_record *record;
+	struct tep_record *record;
 	TraceViewRecord *vrec;
 	GtkTreeModel *model;
 	const char *comm;

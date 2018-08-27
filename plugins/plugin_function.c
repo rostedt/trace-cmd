@@ -127,7 +127,7 @@ static void show_function(struct trace_seq *s, struct tep_handle *pevent,
 	}
 }
 
-static int function_handler(struct trace_seq *s, struct pevent_record *record,
+static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct event_format *event, void *context)
 {
 	struct tep_handle *pevent = event->pevent;

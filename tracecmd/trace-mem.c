@@ -327,7 +327,7 @@ static void remove_kmalloc(unsigned long long ptr)
 }
 
 static void
-process_kmalloc(struct tep_handle *pevent, struct pevent_record *record,
+process_kmalloc(struct tep_handle *pevent, struct tep_record *record,
 		struct format_field *callsite_field,
 		struct format_field *bytes_req_field,
 		struct format_field *bytes_alloc_field,
@@ -353,7 +353,7 @@ process_kmalloc(struct tep_handle *pevent, struct pevent_record *record,
 }
 
 static void
-process_kfree(struct tep_handle *pevent, struct pevent_record *record,
+process_kfree(struct tep_handle *pevent, struct tep_record *record,
 	      struct format_field *ptr_field)
 {
 	unsigned long long ptr;
@@ -364,7 +364,7 @@ process_kfree(struct tep_handle *pevent, struct pevent_record *record,
 }
 
 static void
-process_record(struct tep_handle *pevent, struct pevent_record *record)
+process_record(struct tep_handle *pevent, struct tep_record *record)
 {
 	unsigned long long val;
 	int type;
@@ -463,7 +463,7 @@ static void do_trace_mem(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = tracecmd_get_pevent(handle);
 	struct event_format *event;
-	struct pevent_record *record;
+	struct tep_record *record;
 	int missed_events = 0;
 	int cpus;
 	int cpu;

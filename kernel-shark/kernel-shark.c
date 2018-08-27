@@ -1440,7 +1440,7 @@ static void
 handle_display_event_clicked (gpointer data, gboolean raw)
 {
 	struct shark_info *info = data;
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct tep_handle *pevent;
 	TraceViewRecord *vrec;
 	GtkTreeModel *model;
@@ -1547,7 +1547,7 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	static GtkWidget *menu_filter_graph_clear_tasks;
 	static GtkWidget *menu_display_event;
 	static GtkWidget *menu_display_raw_event;
-	struct pevent_record *record;
+	struct tep_record *record;
 	TraceViewRecord *vrec;
 	GtkTreeModel *model;
 	const char *comm;

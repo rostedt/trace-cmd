@@ -491,7 +491,7 @@ void kshark_filter_entries(struct kshark_context *kshark_ctx,
 }
 
 static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
-				    struct pevent_record *record,
+				    struct tep_record *record,
 				    struct kshark_entry *entry)
 {
 	/* Offset of the record */
@@ -528,7 +528,7 @@ struct rec_list {
 			/** next pointer, matches entry->next */
 			struct rec_list		*next;
 			/** pointer to the raw record data */
-			struct pevent_record	*rec;
+			struct tep_record	*rec;
 		};
 		/** entry - Used for kshark_load_data_entries() */
 		struct kshark_entry		entry;
@@ -566,7 +566,7 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 {
 	struct event_filter *adv_filter;
 	struct kshark_task_list *task;
-	struct pevent_record *rec;
+	struct tep_record *rec;
 	struct rec_list **temp_next;
 	struct rec_list **cpu_list;
 	struct rec_list *temp_rec;
@@ -770,10 +770,10 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
  *	    negative error code on failure.
  */
 ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
-				struct pevent_record ***data_rows)
+				struct tep_record ***data_rows)
 {
-	struct pevent_record **rows;
-	struct pevent_record *rec;
+	struct tep_record **rows;
+	struct tep_record *rec;
 	struct rec_list **rec_list;
 	struct rec_list *temp_rec;
 	enum rec_type type = REC_RECORD;
@@ -784,7 +784,7 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	if (total < 0)
 		goto fail;
 
-	rows = calloc(total, sizeof(struct pevent_record *));
+	rows = calloc(total, sizeof(struct tep_record *));
 	if (!rows)
 		goto fail;
 
@@ -816,8 +816,8 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	return -ENOMEM;
 }
 
-static struct pevent_record *kshark_read_at(struct kshark_context *kshark_ctx,
-					    uint64_t offset)
+static struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
+					 uint64_t offset)
 {
 	/*
 	 * It turns that tracecmd_read_at() is not thread-safe.
@@ -826,7 +826,7 @@ static struct pevent_record *kshark_read_at(struct kshark_context *kshark_ctx,
 	 */
 	pthread_mutex_lock(&kshark_ctx->input_mutex);
 
-	struct pevent_record *data = tracecmd_read_at(kshark_ctx->handle,
+	struct tep_record *data = tracecmd_read_at(kshark_ctx->handle,
 						      offset, NULL);
 
 	pthread_mutex_unlock(&kshark_ctx->input_mutex);
@@ -835,7 +835,7 @@ static struct pevent_record *kshark_read_at(struct kshark_context *kshark_ctx,
 }
 
 static const char *kshark_get_latency(struct tep_handle *pe,
-				      struct pevent_record *record)
+				      struct tep_record *record)
 {
 	if (!record)
 		return NULL;
@@ -846,7 +846,7 @@ static const char *kshark_get_latency(struct tep_handle *pe,
 }
 
 static const char *kshark_get_info(struct tep_handle *pe,
-				   struct pevent_record *record,
+				   struct tep_record *record,
 				   struct event_format *event)
 {
 	char *pos;
@@ -881,7 +881,7 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 {
 	const char *event_name, *task, *lat, *info;
 	struct kshark_context *kshark_ctx;
-	struct pevent_record *data;
+	struct tep_record *data;
 	struct event_format *event;
 	char *temp_str, *entry_str;
 	int event_id, size = 0;
@@ -977,7 +977,7 @@ ssize_t kshark_find_entry_by_time(uint64_t time,
 	    the function returns BSEARCH_ALL_SMALLER (negative value).
  */
 ssize_t kshark_find_record_by_time(uint64_t time,
-				   struct pevent_record **data,
+				   struct tep_record **data,
 				   size_t l, size_t h)
 {
 	size_t mid;

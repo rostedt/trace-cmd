@@ -16,7 +16,7 @@ enum tlb_flush_reason {
 	NR_TLB_FLUSH_REASONS,
 };
 
-static int tlb_flush_handler(struct trace_seq *s, struct pevent_record *record,
+static int tlb_flush_handler(struct trace_seq *s, struct tep_record *record,
 			     struct event_format *event, void *context)
 {
 	unsigned long long val;

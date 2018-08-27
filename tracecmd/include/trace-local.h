@@ -34,7 +34,7 @@ struct pid_record_data {
 	int			closed;
 	struct tracecmd_input	*stream;
 	struct buffer_instance	*instance;
-	struct pevent_record	*record;
+	struct tep_record	*record;
 };
 
 void show_file(const char *name);
@@ -101,7 +101,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 		  tracecmd_handle_init_func handle_init, int global);
 int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv);
 
-void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record);
+void trace_show_data(struct tracecmd_input *handle, struct tep_record *record);
 
 /* --- event interation --- */
 

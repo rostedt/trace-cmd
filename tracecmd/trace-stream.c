@@ -87,7 +87,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 
 int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv)
 {
-	struct pevent_record *record;
+	struct tep_record *record;
 	struct pid_record_data *pid;
 	struct pid_record_data *last_pid;
 	fd_set rfds;
