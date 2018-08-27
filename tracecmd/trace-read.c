@@ -149,7 +149,7 @@ static void show_test(struct tracecmd_input *handle)
 	record = tracecmd_read_at(handle, test_read_at_offset, &cpu);
 	printf("\nHERE'S THE COPY RECORD\n");
 	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -196,7 +196,7 @@ static void show_test(struct tracecmd_input *handle)
 	       (void *)(record->offset & ~(page_size - 1)),
 	       (void *)record->offset);
 	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -237,7 +237,7 @@ static void show_test(struct tracecmd_input *handle)
 	printf("\nHERE'S THE FIRST RECORD with offset %p\n",
 	       (void *)record->offset);
 	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -253,7 +253,7 @@ static void show_test(struct tracecmd_input *handle)
 	printf("\nHERE'S THE LAST RECORD with offset %p\n",
 	       (void *)record->offset);
 	trace_seq_init(&s);
-	pevent_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -794,8 +794,8 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		unsigned long long rec_ts = record->ts;
 
 		event = pevent_find_event_by_record(pevent, record);
-		pevent_print_event_task(pevent, &s, event, record);
-		pevent_print_event_time(pevent, &s, event, record,
+		tep_print_event_task(pevent, &s, event, record);
+		tep_print_event_time(pevent, &s, event, record,
 					use_trace_clock);
 		buf[0] = 0;
 		if (use_trace_clock && !(pevent->flags & PEVENT_NSEC_OUTPUT))
@@ -807,9 +807,9 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		}
 		last_ts = rec_ts;
 		trace_seq_printf(&s, " %-8s", buf);
-		pevent_print_event_data(pevent, &s, event, record);
+		tep_print_event_data(pevent, &s, event, record);
 	} else
-		pevent_print_event(pevent, &s, record, use_trace_clock);
+		tep_print_event(pevent, &s, record, use_trace_clock);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
 	if (debug) {
@@ -1727,11 +1727,11 @@ void trace_report (int argc, char **argv)
 		}
 
 		if (show_funcs) {
-			pevent_print_funcs(pevent);
+			tep_print_funcs(pevent);
 			return;
 		}
 		if (show_printk) {
-			pevent_print_printk(pevent);
+			tep_print_printk(pevent);
 			return;
 		}
 

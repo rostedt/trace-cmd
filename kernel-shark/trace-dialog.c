@@ -385,7 +385,7 @@ static void read_raw_events(struct trace_seq *s,
 
 	for (i = 0; fields[i]; i++) {
 		trace_seq_printf(s, "%s: ", fields[i]->name);
-		pevent_print_field(s, record->data, fields[i]);
+		tep_print_field(s, record->data, fields[i]);
 		trace_seq_putc(s, '\n');
 	}
 
@@ -407,7 +407,7 @@ void trace_show_record_dialog(GtkWindow *parent, struct tep_handle *pevent,
 	if (raw)
 		read_raw_events(&s, event, record);
 	else
-		pevent_print_event(pevent, &s, record, FALSE);
+		tep_print_event(pevent, &s, record, FALSE);
 
 	if (s.buffer_size) {
 		trace_seq_terminate(&s);

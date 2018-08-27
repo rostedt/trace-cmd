@@ -119,8 +119,8 @@ static void _print_flag(struct trace_seq *s, struct event_format *event,
 	_print_flag(s, ev, name, data, __n, sizeof(__n)/sizeof(__n[0]));	\
 	})
 
-#define SF(fn)	pevent_print_num_field(s, fn ":%d", event, fn, record, 0)
-#define SFX(fn)	pevent_print_num_field(s, fn ":%#x", event, fn, record, 0)
+#define SF(fn)	tep_print_num_field(s, fn ":%d", event, fn, record, 0)
+#define SFX(fn)	tep_print_num_field(s, fn ":%#x", event, fn, record, 0)
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s, struct tep_record *record,
@@ -131,7 +131,7 @@ static int drv_bss_info_changed(struct trace_seq *s, struct tep_record *record,
 	print_string(s, event, "wiphy_name", data);
 	trace_seq_printf(s, " vif:");
 	print_string(s, event, "vif_name", data);
-	pevent_print_num_field(s, "(%d)", event, "vif_type", record, 1);
+	tep_print_num_field(s, "(%d)", event, "vif_type", record, 1);
 
 	trace_seq_printf(s, "\n%*s", INDENT, "");
 	SF("assoc"); SP();
@@ -164,7 +164,7 @@ static int drv_config(struct trace_seq *s, struct tep_record *record,
 		{ 2, "IDLE" },
 		{ 3, "QOS"},
 	);
-	pevent_print_num_field(s, " chan:%d/", event, "center_freq", record, 1);
+	tep_print_num_field(s, " chan:%d/", event, "center_freq", record, 1);
 	print_enum(s, event, "channel_type", data,
 		{ 0, "noht" },
 		{ 1, "ht20" },
