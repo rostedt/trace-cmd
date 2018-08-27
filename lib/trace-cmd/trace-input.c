@@ -748,7 +748,7 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	if (read_and_parse_cmdlines(handle) < 0)
 		return -1;
 
-	pevent_set_long_size(handle->pevent, handle->long_size);
+	tep_set_long_size(handle->pevent, handle->long_size);
 
 	return 0;
 }

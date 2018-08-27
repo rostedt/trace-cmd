@@ -1520,7 +1520,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 
 static void output_event_stack(struct tep_handle *pevent, struct stack_data *stack)
 {
-	int longsize = pevent_get_long_size(pevent);
+	int longsize = tep_get_long_size(pevent);
 	unsigned long long val;
 	const char *func;
 	unsigned long long stop = -1ULL;
@@ -1886,7 +1886,7 @@ static void output_stacks(struct tep_handle *pevent, struct trace_hash *stack_ha
 	struct stack_chain *chain;
 	unsigned long long mask = 0;
 	int nr_chains;
-	int longsize = pevent_get_long_size(pevent);
+	int longsize = tep_get_long_size(pevent);
 	int nr_stacks;
 	int i;
 
