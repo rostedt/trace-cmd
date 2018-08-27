@@ -48,7 +48,7 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	 */
 
 	/* It was originally behind the "power" event */
-	event = pevent_find_event_by_name(pevent, "ftrace", "power");
+	event = tep_find_event_by_name(pevent, "ftrace", "power");
 	if (event) {
 		id = event->id + 1;
 		goto found;
@@ -58,7 +58,7 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	 * But the power tracer is now in perf.
 	 * Then it was after kmem_free
 	 */
-	event = pevent_find_event_by_name(pevent, "ftrace", "kmem_free");
+	event = tep_find_event_by_name(pevent, "ftrace", "kmem_free");
 	if (event) {
 		id = event->id + 1;
 		goto found;
@@ -68,7 +68,7 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	 * But that then went away.
 	 * Currently it should be behind the user stack.
 	 */
-	event = pevent_find_event_by_name(pevent, "ftrace", "user_stack");
+	event = tep_find_event_by_name(pevent, "ftrace", "user_stack");
 	if (event) {
 		id = event->id + 1;
 		goto found;

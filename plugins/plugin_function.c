@@ -122,7 +122,7 @@ static void show_function(struct trace_seq *s, struct tep_handle *pevent,
 
 	trace_seq_printf(s, "%s", func);
 	if (ftrace_offset->set) {
-		offset = pevent_find_function_address(pevent, function);
+		offset = tep_find_function_address(pevent, function);
 		trace_seq_printf(s, "+0x%x ", (int)(function - offset));
 	}
 }
@@ -140,12 +140,12 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(pevent, function);
+	func = tep_find_function(pevent, function);
 
 	if (tep_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
 		return trace_seq_putc(s, '!');
 
-	parent = pevent_find_function(pevent, pfunction);
+	parent = tep_find_function(pevent, pfunction);
 
 	if (parent && ftrace_indent->set)
 		index = add_and_get_index(parent, func, record->cpu);

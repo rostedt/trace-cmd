@@ -47,7 +47,7 @@ static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *peve
 	struct event_format *event;
 
 	/* Store the func ret id and event for later use */
-	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
+	event = tep_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
 	if (!event)
 		return -1;
 
@@ -72,7 +72,7 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(pevent, function);
+	func = tep_find_function(pevent, function);
 	if (func)
 		trace_seq_printf(s, "%s <-- ", func);
 	else
@@ -81,7 +81,7 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_get_field_val(s, event, "parent_ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(pevent, function);
+	func = tep_find_function(pevent, function);
 	if (func)
 		trace_seq_printf(s, "%s", func);
 	else
@@ -223,7 +223,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 
 	if (tep_get_field_val(s, event, "func", record, &val, 1))
 		return trace_seq_putc(s, '!');
-	func = pevent_find_function(pevent, val);
+	func = tep_find_function(pevent, val);
 
 	if (func)
 		ret = trace_seq_printf(s, "%s();", func);
@@ -263,7 +263,7 @@ static int print_graph_nested(struct trace_seq *s,
 	if (tep_get_field_val(s, event, "func", record, &val, 1))
 		return trace_seq_putc(s, '!');
 
-	func = pevent_find_function(pevent, val);
+	func = tep_find_function(pevent, val);
 
 	if (func)
 		ret = trace_seq_printf(s, "%s() {", func);
@@ -349,7 +349,7 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 	if (fgraph_tail->set) {
 		if (tep_get_field_val(s, event, "func", record, &val, 0))
 			return 0;
-		func = pevent_find_function(event->pevent, val);
+		func = tep_find_function(event->pevent, val);
 		if (!func)
 			return 0;
 		trace_seq_printf(s, " /* %s */", func);
@@ -389,7 +389,7 @@ trace_stack_handler(struct trace_seq *s, struct tep_record *record,
 		    ((int)addr == -1))
 			break;
 
-		func = pevent_find_function(event->pevent, addr);
+		func = tep_find_function(event->pevent, addr);
 		if (func)
 			trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
 		else
@@ -436,7 +436,7 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	trace_util_add_options("ftrace", trace_ftrace_options);
 
 	/* Store the func ret id and event for later use */
-	event = pevent_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
+	event = tep_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
 	if (!event)
 		return 0;
 

@@ -798,7 +798,7 @@ add_event(struct handle_data *h, const char *system, const char *event_name,
 	struct event_format *event;
 	struct event_data *event_data;
 
-	event = pevent_find_event_by_name(h->pevent, system, event_name);
+	event = tep_find_event_by_name(h->pevent, system, event_name);
 	if (!event)
 		return NULL;
 
@@ -904,8 +904,8 @@ static void func_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char *func;
 
-	func = pevent_find_function(event_hash->event_data->event->pevent,
-				    event_hash->val);
+	func = tep_find_function(event_hash->event_data->event->pevent,
+				 event_hash->val);
 	if (func)
 		trace_seq_printf(s, "func: %s()", func);
 	else
@@ -1555,7 +1555,7 @@ static void output_event_stack(struct tep_handle *pevent, struct stack_data *sta
 		}
 		if (val == stop)
 			break;
-		func = pevent_find_function(pevent, val);
+		func = tep_find_function(pevent, val);
 		if (func)
 			printf("       => %s (0x%llx)\n", func, val);
 		else
@@ -1777,7 +1777,7 @@ static void print_chain_func(struct tep_handle *pevent, struct stack_chain *chai
 	unsigned long long val = chain->val;
 	const char *func;
 
-	func = pevent_find_function(pevent, val);
+	func = tep_find_function(pevent, val);
 	if (func)
 		printf("%s (0x%llx)\n", func, val);
 	else

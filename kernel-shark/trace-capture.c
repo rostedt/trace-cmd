@@ -841,7 +841,7 @@ static int load_events(struct trace_capture *cap,
 			continue;
 		event_name = tracecmd_xml_node_value(handle, event_node);
 
-		event = pevent_find_event_by_name(pevent, system, event_name);
+		event = tep_find_event_by_name(pevent, system, event_name);
 
 		if (!event)
 			continue;

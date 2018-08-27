@@ -540,7 +540,7 @@ static void init_wakeup(struct tracecmd_input *handle)
 
 	trace_hash_init(&wakeup_hash, WAKEUP_HASH_SIZE);
 
-	event = pevent_find_event_by_name(pevent, "sched", "sched_wakeup");
+	event = tep_find_event_by_name(pevent, "sched", "sched_wakeup");
 	if (!event)
 		goto fail;
 	wakeup_id = event->id;
@@ -549,7 +549,7 @@ static void init_wakeup(struct tracecmd_input *handle)
 		goto fail;
 	wakeup_success = tep_find_field(event, "success");
 
-	event = pevent_find_event_by_name(pevent, "sched", "sched_switch");
+	event = tep_find_event_by_name(pevent, "sched", "sched_switch");
 	if (!event)
 		goto fail;
 	sched_id = event->id;
@@ -564,7 +564,7 @@ static void init_wakeup(struct tracecmd_input *handle)
 
 	wakeup_new_id = -1;
 
-	event = pevent_find_event_by_name(pevent, "sched", "sched_wakeup_new");
+	event = tep_find_event_by_name(pevent, "sched", "sched_wakeup_new");
 	if (!event)
 		goto skip;
 	wakeup_new_id = event->id;
@@ -793,7 +793,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		struct event_format *event;
 		unsigned long long rec_ts = record->ts;
 
-		event = pevent_find_event_by_record(pevent, record);
+		event = tep_find_event_by_record(pevent, record);
 		tep_print_event_task(pevent, &s, event, record);
 		tep_print_event_time(pevent, &s, event, record,
 					use_trace_clock);
@@ -950,8 +950,8 @@ test_stacktrace(struct handle_list *handles, struct tep_record *record,
 			memset(info->cpus, 0, sizeof(*info->cpus));
 
 			pevent = tracecmd_get_pevent(h->handle);
-			event = pevent_find_event_by_name(pevent, "ftrace",
-							  "kernel_stack");
+			event = tep_find_event_by_name(pevent, "ftrace",
+						       "kernel_stack");
 			if (event)
 				info->stacktrace_id = event->id;
 			else
@@ -1161,7 +1161,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 
 		/* Find the kernel_stacktrace if available */
 		pevent = tracecmd_get_pevent(handles->handle);
-		event = pevent_find_event_by_name(pevent, "ftrace", "kernel_stack");
+		event = tep_find_event_by_name(pevent, "ftrace", "kernel_stack");
 		if (event)
 			stacktrace_id = event->id;
 

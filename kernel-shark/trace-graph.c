@@ -1016,8 +1016,8 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 
 		found = FALSE;
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "sched_wakeup");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "sched_wakeup");
 		if (event) {
 			found = TRUE;
 			ginfo->event_wakeup_id = event->id;
@@ -1026,8 +1026,8 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 		}
 
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "sched_wakeup_new");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "sched_wakeup_new");
 		if (event) {
 			found = TRUE;
 			ginfo->event_wakeup_new_id = event->id;
@@ -1086,8 +1086,8 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 	}
 
 	if (ginfo->event_sched_switch_id < 0) {
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "sched_switch");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "sched_switch");
 		if (!event)
 			return 0;
 
@@ -1096,8 +1096,8 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 		ginfo->event_pid_field = tep_find_field(event, "next_pid");
 		ginfo->event_comm_field = tep_find_field(event, "next_comm");
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  "ftrace", "context_switch");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       "ftrace", "context_switch");
 		if (event) {
 			ginfo->ftrace_sched_switch_id = event->id;
 			ginfo->ftrace_pid_field = tep_find_field(event, "next_pid");
@@ -1164,32 +1164,32 @@ trace_graph_check_irq(struct graph_info *ginfo,
 		gint soft_irq_entry_len = 0;
 		gint soft_irq_exit_len = 0;
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "irq_handler_exit");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "irq_handler_exit");
 		if (event)
 			enter_id(&ginfo->hard_irq_exit_ids, event->id,
 				 &hard_irq_exit_len);
 		else
 			ginfo->hard_irq_exit_ids = null_int_array;
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "irq_handler_entry");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "irq_handler_entry");
 		if (event)
 			enter_id(&ginfo->hard_irq_entry_ids, event->id,
 				 &hard_irq_entry_len);
 		else
 			ginfo->hard_irq_entry_ids = null_int_array;
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "softirq_exit");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "softirq_exit");
 		if (event)
 			enter_id(&ginfo->soft_irq_exit_ids, event->id,
 				 &soft_irq_exit_len);
 		else
 			ginfo->soft_irq_exit_ids = null_int_array;
 
-		event = pevent_find_event_by_name(ginfo->pevent,
-						  NULL, "softirq_entry");
+		event = tep_find_event_by_name(ginfo->pevent,
+					       NULL, "softirq_entry");
 		if (event)
 			enter_id(&ginfo->soft_irq_entry_ids, event->id,
 				 &soft_irq_entry_len);

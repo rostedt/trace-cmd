@@ -276,8 +276,8 @@ process_function(struct tep_handle *pevent, struct tep_record *record)
 
 	pid = val;
 
-	func = pevent_find_function(pevent, ip);
-	parent = pevent_find_function(pevent, parent_ip);
+	func = tep_find_function(pevent, ip);
+	parent = tep_find_function(pevent, parent_ip);
 
 	if (current_pid >= 0 && pid != current_pid) {
 		save_stack();
@@ -334,7 +334,7 @@ process_function_graph_entry(struct tep_handle *pevent, struct tep_record *recor
 
 	pid = val;
 
-	func = pevent_find_function(pevent, ip);
+	func = tep_find_function(pevent, ip);
 
 	if (current_pid >= 0 && pid != current_pid) {
 		save_stack();
@@ -465,7 +465,7 @@ process_kernel_stack(struct tep_handle *pevent, struct tep_record *record)
 		const char *func;
 
 		addr = tep_read_number(pevent, data, long_size);
-		func = pevent_find_function(pevent, addr);
+		func = tep_find_function(pevent, addr);
 		if (func)
 			push_stack_func(func);
 	}
@@ -598,7 +598,7 @@ update_event(struct tep_handle *pevent,
 {
 	struct event_format *event;
 
-	event = pevent_find_event_by_name(pevent, sys, name);
+	event = tep_find_event_by_name(pevent, sys, name);
 	if (!event)
 		return NULL;
 

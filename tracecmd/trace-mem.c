@@ -67,7 +67,7 @@ update_event(struct tep_handle *pevent,
 {
 	struct event_format *event;
 
-	event = pevent_find_event_by_name(pevent, sys, name);
+	event = tep_find_event_by_name(pevent, sys, name);
 	if (!event)
 		return NULL;
 
@@ -347,7 +347,7 @@ process_kmalloc(struct tep_handle *pevent, struct tep_record *record,
 	alloc = val;
 	tep_read_number_field(ptr_field, record->data, &ptr);
 
-	func = pevent_find_function(pevent, callsite);
+	func = tep_find_function(pevent, callsite);
 
 	add_kmalloc(func, ptr, req, alloc);
 }

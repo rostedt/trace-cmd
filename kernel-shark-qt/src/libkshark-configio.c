@@ -819,7 +819,7 @@ static bool kshark_event_filter_from_json(struct tep_handle *pevent,
 		system_str = json_object_get_string(jsystem);
 		name_str = json_object_get_string(jname);
 
-		event = pevent_find_event_by_name(pevent, system_str, name_str);
+		event = tep_find_event_by_name(pevent, system_str, name_str);
 		if (!event)
 			goto fail;
 

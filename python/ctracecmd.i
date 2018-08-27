@@ -107,7 +107,7 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 		if ((long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
 			break;
-		func = pevent_find_function(event->pevent, addr);
+		func = tep_find_function(event->pevent, addr);
 		if (PyList_Append(list, PyString_FromString(func))) {
 			Py_DECREF(list);
 			return NULL;

@@ -194,7 +194,7 @@ static void update_field_combo(struct tep_handle *pevent,
 		return;
 
 	if (event_name) {
-		event = pevent_find_event_by_name(pevent, system, event_name);
+		event = tep_find_event_by_name(pevent, system, event_name);
 		if (!event)
 			return;
 	} else {
