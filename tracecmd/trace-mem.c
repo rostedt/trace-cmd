@@ -340,12 +340,12 @@ process_kmalloc(struct tep_handle *pevent, struct tep_record *record,
 	int alloc;
 	const char *func;
 
-	pevent_read_number_field(callsite_field, record->data, &callsite);
-	pevent_read_number_field(bytes_req_field, record->data, &val);
+	tep_read_number_field(callsite_field, record->data, &callsite);
+	tep_read_number_field(bytes_req_field, record->data, &val);
 	req = val;
-	pevent_read_number_field(bytes_alloc_field, record->data, &val);
+	tep_read_number_field(bytes_alloc_field, record->data, &val);
 	alloc = val;
-	pevent_read_number_field(ptr_field, record->data, &ptr);
+	tep_read_number_field(ptr_field, record->data, &ptr);
 
 	func = pevent_find_function(pevent, callsite);
 
@@ -358,7 +358,7 @@ process_kfree(struct tep_handle *pevent, struct tep_record *record,
 {
 	unsigned long long ptr;
 
-	pevent_read_number_field(ptr_field, record->data, &ptr);
+	tep_read_number_field(ptr_field, record->data, &ptr);
 
 	remove_kmalloc(ptr);
 }
@@ -369,7 +369,7 @@ process_record(struct tep_handle *pevent, struct tep_record *record)
 	unsigned long long val;
 	int type;
 
-	pevent_read_number_field(common_type_field, record->data, &val);
+	tep_read_number_field(common_type_field, record->data, &val);
 	type = val;
 
 	if (type == kmalloc_type)

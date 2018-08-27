@@ -58,7 +58,7 @@ static gboolean is_running(struct graph_info *ginfo, struct tep_record *record)
 	if (id != ginfo->event_sched_switch_id)
 		return FALSE;
 
-	pevent_read_number_field(ginfo->event_prev_state, record->data, &val);
+	tep_read_number_field(ginfo->event_prev_state, record->data, &val);
 	return val & ((1 << 11) - 1)? FALSE : TRUE;
 }
 

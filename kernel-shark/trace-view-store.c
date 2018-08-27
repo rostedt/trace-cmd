@@ -1143,7 +1143,7 @@ gint get_next_pid(TraceViewStore *store, struct tep_handle *pevent, struct tep_r
 {
 	unsigned long long val;
 
-	pevent_read_number_field(store->sched_switch_next_field, record->data, &val);
+	tep_read_number_field(store->sched_switch_next_field, record->data, &val);
 
 	return val;
 }
@@ -1152,7 +1152,7 @@ gint get_wakeup_pid(TraceViewStore *store, struct tep_handle *pevent, struct tep
 {
 	unsigned long long val;
 
-	pevent_read_number_field(store->sched_wakeup_pid_field, record->data, &val);
+	tep_read_number_field(store->sched_wakeup_pid_field, record->data, &val);
 
 	return val;
 }
@@ -1161,7 +1161,7 @@ gint get_wakeup_new_pid(TraceViewStore *store, struct tep_handle *pevent, struct
 {
 	unsigned long long val;
 
-	pevent_read_number_field(store->sched_wakeup_new_pid_field, record->data, &val);
+	tep_read_number_field(store->sched_wakeup_new_pid_field, record->data, &val);
 
 	return val;
 }

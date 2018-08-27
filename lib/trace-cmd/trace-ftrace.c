@@ -383,7 +383,7 @@ trace_stack_handler(struct trace_seq *s, struct tep_record *record,
 
 	for (data += field->offset; data < record->data + record->size;
 	     data += finfo->long_size) {
-		addr = pevent_read_number(event->pevent, data, finfo->long_size);
+		addr = tep_read_number(event->pevent, data, finfo->long_size);
 
 		if ((finfo->long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))

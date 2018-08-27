@@ -563,8 +563,8 @@ static void account_task(struct task_data *task, struct event_data *event_data,
 	 * stack traces on this event.
 	 */
 	if (event_data->pid_field) {
-		pevent_read_number_field(event_data->pid_field,
-					 record->data, &pid);
+		tep_read_number_field(event_data->pid_field,
+				      record->data, &pid);
 		proxy = task;
 		task = find_task(task->handle, pid);
 		if (!task)
@@ -577,12 +577,12 @@ static void account_task(struct task_data *task, struct event_data *event_data,
 	 * if the start_field is defined, use that for search_val.
 	 */
 	if (event_data->data_field) {
-		pevent_read_number_field(event_data->data_field,
-					 record->data, &val);
+		tep_read_number_field(event_data->data_field,
+				      record->data, &val);
 	}
 	if (event_data->start_match_field) {
-		pevent_read_number_field(event_data->start_match_field,
-					 record->data, &search_val);
+		tep_read_number_field(event_data->start_match_field,
+				      record->data, &search_val);
 	}
 
 	edata.event_data = event_data;
@@ -612,8 +612,8 @@ find_event_task(struct handle_data *h, struct event_data *event_data,
 
 	/* If pid_field is defined, use that to find the task */
 	if (event_data->pid_field)
-		pevent_read_number_field(event_data->pid_field,
-					 record->data, &pid);
+		tep_read_number_field(event_data->pid_field,
+				      record->data, &pid);
 	return find_task(h, pid);
 }
 
@@ -629,8 +629,8 @@ handle_end_event(struct handle_data *h, struct event_data *event_data,
 	if (!task)
 		return NULL;
 
-	pevent_read_number_field(event_data->start_match_field, record->data,
-				 &val);
+	tep_read_number_field(event_data->start_match_field, record->data,
+			      &val);
 	event_hash = find_and_update_start(task, event_data->start, record->ts, val);
 	task->last_start = NULL;
 	task->last_event = event_hash;
@@ -650,7 +650,7 @@ handle_start_event(struct handle_data *h, struct event_data *event_data,
 	if (!task)
 		return NULL;
 
-	pevent_read_number_field(event_data->end_match_field, record->data,
+	tep_read_number_field(event_data->end_match_field, record->data,
 				 &val);
 	start = add_start(task, event_data, record, val, val);
 	if (!start) {
@@ -772,7 +772,7 @@ static void trace_profile_record(struct tracecmd_input *handle,
 
 
 	/* Get this current PID */
-	pevent_read_number_field(h->common_pid, record->data, &pid);
+	tep_read_number_field(h->common_pid, record->data, &pid);
 
 	task = find_task(h, pid);
 	if (!task)
@@ -998,18 +998,18 @@ static int handle_sched_switch_event(struct handle_data *h,
 	struct start_data *start;
 
 	/* pid_field holds prev_pid, data_field holds prev_state */
-	pevent_read_number_field(event_data->pid_field,
-				 record->data, &prev_pid);
+	tep_read_number_field(event_data->pid_field,
+			      record->data, &prev_pid);
 
-	pevent_read_number_field(event_data->data_field,
+	tep_read_number_field(event_data->data_field,
 				 record->data, &prev_state);
 
 	/* only care about real states */
 	prev_state &= TASK_STATE_MAX - 1;
 
 	/* end_match_field holds next_pid */
-	pevent_read_number_field(event_data->end_match_field,
-				 record->data, &next_pid);
+	tep_read_number_field(event_data->end_match_field,
+			      record->data, &next_pid);
 
 	task = find_task(h, prev_pid);
 	if (!task)
@@ -1186,8 +1186,8 @@ static int handle_process_exec(struct handle_data *h,
 
 	/* Task has execed, remove the comm for it */
 	if (event_data->data_field) {
-		pevent_read_number_field(event_data->data_field,
-					 record->data, &val);
+		tep_read_number_field(event_data->data_field,
+				      record->data, &val);
 		pid = val;
 	}
 
@@ -1217,16 +1217,16 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 
 	/* If present, data_field holds "success" */
 	if (event_data->data_field) {
-		pevent_read_number_field(event_data->data_field,
-					 record->data, &success);
+		tep_read_number_field(event_data->data_field,
+				      record->data, &success);
 
 		/* If not a successful wakeup, ignore this */
 		if (!success)
 			return 0;
 	}
 
-	pevent_read_number_field(event_data->pid_field,
-				 record->data, &pid);
+	tep_read_number_field(event_data->pid_field,
+			      record->data, &pid);
 
 	task = find_task(h, pid);
 	if (!task)

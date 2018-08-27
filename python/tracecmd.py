@@ -106,7 +106,7 @@ class Event(object, DictMixin):
         f = tep_find_any_field(self._format, name)
         if f is None:
             return None
-        ret, val = pevent_read_number_field(f, pevent_record_data_get(self._record))
+        ret, val = tep_read_number_field(f, pevent_record_data_get(self._record))
         if ret:
             return None
         return val
@@ -141,7 +141,7 @@ class Field(object):
         return py_field_get_data(self._field, self._record)
 
     def __long__(self):
-        ret, val =  pevent_read_number_field(self._field,
+        ret, val =  tep_read_number_field(self._field,
                                              pevent_record_data_get(self._record))
         if ret:
             raise FieldError("Not a number field")

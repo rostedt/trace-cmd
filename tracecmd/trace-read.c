@@ -671,28 +671,28 @@ static void process_wakeup(struct tep_handle *pevent, struct tep_record *record)
 
 	id = pevent_data_type(pevent, record);
 	if (id == wakeup_id) {
-		if (pevent_read_number_field(wakeup_success, record->data, &val) == 0) {
+		if (tep_read_number_field(wakeup_success, record->data, &val) == 0) {
 			if (!val)
 				return;
 		}
-		if (pevent_read_number_field(wakeup_task, record->data, &val))
+		if (tep_read_number_field(wakeup_task, record->data, &val))
 			return;
 		add_wakeup(val, record->ts);
 	} else if (id == wakeup_new_id) {
-		if (pevent_read_number_field(wakeup_new_success, record->data, &val) == 0) {
+		if (tep_read_number_field(wakeup_new_success, record->data, &val) == 0) {
 			if (!val)
 				return;
 		}
-		if (pevent_read_number_field(wakeup_new_task, record->data, &val))
+		if (tep_read_number_field(wakeup_new_task, record->data, &val))
 			return;
 		add_wakeup(val, record->ts);
 	} else if (id == sched_id) {
 		int rt = 1;
-		if (pevent_read_number_field(sched_prio, record->data, &val))
+		if (tep_read_number_field(sched_prio, record->data, &val))
 			return;
 		if (val > 99)
 			rt = 0;
-		if (pevent_read_number_field(sched_task, record->data, &val))
+		if (tep_read_number_field(sched_task, record->data, &val))
 			return;
 		add_sched(val, record->ts, rt);
 	}

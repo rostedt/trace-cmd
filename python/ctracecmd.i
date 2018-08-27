@@ -102,7 +102,7 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 
 	for (data += field->offset; data < record->data + record->size;
 	     data += long_size) {
-		addr = pevent_read_number(event->pevent, data, long_size);
+		addr = tep_read_number(event->pevent, data, long_size);
 
 		if ((long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
@@ -123,7 +123,7 @@ static PyObject *py_field_get_data(struct format_field *f, struct tep_record *r)
 		unsigned long long val;
 		int len, offset;
 
-		if (pevent_read_number_field(f, r->data, &val)) {
+		if (tep_read_number_field(f, r->data, &val)) {
 			PyErr_SetString(PyExc_TypeError,
 					"Field is not a valid number");
 			return NULL;
@@ -149,7 +149,7 @@ static PyObject *py_field_get_str(struct format_field *f, struct tep_record *r)
 		unsigned long long val;
 		int offset;
 
-		if (pevent_read_number_field(f, r->data, &val)) {
+		if (tep_read_number_field(f, r->data, &val)) {
 			PyErr_SetString(PyExc_TypeError,
 					"Field is not a valid number");
 			return NULL;
