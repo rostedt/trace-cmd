@@ -798,7 +798,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		tep_print_event_time(pevent, &s, event, record,
 					use_trace_clock);
 		buf[0] = 0;
-		if (use_trace_clock && !(pevent->flags & PEVENT_NSEC_OUTPUT))
+		if (use_trace_clock && !(pevent->flags & TEP_NSEC_OUTPUT))
 			rec_ts = (rec_ts + 500) / 1000;
 		if (last_ts) {
 			diff_ts = rec_ts - last_ts;
@@ -1687,7 +1687,7 @@ void trace_report (int argc, char **argv)
 		pevent = tracecmd_get_pevent(handle);
 
 		if (nanosec)
-			pevent->flags |= PEVENT_NSEC_OUTPUT;
+			pevent->flags |= TEP_NSEC_OUTPUT;
 
 		if (raw)
 			pevent->print_raw = 1;
