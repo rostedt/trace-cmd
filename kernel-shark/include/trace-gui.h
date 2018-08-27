@@ -48,10 +48,10 @@ trace_create_combo_box(GtkWidget *hbox, const gchar *text,
 		       GtkTreeModel *(*combo_model_create)(gpointer data),
 		       gpointer data);
 
-struct pevent;
+struct tep_handle;
 struct pevent_record;
 
-void trace_show_record_dialog(GtkWindow *parent, struct pevent *pevent,
+void trace_show_record_dialog(GtkWindow *parent, struct tep_handle *pevent,
 			      struct pevent_record *record, gboolean raw);
 
 #endif /* _TRACE_GUI */

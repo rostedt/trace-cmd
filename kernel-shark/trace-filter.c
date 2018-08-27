@@ -74,7 +74,7 @@ void trace_array_add(gint **array, gint *count, gint val)
 /* --- event info box --- */
 
 struct event_combo_info {
-	struct pevent		*pevent;
+	struct tep_handle	*pevent;
 	GtkWidget		*event_combo;
 	GtkWidget		*op_combo;
 	GtkWidget		*field_combo;
@@ -83,7 +83,7 @@ struct event_combo_info {
 
 static GtkTreeModel *create_event_combo_model(gpointer data)
 {
-	struct pevent *pevent = data;
+	struct tep_handle *pevent = data;
 	GtkTreeStore *tree;
 	GtkTreeIter sys_iter;
 	GtkTreeIter iter;
@@ -142,7 +142,7 @@ static GtkTreeModel *create_op_combo_model(gpointer data)
 
 static GtkTreeModel *create_field_combo_model(gpointer data)
 {
-	struct pevent *pevent = data;
+	struct tep_handle *pevent = data;
 	GtkListStore *list;
 	GtkTreeIter iter;
 	struct event_format **events;
@@ -172,7 +172,7 @@ static GtkTreeModel *create_field_combo_model(gpointer data)
 	return GTK_TREE_MODEL(list);
 }
 
-static void update_field_combo(struct pevent *pevent,
+static void update_field_combo(struct tep_handle *pevent,
 			       GtkWidget *combo,
 			       const char *system,
 			       const char *event_name)
@@ -452,8 +452,8 @@ static gint *get_event_ids(GtkTreeView *treeview)
 }
 
 static GtkTreeModel *
-create_tree_filter_model(struct pevent *pevent,
-		       struct event_filter *event_filter)
+create_tree_filter_model(struct tep_handle *pevent,
+			 struct event_filter *event_filter)
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_events;
@@ -538,7 +538,7 @@ static void adv_filter_cursor_changed(GtkTreeView *treeview, gpointer data)
 }
 
 static GtkWidget *
-create_adv_filter_view(struct pevent *pevent,
+create_adv_filter_view(struct tep_handle *pevent,
 		       struct event_filter *event_filter)
 {
 	GtkTreeViewColumn *col;
@@ -620,7 +620,7 @@ void trace_adv_filter_dialog(struct tracecmd_input *handle,
 			       gpointer data)
 {
 	struct event_combo_info combo_info;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	GtkWidget *dialog;
 	GtkWidget *hbox;
 	GtkWidget *label;
@@ -760,7 +760,7 @@ static void get_tasks(GtkTreeView *treeview,
 }
 
 static GtkTreeModel *
-create_task_model(struct pevent *pevent,
+create_task_model(struct tep_handle *pevent,
 		  gint *tasks,
 		  gint *selected)
 {
@@ -874,7 +874,7 @@ static void task_cursor_changed(gpointer data, GtkTreeView *treeview)
 }
 
 static GtkWidget *
-create_task_view(struct pevent *pevent,
+create_task_view(struct tep_handle *pevent,
 		 gint *tasks, gint *selected,
 		 gboolean *start)
 {
@@ -957,7 +957,7 @@ void trace_task_dialog(struct tracecmd_input *handle,
 		       trace_task_cb_func func,
 		       gpointer data)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	GtkWidget *dialog;
 	GtkWidget *scrollwin;
 	GtkWidget *view;
@@ -1056,7 +1056,7 @@ gboolean event_is_enabled(gint *events, gint events_size, gint event)
 }
 
 static GtkTreeModel *
-create_tree_event_model(struct pevent *pevent,
+create_tree_event_model(struct tep_handle *pevent,
 			struct event_filter *filter,
 			gboolean all_events, gchar **systems_set,
 			gint *event_ids_set)
@@ -1352,7 +1352,7 @@ static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
  * @events: Array of event ids of events that should be selecetd.
  */
 int trace_update_event_view(GtkWidget *event_view,
-			    struct pevent *pevent,
+			    struct tep_handle *pevent,
 			    struct event_filter *filter,
 			    gboolean all_events,
 			    gchar **systems, gint *events)
@@ -1385,7 +1385,7 @@ int trace_update_event_view(GtkWidget *event_view,
  * Returns a tree view widget of the events.
  */
 GtkWidget *
-trace_create_event_list_view(struct pevent *pevent,
+trace_create_event_list_view(struct tep_handle *pevent,
 			     struct event_filter *filter,
 			     gboolean all_events, gchar **systems,
 			     gint *events)
@@ -1552,7 +1552,7 @@ static void accept_events(GtkWidget *view,
 	free(events);
 }
 
-static void filter_event_dialog(struct pevent *pevent,
+static void filter_event_dialog(struct tep_handle *pevent,
 				struct event_filter *filter,
 				gboolean all_events,
 				gchar **systems, gint *events,
@@ -1621,7 +1621,7 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       trace_filter_event_cb_func func,
 			       gpointer data)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 
 	if (!handle)
 		return;
@@ -1634,7 +1634,7 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			    events, func, data);
 }
 
-void trace_filter_pevent_dialog(struct pevent *pevent,
+void trace_filter_pevent_dialog(struct tep_handle *pevent,
 				gboolean all_events,
 				gchar **systems, gint *events,
 				trace_filter_event_cb_func func,
@@ -1664,7 +1664,7 @@ void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
 				      trace_filter_event_cb_func func,
 				      gpointer data)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	gchar **systems;
 	gint *event_ids;
 
@@ -1922,7 +1922,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 					  gchar ***systems,
 					  gint **event_ids)
 {
-	struct pevent *pevent = filter->pevent;
+	struct tep_handle *pevent = filter->pevent;
 	struct event_format **events;
 	struct event_format *event;
 	char *last_system = NULL;
@@ -1984,7 +1984,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 					 gchar **systems,
 					 gint *events)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct event_filter *copy;
 	struct event_format *event;
 	int i;

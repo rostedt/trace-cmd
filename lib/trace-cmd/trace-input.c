@@ -85,7 +85,7 @@ struct input_buffer_instance {
 };
 
 struct tracecmd_input {
-	struct pevent		*pevent;
+	struct tep_handle		*pevent;
 	struct plugin_list	*plugin_list;
 	struct tracecmd_input	*parent;
 	unsigned long		flags;
@@ -288,7 +288,7 @@ static char *read_string(struct tracecmd_input *handle)
 
 static int read4(struct tracecmd_input *handle, unsigned int *size)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	unsigned int data;
 
 	if (do_read_check(handle, &data, 4))
@@ -300,7 +300,7 @@ static int read4(struct tracecmd_input *handle, unsigned int *size)
 
 static int read8(struct tracecmd_input *handle, unsigned long long *size)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	unsigned long long data;
 
 	if (do_read_check(handle, &data, 8))
@@ -312,7 +312,7 @@ static int read8(struct tracecmd_input *handle, unsigned long long *size)
 
 static int read_header_files(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	unsigned long long size;
 	char *header;
 	char buf[BUFSIZ];
@@ -406,7 +406,7 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 			    unsigned long long size,
 			    int print, regex_t *epreg)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	char *buf;
 
 	buf = malloc(size);
@@ -434,7 +434,7 @@ static int read_event_file(struct tracecmd_input *handle,
 			   int print, int *sys_printed,
 			   regex_t *epreg)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	char *buf;
 
 	buf = malloc(size);
@@ -660,7 +660,7 @@ static int read_event_files(struct tracecmd_input *handle, const char *regex)
 
 static int read_proc_kallsyms(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	unsigned int size;
 	char *buf;
 
@@ -1042,7 +1042,7 @@ static void free_next(struct tracecmd_input *handle, int cpu)
  */
 static int update_page_info(struct tracecmd_input *handle, int cpu)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	void *ptr = handle->cpu_data[cpu].page->map;
 	struct kbuffer *kbuf = handle->cpu_data[cpu].kbuf;
 
@@ -1604,7 +1604,7 @@ struct pevent_record *
 tracecmd_translate_data(struct tracecmd_input *handle,
 			void *ptr, int size)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	struct pevent_record *record;
 	unsigned int length;
 	int swap = 1;
@@ -1651,7 +1651,7 @@ tracecmd_translate_data(struct tracecmd_input *handle,
  *  or no more records exist.
  */
 struct pevent_record *
-tracecmd_read_page_record(struct pevent *pevent, void *page, int size,
+tracecmd_read_page_record(struct tep_handle *pevent, void *page, int size,
 			  struct pevent_record *last_record)
 {
 	unsigned long long ts;
@@ -2218,7 +2218,7 @@ static int handle_options(struct tracecmd_input *handle)
 
 static int read_cpu_data(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	enum kbuffer_long_size long_size;
 	enum kbuffer_endian endian;
 	unsigned long long size;
@@ -2363,7 +2363,7 @@ static int read_data_and_size(struct tracecmd_input *handle,
 
 static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
 	unsigned long long size;
 	char *cmdlines;
 
@@ -2376,7 +2376,7 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 }
 
 static int read_and_parse_trace_clock(struct tracecmd_input *handle,
-							struct pevent *pevent)
+							struct tep_handle *pevent)
 {
 	unsigned long long size;
 	char *trace_clock;
@@ -2398,7 +2398,7 @@ static int read_and_parse_trace_clock(struct tracecmd_input *handle,
  */
 int tracecmd_init_data(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = handle->pevent;
+	struct tep_handle *pevent = handle->pevent;
     unsigned int cpus;
 	int ret;
 
@@ -3209,7 +3209,7 @@ int tracecmd_cpus(struct tracecmd_input *handle)
  * tracecmd_get_pevent - return the pevent handle
  * @handle: input handle for the trace.dat file
  */
-struct pevent *tracecmd_get_pevent(struct tracecmd_input *handle)
+struct tep_handle *tracecmd_get_pevent(struct tracecmd_input *handle)
 {
 	return handle->pevent;
 }

@@ -20,8 +20,8 @@ static const char pyload[] =
 "finally:\n"
 "   file.close()\n";
 
-static int load_plugin(struct pevent *pevent, const char *path,
-			const char *name, void *data)
+static int load_plugin(struct tep_handle *pevent, const char *path,
+		       const char *name, void *data)
 {
 	PyObject *globals = data;
 	int err;
@@ -58,7 +58,7 @@ static int load_plugin(struct pevent *pevent, const char *path,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	PyObject *globals, *m, *py_pevent, *str, *res;
 	char **plugin_list;
@@ -100,7 +100,7 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	return 0;
 }
 
-int PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+int PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	Py_Finalize();
 	return 0;

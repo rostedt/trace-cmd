@@ -46,7 +46,7 @@ static int timer_start_handler(struct trace_seq *s, struct pevent_record *record
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "timer", "hrtimer_expire_entry",
 				      timer_expire_handler, NULL);
@@ -57,7 +57,7 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+void PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	pevent_unregister_event_handler(pevent, -1,
 					"timer", "hrtimer_expire_entry",

@@ -405,7 +405,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	TraceViewRecord	*record;
 	TraceViewStore	*trace_view_store;
 	struct trace_seq s;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct event_format *event;
 	struct pevent_record *data;
 	const gchar *comm;
@@ -1139,7 +1139,7 @@ gint trace_view_store_get_num_actual_rows(TraceViewStore *store)
 	return store->actual_rows;
 }
 
-gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct pevent_record *record)
+gint get_next_pid(TraceViewStore *store, struct tep_handle *pevent, struct pevent_record *record)
 {
 	unsigned long long val;
 
@@ -1148,7 +1148,7 @@ gint get_next_pid(TraceViewStore *store, struct pevent *pevent, struct pevent_re
 	return val;
 }
 
-gint get_wakeup_pid(TraceViewStore *store, struct pevent *pevent, struct pevent_record *record)
+gint get_wakeup_pid(TraceViewStore *store, struct tep_handle *pevent, struct pevent_record *record)
 {
 	unsigned long long val;
 
@@ -1157,7 +1157,7 @@ gint get_wakeup_pid(TraceViewStore *store, struct pevent *pevent, struct pevent_
 	return val;
 }
 
-gint get_wakeup_new_pid(TraceViewStore *store, struct pevent *pevent, struct pevent_record *record)
+gint get_wakeup_new_pid(TraceViewStore *store, struct tep_handle *pevent, struct pevent_record *record)
 {
 	unsigned long long val;
 
@@ -1176,7 +1176,7 @@ static gboolean view_task(TraceViewStore *store, gint pid)
 		 !tracecmd_filter_id_find(store->hide_tasks, pid));
 }
 
-static gboolean show_task(TraceViewStore *store, struct pevent *pevent,
+static gboolean show_task(TraceViewStore *store, struct tep_handle *pevent,
 			  struct pevent_record *record, gint pid)
 {
 	gint event_id;
@@ -1216,7 +1216,7 @@ static gboolean show_task(TraceViewStore *store, struct pevent *pevent,
 static void update_filter_tasks(TraceViewStore *store)
 {
 	struct tracecmd_input *handle;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct pevent_record *record;
 	gint pid;
 	gint cpu;

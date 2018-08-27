@@ -31,7 +31,7 @@ static const char blk_body[] = "\n"
 
 int tracecmd_blk_hack(struct tracecmd_input *handle)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct event_format *event;
 	struct format_field *field;
 	char buf[4096]; /* way more than enough! */

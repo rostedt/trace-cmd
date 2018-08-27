@@ -145,7 +145,7 @@ struct task_list;
 
 struct graph_info {
 	struct tracecmd_input	*handle;
-	struct pevent		*pevent;
+	struct tep_handle	*pevent;
 	gint			cpus;
 
 	gint			plots;

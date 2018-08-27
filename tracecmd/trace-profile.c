@@ -175,7 +175,7 @@ struct sched_switch_data {
 struct handle_data {
 	struct handle_data	*next;
 	struct tracecmd_input	*handle;
-	struct pevent		*pevent;
+	struct tep_handle	*pevent;
 
 	struct trace_hash	events;
 	struct trace_hash	group_hash;
@@ -741,7 +741,7 @@ static void trace_profile_record(struct tracecmd_input *handle,
 	struct event_data *event_data;
 	struct task_data *task;
 	struct handle_data *h;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	unsigned long long pid;
 	int cpu = record->cpu;
 	int id;
@@ -1267,7 +1267,7 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 			int global)
 {
-	struct pevent *pevent = tracecmd_get_pevent(handle);
+	struct tep_handle *pevent = tracecmd_get_pevent(handle);
 	struct event_format **events;
 	struct format_field **fields;
 	struct handle_data *h;
@@ -1518,7 +1518,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	warning("Failed handle allocations");
 }
 
-static void output_event_stack(struct pevent *pevent, struct stack_data *stack)
+static void output_event_stack(struct tep_handle *pevent, struct stack_data *stack)
 {
 	int longsize = pevent_get_long_size(pevent);
 	unsigned long long val;
@@ -1772,7 +1772,7 @@ static void print_indent(int level, unsigned long long mask)
 	}
 }
 
-static void print_chain_func(struct pevent *pevent, struct stack_chain *chain)
+static void print_chain_func(struct tep_handle *pevent, struct stack_chain *chain)
 {
 	unsigned long long val = chain->val;
 	const char *func;
@@ -1784,7 +1784,7 @@ static void print_chain_func(struct pevent *pevent, struct stack_chain *chain)
 		printf("0x%llx\n", val);
 }
 
-static void output_chain(struct pevent *pevent, struct stack_chain *chain, int level,
+static void output_chain(struct tep_handle *pevent, struct stack_chain *chain, int level,
 			 int nr_chains, unsigned long long *mask)
 {
 	struct stack_chain *child;
@@ -1878,7 +1878,7 @@ static int compare_stacks(const void *a, const void *b)
 	return 0;
 }
 
-static void output_stacks(struct pevent *pevent, struct trace_hash *stack_hash)
+static void output_stacks(struct tep_handle *pevent, struct trace_hash *stack_hash)
 {
 	struct trace_hash_item **bucket;
 	struct trace_hash_item *item;
@@ -1927,7 +1927,7 @@ static void output_stacks(struct pevent *pevent, struct trace_hash *stack_hash)
 static void output_event(struct event_hash *event_hash)
 {
 	struct event_data *event_data = event_hash->event_data;
-	struct pevent *pevent = event_data->event->pevent;
+	struct tep_handle *pevent = event_data->event->pevent;
 	struct trace_seq s;
 
 	trace_seq_init(&s);

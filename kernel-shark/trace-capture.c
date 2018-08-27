@@ -40,7 +40,7 @@
 #define DEFAULT_MAX_BUF_SIZE 1000000
 
 struct trace_capture {
-	struct pevent		*pevent;
+	struct tep_handle	*pevent;
 	struct shark_info	*info;
 	GtkWidget		*main_dialog;
 	GtkWidget		*command_entry;
@@ -809,7 +809,7 @@ static int load_events(struct trace_capture *cap,
 	struct shark_info *info = cap->info;
 	struct tracecmd_xml_system_node *event_node;
 	struct event_format *event;
-	struct pevent *pevent = cap->pevent;
+	struct tep_handle *pevent = cap->pevent;
 	const char *name;
 	int *events = NULL;
 	int event_len = 0;
@@ -996,7 +996,7 @@ static void import_settings_clicked(GtkWidget *widget, gpointer data)
 static void save_events(struct trace_capture *cap,
 			struct tracecmd_xml_handle *handle)
 {
-	struct pevent *pevent = cap->pevent;
+	struct tep_handle *pevent = cap->pevent;
 	struct event_format *event;
 	char **systems = cap->info->cap_systems;
 	int *events = cap->info->cap_events;
@@ -1225,7 +1225,7 @@ static void insert_text(GtkEditable *buffer,
  */
 static void tracing_dialog(struct shark_info *info, const char *tracing)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	GtkWidget *dialog;
 	GtkWidget *button;
 	GtkWidget *combo;

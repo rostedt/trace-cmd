@@ -1441,7 +1441,7 @@ handle_display_event_clicked (gpointer data, gboolean raw)
 {
 	struct shark_info *info = data;
 	struct pevent_record *record;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	TraceViewRecord *vrec;
 	GtkTreeModel *model;
 	guint64 offset;

@@ -134,7 +134,7 @@ static int test_read_at_copy = 100;
 static int test_read_at_index;
 static void show_test(struct tracecmd_input *handle)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct pevent_record *record;
 	struct trace_seq s;
 	int cpu;
@@ -176,7 +176,7 @@ static int test_at_timestamp_cpu = -1;
 static int test_at_timestamp_index;
 static void show_test(struct tracecmd_input *handle)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct pevent_record *record;
 	struct trace_seq s;
 	int cpu = test_at_timestamp_cpu;
@@ -221,7 +221,7 @@ static void test_save(struct pevent_record *record, int cpu)
 #define DO_TEST
 static void show_test(struct tracecmd_input *handle)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct pevent_record *record;
 	struct trace_seq s;
 	int cpu = 0;
@@ -420,7 +420,7 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 
 static void convert_comm_filter(struct tracecmd_input *handle)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct pid_list *list;
 	struct cmdline *cmdline;
 	char pidstr[100];
@@ -487,7 +487,7 @@ static void process_filters(struct handle_list *handles)
 	struct filter **filter_out_next = &handles->event_filter_out;
 	struct filter *event_filter;
 	struct filter_str *filter;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	char errstr[200];
 	int ret;
 
@@ -531,7 +531,7 @@ static void process_filters(struct handle_list *handles)
 static void init_wakeup(struct tracecmd_input *handle)
 {
 	struct event_format *event;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 
 	if (!show_wakeup)
 		return;
@@ -661,7 +661,7 @@ static void add_sched(unsigned int val, unsigned long long end, int rt)
 	free(info);
 }
 
-static void process_wakeup(struct pevent *pevent, struct pevent_record *record)
+static void process_wakeup(struct tep_handle *pevent, struct pevent_record *record)
 {
 	unsigned long long val;
 	int id;
@@ -752,7 +752,7 @@ static void finish_wakeup(void)
 void trace_show_data(struct tracecmd_input *handle, struct pevent_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct trace_seq s;
 	int cpu = record->cpu;
 	bool use_trace_clock;
@@ -875,7 +875,7 @@ static void read_rest(void)
 }
 
 static int
-test_filters(struct pevent *pevent, struct filter *event_filters,
+test_filters(struct tep_handle *pevent, struct filter *event_filters,
 	     struct pevent_record *record, int neg)
 {
 	int found = 0;
@@ -929,7 +929,7 @@ test_stacktrace(struct handle_list *handles, struct pevent_record *record,
 	struct handle_list *h;
 	struct tracecmd_input *handle;
 	struct event_format *event;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	static int init;
 	int ret;
 	int id;
@@ -997,7 +997,7 @@ test_stacktrace(struct handle_list *handles, struct pevent_record *record,
 static struct pevent_record *get_next_record(struct handle_list *handles)
 {
 	struct pevent_record *record;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	int found = 0;
 	int cpu;
 	int ret;
@@ -1118,7 +1118,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	struct pevent_record *record;
 	struct pevent_record *last_record;
 	struct event_format *event;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	int cpus;
 	int ret;
 
@@ -1296,7 +1296,7 @@ static void read_file_fd(int fd, char *dst, int len)
 	} while (r > 0);
 }
 
-static void add_functions(struct pevent *pevent, const char *file)
+static void add_functions(struct tep_handle *pevent, const char *file)
 {
 	struct stat st;
 	char *buf;
@@ -1333,7 +1333,7 @@ static void process_plugin_option(char *option)
 	trace_util_add_option(name, val);
 }
 
-static void set_event_flags(struct pevent *pevent, struct event_str *list,
+static void set_event_flags(struct tep_handle *pevent, struct event_str *list,
 			    unsigned int flag)
 {
 	struct event_format **events;
@@ -1404,7 +1404,7 @@ enum {
 void trace_report (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct event_str *raw_events = NULL;
 	struct event_str *nohandler_events = NULL;
 	struct event_str **raw_ptr = &raw_events;

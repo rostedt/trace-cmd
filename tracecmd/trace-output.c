@@ -48,14 +48,14 @@ enum {
 };
 
 struct tracecmd_output {
-	int		fd;
-	int		page_size;
-	int		cpus;
-	struct pevent	*pevent;
-	char		*tracing_dir;
-	int		options_written;
-	int		nr_options;
-	struct list_head options;
+	int			fd;
+	int			page_size;
+	int			cpus;
+	struct tep_handle	*pevent;
+	char			*tracing_dir;
+	int			options_written;
+	int			nr_options;
+	struct list_head 	options;
 	struct tracecmd_msg_handle *msg_handle;
 };
 
@@ -772,7 +772,7 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	       struct tracecmd_msg_handle *msg_handle)
 {
 	struct tracecmd_output *handle;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	char buf[BUFSIZ];
 	int endian4;
 
@@ -1232,7 +1232,7 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
 {
 	struct tracecmd_input *ihandle;
 	struct tracecmd_output *handle;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	int ret = -1;
 
 	/* Move the file descriptor to the beginning */

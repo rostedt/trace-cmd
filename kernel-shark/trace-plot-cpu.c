@@ -356,7 +356,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 	struct event_format *event;
 	struct pevent_record *record;
 	struct pevent_record *next_record;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	unsigned long sec, usec;
 	const char *comm;
 	int type;

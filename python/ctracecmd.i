@@ -7,7 +7,7 @@
 %nodefaultdtor record;
 
 %apply Pointer NONNULL { struct tracecmd_input *handle };
-%apply Pointer NONNULL { struct pevent *pevent };
+%apply Pointer NONNULL { struct tep_handle *pevent };
 %apply Pointer NONNULL { struct format_field * };
 %apply unsigned long long *OUTPUT {unsigned long long *}
 %apply int *OUTPUT {int *}
@@ -68,10 +68,10 @@ void warning(const char *fmt, ...)
 PyObject *convert_pevent(unsigned long pevent)
 {
 	void *pev = (void *)pevent;
-	return SWIG_NewPointerObj(SWIG_as_voidptr(pev), SWIGTYPE_p_pevent, 0);
+	return SWIG_NewPointerObj(SWIG_as_voidptr(pev), SWIGTYPE_p_tep_handle, 0);
 }
 
-void py_pevent_register_event_handler(struct pevent *pevent, int id,
+void py_pevent_register_event_handler(struct tep_handle *pevent, int id,
 				      char *subsys, char *evname,
 				      PyObject *pyfunc)
 {
@@ -80,7 +80,7 @@ void py_pevent_register_event_handler(struct pevent *pevent, int id,
 				      python_callback, pyfunc);
 }
 
-static PyObject *py_field_get_stack(struct pevent *pevent,
+static PyObject *py_field_get_stack(struct tep_handle *pevent,
 				    struct pevent_record *record,
 				    struct event_format *event,
 				    int long_size)

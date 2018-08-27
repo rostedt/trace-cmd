@@ -87,7 +87,7 @@ void trace_filter_event_dialog(struct tracecmd_input *handle,
 			       trace_filter_event_cb_func func,
 			       gpointer data);
 
-void trace_filter_pevent_dialog(struct pevent *pevent,
+void trace_filter_pevent_dialog(struct tep_handle *pevent,
 				gboolean all_events,
 				gchar **systems, gint *events,
 				trace_filter_event_cb_func func,
@@ -148,7 +148,7 @@ int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
 			      struct tracecmd_filter_id *task_filter,
 			      struct tracecmd_filter_id *hide_tasks);
 
-GtkWidget *trace_create_event_list_view(struct pevent *pevent,
+GtkWidget *trace_create_event_list_view(struct tep_handle *pevent,
 					struct event_filter *filter,
 					gboolean all_events, gchar **systems,
 					gint *events);
@@ -157,7 +157,7 @@ gint trace_extract_event_list_view(GtkWidget *event_view,
 				   gchar ***systems,
 				   gint **events);
 int trace_update_event_view(GtkWidget *event_view,
-			    struct pevent *pevent,
+			    struct tep_handle *pevent,
 			    struct event_filter *filter,
 			    gboolean all_events,
 			    gchar **systems, gint *events);

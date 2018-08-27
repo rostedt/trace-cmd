@@ -50,7 +50,7 @@ struct cpu_data {
 	char				*file;
 };
 
-static int create_type_len(struct pevent *pevent, int time, int len)
+static int create_type_len(struct tep_handle *pevent, int time, int len)
 {
 	static int bigendian = -1;
 	char *ptr;
@@ -79,7 +79,7 @@ static int write_record(struct tracecmd_input *handle,
 			enum split_types type)
 {
 	unsigned long long diff;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	void *page;
 	int len;
 	char *ptr;
@@ -139,7 +139,7 @@ static int write_record(struct tracecmd_input *handle,
 	return 1;
 }
 
-static void write_page(struct pevent *pevent,
+static void write_page(struct tep_handle *pevent,
 		       struct cpu_data *cpu_data, int long_size)
 {
 	if (long_size == 8)
@@ -181,7 +181,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 		     enum split_types type)
 {
 	struct pevent_record *record;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	void *ptr;
 	int page_size;
 	int long_size = 0;

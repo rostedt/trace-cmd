@@ -834,7 +834,7 @@ static struct pevent_record *kshark_read_at(struct kshark_context *kshark_ctx,
 	return data;
 }
 
-static const char *kshark_get_latency(struct pevent *pe,
+static const char *kshark_get_latency(struct tep_handle *pe,
 				      struct pevent_record *record)
 {
 	if (!record)
@@ -845,7 +845,7 @@ static const char *kshark_get_latency(struct pevent *pe,
 	return seq.buffer;
 }
 
-static const char *kshark_get_info(struct pevent *pe,
+static const char *kshark_get_info(struct tep_handle *pe,
 				   struct pevent_record *record,
 				   struct event_format *event)
 {

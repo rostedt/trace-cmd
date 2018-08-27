@@ -3344,7 +3344,7 @@ static void add_func(struct func_list **list, const char *mod, const char *func)
 }
 
 static unsigned long long
-find_ts_in_page(struct pevent *pevent, void *page, int size)
+find_ts_in_page(struct tep_handle *pevent, void *page, int size)
 {
 	struct event_format *event;
 	struct format_field *field;
@@ -3378,7 +3378,7 @@ find_ts_in_page(struct pevent *pevent, void *page, int size)
 	return ts;
 }
 
-static unsigned long long find_time_stamp(struct pevent *pevent)
+static unsigned long long find_time_stamp(struct tep_handle *pevent)
 {
 	struct dirent *dent;
 	unsigned long long ts = 0;
@@ -3485,7 +3485,7 @@ static char *get_date_to_ts(void)
 	unsigned long long min_stamp;
 	unsigned long long min_ts;
 	unsigned long long ts;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct timeval start;
 	struct timeval end;
 	char *date2ts = NULL;

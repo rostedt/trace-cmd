@@ -685,7 +685,7 @@ bool kshark_import_model(struct kshark_trace_histo *histo,
 	}
 }
 
-static bool kshark_event_filter_to_json(struct pevent *pevent,
+static bool kshark_event_filter_to_json(struct tep_handle *pevent,
 					struct tracecmd_filter_id *filter,
 					const char *filter_name,
 					struct json_object *jobj)
@@ -767,7 +767,7 @@ static bool kshark_event_filter_to_json(struct pevent *pevent,
  *
  * @returns True on success, otherwise False.
  */
-bool kshark_export_event_filter(struct pevent *pevent,
+bool kshark_export_event_filter(struct tep_handle *pevent,
 				struct tracecmd_filter_id *filter,
 				const char *filter_name,
 				struct kshark_config_doc *conf)
@@ -785,7 +785,7 @@ bool kshark_export_event_filter(struct pevent *pevent,
 	}
 }
 
-static bool kshark_event_filter_from_json(struct pevent *pevent,
+static bool kshark_event_filter_from_json(struct tep_handle *pevent,
 					  struct tracecmd_filter_id *filter,
 					  const char *filter_name,
 					  struct json_object *jobj)
@@ -847,7 +847,7 @@ static bool kshark_event_filter_from_json(struct pevent *pevent,
  *	    document contains no data for this particular filter or in a case
  *	    of an error, the function returns False.
  */
-bool kshark_import_event_filter(struct pevent *pevent,
+bool kshark_import_event_filter(struct tep_handle *pevent,
 				struct tracecmd_filter_id *filter,
 				const char *filter_name,
 				struct kshark_config_doc *conf)

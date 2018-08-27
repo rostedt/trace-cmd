@@ -42,7 +42,7 @@ static void find_long_size(struct tracecmd_ftrace *finfo)
 			find_long_size(finfo);		\
 	} while (0)
 
-static int find_ret_event(struct tracecmd_ftrace *finfo, struct pevent *pevent)
+static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -65,7 +65,7 @@ static int find_ret_event(struct tracecmd_ftrace *finfo, struct pevent *pevent)
 static int function_handler(struct trace_seq *s, struct pevent_record *record,
 			    struct event_format *event, void *context)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long function;
 	const char *func;
 
@@ -192,7 +192,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 		       struct pevent_record *ret_rec,
 		       struct tracecmd_ftrace *finfo)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
 	unsigned long long val;
@@ -240,7 +240,7 @@ static int print_graph_nested(struct trace_seq *s,
 			      struct event_format *event,
 			      struct pevent_record *record)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long depth;
 	unsigned long long val;
 	const char *func;
@@ -414,7 +414,7 @@ void tracecmd_ftrace_load_options(void)
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	struct tracecmd_ftrace *finfo)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct event_format *event;
 
 	finfo->handle = handle;

@@ -146,7 +146,7 @@ struct cmdline_list {
 	int			pid;
 };
 
-static int cmdline_init(struct pevent *pevent)
+static int cmdline_init(struct tep_handle *pevent)
 {
 	struct cmdline_list *cmdlist = pevent->cmdlist;
 	struct cmdline_list *item;
@@ -175,7 +175,7 @@ static int cmdline_init(struct pevent *pevent)
 	return 0;
 }
 
-static const char *find_cmdline(struct pevent *pevent, int pid)
+static const char *find_cmdline(struct tep_handle *pevent, int pid)
 {
 	const struct cmdline *comm;
 	struct cmdline key;
@@ -204,7 +204,7 @@ static const char *find_cmdline(struct pevent *pevent, int pid)
  * Returns 1 if the pid has a cmdline mapped to it
  * 0 otherwise.
  */
-int pevent_pid_is_registered(struct pevent *pevent, int pid)
+int pevent_pid_is_registered(struct tep_handle *pevent, int pid)
 {
 	const struct cmdline *comm;
 	struct cmdline key;
@@ -230,7 +230,7 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid)
  * we must add this pid. This is much slower than when cmdlines
  * are added before the array is initialized.
  */
-static int add_new_comm(struct pevent *pevent, const char *comm, int pid)
+static int add_new_comm(struct tep_handle *pevent, const char *comm, int pid)
 {
 	struct cmdline *cmdlines = pevent->cmdlines;
 	const struct cmdline *cmdline;
@@ -282,7 +282,7 @@ static int add_new_comm(struct pevent *pevent, const char *comm, int pid)
  * This adds a mapping to search for command line names with
  * a given pid. The comm is duplicated.
  */
-int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
+int pevent_register_comm(struct tep_handle *pevent, const char *comm, int pid)
 {
 	struct cmdline_list *item;
 
@@ -310,7 +310,7 @@ int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
 	return 0;
 }
 
-int pevent_register_trace_clock(struct pevent *pevent, const char *trace_clock)
+int pevent_register_trace_clock(struct tep_handle *pevent, const char *trace_clock)
 {
 	pevent->trace_clock = strdup(trace_clock);
 	if (!pevent->trace_clock) {
@@ -367,7 +367,7 @@ static int func_bcmp(const void *a, const void *b)
 	return 1;
 }
 
-static int func_map_init(struct pevent *pevent)
+static int func_map_init(struct tep_handle *pevent)
 {
 	struct func_list *funclist;
 	struct func_list *item;
@@ -407,7 +407,7 @@ static int func_map_init(struct pevent *pevent)
 }
 
 static struct func_map *
-__find_func(struct pevent *pevent, unsigned long long addr)
+__find_func(struct tep_handle *pevent, unsigned long long addr)
 {
 	struct func_map *func;
 	struct func_map key;
@@ -439,7 +439,7 @@ struct func_resolver {
  * keep using it instead of duplicating all the entries inside
  * pevent->funclist.
  */
-int pevent_set_function_resolver(struct pevent *pevent,
+int pevent_set_function_resolver(struct tep_handle *pevent,
 				 pevent_func_resolver_t *func, void *priv)
 {
 	struct func_resolver *resolver = malloc(sizeof(*resolver));
@@ -463,14 +463,14 @@ int pevent_set_function_resolver(struct pevent *pevent,
  * Stop using whatever alternative resolver was set, use the default
  * one instead.
  */
-void pevent_reset_function_resolver(struct pevent *pevent)
+void pevent_reset_function_resolver(struct tep_handle *pevent)
 {
 	free(pevent->func_resolver);
 	pevent->func_resolver = NULL;
 }
 
 static struct func_map *
-find_func(struct pevent *pevent, unsigned long long addr)
+find_func(struct tep_handle *pevent, unsigned long long addr)
 {
 	struct func_map *map;
 
@@ -497,7 +497,7 @@ find_func(struct pevent *pevent, unsigned long long addr)
  * address. Note, the address does not have to be exact, it
  * will select the function that would contain the address.
  */
-const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
+const char *pevent_find_function(struct tep_handle *pevent, unsigned long long addr)
 {
 	struct func_map *map;
 
@@ -518,7 +518,7 @@ const char *pevent_find_function(struct pevent *pevent, unsigned long long addr)
  * name and the function offset.
  */
 unsigned long long
-pevent_find_function_address(struct pevent *pevent, unsigned long long addr)
+pevent_find_function_address(struct tep_handle *pevent, unsigned long long addr)
 {
 	struct func_map *map;
 
@@ -539,7 +539,7 @@ pevent_find_function_address(struct pevent *pevent, unsigned long long addr)
  * This registers a function name with an address and module.
  * The @func passed in is duplicated.
  */
-int pevent_register_function(struct pevent *pevent, char *func,
+int pevent_register_function(struct tep_handle *pevent, char *func,
 			     unsigned long long addr, char *mod)
 {
 	struct func_list *item = malloc(sizeof(*item));
@@ -580,7 +580,7 @@ out_free:
  *
  * This prints out the stored functions.
  */
-void pevent_print_funcs(struct pevent *pevent)
+void pevent_print_funcs(struct tep_handle *pevent)
 {
 	int i;
 
@@ -622,7 +622,7 @@ static int printk_cmp(const void *a, const void *b)
 	return 0;
 }
 
-static int printk_map_init(struct pevent *pevent)
+static int printk_map_init(struct tep_handle *pevent)
 {
 	struct printk_list *printklist;
 	struct printk_list *item;
@@ -654,7 +654,7 @@ static int printk_map_init(struct pevent *pevent)
 }
 
 static struct printk_map *
-find_printk(struct pevent *pevent, unsigned long long addr)
+find_printk(struct tep_handle *pevent, unsigned long long addr)
 {
 	struct printk_map *printk;
 	struct printk_map key;
@@ -679,7 +679,7 @@ find_printk(struct pevent *pevent, unsigned long long addr)
  * This registers a string by the address it was stored in the kernel.
  * The @fmt passed in is duplicated.
  */
-int pevent_register_print_string(struct pevent *pevent, const char *fmt,
+int pevent_register_print_string(struct tep_handle *pevent, const char *fmt,
 				 unsigned long long addr)
 {
 	struct printk_list *item = malloc(sizeof(*item));
@@ -723,7 +723,7 @@ out_free:
  *
  * This prints the string formats that were stored.
  */
-void pevent_print_printk(struct pevent *pevent)
+void pevent_print_printk(struct tep_handle *pevent)
 {
 	int i;
 
@@ -742,7 +742,7 @@ static struct event_format *alloc_event(void)
 	return calloc(1, sizeof(struct event_format));
 }
 
-static int add_event(struct pevent *pevent, struct event_format *event)
+static int add_event(struct tep_handle *pevent, struct event_format *event)
 {
 	int i;
 	struct event_format **events = realloc(pevent->events, sizeof(event) *
@@ -2901,7 +2901,7 @@ process_bitmask(struct event_format *event __maybe_unused, struct print_arg *arg
 }
 
 static struct pevent_function_handler *
-find_func_handler(struct pevent *pevent, char *func_name)
+find_func_handler(struct tep_handle *pevent, char *func_name)
 {
 	struct pevent_function_handler *func;
 
@@ -2916,7 +2916,7 @@ find_func_handler(struct pevent *pevent, char *func_name)
 	return func;
 }
 
-static void remove_func_handler(struct pevent *pevent, char *func_name)
+static void remove_func_handler(struct tep_handle *pevent, char *func_name)
 {
 	struct pevent_function_handler *func;
 	struct pevent_function_handler **next;
@@ -3323,7 +3323,7 @@ pevent_find_any_field(struct event_format *event, const char *name)
  * Returns the number (converted to host) from the
  * raw data.
  */
-unsigned long long pevent_read_number(struct pevent *pevent,
+unsigned long long pevent_read_number(struct tep_handle *pevent,
 				      const void *ptr, int size)
 {
 	switch (size) {
@@ -3370,7 +3370,7 @@ int pevent_read_number_field(struct format_field *field, const void *data,
 	}
 }
 
-static int get_common_info(struct pevent *pevent,
+static int get_common_info(struct tep_handle *pevent,
 			   const char *type, int *offset, int *size)
 {
 	struct event_format *event;
@@ -3396,7 +3396,7 @@ static int get_common_info(struct pevent *pevent,
 	return 0;
 }
 
-static int __parse_common(struct pevent *pevent, void *data,
+static int __parse_common(struct tep_handle *pevent, void *data,
 			  int *size, int *offset, const char *name)
 {
 	int ret;
@@ -3409,42 +3409,42 @@ static int __parse_common(struct pevent *pevent, void *data,
 	return pevent_read_number(pevent, data + *offset, *size);
 }
 
-static int trace_parse_common_type(struct pevent *pevent, void *data)
+static int trace_parse_common_type(struct tep_handle *pevent, void *data)
 {
 	return __parse_common(pevent, data,
 			      &pevent->type_size, &pevent->type_offset,
 			      "common_type");
 }
 
-static int parse_common_pid(struct pevent *pevent, void *data)
+static int parse_common_pid(struct tep_handle *pevent, void *data)
 {
 	return __parse_common(pevent, data,
 			      &pevent->pid_size, &pevent->pid_offset,
 			      "common_pid");
 }
 
-static int parse_common_pc(struct pevent *pevent, void *data)
+static int parse_common_pc(struct tep_handle *pevent, void *data)
 {
 	return __parse_common(pevent, data,
 			      &pevent->pc_size, &pevent->pc_offset,
 			      "common_preempt_count");
 }
 
-static int parse_common_flags(struct pevent *pevent, void *data)
+static int parse_common_flags(struct tep_handle *pevent, void *data)
 {
 	return __parse_common(pevent, data,
 			      &pevent->flags_size, &pevent->flags_offset,
 			      "common_flags");
 }
 
-static int parse_common_lock_depth(struct pevent *pevent, void *data)
+static int parse_common_lock_depth(struct tep_handle *pevent, void *data)
 {
 	return __parse_common(pevent, data,
 			      &pevent->ld_size, &pevent->ld_offset,
 			      "common_lock_depth");
 }
 
-static int parse_common_migrate_disable(struct pevent *pevent, void *data)
+static int parse_common_migrate_disable(struct tep_handle *pevent, void *data)
 {
 	return __parse_common(pevent, data,
 			      &pevent->ld_size, &pevent->ld_offset,
@@ -3460,7 +3460,7 @@ static int events_id_cmp(const void *a, const void *b);
  *
  * Returns an event that has a given @id.
  */
-struct event_format *pevent_find_event(struct pevent *pevent, int id)
+struct event_format *pevent_find_event(struct tep_handle *pevent, int id)
 {
 	struct event_format **eventptr;
 	struct event_format key;
@@ -3493,7 +3493,7 @@ struct event_format *pevent_find_event(struct pevent *pevent, int id)
  * @sys. If @sys is NULL the first event with @name is returned.
  */
 struct event_format *
-pevent_find_event_by_name(struct pevent *pevent,
+pevent_find_event_by_name(struct tep_handle *pevent,
 			  const char *sys, const char *name)
 {
 	struct event_format *event;
@@ -3523,7 +3523,7 @@ pevent_find_event_by_name(struct pevent *pevent,
 static unsigned long long
 eval_num_arg(void *data, int size, struct event_format *event, struct print_arg *arg)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long val = 0;
 	unsigned long long left, right;
 	struct print_arg *typearg = NULL;
@@ -3806,7 +3806,7 @@ static void print_str_to_seq(struct trace_seq *s, const char *format,
 		trace_seq_printf(s, format, str);
 }
 
-static void print_bitmask_to_seq(struct pevent *pevent,
+static void print_bitmask_to_seq(struct tep_handle *pevent,
 				 struct trace_seq *s, const char *format,
 				 int len_arg, const void *data, int size)
 {
@@ -3864,7 +3864,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			  struct event_format *event, const char *format,
 			  int len_arg, struct print_arg *arg)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	struct print_flag_sym *flag;
 	struct format_field *field;
 	struct printk_map *printk;
@@ -4213,7 +4213,7 @@ static void free_args(struct print_arg *args)
 
 static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct event_format *event)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	struct format_field *field, *ip_field;
 	struct print_arg *args, *arg, **next;
 	unsigned long long ip, val;
@@ -4390,7 +4390,7 @@ static char *
 get_bprint_format(void *data, int size __maybe_unused,
 		  struct event_format *event)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long addr;
 	struct format_field *field;
 	struct printk_map *printk;
@@ -4791,7 +4791,7 @@ void pevent_print_field(struct trace_seq *s, void *data,
 {
 	unsigned long long val;
 	unsigned int offset, len, i;
-	struct pevent *pevent = field->event->pevent;
+	struct tep_handle *pevent = field->event->pevent;
 
 	if (field->flags & FIELD_IS_ARRAY) {
 		offset = field->offset;
@@ -4866,7 +4866,7 @@ void pevent_print_fields(struct trace_seq *s, void *data,
 
 static void pretty_print(struct trace_seq *s, void *data, int size, struct event_format *event)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	struct print_fmt *print_fmt = &event->print_fmt;
 	struct print_arg *arg = print_fmt->args;
 	struct print_arg *args = NULL;
@@ -5135,7 +5135,7 @@ out_failed:
  * need rescheduling, in hard/soft interrupt, preempt count
  * and lock depth) and places it into the trace_seq.
  */
-void pevent_data_lat_fmt(struct pevent *pevent,
+void pevent_data_lat_fmt(struct tep_handle *pevent,
 			 struct trace_seq *s, struct pevent_record *record)
 {
 	static int check_lock_depth = 1;
@@ -5215,7 +5215,7 @@ void pevent_data_lat_fmt(struct pevent *pevent,
  *
  * This returns the event id from the @rec.
  */
-int pevent_data_type(struct pevent *pevent, struct pevent_record *rec)
+int pevent_data_type(struct tep_handle *pevent, struct pevent_record *rec)
 {
 	return trace_parse_common_type(pevent, rec->data);
 }
@@ -5227,7 +5227,7 @@ int pevent_data_type(struct pevent *pevent, struct pevent_record *rec)
  *
  * This returns the event form a given @type;
  */
-struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type)
+struct event_format *pevent_data_event_from_type(struct tep_handle *pevent, int type)
 {
 	return pevent_find_event(pevent, type);
 }
@@ -5239,7 +5239,7 @@ struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type
  *
  * This returns the PID from a record.
  */
-int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec)
+int pevent_data_pid(struct tep_handle *pevent, struct pevent_record *rec)
 {
 	return parse_common_pid(pevent, rec->data);
 }
@@ -5251,7 +5251,7 @@ int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec)
  *
  * This returns the preempt count from a record.
  */
-int pevent_data_preempt_count(struct pevent *pevent, struct pevent_record *rec)
+int pevent_data_preempt_count(struct tep_handle *pevent, struct pevent_record *rec)
 {
 	return parse_common_pc(pevent, rec->data);
 }
@@ -5265,7 +5265,7 @@ int pevent_data_preempt_count(struct pevent *pevent, struct pevent_record *rec)
  *
  *  Use trace_flag_type enum for the flags (see event-parse.h).
  */
-int pevent_data_flags(struct pevent *pevent, struct pevent_record *rec)
+int pevent_data_flags(struct tep_handle *pevent, struct pevent_record *rec)
 {
 	return parse_common_flags(pevent, rec->data);
 }
@@ -5278,7 +5278,7 @@ int pevent_data_flags(struct pevent *pevent, struct pevent_record *rec)
  * This returns a pointer to the command line that has the given
  * @pid.
  */
-const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
+const char *pevent_data_comm_from_pid(struct tep_handle *pevent, int pid)
 {
 	const char *comm;
 
@@ -5287,7 +5287,7 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 }
 
 static struct cmdline *
-pid_from_cmdlist(struct pevent *pevent, const char *comm, struct cmdline *next)
+pid_from_cmdlist(struct tep_handle *pevent, const char *comm, struct cmdline *next)
 {
 	struct cmdline_list *cmdlist = (struct cmdline_list *)next;
 
@@ -5315,7 +5315,7 @@ pid_from_cmdlist(struct pevent *pevent, const char *comm, struct cmdline *next)
  * next pid.
  * Also, it does a linear seach, so it may be slow.
  */
-struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *comm,
+struct cmdline *pevent_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
 					  struct cmdline *next)
 {
 	struct cmdline *cmdline;
@@ -5357,7 +5357,7 @@ struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *com
  * Returns the pid for a give cmdline. If @cmdline is NULL, then
  * -1 is returned.
  */
-int pevent_cmdline_pid(struct pevent *pevent, struct cmdline *cmdline)
+int pevent_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline)
 {
 	struct cmdline_list *cmdlist = (struct cmdline_list *)cmdline;
 
@@ -5427,7 +5427,7 @@ static bool is_timestamp_in_us(char *trace_clock, bool use_trace_clock)
  * is found.
  */
 struct event_format *
-pevent_find_event_by_record(struct pevent *pevent, struct pevent_record *record)
+pevent_find_event_by_record(struct tep_handle *pevent, struct pevent_record *record)
 {
 	int type;
 
@@ -5450,7 +5450,7 @@ pevent_find_event_by_record(struct pevent *pevent, struct pevent_record *record)
  *
  * Writes the tasks comm, pid and CPU to @s.
  */
-void pevent_print_event_task(struct pevent *pevent, struct trace_seq *s,
+void pevent_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
 			     struct event_format *event,
 			     struct pevent_record *record)
 {
@@ -5478,7 +5478,7 @@ void pevent_print_event_task(struct pevent *pevent, struct trace_seq *s,
  *
  * Writes the timestamp of the record into @s.
  */
-void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
+void pevent_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
 			     struct event_format *event,
 			     struct pevent_record *record,
 			     bool use_trace_clock)
@@ -5528,7 +5528,7 @@ void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
  *
  * Writes the parsing of the record's data to @s.
  */
-void pevent_print_event_data(struct pevent *pevent, struct trace_seq *s,
+void pevent_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
 			     struct event_format *event,
 			     struct pevent_record *record)
 {
@@ -5545,7 +5545,7 @@ void pevent_print_event_data(struct pevent *pevent, struct trace_seq *s,
 	pevent_event_info(s, event, record);
 }
 
-void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
+void pevent_print_event(struct tep_handle *pevent, struct trace_seq *s,
 			struct pevent_record *record, bool use_trace_clock)
 {
 	struct event_format *event;
@@ -5616,7 +5616,7 @@ static int events_system_cmp(const void *a, const void *b)
 	return events_id_cmp(a, b);
 }
 
-struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type sort_type)
+struct event_format **pevent_list_events(struct tep_handle *pevent, enum event_sort_type sort_type)
 {
 	struct event_format **events;
 	int (*sort)(const void *a, const void *b);
@@ -5927,7 +5927,7 @@ static void parse_header_field(const char *field,
  *
  * /sys/kernel/debug/tracing/events/header_page
  */
-int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
+int pevent_parse_header_page(struct tep_handle *pevent, char *buf, unsigned long size,
 			     int long_size)
 {
 	int ignore;
@@ -5980,7 +5980,7 @@ static void free_handler(struct event_handler *handle)
 	free(handle);
 }
 
-static int find_event_handle(struct pevent *pevent, struct event_format *event)
+static int find_event_handle(struct tep_handle *pevent, struct event_format *event)
 {
 	struct event_handler *handle, **next;
 
@@ -6022,7 +6022,7 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
  * /sys/kernel/debug/tracing/events/.../.../format
  */
 enum pevent_errno __pevent_parse_format(struct event_format **eventp,
-					struct pevent *pevent, const char *buf,
+					struct tep_handle *pevent, const char *buf,
 					unsigned long size, const char *sys)
 {
 	struct event_format *event;
@@ -6129,7 +6129,7 @@ enum pevent_errno __pevent_parse_format(struct event_format **eventp,
 }
 
 static enum pevent_errno
-__pevent_parse_event(struct pevent *pevent,
+__pevent_parse_event(struct tep_handle *pevent,
 		     struct event_format **eventp,
 		     const char *buf, unsigned long size,
 		     const char *sys)
@@ -6171,7 +6171,7 @@ event_add_failed:
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno pevent_parse_format(struct pevent *pevent,
+enum pevent_errno pevent_parse_format(struct tep_handle *pevent,
 				      struct event_format **eventp,
 				      const char *buf,
 				      unsigned long size, const char *sys)
@@ -6193,7 +6193,7 @@ enum pevent_errno pevent_parse_format(struct pevent *pevent,
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
+enum pevent_errno pevent_parse_event(struct tep_handle *pevent, const char *buf,
 				     unsigned long size, const char *sys)
 {
 	struct event_format *event = NULL;
@@ -6207,7 +6207,7 @@ static const char * const pevent_error_str[] = {
 };
 #undef _PE
 
-int pevent_strerror(struct pevent *pevent __maybe_unused,
+int pevent_strerror(struct tep_handle *pevent __maybe_unused,
 		    enum pevent_errno errnum, char *buf, size_t buflen)
 {
 	int idx;
@@ -6421,7 +6421,7 @@ int pevent_print_func_field(struct trace_seq *s, const char *fmt,
 			    struct pevent_record *record, int err)
 {
 	struct format_field *field = pevent_find_field(event, name);
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long val;
 	struct func_map *func;
 	char tmp[128];
@@ -6477,7 +6477,7 @@ static void free_func_handle(struct pevent_function_handler *func)
  * The @parameters is a variable list of pevent_func_arg_type enums that
  * must end with PEVENT_FUNC_ARG_VOID.
  */
-int pevent_register_print_function(struct pevent *pevent,
+int pevent_register_print_function(struct tep_handle *pevent,
 				   pevent_func_handler func,
 				   enum pevent_func_arg_type ret_type,
 				   char *name, ...)
@@ -6564,7 +6564,7 @@ int pevent_register_print_function(struct pevent *pevent,
  *
  * Returns 0 if the handler was removed successully, -1 otherwise.
  */
-int pevent_unregister_print_function(struct pevent *pevent,
+int pevent_unregister_print_function(struct tep_handle *pevent,
 				     pevent_func_handler func, char *name)
 {
 	struct pevent_function_handler *func_handle;
@@ -6577,7 +6577,7 @@ int pevent_unregister_print_function(struct pevent *pevent,
 	return -1;
 }
 
-static struct event_format *pevent_search_event(struct pevent *pevent, int id,
+static struct event_format *pevent_search_event(struct tep_handle *pevent, int id,
 						const char *sys_name,
 						const char *event_name)
 {
@@ -6617,7 +6617,7 @@ static struct event_format *pevent_search_event(struct pevent *pevent, int id,
  * If @id is >= 0, then it is used to find the event.
  * else @sys_name and @event_name are used.
  */
-int pevent_register_event_handler(struct pevent *pevent, int id,
+int pevent_register_event_handler(struct tep_handle *pevent, int id,
 				  const char *sys_name, const char *event_name,
 				  pevent_event_handler_func func, void *context)
 {
@@ -6701,7 +6701,7 @@ static int handle_matches(struct event_handler *handler, int id,
  *
  * Returns 0 if handler was removed successfully, -1 if event was not found.
  */
-int pevent_unregister_event_handler(struct pevent *pevent, int id,
+int pevent_unregister_event_handler(struct tep_handle *pevent, int id,
 				    const char *sys_name, const char *event_name,
 				    pevent_event_handler_func func, void *context)
 {
@@ -6742,9 +6742,9 @@ not_found:
 /**
  * pevent_alloc - create a pevent handle
  */
-struct pevent *pevent_alloc(void)
+struct tep_handle *pevent_alloc(void)
 {
-	struct pevent *pevent = calloc(1, sizeof(*pevent));
+	struct tep_handle *pevent = calloc(1, sizeof(*pevent));
 
 	if (pevent)
 		pevent->ref_count = 1;
@@ -6752,7 +6752,7 @@ struct pevent *pevent_alloc(void)
 	return pevent;
 }
 
-void pevent_ref(struct pevent *pevent)
+void pevent_ref(struct tep_handle *pevent)
 {
 	pevent->ref_count++;
 }
@@ -6800,7 +6800,7 @@ void pevent_free_format(struct event_format *event)
  * pevent_free - free a pevent handle
  * @pevent: the pevent handle to free
  */
-void pevent_free(struct pevent *pevent)
+void pevent_free(struct tep_handle *pevent)
 {
 	struct cmdline_list *cmdlist, *cmdnext;
 	struct func_list *funclist, *funcnext;
@@ -6885,7 +6885,7 @@ void pevent_free(struct pevent *pevent)
 	free(pevent);
 }
 
-void pevent_unref(struct pevent *pevent)
+void pevent_unref(struct tep_handle *pevent)
 {
 	pevent_free(pevent);
 }

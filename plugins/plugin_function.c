@@ -115,7 +115,7 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 	return 0;
 }
 
-static void show_function(struct trace_seq *s, struct pevent *pevent,
+static void show_function(struct trace_seq *s, struct tep_handle *pevent,
 			  const char *func, unsigned long long function)
 {
 	unsigned long long offset;
@@ -130,7 +130,7 @@ static void show_function(struct trace_seq *s, struct pevent *pevent,
 static int function_handler(struct trace_seq *s, struct pevent_record *record,
 			    struct event_format *event, void *context)
 {
-	struct pevent *pevent = event->pevent;
+	struct tep_handle *pevent = event->pevent;
 	unsigned long long function;
 	unsigned long long pfunction;
 	const char *func;
@@ -168,7 +168,7 @@ static int function_handler(struct trace_seq *s, struct pevent_record *record,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler, NULL);
@@ -178,7 +178,7 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+void PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	int i, x;
 

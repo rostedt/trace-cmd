@@ -736,7 +736,7 @@ int task_plot_display_info(struct graph_info *ginfo,
 	struct task_plot_info *task_info = plot->private;
 	struct event_format *event;
 	struct pevent_record *record;
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	unsigned long sec, usec;
 	const char *comm;
 	int cpu;

@@ -363,7 +363,7 @@ void trace_util_print_plugin_options(struct trace_seq *s)
 	}
 }
 
-void tracecmd_parse_cmdlines(struct pevent *pevent,
+void tracecmd_parse_cmdlines(struct tep_handle *pevent,
 			     char *file, int size __maybe_unused)
 {
 	char *comm;
@@ -380,7 +380,7 @@ void tracecmd_parse_cmdlines(struct pevent *pevent,
 	}
 }
 
-static void extract_trace_clock(struct pevent *pevent, char *line)
+static void extract_trace_clock(struct tep_handle *pevent, char *line)
 {
 	char *data;
 	char *clock;
@@ -392,7 +392,7 @@ static void extract_trace_clock(struct pevent *pevent, char *line)
 	free(clock);
 }
 
-void tracecmd_parse_trace_clock(struct pevent *pevent,
+void tracecmd_parse_trace_clock(struct tep_handle *pevent,
 				char *file, int size __maybe_unused)
 {
 	char *line;
@@ -407,7 +407,7 @@ void tracecmd_parse_trace_clock(struct pevent *pevent,
 	}
 }
 
-void tracecmd_parse_proc_kallsyms(struct pevent *pevent,
+void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
@@ -452,7 +452,7 @@ void tracecmd_parse_proc_kallsyms(struct pevent *pevent,
 	}
 }
 
-void tracecmd_parse_ftrace_printk(struct pevent *pevent,
+void tracecmd_parse_ftrace_printk(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
@@ -589,7 +589,7 @@ static int update_option(const char *file, struct pevent_plugin_option *option)
 	return 0;
 }
 
-static int load_plugin(struct pevent *pevent, const char *path,
+static int load_plugin(struct tep_handle *pevent, const char *path,
 		       const char *file, void *data)
 {
 	struct plugin_list **plugin_list = data;
@@ -1036,7 +1036,7 @@ static int read_file(const char *file, char **buffer)
 	return len;
 }
 
-static int load_events(struct pevent *pevent, const char *system,
+static int load_events(struct tep_handle *pevent, const char *system,
 			const char *sys_dir)
 {
 	struct dirent *dent;
@@ -1091,7 +1091,7 @@ static int load_events(struct pevent *pevent, const char *system,
 	return failure;
 }
 
-static int read_header(struct pevent *pevent, const char *events_dir)
+static int read_header(struct tep_handle *pevent, const char *events_dir)
 {
 	struct stat st;
 	char *header;
@@ -1126,9 +1126,9 @@ static int read_header(struct pevent *pevent, const char *events_dir)
  * Returns a pevent structure that contains the pevents local to
  * the system.
  */
-struct pevent *tracecmd_local_events(const char *tracing_dir)
+struct tep_handle *tracecmd_local_events(const char *tracing_dir)
 {
-	struct pevent *pevent = NULL;
+	struct tep_handle *pevent = NULL;
 
 	pevent = pevent_alloc();
 	if (!pevent)
@@ -1149,7 +1149,7 @@ struct pevent *tracecmd_local_events(const char *tracing_dir)
  *
  * Returns whether the operation succeeded
  */
-int tracecmd_fill_local_events(const char *tracing_dir, struct pevent *pevent)
+int tracecmd_fill_local_events(const char *tracing_dir, struct tep_handle *pevent)
 {
 	struct dirent *dent;
 	char *events_dir;
@@ -1279,9 +1279,9 @@ char **tracecmd_local_plugins(const char *tracing_dir)
 }
 
 static void
-trace_util_load_plugins_dir(struct pevent *pevent, const char *suffix,
+trace_util_load_plugins_dir(struct tep_handle *pevent, const char *suffix,
 			    const char *path,
-			    int (*load_plugin)(struct pevent *pevent,
+			    int (*load_plugin)(struct tep_handle *pevent,
 					       const char *path,
 					       const char *name,
 						void *data),
@@ -1328,7 +1328,7 @@ struct add_plugin_data {
 	char **files;
 };
 
-static int add_plugin_file(struct pevent *pevent, const char *path,
+static int add_plugin_file(struct tep_handle *pevent, const char *path,
 			   const char *name, void *data)
 {
 	struct add_plugin_data *pdata = data;
@@ -1362,8 +1362,8 @@ static int add_plugin_file(struct pevent *pevent, const char *path,
 	return -ENOMEM;
 }
 
-int trace_util_load_plugins(struct pevent *pevent, const char *suffix,
-			    int (*load_plugin)(struct pevent *pevent,
+int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
+			    int (*load_plugin)(struct tep_handle *pevent,
 					       const char *path,
 					       const char *name,
 					       void *data),
@@ -1476,7 +1476,7 @@ static int append_option(struct plugin_option_read *options,
 	return 0;
 }
 
-static int read_options(struct pevent *pevent, const char *path,
+static int read_options(struct tep_handle *pevent, const char *path,
 			 const char *file, void *data)
 {
 	struct plugin_option_read *options = data;
@@ -1548,7 +1548,7 @@ void trace_util_free_options(struct pevent_plugin_option *options)
 	}
 }
 
-struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
+struct plugin_list *tracecmd_load_plugins(struct tep_handle *pevent)
 {
 	struct plugin_list *list = NULL;
 
@@ -1558,7 +1558,7 @@ struct plugin_list *tracecmd_load_plugins(struct pevent *pevent)
 }
 
 void
-tracecmd_unload_plugins(struct plugin_list *plugin_list, struct pevent *pevent)
+tracecmd_unload_plugins(struct plugin_list *plugin_list, struct tep_handle *pevent)
 {
 	pevent_plugin_unload_func func;
 	struct plugin_list *list;

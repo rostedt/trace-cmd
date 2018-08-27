@@ -86,7 +86,7 @@ struct kshark_context {
 	struct tracecmd_input	*handle;
 
 	/** Page event used to parse the page. */
-	struct pevent		*pevent;
+	struct tep_handle	*pevent;
 
 	/** Hash table of task PIDs. */
 	struct kshark_task_list	*tasks[KS_TASK_HASH_SIZE];
@@ -482,12 +482,12 @@ bool kshark_export_adv_filters(struct kshark_context *kshark_ctx,
 bool kshark_import_adv_filters(struct kshark_context *kshark_ctx,
 			       struct kshark_config_doc *conf);
 
-bool kshark_export_event_filter(struct pevent *pevent,
+bool kshark_export_event_filter(struct tep_handle *pevent,
 				struct tracecmd_filter_id *filter,
 				const char *filter_name,
 				struct kshark_config_doc *conf);
 
-bool kshark_import_event_filter(struct pevent *pevent,
+bool kshark_import_event_filter(struct tep_handle *pevent,
 				struct tracecmd_filter_id *filter,
 				const char *filter_name,
 				struct kshark_config_doc *conf);

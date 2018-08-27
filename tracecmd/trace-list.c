@@ -307,7 +307,7 @@ static void show_buffers(void)
 
 static void show_plugin_options(void)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct plugin_list *list;
 	struct trace_seq s;
 
@@ -335,7 +335,7 @@ void trace_option(int argc, char **argv)
 
 static void show_plugins(void)
 {
-	struct pevent *pevent;
+	struct tep_handle *pevent;
 	struct plugin_list *list;
 	struct trace_seq s;
 

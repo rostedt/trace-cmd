@@ -62,7 +62,7 @@ static void *zalloc(size_t size)
 }
 
 static struct event_format *
-update_event(struct pevent *pevent,
+update_event(struct tep_handle *pevent,
 	     const char *sys, const char *name, int *id)
 {
 	struct event_format *event;
@@ -76,7 +76,7 @@ update_event(struct pevent *pevent,
 	return event;
 }
 
-static void update_kmalloc(struct pevent *pevent)
+static void update_kmalloc(struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -90,7 +90,7 @@ static void update_kmalloc(struct pevent *pevent)
 	kmalloc_ptr_field = pevent_find_field(event, "ptr");
 }
 
-static void update_kmalloc_node(struct pevent *pevent)
+static void update_kmalloc_node(struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -104,7 +104,7 @@ static void update_kmalloc_node(struct pevent *pevent)
 	kmalloc_node_ptr_field = pevent_find_field(event, "ptr");
 }
 
-static void update_kfree(struct pevent *pevent)
+static void update_kfree(struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -115,7 +115,7 @@ static void update_kfree(struct pevent *pevent)
 	kfree_ptr_field = pevent_find_field(event, "ptr");
 }
 
-static void update_kmem_cache_alloc(struct pevent *pevent)
+static void update_kmem_cache_alloc(struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -129,7 +129,7 @@ static void update_kmem_cache_alloc(struct pevent *pevent)
 	kmem_cache_ptr_field = pevent_find_field(event, "ptr");
 }
 
-static void update_kmem_cache_alloc_node(struct pevent *pevent)
+static void update_kmem_cache_alloc_node(struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -144,7 +144,7 @@ static void update_kmem_cache_alloc_node(struct pevent *pevent)
 	kmem_cache_node_ptr_field = pevent_find_field(event, "ptr");
 }
 
-static void update_kmem_cache_free(struct pevent *pevent)
+static void update_kmem_cache_free(struct tep_handle *pevent)
 {
 	struct event_format *event;
 
@@ -327,7 +327,7 @@ static void remove_kmalloc(unsigned long long ptr)
 }
 
 static void
-process_kmalloc(struct pevent *pevent, struct pevent_record *record,
+process_kmalloc(struct tep_handle *pevent, struct pevent_record *record,
 		struct format_field *callsite_field,
 		struct format_field *bytes_req_field,
 		struct format_field *bytes_alloc_field,
@@ -353,7 +353,7 @@ process_kmalloc(struct pevent *pevent, struct pevent_record *record,
 }
 
 static void
-process_kfree(struct pevent *pevent, struct pevent_record *record,
+process_kfree(struct tep_handle *pevent, struct pevent_record *record,
 	      struct format_field *ptr_field)
 {
 	unsigned long long ptr;
@@ -364,7 +364,7 @@ process_kfree(struct pevent *pevent, struct pevent_record *record,
 }
 
 static void
-process_record(struct pevent *pevent, struct pevent_record *record)
+process_record(struct tep_handle *pevent, struct pevent_record *record)
 {
 	unsigned long long val;
 	int type;
@@ -461,7 +461,7 @@ static void print_list(void)
 
 static void do_trace_mem(struct tracecmd_input *handle)
 {
-	struct pevent *pevent = tracecmd_get_pevent(handle);
+	struct tep_handle *pevent = tracecmd_get_pevent(handle);
 	struct event_format *event;
 	struct pevent_record *record;
 	int missed_events = 0;

@@ -392,7 +392,7 @@ static void read_raw_events(struct trace_seq *s,
 	free(fields);
 }
 
-void trace_show_record_dialog(GtkWindow *parent, struct pevent *pevent,
+void trace_show_record_dialog(GtkWindow *parent, struct tep_handle *pevent,
 			      struct pevent_record *record, gboolean raw)
 {
 	struct event_format *event;

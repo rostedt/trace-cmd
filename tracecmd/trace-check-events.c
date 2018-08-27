@@ -13,7 +13,7 @@ void trace_check_events(int argc, char **argv)
 {
 	const char *tracing;
 	int ret, c;
-	struct pevent *pevent = NULL;
+	struct tep_handle *pevent = NULL;
 	struct plugin_list *list = NULL;
 
 	while ((c = getopt(argc-1, argv+1, "+hN")) >= 0) {

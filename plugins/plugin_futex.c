@@ -107,14 +107,14 @@ static int futex_handler(struct trace_seq *s, struct pevent_record *record,
 	return 0;
 }
 
-int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
+int PEVENT_PLUGIN_LOADER(struct tep_handle *pevent)
 {
 	pevent_register_event_handler(pevent, -1, "syscalls", "sys_enter_futex",
 				      futex_handler, NULL);
 	return 0;
 }
 
-void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
+void PEVENT_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
 	pevent_unregister_event_handler(pevent, -1, "syscalls", "sys_enter_futex",
 					futex_handler, NULL);
