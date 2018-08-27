@@ -460,7 +460,7 @@ static void load_filter(struct shark_info *info, const char *filename)
 	store = TRACE_VIEW_STORE(model);
 	event_filter = trace_view_store_get_event_filter(store);
 
-	if (pevent_filter_compare(event_filter, ginfo->event_filter))
+	if (tep_filter_compare(event_filter, ginfo->event_filter))
 		sync_event_filters(info);
 }
 
@@ -843,7 +843,7 @@ sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
 	event_filter = trace_view_store_get_event_filter(store);
 
 	/* If they are already equal, then just perminently sync them */
-	if (pevent_filter_compare(event_filter, ginfo->event_filter))
+	if (tep_filter_compare(event_filter, ginfo->event_filter))
 		result = 2;
 	else
 		/* Ask user which way to sync */

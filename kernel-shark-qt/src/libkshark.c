@@ -148,7 +148,7 @@ bool kshark_open(struct kshark_context *kshark_ctx, const char *file)
 	kshark_ctx->pevent = tracecmd_get_pevent(handle);
 
 	kshark_ctx->advanced_event_filter =
-		pevent_filter_alloc(kshark_ctx->pevent);
+		tep_filter_alloc(kshark_ctx->pevent);
 
 	/*
 	 * Turn off function trace indent and turn on show parent
@@ -180,8 +180,8 @@ void kshark_close(struct kshark_context *kshark_ctx)
 	tracecmd_filter_id_clear(kshark_ctx->hide_event_filter);
 
 	if (kshark_ctx->advanced_event_filter) {
-		pevent_filter_reset(kshark_ctx->advanced_event_filter);
-		pevent_filter_free(kshark_ctx->advanced_event_filter);
+		tep_filter_reset(kshark_ctx->advanced_event_filter);
+		tep_filter_free(kshark_ctx->advanced_event_filter);
 		kshark_ctx->advanced_event_filter = NULL;
 	}
 
@@ -612,7 +612,7 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 				/* Apply event filtering. */
 				ret = FILTER_MATCH;
 				if (adv_filter->filters)
-					ret = pevent_filter_match(adv_filter, rec);
+					ret = tep_filter_match(adv_filter, rec);
 
 				if (!kshark_show_event(kshark_ctx, entry->event_id) ||
 				    ret != FILTER_MATCH) {

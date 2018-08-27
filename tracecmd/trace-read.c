@@ -503,11 +503,11 @@ static void process_filters(struct handle_list *handles)
 		if (!event_filter)
 			die("Failed to allocate for event filter");
 		event_filter->next = NULL;
-		event_filter->filter = pevent_filter_alloc(pevent);
+		event_filter->filter = tep_filter_alloc(pevent);
 		if (!event_filter->filter)
 			die("malloc");
 
-		ret = pevent_filter_add_filter_str(event_filter->filter,
+		ret = tep_filter_add_filter_str(event_filter->filter,
 						   filter->filter);
 		if (ret < 0) {
 			pevent_strerror(pevent, ret, errstr, sizeof(errstr));
@@ -891,7 +891,7 @@ test_filters(struct tep_handle *pevent, struct filter *event_filters,
 	}
 
 	while (event_filters) {
-		ret = pevent_filter_match(event_filters->filter, record);
+		ret = tep_filter_match(event_filters->filter, record);
 		switch (ret) {
 			case FILTER_NONE:
 			case FILTER_MATCH: 
@@ -1099,7 +1099,7 @@ static void free_filters(struct filter *event_filter)
 		filter = event_filter;
 		event_filter = filter->next;
 
-		pevent_filter_free(filter->filter);
+		tep_filter_free(filter->filter);
 		free(filter);
 	}
 }

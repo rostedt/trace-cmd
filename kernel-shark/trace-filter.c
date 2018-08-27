@@ -470,7 +470,7 @@ create_tree_filter_model(struct tep_handle *pevent,
 		return GTK_TREE_MODEL(treestore);
 
 	for (i = 0; events[i]; i++) {
-		str = pevent_filter_make_string(event_filter, events[i]->id);
+		str = tep_filter_make_string(event_filter, events[i]->id);
 		if (!str)
 			continue;
 
@@ -1125,12 +1125,12 @@ create_tree_event_model(struct tep_handle *pevent,
 
 		normal = TRUE;
 		if (active && filter) {
-			if (pevent_event_filtered(filter, event->id) &&
-			    !pevent_filter_event_has_trivial(filter, event->id,
+			if (tep_event_filtered(filter, event->id) &&
+			    !tep_filter_event_has_trivial(filter, event->id,
 							     FILTER_TRIVIAL_BOTH))
 				normal = FALSE;
 			/* Make trivial false not selected */
-			else if (pevent_filter_event_has_trivial(filter, event->id,
+			else if (tep_filter_event_has_trivial(filter, event->id,
 								 FILTER_TRIVIAL_FALSE))
 				active = FALSE;
 		}
@@ -1950,7 +1950,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 			all_selected = 1;
 		}
 
-		if (pevent_filter_event_has_trivial(filter, event->id,
+		if (tep_filter_event_has_trivial(filter, event->id,
 						    FILTER_TRIVIAL_TRUE)) {
 			if (!all_selected || !systems)
 				*event_ids = tracecmd_add_id(*event_ids, event->id, event_count++);
@@ -1964,7 +1964,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 			all_selected = 0;
 
 			/* If this event is filtered, still add it */
-			if (pevent_event_filtered(filter, event->id))
+			if (tep_event_filtered(filter, event->id))
 				*event_ids = tracecmd_add_id(*event_ids, event->id, event_count++);
 		}
 		last_system = event->system;
@@ -1992,28 +1992,28 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 	pevent = filter->pevent;
 
 	/* Make a copy to use later */
-	copy = pevent_filter_alloc(pevent);
-	pevent_filter_copy(copy, filter);
-	pevent_filter_reset(filter);
+	copy = tep_filter_alloc(pevent);
+	tep_filter_copy(copy, filter);
+	tep_filter_reset(filter);
 
 	if (systems) {
 		for (i = 0; systems[i]; i++)
-			pevent_filter_add_filter_str(filter,
-						     systems[i]);
+			tep_filter_add_filter_str(filter,
+						  systems[i]);
 	}
 
 	if (events) {
 		for (i = 0; events[i] >= 0; i++) {
 			event = tep_find_event(filter->pevent, events[i]);
 			if (event)
-				pevent_filter_add_filter_str(filter,
-							     event->name);
+				tep_filter_add_filter_str(filter,
+							  event->name);
 		}
 	}
 
-	pevent_update_trivial(filter, copy, FILTER_TRIVIAL_BOTH);
+	tep_update_trivial(filter, copy, FILTER_TRIVIAL_BOTH);
 
-	pevent_filter_free(copy);
+	tep_filter_free(copy);
 }
 
 int trace_filter_save_events(struct tracecmd_xml_handle *handle,
@@ -2032,7 +2032,7 @@ int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 		tracecmd_xml_write_element(handle, "System", "%s", systems[i]);
 
 	for (i = 0; event_ids && event_ids[i] > 0; i++) {
-		str = pevent_filter_make_string(filter, event_ids[i]);
+		str = tep_filter_make_string(filter, event_ids[i]);
 		if (!str)
 			continue;
 
@@ -2098,7 +2098,7 @@ int trace_filter_load_events(struct event_filter *event_filter,
 
 		if (strcmp(name, "System") == 0) {
 			system = tracecmd_xml_node_value(handle, node);
-			pevent_filter_add_filter_str(event_filter,
+			tep_filter_add_filter_str(event_filter,
 						     system);
 		} else if (strcmp(name, "Event") == 0) {
 			system = NULL;
@@ -2145,8 +2145,8 @@ int trace_filter_load_events(struct event_filter *event_filter,
 						sprintf(buffer, "%s", event);
 					}
 				}
-				pevent_filter_add_filter_str(event_filter,
-							     buffer);
+				tep_filter_add_filter_str(event_filter,
+							  buffer);
 				free(buffer);
 			}
 		}

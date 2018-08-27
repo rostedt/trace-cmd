@@ -224,7 +224,7 @@ trace_view_store_finalize (GObject *object)
 		store->spin = NULL;
 	}
 
-	pevent_filter_free(store->event_filter);
+	tep_filter_free(store->event_filter);
 	tracecmd_close(store->handle);
 
 	/* must chain up - finalize parent */
@@ -512,7 +512,7 @@ void trace_view_store_clear_all_events_enabled(TraceViewStore *store)
 {
 	g_return_if_fail (TRACE_VIEW_IS_LIST (store));
 
-	pevent_filter_clear_trivial(store->event_filter, FILTER_TRIVIAL_BOTH);
+	tep_filter_clear_trivial(store->event_filter, FILTER_TRIVIAL_BOTH);
 	store->all_events = 0;
 }
 
@@ -527,7 +527,7 @@ void trace_view_store_set_all_events_enabled(TraceViewStore *store)
 	 * All enabled means that we don't need to look at 
 	 * the system events, so free those arrays.
 	 */
-	pevent_filter_reset(store->event_filter);
+	tep_filter_reset(store->event_filter);
 
 	store->all_events = 1;
 }
@@ -855,7 +855,7 @@ trace_view_store_new (struct tracecmd_input *handle)
 	newstore->handle = handle;
 	newstore->cpus = tracecmd_cpus(handle);
 	tracecmd_ref(handle);
-	newstore->event_filter = pevent_filter_alloc(tracecmd_get_pevent(handle));
+	newstore->event_filter = tep_filter_alloc(tracecmd_get_pevent(handle));
 
 	newstore->cpu_list = g_new(TraceViewRecord *, newstore->cpus);
 	g_assert(newstore->cpu_list != NULL);
@@ -1257,8 +1257,8 @@ static void update_filter_tasks(TraceViewStore *store)
 			/* The record may be filtered by the events */
 			if (!store->all_events) {
 				int ret;
-				ret = pevent_filter_match(store->event_filter,
-							  record);
+				ret = tep_filter_match(store->event_filter,
+						       record);
 				if (ret != FILTER_MATCH) {
 					store->cpu_list[cpu][i].visible = 0;
 					goto skip;

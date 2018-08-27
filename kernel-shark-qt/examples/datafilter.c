@@ -117,8 +117,8 @@ int main(int argc, char **argv)
 
 	/* Use the Advanced filter to do event content based filtering. */
 	adv_filter = kshark_ctx->advanced_event_filter;
-	pevent_filter_add_filter_str(adv_filter,
-				     "sched/sched_wakeup:target_cpu==1");
+	tep_filter_add_filter_str(adv_filter,
+				  "sched/sched_wakeup:target_cpu==1");
 
 	/* The Advanced filter requires reloading the data. */
 	for (i = 0; i < n_rows; ++i)

@@ -1033,7 +1033,7 @@ static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 		return false;
 
 	for (i = 0; events[i]; i++) {
-		str = pevent_filter_make_string(adv_filter,
+		str = tep_filter_make_string(adv_filter,
 						events[i]->id);
 		if (!str)
 			continue;
@@ -1136,7 +1136,7 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 			 json_object_get_string(jname),
 			 json_object_get_string(jcond));
 
-		ret = pevent_filter_add_filter_str(adv_filter,
+		ret = tep_filter_add_filter_str(adv_filter,
 						   filter_str);
 		if (ret < 0)
 			goto fail;

@@ -463,14 +463,14 @@ void trace_view_adv_filter_callback(gboolean accept,
 
 	if (event_ids) {
 		for (i = 0; event_ids[i] >= 0; i++)
-			pevent_filter_remove_event(event_filter, event_ids[i]);
+			tep_filter_remove_event(event_filter, event_ids[i]);
 	}
 
 	if (has_text(text)) {
 
 		trace_view_store_clear_all_events_enabled(store);
 
-		ret = pevent_filter_add_filter_str(event_filter, text);
+		ret = tep_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
 			pevent_strerror(event_filter->pevent, ret,
 					error_str, sizeof(error_str));
@@ -509,7 +509,7 @@ void trace_view_copy_filter(GtkWidget *treeview,
 
 		event_filter = trace_view_store_get_event_filter(store);
 
-		pevent_filter_copy(event_filter, src_event_filter);
+		tep_filter_copy(event_filter, src_event_filter);
 	}
 
 	update_rows(trace_tree, store);

@@ -279,7 +279,7 @@ gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct tep_record
 	if (ginfo->all_events)
 		return FALSE;
 
-	ret = pevent_filter_match(ginfo->event_filter, record);
+	ret = tep_filter_match(ginfo->event_filter, record);
 	return ret == FILTER_MATCH ? FALSE : TRUE;
 }
 
@@ -2235,14 +2235,14 @@ void trace_graph_event_filter_callback(gboolean accept,
 	if (all_events) {
 		ginfo->all_events = TRUE;
 		/* filter is no longer used */
-		pevent_filter_reset(ginfo->event_filter);
+		tep_filter_reset(ginfo->event_filter);
 		redraw_graph(ginfo);
 		return;
 	}
 
 	ginfo->all_events = FALSE;
 
-	pevent_filter_clear_trivial(ginfo->event_filter, FILTER_TRIVIAL_BOTH);
+	tep_filter_clear_trivial(ginfo->event_filter, FILTER_TRIVIAL_BOTH);
 
 	trace_filter_convert_char_to_filter(ginfo->event_filter,
 					    systems, events);
@@ -2271,17 +2271,17 @@ void trace_graph_adv_filter_callback(gboolean accept,
 
 	if (event_ids) {
 		for (i = 0; event_ids[i] >= 0; i++)
-			pevent_filter_remove_event(event_filter, event_ids[i]);
+			tep_filter_remove_event(event_filter, event_ids[i]);
 	}
 
 	if (has_text(text)) {
 
 		ginfo->all_events = FALSE;
 
-		pevent_filter_clear_trivial(event_filter,
+		tep_filter_clear_trivial(event_filter,
 					    FILTER_TRIVIAL_BOTH);
 
-		ret = pevent_filter_add_filter_str(event_filter, text);
+		ret = tep_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
 			pevent_strerror(event_filter->pevent, ret,
 					error_str, sizeof(error_str));
@@ -2300,14 +2300,14 @@ void trace_graph_copy_filter(struct graph_info *ginfo,
 	if (all_events) {
 		ginfo->all_events = TRUE;
 		/* filter is no longer used */
-		pevent_filter_reset(ginfo->event_filter);
+		tep_filter_reset(ginfo->event_filter);
 		redraw_graph(ginfo);
 		return;
 	}
 
 	ginfo->all_events = FALSE;
 
-	pevent_filter_copy(ginfo->event_filter, event_filter);
+	tep_filter_copy(ginfo->event_filter, event_filter);
 
 	redraw_graph(ginfo);
 }
@@ -2515,7 +2515,7 @@ static void free_int_array(int **array)
 void trace_graph_free_info(struct graph_info *ginfo)
 {
 	if (ginfo->handle) {
-		pevent_filter_free(ginfo->event_filter);
+		tep_filter_free(ginfo->event_filter);
 		trace_graph_plot_free(ginfo);
 		tracecmd_close(ginfo->handle);
 		free_task_hash(ginfo);
@@ -2552,7 +2552,7 @@ static int load_handle(struct graph_info *ginfo,
 	ginfo->cpus = tracecmd_cpus(handle);
 	ginfo->all_events = TRUE;
 
-	ginfo->event_filter = pevent_filter_alloc(ginfo->pevent);
+	ginfo->event_filter = tep_filter_alloc(ginfo->pevent);
 
 	ginfo->start_time = -1ULL;
 	ginfo->end_time = 0;
@@ -2645,7 +2645,7 @@ static int load_event_filter(struct graph_info *ginfo,
 	if (!node)
 		return -1;
 
-	pevent_filter_clear_trivial(event_filter, FILTER_TRIVIAL_BOTH);
+	tep_filter_clear_trivial(event_filter, FILTER_TRIVIAL_BOTH);
 	ginfo->all_events = FALSE;
 
 	trace_filter_load_events(event_filter, handle, node);
