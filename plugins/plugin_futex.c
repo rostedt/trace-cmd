@@ -71,22 +71,22 @@ static int futex_handler(struct trace_seq *s, struct tep_record *record,
 	struct futex_args args;
 	unsigned long long cmd;
 
-	if (pevent_get_field_val(s, event, "uaddr", record, &args.uaddr, 1))
+	if (tep_get_field_val(s, event, "uaddr", record, &args.uaddr, 1))
 		return 1;
 
-	if (pevent_get_field_val(s, event, "op", record, &args.op, 1))
+	if (tep_get_field_val(s, event, "op", record, &args.op, 1))
 		return 1;
 
-	if (pevent_get_field_val(s, event, "val", record, &args.val, 1))
+	if (tep_get_field_val(s, event, "val", record, &args.val, 1))
 		return 1;
 
-	if (pevent_get_field_val(s, event, "utime", record, &args.utime, 1))
+	if (tep_get_field_val(s, event, "utime", record, &args.utime, 1))
 		return 1;
 
-	if (pevent_get_field_val(s, event, "uaddr2", record, &args.uaddr2, 1))
+	if (tep_get_field_val(s, event, "uaddr2", record, &args.uaddr2, 1))
 		return 1;
 
-	if (pevent_get_field_val(s, event, "val3", record, &args.val3, 1))
+	if (tep_get_field_val(s, event, "val3", record, &args.val3, 1))
 		return 1;
 
 	cmd = args.op & FUTEX_CMD_MASK;

@@ -6152,7 +6152,7 @@ __pevent_parse_event(struct tep_handle *pevent,
 	return 0;
 
 event_add_failed:
-	pevent_free_format(event);
+	tep_free_format(event);
 	return ret;
 }
 
@@ -6249,7 +6249,7 @@ int get_field_val(struct trace_seq *s, struct format_field *field,
 }
 
 /**
- * pevent_get_field_raw - return the raw pointer into the data field
+ * tep_get_field_raw - return the raw pointer into the data field
  * @s: The seq to print to on error
  * @event: the event that the field is for
  * @name: The name of the field
@@ -6262,9 +6262,9 @@ int get_field_val(struct trace_seq *s, struct format_field *field,
  *
  * On failure, it returns NULL.
  */
-void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
-			   const char *name, struct tep_record *record,
-			   int *len, int err)
+void *tep_get_field_raw(struct trace_seq *s, struct event_format *event,
+			const char *name, struct tep_record *record,
+			int *len, int err)
 {
 	struct format_field *field;
 	void *data = record->data;
@@ -6299,7 +6299,7 @@ void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
 }
 
 /**
- * pevent_get_field_val - find a field and return its value
+ * tep_get_field_val - find a field and return its value
  * @s: The seq to print to on error
  * @event: the event that the field is for
  * @name: The name of the field
@@ -6309,9 +6309,9 @@ void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
  *
  * Returns 0 on success -1 on field not found.
  */
-int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
-			 const char *name, struct tep_record *record,
-			 unsigned long long *val, int err)
+int tep_get_field_val(struct trace_seq *s, struct event_format *event,
+		      const char *name, struct tep_record *record,
+		      unsigned long long *val, int err)
 {
 	struct format_field *field;
 
@@ -6324,7 +6324,7 @@ int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
 }
 
 /**
- * pevent_get_common_field_val - find a common field and return its value
+ * tep_get_common_field_val - find a common field and return its value
  * @s: The seq to print to on error
  * @event: the event that the field is for
  * @name: The name of the field
@@ -6334,9 +6334,9 @@ int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
  *
  * Returns 0 on success -1 on field not found.
  */
-int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
-				const char *name, struct tep_record *record,
-				unsigned long long *val, int err)
+int tep_get_common_field_val(struct trace_seq *s, struct event_format *event,
+			     const char *name, struct tep_record *record,
+			     unsigned long long *val, int err)
 {
 	struct format_field *field;
 
@@ -6349,7 +6349,7 @@ int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
 }
 
 /**
- * pevent_get_any_field_val - find a any field and return its value
+ * tep_get_any_field_val - find a any field and return its value
  * @s: The seq to print to on error
  * @event: the event that the field is for
  * @name: The name of the field
@@ -6359,9 +6359,9 @@ int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
  *
  * Returns 0 on success -1 on field not found.
  */
-int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
-			     const char *name, struct tep_record *record,
-			     unsigned long long *val, int err)
+int tep_get_any_field_val(struct trace_seq *s, struct event_format *event,
+			  const char *name, struct tep_record *record,
+			  unsigned long long *val, int err)
 {
 	struct format_field *field;
 
@@ -6757,7 +6757,7 @@ void pevent_ref(struct tep_handle *pevent)
 	pevent->ref_count++;
 }
 
-void pevent_free_format_field(struct format_field *field)
+void tep_free_format_field(struct format_field *field)
 {
 	free(field->type);
 	if (field->alias != field->name)
@@ -6772,7 +6772,7 @@ static void free_format_fields(struct format_field *field)
 
 	while (field) {
 		next = field->next;
-		pevent_free_format_field(field);
+		tep_free_format_field(field);
 		field = next;
 	}
 }
@@ -6783,7 +6783,7 @@ static void free_formats(struct format *format)
 	free_format_fields(format->fields);
 }
 
-void pevent_free_format(struct event_format *event)
+void tep_free_format(struct event_format *event)
 {
 	free(event->name);
 	free(event->system);
@@ -6869,7 +6869,7 @@ void tep_free(struct tep_handle *pevent)
 	}
 
 	for (i = 0; i < pevent->nr_events; i++)
-		pevent_free_format(pevent->events[i]);
+		tep_free_format(pevent->events[i]);
 
 	while (pevent->handlers) {
 		handle = pevent->handlers;

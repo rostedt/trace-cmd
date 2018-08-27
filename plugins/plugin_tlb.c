@@ -25,7 +25,7 @@ static int tlb_flush_handler(struct trace_seq *s, struct tep_record *record,
 
 	tep_print_num_field(s, "%ld", event, "pages", record, 1);
 
-	if (pevent_get_field_val(s, event, "reason", record, &val, 1) < 0)
+	if (tep_get_field_val(s, event, "reason", record, &val, 1) < 0)
 		return -1;
 
 	trace_seq_puts(s, " reason=");
