@@ -3506,7 +3506,7 @@ static char *get_date_to_ts(void)
 	buf = read_file("events/header_page", &size);
 	if (!buf)
 		goto out_pevent;
-	ret = pevent_parse_header_page(pevent, buf, size, sizeof(unsigned long));
+	ret = tep_parse_header_page(pevent, buf, size, sizeof(unsigned long));
 	free(buf);
 	if (ret < 0) {
 		warning("Can't parse header page, --date ignored");
@@ -3517,7 +3517,7 @@ static char *get_date_to_ts(void)
 	buf = read_file("events/ftrace/print/format", &size);
 	if (!buf)
 		goto out_pevent;
-	ret = pevent_parse_event(pevent, buf, size, "ftrace");
+	ret = tep_parse_event(pevent, buf, size, "ftrace");
 	free(buf);
 	if (ret < 0) {
 		warning("Can't parse print event, --date ignored");

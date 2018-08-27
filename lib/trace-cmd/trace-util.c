@@ -1077,7 +1077,7 @@ static int load_events(struct tep_handle *pevent, const char *system,
 		if (len < 0)
 			goto free_format;
 
-		ret = pevent_parse_event(pevent, buf, len, system);
+		ret = tep_parse_event(pevent, buf, len, system);
 		free(buf);
  free_format:
 		free(format);
@@ -1109,7 +1109,7 @@ static int read_header(struct tep_handle *pevent, const char *events_dir)
 	if (len < 0)
 		goto out;
 
-	pevent_parse_header_page(pevent, buf, len, sizeof(long));
+	tep_parse_header_page(pevent, buf, len, sizeof(long));
 
 	free(buf);
 

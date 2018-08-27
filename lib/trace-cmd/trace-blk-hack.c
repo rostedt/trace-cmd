@@ -139,7 +139,7 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 
 	/* Parse this event */
 	l += r;
-	pevent_parse_event(pevent, buf, l, "ftrace");
+	tep_parse_event(pevent, buf, l, "ftrace");
 
 	return 0;
 

@@ -333,7 +333,7 @@ static int read_header_files(struct tracecmd_input *handle)
 	if (do_read_check(handle, header, size))
 		goto failed_read;
 
-	pevent_parse_header_page(pevent, header, size, handle->long_size);
+	tep_parse_header_page(pevent, header, size, handle->long_size);
 	free(header);
 
 	/*
@@ -421,7 +421,7 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 		if (print || regex_event_buf(buf, size, epreg))
 			printf("%.*s\n", (int)size, buf);
 	} else {
-		if (pevent_parse_event(pevent, buf, size, "ftrace"))
+		if (tep_parse_event(pevent, buf, size, "ftrace"))
 			pevent->parsing_failures = 1;
 	}
 	free(buf);
@@ -455,7 +455,7 @@ static int read_event_file(struct tracecmd_input *handle,
 			printf("%.*s\n", (int)size, buf);
 		}
 	} else {
-		if (pevent_parse_event(pevent, buf, size, system))
+		if (tep_parse_event(pevent, buf, size, system))
 			pevent->parsing_failures = 1;
 	}
 	free(buf);
