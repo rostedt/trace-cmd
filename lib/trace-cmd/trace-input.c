@@ -2406,7 +2406,7 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		return -1;
 	handle->cpus = cpus;
 
-	pevent_set_cpus(pevent, handle->cpus);
+	tep_set_cpus(pevent, handle->cpus);
 
 	ret = read_cpu_data(handle);
 	if (ret < 0)

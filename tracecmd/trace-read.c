@@ -1700,8 +1700,8 @@ void trace_report (int argc, char **argv)
 
 		if (show_endian) {
 			printf("file is %s endian and host is %s endian\n",
-			       pevent_is_file_bigendian(pevent) ? "big" : "little",
-			       pevent_is_host_bigendian(pevent) ? "big" : "little");
+			       tep_is_file_bigendian(pevent) ? "big" : "little",
+			       tep_is_host_bigendian(pevent) ? "big" : "little");
 			return;
 		}
 
@@ -1755,7 +1755,7 @@ void trace_report (int argc, char **argv)
 	}
 
 	if (latency_format)
-		pevent_set_latency_format(pevent, latency_format);
+		tep_set_latency_format(pevent, latency_format);
 
 	otype = OUTPUT_NORMAL;
 

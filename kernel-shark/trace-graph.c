@@ -1133,7 +1133,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 		 * First time through, register any missing
 		 *  comm / pid mappings.
 		 */
-		if (!pevent_pid_is_registered(ginfo->pevent, *pid))
+		if (!tep_pid_is_registered(ginfo->pevent, *pid))
 			tep_register_comm(ginfo->pevent,
 					  *comm, *pid);
 	}

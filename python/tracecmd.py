@@ -166,7 +166,7 @@ class PEvent(object):
 
     @cached_property
     def file_endian(self):
-        if pevent_is_file_bigendian(self._pevent):
+        if tep_is_file_bigendian(self._pevent):
             return '>'
         return '<'
 
