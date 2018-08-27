@@ -501,7 +501,7 @@ process_sched_wakeup(struct tep_handle *pevent, struct tep_record *record, int t
 
 	pid = val;
 
-	pevent_register_comm(pevent, comm, pid);
+	tep_register_comm(pevent, comm, pid);
 }
 
 static void
@@ -517,14 +517,14 @@ process_sched_switch(struct tep_handle *pevent, struct tep_record *record)
 	if (ret < 0)
 		die("no prev_pid field in sched_switch?");
 	pid = val;
-	pevent_register_comm(pevent, comm, pid);
+	tep_register_comm(pevent, comm, pid);
 
 	comm = (char *)(record->data + sched_switch_next_field->offset);
 	ret = tep_read_number_field(sched_switch_next_pid_field, record->data, &val);
 	if (ret < 0)
 		die("no next_pid field in sched_switch?");
 	pid = val;
-	pevent_register_comm(pevent, comm, pid);
+	tep_register_comm(pevent, comm, pid);
 }
 
 static void
