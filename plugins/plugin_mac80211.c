@@ -178,10 +178,10 @@ static int drv_config(struct trace_seq *s, struct tep_record *record,
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_event_handler(pevent, -1, "mac80211", "drv_bss_info_changed",
-				      drv_bss_info_changed, NULL);
-	pevent_register_event_handler(pevent, -1, "mac80211", "drv_config",
-				      drv_config, NULL);
+	tep_register_event_handler(pevent, -1, "mac80211", "drv_bss_info_changed",
+				   drv_bss_info_changed, NULL);
+	tep_register_event_handler(pevent, -1, "mac80211", "drv_config",
+				   drv_config, NULL);
 
 	return 0;
 }

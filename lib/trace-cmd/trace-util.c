@@ -388,7 +388,7 @@ static void extract_trace_clock(struct tep_handle *pevent, char *line)
 
 	data = strtok_r(line, "[]", &next);
 	sscanf(data, "%ms", &clock);
-	pevent_register_trace_clock(pevent, clock);
+	tep_register_trace_clock(pevent, clock);
 	free(clock);
 }
 
@@ -444,7 +444,7 @@ void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 		 *  - x86-64 that reports per-cpu variable offsets as absolute
 		 */
 		if (func[0] != '$' && ch != 'A' && ch != 'a')
-			pevent_register_function(pevent, func, addr, mod);
+			tep_register_function(pevent, func, addr, mod);
 		free(func);
 		free(mod);
 

@@ -365,7 +365,7 @@ static int blktrace_handler(struct trace_seq *s, struct tep_record *record,
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_event_handler(pevent, -1, "ftrace", "blktrace",
-				      blktrace_handler, NULL);
+	tep_register_event_handler(pevent, -1, "ftrace", "blktrace",
+				   blktrace_handler, NULL);
 	return 0;
 }

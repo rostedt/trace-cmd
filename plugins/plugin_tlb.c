@@ -52,15 +52,15 @@ static int tlb_flush_handler(struct trace_seq *s, struct tep_record *record,
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 {
-	pevent_register_event_handler(pevent, -1, "tlb", "tlb_flush",
-				      tlb_flush_handler, NULL);
+	tep_register_event_handler(pevent, -1, "tlb", "tlb_flush",
+				   tlb_flush_handler, NULL);
 
 	return 0;
 }
 
 void TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
 {
-	pevent_unregister_event_handler(pevent, -1,
-					"tlb", "tlb_flush",
-					tlb_flush_handler, NULL);
+	tep_unregister_event_handler(pevent, -1,
+				     "tlb", "tlb_flush",
+				     tlb_flush_handler, NULL);
 }

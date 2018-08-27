@@ -421,16 +421,16 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 
 	pevent = tracecmd_get_pevent(handle);
 
-	pevent_register_event_handler(pevent, -1, "ftrace", "function",
+	tep_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler, NULL);
 
-	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_entry",
+	tep_register_event_handler(pevent, -1, "ftrace", "funcgraph_entry",
 				      fgraph_ent_handler, finfo);
 
-	pevent_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
+	tep_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
 				      fgraph_ret_handler, finfo);
 
-	pevent_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
+	tep_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
 				      trace_stack_handler, finfo);
 
 	trace_util_add_options("ftrace", trace_ftrace_options);

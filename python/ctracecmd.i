@@ -76,8 +76,8 @@ void py_pevent_register_event_handler(struct tep_handle *pevent, int id,
 				      PyObject *pyfunc)
 {
 	Py_INCREF(pyfunc);
-	pevent_register_event_handler(pevent, id, subsys, evname,
-				      python_callback, pyfunc);
+	tep_register_event_handler(pevent, id, subsys, evname,
+				   python_callback, pyfunc);
 }
 
 static PyObject *py_field_get_stack(struct tep_handle *pevent,
