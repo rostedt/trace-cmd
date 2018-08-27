@@ -45,8 +45,8 @@ int main(int argc, char **argv)
 	n_tasks = kshark_get_task_pids(kshark_ctx, &pids);
 	for (r = 0; r < n_tasks; ++r) {
 		const char *task_str =
-			pevent_data_comm_from_pid(kshark_ctx->pevent,
-						  pids[r]);
+			tep_data_comm_from_pid(kshark_ctx->pevent,
+					       pids[r]);
 
 		printf("task: %s-%i\n", task_str, pids[r]);
 	}

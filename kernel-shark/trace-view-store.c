@@ -467,26 +467,26 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 		switch (column) {
 		case TRACE_VIEW_STORE_COL_COMM:
 		case TRACE_VIEW_STORE_COL_PID:
-			val = pevent_data_pid(pevent, data);
+			val = tep_data_pid(pevent, data);
 			if (column == TRACE_VIEW_STORE_COL_PID)
 				g_value_set_uint(value, val);
 			else {
-				comm = pevent_data_comm_from_pid(pevent, val);
+				comm = tep_data_comm_from_pid(pevent, val);
 				g_value_set_string(value, comm);
 			}
 			break;
 
 		case TRACE_VIEW_STORE_COL_LAT:
 			trace_seq_init(&s);
-			pevent_data_lat_fmt(pevent, &s, data);
+			tep_data_lat_fmt(pevent, &s, data);
 			g_value_set_string(value, s.buffer);
 			trace_seq_destroy(&s);
 			break;
 
 		case TRACE_VIEW_STORE_COL_EVENT:
 		case TRACE_VIEW_STORE_COL_INFO:
-			val = pevent_data_type(pevent, data);
-			event = pevent_data_event_from_type(pevent, val);
+			val = tep_data_type(pevent, data);
+			event = tep_data_event_from_type(pevent, val);
 			if (!event) {
 				if (column == TRACE_VIEW_STORE_COL_EVENT)
 					g_value_set_string(value, "[UNKNOWN EVENT]");
@@ -1184,7 +1184,7 @@ static gboolean show_task(TraceViewStore *store, struct tep_handle *pevent,
 	if (view_task(store, pid))
 		return TRUE;
 
-	event_id = pevent_data_type(pevent, record);
+	event_id = tep_data_type(pevent, record);
 
 	if (store->sched_switch_next_field &&
 	    event_id == store->sched_switch_event->id) {
@@ -1265,7 +1265,7 @@ static void update_filter_tasks(TraceViewStore *store)
 				}
 			}
 
-			pid = pevent_data_pid(pevent, record);
+			pid = tep_data_pid(pevent, record);
 			if (show_task(store, pevent, record, pid))
 				store->cpu_list[cpu][i].visible = 1;
 			else

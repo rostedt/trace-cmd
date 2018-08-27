@@ -541,7 +541,7 @@ process_event(struct tep_handle *pevent, struct tep_record *record, int type)
 		reset_pending_stack();
 	}
 		
-	event = pevent_data_event_from_type(pevent, type);
+	event = tep_data_event_from_type(pevent, type);
 	event_name = event->name;
 
 	ret = tep_read_number_field(common_pid_field, record->data, &val);
@@ -919,7 +919,7 @@ static void print_chains(struct tep_handle *pevent)
 			printf("  %%%3.2f  (%d) %s %30s #%d\n",
 			       get_percent(total_counts, chain->count),
 			       pid,
-			       pevent_data_comm_from_pid(pevent, pid),
+			       tep_data_comm_from_pid(pevent, pid),
 			       chain->func,
 			       chain->count);
 		printf(START);
@@ -951,8 +951,8 @@ static void do_trace_hist(struct tracecmd_input *handle)
 	if (!record)
 		die("No records found in file");
 
-	ret = pevent_data_type(pevent, record);
-	event = pevent_data_event_from_type(pevent, ret);
+	ret = tep_data_type(pevent, record);
+	event = tep_data_event_from_type(pevent, ret);
 
 	long_size = tracecmd_long_size(handle);
 

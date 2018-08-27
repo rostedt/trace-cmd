@@ -748,8 +748,8 @@ do_pop_up(GtkWidget *widget, GdkEventButton *event, gpointer data)
 	if (record) {
 
 		if (!trace_graph_check_sched_switch(ginfo, record, &pid, &comm)) {
-			pid = pevent_data_pid(ginfo->pevent, record);
-			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+			pid = tep_data_pid(ginfo->pevent, record);
+			comm = tep_data_comm_from_pid(ginfo->pevent, pid);
 		}
 
 		len = strlen(comm) + 50;
@@ -1038,7 +1038,7 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 			return 0;
 	}
 
-	id = pevent_data_type(ginfo->pevent, record);
+	id = tep_data_type(ginfo->pevent, record);
 
 	if (id == ginfo->event_wakeup_id) {
 		/* We only want those that actually woke up the task */
@@ -1081,7 +1081,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 
 	if (ginfo->read_comms) {
 		/* record all pids, for task plots */
-		this_pid = pevent_data_pid(ginfo->pevent, record);
+		this_pid = tep_data_pid(ginfo->pevent, record);
 		add_task_hash(ginfo, this_pid);
 	}
 
@@ -1105,7 +1105,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 		}
 	}
 
-	id = pevent_data_type(ginfo->pevent, record);
+	id = tep_data_type(ginfo->pevent, record);
 	if (id == ginfo->event_sched_switch_id) {
 		tep_read_number_field(ginfo->event_pid_field, record->data, &val);
 		if (comm)
@@ -1221,7 +1221,7 @@ trace_graph_check_irq(struct graph_info *ginfo,
 		}
 	}
 
-	id = pevent_data_type(ginfo->pevent, record);
+	id = tep_data_type(ginfo->pevent, record);
 
 	for (i = 0; ginfo->hard_irq_exit_ids[i] != -1; i++)
 		if (id == ginfo->hard_irq_exit_ids[i])
@@ -1997,7 +1997,7 @@ static void draw_plots(struct graph_info *ginfo, gint new_width)
 			for (list = hash->plots; list; list = list->next)
 				draw_plot(ginfo, list->plot, record);
 		}
-		pid = pevent_data_pid(ginfo->pevent, record);
+		pid = tep_data_pid(ginfo->pevent, record);
 		hash = trace_graph_plot_find_task(ginfo, pid);
 		if (hash) {
 			for (list = hash->plots; list; list = list->next)

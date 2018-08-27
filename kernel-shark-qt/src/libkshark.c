@@ -504,7 +504,7 @@ static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
 	entry->ts = record->ts;
 
 	/* Event Id of the record */
-	entry->event_id = pevent_data_type(kshark_ctx->pevent, record);
+	entry->event_id = tep_data_type(kshark_ctx->pevent, record);
 
 	/*
 	 * Is visible mask. This default value means that the entry
@@ -513,7 +513,7 @@ static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
 	entry->visible = 0xFF;
 
 	/* Process Id of the record */
-	entry->pid = pevent_data_pid(kshark_ctx->pevent, record);
+	entry->pid = tep_data_pid(kshark_ctx->pevent, record);
 }
 
 /**
@@ -600,7 +600,7 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 			switch (type) {
 			case REC_RECORD:
 				temp_rec->rec = rec;
-				pid = pevent_data_pid(kshark_ctx->pevent, rec);
+				pid = tep_data_pid(kshark_ctx->pevent, rec);
 				break;
 			case REC_ENTRY: {
 				struct kshark_entry *entry;
@@ -841,7 +841,7 @@ static const char *kshark_get_latency(struct tep_handle *pe,
 		return NULL;
 
 	trace_seq_reset(&seq);
-	pevent_data_lat_fmt(pe, &seq, record);
+	tep_data_lat_fmt(pe, &seq, record);
 	return seq.buffer;
 }
 
@@ -892,11 +892,11 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 
 	data = kshark_read_at(kshark_ctx, entry->offset);
 
-	event_id = pevent_data_type(kshark_ctx->pevent, data);
-	event = pevent_data_event_from_type(kshark_ctx->pevent, event_id);
+	event_id = tep_data_type(kshark_ctx->pevent, data);
+	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
 
 	event_name = event? event->name : "[UNKNOWN EVENT]";
-	task = pevent_data_comm_from_pid(kshark_ctx->pevent, entry->pid);
+	task = tep_data_comm_from_pid(kshark_ctx->pevent, entry->pid);
 	lat = kshark_get_latency(kshark_ctx->pevent, data);
 
 	size = asprintf(&temp_str, "%li %s-%i; CPU %i; %s;",

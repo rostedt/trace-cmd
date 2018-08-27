@@ -84,7 +84,7 @@ static int filter_record(struct graph_info *ginfo,
 	int wake_pid;
 	int filter;
 
-	*orig_pid = pevent_data_pid(ginfo->pevent, record);
+	*orig_pid = tep_data_pid(ginfo->pevent, record);
 
 	filter = trace_graph_filter_on_task(ginfo, *orig_pid);
 
@@ -154,8 +154,8 @@ again:
 		return 0;
 
 	/* Must have the record we want */
-	type = pevent_data_type(ginfo->pevent, record);
-	event = pevent_data_event_from_type(ginfo->pevent, type);
+	type = tep_data_type(ginfo->pevent, record);
+	event = tep_data_event_from_type(ginfo->pevent, type);
 	/* Unlikely that the event was not saved */
 	if (!event)
 		goto again;
@@ -163,7 +163,7 @@ again:
 	if (is_sched_switch)
 		pid = sched_pid;
 	trace_seq_printf(s, "%s-%d\n%s\n",
-			 pevent_data_comm_from_pid(ginfo->pevent, pid),
+			 tep_data_comm_from_pid(ginfo->pevent, pid),
 			 pid, event->name);
 	free_record(record);
 
@@ -373,8 +373,8 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 		record = tracecmd_read_cpu_last(ginfo->handle, cpu);
 		if (record && record->ts < time) {
 			if (!trace_graph_check_sched_switch(ginfo, record, &pid, &comm)) {
-				pid = pevent_data_pid(ginfo->pevent, record);
-				comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+				pid = tep_data_pid(ginfo->pevent, record);
+				comm = tep_data_comm_from_pid(ginfo->pevent, pid);
 			}
 
 			convert_nano(record->ts, &sec, &usec);
@@ -393,18 +393,18 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 
 	pevent = ginfo->pevent;
 
-	pid = pevent_data_pid(ginfo->pevent, record);
-	comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+	pid = tep_data_pid(ginfo->pevent, record);
+	comm = tep_data_comm_from_pid(ginfo->pevent, pid);
 
 	if (record->ts > time - 2/ginfo->resolution &&
 	    record->ts < time + 2/ginfo->resolution) {
 
-		type = pevent_data_type(pevent, record);
-		event = pevent_data_event_from_type(pevent, type);
+		type = tep_data_type(pevent, record);
+		event = tep_data_event_from_type(pevent, type);
 		if (event) {
 			trace_seq_puts(s, event->name);
 			trace_seq_putc(s, '\n');
-			pevent_data_lat_fmt(pevent, s, record);
+			tep_data_lat_fmt(pevent, s, record);
 			trace_seq_putc(s, '\n');
 			tep_event_info(s, event, record);
 			trace_seq_putc(s, '\n');

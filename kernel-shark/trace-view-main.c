@@ -377,8 +377,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 		if (record) {
 			pevent = tracecmd_get_pevent(info->handle);
-			pid = pevent_data_pid(pevent, record);
-			comm = pevent_data_comm_from_pid(pevent, pid);
+			pid = tep_data_pid(pevent, record);
+			comm = tep_data_comm_from_pid(pevent, pid);
 
 			len = strlen(comm) + 50;
 

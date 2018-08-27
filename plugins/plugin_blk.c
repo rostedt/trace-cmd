@@ -191,7 +191,7 @@ static int blk_log_split(struct trace_seq *s, struct blk_data *data)
 {
 	const char *cmd;
 
-	cmd = pevent_data_comm_from_pid(data->event->pevent, data->pid);
+	cmd = tep_data_comm_from_pid(data->event->pevent, data->pid);
 
 	return trace_seq_printf(s, "%llu / %llu [%s]\n", data->sector,
 				get_pdu_int(data->pdu_data), cmd);
@@ -201,7 +201,7 @@ static int blk_log_plug(struct trace_seq *s, struct blk_data *data)
 {
 	const char *cmd;
 
-	cmd = pevent_data_comm_from_pid(data->event->pevent, data->pid);
+	cmd = tep_data_comm_from_pid(data->event->pevent, data->pid);
 
 	return trace_seq_printf(s, "[%s]\n", cmd);
 }
@@ -210,7 +210,7 @@ static int blk_log_unplug(struct trace_seq *s, struct blk_data *data)
 {
 	const char *cmd;
 
-	cmd = pevent_data_comm_from_pid(data->event->pevent, data->pid);
+	cmd = tep_data_comm_from_pid(data->event->pevent, data->pid);
 
 	return trace_seq_printf(s, "[%s] %llu\n", cmd, get_pdu_int(data->pdu_data));
 }
@@ -236,7 +236,7 @@ static int blk_log_generic(struct trace_seq *s, struct blk_data *data)
 {
 	const char *cmd;
 
-	cmd = pevent_data_comm_from_pid(data->event->pevent, data->pid);
+	cmd = tep_data_comm_from_pid(data->event->pevent, data->pid);
 
 	if (data->action & BLK_TC_ACT(BLK_TC_PC)) {
 		int ret;

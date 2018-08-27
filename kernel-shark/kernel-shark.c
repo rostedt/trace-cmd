@@ -1650,8 +1650,8 @@ do_tree_popup(GtkWidget *widget, GdkEventButton *event, gpointer data)
 		record = tracecmd_read_at(info->handle, offset, &cpu);
 
 		if (record) {
-			pid = pevent_data_pid(ginfo->pevent, record);
-			comm = pevent_data_comm_from_pid(ginfo->pevent, pid);
+			pid = tep_data_pid(ginfo->pevent, record);
+			comm = tep_data_comm_from_pid(ginfo->pevent, pid);
 
 			if (info->sync_task_filters) {
 				if (trace_graph_filter_task_find_pid(ginfo, pid))

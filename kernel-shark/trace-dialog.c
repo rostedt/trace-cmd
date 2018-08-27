@@ -401,8 +401,8 @@ void trace_show_record_dialog(GtkWindow *parent, struct tep_handle *pevent,
 
 	trace_seq_init(&s);
 
-	type = pevent_data_type(pevent, record);
-	event = pevent_data_event_from_type(pevent, type);
+	type = tep_data_type(pevent, record);
+	event = tep_data_event_from_type(pevent, type);
 
 	if (raw)
 		read_raw_events(&s, event, record);

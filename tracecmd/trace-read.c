@@ -432,15 +432,15 @@ static void convert_comm_filter(struct tracecmd_input *handle)
 
 	/* Seach for comm names and get their pids */
 	for (list = comm_list; list; list = list->next) {
-		cmdline = pevent_data_pid_from_comm(pevent, list->pid, NULL);
+		cmdline = tep_data_pid_from_comm(pevent, list->pid, NULL);
 		if (!cmdline) {
 			warning("comm: %s not in cmdline list", list->pid);
 			continue;
 		}
 		do {
-			sprintf(pidstr, "%d", pevent_cmdline_pid(pevent, cmdline));
+			sprintf(pidstr, "%d", tep_cmdline_pid(pevent, cmdline));
 			add_pid_filter(pidstr);
-			cmdline = pevent_data_pid_from_comm(pevent, list->pid,
+			cmdline = tep_data_pid_from_comm(pevent, list->pid,
 							    cmdline);
 		} while (cmdline);
 	}
@@ -669,7 +669,7 @@ static void process_wakeup(struct tep_handle *pevent, struct tep_record *record)
 	if (!show_wakeup)
 		return;
 
-	id = pevent_data_type(pevent, record);
+	id = tep_data_type(pevent, record);
 	if (id == wakeup_id) {
 		if (tep_read_number_field(wakeup_success, record->data, &val) == 0) {
 			if (!val)
@@ -883,7 +883,7 @@ test_filters(struct tep_handle *pevent, struct filter *event_filters,
 	int flags;
 
 	if (no_irqs || no_softirqs) {
-		flags = pevent_data_flags(pevent, record);
+		flags = tep_data_flags(pevent, record);
 		if (no_irqs && (flags & TRACE_FLAG_HARDIRQ))
 			return FILTER_MISS;
 		if (no_softirqs && (flags & TRACE_FLAG_SOFTIRQ))
@@ -976,7 +976,7 @@ test_stacktrace(struct handle_list *handles, struct tep_record *record,
 
 	cpu_info = &info->cpus[record->cpu];
 
-	id = pevent_data_type(pevent, record);
+	id = tep_data_type(pevent, record);
 
 	/*
 	 * Print the stack trace if the previous event was printed.

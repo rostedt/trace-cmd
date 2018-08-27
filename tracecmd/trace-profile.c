@@ -763,7 +763,7 @@ static void trace_profile_record(struct tracecmd_input *handle,
 
 	pevent = h->pevent;
 
-	id = pevent_data_type(pevent, record);
+	id = tep_data_type(pevent, record);
 
 	event_data = find_event_data(h, id);
 
@@ -2017,7 +2017,7 @@ static void output_task(struct handle_data *h, struct task_data *task)
 	if (task->comm)
 		comm = task->comm;
 	else
-		comm = pevent_data_comm_from_pid(h->pevent, task->pid);
+		comm = tep_data_comm_from_pid(h->pevent, task->pid);
 
 	if (task->pid < 0)
 		printf("%s\n", task->comm);

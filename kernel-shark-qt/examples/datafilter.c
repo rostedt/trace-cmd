@@ -47,8 +47,8 @@ int main(int argc, char **argv)
 	n_tasks = kshark_get_task_pids(kshark_ctx, &pids);
 	for (i = 0; i < n_tasks; ++i) {
 		const char *task_str =
-			pevent_data_comm_from_pid(kshark_ctx->pevent,
-						  pids[i]);
+			tep_data_comm_from_pid(kshark_ctx->pevent,
+					       pids[i]);
 
 		if (strcmp(task_str, "trace-cmd") == 0)
 			kshark_filter_add_id(kshark_ctx, KS_HIDE_TASK_FILTER,

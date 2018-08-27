@@ -809,7 +809,7 @@ create_task_model(struct tep_handle *pevent,
 
 	for (i = 0; tasks[i] >= 0; i++) {
 
-		comm = pevent_data_comm_from_pid(pevent, tasks[i]);
+		comm = tep_data_comm_from_pid(pevent, tasks[i]);
 
 		gtk_tree_store_append(treestore, &iter, NULL);
 
