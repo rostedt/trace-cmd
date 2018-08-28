@@ -16,7 +16,8 @@ set_target_properties(kshark  PROPERTIES SUFFIX	".so.${KS_VERSION_STRING}")
 if (OPENGL_FOUND AND GLUT_FOUND)
 
     message(STATUS "libkshark-plot")
-    add_library(kshark-plot  SHARED  libkshark-plot.c)
+    add_library(kshark-plot  SHARED  libkshark-plot.c
+                                     KsPlotTools.cpp)
 
     target_link_libraries(kshark-plot  kshark
                                        ${OPENGL_LIBRARIES}
