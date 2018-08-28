@@ -7,6 +7,7 @@ Third Party Software:
 The external dependencies:
 1. In order to install the packages on Ubuntu do the following:
     sudo apt-get install build-essential git cmake libjson-c-dev -y
+    sudo apt-get install freeglut3-dev libxmu-dev libxi-dev -y
 
 1.1 I you want to be able to generate Doxygen documentation:
     sudo apt-get install graphviz doxygen-gui -y
@@ -14,6 +15,7 @@ The external dependencies:
 
 2. In order to install the packages on Fedora, as root do the following:
     dnf install gcc gcc-c++ git cmake json-c-devel -y
+    dnf install freeglut-devel redhat-rpm-config -y
 
 2.1 I you want to be able to generate Doxygen documentation:
     dnf install graphviz doxygen -y
