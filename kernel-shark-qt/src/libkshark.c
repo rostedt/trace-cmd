@@ -759,7 +759,7 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 
 /**
  * @brief Load the content of the trace data file into an array of
- *	  pevent_records. Use this function only if you need fast access
+ *	  tep_records. Use this function only if you need fast access
  *	  to all fields of the record.
  *
  * @param kshark_ctx: Input location for the session context pointer.
@@ -962,14 +962,14 @@ ssize_t kshark_find_entry_by_time(uint64_t time,
 }
 
 /**
- * @brief Binary search inside a time-sorted array of pevent_records.
+ * @brief Binary search inside a time-sorted array of tep_records.
  *
  * @param time: The value of time to search for.
  * @param data: Input location for the trace data.
  * @param l: Array index specifying the lower edge of the range to search in.
  * @param h: Array index specifying the upper edge of the range to search in.
  *
- * @returns On success, the first pevent_record inside the range, having a
+ * @returns On success, the first tep_record inside the range, having a
 	    timestamp equal or bigger than "time".
 	    If all entries inside the range have timestamps greater than "time"
 	    the function returns BSEARCH_ALL_GREATER (negative value).
