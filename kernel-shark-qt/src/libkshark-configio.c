@@ -1034,7 +1034,7 @@ static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 
 	for (i = 0; events[i]; i++) {
 		str = tep_filter_make_string(adv_filter,
-						events[i]->id);
+					     events[i]->id);
 		if (!str)
 			continue;
 
@@ -1137,7 +1137,7 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 			 json_object_get_string(jcond));
 
 		ret = tep_filter_add_filter_str(adv_filter,
-						   filter_str);
+						filter_str);
 		if (ret < 0)
 			goto fail;
 	}
@@ -1149,7 +1149,7 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 	char error_str[200];
 	int error_status =
 		tep_strerror(kshark_ctx->pevent, ret, error_str,
-							 sizeof(error_str));
+						      sizeof(error_str));
 
 	if (error_status == 0)
 		fprintf(stderr, "filter failed due to: %s\n", error_str);
