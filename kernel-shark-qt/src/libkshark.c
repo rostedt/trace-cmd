@@ -712,13 +712,6 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 	if (*data_rows)
 		free(*data_rows);
 
-	/*
-	 * TODO: Getting the records separately slows this function
-	 *       down, instead of just accessing the records when
-	 *	 setting up the kernel entries. But this keeps the
-	 *	 code simplier. We should revisit to see if we can
-	 *	 bring back the performance.
-	 */
 	total = get_records(kshark_ctx, &rec_list, type);
 	if (total < 0)
 		goto fail;
