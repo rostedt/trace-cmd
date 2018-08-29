@@ -298,7 +298,7 @@ show_gui_make:
 PHONY += show_gui_make
 
 define find_tag_files
-	find . -name '\.pc' -prune -o -name '*\.[ch]' \
+	find . -name '\.pc' -prune -o -name '*\.[ch]' -o -name '*\.[ch]pp' \
 		! -name '\.#' -print
 endef
 
