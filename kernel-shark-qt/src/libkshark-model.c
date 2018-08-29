@@ -5,7 +5,7 @@
  */
 
  /**
-  *  @file    libkshark.c
+  *  @file    libkshark-model.c
   *  @brief   Visualization model for FTRACE (trace-cmd) data.
   */
 
@@ -16,13 +16,13 @@
 // KernelShark
 #include "libkshark-model.h"
 
-/* The index of the Upper Overflow bin. */
+/** The index of the Upper Overflow bin. */
 #define UOB(histo) (histo->n_bins)
 
-/* The index of the Lower Overflow bin. */
+/** The index of the Lower Overflow bin. */
 #define LOB(histo) (histo->n_bins + 1)
 
-/* For all bins */
+/** For all bins. */
 # define ALLB(histo) LOB(histo)
 
 /**
