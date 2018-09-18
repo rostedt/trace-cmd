@@ -23,8 +23,15 @@ find_package(GLUT)
 set(LIBRARY_OUTPUT_PATH    "${KS_DIR}/lib")
 set(EXECUTABLE_OUTPUT_PATH "${KS_DIR}/bin")
 
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -Wall -pthread")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -pthread")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -Wall -g -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -std=c++11 -pthread")
+
+if (NOT _DEBUG)
+
+	set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -O2")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+
+endif (NOT _DEBUG)
 
 include_directories(${KS_DIR}/src/
                     ${KS_DIR}/build/src/
