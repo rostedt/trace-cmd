@@ -694,6 +694,8 @@ static bool kshark_event_filter_to_json(struct tep_handle *pevent,
 	int i, evt, *ids;
 	char *temp;
 
+	jevent = jsystem = jname = NULL;
+
 	/*
 	 * If this Json document already contains a description of the filter,
 	 * delete this description.
@@ -869,7 +871,7 @@ static bool kshark_task_filter_to_json(struct tracecmd_filter_id *filter,
 				       const char *filter_name,
 				       struct json_object *jobj)
 {
-	json_object *jfilter_data, *jpid;
+	json_object *jfilter_data, *jpid = NULL;
 	int i, *ids;
 
 	/*
@@ -1013,6 +1015,8 @@ static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 	char *str;
 	int i;
 
+	jevent = jsystem = jname = jfilter = NULL;
+
 	/*
 	 * If this Json document already contains a description of the model,
 	 * delete this description.
@@ -1105,8 +1109,8 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 {
 	struct event_filter *adv_filter = kshark_ctx->advanced_event_filter;
 	json_object *jfilter, *jsystem, *jname, *jcond;
-	int i, length, ret;
-	char *filter_str;
+	int i, length, n, ret = 0;
+	char *filter_str = NULL;
 
 	/*
 	 * Use the name of the filter to find the array of events associated
@@ -1131,10 +1135,15 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 		    !json_object_object_get_ex(jfilter, "condition", &jcond))
 			goto fail;
 
-		asprintf(&filter_str, "%s/%s:%s",
-			 json_object_get_string(jsystem),
-			 json_object_get_string(jname),
-			 json_object_get_string(jcond));
+		n = asprintf(&filter_str, "%s/%s:%s",
+			     json_object_get_string(jsystem),
+			     json_object_get_string(jname),
+			     json_object_get_string(jcond));
+
+		if (n <= 0) {
+			filter_str = NULL;
+			goto fail;
+		}
 
 		ret = tep_filter_add_filter_str(adv_filter,
 						filter_str);
@@ -1146,13 +1155,16 @@ static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 
  fail:
 	fprintf(stderr, "Failed to laod Advanced filters.\n");
-	char error_str[200];
-	int error_status =
-		tep_strerror(kshark_ctx->pevent, ret, error_str,
-						      sizeof(error_str));
+	if (ret < 0) {
+		char error_str[200];
+		int error_status =
+			tep_strerror(kshark_ctx->pevent, ret, error_str,
+				     sizeof(error_str));
 
-	if (error_status == 0)
-		fprintf(stderr, "filter failed due to: %s\n", error_str);
+		if (error_status == 0)
+			fprintf(stderr, "filter failed due to: %s\n",
+					error_str);
+	}
 
 	free(filter_str);
 	return false;
