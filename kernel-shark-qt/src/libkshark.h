@@ -121,6 +121,9 @@ struct kshark_context {
 
 	/** List of Data collections. */
 	struct kshark_entry_collection *collections;
+
+	/** List of Plugins. */
+	struct kshark_plugin_list	*plugins;
 };
 
 bool kshark_instance(struct kshark_context **kshark_ctx);
