@@ -19,4 +19,9 @@ endfunction()
 
 set(PLUGIN_LIST "")
 
+BUILD_PLUGIN(NAME sched_events
+             SOURCE sched_events.c SchedEvents.cpp)
+list(APPEND PLUGIN_LIST "sched_events default") # This plugin will be loaded by default
+# list(APPEND PLUGIN_LIST "sched_events") # This plugin isn't loaded by default
+
 set(PLUGINS ${PLUGIN_LIST} PARENT_SCOPE)
