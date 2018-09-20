@@ -150,6 +150,9 @@ void kshark_free(struct kshark_context *kshark_ctx);
 
 char* kshark_dump_entry(const struct kshark_entry *entry);
 
+struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
+				  uint64_t offset);
+
 /** Bit masks used to control the visibility of the entry after filtering. */
 enum kshark_filter_masks {
 	/**

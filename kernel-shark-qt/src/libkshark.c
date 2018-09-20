@@ -830,8 +830,16 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	return -ENOMEM;
 }
 
-static struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
-					 uint64_t offset)
+/**
+ * @brief A thread-safe read of a record from a specific offset.
+ *
+ * @param kshark_ctx: Input location for the session context pointer.
+ * @param offset: the offset into the file to find the record.
+ *
+ * @returns The returned pevent_record must be freed.
+ */
+struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
+				  uint64_t offset)
 {
 	/*
 	 * It turns that tracecmd_read_at() is not thread-safe.
