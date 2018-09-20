@@ -842,9 +842,8 @@ struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
 				  uint64_t offset)
 {
 	/*
-	 * It turns that tracecmd_read_at() is not thread-safe.
-	 * TODO: Understand why and see if this can be fixed.
-	 * For the time being use a mutex to protect the access.
+	 * Calling tracecmd_read_at() is not thread-safe. Use a mutex to
+	 * protect the access.
 	 */
 	pthread_mutex_lock(&kshark_ctx->input_mutex);
 
