@@ -29,6 +29,9 @@ extern "C" {
 #include "event-parse.h"
 #include "trace-filter-hash.h"
 
+// KernelShark
+#include "libkshark-plugin.h"
+
 /**
  * Kernel Shark entry contains all information from one trace record needed
  * in order to  visualize the time-series of trace records. The part of the
@@ -124,6 +127,9 @@ struct kshark_context {
 
 	/** List of Plugins. */
 	struct kshark_plugin_list	*plugins;
+
+	/** List of Plugin Event handlers. */
+	struct kshark_event_handler	*event_handlers;
 };
 
 bool kshark_instance(struct kshark_context **kshark_ctx);
@@ -160,6 +166,14 @@ enum kshark_filter_masks {
 
 	/** Special mask used whene filtering events. */
 	KS_EVENT_VIEW_FILTER_MASK	= 1 << 2,
+
+	/* The next 4 bits are reserved for more KS_X_VIEW_FILTER_MASKs. */
+
+	/**
+	 * Use this mask to check if the content of the entry has been accessed
+	 * by a plugin-defined function.
+	 */
+	KS_PLUGIN_UNTOUCHED_MASK	= 1 << 7
 };
 
 /** Filter type identifier. */

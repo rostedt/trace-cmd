@@ -33,6 +33,9 @@ static bool kshark_default_context(struct kshark_context **context)
 	if (!kshark_ctx)
 		return false;
 
+	kshark_ctx->event_handlers = NULL;
+	kshark_ctx->plugins = NULL;
+
 	kshark_ctx->show_task_filter = tracecmd_filter_id_hash_alloc();
 	kshark_ctx->hide_task_filter = tracecmd_filter_id_hash_alloc();
 
@@ -216,6 +219,12 @@ void kshark_free(struct kshark_context *kshark_ctx)
 
 	tracecmd_filter_id_hash_free(kshark_ctx->show_event_filter);
 	tracecmd_filter_id_hash_free(kshark_ctx->hide_event_filter);
+
+	if (kshark_ctx->plugins) {
+		kshark_handle_plugins(kshark_ctx, KSHARK_PLUGIN_CLOSE);
+		kshark_free_plugin_list(kshark_ctx->plugins);
+		kshark_free_event_handler_list(kshark_ctx->event_handlers);
+	}
 
 	kshark_free_task_list(kshark_ctx);
 
@@ -564,6 +573,7 @@ static void free_rec_list(struct rec_list **rec_list, int n_cpus,
 static size_t get_records(struct kshark_context *kshark_ctx,
 			  struct rec_list ***rec_list, enum rec_type type)
 {
+	struct kshark_event_handler *evt_handler;
 	struct event_filter *adv_filter;
 	struct kshark_task_list *task;
 	struct tep_record *rec;
@@ -608,6 +618,17 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 
 				entry = &temp_rec->entry;
 				kshark_set_entry_values(kshark_ctx, rec, entry);
+
+				/* Execute all plugin-provided actions (if any). */
+				evt_handler = kshark_ctx->event_handlers;
+				while ((evt_handler = kshark_find_event_handler(evt_handler,
+										entry->event_id))) {
+					evt_handler->event_func(kshark_ctx, rec, entry);
+					evt_handler = evt_handler->next;
+					if (!evt_handler)
+						entry->visible &= ~KS_PLUGIN_UNTOUCHED_MASK;
+				}
+
 				pid = entry->pid;
 				/* Apply event filtering. */
 				ret = FILTER_MATCH;
