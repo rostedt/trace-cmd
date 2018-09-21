@@ -24,7 +24,6 @@
 #endif
 #endif
 #include <netdb.h>
-#include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
