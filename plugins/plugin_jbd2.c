@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "event-parse.h"
+#include "trace-seq.h"
 
 #define MINORBITS	20
 #define MINORMASK	((1U << MINORBITS) - 1)

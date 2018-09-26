@@ -8,6 +8,7 @@
 
 #include "trace-cmd.h"
 #include "event-utils.h"
+#include "trace-seq.h"
 
 static struct func_stack {
 	int size;
