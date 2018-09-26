@@ -2242,7 +2242,7 @@ void trace_graph_event_filter_callback(gboolean accept,
 
 	ginfo->all_events = FALSE;
 
-	tep_filter_clear_trivial(ginfo->event_filter, FILTER_TRIVIAL_BOTH);
+	tep_filter_clear_trivial(ginfo->event_filter, TEP_FILTER_TRIVIAL_BOTH);
 
 	trace_filter_convert_char_to_filter(ginfo->event_filter,
 					    systems, events);
@@ -2279,7 +2279,7 @@ void trace_graph_adv_filter_callback(gboolean accept,
 		ginfo->all_events = FALSE;
 
 		tep_filter_clear_trivial(event_filter,
-					    FILTER_TRIVIAL_BOTH);
+					 TEP_FILTER_TRIVIAL_BOTH);
 
 		ret = tep_filter_add_filter_str(event_filter, text);
 		if (ret < 0) {
@@ -2645,7 +2645,7 @@ static int load_event_filter(struct graph_info *ginfo,
 	if (!node)
 		return -1;
 
-	tep_filter_clear_trivial(event_filter, FILTER_TRIVIAL_BOTH);
+	tep_filter_clear_trivial(event_filter, TEP_FILTER_TRIVIAL_BOTH);
 	ginfo->all_events = FALSE;
 
 	trace_filter_load_events(event_filter, handle, node);

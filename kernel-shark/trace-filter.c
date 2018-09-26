@@ -1127,11 +1127,11 @@ create_tree_event_model(struct tep_handle *pevent,
 		if (active && filter) {
 			if (tep_event_filtered(filter, event->id) &&
 			    !tep_filter_event_has_trivial(filter, event->id,
-							     FILTER_TRIVIAL_BOTH))
+							  TEP_FILTER_TRIVIAL_BOTH))
 				normal = FALSE;
 			/* Make trivial false not selected */
 			else if (tep_filter_event_has_trivial(filter, event->id,
-								 FILTER_TRIVIAL_FALSE))
+							      TEP_FILTER_TRIVIAL_FALSE))
 				active = FALSE;
 		}
 		gtk_tree_store_append(treestore, &iter_events, &iter_sys);
@@ -1951,7 +1951,7 @@ void trace_filter_convert_filter_to_names(struct tep_event_filter *filter,
 		}
 
 		if (tep_filter_event_has_trivial(filter, event->id,
-						    FILTER_TRIVIAL_TRUE)) {
+						 TEP_FILTER_TRIVIAL_TRUE)) {
 			if (!all_selected || !systems)
 				*event_ids = tracecmd_add_id(*event_ids, event->id, event_count++);
 		} else {
@@ -2011,7 +2011,7 @@ void trace_filter_convert_char_to_filter(struct tep_event_filter *filter,
 		}
 	}
 
-	tep_update_trivial(filter, copy, FILTER_TRIVIAL_BOTH);
+	tep_update_trivial(filter, copy, TEP_FILTER_TRIVIAL_BOTH);
 
 	tep_filter_free(copy);
 }
