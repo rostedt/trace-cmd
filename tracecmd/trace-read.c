@@ -1749,8 +1749,8 @@ void trace_report (int argc, char **argv)
 			return;
 		}
 
-		set_event_flags(pevent, nohandler_events, EVENT_FL_NOHANDLE);
-		set_event_flags(pevent, raw_events, EVENT_FL_PRINTRAW);
+		set_event_flags(pevent, nohandler_events, TEP_EVENT_FL_NOHANDLE);
+		set_event_flags(pevent, raw_events, TEP_EVENT_FL_PRINTRAW);
 	}
 
 	if (latency_format)
