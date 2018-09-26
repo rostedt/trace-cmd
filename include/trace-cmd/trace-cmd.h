@@ -25,9 +25,9 @@ void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigne
 extern int tracecmd_disable_sys_plugins;
 extern int tracecmd_disable_plugins;
 
-struct plugin_list;
-struct plugin_list *tracecmd_load_plugins(struct tep_handle *pevent);
-void tracecmd_unload_plugins(struct plugin_list *list, struct tep_handle *pevent);
+struct tep_plugin_list;
+struct tep_plugin_list *tracecmd_load_plugins(struct tep_handle *pevent);
+void tracecmd_unload_plugins(struct tep_plugin_list *list, struct tep_handle *pevent);
 
 char **tracecmd_event_systems(const char *tracing_dir);
 char **tracecmd_system_events(const char *tracing_dir, const char *system);
@@ -346,7 +346,7 @@ void trace_util_free_options(struct tep_plugin_option *options);
 char **trace_util_find_plugin_files(const char *suffix);
 void trace_util_free_plugin_files(char **files);
 void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,
-			      const struct plugin_list *list);
+			      const struct tep_plugin_list *list);
 void trace_util_print_plugin_options(struct trace_seq *s);
 char **trace_util_list_plugin_options(void);
 void trace_util_free_plugin_options_list(char **list);

@@ -43,8 +43,8 @@ static struct trace_plugin_options {
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
-struct plugin_list {
-	struct plugin_list	*next;
+struct tep_plugin_list {
+	struct tep_plugin_list	*next;
 	char			*name;
 	void			*handle;
 };
@@ -164,7 +164,7 @@ void trace_util_remove_options(struct tep_plugin_option *options)
  */
 void trace_util_print_plugins(struct trace_seq *s,
 			      const char *prefix, const char *suffix,
-			      const struct plugin_list *list)
+			      const struct tep_plugin_list *list)
 {
 	while (list) {
 		trace_seq_printf(s, "%s%s%s", prefix, list->name, suffix);
@@ -592,9 +592,9 @@ static int update_option(const char *file, struct tep_plugin_option *option)
 static int load_plugin(struct tep_handle *pevent, const char *path,
 		       const char *file, void *data)
 {
-	struct plugin_list **plugin_list = data;
+	struct tep_plugin_list **plugin_list = data;
 	tep_plugin_load_func func;
-	struct plugin_list *list;
+	struct tep_plugin_list *list;
 	struct tep_plugin_option *options;
 	const char *alias;
 	char *plugin;
@@ -1548,9 +1548,9 @@ void trace_util_free_options(struct tep_plugin_option *options)
 	}
 }
 
-struct plugin_list *tracecmd_load_plugins(struct tep_handle *pevent)
+struct tep_plugin_list *tracecmd_load_plugins(struct tep_handle *pevent)
 {
-	struct plugin_list *list = NULL;
+	struct tep_plugin_list *list = NULL;
 
 	trace_util_load_plugins(pevent, ".so", load_plugin, &list);
 
@@ -1558,10 +1558,10 @@ struct plugin_list *tracecmd_load_plugins(struct tep_handle *pevent)
 }
 
 void
-tracecmd_unload_plugins(struct plugin_list *plugin_list, struct tep_handle *pevent)
+tracecmd_unload_plugins(struct tep_plugin_list *plugin_list, struct tep_handle *pevent)
 {
 	tep_plugin_unload_func func;
-	struct plugin_list *list;
+	struct tep_plugin_list *list;
 
 	while (plugin_list) {
 		list = plugin_list;

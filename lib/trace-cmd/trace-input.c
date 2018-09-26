@@ -85,8 +85,8 @@ struct input_buffer_instance {
 };
 
 struct tracecmd_input {
-	struct tep_handle		*pevent;
-	struct plugin_list	*plugin_list;
+	struct tep_handle	*pevent;
+	struct tep_plugin_list	*plugin_list;
 	struct tracecmd_input	*parent;
 	unsigned long		flags;
 	int			fd;

@@ -308,7 +308,7 @@ static void show_buffers(void)
 static void show_plugin_options(void)
 {
 	struct tep_handle *pevent;
-	struct plugin_list *list;
+	struct tep_plugin_list *list;
 	struct trace_seq s;
 
 	tracecmd_ftrace_load_options();
@@ -336,7 +336,7 @@ void trace_option(int argc, char **argv)
 static void show_plugins(void)
 {
 	struct tep_handle *pevent;
-	struct plugin_list *list;
+	struct tep_plugin_list *list;
 	struct trace_seq s;
 
 	pevent = tep_alloc();
