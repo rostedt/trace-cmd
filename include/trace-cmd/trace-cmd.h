@@ -90,7 +90,7 @@ enum {
 
 struct tracecmd_ftrace {
 	struct tracecmd_input		*handle;
-	struct event_format *fgraph_ret_event;
+	struct tep_event_format *fgraph_ret_event;
 	int fgraph_ret_id;
 	int long_size;
 };

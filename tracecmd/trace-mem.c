@@ -61,11 +61,11 @@ static void *zalloc(size_t size)
 	return calloc(1, size);
 }
 
-static struct event_format *
+static struct tep_event_format *
 update_event(struct tep_handle *pevent,
 	     const char *sys, const char *name, int *id)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = tep_find_event_by_name(pevent, sys, name);
 	if (!event)
@@ -78,7 +78,7 @@ update_event(struct tep_handle *pevent,
 
 static void update_kmalloc(struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = update_event(pevent, "kmem", "kmalloc", &kmalloc_type);
 	if (!event)
@@ -92,7 +92,7 @@ static void update_kmalloc(struct tep_handle *pevent)
 
 static void update_kmalloc_node(struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = update_event(pevent, "kmem", "kmalloc_node", &kmalloc_node_type);
 	if (!event)
@@ -106,7 +106,7 @@ static void update_kmalloc_node(struct tep_handle *pevent)
 
 static void update_kfree(struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = update_event(pevent, "kmem", "kfree", &kfree_type);
 	if (!event)
@@ -117,7 +117,7 @@ static void update_kfree(struct tep_handle *pevent)
 
 static void update_kmem_cache_alloc(struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = update_event(pevent, "kmem", "kmem_cache_alloc", &kmem_cache_alloc_type);
 	if (!event)
@@ -131,7 +131,7 @@ static void update_kmem_cache_alloc(struct tep_handle *pevent)
 
 static void update_kmem_cache_alloc_node(struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = update_event(pevent, "kmem", "kmem_cache_alloc_node",
 			     &kmem_cache_alloc_node_type);
@@ -146,7 +146,7 @@ static void update_kmem_cache_alloc_node(struct tep_handle *pevent)
 
 static void update_kmem_cache_free(struct tep_handle *pevent)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	event = update_event(pevent, "kmem", "kmem_cache_free", &kmem_cache_free_type);
 	if (!event)
@@ -462,7 +462,7 @@ static void print_list(void)
 static void do_trace_mem(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = tracecmd_get_pevent(handle);
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_record *record;
 	int missed_events = 0;
 	int cpus;

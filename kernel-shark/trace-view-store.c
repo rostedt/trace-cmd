@@ -406,7 +406,7 @@ trace_view_store_get_value (GtkTreeModel *tree_model,
 	TraceViewStore	*trace_view_store;
 	struct trace_seq s;
 	struct tep_handle *pevent;
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_record *data;
 	const gchar *comm;
 	gchar *str;

@@ -26,7 +26,7 @@ struct plugin_sched_context *plugin_sched_context_handler = NULL;
 static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 {
 	struct plugin_sched_context *plugin_ctx;
-	struct event_format *event;
+	struct tep_event_format *event;
 
 	/* No context should exist when we initialize the plugin. */
 	assert(plugin_sched_context_handler == NULL);

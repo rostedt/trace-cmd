@@ -117,7 +117,7 @@ static int cpu_plot_display_last_event(struct graph_info *ginfo,
 				       unsigned long long time)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_record *record;
 	int cpu = cpu_info->cpu;
 	unsigned long long offset = 0;
@@ -353,7 +353,7 @@ int cpu_plot_display_info(struct graph_info *ginfo,
 			  unsigned long long time)
 {
 	struct cpu_plot_info *cpu_info = plot->private;
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_record *record;
 	struct tep_record *next_record;
 	struct tep_handle *pevent;

@@ -87,8 +87,8 @@ static GtkTreeModel *create_event_combo_model(gpointer data)
 	GtkTreeStore *tree;
 	GtkTreeIter sys_iter;
 	GtkTreeIter iter;
-	struct event_format **events;
-	struct event_format *event;
+	struct tep_event_format **events;
+	struct tep_event_format *event;
 	const char *last_sys = NULL;
 	int i;
 
@@ -145,7 +145,7 @@ static GtkTreeModel *create_field_combo_model(gpointer data)
 	struct tep_handle *pevent = data;
 	GtkListStore *list;
 	GtkTreeIter iter;
-	struct event_format **events;
+	struct tep_event_format **events;
 	struct format_field **fields;
 	struct format_field *field;
 	int i;
@@ -177,8 +177,8 @@ static void update_field_combo(struct tep_handle *pevent,
 			       const char *system,
 			       const char *event_name)
 {
-	struct event_format **events;
-	struct event_format *event;
+	struct tep_event_format **events;
+	struct tep_event_format *event;
 	struct format_field **fields;
 	struct format_field *field;
 	GtkTreeModel *model;
@@ -457,7 +457,7 @@ create_tree_filter_model(struct tep_handle *pevent,
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_events;
-	struct event_format **events;
+	struct tep_event_format **events;
 	char *str;
 	gint i;
 
@@ -1063,8 +1063,8 @@ create_tree_event_model(struct tep_handle *pevent,
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_all, iter_sys, iter_events;
-	struct event_format **events;
-	struct event_format *event;
+	struct tep_event_format **events;
+	struct tep_event_format *event;
 	char *last_system = NULL;
 	gboolean sysactive;
 	gboolean active, normal;
@@ -1923,8 +1923,8 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 					  gint **event_ids)
 {
 	struct tep_handle *pevent = filter->pevent;
-	struct event_format **events;
-	struct event_format *event;
+	struct tep_event_format **events;
+	struct tep_event_format *event;
 	char *last_system = NULL;
 	int all_selected = 1;
 	int start_sys = 0;
@@ -1986,7 +1986,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 {
 	struct tep_handle *pevent;
 	struct event_filter *copy;
-	struct event_format *event;
+	struct tep_event_format *event;
 	int i;
 
 	pevent = filter->pevent;
@@ -2019,7 +2019,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 int trace_filter_save_events(struct tracecmd_xml_handle *handle,
 			     struct event_filter *filter)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 	char **systems;
 	gint *event_ids;
 	char *str;

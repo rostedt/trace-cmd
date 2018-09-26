@@ -1007,7 +1007,7 @@ int trace_graph_check_sched_wakeup(struct graph_info *ginfo,
 				   struct tep_record *record,
 				   gint *pid)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 	unsigned long long val;
 	gboolean found;
 	gint id;
@@ -1074,7 +1074,7 @@ int trace_graph_check_sched_switch(struct graph_info *ginfo,
 				   gint *pid, const char **comm)
 {
 	unsigned long long val;
-	struct event_format *event;
+	struct tep_event_format *event;
 	gint this_pid;
 	gint id;
 	int ret = 1;
@@ -1153,8 +1153,8 @@ enum graph_irq_type
 trace_graph_check_irq(struct graph_info *ginfo,
 		      struct tep_record *record)
 {
-	struct event_format *event;
-	struct event_format **events;
+	struct tep_event_format *event;
+	struct tep_event_format **events;
 	gint id;
 	int i;
 

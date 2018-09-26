@@ -83,11 +83,11 @@ struct trace_view_store
 
 	/* Tracecmd specific info */
 	struct tracecmd_input *handle;
-	struct event_format	*sched_switch_event;
+	struct tep_event_format	*sched_switch_event;
 	struct format_field	*sched_switch_next_field;
-	struct event_format	*sched_wakeup_event;
+	struct tep_event_format	*sched_wakeup_event;
 	struct format_field	*sched_wakeup_pid_field;
-	struct event_format	*sched_wakeup_new_event;
+	struct tep_event_format	*sched_wakeup_new_event;
 	struct format_field	*sched_wakeup_new_pid_field;
 	int			cpus;
 

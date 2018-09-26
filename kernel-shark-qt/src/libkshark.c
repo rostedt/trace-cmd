@@ -868,7 +868,7 @@ static const char *kshark_get_latency(struct tep_handle *pe,
 
 static const char *kshark_get_info(struct tep_handle *pe,
 				   struct tep_record *record,
-				   struct event_format *event)
+				   struct tep_event_format *event)
 {
 	char *pos;
 
@@ -903,7 +903,7 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 	const char *event_name, *task, *lat, *info;
 	struct kshark_context *kshark_ctx;
 	struct tep_record *data;
-	struct event_format *event;
+	struct tep_event_format *event;
 	char *temp_str, *entry_str;
 	int event_id, size = 0;
 

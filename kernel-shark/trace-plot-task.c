@@ -240,7 +240,7 @@ static int task_plot_display_last_event(struct graph_info *ginfo,
 					unsigned long long time)
 {
 	struct task_plot_info *task_info = plot->private;
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_record *record;
 	struct offset_cache *offsets;
 	gboolean is_sched;
@@ -734,7 +734,7 @@ int task_plot_display_info(struct graph_info *ginfo,
 			  unsigned long long time)
 {
 	struct task_plot_info *task_info = plot->private;
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct tep_record *record;
 	struct tep_handle *pevent;
 	unsigned long sec, usec;

@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 	struct kshark_context *kshark_ctx;
 	struct kshark_entry **data = NULL;
 	struct event_filter *adv_filter;
-	struct event_format *event;
+	struct tep_event_format *event;
 	char *entry_str;
 	bool status;
 	int *pids;

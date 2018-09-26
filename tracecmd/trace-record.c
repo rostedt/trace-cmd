@@ -3345,7 +3345,7 @@ static void add_func(struct func_list **list, const char *mod, const char *func)
 static unsigned long long
 find_ts_in_page(struct tep_handle *pevent, void *page, int size)
 {
-	struct event_format *event;
+	struct tep_event_format *event;
 	struct format_field *field;
 	struct tep_record *last_record = NULL;
 	struct tep_record *record;
