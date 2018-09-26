@@ -1009,7 +1009,7 @@ bool kshark_import_task_filter(struct tracecmd_filter_id *filter,
 static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 				       struct json_object *jobj)
 {
-	struct event_filter *adv_filter = kshark_ctx->advanced_event_filter;
+	struct tep_event_filter *adv_filter = kshark_ctx->advanced_event_filter;
 	json_object *jfilter_data, *jevent, *jsystem, *jname, *jfilter;
 	struct tep_event_format **events;
 	char *str;
@@ -1107,7 +1107,7 @@ bool kshark_export_adv_filters(struct kshark_context *kshark_ctx,
 static bool kshark_adv_filters_from_json(struct kshark_context *kshark_ctx,
 					 struct json_object *jobj)
 {
-	struct event_filter *adv_filter = kshark_ctx->advanced_event_filter;
+	struct tep_event_filter *adv_filter = kshark_ctx->advanced_event_filter;
 	json_object *jfilter, *jsystem, *jname, *jcond;
 	int i, length, n, ret = 0;
 	char *filter_str = NULL;

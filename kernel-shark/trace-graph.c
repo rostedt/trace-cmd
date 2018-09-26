@@ -2256,7 +2256,7 @@ void trace_graph_adv_filter_callback(gboolean accept,
 				     gpointer data)
 {
 	struct graph_info *ginfo = data;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	char error_str[200];
 	int ret;
 	int i;
@@ -2295,7 +2295,7 @@ void trace_graph_adv_filter_callback(gboolean accept,
 
 void trace_graph_copy_filter(struct graph_info *ginfo,
 			     gboolean all_events,
-			     struct event_filter *event_filter)
+			     struct tep_event_filter *event_filter)
 {
 	if (all_events) {
 		ginfo->all_events = TRUE;
@@ -2625,7 +2625,7 @@ static int load_event_filter(struct graph_info *ginfo,
 			     struct tracecmd_xml_system_node *node)
 {
 	struct tracecmd_xml_system_node *child;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	const char *name;
 	const char *value;
 
@@ -2706,7 +2706,7 @@ int trace_graph_load_filters(struct graph_info *ginfo,
 int trace_graph_save_filters(struct graph_info *ginfo,
 			     struct tracecmd_xml_handle *handle)
 {
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 
 	tracecmd_xml_start_system(handle, "TraceGraph");
 

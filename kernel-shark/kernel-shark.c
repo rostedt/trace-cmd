@@ -395,7 +395,7 @@ static void load_filter(struct shark_info *info, const char *filename)
 	struct tracecmd_xml_handle *handle;
 	struct tracecmd_filter_id *task_filter;
 	struct tracecmd_filter_id *hide_tasks;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	int ret;
 
 	handle = tracecmd_xml_open(filename);
@@ -818,7 +818,7 @@ sync_events_filter_clicked (GtkWidget *subitem, gpointer data)
 {
 	struct shark_info *info = data;
 	struct graph_info *ginfo = info->ginfo;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -1087,7 +1087,7 @@ static void
 list_events_clicked (gpointer data)
 {
 	struct shark_info *info = data;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -1151,7 +1151,7 @@ static void
 adv_list_filter_clicked (gpointer data)
 {
 	struct shark_info *info = data;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->treeview);
 	GtkTreeModel *model;
 	TraceViewStore *store;

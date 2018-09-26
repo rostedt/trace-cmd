@@ -404,7 +404,7 @@ void trace_view_event_filter_callback(gboolean accept,
 				      gint *events,
 				      gpointer data)
 {
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -439,7 +439,7 @@ void trace_view_adv_filter_callback(gboolean accept,
 				    gint *event_ids,
 				    gpointer data)
 {
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = data;
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -484,10 +484,10 @@ void trace_view_adv_filter_callback(gboolean accept,
 
 void trace_view_copy_filter(GtkWidget *treeview,
 			    gboolean all_events,
-			    struct event_filter *src_event_filter)
+			    struct tep_event_filter *src_event_filter)
 {
 	GtkTreeView *trace_tree;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeModel *model;
 	TraceViewStore *store;
 
@@ -944,7 +944,7 @@ void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview)
 int trace_view_save_filters(struct tracecmd_xml_handle *handle,
 			    GtkTreeView *trace_tree)
 {
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeModel *model;
 	TraceViewStore *store;
 	gboolean all_events;
@@ -981,7 +981,7 @@ static int load_event_filter(TraceViewStore *store,
 			     struct tracecmd_xml_system_node *node)
 {
 	struct tracecmd_xml_system_node *child;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	const char *name;
 	const char *value;
 

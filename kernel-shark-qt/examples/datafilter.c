@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 	size_t i, n_rows, n_tasks, n_evts, count;
 	struct kshark_context *kshark_ctx;
 	struct kshark_entry **data = NULL;
-	struct event_filter *adv_filter;
+	struct tep_event_filter *adv_filter;
 	struct tep_event_format *event;
 	char *entry_str;
 	bool status;

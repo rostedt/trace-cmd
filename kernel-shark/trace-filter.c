@@ -453,7 +453,7 @@ static gint *get_event_ids(GtkTreeView *treeview)
 
 static GtkTreeModel *
 create_tree_filter_model(struct tep_handle *pevent,
-			 struct event_filter *event_filter)
+			 struct tep_event_filter *event_filter)
 {
 	GtkTreeStore *treestore;
 	GtkTreeIter iter_events;
@@ -539,7 +539,7 @@ static void adv_filter_cursor_changed(GtkTreeView *treeview, gpointer data)
 
 static GtkWidget *
 create_adv_filter_view(struct tep_handle *pevent,
-		       struct event_filter *event_filter)
+		       struct tep_event_filter *event_filter)
 {
 	GtkTreeViewColumn *col;
 	GtkCellRenderer *renderer;
@@ -615,7 +615,7 @@ create_adv_filter_view(struct tep_handle *pevent,
  * @data: data to pass to the function @func
  */
 void trace_adv_filter_dialog(struct tracecmd_input *handle,
-			     struct event_filter *event_filter,
+			     struct tep_event_filter *event_filter,
 			       trace_adv_filter_cb_func func,
 			       gpointer data)
 {
@@ -1057,7 +1057,7 @@ gboolean event_is_enabled(gint *events, gint events_size, gint event)
 
 static GtkTreeModel *
 create_tree_event_model(struct tep_handle *pevent,
-			struct event_filter *filter,
+			struct tep_event_filter *filter,
 			gboolean all_events, gchar **systems_set,
 			gint *event_ids_set)
 {
@@ -1353,7 +1353,7 @@ static void expand_rows(GtkTreeView *tree, GtkTreeModel *model,
  */
 int trace_update_event_view(GtkWidget *event_view,
 			    struct tep_handle *pevent,
-			    struct event_filter *filter,
+			    struct tep_event_filter *filter,
 			    gboolean all_events,
 			    gchar **systems, gint *events)
 {
@@ -1386,7 +1386,7 @@ int trace_update_event_view(GtkWidget *event_view,
  */
 GtkWidget *
 trace_create_event_list_view(struct tep_handle *pevent,
-			     struct event_filter *filter,
+			     struct tep_event_filter *filter,
 			     gboolean all_events, gchar **systems,
 			     gint *events)
 {
@@ -1553,7 +1553,7 @@ static void accept_events(GtkWidget *view,
 }
 
 static void filter_event_dialog(struct tep_handle *pevent,
-				struct event_filter *filter,
+				struct tep_event_filter *filter,
 				gboolean all_events,
 				gchar **systems, gint *events,
 				trace_filter_event_cb_func func,
@@ -1659,7 +1659,7 @@ void trace_filter_pevent_dialog(struct tep_handle *pevent,
  * If @all_events is set, then @systems and @events are ignored.
  */
 void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
-				      struct event_filter *filter,
+				      struct tep_event_filter *filter,
 				      gboolean all_events,
 				      trace_filter_event_cb_func func,
 				      gpointer data)
@@ -1918,7 +1918,7 @@ void trace_filter_cpu_dialog(gboolean all_cpus, guint64 *cpus_selected, gint cpu
  * @event_ids will be all events selected (not including those selected
  *  by @systems)
  */
-void trace_filter_convert_filter_to_names(struct event_filter *filter,
+void trace_filter_convert_filter_to_names(struct tep_event_filter *filter,
 					  gchar ***systems,
 					  gint **event_ids)
 {
@@ -1980,12 +1980,12 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
  * @systems: array of systems that will have its events selected in @filter
  * @events: array of event ids that will be selected in @filter
  */
-void trace_filter_convert_char_to_filter(struct event_filter *filter,
+void trace_filter_convert_char_to_filter(struct tep_event_filter *filter,
 					 gchar **systems,
 					 gint *events)
 {
 	struct tep_handle *pevent;
-	struct event_filter *copy;
+	struct tep_event_filter *copy;
 	struct tep_event_format *event;
 	int i;
 
@@ -2017,7 +2017,7 @@ void trace_filter_convert_char_to_filter(struct event_filter *filter,
 }
 
 int trace_filter_save_events(struct tracecmd_xml_handle *handle,
-			     struct event_filter *filter)
+			     struct tep_event_filter *filter)
 {
 	struct tep_event_format *event;
 	char **systems;
@@ -2082,7 +2082,7 @@ int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
 	return 0;
 }
 
-int trace_filter_load_events(struct event_filter *event_filter,
+int trace_filter_load_events(struct tep_event_filter *event_filter,
 			     struct tracecmd_xml_handle *handle,
 			     struct tracecmd_xml_system_node *node)
 {

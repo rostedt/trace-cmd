@@ -146,7 +146,7 @@ static void
 events_clicked (gpointer data)
 {
 	struct trace_tree_info *info = data;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->trace_tree);
 	GtkTreeModel *model;
 	TraceViewStore *store;
@@ -172,7 +172,7 @@ static void
 adv_filter_clicked (gpointer data)
 {
 	struct trace_tree_info *info = data;
-	struct event_filter *event_filter;
+	struct tep_event_filter *event_filter;
 	GtkTreeView *trace_tree = GTK_TREE_VIEW(info->trace_tree);
 	GtkTreeModel *model;
 	TraceViewStore *store;

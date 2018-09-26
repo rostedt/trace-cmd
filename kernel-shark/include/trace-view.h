@@ -45,7 +45,7 @@ void trace_view_cpu_filter_callback(gboolean accept,
 
 void trace_view_copy_filter(GtkWidget *treeview,
 			    gboolean all_events,
-			    struct event_filter *event_filter);
+			    struct tep_event_filter *event_filter);
 
 void trace_view_search_setup(GtkBox *box, GtkTreeView *treeview);
 

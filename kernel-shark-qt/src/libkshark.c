@@ -574,7 +574,7 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 			  struct rec_list ***rec_list, enum rec_type type)
 {
 	struct kshark_event_handler *evt_handler;
-	struct event_filter *adv_filter;
+	struct tep_event_filter *adv_filter;
 	struct kshark_task_list *task;
 	struct tep_record *rec;
 	struct rec_list **temp_next;

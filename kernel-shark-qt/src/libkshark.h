@@ -120,7 +120,7 @@ struct kshark_context {
 	 * Filter allowing sophisticated filtering based on the content of
 	 * the event.
 	 */
-	struct event_filter		*advanced_event_filter;
+	struct tep_event_filter		*advanced_event_filter;
 
 	/** List of Data collections. */
 	struct kshark_entry_collection *collections;

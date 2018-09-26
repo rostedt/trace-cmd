@@ -209,7 +209,7 @@ struct graph_info {
 	gboolean		filter_available;
 
 	gboolean		all_events;	/* all events enabled */
-	struct event_filter	*event_filter;	/* filtered events */
+	struct tep_event_filter	*event_filter;	/* filtered events */
 
 	/* cache of event fields */
 	gint			ftrace_sched_switch_id;
@@ -309,7 +309,7 @@ gboolean trace_graph_filter_on_event(struct graph_info *ginfo, struct tep_record
 
 void trace_graph_copy_filter(struct graph_info *ginfo,
 			     gboolean all_events,
-			     struct event_filter *event_filter);
+			     struct tep_event_filter *event_filter);
 gint *trace_graph_task_list(struct graph_info *ginfo);
 
 int trace_graph_load_filters(struct graph_info *ginfo,

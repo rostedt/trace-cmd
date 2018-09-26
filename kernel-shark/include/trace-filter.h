@@ -71,7 +71,7 @@ typedef void (*trace_filter_event_cb_func)(gboolean accept,
 					   gpointer data);
 
 void trace_adv_filter_dialog(struct tracecmd_input *handle,
-			     struct event_filter *event_filter,
+			     struct tep_event_filter *event_filter,
 			     trace_adv_filter_cb_func func,
 			     gpointer data);
 
@@ -94,16 +94,16 @@ void trace_filter_pevent_dialog(struct tep_handle *pevent,
 				gpointer data);
 
 void trace_filter_event_filter_dialog(struct tracecmd_input *handle,
-			       struct event_filter *filter,
+			       struct tep_event_filter *filter,
 			       gboolean all_events,
 			       trace_filter_event_cb_func func,
 			       gpointer data);
 
-void trace_filter_convert_filter_to_names(struct event_filter *filter,
+void trace_filter_convert_filter_to_names(struct tep_event_filter *filter,
 					  gchar ***systems,
 					  gint **events);
 
-void trace_filter_convert_char_to_filter(struct event_filter *filter,
+void trace_filter_convert_char_to_filter(struct tep_event_filter *filter,
 					 gchar **systems,
 					 gint *events);
 /**
@@ -130,10 +130,10 @@ void trace_array_add(gint **array, gint *count, gint val);
 
 /* save and load filters */
 int trace_filter_save_events(struct tracecmd_xml_handle *handle,
-			     struct event_filter *filter);
+			     struct tep_event_filter *filter);
 int trace_filter_save_tasks(struct tracecmd_xml_handle *handle,
 			    struct tracecmd_filter_id *filter);
-int trace_filter_load_events(struct event_filter *event_filter,
+int trace_filter_load_events(struct tep_event_filter *event_filter,
 			     struct tracecmd_xml_handle *handle,
 			     struct tracecmd_xml_system_node *node);
 int trace_filter_load_task_filter(struct tracecmd_filter_id *filter,
@@ -149,7 +149,7 @@ int trace_filter_save_filters(struct tracecmd_xml_handle *handle,
 			      struct tracecmd_filter_id *hide_tasks);
 
 GtkWidget *trace_create_event_list_view(struct tep_handle *pevent,
-					struct event_filter *filter,
+					struct tep_event_filter *filter,
 					gboolean all_events, gchar **systems,
 					gint *events);
 gint trace_extract_event_list_view(GtkWidget *event_view,
@@ -158,7 +158,7 @@ gint trace_extract_event_list_view(GtkWidget *event_view,
 				   gint **events);
 int trace_update_event_view(GtkWidget *event_view,
 			    struct tep_handle *pevent,
-			    struct event_filter *filter,
+			    struct tep_event_filter *filter,
 			    gboolean all_events,
 			    gchar **systems, gint *events);
 

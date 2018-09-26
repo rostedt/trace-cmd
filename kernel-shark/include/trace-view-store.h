@@ -102,7 +102,7 @@ struct trace_view_store
 	/* filters */
 	gint			all_events; /* set 1 when all events are enabled */
 						/* else */
-	struct event_filter		*event_filter; /* Filtered events */
+	struct tep_event_filter		*event_filter; /* Filtered events */
 	struct tracecmd_filter_id	*task_filter;	/* hash of tasks to filter on */
 	struct tracecmd_filter_id	*hide_tasks;	/* hash of tasks to not display */
 
@@ -235,7 +235,7 @@ static inline gboolean trace_view_store_get_all_events_enabled(TraceViewStore *s
 	return store->all_events;
 }
 
-static inline struct event_filter *
+static inline struct tep_event_filter *
 trace_view_store_get_event_filter(TraceViewStore *store)
 {
 	g_return_val_if_fail (TRACE_VIEW_IS_LIST (store), FALSE);

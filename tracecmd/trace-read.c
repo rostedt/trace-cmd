@@ -35,7 +35,7 @@ static struct filter_str **filter_next = &filter_strings;
 
 struct filter {
 	struct filter		*next;
-	struct event_filter	*filter;
+	struct tep_event_filter	*filter;
 };
 
 struct event_str {
