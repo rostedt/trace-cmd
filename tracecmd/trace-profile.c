@@ -76,10 +76,10 @@ struct event_data {
 	struct event_data	*end;
 	struct event_data	*start;
 
-	struct format_field	*pid_field;
-	struct format_field	*start_match_field;	/* match with start */
-	struct format_field	*end_match_field;	/* match with end */
-	struct format_field	*data_field;	/* optional */
+	struct tep_format_field	*pid_field;
+	struct tep_format_field	*start_match_field;	/* match with start */
+	struct tep_format_field	*end_match_field;	/* match with end */
+	struct tep_format_field	*data_field;	/* optional */
 
 	event_data_print	print_func;
 	handle_event_func	handle_event;
@@ -168,7 +168,7 @@ struct cpu_info {
 };
 
 struct sched_switch_data {
-	struct format_field	*prev_state;
+	struct tep_format_field	*prev_state;
 	int			match_state;
 };
 
@@ -182,10 +182,10 @@ struct handle_data {
 
 	struct cpu_info		**cpu_data;
 
-	struct format_field	*common_pid;
-	struct format_field	*wakeup_comm;
-	struct format_field	*switch_prev_comm;
-	struct format_field	*switch_next_comm;
+	struct tep_format_field	*common_pid;
+	struct tep_format_field	*wakeup_comm;
+	struct tep_format_field	*switch_prev_comm;
+	struct tep_format_field	*switch_next_comm;
 
 	struct sched_switch_data sched_switch_blocked;
 	struct sched_switch_data sched_switch_preempt;
@@ -531,7 +531,7 @@ static int match_group(struct trace_hash_item *item, void *data)
 
 
 static void
-add_task_comm(struct task_data *task, struct format_field *field,
+add_task_comm(struct task_data *task, struct tep_format_field *field,
 	      struct tep_record *record)
 {
 	const char *comm;
@@ -1269,7 +1269,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 {
 	struct tep_handle *pevent = tracecmd_get_pevent(handle);
 	struct tep_event_format **events;
-	struct format_field **fields;
+	struct tep_format_field **fields;
 	struct handle_data *h;
 	struct event_data *event_data;
 	struct event_data *sched_switch;

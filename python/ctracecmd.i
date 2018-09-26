@@ -8,7 +8,7 @@
 
 %apply Pointer NONNULL { struct tracecmd_input *handle };
 %apply Pointer NONNULL { struct tep_handle *pevent };
-%apply Pointer NONNULL { struct format_field * };
+%apply Pointer NONNULL { struct tep_format_field * };
 %apply unsigned long long *OUTPUT {unsigned long long *}
 %apply int *OUTPUT {int *}
 
@@ -86,7 +86,7 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 				    int long_size)
 {
 	PyObject *list;
-	struct format_field *field;
+	struct tep_format_field *field;
 	void *data = record->data;
 	const char *func = NULL;
 	unsigned long addr;
@@ -117,7 +117,7 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 	return list;
 }
 
-static PyObject *py_field_get_data(struct format_field *f, struct tep_record *r)
+static PyObject *py_field_get_data(struct tep_format_field *f, struct tep_record *r)
 {
 	if (!strncmp(f->type, "__data_loc ", 11)) {
 		unsigned long long val;
@@ -143,7 +143,7 @@ static PyObject *py_field_get_data(struct format_field *f, struct tep_record *r)
 	return PyBuffer_FromMemory((char *)r->data + f->offset, f->size);
 }
 
-static PyObject *py_field_get_str(struct format_field *f, struct tep_record *r)
+static PyObject *py_field_get_str(struct tep_format_field *f, struct tep_record *r)
 {
 	if (!strncmp(f->type, "__data_loc ", 11)) {
 		unsigned long long val;
@@ -172,7 +172,7 @@ static PyObject *py_field_get_str(struct format_field *f, struct tep_record *r)
 static PyObject *py_format_get_keys(struct tep_event_format *ef)
 {
 	PyObject *list;
-	struct format_field *f;
+	struct tep_format_field *f;
 
 	list = PyList_New(0);
 

@@ -3346,7 +3346,7 @@ static unsigned long long
 find_ts_in_page(struct tep_handle *pevent, void *page, int size)
 {
 	struct tep_event_format *event;
-	struct format_field *field;
+	struct tep_format_field *field;
 	struct tep_record *last_record = NULL;
 	struct tep_record *record;
 	unsigned long long ts = 0;

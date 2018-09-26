@@ -281,7 +281,7 @@ static const struct {
 static int blktrace_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event_format *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val;
 	void *data = record->data;
 	struct blk_data blk_data;

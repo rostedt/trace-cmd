@@ -31,30 +31,30 @@ struct plugin_sched_context {
 	struct tep_event_format	*sched_switch_event;
 
 	/** Pointer to the sched_switch_next_field format descriptor. */
-	struct format_field	*sched_switch_next_field;
+	struct tep_format_field	*sched_switch_next_field;
 
 	/** Pointer to the sched_switch_comm_field format descriptor. */
-	struct format_field	*sched_switch_comm_field;
+	struct tep_format_field	*sched_switch_comm_field;
 
 	/** Pointer to the sched_wakeup_event object. */
 	struct tep_event_format	*sched_wakeup_event;
 
 	/** Pointer to the sched_wakeup_pid_field format descriptor. */
-	struct format_field	*sched_wakeup_pid_field;
+	struct tep_format_field	*sched_wakeup_pid_field;
 
 	/** Pointer to the sched_wakeup_success_field format descriptor. */
-	struct format_field	*sched_wakeup_success_field;
+	struct tep_format_field	*sched_wakeup_success_field;
 
 	/** Pointer to the sched_wakeup_new_event object. */
 	struct tep_event_format	*sched_wakeup_new_event;
 
 	/** Pointer to the sched_wakeup_new_pid_field format descriptor. */
-	struct format_field	*sched_wakeup_new_pid_field;
+	struct tep_format_field	*sched_wakeup_new_pid_field;
 
 	/**
 	 * Pointer to the sched_wakeup_new_success_field format descriptor.
 	 */
-	struct format_field	*sched_wakeup_new_success_field;
+	struct tep_format_field	*sched_wakeup_new_success_field;
 };
 
 int plugin_get_next_pid(struct tep_record *record);

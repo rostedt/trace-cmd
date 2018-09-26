@@ -33,7 +33,7 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent;
 	struct tep_event_format *event;
-	struct format_field *field;
+	struct tep_format_field *field;
 	char buf[4096]; /* way more than enough! */
 	int id;
 	int l;

@@ -30,31 +30,31 @@ static int kmem_cache_alloc_type;
 static int kmem_cache_alloc_node_type;
 static int kmem_cache_free_type;
 
-struct format_field *common_type_field;
+struct tep_format_field *common_type_field;
 
-struct format_field *kmalloc_callsite_field;
-struct format_field *kmalloc_bytes_req_field;
-struct format_field *kmalloc_bytes_alloc_field;
-struct format_field *kmalloc_ptr_field;
+struct tep_format_field *kmalloc_callsite_field;
+struct tep_format_field *kmalloc_bytes_req_field;
+struct tep_format_field *kmalloc_bytes_alloc_field;
+struct tep_format_field *kmalloc_ptr_field;
 
-struct format_field *kmalloc_node_callsite_field;
-struct format_field *kmalloc_node_bytes_req_field;
-struct format_field *kmalloc_node_bytes_alloc_field;
-struct format_field *kmalloc_node_ptr_field;
+struct tep_format_field *kmalloc_node_callsite_field;
+struct tep_format_field *kmalloc_node_bytes_req_field;
+struct tep_format_field *kmalloc_node_bytes_alloc_field;
+struct tep_format_field *kmalloc_node_ptr_field;
 
-struct format_field *kfree_ptr_field;
+struct tep_format_field *kfree_ptr_field;
 
-struct format_field *kmem_cache_callsite_field;
-struct format_field *kmem_cache_bytes_req_field;
-struct format_field *kmem_cache_bytes_alloc_field;
-struct format_field *kmem_cache_ptr_field;
+struct tep_format_field *kmem_cache_callsite_field;
+struct tep_format_field *kmem_cache_bytes_req_field;
+struct tep_format_field *kmem_cache_bytes_alloc_field;
+struct tep_format_field *kmem_cache_ptr_field;
 
-struct format_field *kmem_cache_node_callsite_field;
-struct format_field *kmem_cache_node_bytes_req_field;
-struct format_field *kmem_cache_node_bytes_alloc_field;
-struct format_field *kmem_cache_node_ptr_field;
+struct tep_format_field *kmem_cache_node_callsite_field;
+struct tep_format_field *kmem_cache_node_bytes_req_field;
+struct tep_format_field *kmem_cache_node_bytes_alloc_field;
+struct tep_format_field *kmem_cache_node_ptr_field;
 
-struct format_field *kmem_cache_free_ptr_field;
+struct tep_format_field *kmem_cache_free_ptr_field;
 
 static void *zalloc(size_t size)
 {
@@ -328,10 +328,10 @@ static void remove_kmalloc(unsigned long long ptr)
 
 static void
 process_kmalloc(struct tep_handle *pevent, struct tep_record *record,
-		struct format_field *callsite_field,
-		struct format_field *bytes_req_field,
-		struct format_field *bytes_alloc_field,
-		struct format_field *ptr_field)
+		struct tep_format_field *callsite_field,
+		struct tep_format_field *bytes_req_field,
+		struct tep_format_field *bytes_alloc_field,
+		struct tep_format_field *ptr_field)
 {
 	unsigned long long callsite;
 	unsigned long long val;
@@ -354,7 +354,7 @@ process_kmalloc(struct tep_handle *pevent, struct tep_record *record,
 
 static void
 process_kfree(struct tep_handle *pevent, struct tep_record *record,
-	      struct format_field *ptr_field)
+	      struct tep_format_field *ptr_field)
 {
 	unsigned long long ptr;
 

@@ -127,8 +127,8 @@ enum format_flags {
 	FIELD_IS_SYMBOLIC	= 128,
 };
 
-struct format_field {
-	struct format_field	*next;
+struct tep_format_field {
+	struct tep_format_field	*next;
 	struct tep_event_format	*event;
 	char			*type;
 	char			*name;
@@ -140,11 +140,11 @@ struct format_field {
 	unsigned long		flags;
 };
 
-struct format {
+struct tep_format {
 	int			nr_common;
 	int			nr_fields;
-	struct format_field	*common_fields;
-	struct format_field	*fields;
+	struct tep_format_field	*common_fields;
+	struct tep_format_field	*fields;
 };
 
 struct print_arg_atom {
@@ -163,7 +163,7 @@ struct print_arg_bitmask {
 
 struct print_arg_field {
 	char			*name;
-	struct format_field	*field;
+	struct tep_format_field	*field;
 };
 
 struct print_flag_sym {
@@ -200,7 +200,7 @@ struct print_arg_int_array {
 };
 
 struct print_arg_dynarray {
-	struct format_field	*field;
+	struct tep_format_field	*field;
 	struct print_arg	*index;
 };
 
@@ -268,7 +268,7 @@ struct tep_event_format {
 	char			*name;
 	int			id;
 	int			flags;
-	struct format		format;
+	struct tep_format	format;
 	struct print_fmt	print_fmt;
 	char			*system;
 	tep_event_handler_func	handler;
@@ -463,9 +463,9 @@ struct tep_handle {
 
 	int flags;
 
-	struct format_field *bprint_ip_field;
-	struct format_field *bprint_fmt_field;
-	struct format_field *bprint_buf_field;
+	struct tep_format_field *bprint_ip_field;
+	struct tep_format_field *bprint_fmt_field;
+	struct tep_format_field *bprint_buf_field;
 
 	struct event_handler *handlers;
 	struct tep_function_handler *func_handlers;
@@ -595,7 +595,7 @@ enum tep_errno tep_parse_format(struct tep_handle *pevent,
 				const char *buf,
 				unsigned long size, const char *sys);
 void tep_free_format(struct tep_event_format *event);
-void tep_free_format_field(struct format_field *field);
+void tep_free_format_field(struct tep_format_field *field);
 
 void *tep_get_field_raw(struct trace_seq *s, struct tep_event_format *event,
 			const char *name, struct tep_record *record,
@@ -632,15 +632,15 @@ int tep_register_print_function(struct tep_handle *pevent,
 int tep_unregister_print_function(struct tep_handle *pevent,
 				  tep_func_handler func, char *name);
 
-struct format_field *tep_find_common_field(struct tep_event_format *event, const char *name);
-struct format_field *tep_find_field(struct tep_event_format *event, const char *name);
-struct format_field *tep_find_any_field(struct tep_event_format *event, const char *name);
+struct tep_format_field *tep_find_common_field(struct tep_event_format *event, const char *name);
+struct tep_format_field *tep_find_field(struct tep_event_format *event, const char *name);
+struct tep_format_field *tep_find_any_field(struct tep_event_format *event, const char *name);
 
 const char *tep_find_function(struct tep_handle *pevent, unsigned long long addr);
 unsigned long long
 tep_find_function_address(struct tep_handle *pevent, unsigned long long addr);
 unsigned long long tep_read_number(struct tep_handle *pevent, const void *ptr, int size);
-int tep_read_number_field(struct format_field *field, const void *data,
+int tep_read_number_field(struct tep_format_field *field, const void *data,
 			  unsigned long long *value);
 
 struct tep_event_format *tep_find_event(struct tep_handle *pevent, int id);
@@ -665,7 +665,7 @@ struct cmdline *tep_data_pid_from_comm(struct tep_handle *pevent, const char *co
 int tep_cmdline_pid(struct tep_handle *pevent, struct cmdline *cmdline);
 
 void tep_print_field(struct trace_seq *s, void *data,
-		     struct format_field *field);
+		     struct tep_format_field *field);
 void tep_print_fields(struct trace_seq *s, void *data,
 		      int size __maybe_unused, struct tep_event_format *event);
 void tep_event_info(struct trace_seq *s, struct tep_event_format *event,
@@ -674,8 +674,8 @@ int tep_strerror(struct tep_handle *pevent, enum tep_errno errnum,
 		    char *buf, size_t buflen);
 
 struct tep_event_format **tep_list_events(struct tep_handle *pevent, enum event_sort_type);
-struct format_field **tep_event_common_fields(struct tep_event_format *event);
-struct format_field **tep_event_fields(struct tep_event_format *event);
+struct tep_format_field **tep_event_common_fields(struct tep_event_format *event);
+struct tep_format_field **tep_event_fields(struct tep_event_format *event);
 
 static inline int tep_get_cpus(struct tep_handle *pevent)
 {
@@ -820,7 +820,7 @@ struct filter_arg_boolean {
 };
 
 struct filter_arg_field {
-	struct format_field	*field;
+	struct tep_format_field	*field;
 };
 
 struct filter_arg_value {
@@ -851,7 +851,7 @@ struct filter_arg_num {
 
 struct filter_arg_str {
 	enum filter_cmp_type	type;
-	struct format_field	*field;
+	struct tep_format_field	*field;
 	char			*val;
 	char			*buffer;
 	regex_t			reg;

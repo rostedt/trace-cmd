@@ -146,8 +146,8 @@ static GtkTreeModel *create_field_combo_model(gpointer data)
 	GtkListStore *list;
 	GtkTreeIter iter;
 	struct tep_event_format **events;
-	struct format_field **fields;
-	struct format_field *field;
+	struct tep_format_field **fields;
+	struct tep_format_field *field;
 	int i;
 
 	events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
@@ -179,8 +179,8 @@ static void update_field_combo(struct tep_handle *pevent,
 {
 	struct tep_event_format **events;
 	struct tep_event_format *event;
-	struct format_field **fields;
-	struct format_field *field;
+	struct tep_format_field **fields;
+	struct tep_format_field *field;
 	GtkTreeModel *model;
 	GtkListStore *list;
 	GtkTreeIter iter;

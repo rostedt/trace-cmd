@@ -366,7 +366,7 @@ trace_stack_handler(struct trace_seq *s, struct tep_record *record,
 		    struct tep_event_format *event, void *context)
 {
 	struct tracecmd_ftrace *finfo = context;
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long addr;
 	const char *func;
 	void *data = record->data;

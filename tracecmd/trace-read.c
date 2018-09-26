@@ -99,12 +99,12 @@ static int no_softirqs;
 
 static int tsdiff;
 
-static struct format_field *wakeup_task;
-static struct format_field *wakeup_success;
-static struct format_field *wakeup_new_task;
-static struct format_field *wakeup_new_success;
-static struct format_field *sched_task;
-static struct format_field *sched_prio;
+static struct tep_format_field *wakeup_task;
+static struct tep_format_field *wakeup_success;
+static struct tep_format_field *wakeup_new_task;
+static struct tep_format_field *wakeup_new_success;
+static struct tep_format_field *sched_task;
+static struct tep_format_field *sched_prio;
 
 static unsigned long long total_wakeup_lat;
 static unsigned long wakeup_lat_count;

@@ -27,26 +27,26 @@ static int kernel_stack_type;
 
 static int long_size;
 
-struct format_field *common_type_field;
-struct format_field *common_pid_field;
-struct format_field *sched_wakeup_comm_field;
-struct format_field *sched_wakeup_new_comm_field;
-struct format_field *sched_wakeup_pid_field;
-struct format_field *sched_wakeup_new_pid_field;
-struct format_field *sched_switch_prev_field;
-struct format_field *sched_switch_next_field;
-struct format_field *sched_switch_prev_pid_field;
-struct format_field *sched_switch_next_pid_field;
-struct format_field *function_ip_field;
-struct format_field *function_parent_ip_field;
-struct format_field *function_graph_entry_func_field;
-struct format_field *function_graph_entry_depth_field;
-struct format_field *function_graph_exit_func_field;
-struct format_field *function_graph_exit_depth_field;
-struct format_field *function_graph_exit_calltime_field;
-struct format_field *function_graph_exit_rettime_field;
-struct format_field *function_graph_exit_overrun_field;
-struct format_field *kernel_stack_caller_field;
+struct tep_format_field *common_type_field;
+struct tep_format_field *common_pid_field;
+struct tep_format_field *sched_wakeup_comm_field;
+struct tep_format_field *sched_wakeup_new_comm_field;
+struct tep_format_field *sched_wakeup_pid_field;
+struct tep_format_field *sched_wakeup_new_pid_field;
+struct tep_format_field *sched_switch_prev_field;
+struct tep_format_field *sched_switch_next_field;
+struct tep_format_field *sched_switch_prev_pid_field;
+struct tep_format_field *sched_switch_next_pid_field;
+struct tep_format_field *function_ip_field;
+struct tep_format_field *function_parent_ip_field;
+struct tep_format_field *function_graph_entry_func_field;
+struct tep_format_field *function_graph_entry_depth_field;
+struct tep_format_field *function_graph_exit_func_field;
+struct tep_format_field *function_graph_exit_depth_field;
+struct tep_format_field *function_graph_exit_calltime_field;
+struct tep_format_field *function_graph_exit_rettime_field;
+struct tep_format_field *function_graph_exit_overrun_field;
+struct tep_format_field *kernel_stack_caller_field;
 
 static int compact;
 
@@ -412,7 +412,7 @@ static void copy_stack_to_pending(int pid)
 static void
 process_kernel_stack(struct tep_handle *pevent, struct tep_record *record)
 {
-	struct format_field *field = kernel_stack_caller_field;
+	struct tep_format_field *field = kernel_stack_caller_field;
 	unsigned long long val;
 	void *data = record->data;
 	int do_restore = 0;

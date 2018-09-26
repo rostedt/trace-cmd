@@ -220,15 +220,15 @@ struct graph_info {
 	gint			*hard_irq_exit_ids;
 	gint			*soft_irq_entry_ids;
 	gint			*soft_irq_exit_ids;
-	struct format_field	*event_prev_state;
-	struct format_field	*event_pid_field;
-	struct format_field	*event_comm_field;
-	struct format_field	*ftrace_pid_field;
-	struct format_field	*ftrace_comm_field;
-	struct format_field	*wakeup_pid_field;
-	struct format_field	*wakeup_success_field;
-	struct format_field	*wakeup_new_pid_field;
-	struct format_field	*wakeup_new_success_field;
+	struct tep_format_field	*event_prev_state;
+	struct tep_format_field	*event_pid_field;
+	struct tep_format_field	*event_comm_field;
+	struct tep_format_field	*ftrace_pid_field;
+	struct tep_format_field	*ftrace_comm_field;
+	struct tep_format_field	*wakeup_pid_field;
+	struct tep_format_field	*wakeup_success_field;
+	struct tep_format_field	*wakeup_new_pid_field;
+	struct tep_format_field	*wakeup_new_success_field;
 
 	gboolean		no_irqs;
 

@@ -376,7 +376,7 @@ static void read_raw_events(struct trace_seq *s,
 			    struct tep_event_format *event,
 			    struct tep_record *record)
 {
-	struct format_field **fields;
+	struct tep_format_field **fields;
 	int i;
 
 	fields = tep_event_fields(event);

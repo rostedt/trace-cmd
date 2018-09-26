@@ -14,7 +14,7 @@
 static void print_string(struct trace_seq *s, struct tep_event_format *event,
 			 const char *name, const void *data)
 {
-	struct format_field *f = tep_find_field(event, name);
+	struct tep_format_field *f = tep_find_field(event, name);
 	int offset;
 	int length;
 
@@ -48,7 +48,7 @@ static void _print_enum(struct trace_seq *s, struct tep_event_format *event,
 			const char *name, const void *data,
 			const struct value_name *names, int n_names)
 {
-	struct format_field *f = tep_find_field(event, name);
+	struct tep_format_field *f = tep_find_field(event, name);
 	unsigned long long val;
 	int i;
 
@@ -81,7 +81,7 @@ static void _print_flag(struct trace_seq *s, struct tep_event_format *event,
 			const char *name, const void *data,
 			const struct value_name *names, int n_names)
 {
-	struct format_field *f = tep_find_field(event, name);
+	struct tep_format_field *f = tep_find_field(event, name);
 	unsigned long long val;
 	int i, j, found, first = 1;
 
