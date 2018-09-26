@@ -1032,7 +1032,7 @@ static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 	if (!jfilter_data)
 		goto fail;
 
-	events = tep_list_events(kshark_ctx->pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(kshark_ctx->pevent, TEP_EVENT_SORT_SYSTEM);
 	if (!events)
 		return false;
 

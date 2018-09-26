@@ -1458,7 +1458,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 		syscall_exit->print_func = syscall_print;
 	}
 
-	events = tep_list_events(pevent, EVENT_SORT_ID);
+	events = tep_list_events(pevent, TEP_EVENT_SORT_ID);
 	if (!events)
 		die("malloc");
 

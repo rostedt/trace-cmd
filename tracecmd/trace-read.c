@@ -1739,7 +1739,7 @@ void trace_report (int argc, char **argv)
 			struct tep_event_format *event;
 			int i;
 
-			events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+			events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 			for (i = 0; events[i]; i++) {
 				event = events[i];
 				if (event->system)

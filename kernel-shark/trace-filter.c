@@ -92,7 +92,7 @@ static GtkTreeModel *create_event_combo_model(gpointer data)
 	const char *last_sys = NULL;
 	int i;
 
-	events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 	if (!events)
 		return NULL;
 
@@ -150,7 +150,7 @@ static GtkTreeModel *create_field_combo_model(gpointer data)
 	struct tep_format_field *field;
 	int i;
 
-	events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 	if (!events)
 		return NULL;
 
@@ -199,7 +199,7 @@ static void update_field_combo(struct tep_handle *pevent,
 			return;
 	} else {
 		/* use any event */
-		events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+		events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 		if (!events)
 			return;
 		event = events[0];
@@ -465,7 +465,7 @@ create_tree_filter_model(struct tep_handle *pevent,
 				       G_TYPE_STRING, G_TYPE_STRING,
 				       G_TYPE_INT);
 
-	events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 	if (!events)
 		return GTK_TREE_MODEL(treestore);
 
@@ -1086,7 +1086,7 @@ create_tree_event_model(struct tep_handle *pevent,
 			   COL_ACTIVE_START, FALSE,
 			   -1);
 
-	events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 	if (!events)
 		return GTK_TREE_MODEL(treestore);
 
@@ -1937,7 +1937,7 @@ void trace_filter_convert_filter_to_names(struct event_filter *filter,
 	if (event_ids)
 		*event_ids = NULL;
 
-	events = tep_list_events(pevent, EVENT_SORT_SYSTEM);
+	events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);
 
 	for (i = 0; events[i]; i++) {
 		event = events[i];

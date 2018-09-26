@@ -1196,7 +1196,7 @@ trace_graph_check_irq(struct graph_info *ginfo,
 		else
 			ginfo->soft_irq_entry_ids = null_int_array;
 
-		events = tep_list_events(ginfo->pevent, EVENT_SORT_SYSTEM);
+		events = tep_list_events(ginfo->pevent, TEP_EVENT_SORT_SYSTEM);
 
 		for (i = 0; events[i]; i++) {
 			event = events[i];
