@@ -84,7 +84,7 @@ static short convert_endian_2(struct tracecmd_output *handle, short val)
 	if (!handle->pevent)
 		return val;
 
-	return __data2host2(handle->pevent, val);
+	return __tep_data2host2(handle->pevent, val);
 }
 
 static int convert_endian_4(struct tracecmd_output *handle, int val)
@@ -92,7 +92,7 @@ static int convert_endian_4(struct tracecmd_output *handle, int val)
 	if (!handle->pevent)
 		return val;
 
-	return __data2host4(handle->pevent, val);
+	return __tep_data2host4(handle->pevent, val);
 }
 
 static unsigned long long convert_endian_8(struct tracecmd_output *handle,
@@ -101,7 +101,7 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 	if (!handle->pevent)
 		return val;
 
-	return __data2host8(handle->pevent, val);
+	return __tep_data2host8(handle->pevent, val);
 }
 
 void tracecmd_output_free(struct tracecmd_output *handle)
