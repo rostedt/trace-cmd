@@ -6,6 +6,6 @@ rm -rf CMakeFiles/
 rm -rf src/
 rm -rf examples/
 rm -f ../lib/*
-rm -f ../src/KsDeff.h
+rm -f ../src/KsCmakeDef.hpp
 rm -f CMakeDoxyfile.in
 rm -f CMakeDoxygenDefaults.cmake
