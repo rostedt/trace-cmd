@@ -226,9 +226,15 @@ void kshark_filter_add_id(struct kshark_context *kshark_ctx,
 
 void kshark_filter_clear(struct kshark_context *kshark_ctx, int filter_id);
 
+bool kshark_filter_is_set(struct kshark_context *kshark_ctx);
+
 void kshark_filter_entries(struct kshark_context *kshark_ctx,
 			   struct kshark_entry **data,
 			   size_t n_entries);
+
+void kshark_clear_all_filters(struct kshark_context *kshark_ctx,
+			      struct kshark_entry **data,
+			      size_t n_entries);
 
 /** Search failed identifiers. */
 enum kshark_search_failed {
