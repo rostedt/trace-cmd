@@ -157,14 +157,25 @@ kshark_data_collection_alloc(struct kshark_context *kshark_ctx,
 			 * number of margin entries requested, keep adding
 			 * until you fill the margin.
 			 */
-			if (i + margin < j)
-				i = j;
-			else
-				i += margin;
+			if (i + margin >= j) {
+				for (;j < i + margin; ++j) {
+					if (cond(kshark_ctx, data[j], val)) {
+						/*
+						 * Good data has been found.
+						 * Continue extending the
+						 * previous data interval.
+						 */
+						good_data = true;
+						break;
+					}
+				}
+			}
 
-			last_added = i;
-			collection_add_entry(&temp, i, COLLECTION_BREAK);
-			++break_count;
+			last_added = i = j;
+			if (!good_data) {
+				collection_add_entry(&temp, i, COLLECTION_BREAK);
+				++break_count;
+			}
 		}
 	}
 
