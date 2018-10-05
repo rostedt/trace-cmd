@@ -160,6 +160,8 @@ const char *kshark_get_event_name_easy(struct kshark_entry *entry);
 
 const char *kshark_get_info_easy(struct kshark_entry *entry);
 
+void kshark_convert_nano(uint64_t time, uint64_t *sec, uint64_t *usec);
+
 char* kshark_dump_entry(const struct kshark_entry *entry);
 
 struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
