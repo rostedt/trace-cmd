@@ -889,6 +889,202 @@ static const char *kshark_get_info(struct tep_handle *pe,
 }
 
 /**
+ * @brief This function allows for an easy access to the original value of the
+ *	  Process Id as recorded in the tep_record object. The record is read
+ *	  from the file only in the case of an entry being touched by a plugin.
+ *	  Be aware that using the kshark_get_X_easy functions can be
+ *	  inefficient if you need an access to more than one of the data fields
+ *	  of the record.
+ *
+ * @param entry: Input location for the KernelShark entry.
+ *
+ * @returns The original value of the Process Id as recorded in the
+ *	    tep_record object on success, otherwise negative error code.
+ */
+int kshark_get_pid_easy(struct kshark_entry *entry)
+{
+	struct kshark_context *kshark_ctx = NULL;
+	struct tep_record *data;
+	int pid;
+
+	if (!kshark_instance(&kshark_ctx))
+		return -ENODEV;
+
+	if (entry->visible & KS_PLUGIN_UNTOUCHED_MASK) {
+		pid = entry->pid;
+	} else {
+		/*
+		 * The entry has been touched by a plugin callback function.
+		 * Because of this we do not trust the value of "entry->pid".
+		 */
+		data = kshark_read_at(kshark_ctx, entry->offset);
+		pid = tep_data_pid(kshark_ctx->pevent, data);
+		free_record(data);
+	}
+
+	return pid;
+}
+
+/**
+ * @brief This function allows for an easy access to the original value of the
+ *	  Task name as recorded in the tep_record object. The record is read
+ *	  from the file only in the case of an entry being touched by a plugin.
+ *	  Be aware that using the kshark_get_X_easy functions can be
+ *	  inefficient if you need an access to more than one of the data fields
+ *	  of the record.
+ *
+ * @param entry: Input location for the KernelShark entry.
+ *
+ * @returns The original name of the task, retrieved from the Process Id
+ *	    recorded in the tep_record object on success, otherwise NULL.
+ */
+const char *kshark_get_task_easy(struct kshark_entry *entry)
+{
+	struct kshark_context *kshark_ctx = NULL;
+	int pid = kshark_get_pid_easy(entry);
+
+	if (pid < 0)
+		return NULL;
+
+	kshark_instance(&kshark_ctx);
+	return tep_data_comm_from_pid(kshark_ctx->pevent, pid);
+}
+
+/**
+ * @brief This function allows for an easy access to the latency information
+ *	  recorded in the tep_record object. The record is read from the file
+ *	  using the offset field of kshark_entry. Be aware that using the
+ *	  kshark_get_X_easy functions can be inefficient if you need an access
+ *	  to more than one of the data fields of the record.
+ *
+ * @param entry: Input location for the KernelShark entry.
+ *
+ * @returns On success the function returns a string showing the latency
+ *	    information, coded into 5 fields:
+ *	    interrupts disabled, need rescheduling, hard/soft interrupt,
+ *	    preempt count and lock depth. On failure it returns NULL.
+ */
+const char *kshark_get_latency_easy(struct kshark_entry *entry)
+{
+	struct kshark_context *kshark_ctx = NULL;
+	struct tep_record *data;
+	const char *lat;
+
+	if (!kshark_instance(&kshark_ctx))
+		return NULL;
+
+	data = kshark_read_at(kshark_ctx, entry->offset);
+	lat = kshark_get_latency(kshark_ctx->pevent, data);
+	free_record(data);
+
+	return lat;
+}
+
+/**
+ * @brief This function allows for an easy access to the original value of the
+ *	  Event Id as recorded in the tep_record object. The record is read
+ *	  from the file only in the case of an entry being touched by a plugin.
+ *	  Be aware that using the kshark_get_X_easy functions can be
+ *	  inefficient if you need an access to more than one of the data fields
+ *	  of the record.
+ *
+ * @param entry: Input location for the KernelShark entry.
+ *
+ * @returns The original value of the Event Id as recorded in the
+ *	    tep_record object on success, otherwise negative error code.
+ */
+int kshark_get_event_id_easy(struct kshark_entry *entry)
+{
+	struct kshark_context *kshark_ctx = NULL;
+	struct tep_record *data;
+	int event_id;
+
+	if (!kshark_instance(&kshark_ctx))
+		return -ENODEV;
+
+	if (entry->visible & KS_PLUGIN_UNTOUCHED_MASK) {
+		event_id = entry->event_id;
+	} else {
+		/*
+		 * The entry has been touched by a plugin callback function.
+		 * Because of this we do not trust the value of
+		 * "entry->event_id".
+		 */
+		data = kshark_read_at(kshark_ctx, entry->offset);
+		event_id = tep_data_type(kshark_ctx->pevent, data);
+		free_record(data);
+	}
+
+	return event_id;
+}
+
+/**
+ * @brief This function allows for an easy access to the original name of the
+ *	  trace event as recorded in the tep_record object. The record is read
+ *	  from the file only in the case of an entry being touched by a plugin.
+ *	  Be aware that using the kshark_get_X_easy functions can be
+ *	  inefficient if you need an access to more than one of the data fields
+ *	  of the record.
+ *
+ * @param entry: Input location for the KernelShark entry.
+ *
+ * @returns The mane of the trace event recorded in the tep_record object on
+ *	    success, otherwise "[UNKNOWN EVENT]" or NULL.
+ */
+const char *kshark_get_event_name_easy(struct kshark_entry *entry)
+{
+	struct kshark_context *kshark_ctx = NULL;
+	struct tep_event_format *event;
+
+	int event_id = kshark_get_event_id_easy(entry);
+
+	if (event_id < 0)
+		return NULL;
+
+	kshark_instance(&kshark_ctx);
+	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
+	if (event)
+		return event->name;
+
+	return "[UNKNOWN EVENT]";
+}
+
+/**
+ * @brief This function allows for an easy access to the tep_record's info
+ *	  streang. The record is read from the file using the offset field of
+ *	  kshark_entry. Be aware that using the kshark_get_X_easy functions can
+ *	  be inefficient if you need an access to more than one of the data
+ *	  fields of the record.
+ *
+ * @param entry: Input location for the KernelShark entry.
+ *
+ * @returns A string showing the data output of the trace event on success,
+ *	    otherwise NULL.
+ */
+const char *kshark_get_info_easy(struct kshark_entry *entry)
+{
+	struct kshark_context *kshark_ctx = NULL;
+	struct tep_event_format *event;
+	struct tep_record *data;
+	const char *info = NULL;
+	int event_id;
+
+	if (!kshark_instance(&kshark_ctx))
+		return NULL;
+
+	data = kshark_read_at(kshark_ctx, entry->offset);
+
+	event_id = tep_data_type(kshark_ctx->pevent, data);
+	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
+	if (event)
+		info = kshark_get_info(kshark_ctx->pevent, data, event);
+
+	free_record(data);
+
+	return info;
+}
+
+/**
  * @brief Dump into a string the content of one entry. The function allocates
  *	  a null terminated string and returns a pointer to this string. The
  *	  user has to free the returned string.
