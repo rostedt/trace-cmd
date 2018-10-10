@@ -808,7 +808,7 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 		/* Use the pevent of the ihandle for later writes */
 		handle->pevent = tracecmd_get_pevent(ihandle);
 		tep_ref(pevent);
-		if (pevent->file_bigendian)
+		if (tep_is_file_bigendian(pevent))
 			buf[0] = 1;
 		else
 			buf[0] = 0;

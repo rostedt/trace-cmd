@@ -691,7 +691,8 @@ static bool kshark_event_filter_to_json(struct tep_handle *pevent,
 					struct json_object *jobj)
 {
 	json_object *jfilter_data, *jevent, *jsystem, *jname;
-	int i, evt, *ids;
+	struct tep_event_format *event;
+	int i, evt, *ids, nr_events;
 	char *temp;
 
 	jevent = jsystem = jname = NULL;
@@ -712,15 +713,17 @@ static bool kshark_event_filter_to_json(struct tep_handle *pevent,
 	if (!jfilter_data)
 		goto fail;
 
+	nr_events = tep_get_events_count(pevent);
 	for (i = 0; i < filter->count; ++i) {
-		for (evt = 0; evt < pevent->nr_events; ++evt) {
-			if (pevent->events[evt]->id == ids[i]) {
+		for (evt = 0; evt < nr_events; ++evt) {
+			event = tep_get_event(pevent, evt);
+			if (event->id == ids[i]) {
 				jevent = json_object_new_object();
 
-				temp = pevent->events[evt]->system;
+				temp = event->system;
 				jsystem = json_object_new_string(temp);
 
-				temp = pevent->events[evt]->name;
+				temp = event->name;
 				jname = json_object_new_string(temp);
 
 				if (!jevent || !jsystem || !jname)

@@ -13,6 +13,7 @@ OBJS += kbuffer-parse.o
 OBJS += trace-seq.o
 OBJS += parse-filter.o
 OBJS += parse-utils.o
+OBJS += event-parse-api.o
 
 # Additional util objects
 OBJS += str_error_r.o

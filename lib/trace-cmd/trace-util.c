@@ -1212,7 +1212,7 @@ int tracecmd_fill_local_events(const char *tracing_dir, struct tep_handle *peven
  out_free:
 	free(events_dir);
 
-	pevent->parsing_failures = failure;
+	tep_set_parsing_failures(pevent, failure);
 
 	return ret;
 }

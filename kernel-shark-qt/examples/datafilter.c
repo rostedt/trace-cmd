@@ -83,9 +83,9 @@ int main(int argc, char **argv)
 	puts("\n\n");
 
 	/* Show only "sched" events. */
-	n_evts = kshark_ctx->pevent->nr_events;
+	n_evts = tep_get_events_count(kshark_ctx->pevent);
 	for (i = 0; i < n_evts; ++i) {
-		event = kshark_ctx->pevent->events[i];
+		event = tep_get_event(kshark_ctx->pevent, i);
 		if (strcmp(event->system, "sched") == 0)
 			kshark_filter_add_id(kshark_ctx, KS_SHOW_EVENT_FILTER,
 							 event->id);

@@ -340,7 +340,7 @@ static int read_header_files(struct tracecmd_input *handle)
 	 * The size field in the page is of type long,
 	 * use that instead, since it represents the kernel.
 	 */
-	handle->long_size = pevent->header_page_size_size;
+	handle->long_size = tep_get_header_page_size(pevent);
 
 	if (do_read_check(handle, buf, 13))
 		return -1;
@@ -422,7 +422,7 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 			printf("%.*s\n", (int)size, buf);
 	} else {
 		if (tep_parse_event(pevent, buf, size, "ftrace"))
-			pevent->parsing_failures = 1;
+			tep_set_parsing_failures(pevent, 1);
 	}
 	free(buf);
 
@@ -456,7 +456,7 @@ static int read_event_file(struct tracecmd_input *handle,
 		}
 	} else {
 		if (tep_parse_event(pevent, buf, size, system))
-			pevent->parsing_failures = 1;
+			tep_set_parsing_failures(pevent, 1);
 	}
 	free(buf);
 
@@ -1047,7 +1047,7 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	struct kbuffer *kbuf = handle->cpu_data[cpu].kbuf;
 
 	/* FIXME: handle header page */
-	if (pevent->header_page_ts_size != 8) {
+	if (tep_get_header_page_ts_size(pevent) != 8) {
 		warning("expected a long long type for timestamp");
 		return -1;
 	}
@@ -1619,7 +1619,7 @@ tracecmd_translate_data(struct tracecmd_input *handle,
 	memset(record, 0, sizeof(*record));
 
 	record->ref_count = 1;
-	if (pevent->host_bigendian == pevent->file_bigendian)
+	if (tep_is_host_bigendian(pevent) == tep_is_file_bigendian(pevent))
 		swap = 0;
 	record->data = kbuffer_translate_data(swap, ptr, &length);
 	record->size = length;
@@ -1661,12 +1661,12 @@ tracecmd_read_page_record(struct tep_handle *pevent, void *page, int size,
 	enum kbuffer_endian endian;
 	void *ptr;
 
-	if (pevent->file_bigendian)
+	if (tep_is_file_bigendian(pevent))
 		endian = KBUFFER_ENDIAN_BIG;
 	else
 		endian = KBUFFER_ENDIAN_LITTLE;
 
-	if (pevent->header_page_size_size == 8)
+	if (tep_get_header_page_size(pevent) == 8)
 		long_size = KBUFFER_LSIZE_8;
 	else
 		long_size = KBUFFER_LSIZE_4;
@@ -2266,7 +2266,7 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	else
 		long_size = KBUFFER_LSIZE_4;
 
-	if (handle->pevent->file_bigendian)
+	if (tep_is_file_bigendian(handle->pevent))
 		endian = KBUFFER_ENDIAN_BIG;
 	else
 		endian = KBUFFER_ENDIAN_LITTLE;
@@ -2279,7 +2279,7 @@ static int read_cpu_data(struct tracecmd_input *handle)
 		handle->cpu_data[cpu].kbuf = kbuffer_alloc(long_size, endian);
 		if (!handle->cpu_data[cpu].kbuf)
 			goto out_free;
-		if (pevent->old_format)
+		if (tep_is_old_format(pevent))
 			kbuffer_set_old_format(handle->cpu_data[cpu].kbuf);
 
 		read8(handle, &offset);
@@ -2475,7 +2475,7 @@ int tracecmd_make_pipe(struct tracecmd_input *handle, int cpu, int fd, int cpus)
 	else
 		long_size = KBUFFER_LSIZE_4;
 
-	if (handle->pevent->file_bigendian)
+	if (tep_is_file_bigendian(handle->pevent))
 		endian = KBUFFER_ENDIAN_BIG;
 	else
 		endian = KBUFFER_ENDIAN_LITTLE;
@@ -2487,7 +2487,7 @@ int tracecmd_make_pipe(struct tracecmd_input *handle, int cpu, int fd, int cpus)
 	handle->cpu_data[cpu].kbuf = kbuffer_alloc(long_size, endian);
 	if (!handle->cpu_data[cpu].kbuf)
 		return -1;
-	if (handle->pevent->old_format)
+	if (tep_is_old_format(handle->pevent))
 		kbuffer_set_old_format(handle->cpu_data[cpu].kbuf);
 
 	handle->cpu_data[cpu].file_offset = 0;
@@ -2644,8 +2644,8 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 
 	handle->plugin_list = tracecmd_load_plugins(handle->pevent);
 
-	handle->pevent->file_bigendian = buf[0];
-	handle->pevent->host_bigendian = tracecmd_host_bigendian();
+	tep_set_file_bigendian(handle->pevent, buf[0]);
+	tep_set_host_bigendian(handle->pevent, tracecmd_host_bigendian());
 
 	do_read_check(handle, buf, 1);
 	handle->long_size = buf[0];
