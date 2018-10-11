@@ -20,6 +20,14 @@ find_package(Doxygen)
 find_package(OpenGL)
 find_package(GLUT)
 
+find_package(Qt5Widgets 5.7.1)
+find_package(Qt5Network)
+if (Qt5Widgets_FOUND)
+
+    message(STATUS "Found Qt5Widgets:  (version ${Qt5Widgets_VERSION})")
+
+endif (Qt5Widgets_FOUND)
+
 set(LIBRARY_OUTPUT_PATH    "${KS_DIR}/lib")
 set(EXECUTABLE_OUTPUT_PATH "${KS_DIR}/bin")
 
