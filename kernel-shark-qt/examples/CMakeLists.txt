@@ -19,3 +19,7 @@ target_link_libraries(confio   kshark)
 message(STATUS "dataplot")
 add_executable(dplot          dataplot.cpp)
 target_link_libraries(dplot   kshark-plot)
+
+message(STATUS "widgetdemo")
+add_executable(widgetdemo          widgetdemo.cpp)
+target_link_libraries(widgetdemo   kshark-gui)
