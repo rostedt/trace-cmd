@@ -28,6 +28,26 @@ if (OPENGL_FOUND AND GLUT_FOUND)
 
 endif (OPENGL_FOUND AND GLUT_FOUND)
 
+if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
+
+    message(STATUS "libkshark-gui")
+    set (ks-guiLib_hdr  KsUtils.hpp)
+
+    QT5_WRAP_CPP(ks-guiLib_hdr_moc ${ks-guiLib_hdr})
+
+    add_library(kshark-gui  SHARED  ${ks-guiLib_hdr_moc}    KsUtils.cpp)
+
+    target_link_libraries(kshark-gui kshark-plot
+                                     ${CMAKE_DL_LIBS}
+                                     ${TRACEEVENT_LIBRARY}
+                                     ${TRACECMD_LIBRARY}
+                                     Qt5::Widgets
+                                     Qt5::Network)
+
+    set_target_properties(kshark-gui PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
+
+endif (Qt5Widgets_FOUND AND Qt5Network_FOUND)
+
 add_subdirectory(plugins)
 
 configure_file( ${KS_DIR}/build/deff.h.cmake

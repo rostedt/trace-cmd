@@ -14,7 +14,23 @@
 /** KernelShark source code path. */
 #cmakedefine KS_DIR "@KS_DIR@"
 
+/** KernelShark configuration directory path. */
+#cmakedefine KS_CONF_DIR "@KS_CONF_DIR@"
+
 /** Location of the trace-cmd executable. */
 #cmakedefine TRACECMD_BIN_DIR "@TRACECMD_BIN_DIR@"
+
+#ifdef __cplusplus
+
+	#include <QString>
+
+	/**
+	 * String containing semicolon-separated list of plugin names.
+	 * The plugins to be loaded when KernelShark starts are tagged
+	 * with "default".
+	 */
+	const QString plugins = "@PLUGINS@";
+
+#endif /* __cplusplus */
 
 #endif // _KS_CONFIG_H
