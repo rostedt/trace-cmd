@@ -75,4 +75,7 @@ if (_DOXYGEN_DOC AND DOXYGEN_FOUND)
 
 endif ()
 
+configure_file( ${KS_DIR}/build/ks.desktop.cmake
+                ${KS_DIR}/kernelshark.desktop)
+
 message("")
