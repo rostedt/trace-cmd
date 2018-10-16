@@ -36,6 +36,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
                         KsGLWidget.hpp
                         KsDualMarker.hpp
                         KsWidgetsLib.hpp
+                        KsTraceGraph.hpp
                         KsTraceViewer.hpp)
 
     QT5_WRAP_CPP(ks-guiLib_hdr_moc ${ks-guiLib_hdr})
@@ -45,6 +46,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
                                                             KsGLWidget.cpp
                                                             KsDualMarker.cpp
                                                             KsWidgetsLib.cpp
+                                                            KsTraceGraph.cpp
                                                             KsTraceViewer.cpp)
 
     target_link_libraries(kshark-gui kshark-plot
