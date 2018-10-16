@@ -14,6 +14,7 @@
 
 // Qt
 #include <QMainWindow>
+#include <QLocalServer>
 
 // KernelShark
 #include "KsTraceViewer.hpp"
@@ -81,6 +82,12 @@ private:
 	/** Plugin manager. */
 	KsPluginManager	_plugins;
 
+	/** The process used to record trace data. */
+	QProcess	_capture;
+
+	/** Local Server used for comunucation with the Capture process. */
+	QLocalServer	_captureLocalServer;
+
 	// File menu.
 	QAction		_openAction;
 
@@ -118,6 +125,8 @@ private:
 
 	// Tools menu.
 	QAction		_pluginsAction;
+
+	QAction		_captureAction;
 
 	QWidgetAction	_colorAction;
 
@@ -166,6 +175,8 @@ private:
 
 	void _pluginSelect();
 
+	void _record();
+
 	void _setColorPhase(int);
 
 	void _fullScreenMode();
@@ -174,11 +185,19 @@ private:
 
 	void _contents();
 
+	void _captureStarted();
+
+	void _captureError(QProcess::ProcessError error);
+
+	void _readSocket();
+
 	void _splitterMoved(int pos, int index);
 
 	void _createActions();
 
 	void _createMenus();
+
+	void _initCapture();
 
 	void _updateSession();
 
@@ -186,6 +205,9 @@ private:
 
 	void _error(const QString &text, const QString &errCode,
 		    bool resize, bool unloadPlugins);
+
+private slots:
+	void _captureFinished(int, QProcess::ExitStatus);
 };
 
 #endif // _KS_MAINWINDOW_H

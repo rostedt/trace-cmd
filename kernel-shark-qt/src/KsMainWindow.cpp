@@ -28,6 +28,7 @@
 #include "libkshark.h"
 #include "KsCmakeDef.hpp"
 #include "KsMainWindow.hpp"
+#include "KsCaptureDialog.hpp"
 #include "KsAdvFilteringDialog.hpp"
 
 /** Create KernelShark Main window. */
@@ -39,6 +40,8 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _graph(this),
   _mState(this),
   _plugins(this),
+  _capture(this),
+  _captureLocalServer(this),
   _openAction("Open", this),
   _restorSessionAction("Restor Last Session", this),
   _importSessionAction("Import Session", this),
@@ -56,6 +59,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _cpuSelectAction("CPUs", this),
   _taskSelectAction("Tasks", this),
   _pluginsAction("Plugins", this),
+  _captureAction("Record", this),
   _colorAction(this),
   _colSlider(this),
   _colorPhaseSlider(Qt::Horizontal, this),
@@ -67,6 +71,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 	setWindowTitle("Kernel Shark");
 	_createActions();
 	_createMenus();
+	_initCapture();
 
 	_splitter.addWidget(&_graph);
 	_splitter.addWidget(&_view);
@@ -215,6 +220,13 @@ void KsMainWindow::_createActions()
 	connect(&_pluginsAction,	&QAction::triggered,
 		this,			&KsMainWindow::_pluginSelect);
 
+	_captureAction.setIcon(QIcon::fromTheme("media-record"));
+	_captureAction.setShortcut(tr("Ctrl+R"));
+	_captureAction.setStatusTip("Capture trace data");
+
+	connect(&_captureAction,	&QAction::triggered,
+		this,			&KsMainWindow::_record);
+
 	_colorPhaseSlider.setMinimum(20);
 	_colorPhaseSlider.setMaximum(180);
 	_colorPhaseSlider.setValue(KsPlot::Color::getRainbowFrequency() * 100);
@@ -321,6 +333,7 @@ void KsMainWindow::_createMenus()
 	/* Tools menu */
 	tools = menuBar()->addMenu("Tools");
 	tools->addAction(&_pluginsAction);
+	tools->addAction(&_captureAction);
 	tools->addSeparator();
 	tools->addAction(&_colorAction);
 	tools->addAction(&_fullScreenModeAction);
@@ -690,6 +703,29 @@ void KsMainWindow::_pluginSelect()
 	dialog->show();
 }
 
+void KsMainWindow::_record()
+{
+#ifndef DO_AS_ROOT
+
+	QErrorMessage *em = new QErrorMessage(this);
+	QString message;
+
+	message = "Record is currently not supported.";
+	message += " Install \"pkexec\" and then do:<br>";
+	message += " cd build <br> sudo ./cmake_uninstall.sh <br>";
+	message += " ./cmake_clean.sh <br> cmake .. <br> make <br>";
+	message += " sudo make install";
+
+	em->showMessage(message);
+	qCritical() << "ERROR: " << message;
+
+	return;
+
+#endif
+
+	_capture.start();
+}
+
 void KsMainWindow::_setColorPhase(int f)
 {
 	KsPlot::Color::setRainbowFrequency(f / 100.);
@@ -893,6 +929,98 @@ void KsMainWindow::loadSession(const QString &fileName)
 
 	_session.loadTable(&_view);
 	_colorPhaseSlider.setValue(_session.getColorScheme() * 100);
+}
+
+void KsMainWindow::_initCapture()
+{
+#ifdef DO_AS_ROOT
+
+	_capture.setProgram("kshark-su-record");
+
+	connect(&_capture,	&QProcess::started,
+		this,		&KsMainWindow::_captureStarted);
+
+	/*
+	 * Using the old Signal-Slot syntax because QProcess::finished has
+	 * overloads.
+	 */
+	connect(&_capture,	SIGNAL(finished(int, QProcess::ExitStatus)),
+		this,		SLOT(_captureFinished(int, QProcess::ExitStatus)));
+
+	connect(&_capture,	&QProcess::errorOccurred,
+		this,		&KsMainWindow::_captureError);
+
+	connect(&_captureLocalServer,	&QLocalServer::newConnection,
+		this,			&KsMainWindow::_readSocket);
+
+#endif
+}
+
+void KsMainWindow::_captureStarted()
+{
+	_captureLocalServer.listen("KSCapture");
+}
+
+void KsMainWindow::_captureFinished(int exit, QProcess::ExitStatus st)
+{
+	QProcess *capture = (QProcess *)sender();
+
+	_captureLocalServer.close();
+
+	if (exit != 0 || st != QProcess::NormalExit) {
+		QString message = "Capture process failed:<br>";
+
+		message += capture->errorString();
+		message += "<br>Try doing:<br> sudo make install";
+
+		_error(message, "captureFinishedErr", false, false);
+	}
+}
+
+void KsMainWindow::_captureError(QProcess::ProcessError error)
+{
+	QProcess *capture = (QProcess *)sender();
+	QString message = "Capture process failed:<br>";
+
+	message += capture->errorString();
+	message += "<br>Try doing:<br> sudo make install";
+
+	_error(message, "captureFinishedErr", false, false);
+}
+
+void KsMainWindow::_readSocket()
+{
+	QLocalSocket *socket;
+	quint32 blockSize;
+	QString fileName;
+
+	auto lamSocketError = [&](QString message)
+	{
+		message = "ERROR from Local Server: " + message;
+		_error(message, "readSocketErr", false, false);
+	};
+
+	socket = _captureLocalServer.nextPendingConnection();
+	if (!socket) {
+		lamSocketError("Pending connectio not found!");
+		return;
+	}
+
+	QDataStream in(socket);
+	socket->waitForReadyRead();
+	if (socket->bytesAvailable() < (int)sizeof(quint32)) {
+		lamSocketError("Message size is corrupted!");
+		return;
+	};
+
+	in >> blockSize;
+	if (socket->bytesAvailable() < blockSize || in.atEnd()) {
+		lamSocketError("Message is corrupted!");
+		return;
+	}
+
+	in >> fileName;
+	loadDataFile(fileName);
 }
 
 void KsMainWindow::_splitterMoved(int pos, int index)
