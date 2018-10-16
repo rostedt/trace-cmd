@@ -32,12 +32,14 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
     message(STATUS "libkshark-gui")
     set (ks-guiLib_hdr  KsUtils.hpp
+                        KsModels.hpp
                         KsDualMarker.hpp
                         KsWidgetsLib.hpp)
 
     QT5_WRAP_CPP(ks-guiLib_hdr_moc ${ks-guiLib_hdr})
 
     add_library(kshark-gui  SHARED  ${ks-guiLib_hdr_moc}    KsUtils.cpp
+                                                            KsModels.cpp
                                                             KsDualMarker.cpp
                                                             KsWidgetsLib.cpp)
 
