@@ -19,6 +19,8 @@
 #include "KsUtils.hpp"
 #include "KsPlotTools.hpp"
 
+class KsGLWidget;
+
 /** The KsGraphMark represents a marker for KernelShark GUI. */
 class KsGraphMark : public QObject
 {
@@ -124,7 +126,7 @@ public:
 	QState *stateBPtr() {return _stateB;}
 
 	void updateMarkers(const KsDataStore &data,
-			   kshark_trace_histo *histo);
+			   KsGLWidget *glw);
 
 	void updateLabels();
 

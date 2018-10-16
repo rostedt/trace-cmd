@@ -10,6 +10,7 @@
  */
 
 #include "KsDualMarker.hpp"
+#include "KsGLWidget.hpp"
 
 /**
  * @brief Create KsGraphMark object.
@@ -287,13 +288,16 @@ void KsDualMarkerSM::setState(DualMarkerState st) {
  *	  model has changed.
  *
  * @param data: Input location for the Data Store object.
- * @param histo: Input location for the model descriptor.
+ * @param glw: Input location for the OpenGL widget object.
  */
 void KsDualMarkerSM::updateMarkers(const KsDataStore &data,
-				   kshark_trace_histo *histo)
+				   KsGLWidget *glw)
 {
-	_markA.update(data, histo);
-	_markB.update(data, histo);
+	if(_markA.update(data, glw->model()->histo()))
+		glw->setMark(&_markA);
+
+	if(_markB.update(data, glw->model()->histo()))
+		glw->setMark(&_markB);
 
 	updateLabels();
 }
