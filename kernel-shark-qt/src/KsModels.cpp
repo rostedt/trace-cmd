@@ -330,3 +330,156 @@ size_t KsViewModel::search(int column,
 
 	return matchList->count();
 }
+
+/** Create a default (empty) KsFilterProxyModel object. */
+KsGraphModel::KsGraphModel(QObject *parent)
+: QAbstractTableModel(parent)
+{
+	ksmodel_init(&_histo);
+}
+
+/** Destroy KsFilterProxyModel object. */
+KsGraphModel::~KsGraphModel()
+{
+	ksmodel_clear(&_histo);
+}
+
+/**
+ * @brief Provide the Visualization model with data. Calculate the current
+ *	  state of the model.
+ *
+ * @param entries: Input location for the trace data.
+ * @param n: Number of bins.
+ */
+void KsGraphModel::fill(kshark_entry **entries, size_t n)
+{
+	if (n == 0)
+		return;
+
+	beginResetModel();
+
+	if (_histo.n_bins == 0)
+		ksmodel_set_bining(&_histo,
+				   KS_DEFAULT_NBUNS,
+				   entries[0]->ts,
+				   entries[n-1]->ts);
+
+	ksmodel_fill(&_histo, entries, n);
+
+	endResetModel();
+}
+
+/**
+ * @brief Shift the time-window of the model forward. Recalculate the current
+ *	  state of the model.
+ *
+ * @param n: Number of bins to shift.
+ */
+void KsGraphModel::shiftForward(size_t n)
+{
+	beginResetModel();
+	ksmodel_shift_forward(&_histo, n);
+	endResetModel();
+}
+
+/**
+ * @brief Shift the time-window of the model backward. Recalculate the current
+ *	  state of the model.
+ *
+ * @param n: Number of bins to shift.
+ */
+void KsGraphModel::shiftBackward(size_t n)
+{
+	beginResetModel();
+	ksmodel_shift_backward(&_histo, n);
+	endResetModel();
+}
+
+/**
+ * @brief Move the time-window of the model to a given location. Recalculate
+ *	  the current state of the model.
+ *
+ * @param ts: position in time to be visualized.
+ */
+void KsGraphModel::jumpTo(size_t ts)
+{
+	beginResetModel();
+	ksmodel_jump_to(&_histo, ts);
+	endResetModel();
+}
+
+/**
+ * @brief Extend the time-window of the model. Recalculate the current state
+ *	  of the model.
+ *
+ * @param r: Scale factor of the zoom-out.
+ * @param mark: Focus point of the zoom-out.
+ */
+void KsGraphModel::zoomOut(double r, int mark)
+{
+	beginResetModel();
+	ksmodel_zoom_out(&_histo, r, mark);
+	endResetModel();
+}
+
+/**
+ * @brief Shrink the time-window of the model. Recalculate the current state
+ *	  of the model.
+ *
+ * @param r: Scale factor of the zoom-in.
+ * @param mark: Focus point of the zoom-in.
+ */
+void KsGraphModel::zoomIn(double r, int mark)
+{
+	beginResetModel();
+	ksmodel_zoom_in(&_histo, r, mark);
+	endResetModel();
+}
+
+/** Quick zoom out. The entire data-set will be visualized. */
+void KsGraphModel::quickZoomOut()
+{
+	beginResetModel();
+
+	ksmodel_set_bining(&_histo,
+			   _histo.n_bins,
+			   _histo.data[0]->ts,
+			   _histo.data[_histo.data_size - 1]->ts);
+
+	ksmodel_fill(&_histo, _histo.data, _histo.data_size);
+
+	endResetModel();
+}
+
+/**
+ * @brief Quick zoom in to a state of the Visualization model which has the
+ * given bin size. The actual value of the bin size may en up being slightly
+ * different because of the fine tuning performed by the model.
+ *
+ * @param binSize: an approximate value for the new size of the bins.
+ */
+void KsGraphModel::quickZoomIn(uint64_t binSize)
+{
+	double range, r;
+
+	range =  _histo.max - _histo.min;
+	r = 1 - (binSize * _histo.n_bins) / range;
+	zoomIn(r);
+}
+
+/** Reset the model. */
+void KsGraphModel::reset()
+{
+	beginResetModel();
+	ksmodel_clear(&_histo);
+	endResetModel();
+}
+
+/** Update the model. Use this function if the data has changed. */
+void KsGraphModel::update(KsDataStore *data)
+{
+	beginResetModel();
+	if (data)
+		ksmodel_fill(&_histo, data->rows(), data->size());
+	endResetModel();
+}

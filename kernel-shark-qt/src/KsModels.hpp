@@ -220,4 +220,70 @@ private:
 		     bool notify);
 };
 
+/**
+ * Class KsGraphModel provides a model for visualization of trace data. This
+ * class is a wrapper of kshark_trace_histo and is needed only because we want
+ * to use the signals defined in QAbstractTableModel.
+ */
+class KsGraphModel : public QAbstractTableModel
+{
+public:
+	explicit KsGraphModel(QObject *parent = nullptr);
+
+	virtual ~KsGraphModel();
+
+	/**
+	 * This dummy function is an implementation of the pure
+	 * virtual method of the abstract model class.
+	 */
+	int rowCount(const QModelIndex &) const override
+	{
+		return _histo.n_bins;
+	}
+
+	/**
+	 * This dummy function is an implementation of the pure
+	 * virtual method of the abstract model class.
+	 */
+	int columnCount(const QModelIndex &) const override {return 0;}
+
+	/**
+	 * This dummy function is an implementation of the pure
+	 * virtual method of the abstract model class.
+	 */
+	QVariant data(const QModelIndex &index, int role) const override
+	{
+		return {};
+	}
+
+	/** Get the kshark_trace_histo object. */
+	kshark_trace_histo *histo() {return &_histo;}
+
+	void fill(kshark_entry **entries, size_t n);
+
+	void shiftForward(size_t n);
+
+	void shiftBackward(size_t n);
+
+	void jumpTo(size_t ts);
+
+	void zoomOut(double r, int mark = -1);
+
+	void zoomIn(double r, int mark = -1);
+
+	void quickZoomOut();
+
+	void quickZoomIn(uint64_t binSize);
+
+	void reset();
+
+	void update(KsDataStore *data = nullptr);
+
+private:
+	kshark_trace_histo	_histo;
+};
+
+/** Defines a default number of bins to be used by the visualization model. */
+#define KS_DEFAULT_NBUNS	1024
+
 #endif // _KS_MODELS_H
