@@ -144,6 +144,8 @@ void KsDataStore::_freeData()
 		free(_rows);
 		_rows = nullptr;
 	}
+
+	_dataSize = 0;
 }
 
 /** Reload the trace data. */
