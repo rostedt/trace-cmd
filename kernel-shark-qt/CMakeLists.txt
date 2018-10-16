@@ -12,6 +12,11 @@ message("\n project: Kernel Shark: (version: ${KS_VERSION_STRING})\n")
 
 set(KS_DIR ${CMAKE_SOURCE_DIR})
 
+# Make a directory to hold configuration files. To change this do:
+# cmake .. -DKS_CONF_DIR=/your/preferred/path
+set(KS_CONF_DIR "${KS_DIR}/.ksconf" CACHE STRING "Directory for configuration files.")
+file(MAKE_DIRECTORY ${KS_CONF_DIR})
+
 include(${KS_DIR}/build/FindTraceCmd.cmake)
 include(${KS_DIR}/build/FindJSONC.cmake)
 
