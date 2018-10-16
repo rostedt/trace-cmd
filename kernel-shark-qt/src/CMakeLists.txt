@@ -83,6 +83,9 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
     install(FILES "${KS_DIR}/org.freedesktop.kshark-record.policy"
             DESTINATION /usr/share/polkit-1/actions/)
 
+    install(PROGRAMS "${KS_DIR}/bin/kshark-su-record"
+            DESTINATION /usr/local/bin/)
+
 endif (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
 add_subdirectory(plugins)
