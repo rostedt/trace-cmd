@@ -20,6 +20,9 @@
 /** Location of the trace-cmd executable. */
 #cmakedefine TRACECMD_BIN_DIR "@TRACECMD_BIN_DIR@"
 
+/** "pkexec" executable. */
+#cmakedefine DO_AS_ROOT "@DO_AS_ROOT@"
+
 #ifdef __cplusplus
 
 	#include <QString>

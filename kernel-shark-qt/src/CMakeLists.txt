@@ -77,5 +77,7 @@ endif (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
 add_subdirectory(plugins)
 
+find_program(DO_AS_ROOT pkexec)
+
 configure_file( ${KS_DIR}/build/deff.h.cmake
                 ${KS_DIR}/src/KsCmakeDef.hpp)
