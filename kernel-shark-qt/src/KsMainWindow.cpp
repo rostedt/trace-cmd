@@ -397,20 +397,7 @@ void KsMainWindow::_exportSession()
 	if (!fileName.endsWith(".json")) {
 		fileName += ".json";
 		if (QFileInfo(fileName).exists()) {
-			QString msg("A file ");
-			QMessageBox msgBox;
-
-			msg += fileName;
-			msg += " already exists.";
-			msgBox.setText(msg);
-			msgBox.setInformativeText("Do you want to replace it?");
-
-			msgBox.setStandardButtons(QMessageBox::Save |
-						  QMessageBox::Cancel);
-
-			msgBox.setDefaultButton(QMessageBox::Cancel);
-
-			if (msgBox.exec() == QMessageBox::Cancel)
+			if (!KsWidgetsLib::fileExistsDialog(fileName))
 				return;
 		}
 	}
@@ -461,8 +448,13 @@ void KsMainWindow::_exportFilter()
 	if (fileName.isEmpty())
 		return;
 
-	if (!fileName.endsWith(".json"))
+	if (!fileName.endsWith(".json")) {
 		fileName += ".json";
+		if (QFileInfo(fileName).exists()) {
+			if (!KsWidgetsLib::fileExistsDialog(fileName))
+				return;
+		}
+	}
 
 	kshark_export_all_event_filters(kshark_ctx, &conf);
 	kshark_save_config_file(fileName.toStdString().c_str(), conf);

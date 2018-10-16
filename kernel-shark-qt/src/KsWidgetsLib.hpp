@@ -66,6 +66,13 @@ public:
 /** The width of the KsMessageDialog widget. */
 #define KS_MSG_DIALOG_WIDTH  (SCREEN_WIDTH / 10)
 
+namespace KsWidgetsLib
+{
+
+bool fileExistsDialog(QString fileName);
+
+}; // KsWidgetsLib
+
 /**
  * The KsCheckBoxWidget class is the base class of all CheckBox widget used
  * by KernelShark.

@@ -76,6 +76,35 @@ KsMessageDialog::KsMessageDialog(QString message, QWidget *parent)
 	this->setLayout(&_layout);
 }
 
+namespace KsWidgetsLib
+{
+
+/**
+ * @brief Launch a File exists dialog. Use this function to ask the user
+ * before overwriting an existing file.
+ *
+ * @param fileName: the name of the file.
+ *
+ * @returns True if the user wants to overwrite the file. Otherwise
+ */
+bool fileExistsDialog(QString fileName)
+{
+	QString msg("A file ");
+	QMessageBox msgBox;
+
+	msg += fileName;
+	msg += " already exists.";
+	msgBox.setText(msg);
+	msgBox.setInformativeText("Do you want to replace it?");
+
+	msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Cancel);
+	msgBox.setDefaultButton(QMessageBox::Cancel);
+
+	return (msgBox.exec() == QMessageBox::Save);
+}
+
+}; // KsWidgetsLib
+
 /**
  * @brief Create KsCheckBoxWidget.
  *
