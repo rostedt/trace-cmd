@@ -44,6 +44,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
     add_library(kshark-gui  SHARED  ${ks-guiLib_hdr_moc}    KsUtils.cpp
                                                             KsModels.cpp
+                                                            KsSession.cpp
                                                             KsGLWidget.cpp
                                                             KsDualMarker.cpp
                                                             KsWidgetsLib.cpp
