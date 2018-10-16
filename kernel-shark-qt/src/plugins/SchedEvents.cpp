@@ -16,6 +16,7 @@
 
 // C++ 11
 #include<functional>
+#include<unordered_set>
 
 // KernelShark
 #include "libkshark.h"
@@ -29,24 +30,11 @@
 
 #define PLUGIN_MAX_ENTRIES_PER_BIN 500
 
+#define KS_TASK_COLLECTION_MARGIN 25
+
 //! @endcond
 
 extern struct plugin_sched_context *plugin_sched_context_handler;
-
-static int plugin_get_wakeup_pid(kshark_context *kshark_ctx,
-				 plugin_sched_context *plugin_ctx,
-				 const struct kshark_entry *e)
-{
-	struct tep_record *record;
-	unsigned long long val;
-
-	record = kshark_read_at(kshark_ctx, e->offset);
-	tep_read_number_field(plugin_ctx->sched_wakeup_pid_field,
-			      record->data, &val);
-	free_record(record);
-
-	return val;
-}
 
 /** Sched Event identifier. */
 enum class SchedEvent {
@@ -139,23 +127,16 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 			ksmodel_get_entry_back(histo, bin, false,
 					       plugin_wakeup_match_pid, pid,
 					       col, nullptr);
-		int wakeup_pid;
 
-		if (entryB &&
-		    plugin_ctx->sched_wakeup_event &&
-		    entryB->event_id == plugin_ctx->sched_wakeup_event->id) {
-			wakeup_pid =
-				plugin_get_wakeup_pid(kshark_ctx, plugin_ctx, entryB);
-			if (wakeup_pid == pid) {
-				/*
-				 * entryB is a sched_wakeup_event. Open a
-				 * green box here.
-				 */
-				openBox(graph->getBin(bin)._base);
+		if (entryB) {
+			/*
+			 * entryB is a sched_wakeup_event. Open a
+			 * green box here.
+			 */
+			openBox(graph->getBin(bin)._base);
 
-				 /* Green */
-				rec->_color = KsPlot::Color(0, 255, 0);
-			}
+			/* Green */
+			rec->_color = KsPlot::Color(0, 255, 0);
 		}
 	};
 
@@ -171,10 +152,7 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 					       plugin_switch_match_pid, pid,
 					       col, nullptr);
 
-		if (entryB &&
-		    entryB->pid != pid &&
-		    plugin_ctx->sched_switch_event &&
-		    entryB->event_id == plugin_ctx->sched_switch_event->id) {
+		if (entryB && entryB->pid != pid) {
 			/*
 			 * entryB is a sched_switch_event. Open a
 			 * red box here.
@@ -215,6 +193,67 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 	return;
 }
 
+static std::unordered_set<int> secondPassDone;
+
+/*
+ * Ideally, the sched_switch has to be the last trace event recorded before the
+ * task is preempted. Because of this, when the data is loaded (the first pass),
+ * the "pid" field of the sched_switch entries gets edited by this plugin to be
+ * equal to the "next pid" of the sched_switch event. However, in reality the
+ * sched_switch event may be followed by some trailing events from the same task
+ * (printk events for example). This has the effect of extending the graph of
+ * the task outside of the actual duration of the task. The "second pass" over
+ * the data is used to fix this problem. It takes advantage of the "next" field
+ * of the entry (this field is set during the first pass) to search for trailing
+ * events after the "sched_switch".
+ */
+static void secondPass(kshark_entry **data,
+		       kshark_entry_collection *col,
+		       int pid)
+{
+	const kshark_entry *e;
+	kshark_entry *last;
+	int first, n;
+	ssize_t index;
+
+	/* Loop over the intervals of the data collection. */
+	for (size_t i = 0; i < col->size; ++i) {
+		first = col->break_points[i];
+		n = first - col->resume_points[i];
+
+		kshark_entry_request *req =
+			kshark_entry_request_alloc(first, n,
+						   plugin_switch_match_pid, pid,
+						   false,
+						   KS_GRAPH_VIEW_FILTER_MASK);
+
+		e = kshark_get_entry_back(req, data, &index);
+		free(req);
+
+		if (!e || index < 0) {
+			/* No sched_switch event in this interval. */
+			continue;
+		}
+
+		/* Find the very last trailing event. */
+		for (last = data[index]; last->next; last = last->next) {
+			if (last->next->pid != pid) {
+				/*
+				 * This is the last trailing event. Change the
+				 * "pid" to be equal to the "next pid" of the
+				 * sched_switch event and leave a sign that you
+				 * edited this entry.
+				 */
+				last->pid = data[index]->pid;
+				last->visible &= ~KS_PLUGIN_UNTOUCHED_MASK;
+				break;
+			}
+		}
+	}
+
+	secondPassDone.insert(pid);
+}
+
 /**
  * @brief Plugin's draw function.
  *
@@ -246,8 +285,25 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 	 */
 	col = kshark_find_data_collection(kshark_ctx->collections,
 					  kshark_match_pid, pid);
+	if (!col) {
+		/*
+		 * If a data collection for this task does not exist,
+		 * register a new one.
+		 */
+		kshark_entry **data = argvCpp->_histo->data;
+		int size = argvCpp->_histo->data_size;
+		col = kshark_register_data_collection(kshark_ctx,
+						      data, size,
+						      kshark_match_pid, pid,
+						      KS_TASK_COLLECTION_MARGIN);
+	}
 
 	try {
+		if (secondPassDone.find(pid) == secondPassDone.end()) {
+			/* The second pass for this task is not done yet. */
+			secondPass(argvCpp->_histo->data, col, pid);
+		}
+
 		pluginDraw(plugin_ctx, kshark_ctx,
 			   argvCpp->_histo, col,
 			   SchedEvent::Switch, pid,

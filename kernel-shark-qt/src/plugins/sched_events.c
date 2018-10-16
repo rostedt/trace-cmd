@@ -167,9 +167,6 @@ bool plugin_wakeup_match_pid(struct kshark_context *kshark_ctx,
 	unsigned long long val;
 	int wakeup_pid = -1;
 
-	if (e->pid == pid)
-		return true;
-
 	plugin_ctx = plugin_sched_context_handler;
 	if (!plugin_ctx)
 		return false;
@@ -221,22 +218,18 @@ bool plugin_switch_match_pid(struct kshark_context *kshark_ctx,
 			     int pid)
 {
 	struct plugin_sched_context *plugin_ctx;
-	struct tep_record *record = NULL;
 	int switch_pid = -1;
-
-	if (e->pid == pid)
-		return true;
 
 	plugin_ctx = plugin_sched_context_handler;
 
 	if (plugin_ctx->sched_switch_event &&
 	    e->event_id == plugin_ctx->sched_switch_event->id) {
+		struct tep_record *record;
+
 		record = kshark_read_at(kshark_ctx, e->offset);
-
 		switch_pid = tep_data_pid(plugin_ctx->pevent, record);
+		free_record(record);
 	}
-
-	free_record(record);
 
 	if (switch_pid >= 0 && switch_pid == pid)
 		return true;
