@@ -14,9 +14,7 @@ OBJS += trace-seq.o
 OBJS += parse-filter.o
 OBJS += parse-utils.o
 OBJS += event-parse-api.o
-
-# Additional util objects
-OBJS += str_error_r.o
+OBJS += tep_strerror.o
 
 OBJS := $(OBJS:%.o=$(bdir)/%.o)
 DEPS := $(OBJS:$(bdir)/%.o=$(bdir)/.%.d)
