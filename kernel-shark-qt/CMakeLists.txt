@@ -46,6 +46,9 @@ if (NOT _DEBUG)
 
 endif (NOT _DEBUG)
 
+SET(CMAKE_INSTALL_RPATH "/usr/local/lib/kshark/")
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
 include_directories(${KS_DIR}/src/
                     ${KS_DIR}/build/src/
                     ${JSONC_INCLUDE_DIR}

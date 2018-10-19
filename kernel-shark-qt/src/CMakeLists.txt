@@ -73,6 +73,16 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
     add_executable(kshark-record        kshark-record.cpp)
     target_link_libraries(kshark-record kshark-gui)
 
+    install(TARGETS kernelshark kshark-record kshark kshark-plot kshark-gui
+            RUNTIME DESTINATION /usr/local/bin/
+            LIBRARY DESTINATION /usr/local/lib/kshark/)
+
+    install(FILES "${KS_DIR}/kernelshark.desktop"
+            DESTINATION /usr/share/applications/)
+
+    install(FILES "${KS_DIR}/org.freedesktop.kshark-record.policy"
+            DESTINATION /usr/share/polkit-1/actions/)
+
 endif (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
 add_subdirectory(plugins)

@@ -24,4 +24,7 @@ BUILD_PLUGIN(NAME sched_events
 list(APPEND PLUGIN_LIST "sched_events default") # This plugin will be loaded by default
 # list(APPEND PLUGIN_LIST "sched_events") # This plugin isn't loaded by default
 
+install(TARGETS sched_events
+        LIBRARY DESTINATION /usr/local/lib/kshark/)
+
 set(PLUGINS ${PLUGIN_LIST} PARENT_SCOPE)
