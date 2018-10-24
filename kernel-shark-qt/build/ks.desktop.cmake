@@ -6,4 +6,4 @@ GenericName=Kernel Shark
 Comment=
 Exec=/usr/local/bin/kernelshark
 Icon=@KS_DIR@/icons/ksharkicon.png
-Terminalúlse
+Terminal=false
