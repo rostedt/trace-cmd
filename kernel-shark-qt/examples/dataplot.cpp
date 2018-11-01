@@ -78,36 +78,42 @@ void drawShapes()
 /* An example function demonstrating Zoom In and Zoom Out. */
 void play()
 {
-	KsPlot::ColorTable colors = KsPlot::getColorTable();
+	KsPlot::ColorTable taskColors = KsPlot::getTaskColorTable();
+	KsPlot::ColorTable cpuColors = KsPlot::getCPUColorTable();
 	vector<KsPlot::Graph *>::iterator it;
 	vector<int> CPUs, Tasks;
-	KsPlot::Graph *graph;
 	bool zoomIn(true);
 	int base;
+	size_t i;
 
 	CPUs = {3, 4, 6};
 	Tasks = {}; // Add valid pids here, if you want task plots.
 
-	for (size_t i = 0; i < CPUs.size() + Tasks.size(); ++i) {
-		/* Make a new Graph. */
-		graph = new KsPlot::Graph(&histo, &colors);
-
+	auto lamAddGraph = [&] (KsPlot::Graph *g) {
 		/* Set the dimensions of the Graph. */
-		graph->setHeight(GRAPH_HEIGHT);
-		graph->setHMargin(GRAPH_H_MARGIN);
+		g->setHeight(GRAPH_HEIGHT);
+		g->setHMargin(GRAPH_H_MARGIN);
 
 		/*
 		 * Set the Y coordinate of the Graph's base.
 		 * Remember that the "Y" coordinate is inverted.
 		 */
 		base = 1.7 * GRAPH_HEIGHT * (i + 1);
-		graph->setBase(base);
+		g->setBase(base);
 
 		/* Add the Graph. */
-		graphs.push_back(graph);
-	}
+		graphs.push_back(g);
+	};
 
-	for (int i = 1; i < 1000; ++i) {
+	for (i = 0; i < CPUs.size(); ++i)
+		lamAddGraph(new KsPlot::Graph(&histo, &taskColors,
+						      &taskColors));
+
+	for (;i < CPUs.size() + Tasks.size(); ++i)
+		lamAddGraph(new KsPlot::Graph(&histo, &taskColors,
+						      &cpuColors));
+
+	for (i = 1; i < 1000; ++i) {
 		it = graphs.begin();
 
 		for (int const &cpu: CPUs)

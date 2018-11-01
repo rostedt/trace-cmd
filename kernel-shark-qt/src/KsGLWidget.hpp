@@ -161,6 +161,8 @@ private:
 
 	KsPlot::ColorTable	_pidColors;
 
+	KsPlot::ColorTable	_cpuColors;
+
 	int		_hMargin, _vMargin;
 
 	unsigned int	_vSpacing;

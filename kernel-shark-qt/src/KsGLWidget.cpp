@@ -356,7 +356,9 @@ void KsGLWidget::loadData(KsDataStore *data)
 void KsGLWidget::loadColors()
 {
 	_pidColors.clear();
-	_pidColors = KsPlot::getColorTable();
+	_pidColors = KsPlot::getTaskColorTable();
+	_cpuColors.clear();
+	_cpuColors = KsPlot::getCPUColorTable();
 }
 
 /**
@@ -530,8 +532,12 @@ void KsGLWidget::_makePluginShapes(QVector<int> cpuList, QVector<int> taskList)
 
 KsPlot::Graph *KsGLWidget::_newCPUGraph(int cpu)
 {
+	/* The CPU graph needs to know only the colors of the tasks. */
 	KsPlot::Graph *graph = new KsPlot::Graph(_model.histo(),
+						 &_pidColors,
 						 &_pidColors);
+	graph->setZeroSuppressed(true);
+
 	kshark_context *kshark_ctx(nullptr);
 	kshark_entry_collection *col;
 
@@ -553,8 +559,13 @@ KsPlot::Graph *KsGLWidget::_newCPUGraph(int cpu)
 
 KsPlot::Graph *KsGLWidget::_newTaskGraph(int pid)
 {
+	/*
+	 * The Task graph needs to know the colors of the tasks and the colors
+	 * of the CPUs.
+	 */
 	KsPlot::Graph *graph = new KsPlot::Graph(_model.histo(),
-						 &_pidColors);
+						 &_pidColors,
+						 &_cpuColors);
 	kshark_context *kshark_ctx(nullptr);
 	kshark_entry_collection *col;
 

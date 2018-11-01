@@ -106,11 +106,11 @@ void Color::setRainbowColor(int n)
  *
  * @returns ColorTable instance.
  */
-ColorTable getColorTable()
+ColorTable getTaskColorTable()
 {
 	struct kshark_context *kshark_ctx(nullptr);
 	ColorTable colors;
-	int nTasks, pid, *pids;
+	int nTasks, pid, *pids, i(0);
 
 	if (!kshark_instance(&kshark_ctx))
 		return colors;
@@ -122,13 +122,37 @@ ColorTable getColorTable()
 	std::vector<int> temp_pids(pids, pids + nTasks);
 	std::sort(temp_pids.begin(), temp_pids.end());
 
-	/* The "Idle" process (pid = 0) will be plotted in black. */
-	colors[0] = {};
+	if (temp_pids[i] == 0) {
+		/* The "Idle" process (pid = 0) will be plotted in black. */
+		colors[i++] = {};
+	}
 
-	for (int i = 1; i < nTasks; ++i) {
+	for (; i < nTasks; ++i) {
 		pid = temp_pids[i];
 		colors[pid].setRainbowColor(i - 1);
 	}
+
+	return colors;
+}
+
+/**
+ * @brief Create a Hash table of Rainbow colors. The CPU Ids are
+ *	  mapped to the palette of Rainbow colors.
+ *
+ * @returns ColorTable instance.
+ */
+ColorTable getCPUColorTable()
+{
+	struct kshark_context *kshark_ctx(nullptr);
+	ColorTable colors;
+	int nCPUs;
+
+	if (!kshark_instance(&kshark_ctx))
+		return colors;
+
+	nCPUs =  tep_get_cpus(kshark_ctx->pevent);
+	for (int i = 0; i < nCPUs; ++i)
+		colors[i].setRainbowColor(i);
 
 	return colors;
 }
@@ -142,7 +166,7 @@ ColorTable getColorTable()
  * @returns The Rainbow color of the key "pid". If "pid" does not exist, the
  *	    returned color is Black.
  */
-Color getPidColor(ColorTable *colors, int pid)
+Color getColor(ColorTable *colors, int pid)
 {
 	auto item = colors->find(pid);
 
@@ -499,8 +523,8 @@ void Mark::setTaskVisible(bool v)
  * @brief Create a default Bin.
  */
 Bin::Bin()
-: _pidFront(KS_EMPTY_BIN),
-  _pidBack(KS_EMPTY_BIN)
+: _idFront(KS_EMPTY_BIN),
+  _idBack(KS_EMPTY_BIN)
 {}
 
 void Bin::_draw(const Color &col, float size) const
@@ -528,22 +552,27 @@ Graph::Graph()
   _size(0),
   _hMargin(30),
   _collectionPtr(nullptr),
-  _pidColors(nullptr)
+  _binColors(nullptr),
+  _ensembleColors(nullptr),
+  _zeroSuppress(false)
 {}
 
 /**
  * @brief Create a Graph to represent the state of the Vis. model.
  *
  * @param histo: Input location for the model descriptor.
- * @param ct: Input location for the Hash table of Task's colors.
+ * @param bct: Input location for the Hash table of bin's colors.
+ * @param ect: Input location for the Hash table of ensemble's colors.
  */
-Graph::Graph(kshark_trace_histo *histo, KsPlot::ColorTable *ct)
+Graph::Graph(kshark_trace_histo *histo, KsPlot::ColorTable *bct, KsPlot::ColorTable *ect)
 : _histoPtr(histo),
   _bins(new(std::nothrow) Bin[histo->n_bins]),
   _size(histo->n_bins),
   _hMargin(30),
   _collectionPtr(nullptr),
-  _pidColors(ct)
+  _binColors(bct),
+  _ensembleColors(ect),
+  _zeroSuppress(false)
 {
 	if (!_bins) {
 		_size = 0;
@@ -678,8 +707,8 @@ void Graph::setBinValue(int bin, int val)
  */
 void Graph::setBinPid(int bin, int pidF, int pidB)
 {
-	_bins[bin]._pidFront = pidF;
-	_bins[bin]._pidBack = pidB;
+	_bins[bin]._idFront = pidF;
+	_bins[bin]._idBack = pidB;
 }
 
 /**
@@ -782,7 +811,7 @@ void Graph::fillCPUGraph(int cpu)
 		if (pidFront != KS_EMPTY_BIN || pidBack != KS_EMPTY_BIN) {
 			/* This is a regular process. */
 			setBin(bin, pidFront, pidBack,
-			       getPidColor(_pidColors, pidFront), visMask);
+			       getColor(_binColors, pidFront), visMask);
 		} else {
 			/* The bin contens no data from this CPU. */
 			setBinPid(bin, KS_EMPTY_BIN, KS_EMPTY_BIN);
@@ -855,27 +884,26 @@ void Graph::fillCPUGraph(int cpu)
  */
 void Graph::fillTaskGraph(int pid)
 {
-	int cpu, pidFront(0), pidBack(0), lastCpu(-1), bin(0);
+	int cpuFront, cpuBack(0), pidFront(0), pidBack(0), lastCpu(-1), bin(0);
 	uint8_t visMask;
 	ssize_t index;
 
 	auto lamSetBin = [&] (int bin)
 	{
-		if (cpu >= 0) {
-			KsPlot::Color col;
-			col.setRainbowColor(cpu);
+		if (cpuFront >= 0) {
+			KsPlot::Color col = getColor(_binColors, pid);
 
 			/* Data from the Task has been found in this bin. */
 			if (pid == pidFront && pid == pidBack) {
 				/* No data from other tasks in this bin. */
-				setBin(bin, pid, pid, col, visMask);
+				setBin(bin, cpuFront, cpuBack, col, visMask);
 			} else if (pid != pidFront && pid != pidBack) {
 				/*
 				 * There is some data from other tasks at both
 				 * front and back sides of this bin. But we
 				 * still want to see this bin drawn.
 				 */
-				setBin(bin, pid, KS_FILTERED_BIN, col,
+				setBin(bin, cpuFront, KS_FILTERED_BIN, col,
 				       visMask);
 			} else {
 				if (pidFront != pid) {
@@ -883,7 +911,7 @@ void Graph::fillTaskGraph(int pid)
 					 * There is some data from another
 					 * task at the front side of this bin.
 					 */
-					pidFront = KS_FILTERED_BIN;
+					cpuFront = KS_FILTERED_BIN;
 				}
 
 				if (pidBack != pid) {
@@ -891,13 +919,13 @@ void Graph::fillTaskGraph(int pid)
 					 * There is some data from another
 					 * task at the back side of this bin.
 					 */
-					pidBack = KS_FILTERED_BIN;
+					cpuBack = KS_FILTERED_BIN;
 				}
 
-				setBin(bin, pidFront, pidBack, col, visMask);
+				setBin(bin, cpuFront, cpuBack, col, visMask);
 			}
 
-			lastCpu = cpu;
+			lastCpu = cpuBack;
 		} else {
 			/*
 			 * No data from the Task in this bin. Check the CPU,
@@ -929,14 +957,20 @@ void Graph::fillTaskGraph(int pid)
 	auto lamGetPidCPU = [&] (int bin)
 	{
 		/* Get the CPU used by this task. */
-		cpu = ksmodel_get_cpu_front(_histoPtr, bin,
-						       pid,
-						       false,
-						       _collectionPtr,
-						       nullptr);
+		cpuFront = ksmodel_get_cpu_front(_histoPtr, bin,
+						 pid,
+						 false,
+						 _collectionPtr,
+						 nullptr);
 
-		if (cpu < 0) {
-			pidFront = pidBack = cpu;
+		cpuBack = ksmodel_get_cpu_back(_histoPtr, bin,
+					       pid,
+					       false,
+					       _collectionPtr,
+					       nullptr);
+
+		if (cpuFront < 0) {
+			pidFront = pidBack = cpuFront;
 		} else {
 			/*
 			 * Get the process Id at the begining and at the end
@@ -944,14 +978,14 @@ void Graph::fillTaskGraph(int pid)
 			 */
 			pidFront = ksmodel_get_pid_front(_histoPtr,
 							 bin,
-							 cpu,
+							 cpuFront,
 							 false,
 							 _collectionPtr,
 							 nullptr);
 
 			pidBack = ksmodel_get_pid_back(_histoPtr,
 						       bin,
-						       cpu,
+						       cpuBack,
 						       false,
 						       _collectionPtr,
 						       nullptr);
@@ -973,7 +1007,7 @@ void Graph::fillTaskGraph(int pid)
 	 */
 	lamGetPidCPU(bin);
 
-	if (cpu >= 0) {
+	if (cpuFront >= 0) {
 		/* The Task is active. Set this bin. */
 		lamSetBin(bin);
 	} else {
@@ -981,9 +1015,9 @@ void Graph::fillTaskGraph(int pid)
 		 * No data from this Task in the very first bin. Use the Lower
 		 * Overflow Bin to retrieve the CPU used by the task (if any).
 		 */
-		cpu = ksmodel_get_cpu_back(_histoPtr, LOWER_OVERFLOW_BIN, pid,
+		cpuFront = ksmodel_get_cpu_back(_histoPtr, LOWER_OVERFLOW_BIN, pid,
 					   false, _collectionPtr, nullptr);
-		if (cpu >= 0) {
+		if (cpuFront >= 0) {
 			/*
 			 * The Lower Overflow Bin contains data from this Task.
 			 * Now look again in the Lower Overflow Bin and find
@@ -991,7 +1025,7 @@ void Graph::fillTaskGraph(int pid)
 			 */
 			int pidCpu = ksmodel_get_pid_back(_histoPtr,
 							  LOWER_OVERFLOW_BIN,
-							  cpu,
+							  cpuFront,
 							  false,
 							  _collectionPtr,
 							  nullptr);
@@ -1002,8 +1036,10 @@ void Graph::fillTaskGraph(int pid)
 				 * the very first bin is empty but we derive
 				 * the Process Id from the Lower Overflow Bin.
 				 */
-				setBinPid(bin, pid, pid);
-				lastCpu = cpu;
+				setBinPid(bin, cpuFront, cpuFront);
+				lastCpu = cpuFront;
+			} else {
+				setBinPid(bin, KS_EMPTY_BIN, KS_EMPTY_BIN);
 			}
 		}
 	}
@@ -1027,7 +1063,7 @@ void Graph::fillTaskGraph(int pid)
  */
 void Graph::draw(float size)
 {
-	int lastPid(0), b(0), boxH(_height * .3);
+	int lastPid(-1), b(0), boxH(_height * .3);
 	Rectangle taskBox;
 
 	/*
@@ -1038,23 +1074,27 @@ void Graph::draw(float size)
 
 	/* Draw as vartical lines all bins containing data. */
 	for (int i = 0; i < _size; ++i)
-		if (_bins[i]._pidFront >= 0 || _bins[i]._pidBack >= 0)
+		if (_bins[i]._idFront >= 0 || _bins[i]._idBack >= 0)
 			if (_bins[i]._visMask & KS_EVENT_VIEW_FILTER_MASK)
 				_bins[i].draw();
+
+	auto lamCheckEnsblVal = [this] (int v) {
+		return v > 0 || (v == 0 && !this->_zeroSuppress);
+	};
 
 	/*
 	 * Draw colored boxes for processes. First find the first bin, which
 	 * contains data and determine its PID.
 	 */
 	for (; b < _size; ++b) {
-		if (_bins[b]._pidBack > 0) {
-			lastPid = _bins[b]._pidFront;
+		if (lamCheckEnsblVal(_bins[b]._idBack)) {
+			lastPid = _bins[b]._idFront;
 			/*
 			 * Initialize a box starting from this bin.
 			 * The color of the taskBox corresponds to the Pid
 			 * of the process.
 			 */
-			taskBox._color = getPidColor(_pidColors, lastPid);
+			taskBox._color = getColor(_ensembleColors, lastPid);
 			taskBox.setPoint(0, _bins[b]._base.x(),
 					_bins[b]._base.y() - boxH);
 			taskBox.setPoint(1, _bins[b]._base.x(),
@@ -1064,8 +1104,8 @@ void Graph::draw(float size)
 	}
 
 	for (; b < _size; ++b) {
-		if (_bins[b]._pidFront == KS_EMPTY_BIN &&
-		    _bins[b]._pidBack == KS_EMPTY_BIN) {
+		if (_bins[b]._idFront == KS_EMPTY_BIN &&
+		    _bins[b]._idBack == KS_EMPTY_BIN) {
 			/*
 			 * This bin is empty. If a colored taskBox is already
 			 * initialized, it will be extended.
@@ -1073,11 +1113,11 @@ void Graph::draw(float size)
 			continue;
 		}
 
-		if (_bins[b]._pidFront != _bins[b]._pidBack ||
-		    _bins[b]._pidFront != lastPid ||
-		    _bins[b]._pidBack  != lastPid) {
+		if (_bins[b]._idFront != _bins[b]._idBack ||
+		    _bins[b]._idFront != lastPid ||
+		    _bins[b]._idBack  != lastPid) {
 			/* A new process starts here. */
-			if (lastPid > 0 && b > 0) {
+			if (b > 0 && lamCheckEnsblVal(lastPid)) {
 				/*
 				 * There is another process running up to this
 				 * point. Close its colored box here and draw.
@@ -1089,13 +1129,13 @@ void Graph::draw(float size)
 				taskBox.draw();
 			}
 
-			if (_bins[b]._pidBack > 0) {
+			if (lamCheckEnsblVal(_bins[b]._idBack)) {
 				/*
 				 * This is a regular process. Initialize
 				 * colored box starting from this bin.
 				 */
-				taskBox._color = getPidColor(_pidColors,
-							 _bins[b]._pidBack);
+				taskBox._color = getColor(_ensembleColors,
+							 _bins[b]._idBack);
 
 				taskBox.setPoint(0, _bins[b]._base.x() - 1,
 						_bins[b]._base.y() - boxH);
@@ -1103,11 +1143,11 @@ void Graph::draw(float size)
 						_bins[b]._base.y());
 			}
 
-			lastPid = _bins[b]._pidBack;
+			lastPid = _bins[b]._idBack;
 		}
 	}
 
-	if (lastPid > 0) {
+	if (lamCheckEnsblVal(lastPid) > 0) {
 		/*
 		 * This is the end of the Graph and we have a process running.
 		 * Close its colored box and draw.

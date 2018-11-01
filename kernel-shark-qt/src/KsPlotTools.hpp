@@ -74,9 +74,11 @@ private:
 /** Hash table of colors. */
 typedef std::unordered_map<int, KsPlot::Color> ColorTable;
 
-ColorTable getColorTable();
+ColorTable getTaskColorTable();
 
-Color getPidColor(ColorTable *colors, int pid);
+ColorTable getCPUColorTable();
+
+Color getColor(ColorTable *colors, int pid);
 
 /** Represents an abstract graphical element. */
 class PlotObject {
@@ -359,16 +361,16 @@ public:
 	void setVal(int v) {_val.setY(_base.y() - v); }
 
 	/**
-	 * The Process Id detected at the front (first in time) edge of
-	 * the bin.
+	 * The Id value (pid or cpu) detected at the front (first in time) edge
+	 * of the bin.
 	 */
-	int	_pidFront;
+	int	_idFront;
 
 	/**
-	 * The Process Id detected at the back (last in time) edge of
-	 * the bin.
+	 * The Id value (pid or cpu) detected at the back (last in time) edge
+	 * of the bin.
 	 */
-	int	_pidBack;
+	int	_idBack;
 
 	/** Lower finishing point of the line, representing the Bin. */
 	Point	_base;
@@ -397,7 +399,8 @@ public:
 	/* Disable moving. Same as copying.*/
 	Graph(Graph &&) = delete;
 
-	Graph(kshark_trace_histo *histo, KsPlot::ColorTable *ct);
+	Graph(kshark_trace_histo *histo, KsPlot::ColorTable *bct,
+					 KsPlot::ColorTable *ect);
 
 	/* Keep this destructor virtual. */
 	virtual ~Graph();
@@ -418,7 +421,7 @@ public:
 	}
 
 	/** @brief Set the Hash table of Task's colors. */
-	void setColorTablePtr(KsPlot::ColorTable *ct) {_pidColors = ct;}
+	void setBinColorTablePtr(KsPlot::ColorTable *ct) {_binColors = ct;}
 
 	void fillCPUGraph(int cpu);
 
@@ -452,6 +455,19 @@ public:
 
 	void setHMargin(int hMargin);
 
+	/**
+	 * Check if this graph is Zero Suppressed. Zero Suppressed means that
+	 * bins having Id value = 0 (Idle task records) are not grouped
+	 * together.
+	 */
+	bool zeroSuppressed(bool zs) {return _zeroSuppress;}
+
+	/**
+	 * Set Zero Suppression. If True, the bins having Id value = 0 (Idle
+	 * task records) are not grouped together.
+	 */
+	void setZeroSuppressed(bool zs) {_zeroSuppress = zs;}
+
 private:
 	/** Pointer to the model descriptor object. */
 	kshark_trace_histo	*_histoPtr;
@@ -474,8 +490,13 @@ private:
 	/** Pointer to the data collection object. */
 	kshark_entry_collection	*_collectionPtr;
 
-	/** Hash table of Task's colors. */
-	ColorTable		*_pidColors;
+	/** Hash table of bin's colors. */
+	ColorTable		*_binColors;
+
+	/** Hash table of ensemble's colors. */
+	ColorTable		*_ensembleColors;
+
+	bool			_zeroSuppress;
 
 	void _initBins();
 };
