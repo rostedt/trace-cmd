@@ -859,8 +859,9 @@ void KsMainWindow::_error(const QString &text, const QString &errCode,
 	if (unloadPlugins)
 		_plugins.unloadAll();
 
-	em->showMessage(text, errCode);
 	qCritical() << "ERROR: " << text;
+	em->showMessage(text, errCode);
+	em->exec();
 }
 
 /**
