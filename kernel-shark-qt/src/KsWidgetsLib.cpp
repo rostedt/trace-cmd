@@ -622,7 +622,7 @@ KsCPUCheckBoxWidget::KsCPUCheckBoxWidget(struct tep_handle *tep,
 : KsCheckBoxTreeWidget("CPUs", parent)
 {
 	int nCPUs(0), height(FONT_HEIGHT * 1.5);
-	KsPlot::Color cpuCol;
+	KsPlot::ColorTable colors;
 	QString style;
 
 	style = QString("QTreeView::item { height: %1 ;}").arg(height);
@@ -635,16 +635,16 @@ KsCPUCheckBoxWidget::KsCPUCheckBoxWidget(struct tep_handle *tep,
 
 	_id.resize(nCPUs);
 	_cb.resize(nCPUs);
+	colors = KsPlot::getCPUColorTable();
 
 	for (int i = 0; i < nCPUs; ++i) {
-		cpuCol.setRainbowColor(i);
 		QTreeWidgetItem *cpuItem = new QTreeWidgetItem;
 		cpuItem->setText(0, "  ");
 		cpuItem->setText(1, QString("CPU %1").arg(i));
 		cpuItem->setCheckState(0, Qt::Checked);
-		cpuItem->setBackgroundColor(0, QColor(cpuCol.r(),
-						      cpuCol.g(),
-						      cpuCol.b()));
+		cpuItem->setBackgroundColor(0, QColor(colors[i].r(),
+						      colors[i].g(),
+						      colors[i].b()));
 		_tree.addTopLevelItem(cpuItem);
 		_id[i] = i;
 		_cb[i] = cpuItem;
@@ -719,10 +719,10 @@ KsTasksCheckBoxWidget::KsTasksCheckBoxWidget(struct tep_handle *pevent,
 {
 	kshark_context *kshark_ctx(nullptr);
 	QTableWidgetItem *pidItem, *comItem;
-	KsPlot::Color pidCol;
+	KsPlot::ColorTable colors;
 	QStringList headers;
 	const char *comm;
-	int nTasks;
+	int nTasks, pid;
 
 	if (!kshark_instance(&kshark_ctx))
 		return;
@@ -735,24 +735,24 @@ KsTasksCheckBoxWidget::KsTasksCheckBoxWidget(struct tep_handle *pevent,
 	_id = KsUtils::getPidList();
 	nTasks = _id.count();
 	_initTable(headers, nTasks);
+	colors = KsPlot::getTaskColorTable();
 
 	for (int i = 0; i < nTasks; ++i) {
-		pidItem	= new QTableWidgetItem(tr("%1").arg(_id[i]));
+		pid = _id[i];
+		pidItem	= new QTableWidgetItem(tr("%1").arg(pid));
 		_table.setItem(i, 1, pidItem);
 
-		comm = tep_data_comm_from_pid(kshark_ctx->pevent, _id[i]);
+		comm = tep_data_comm_from_pid(kshark_ctx->pevent, pid);
 		comItem = new QTableWidgetItem(tr(comm));
 
-		pidItem->setBackgroundColor(QColor(pidCol.r(),
-						   pidCol.g(),
-						   pidCol.b()));
+		pidItem->setBackgroundColor(QColor(colors[pid].r(),
+						   colors[pid].g(),
+						   colors[pid].b()));
 
 		if (_id[i] == 0)
 			pidItem->setTextColor(Qt::white);
 
 		_table.setItem(i, 2, comItem);
-
-		pidCol.setRainbowColor(i);
 	}
 
 	_adjustSize();
