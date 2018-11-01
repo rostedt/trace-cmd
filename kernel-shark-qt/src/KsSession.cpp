@@ -431,7 +431,6 @@ void KsSession::loadDualMarker(KsDualMarkerSM *dm, KsTraceGraph *graphs)
 
 	dm->reset();
 	dm->setState(DualMarkerState::A);
-
 	if (_getMarker("markA", &pos)) {
 		graphs->markEntry(pos);
 	} else {
@@ -446,9 +445,10 @@ void KsSession::loadDualMarker(KsDualMarkerSM *dm, KsTraceGraph *graphs)
 	}
 
 	dm->setState(_getMarkerState());
-	pos = dm->activeMarker()._pos;
-
-	emit graphs->glPtr()->updateView(pos, true);
+	if (dm->activeMarker()._isSet) {
+		pos = dm->activeMarker()._pos;
+		emit graphs->glPtr()->updateView(pos, true);
+	}
 }
 
 json_object *KsSession::_getMarkerJson()
