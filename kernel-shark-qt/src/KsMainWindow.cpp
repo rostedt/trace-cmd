@@ -64,7 +64,6 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _colSlider(this),
   _colorPhaseSlider(Qt::Horizontal, this),
   _fullScreenModeAction("Full Screen Mode", this),
-  _isFullScreen(false),
   _aboutAction("About", this),
   _contentsAction("Contents", this)
 {
@@ -245,7 +244,7 @@ void KsMainWindow::_createActions()
 	_fullScreenModeAction.setStatusTip("Full Screen Mode");
 
 	connect(&_fullScreenModeAction,	&QAction::triggered,
-		this,			&KsMainWindow::_fullScreenMode);
+		this,			&KsMainWindow::_changeScreenMode);
 
 	/* Help menu */
 	_aboutAction.setIcon(QIcon::fromTheme("help-about"));
@@ -732,18 +731,16 @@ void KsMainWindow::_setColorPhase(int f)
 	_graph.glPtr()->model()->update();
 }
 
-void KsMainWindow::_fullScreenMode()
+void KsMainWindow::_changeScreenMode()
 {
-	if (_isFullScreen) {
+	if (isFullScreen()) {
 		_fullScreenModeAction.setText("Full Screen Mode");
 		_fullScreenModeAction.setIcon(QIcon::fromTheme("view-fullscreen"));
 		showNormal();
-		_isFullScreen = false;
 	} else {
 		_fullScreenModeAction.setText("Exit Full Screen Mode");
 		_fullScreenModeAction.setIcon(QIcon::fromTheme("view-restore"));
 		showFullScreen();
-		_isFullScreen = true;
 	}
 }
 

@@ -61,6 +61,12 @@ public:
 
 	void resizeEvent(QResizeEvent* event);
 
+	/** Set the Full Screen mode. */
+	void setFullScreenMode(bool f) {
+		if ((!isFullScreen() && f) || (isFullScreen() && !f) )
+			_changeScreenMode();
+	}
+
 private:
 	QSplitter	_splitter;
 
@@ -136,8 +142,6 @@ private:
 
 	QAction		_fullScreenModeAction;
 
-	bool		_isFullScreen;
-
 	// Help menu.
 	QAction		_aboutAction;
 
@@ -179,7 +183,7 @@ private:
 
 	void _setColorPhase(int);
 
-	void _fullScreenMode();
+	void _changeScreenMode();
 
 	void _aboutInfo();
 

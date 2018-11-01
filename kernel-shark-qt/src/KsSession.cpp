@@ -12,6 +12,7 @@
 // KernelShark
 #include "libkshark.h"
 #include "KsSession.hpp"
+#include "KsMainWindow.hpp"
 
 /** Create a KsSession object. */
 KsSession::KsSession()
@@ -175,10 +176,15 @@ void KsSession::saveMainWindowSize(const QMainWindow &window)
 {
 	kshark_config_doc *windowConf = kshark_config_alloc(KS_CONFIG_JSON);
 	int width = window.width(), height = window.height();
-	json_object *jwindow = json_object_new_array();
+	json_object *jwindow;
 
-	json_object_array_put_idx(jwindow, 0, json_object_new_int(width));
-	json_object_array_put_idx(jwindow, 1, json_object_new_int(height));
+	if (window.isFullScreen()) {
+		jwindow = json_object_new_string("FullScreen");
+	} else {
+		jwindow = json_object_new_array();
+		json_object_array_put_idx(jwindow, 0, json_object_new_int(width));
+		json_object_array_put_idx(jwindow, 1, json_object_new_int(height));
+	}
 
 	windowConf->conf_doc = jwindow;
 	kshark_config_doc_add(_config, "MainWindow", windowConf);
@@ -189,7 +195,7 @@ void KsSession::saveMainWindowSize(const QMainWindow &window)
  *
  * @param window: Input location for the KsMainWindow widget.
  */
-void KsSession::loadMainWindowSize(QMainWindow *window)
+void KsSession::loadMainWindowSize(KsMainWindow *window)
 {
 	kshark_config_doc *windowConf = kshark_config_alloc(KS_CONFIG_JSON);
 	json_object *jwindow, *jwidth, *jheight;
@@ -200,12 +206,19 @@ void KsSession::loadMainWindowSize(QMainWindow *window)
 
 	if (_config->format == KS_CONFIG_JSON) {
 		jwindow = KS_JSON_CAST(windowConf->conf_doc);
+		if (json_object_get_type(jwindow) == json_type_string &&
+		    QString(json_object_get_string(jwindow)) == "FullScreen") {
+			window->setFullScreenMode(true);
+			return;
+		}
+
 		jwidth = json_object_array_get_idx(jwindow, 0);
 		jheight = json_object_array_get_idx(jwindow, 1);
 
 		width = json_object_get_int(jwidth);
 		height = json_object_get_int(jheight);
 
+		window->setFullScreenMode(false);
 		window->resize(width, height);
 	}
 }

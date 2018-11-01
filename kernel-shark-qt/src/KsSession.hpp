@@ -20,6 +20,8 @@
 #include "KsTraceGraph.hpp"
 #include "KsTraceViewer.hpp"
 
+class KsMainWindow;
+
 /**
  * The KsSession class provides instruments for importing/exporting the state
  * of the different components of the GUI from/to Json documents. These
@@ -57,7 +59,7 @@ public:
 
 	void saveMainWindowSize(const QMainWindow &window);
 
-	void loadMainWindowSize(QMainWindow *window);
+	void loadMainWindowSize(KsMainWindow *window);
 
 	void saveSplitterSize(const QSplitter &splitter);
 
