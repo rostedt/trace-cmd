@@ -188,6 +188,13 @@ void kshark_close(struct kshark_context *kshark_ctx)
 		kshark_ctx->advanced_event_filter = NULL;
 	}
 
+	/*
+	 * All data collections are file specific. Make sure that collections
+	 * from this file are not going to be used with another file.
+	 */
+	kshark_free_collection_list(kshark_ctx->collections);
+	kshark_ctx->collections = NULL;
+
 	tracecmd_close(kshark_ctx->handle);
 	kshark_ctx->handle = NULL;
 	kshark_ctx->pevent = NULL;
