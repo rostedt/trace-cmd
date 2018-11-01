@@ -545,7 +545,10 @@ void KsSession::loadPlugins(kshark_context *kshark_ctx, KsPluginManager *pm)
 {
 	kshark_config_doc *plugins = kshark_config_alloc(KS_CONFIG_JSON);
 	json_object *jplugins, *jlist, *jpl;
-	int length;
+	const char *pluginName;
+	QVector<int> pluginIds;
+	int length, index;
+	bool loaded;
 
 	if (!kshark_config_doc_get(_config, "Plugins", plugins) ||
 	    !kshark_type_check(plugins, "kshark.config.plugins"))
@@ -562,13 +565,13 @@ void KsSession::loadPlugins(kshark_context *kshark_ctx, KsPluginManager *pm)
 		length = json_object_array_length(jlist);
 		for (int i = 0; i < length; ++i) {
 			jpl = json_object_array_get_idx(jlist, i);
-			pm->_ksPluginList[i] =
-				json_object_get_string(json_object_array_get_idx(jpl, 0));
-
-			pm->_registeredKsPlugins[i] =
-				json_object_get_boolean(json_object_array_get_idx(jpl, 1));
+			pluginName = json_object_get_string(json_object_array_get_idx(jpl, 0));
+			index = pm->_ksPluginList.indexOf(pluginName);
+			loaded = json_object_get_boolean(json_object_array_get_idx(jpl, 1));
+			if (index >= 0 && loaded)
+				pluginIds.append(index);
 		}
 	}
 
-	pm->registerFromList(kshark_ctx);
+	pm->updatePlugins(pluginIds);
 }
