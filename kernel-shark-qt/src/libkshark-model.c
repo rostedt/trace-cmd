@@ -900,7 +900,7 @@ ksmodel_get_entry_front(struct kshark_trace_histo *histo,
 	else
 		entry = kshark_get_entry_front(req, histo->data, index);
 
-	free(req);
+	kshark_free_entry_request(req);
 
 	return entry;
 }
@@ -947,7 +947,7 @@ ksmodel_get_entry_back(struct kshark_trace_histo *histo,
 	else
 		entry = kshark_get_entry_back(req, histo->data, index);
 
-	free(req);
+	kshark_free_entry_request(req);
 
 	return entry;
 }
@@ -1160,7 +1160,7 @@ bool ksmodel_cpu_visible_event_exist(struct kshark_trace_histo *histo,
 	else
 		entry = kshark_get_entry_front(req, histo->data, index);
 
-	free(req);
+	kshark_free_entry_request(req);
 
 	if (!entry || !entry->visible) {
 		/* No visible entry has been found. */
@@ -1213,7 +1213,7 @@ bool ksmodel_task_visible_event_exist(struct kshark_trace_histo *histo,
 	else
 		entry = kshark_get_entry_front(req, histo->data, index);
 
-	free(req);
+	kshark_free_entry_request(req);
 
 	if (!entry || !entry->visible) {
 		/* No visible entry has been found. */
