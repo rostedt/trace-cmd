@@ -43,7 +43,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _capture(this),
   _captureLocalServer(this),
   _openAction("Open", this),
-  _restorSessionAction("Restor Last Session", this),
+  _restorSessionAction("Restore Last Session", this),
   _importSessionAction("Import Session", this),
   _exportSessionAction("Export Sassion", this),
   _quitAction("Quit", this),
