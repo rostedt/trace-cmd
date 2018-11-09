@@ -148,6 +148,18 @@ bool ksmodel_task_visible_event_exist(struct kshark_trace_histo *histo,
 				      struct kshark_entry_collection *col,
 				      ssize_t *index);
 
+const struct kshark_entry *
+ksmodel_get_cpu_missed_events(struct kshark_trace_histo *histo,
+			      int bin, int cpu,
+			      struct kshark_entry_collection *col,
+			      ssize_t *index);
+
+const struct kshark_entry *
+ksmodel_get_task_missed_events(struct kshark_trace_histo *histo,
+			       int bin, int pid,
+			       struct kshark_entry_collection *col,
+			       ssize_t *index);
+
 static inline double ksmodel_bin_time(struct kshark_trace_histo *histo,
 				      int bin)
 {

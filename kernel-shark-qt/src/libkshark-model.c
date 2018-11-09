@@ -1222,3 +1222,63 @@ bool ksmodel_task_visible_event_exist(struct kshark_trace_histo *histo,
 
 	return true;
 }
+
+static bool match_cpu_missed_events(struct kshark_context *kshark_ctx,
+				    struct kshark_entry *e, int cpu)
+{
+	return e->event_id == -EOVERFLOW && e->cpu == cpu;
+}
+
+static bool match_pid_missed_events(struct kshark_context *kshark_ctx,
+				    struct kshark_entry *e, int pid)
+{
+	return e->event_id == -EOVERFLOW && e->pid == pid;
+}
+
+/**
+ * @brief In a given CPU and bin, start from the front end of the bin and go towards
+ *	  the back end, searching for a Missed Events entry.
+ *
+ * @param histo: Input location for the model descriptor.
+ * @param bin: Bin id.
+ * @param cpu: CPU Id.
+ * @param col: Optional input location for Data collection.
+ * @param index: Optional output location for the index of the requested
+ *		 entry inside the array.
+ *
+ * @returns Pointer ot a kshark_entry, if an entry has been found. Else NULL.
+ */
+const struct kshark_entry *
+ksmodel_get_cpu_missed_events(struct kshark_trace_histo *histo,
+			      int bin, int cpu,
+			      struct kshark_entry_collection *col,
+			      ssize_t *index)
+{
+	return ksmodel_get_entry_front(histo, bin, true,
+				       match_cpu_missed_events, cpu,
+				       col, index);
+}
+
+/**
+ * @brief In a given task and bin, start from the front end of the bin and go towards
+ *	  the back end, searching for a Missed Events entry.
+ *
+ * @param histo: Input location for the model descriptor.
+ * @param bin: Bin id.
+ * @param pid: Process Id of the task.
+ * @param col: Optional input location for Data collection.
+ * @param index: Optional output location for the index of the requested
+ *		 entry inside the array.
+ *
+ * @returns Pointer ot a kshark_entry, if an entry has been found. Else NULL.
+ */
+const struct kshark_entry *
+ksmodel_get_task_missed_events(struct kshark_trace_histo *histo,
+			       int bin, int pid,
+			       struct kshark_entry_collection *col,
+			       ssize_t *index)
+{
+	return ksmodel_get_entry_front(histo, bin, true,
+				       match_pid_missed_events, pid,
+				       col, index);
+}
