@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include <errno.h>
 
 // KernelShark
 #include "libkshark.h"
@@ -558,6 +557,52 @@ static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
 	entry->pid = tep_data_pid(kshark_ctx->pevent, record);
 }
 
+/** Prior time offset of the "missed_events" entry. */
+#define ME_ENTRY_TIME_SHIFT	10
+
+static void missed_events_action(struct kshark_context *kshark_ctx,
+				 struct tep_record *record,
+				 struct kshark_entry *entry)
+{
+	/*
+	 * Use the offset field of the entry to store the number of missed
+	 * events.
+	 */
+	entry->offset = record->missed_events;
+
+	entry->cpu = record->cpu;
+
+	/*
+	 * Position the "missed_events" entry a bit before (in time)
+	 * the original record.
+	 */
+	entry->ts = record->ts - ME_ENTRY_TIME_SHIFT;
+
+	/* All custom entries must have negative event Identifiers. */
+	entry->event_id = KS_EVENT_OVERFLOW;
+
+	entry->visible = 0xFF;
+
+	entry->pid = tep_data_pid(kshark_ctx->pevent, record);
+}
+
+static const char* missed_events_dump(struct kshark_context *kshark_ctx,
+				      const struct kshark_entry *entry,
+				      bool get_info)
+{
+	int size = 0;
+	static char *buffer;
+
+	if (get_info)
+		size = asprintf(&buffer, "missed_events=%i", (int) entry->offset);
+	else
+		size = asprintf(&buffer, "missed_events");
+	if (size > 0)
+		return buffer;
+
+	return NULL;
+}
+
 /**
  * rec_list is used to pass the data to the load functions.
  * The rec_list will contain the list of entries from the source,
@@ -648,6 +693,21 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 			case REC_ENTRY: {
 				struct kshark_entry *entry;
 				int ret;
+
+				if (rec->missed_events) {
+					/*
+					 * Insert a custom "missed_events" entry just
+					 * befor this record.
+					 */
+					entry = &temp_rec->entry;
+					missed_events_action(kshark_ctx, rec, entry);
+
+					temp_next = &temp_rec->next;
+					++count;
+
+					/* Now allocate a new rec_list node and comtinue. */
+					*temp_next = temp_rec = calloc(1, sizeof(*temp_rec));
+				}
 
 				entry = &temp_rec->entry;
 				kshark_set_entry_values(kshark_ctx, rec, entry);
@@ -1006,6 +1066,9 @@ const char *kshark_get_latency_easy(struct kshark_entry *entry)
 	if (!kshark_instance(&kshark_ctx))
 		return NULL;
 
+	if (entry->event_id < 0)
+		return NULL;
+
 	data = kshark_read_at(kshark_ctx, entry->offset);
 	lat = kshark_get_latency(kshark_ctx->pevent, data);
 	free_record(data);
@@ -1048,7 +1111,7 @@ int kshark_get_event_id_easy(struct kshark_entry *entry)
 		free_record(data);
 	}
 
-	return event_id;
+	return (event_id == -1)? EFAULT : event_id;
 }
 
 /**
@@ -1070,11 +1133,20 @@ const char *kshark_get_event_name_easy(struct kshark_entry *entry)
 	struct tep_event_format *event;
 
 	int event_id = kshark_get_event_id_easy(entry);
-
-	if (event_id < 0)
+	if (event_id == EFAULT)
 		return NULL;
 
 	kshark_instance(&kshark_ctx);
+
+	if (event_id < 0) {
+		switch (event_id) {
+		case KS_EVENT_OVERFLOW:
+			return missed_events_dump(kshark_ctx, entry, false);
+		default:
+			return NULL;
+		}
+	}
+
 	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
 	if (event)
 		return event->name;
@@ -1105,6 +1177,15 @@ const char *kshark_get_info_easy(struct kshark_entry *entry)
 	if (!kshark_instance(&kshark_ctx))
 		return NULL;
 
+	if (entry->event_id < 0) {
+		switch (entry->event_id) {
+		case KS_EVENT_OVERFLOW:
+			return missed_events_dump(kshark_ctx, entry, true);
+		default:
+			return NULL;
+		}
+	}
+
 	data = kshark_read_at(kshark_ctx, entry->offset);
 
 	event_id = tep_data_type(kshark_ctx->pevent, data);
@@ -1134,6 +1215,43 @@ void kshark_convert_nano(uint64_t time, uint64_t *sec, uint64_t *usec)
 }
 
 /**
+ * @brief Dump into a string the content a custom entry. The function allocates
+ *	  a null terminated string and returns a pointer to this string.
+ *
+ * @param kshark_ctx: Input location for the session context pointer.
+ * @param entry: A Kernel Shark entry to be printed.
+ * @param info_func:
+ *
+ * @returns The returned string contains a semicolon-separated list of data
+ *	    fields. The user has to free the returned string.
+ */
+char* kshark_dump_custom_entry(struct kshark_context *kshark_ctx,
+			       const struct kshark_entry *entry,
+			       kshark_custom_info_func info_func)
+{
+	const char *event_name, *task, *info;
+	char *entry_str;
+	int size = 0;
+
+	task = tep_data_comm_from_pid(kshark_ctx->pevent, entry->pid);
+	event_name = info_func(kshark_ctx, entry, false);
+	info = info_func(kshark_ctx, entry, true);
+
+	size = asprintf(&entry_str, "%li; %s-%i; CPU %i; ; %s; %s",
+			entry->ts,
+			task,
+			entry->pid,
+			entry->cpu,
+			event_name,
+			info);
+
+	if (size > 0)
+		return entry_str;
+
+	return NULL;
+}
+
+/**
  * @brief Dump into a string the content of one entry. The function allocates
  *	  a null terminated string and returns a pointer to this string. The
  *	  user has to free the returned string.
@@ -1147,48 +1265,60 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 {
 	const char *event_name, *task, *lat, *info;
 	struct kshark_context *kshark_ctx;
-	struct tep_record *data;
-	struct tep_event_format *event;
 	char *temp_str, *entry_str;
-	int event_id, size = 0;
+	int size = 0;
 
 	kshark_ctx = NULL;
 	if (!kshark_instance(&kshark_ctx) || !init_thread_seq())
 		return NULL;
 
-	data = kshark_read_at(kshark_ctx, entry->offset);
-
-	event_id = tep_data_type(kshark_ctx->pevent, data);
-	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
-
-	event_name = event? event->name : "[UNKNOWN EVENT]";
 	task = tep_data_comm_from_pid(kshark_ctx->pevent, entry->pid);
-	lat = kshark_get_latency(kshark_ctx->pevent, data);
 
-	size = asprintf(&temp_str, "%li %s-%i; CPU %i; %s;",
-			entry->ts,
-			task,
-			entry->pid,
-			entry->cpu,
-			lat);
+	if (entry->event_id >= 0) {
+		struct tep_event_format *event;
+		struct tep_record *data;
 
-	info = kshark_get_info(kshark_ctx->pevent, data, event);
-	if (size > 0) {
-		size = asprintf(&entry_str, "%s %s; %s; 0x%x",
-				temp_str,
-				event_name,
-				info,
-				entry->visible);
+		data = kshark_read_at(kshark_ctx, entry->offset);
 
-		free(temp_str);
+		event = tep_data_event_from_type(kshark_ctx->pevent,
+						 entry->event_id);
+
+		event_name = event? event->name : "[UNKNOWN EVENT]";
+		lat = kshark_get_latency(kshark_ctx->pevent, data);
+
+		size = asprintf(&temp_str, "%li; %s-%i; CPU %i; %s;",
+				entry->ts,
+				task,
+				entry->pid,
+				entry->cpu,
+				lat);
+
+		info = kshark_get_info(kshark_ctx->pevent, data, event);
+
+		if (size > 0) {
+			size = asprintf(&entry_str, "%s %s; %s; 0x%x",
+					temp_str,
+					event_name,
+					info,
+					entry->visible);
+
+			free(temp_str);
+		}
+
+		free_record(data);
+		if (size < 1)
+			entry_str = NULL;
+	} else {
+		switch (entry->event_id) {
+		case KS_EVENT_OVERFLOW:
+			entry_str = kshark_dump_custom_entry(kshark_ctx, entry,
+							     missed_events_dump);
+		default:
+			entry_str = NULL;
+		}
 	}
 
-	free_record(data);
-
-	if (size > 0)
-		return entry_str;
-
-	return NULL;
+	return entry_str;
 }
 
 /**
@@ -1402,7 +1532,7 @@ get_entry(const struct kshark_entry_request *req,
 
 	if (index) {
 		if (e)
-			*index = (e->event_id >= 0)? i : KS_FILTERED_BIN;
+			*index = (e->cpu != KS_FILTERED_BIN)? i : KS_FILTERED_BIN;
 		else
 			*index = KS_EMPTY_BIN;
 	}

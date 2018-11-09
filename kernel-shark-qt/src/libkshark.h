@@ -15,6 +15,7 @@
 // C
 #include <stdint.h>
 #include <pthread.h>
+#include <errno.h>
 
 // Json-C
 #include <json.h>
@@ -164,6 +165,18 @@ void kshark_convert_nano(uint64_t time, uint64_t *sec, uint64_t *usec);
 
 char* kshark_dump_entry(const struct kshark_entry *entry);
 
+/**
+ * Custom entry info function type. To be user for dumping info for custom
+ * KernelShark entryes.
+ */
+typedef const char *(kshark_custom_info_func)(struct kshark_context *,
+					      const struct kshark_entry *,
+					      bool);
+
+char* kshark_dump_custom_entry(struct kshark_context *kshark_ctx,
+			       const struct kshark_entry *entry,
+			       kshark_custom_info_func info_func);
+
 struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
 				  uint64_t offset);
 
@@ -280,6 +293,9 @@ bool kshark_match_cpu(struct kshark_context *kshark_ctx,
 
 /** Filtered bin identifier. */
 #define KS_FILTERED_BIN		-2
+
+/** Overflow Event identifier. */
+#define KS_EVENT_OVERFLOW	(-EOVERFLOW)
 
 /** Matching condition function type. To be user for data requests */
 typedef bool (matching_condition_func)(struct kshark_context*,
