@@ -298,6 +298,7 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 {
 	int i = 0, prev_not_empty;
 
+	histo->tot_count = 0;
 	memset(&histo->bin_count[0], 0,
 	       (histo->n_bins) * sizeof(histo->bin_count[0]));
 	/*
@@ -329,6 +330,10 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 			histo->bin_count[prev_not_empty] =
 				histo->map[i] - histo->map[prev_not_empty];
 
+			if (prev_not_empty != LOB(histo))
+				histo->tot_count +=
+					histo->bin_count[prev_not_empty];
+
 			prev_not_empty = i;
 		}
 	}
@@ -350,6 +355,8 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 		histo->bin_count[prev_not_empty] = histo->map[UOB(histo)] -
 						   histo->map[prev_not_empty];
 	}
+
+	histo->tot_count += histo->bin_count[prev_not_empty];
 }
 
 /**

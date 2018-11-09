@@ -51,6 +51,9 @@ struct kshark_trace_histo {
 	/** Number of entries in each bin. */
 	size_t			*bin_count;
 
+	/** Total number of entries in all bin except the overflow bins. */
+	int			tot_count;
+
 	/**
 	 * Lower edge of the time-window to be visualized. Only entries having
 	 * timestamp >= min will be visualized.
