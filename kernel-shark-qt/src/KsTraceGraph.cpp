@@ -215,6 +215,7 @@ void KsTraceGraph::_selfUpdate()
 	_updateGraphLegends();
 	_updateTimeLegends();
 	_markerReDraw();
+	_glWindow.model()->update();
 	updateGeom();
 }
 
