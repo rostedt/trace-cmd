@@ -193,8 +193,6 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 	return;
 }
 
-static std::unordered_set<int> secondPassDone;
-
 /*
  * Ideally, the sched_switch has to be the last trace event recorded before the
  * task is preempted. Because of this, when the data is loaded (the first pass),
@@ -250,8 +248,6 @@ static void secondPass(kshark_entry **data,
 			}
 		}
 	}
-
-	secondPassDone.insert(pid);
 }
 
 /**
@@ -298,12 +294,13 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 						      KS_TASK_COLLECTION_MARGIN);
 	}
 
-	try {
-		if (secondPassDone.find(pid) == secondPassDone.end()) {
-			/* The second pass for this task is not done yet. */
-			secondPass(argvCpp->_histo->data, col, pid);
-		}
+	if (!tracecmd_filter_id_find(plugin_ctx->second_pass_hash, pid)) {
+		/* The second pass for this task is not done yet. */
+		secondPass(argvCpp->_histo->data, col, pid);
+		tracecmd_filter_id_add(plugin_ctx->second_pass_hash, pid);
+	}
 
+	try {
 		pluginDraw(plugin_ctx, kshark_ctx,
 			   argvCpp->_histo, col,
 			   SchedEvent::Switch, pid,

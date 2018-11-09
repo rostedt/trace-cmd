@@ -55,6 +55,9 @@ struct plugin_sched_context {
 	 * Pointer to the sched_wakeup_new_success_field format descriptor.
 	 */
 	struct tep_format_field	*sched_wakeup_new_success_field;
+
+	/** Hash of the tasks for which the second pass is already done. */
+	struct tracecmd_filter_id	*second_pass_hash;
 };
 
 int plugin_get_next_pid(struct tep_record *record);

@@ -79,6 +79,8 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 	plugin_ctx->sched_wakeup_new_success_field =
 		tep_find_field(event, "success");
 
+	plugin_ctx->second_pass_hash = tracecmd_filter_id_hash_alloc();
+
 	return true;
 }
 
@@ -278,6 +280,8 @@ static int plugin_sched_close(struct kshark_context *kshark_ctx)
 					plugin_ctx->sched_switch_event->id,
 					plugin_sched_action,
 					plugin_draw);
+
+	tracecmd_filter_id_hash_free(plugin_ctx->second_pass_hash);
 
 	free(plugin_ctx);
 	plugin_sched_context_handler = NULL;
