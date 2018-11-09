@@ -36,6 +36,9 @@ struct plugin_sched_context {
 	/** Pointer to the sched_switch_comm_field format descriptor. */
 	struct tep_format_field	*sched_switch_comm_field;
 
+	/** Pointer to the sched_switch_prev_state_field format descriptor. */
+	struct tep_format_field	*sched_switch_prev_state_field;
+
 	/** Pointer to the sched_wakeup_event object. */
 	struct tep_event_format	*sched_wakeup_event;
 
@@ -62,13 +65,15 @@ struct plugin_sched_context {
 
 int plugin_get_next_pid(struct tep_record *record);
 
-int plugin_get_wakeup_pid(struct tep_record *record);
+bool plugin_wakeup_match_rec_pid(struct kshark_context *kshark_ctx,
+				 struct kshark_entry *e, int pid);
 
-bool plugin_wakeup_match_pid(struct kshark_context *kshark_ctx,
-			     struct kshark_entry *e, int pid);
+bool plugin_switch_match_rec_pid(struct kshark_context *kshark_ctx,
+				 struct kshark_entry *e, int pid);
 
-bool plugin_switch_match_pid(struct kshark_context *kshark_ctx,
-			     struct kshark_entry *e, int pid);
+bool plugin_switch_match_entry_pid(struct kshark_context *kshark_ctx,
+				   struct kshark_entry *e,
+				   int pid);
 
 void plugin_draw(struct kshark_cpp_argv *argv, int pid, int draw_action);
 

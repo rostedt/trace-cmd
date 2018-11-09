@@ -54,9 +54,11 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		       KsPlot::Graph *graph,
 		       KsPlot::PlotObjList *shapes)
 {
+	const kshark_entry *entryClose, *entryOpen;
 	std::function<void(int)> ifSchedBack;
 	KsPlot::Rectangle *rec = nullptr;
 	int height = graph->getHeight() * .3;
+	ssize_t indexClose(0), indexOpen(0);
 
 	auto openBox = [&] (const KsPlot::Point &p)
 	{
@@ -67,7 +69,16 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		if (!rec)
 			rec = new KsPlot::Rectangle;
 
+		if (e == SchedEvent::Switch) {
+			/* Red box. */
+			rec->_color = KsPlot::Color(255, 0, 0);
+		} else {
+			/* Green box. */
+			rec->_color = KsPlot::Color(0, 255, 0);
+		}
+
 		rec->setFill(false);
+
 		rec->setPoint(0, p.x() - 1, p.y() - height);
 		rec->setPoint(1, p.x() - 1, p.y() - 1);
 	};
@@ -77,7 +88,7 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		if (rec == nullptr)
 			return;
 
-		int boxSize = rec->getPoint(0)->x;
+		int boxSize = p.x() - rec->getPoint(0)->x;
 		if (boxSize < PLUGIN_MIN_BOX_SIZE) {
 			/* This box is too small. Don't try to plot it. */
 			delete rec;
@@ -92,83 +103,6 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		rec = nullptr;
 	};
 
-	auto lamIfSchSwitchFront = [&] (int bin)
-	{
-		/*
-		 * Starting from the first element in this bin, go forward
-		 * in time until you find a trace entry that satisfies the
-		 * condition defined by kshark_match_pid.
-		 */
-		const kshark_entry *entryF =
-			ksmodel_get_entry_front(histo, bin, false,
-						kshark_match_pid, pid,
-						col, nullptr);
-
-		if (entryF &&
-		    entryF->pid == pid &&
-		    plugin_ctx->sched_switch_event &&
-		    entryF->event_id == plugin_ctx->sched_switch_event->id) {
-			/*
-			 * entryF is sched_switch_event. Close the box and add
-			 * it to the list of shapes to be ploted.
-			 */
-			closeBox(graph->getBin(bin)._base);
-		}
-	};
-
-	auto lamIfSchWakeupBack = [&] (int bin)
-	{
-		/*
-		 * Starting from the last element in this bin, go backward
-		 * in time until you find a trace entry that satisfies the
-		 * condition defined by plugin_wakeup_match_pid.
-		 */
-		const kshark_entry *entryB =
-			ksmodel_get_entry_back(histo, bin, false,
-					       plugin_wakeup_match_pid, pid,
-					       col, nullptr);
-
-		if (entryB) {
-			/*
-			 * entryB is a sched_wakeup_event. Open a
-			 * green box here.
-			 */
-			openBox(graph->getBin(bin)._base);
-
-			/* Green */
-			rec->_color = KsPlot::Color(0, 255, 0);
-		}
-	};
-
-	auto lamIfSchSwitchBack = [&] (int bin)
-	{
-		/*
-		 * Starting from the last element in this bin, go backward
-		 * in time until you find a trace entry that satisfies the
-		 * condition defined by plugin_switch_match_pid.
-		 */
-		const kshark_entry *entryB =
-			ksmodel_get_entry_back(histo, bin, false,
-					       plugin_switch_match_pid, pid,
-					       col, nullptr);
-
-		if (entryB && entryB->pid != pid) {
-			/*
-			 * entryB is a sched_switch_event. Open a
-			 * red box here.
-			 */
-			openBox(graph->getBin(bin)._base);
-
-			/* Red */
-			rec->_color = KsPlot::Color(255, 0, 0);
-		}
-	};
-
-	if (e == SchedEvent::Switch)
-		ifSchedBack = lamIfSchSwitchBack;
-	else
-		ifSchedBack = lamIfSchWakeupBack;
-
 	for (int bin = 0; bin < graph->size(); ++bin) {
 		/**
 		 * Plotting the latencies makes sense only in the case of a
@@ -179,12 +113,68 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		 * TODO: find a better criteria for deciding when to start
 		 * plotting latencies.
 		 */
-		if (ksmodel_bin_count(histo, bin) > PLUGIN_MAX_ENTRIES_PER_BIN)
+		if (ksmodel_bin_count(histo, bin) > PLUGIN_MAX_ENTRIES_PER_BIN) {
+			if (rec) {
+				delete rec;
+				rec = nullptr;
+			}
+
 			continue;
+		}
 
-		lamIfSchSwitchFront(bin);
+		/*
+		 * Starting from the first element in this bin, go forward
+		 * in time until you find a trace entry that satisfies the
+		 * condition defined by kshark_match_pid.
+		 */
+		entryClose = ksmodel_get_entry_back(histo, bin, false,
+						 plugin_switch_match_entry_pid,
+						 pid, col, &indexClose);
 
-		ifSchedBack(bin);
+		if (e == SchedEvent::Switch) {
+			/*
+			 * Starting from the last element in this bin, go backward
+			 * in time until you find a trace entry that satisfies the
+			 * condition defined by plugin_switch_match_pid.
+			 */
+			entryOpen =
+				ksmodel_get_entry_back(histo, bin, false,
+						       plugin_switch_match_rec_pid,
+						       pid, col, &indexOpen);
+
+		} else {
+			/*
+			 * Starting from the last element in this bin, go backward
+			 * in time until you find a trace entry that satisfies the
+			 * condition defined by plugin_wakeup_match_pid.
+			 */
+			entryOpen =
+				ksmodel_get_entry_back(histo, bin, false,
+						       plugin_wakeup_match_rec_pid,
+						       pid, col, &indexOpen);
+		}
+
+		if (rec) {
+			if (entryClose) {
+				/* Close the box in this bin. */
+				closeBox(graph->getBin(bin)._base);
+				if (entryOpen && indexClose < indexOpen) {
+					/*
+					 * We have a Sched switch entry that
+					 * comes after (in time) the closure of
+					 * the previous box. We have to open a
+					 * new box in this bin.
+					 */
+					openBox(graph->getBin(bin)._base);
+				}
+			}
+		} else {
+			if (entryOpen &&
+			    (!entryClose || indexClose < indexOpen)) {
+				/* Open a new box in this bin. */
+				openBox(graph->getBin(bin)._base);
+			}
+		}
 	}
 
 	if (rec)
@@ -221,7 +211,8 @@ static void secondPass(kshark_entry **data,
 
 		kshark_entry_request *req =
 			kshark_entry_request_alloc(first, n,
-						   plugin_switch_match_pid, pid,
+						   plugin_switch_match_rec_pid,
+						   pid,
 						   false,
 						   KS_GRAPH_VIEW_FILTER_MASK);
 
@@ -256,9 +247,6 @@ static void secondPass(kshark_entry **data,
  * @param argv_c: A C pointer to be converted to KsCppArgV (C++ struct).
  * @param pid: Process Id.
  * @param draw_action: Draw action identifier.
- *
- * @returns True if the Pid of the entry matches the value of "pid".
- *	    Otherwise false.
  */
 void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 {
@@ -303,12 +291,12 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 	try {
 		pluginDraw(plugin_ctx, kshark_ctx,
 			   argvCpp->_histo, col,
-			   SchedEvent::Switch, pid,
+			   SchedEvent::Wakeup, pid,
 			   argvCpp->_graph, argvCpp->_shapes);
 
 		pluginDraw(plugin_ctx, kshark_ctx,
 			   argvCpp->_histo, col,
-			   SchedEvent::Wakeup, pid,
+			   SchedEvent::Switch, pid,
 			   argvCpp->_graph, argvCpp->_shapes);
 	} catch (const std::exception &exc) {
 		std::cerr << "Exception in SchedEvents\n" << exc.what();
