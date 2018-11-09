@@ -28,7 +28,7 @@
 
 #define PLUGIN_MIN_BOX_SIZE 4
 
-#define PLUGIN_MAX_ENTRIES_PER_BIN 500
+#define PLUGIN_MAX_ENTRIES 10000
 
 #define KS_TASK_COLLECTION_MARGIN 25
 
@@ -54,11 +54,11 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		       KsPlot::Graph *graph,
 		       KsPlot::PlotObjList *shapes)
 {
-	const kshark_entry *entryClose, *entryOpen;
+	const kshark_entry *entryClose, *entryOpen, *entryME;
+	ssize_t indexClose(0), indexOpen(0), indexME(0);
 	std::function<void(int)> ifSchedBack;
 	KsPlot::Rectangle *rec = nullptr;
 	int height = graph->getHeight() * .3;
-	ssize_t indexClose(0), indexOpen(0);
 
 	auto openBox = [&] (const KsPlot::Point &p)
 	{
@@ -104,24 +104,6 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 	};
 
 	for (int bin = 0; bin < graph->size(); ++bin) {
-		/**
-		 * Plotting the latencies makes sense only in the case of a
-		 * deep zoom. Here we set a naive threshold based on the number
-		 * of entries inside the current bin. This cut seems to work
-		 * well in all cases I tested so far, but it may result in
-		 * unexpected behavior with some unusual trace data-sets.
-		 * TODO: find a better criteria for deciding when to start
-		 * plotting latencies.
-		 */
-		if (ksmodel_bin_count(histo, bin) > PLUGIN_MAX_ENTRIES_PER_BIN) {
-			if (rec) {
-				delete rec;
-				rec = nullptr;
-			}
-
-			continue;
-		}
-
 		/*
 		 * Starting from the first element in this bin, go forward
 		 * in time until you find a trace entry that satisfies the
@@ -130,6 +112,11 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		entryClose = ksmodel_get_entry_back(histo, bin, false,
 						 plugin_switch_match_entry_pid,
 						 pid, col, &indexClose);
+
+		entryME = ksmodel_get_task_missed_events(histo,
+							 bin, pid,
+							 col,
+							 &indexME);
 
 		if (e == SchedEvent::Switch) {
 			/*
@@ -155,10 +142,12 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 		}
 
 		if (rec) {
-			if (entryClose) {
+			if (entryME || entryClose) {
 				/* Close the box in this bin. */
 				closeBox(graph->getBin(bin)._base);
-				if (entryOpen && indexClose < indexOpen) {
+				if (entryOpen &&
+				    indexME < indexOpen &&
+				    indexClose < indexOpen) {
 					/*
 					 * We have a Sched switch entry that
 					 * comes after (in time) the closure of
@@ -288,6 +277,14 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 		tracecmd_filter_id_add(plugin_ctx->second_pass_hash, pid);
 	}
 
+	/*
+	 * Plotting the latencies makes sense only in the case of a deep zoom.
+	 * Here we set a threshold based on the total number of entries being
+	 * visualized by the model.
+	 * Don't be afraid to play with different values for this threshold.
+	 */
+	if (argvCpp->_histo->tot_count > PLUGIN_MAX_ENTRIES)
+		return;
 	try {
 		pluginDraw(plugin_ctx, kshark_ctx,
 			   argvCpp->_histo, col,
