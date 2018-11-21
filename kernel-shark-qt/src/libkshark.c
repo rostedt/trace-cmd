@@ -1111,7 +1111,7 @@ int kshark_get_event_id_easy(struct kshark_entry *entry)
 		free_record(data);
 	}
 
-	return (event_id == -1)? EFAULT : event_id;
+	return (event_id == -1)? -EFAULT : event_id;
 }
 
 /**
@@ -1133,7 +1133,7 @@ const char *kshark_get_event_name_easy(struct kshark_entry *entry)
 	struct tep_event_format *event;
 
 	int event_id = kshark_get_event_id_easy(entry);
-	if (event_id == EFAULT)
+	if (event_id == -EFAULT)
 		return NULL;
 
 	kshark_instance(&kshark_ctx);
