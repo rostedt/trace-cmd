@@ -81,6 +81,7 @@ KsCaptureControl::KsCaptureControl(QWidget *parent)
 
 	_eventsWidget.setDefault(false);
 	_eventsWidget.setMinimumHeight(25 * FONT_HEIGHT);
+	_eventsWidget.removeSystem("ftrace");
 	_topLayout.addWidget(&_eventsWidget);
 
 	_pluginsLabel.adjustSize();

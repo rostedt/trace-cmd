@@ -706,6 +706,16 @@ KsEventsCheckBoxWidget::KsEventsCheckBoxWidget(struct tep_handle *tep,
 	_adjustSize();
 }
 
+/** Remove a System from the Checkbox tree. */
+void KsEventsCheckBoxWidget::removeSystem(QString name) {
+	QTreeWidgetItem *item =
+		_tree.findItems(name, Qt::MatchFixedString, 0)[0];
+
+	int index = _tree.indexOfTopLevelItem(item);
+	if (index >= 0)
+		_tree.takeTopLevelItem(index);
+}
+
 /**
  * @brief Create KsTasksCheckBoxWidget.
  *
