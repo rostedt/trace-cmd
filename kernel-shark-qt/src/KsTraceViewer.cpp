@@ -362,6 +362,8 @@ void KsTraceViewer::_next()
 		if (_graphFollows)
 			emit select(*_it); // Send a signal to the Graph widget.
 	}
+
+	_updateSearchCount();
 }
 
 void KsTraceViewer::_prev()
@@ -385,6 +387,16 @@ void KsTraceViewer::_prev()
 		if (_graphFollows)
 			emit select(*_it); // Send a signal to the Graph widget.
 	}
+
+	_updateSearchCount();
+}
+
+void KsTraceViewer::_updateSearchCount()
+{
+	int index(_it - _matchList.begin());
+	int total(_matchList.count());
+
+	_searchCountLabel.setText(QString(" %1 / %2").arg(index).arg(total));
 }
 
 void KsTraceViewer::_searchStop()
@@ -571,7 +583,6 @@ size_t KsTraceViewer::_searchItems(int column,
 	count = _matchList.count();
 
 	_pbAction->setVisible(false);
-	_searchCountLabel.setText(QString(" %1").arg(count));
 	_searchDone = true;
 
 	if (count == 0) // No items have been found. Do nothing.
@@ -604,6 +615,8 @@ size_t KsTraceViewer::_searchItems(int column,
 		_view.clearSelection();
 		_it = _matchList.begin();
 	}
+
+	_updateSearchCount();
 
 	return count;
 }
@@ -645,7 +658,7 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 	for (int r = 1; r < nThreads; ++r)
 		maps.push_back(std::async(lamSearchMap, ranges[r], false));
 
-	while (_proxyModel.searchProgress() < KS_PROGRESS_BAR_MAX- nThreads) {
+	while (_proxyModel.searchProgress() < KS_PROGRESS_BAR_MAX - nThreads) {
 		std::unique_lock<std::mutex> lk(_proxyModel._mutex);
 		_proxyModel._pbCond.wait(lk);
 		_searchProgBar.setValue(_proxyModel.searchProgress());

@@ -132,6 +132,8 @@ private:
 
 	void _prev();
 
+	void _updateSearchCount();
+
 	void _searchStop();
 
 	void _clicked(const QModelIndex& i);
