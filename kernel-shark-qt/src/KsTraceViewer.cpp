@@ -579,6 +579,12 @@ void KsTraceViewer::_resizeToContents()
 	_view.setColumnWidth(0, columnSize);
 }
 
+//! @cond Doxygen_Suppress
+
+#define KS_SEARCH_SHOW_PROGRESS_MIN 100000
+
+//! @endcond
+
 size_t KsTraceViewer::_searchItems(int column,
 				   const QString &searchText,
 				   condition_func cond)
@@ -588,7 +594,14 @@ size_t KsTraceViewer::_searchItems(int column,
 	_searchProgBar.show();
 	_pbAction->setVisible(true);
 
-	if (column == KsViewModel::TRACE_VIEW_COL_INFO ||
+	if (_proxyModel.rowCount({}) < KS_SEARCH_SHOW_PROGRESS_MIN) {
+		/*
+		 * This is a small data-set. Do a single-threaded search
+		 * without showing the progress.
+		 */
+		_proxyModel.search(column, searchText, cond, &_matchList,
+				   nullptr, nullptr);
+	} else if (column == KsViewModel::TRACE_VIEW_COL_INFO ||
 	    column == KsViewModel::TRACE_VIEW_COL_LAT) {
 		_searchStopAction->setVisible(true);
 		_proxyModel.search(column, searchText, cond, &_matchList,
