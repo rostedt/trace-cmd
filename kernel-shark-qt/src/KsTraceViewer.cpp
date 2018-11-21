@@ -275,17 +275,17 @@ void KsTraceViewer::_graphFollowsChanged(int state)
 		emit select(*_it); // Send a signal to the Graph widget.
 }
 
-static bool notHaveCond(QString searchText, QString itemText)
+static bool notHaveCond(const QString &searchText, const QString &itemText)
 {
 	return !itemText.contains(searchText, Qt::CaseInsensitive);
 }
 
-static bool containsCond(QString searchText, QString itemText)
+static bool containsCond(const QString &searchText, const QString &itemText)
 {
 	return itemText.contains(searchText, Qt::CaseInsensitive);
 }
 
-static bool matchCond(QString searchText, QString itemText)
+static bool matchCond(const QString &searchText, const QString &itemText)
 {
 	return (itemText.compare(searchText, Qt::CaseInsensitive) == 0);
 }

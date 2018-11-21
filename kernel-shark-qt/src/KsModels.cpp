@@ -59,8 +59,7 @@ void KsFilterProxyModel::_search(int column,
 {
 	int row, nRows(last - first + 1);
 	int pbCount(1);
-	QVariant item;
-	QString text;
+	QString item;
 
 	_searchProgress = 0;
 
@@ -76,10 +75,9 @@ void KsFilterProxyModel::_search(int column,
 		 * of the row number in the base model.
 		 */
 		row = mapRowFromSource(r);
-		item = _source->getValue(column, row);
-		if (cond(searchText, item.toString())) {
+		item = _source->getValueStr(column, row);
+		if (cond(searchText, item))
 			matchList->append(row);
-		}
 
 		if (_searchStop) {
 			_searchStop = false;
@@ -156,7 +154,6 @@ QList<int> KsFilterProxyModel::searchMap(int column,
 					 bool notify)
 {
 	QList<int> matchList;
-	qInfo() << "searchMap" << first << last;
 	_search(column, searchText, cond, &matchList, first, last,
 		nullptr, nullptr, notify);
 
@@ -203,15 +200,17 @@ QVariant KsViewModel::data(const QModelIndex &index, int role) const
 	return {};
 }
 
-/** Get the data stored in a given cell of the table. */
-QVariant KsViewModel::getValue(int column, int row) const
+/** Get the string data stored in a given cell of the table. */
+QString KsViewModel::getValueStr(int column, int row) const
 {
+	int pid;
+
 	switch (column) {
 		case TRACE_VIEW_COL_INDEX :
-			return row;
+			return QString("%1").arg(row);
 
 		case TRACE_VIEW_COL_CPU:
-			return _data[row]->cpu;
+			return QString("%1").arg(_data[row]->cpu);
 
 		case TRACE_VIEW_COL_TS:
 			return KsUtils::Ts2String(_data[row]->ts, 6);
@@ -220,7 +219,8 @@ QVariant KsViewModel::getValue(int column, int row) const
 			return kshark_get_task_easy(_data[row]);
 
 		case TRACE_VIEW_COL_PID:
-			return kshark_get_pid_easy(_data[row]);
+			pid = kshark_get_pid_easy(_data[row]);
+			return QString("%1").arg(pid);
 
 		case TRACE_VIEW_COL_LAT:
 			return kshark_get_latency_easy(_data[row]);
@@ -234,6 +234,12 @@ QVariant KsViewModel::getValue(int column, int row) const
 		default:
 			return {};
 	}
+}
+
+/** Get the data stored in a given cell of the table. */
+QVariant KsViewModel::getValue(int column, int row) const
+{
+	return getValueStr(column, row);
 }
 
 /**

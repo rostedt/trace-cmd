@@ -28,7 +28,7 @@
 #include "libkshark-model.h"
 
 /** Matching condition function type. To be user for searching. */
-typedef bool (*condition_func)(QString, QString);
+typedef bool (*condition_func)(const QString &, const QString &);
 
 enum class DualMarkerState;
 
@@ -80,6 +80,8 @@ public:
 
 	/** Get the list of column's headers. */
 	QStringList header() const {return _header;}
+
+	QString getValueStr(int column, int row) const;
 
 	QVariant getValue(int column, int row) const;
 

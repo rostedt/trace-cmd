@@ -20,9 +20,6 @@
 #include "KsModels.hpp"
 #include "KsDualMarker.hpp"
 
-/** Matching condition function type. To be user for searchong. */
-typedef bool (*condition_func)(QString, QString);
-
 /**
  * The KsTraceViewer class provides a widget for browsing in the trace data
  * shown in a text form.
