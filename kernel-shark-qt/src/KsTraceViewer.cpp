@@ -350,10 +350,21 @@ void KsTraceViewer::_next()
 	}
 
 	if (!_matchList.empty()) { // Items have been found.
-		++_it; // Move the iterator.
-		if (_it == _matchList.end() ) {
-			// This is the last item of the list. Go back to the beginning.
-			_it = _matchList.begin();
+		int row = _getSelectedDataRow();
+		/*
+		 * The iterator can only be at the selected row or if the
+		 * selected row is not a match at the first matching row after
+		 * the selected one.
+		 */
+		if (*_it == row) {
+			++_it; // Move the iterator.
+			if (_it == _matchList.end() ) {
+				/*
+				 * This is the last item of the list.
+				 * Go back to the beginning.
+				 */
+				_it = _matchList.begin();
+			}
 		}
 
 		// Select the row of the item.
@@ -407,14 +418,17 @@ void KsTraceViewer::_searchStop()
 
 void KsTraceViewer::_clicked(const QModelIndex& i)
 {
-	if (_graphFollows) {
-		/*
-		 * Use the index of the proxy model to retrieve the value
-		 * of the row number in the base model.
-		 */
-		size_t row = _proxyModel.mapRowFromSource(i.row());
+	/*
+	 * Use the index of the proxy model to retrieve the value
+	 * of the row number in the base model.
+	 */
+	size_t row = _proxyModel.mapRowFromSource(i.row());
+
+	_setSearchIterator(row);
+	_updateSearchCount();
+
+	if (_graphFollows)
 		emit select(row); // Send a signal to the Graph widget.
-	}
 }
 
 /** Make a given row of the table visible. */
@@ -454,6 +468,8 @@ void KsTraceViewer::deselect()
 /** Switch the Dual marker. */
 void KsTraceViewer::markSwitch()
 {
+	int row;
+
 	/* The state of the Dual marker has changed. Get the new active marker. */
 	DualMarkerState state = _mState->getState();
 
@@ -495,6 +511,12 @@ void KsTraceViewer::markSwitch()
 	} else {
 		_view.clearSelection();
 	}
+
+	row = _getSelectedDataRow();
+	if (row >= 0) {
+		_setSearchIterator(row);
+		_updateSearchCount();
+	}
 }
 
 /**
@@ -529,12 +551,9 @@ void KsTraceViewer::resizeEvent(QResizeEvent* event)
 void KsTraceViewer::keyReleaseEvent(QKeyEvent *event)
 {
 	if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down) {
-		QItemSelectionModel *sm = _view.selectionModel();
-		if (sm->hasSelection()) {
-			/* Only one row at the time can be selected. */
-			int row = sm->selectedRows()[0].row();
+		int row = _getSelectedDataRow();
+		if (row >= 0)
 			emit select(row); // Send a signal to the Graph widget.
-		}
 
 		return;
 	}
@@ -564,7 +583,7 @@ size_t KsTraceViewer::_searchItems(int column,
 				   const QString &searchText,
 				   condition_func cond)
 {
-	int count;
+	int count, dataRow;
 
 	_searchProgBar.show();
 	_pbAction->setVisible(true);
@@ -588,28 +607,10 @@ size_t KsTraceViewer::_searchItems(int column,
 	if (count == 0) // No items have been found. Do nothing.
 		return 0;
 
-	QItemSelectionModel *sm = _view.selectionModel();
-	if (sm->hasSelection()) {
-		/* Only one row at the time can be selected. */
-		int row = sm->selectedRows()[0].row();
-
+	dataRow = _getSelectedDataRow();
+	if (dataRow >= 0) {
 		_view.clearSelection();
-		_it = _matchList.begin();
-		/*
-		 * Move the iterator to the first element of the match list
-		 * after the selected one.
-		 */
-		while (*_it <= row) {
-			++_it;  // Move the iterator.
-			if (_it == _matchList.end()) {
-				/*
-				 * This is the last item of the list. Go back
-				 * to the beginning.
-				 */
-				_it = _matchList.begin();
-				break;
-			}
-		}
+		_setSearchIterator(dataRow);
 	} else {
 		/* Move the iterator to the beginning of the match list. */
 		_view.clearSelection();
@@ -619,6 +620,29 @@ size_t KsTraceViewer::_searchItems(int column,
 	_updateSearchCount();
 
 	return count;
+}
+
+void KsTraceViewer::_setSearchIterator(int row)
+{
+	if (_matchList.isEmpty())
+		return;
+
+	/*
+	 * Move the iterator to the first element of the match list
+	 * after the selected one.
+	 */
+	_it = _matchList.begin();
+	while (*_it < row) {
+		++_it;  // Move the iterator.
+		if (_it == _matchList.end()) {
+			/*
+			 * This is the last item of the list. Go back
+			 * to the beginning.
+			 */
+			_it = _matchList.begin();
+			break;
+		}
+	}
 }
 
 void KsTraceViewer::_searchItemsMapReduce(int column,
@@ -667,4 +691,18 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 
 	for (auto &m: maps)
 		lamSearchReduce(_matchList, m.get());
+}
+
+int KsTraceViewer::_getSelectedDataRow()
+{
+	QItemSelectionModel *sm = _view.selectionModel();
+	int dataRow = -1;
+
+	if (sm->hasSelection()) {
+		/* Only one row at the time can be selected. */
+		QModelIndex  i = sm->selectedRows()[0];
+		dataRow = _proxyModel.mapRowFromSource(i.row());
+	}
+
+	return dataRow;
 }

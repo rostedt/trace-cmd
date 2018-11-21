@@ -140,6 +140,10 @@ private:
 
 	void _onCustomContextMenu(const QPoint &);
 
+	void _setSearchIterator(int row);
+
+	int _getSelectedDataRow();
+
 private slots:
 
 	void _searchEdit(int);
