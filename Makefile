@@ -161,6 +161,8 @@ objtree		:= $(BUILD_OUTPUT)
 src		:= $(srctree)
 obj		:= $(objtree)
 
+kshark-dir	= $(src)/kernel-shark-qt
+
 export prefix bindir src obj
 
 LIBS = -ldl
@@ -247,9 +249,13 @@ all: all_cmd plugins show_gui_make
 
 all_cmd: $(CMD_TARGETS)
 
+CMAKE_COMMAND = /usr/bin/cmake
+
 gui: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark; \
+	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) ..
+	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
 	echo "gui build complete"
+	echo "  kernelshark located at $(kshark-dir)/bin"
 
 trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
@@ -356,6 +362,7 @@ clean:
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
 	$(MAKE) -C $(src)/kernel-shark clean
+	$(MAKE) -C $(kshark-dir)/build clean
 	$(MAKE) -C $(src)/plugins clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean

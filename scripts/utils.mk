@@ -14,6 +14,7 @@ endif
 
 ifeq ($(VERBOSE),1)
   Q =
+  S =
   print_compile =
   print_app_build =
   print_fpic_compile =
@@ -23,6 +24,7 @@ ifeq ($(VERBOSE),1)
   print_install =
 else
   Q = @
+  S = -s
   print_compile =		echo '  $(GUI)COMPILE            '$(GOBJ);
   print_app_build =		echo '  $(GUI)BUILD              '$(GOBJ);
   print_fpic_compile =		echo '  $(GUI)COMPILE FPIC       '$(GOBJ);
