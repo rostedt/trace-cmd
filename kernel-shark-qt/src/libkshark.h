@@ -110,6 +110,12 @@ struct kshark_context {
 	/** Hash of events to not display. */
 	struct tracecmd_filter_id	*hide_event_filter;
 
+	/** Hash of CPUs to filter on. */
+	struct tracecmd_filter_id	*show_cpu_filter;
+
+	/** Hash of CPUs to not display. */
+	struct tracecmd_filter_id	*hide_cpu_filter;
+
 	/**
 	 * Bit mask, controlling the visibility of the entries after filtering.
 	 * If given bit is set here, all entries which are filtered-out will
@@ -232,6 +238,17 @@ enum kshark_filter_type {
 	 * filtered-out.
 	 */
 	KS_HIDE_TASK_FILTER,
+
+	/**
+	 * Identifier of the filter, used to specified the CPUs to be shown.
+	 */
+	KS_SHOW_CPU_FILTER,
+
+	/**
+	 * Identifier of the filter, used to specified the CPUs to be
+	 * filtered-out.
+	 */
+	KS_HIDE_CPU_FILTER,
 };
 
 void kshark_filter_add_id(struct kshark_context *kshark_ctx,

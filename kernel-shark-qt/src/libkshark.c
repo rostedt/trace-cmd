@@ -41,6 +41,9 @@ static bool kshark_default_context(struct kshark_context **context)
 	kshark_ctx->show_event_filter = tracecmd_filter_id_hash_alloc();
 	kshark_ctx->hide_event_filter = tracecmd_filter_id_hash_alloc();
 
+	kshark_ctx->show_cpu_filter = tracecmd_filter_id_hash_alloc();
+	kshark_ctx->hide_cpu_filter = tracecmd_filter_id_hash_alloc();
+
 	kshark_ctx->filter_mask = 0x0;
 
 	/* Will free kshark_context_handler. */
@@ -180,6 +183,8 @@ void kshark_close(struct kshark_context *kshark_ctx)
 	tracecmd_filter_id_clear(kshark_ctx->hide_task_filter);
 	tracecmd_filter_id_clear(kshark_ctx->show_event_filter);
 	tracecmd_filter_id_clear(kshark_ctx->hide_event_filter);
+	tracecmd_filter_id_clear(kshark_ctx->show_cpu_filter);
+	tracecmd_filter_id_clear(kshark_ctx->hide_cpu_filter);
 
 	if (kshark_ctx->advanced_event_filter) {
 		tep_filter_reset(kshark_ctx->advanced_event_filter);
@@ -225,6 +230,9 @@ void kshark_free(struct kshark_context *kshark_ctx)
 
 	tracecmd_filter_id_hash_free(kshark_ctx->show_event_filter);
 	tracecmd_filter_id_hash_free(kshark_ctx->hide_event_filter);
+
+	tracecmd_filter_id_hash_free(kshark_ctx->show_cpu_filter);
+	tracecmd_filter_id_hash_free(kshark_ctx->hide_cpu_filter);
 
 	if (kshark_ctx->plugins) {
 		kshark_handle_plugins(kshark_ctx, KSHARK_PLUGIN_CLOSE);
@@ -366,6 +374,12 @@ static bool kshark_show_event(struct kshark_context *kshark_ctx, int pid)
 	       filter_find(kshark_ctx->hide_event_filter, pid, false);
 }
 
+static bool kshark_show_cpu(struct kshark_context *kshark_ctx, int cpu)
+{
+	return filter_find(kshark_ctx->show_cpu_filter, cpu, true) &&
+	       filter_find(kshark_ctx->hide_cpu_filter, cpu, false);
+}
+
 /**
  * @brief Add an Id value to the filster specified by "filter_id".
  *
@@ -379,6 +393,12 @@ void kshark_filter_add_id(struct kshark_context *kshark_ctx,
 	struct tracecmd_filter_id *filter;
 
 	switch (filter_id) {
+		case KS_SHOW_CPU_FILTER:
+			filter = kshark_ctx->show_cpu_filter;
+			break;
+		case KS_HIDE_CPU_FILTER:
+			filter = kshark_ctx->hide_cpu_filter;
+			break;
 		case KS_SHOW_EVENT_FILTER:
 			filter = kshark_ctx->show_event_filter;
 			break;
@@ -409,6 +429,12 @@ void kshark_filter_clear(struct kshark_context *kshark_ctx, int filter_id)
 	struct tracecmd_filter_id *filter;
 
 	switch (filter_id) {
+		case KS_SHOW_CPU_FILTER:
+			filter = kshark_ctx->show_cpu_filter;
+			break;
+		case KS_HIDE_CPU_FILTER:
+			filter = kshark_ctx->hide_cpu_filter;
+			break;
 		case KS_SHOW_EVENT_FILTER:
 			filter = kshark_ctx->show_event_filter;
 			break;
@@ -444,6 +470,8 @@ bool kshark_filter_is_set(struct kshark_context *kshark_ctx)
 {
 	return filter_is_set(kshark_ctx->show_task_filter) ||
 	       filter_is_set(kshark_ctx->hide_task_filter) ||
+	       filter_is_set(kshark_ctx->show_cpu_filter) ||
+	       filter_is_set(kshark_ctx->hide_cpu_filter) ||
 	       filter_is_set(kshark_ctx->show_event_filter) ||
 	       filter_is_set(kshark_ctx->hide_event_filter);
 }
@@ -504,6 +532,10 @@ void kshark_filter_entries(struct kshark_context *kshark_ctx,
 		/* Apply event filtering. */
 		if (!kshark_show_event(kshark_ctx, data[i]->event_id))
 			unset_event_filter_flag(kshark_ctx, data[i]);
+
+		/* Apply CPU filtering. */
+		if (!kshark_show_cpu(kshark_ctx, data[i]->cpu))
+			data[i]->visible &= ~kshark_ctx->filter_mask;
 
 		/* Apply task filtering. */
 		if (!kshark_show_task(kshark_ctx, data[i]->pid))
@@ -730,6 +762,11 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 				if (!kshark_show_event(kshark_ctx, entry->event_id) ||
 				    ret != FILTER_MATCH) {
 					unset_event_filter_flag(kshark_ctx, entry);
+				}
+
+				/* Apply CPU filtering. */
+				if (!kshark_show_cpu(kshark_ctx, entry->pid)) {
+					entry->visible &= ~kshark_ctx->filter_mask;
 				}
 
 				/* Apply task filtering. */
