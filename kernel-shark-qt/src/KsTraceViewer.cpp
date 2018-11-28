@@ -14,8 +14,21 @@
 #include <future>
 
 // KernelShark
+#include "KsQuickContextMenu.hpp"
 #include "KsTraceViewer.hpp"
 #include "KsWidgetsLib.hpp"
+
+/**
+ * Reimplemented handler for mouse press events. Right mouse click events will
+ * be ignored. This is done because we want the Right click is being used to
+ * open a Context menu.
+ */
+void KsTableView::mousePressEvent(QMouseEvent *e) {
+	if(e->button() == Qt::RightButton)
+		return;
+
+	QTableView::mousePressEvent(e);
+}
 
 /** Create a default (empty) Trace viewer widget. */
 KsTraceViewer::KsTraceViewer(QWidget *parent)
@@ -248,10 +261,13 @@ void KsTraceViewer::_onCustomContextMenu(const QPoint &point)
 		 * of the row number in the source model.
 		 */
 		size_t row = _proxyModel.mapRowFromSource(i.row());
-		KsQuickEntryMenu menu(_data, row, this);
+		KsQuickContextMenu menu(_data, row, _mState, this);
 
-		connect(&menu,	&KsQuickEntryMenu::plotTask,
-			this,	&KsTraceViewer::plotTask);
+		connect(&menu,	&KsQuickContextMenu::addTaskPlot,
+			this,	&KsTraceViewer::addTaskPlot);
+
+		connect(&menu,	&KsQuickMarkerMenu::deselect,
+			this,	&KsTraceViewer::deselect);
 
 		menu.exec(mapToGlobal(point));
 	}
@@ -424,8 +440,10 @@ void KsTraceViewer::_clicked(const QModelIndex& i)
 	 */
 	size_t row = _proxyModel.mapRowFromSource(i.row());
 
-	_setSearchIterator(row);
-	_updateSearchCount();
+	if (_searchDone && _matchList.count()) {
+		_setSearchIterator(row);
+		_updateSearchCount();
+	}
 
 	if (_graphFollows)
 		emit select(row); // Send a signal to the Graph widget.
@@ -460,7 +478,7 @@ void KsTraceViewer::showRow(size_t r, bool mark)
 }
 
 /** Deselects the selected items (row) if any. */
-void KsTraceViewer::deselect()
+void KsTraceViewer::clearSelection()
 {
 	_view.clearSelection();
 }

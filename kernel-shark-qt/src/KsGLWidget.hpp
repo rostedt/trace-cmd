@@ -98,6 +98,13 @@ public:
 			  int *graphCPU,
 			  int *graphTask);
 
+	bool find(const QPoint &point, int variance, bool joined,
+		  size_t *index);
+
+	int getPlotCPU(const QPoint &point);
+
+	int getPlotPid(const QPoint &point);
+
 	/** CPUs to be plotted. */
 	QVector<int>	_cpuList;
 
@@ -140,13 +147,6 @@ signals:
 	 * KernelShark entry.
 	 */
 	void select(size_t pos);
-
-	/**
-	 * This signal is emitted in the case of a right mouse button click or
-	 * in the case of a double click over an empty area (no visible
-	 * KernelShark entries).
-	 */
-	void deselect();
 
 	/**
 	 * This signal is emitted when the KsTraceViewer widget needs to be
@@ -195,10 +195,6 @@ private:
 
 	int _posInRange(int x);
 
-	int _getCPU(int y);
-
-	int _getPid(int y);
-
 	void _rangeBoundInit(int x);
 
 	void _rangeBoundStretched(int x);
@@ -206,8 +202,6 @@ private:
 	void _rangeChanged(int binMin, int binMax);
 
 	bool _findAndSelect(QMouseEvent *event);
-
-	bool _find(QMouseEvent *event, int variance, bool joined, size_t *row);
 
 	bool _find(int bin, int cpu, int pid,
 		   int variance, bool joined, size_t *row);
@@ -217,6 +211,8 @@ private:
 	int _getLastTask(struct kshark_trace_histo *histo, int bin, int cpu);
 
 	int _getLastCPU(struct kshark_trace_histo *histo, int bin, int pid);
+
+	void _deselect();
 };
 
 #endif

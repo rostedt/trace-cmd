@@ -115,11 +115,6 @@ void KsGLWidget::mousePressEvent(QMouseEvent *event)
 	if (event->button() == Qt::LeftButton) {
 		_posMousePress = _posInRange(event->pos().x());
 		_rangeBoundInit(_posMousePress);
-	} else if (event->button() == Qt::RightButton) {
-		emit deselect();
-		_mState->activeMarker().remove();
-		_mState->updateLabels();
-		_model.update();
 	}
 }
 
@@ -189,8 +184,8 @@ void KsGLWidget::mouseMoveEvent(QMouseEvent *event)
 		_rangeBoundStretched(_posInRange(event->pos().x()));
 
 	bin = event->pos().x() - _hMargin;
-	cpu = _getCPU(event->pos().y());
-	pid = _getPid(event->pos().y());
+	cpu = getPlotCPU(event->pos());
+	pid = getPlotPid(event->pos());
 
 	ret = _find(bin, cpu, pid, 5, false, &row);
 	if (ret) {
@@ -613,18 +608,30 @@ KsPlot::Graph *KsGLWidget::_newTaskGraph(int pid)
 	return graph;
 }
 
-bool KsGLWidget::_find(QMouseEvent *event, int variance, bool joined,
-		       size_t *row)
+/**
+ * @brief Find the KernelShark entry under the the cursor.
+ *
+ * @param point: The position of the cursor.
+ * @param variance: The variance of the position (range) in which an entry will
+ *		    be searched.
+ * @param joined: It True, search also in the associated CPU/Task graph.
+ * @param index: Output location for the index of the entry under the cursor.
+ * 		 If no entry has been found, the outputted value is zero.
+ *
+ * @returns True, if an entry has been found, otherwise False.
+ */
+bool KsGLWidget::find(const QPoint &point, int variance, bool joined,
+		      size_t *index)
 {
 	/*
 	 * Get the bin, pid and cpu numbers.
 	 * Remember that one bin corresponds to one pixel.
 	 */
-	int bin = event->pos().x() - _hMargin;
-	int cpu = _getCPU(event->pos().y());
-	int pid = _getPid(event->pos().y());
+	int bin = point.x() - _hMargin;
+	int cpu = getPlotCPU(point);
+	int pid = getPlotPid(point);
 
-	return _find(bin, cpu, pid, variance, joined, row);
+	return _find(bin, cpu, pid, variance, joined, index);
 }
 
 int KsGLWidget::_getNextCPU(int pid, int bin)
@@ -766,9 +773,8 @@ bool KsGLWidget::_find(int bin, int cpu, int pid,
 bool KsGLWidget::_findAndSelect(QMouseEvent *event)
 {
 	size_t row;
-	bool found = _find(event, 10, true, &row);
+	bool found = find(event->pos(), 10, true, &row);
 
-	emit deselect();
 	if (found) {
 		emit select(row);
 		emit updateView(row, true);
@@ -892,9 +898,10 @@ int KsGLWidget::_posInRange(int x)
 	return posX;
 }
 
-int KsGLWidget::_getCPU(int y)
+/** Get the CPU Id of the Graph plotted at given position. */
+int KsGLWidget::getPlotCPU(const QPoint &point)
 {
-	int cpuId;
+	int cpuId, y = point.y();
 
 	if (_cpuList.count() == 0)
 		return -1;
@@ -906,9 +913,10 @@ int KsGLWidget::_getCPU(int y)
 	return _cpuList[cpuId];
 }
 
-int KsGLWidget::_getPid(int y)
+/** Get the CPU Id of the Graph plotted at given position. */
+int KsGLWidget::getPlotPid(const QPoint &point)
 {
-	int pidId;
+	int pidId, y = point.y();
 
 	if (_taskList.count() == 0)
 		return -1;

@@ -93,14 +93,17 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 	connect(&_view,		&KsTraceViewer::select,
 		&_graph,	&KsTraceGraph::markEntry);
 
-	connect(&_view,		&KsTraceViewer::plotTask,
+	connect(&_view,		&KsTraceViewer::addTaskPlot,
 		&_graph,	&KsTraceGraph::addTaskPlot);
 
 	connect(_graph.glPtr(), &KsGLWidget::updateView,
 		&_view,		&KsTraceViewer::showRow);
 
-	connect(_graph.glPtr(), &KsGLWidget::deselect,
-		&_view,		&KsTraceViewer::deselect);
+	connect(&_graph,	&KsTraceGraph::deselect,
+		this,		&KsMainWindow::_deselect);
+
+	connect(&_view,		&KsTraceViewer::deselect,
+		this,		&KsMainWindow::_deselect);
 
 	connect(&_data,		&KsDataStore::updateWidgets,
 		&_view,		&KsTraceViewer::update);
@@ -1039,4 +1042,12 @@ void KsMainWindow::_readSocket()
 void KsMainWindow::_splitterMoved(int pos, int index)
 {
 	_session.saveSplitterSize(_splitter);
+}
+
+void KsMainWindow::_deselect()
+{
+	_view.clearSelection();
+	_mState.activeMarker().remove();
+	_mState.updateLabels();
+	_graph.glPtr()->model()->update();
 }

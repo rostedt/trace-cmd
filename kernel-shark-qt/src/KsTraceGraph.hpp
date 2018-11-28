@@ -60,6 +60,10 @@ public:
 
 	void addTaskPlot(int);
 
+	void removeCPUPlot(int);
+
+	void removeTaskPlot(int);
+
 	void update(KsDataStore *data);
 
 	void updateGeom();
@@ -67,6 +71,14 @@ public:
 	void resizeEvent(QResizeEvent* event) override;
 
 	bool eventFilter(QObject* obj, QEvent* evt) override;
+
+signals:
+	/**
+	 * This signal is emitted in the case of a right mouse button click or
+	 * in the case of a double click over an empty area (no visible
+	 * KernelShark entries).
+	 */
+	void deselect();
 
 private:
 
@@ -104,6 +116,8 @@ private:
 	};
 
 	void _updateGraphs(GraphActions action);
+
+	void _onCustomContextMenu(const QPoint &point);
 
 	QToolBar	_pointerBar, _navigationBar;
 

@@ -40,6 +40,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
                         KsTraceViewer.hpp
                         KsMainWindow.hpp
                         KsCaptureDialog.hpp
+                        KsQuickContextMenu.hpp
                         KsAdvFilteringDialog.hpp)
 
     QT5_WRAP_CPP(ks-guiLib_hdr_moc ${ks-guiLib_hdr})
@@ -54,6 +55,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
                                                             KsTraceViewer.cpp
                                                             KsMainWindow.cpp
                                                             KsCaptureDialog.cpp
+                                                            KsQuickContextMenu.cpp
                                                             KsAdvFilteringDialog.cpp)
 
     target_link_libraries(kshark-gui kshark-plot

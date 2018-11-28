@@ -210,6 +210,8 @@ private:
 	void _error(const QString &text, const QString &errCode,
 		    bool resize, bool unloadPlugins);
 
+	void _deselect();
+
 private slots:
 	void _captureFinished(int, QProcess::ExitStatus);
 };

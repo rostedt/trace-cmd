@@ -13,6 +13,7 @@
 #include "KsUtils.hpp"
 #include "KsDualMarker.hpp"
 #include "KsTraceGraph.hpp"
+#include "KsQuickContextMenu.hpp"
 
 /** Create a default (empty) Trace graph widget. */
 KsTraceGraph::KsTraceGraph(QWidget *parent)
@@ -133,6 +134,10 @@ KsTraceGraph::KsTraceGraph(QWidget *parent)
 
 	connect(_glWindow.model(),	&KsGraphModel::modelReset,
 		this,			&KsTraceGraph::_updateTimeLegends);
+
+	_glWindow.setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(&_glWindow,	&QTableView::customContextMenuRequested,
+		this,		&KsTraceGraph::_onCustomContextMenu);
 
 	_scrollArea.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_scrollArea.setWidget(&_drawWindow);
@@ -447,6 +452,26 @@ void KsTraceGraph::addTaskPlot(int pid)
 	_selfUpdate();
 }
 
+/** Remove a CPU graph from the existing list of CPU graphs. */
+void KsTraceGraph::removeCPUPlot(int cpu)
+{
+	if (!_glWindow._cpuList.contains(cpu))
+		return;
+
+	_glWindow._cpuList.removeAll(cpu);
+	_selfUpdate();
+}
+
+/** Remove a Task graph from the existing list of Task graphs. */
+void KsTraceGraph::removeTaskPlot(int pid)
+{
+	if (!_glWindow._taskList.contains(pid))
+		return;
+
+	_glWindow._taskList.removeAll(pid);
+	_selfUpdate();
+}
+
 /** Update the content of all graphs. */
 void KsTraceGraph::update(KsDataStore *data)
 {
@@ -687,5 +712,74 @@ void KsTraceGraph::_updateGraphs(GraphActions action)
 		_mState->updateMarkers(*_data, &_glWindow);
 		_updateTimeLegends();
 		QCoreApplication::processEvents();
+	}
+}
+
+void KsTraceGraph::_onCustomContextMenu(const QPoint &point)
+{
+	KsQuickMarkerMenu *menu(nullptr);
+	int cpu, pid;
+	size_t row;
+	bool found;
+
+	found = _glWindow.find(point, 20, true, &row);
+	if (found) {
+		/* KernelShark entry has been found under the cursor. */
+		KsQuickContextMenu *entryMenu;
+		menu = entryMenu = new KsQuickContextMenu(_data, row,
+							  _mState, this);
+
+		connect(entryMenu,	&KsQuickContextMenu::addTaskPlot,
+			this,		&KsTraceGraph::addTaskPlot);
+
+		connect(entryMenu,	&KsQuickContextMenu::addCPUPlot,
+			this,		&KsTraceGraph::addCPUPlot);
+
+		connect(entryMenu,	&KsQuickContextMenu::removeTaskPlot,
+			this,		&KsTraceGraph::removeTaskPlot);
+
+		connect(entryMenu,	&KsQuickContextMenu::removeCPUPlot,
+			this,		&KsTraceGraph::removeCPUPlot);
+	} else {
+		cpu = _glWindow.getPlotCPU(point);
+		if (cpu >= 0) {
+			/*
+			 * This is a CPU plot, but we do not have an entry
+			 * under the cursor.
+			 */
+			KsRmCPUPlotMenu *rmMenu;
+			menu = rmMenu = new KsRmCPUPlotMenu(_mState, cpu, this);
+
+			auto lamRmPlot = [&cpu, this] () {
+				removeCPUPlot(cpu);
+			};
+
+			connect(rmMenu, &KsRmPlotContextMenu::removePlot,
+				lamRmPlot);
+		}
+
+		pid = _glWindow.getPlotPid(point);
+		if (pid >= 0) {
+			/*
+			 * This is a Task plot, but we do not have an entry
+			 * under the cursor.
+			 */
+			KsRmTaskPlotMenu *rmMenu;
+			menu = rmMenu = new KsRmTaskPlotMenu(_mState, pid, this);
+
+			auto lamRmPlot = [&pid, this] () {
+				removeTaskPlot(pid);
+			};
+
+			connect(rmMenu, &KsRmPlotContextMenu::removePlot,
+				lamRmPlot);
+		}
+	}
+
+	if (menu) {
+		connect(menu,	&KsQuickMarkerMenu::deselect,
+			this,	&KsTraceGraph::deselect);
+
+		menu->exec(mapToGlobal(point));
 	}
 }

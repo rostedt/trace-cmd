@@ -347,48 +347,4 @@ struct KsPluginCheckBoxWidget : public KsCheckBoxTableWidget
 			       QWidget *parent = nullptr);
 };
 
-class KsDataStore;
-class KsGLWidget;
-
-/**
- * The KsQuickFilterMenu class provides a menu for easy filtering and plotting.
- * The menu is initialized from a single kshark_entry and uses the content of
- * this entry to provides quick actions for filtering and plottin.
- */
-class KsQuickEntryMenu : public QMenu
-{
-	Q_OBJECT
-public:
-	KsQuickEntryMenu() = delete;
-
-	explicit KsQuickEntryMenu(KsDataStore *data,
-				  size_t row,
-				  QWidget *parent = nullptr);
-
-signals:
-	/** Signal to add a task plot. */
-	void plotTask(int);
-
-private:
-	void _hideTask();
-
-	void _showTask();
-
-	void _hideEvent();
-
-	void _showEvent();
-
-	void _addTaskPlot();
-
-	KsDataStore	*_data;
-
-	size_t		 _row;
-
-	QAction _hideTaskAction, _showTaskAction;
-
-	QAction _hideEventAction, _showEventAction;
-
-	QAction _addTaskPlotAction;
-};
-
 #endif

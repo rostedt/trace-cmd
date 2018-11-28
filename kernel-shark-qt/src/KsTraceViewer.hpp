@@ -21,6 +21,21 @@
 #include "KsDualMarker.hpp"
 
 /**
+ * Table View class, needed in order to reimplemented the handler for mouse
+ * press events.
+ */
+class KsTableView : public QTableView
+{
+	Q_OBJECT
+public:
+	/** Create KsTableView. */
+	explicit KsTableView(QWidget *parent = nullptr)
+	: QTableView(parent) {};
+
+	void mousePressEvent(QMouseEvent *event) override;
+};
+
+/**
  * The KsTraceViewer class provides a widget for browsing in the trace data
  * shown in a text form.
  */
@@ -48,7 +63,7 @@ public:
 
 	void showRow(size_t r, bool mark);
 
-	void deselect();
+	void clearSelection();
 
 	void update(KsDataStore *data);
 
@@ -57,15 +72,21 @@ signals:
 	void select(size_t);
 
 	/**
-	 * This signal is used to re-emitted the plotTask signal of the
-	 * KsQuickEntryMenu.
+	 * This signal is used to re-emitted the addTaskPlot signal of the
+	 * KsQuickContextMenu.
 	 */
-	void plotTask(int pid);
+	void addTaskPlot(int pid);
+
+	/**
+	 * This signal is used to re-emitted the deselect signal of the
+	 * KsQuickMarkerMenu.
+	 */
+	void deselect();
 
 private:
 	QVBoxLayout	_layout;
 
-	QTableView	_view;
+	KsTableView	_view;
 
 	KsViewModel		_model;
 
@@ -145,7 +166,6 @@ private:
 	int _getSelectedDataRow();
 
 private slots:
-
 	void _searchEdit(int);
 };
 
