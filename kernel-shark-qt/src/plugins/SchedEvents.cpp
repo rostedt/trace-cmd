@@ -139,6 +139,21 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 				ksmodel_get_entry_back(histo, bin, false,
 						       plugin_wakeup_match_rec_pid,
 						       pid, col, &indexOpen);
+
+			if (entryOpen) {
+				int cpu = ksmodel_get_cpu_back(histo, bin,
+								      pid,
+								      false,
+								      col,
+								      nullptr);
+				if (cpu >= 0) {
+					/*
+					 * The task is already running. Ignore
+					 * this wakeup event.
+					 */
+					entryOpen = nullptr;
+				}
+			}
 		}
 
 		if (rec) {
