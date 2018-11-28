@@ -50,7 +50,9 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _importFilterAction("Import Filter", this),
   _exportFilterAction("Export Filter", this),
   _graphFilterSyncAction(this),
+  _graphFilterSyncCBox(nullptr),
   _listFilterSyncAction(this),
+  _listFilterSyncCBox(nullptr),
   _showEventsAction("Show events", this),
   _showTasksAction("Show tasks", this),
   _hideTasksAction("Hide tasks", this),
@@ -273,7 +275,6 @@ void KsMainWindow::_createMenus()
 {
 	QMenu *file, *sessions, *filter, *plots, *tools, *help;
 	kshark_context *kshark_ctx(nullptr);
-	QCheckBox *cbf2g, *cbf2l;
 
 	if (!kshark_instance(&kshark_ctx))
 		return;
@@ -316,17 +317,17 @@ void KsMainWindow::_createMenus()
 
 	kshark_ctx->filter_mask |= KS_EVENT_VIEW_FILTER_MASK;
 
-	cbf2g = lamMakeCBAction(&_graphFilterSyncAction,
-				"Apply filters to Graph");
+	_graphFilterSyncCBox = lamMakeCBAction(&_graphFilterSyncAction,
+					       "Apply filters to Graph");
 
-	connect(cbf2g,	&QCheckBox::stateChanged,
-		this,	&KsMainWindow::_graphFilterSync);
+	connect(_graphFilterSyncCBox,	&QCheckBox::stateChanged,
+		this,			&KsMainWindow::_graphFilterSync);
 
-	cbf2l = lamMakeCBAction(&_listFilterSyncAction,
-				"Apply filters to List");
+	_listFilterSyncCBox = lamMakeCBAction(&_listFilterSyncAction,
+					      "Apply filters to List");
 
-	connect(cbf2l,	&QCheckBox::stateChanged,
-		this,	&KsMainWindow::_listFilterSync);
+	connect(_listFilterSyncCBox,	&QCheckBox::stateChanged,
+		this,			&KsMainWindow::_listFilterSync);
 
 	filter->addAction(&_graphFilterSyncAction);
 	filter->addAction(&_listFilterSyncAction);
@@ -431,6 +432,20 @@ void KsMainWindow::_exportSession()
 	_session.exportToFile(fileName);
 }
 
+void KsMainWindow::_filterSyncCBoxUpdate(kshark_context *kshark_ctx)
+{
+	if (kshark_ctx->filter_mask & KS_TEXT_VIEW_FILTER_MASK)
+		_listFilterSyncCBox->setChecked(true);
+	else
+		_listFilterSyncCBox->setChecked(false);
+
+	if (kshark_ctx->filter_mask &
+	    (KS_GRAPH_VIEW_FILTER_MASK | KS_EVENT_VIEW_FILTER_MASK))
+		_graphFilterSyncCBox->setChecked(true);
+	else
+		_graphFilterSyncCBox->setChecked(false);
+}
+
 void KsMainWindow::_importFilter()
 {
 	kshark_context *kshark_ctx(nullptr);
@@ -455,6 +470,7 @@ void KsMainWindow::_importFilter()
 	kshark_free_config_doc(conf);
 
 	kshark_filter_entries(kshark_ctx, _data.rows(), _data.size());
+	_filterSyncCBoxUpdate(kshark_ctx);
 	emit _data.updateWidgets(&_data);
 }
 
@@ -960,6 +976,7 @@ void KsMainWindow::loadSession(const QString &fileName)
 	pb.setValue(20);
 
 	_session.loadFilters(kshark_ctx, &_data);
+	_filterSyncCBoxUpdate(kshark_ctx);
 	pb.setValue(130);
 
 	_session.loadSplitterSize(&_splitter);

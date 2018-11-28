@@ -1201,6 +1201,103 @@ bool kshark_import_adv_filters(struct kshark_context *kshark_ctx,
 	}
 }
 
+static bool kshark_user_mask_to_json(struct kshark_context *kshark_ctx,
+				     struct json_object *jobj)
+{
+	uint8_t mask = kshark_ctx->filter_mask;
+	json_object *jmask;
+
+	jmask = json_object_new_int((int) mask);
+	if (!jmask)
+		return false;
+
+	/* Add the mask to the filter config document. */
+	json_object_object_add(jobj, KS_USER_FILTER_MASK_NAME, jmask);
+	return true;
+}
+
+/**
+ * @brief Record the current value of the the user-specified filter mask into
+ *	  a Configuration document.
+ *
+ * @param kshark_ctx: Input location for session context pointer.
+ * @param conf: Input location for the kshark_config_doc instance. Currently
+ *		only Json format is supported. If NULL, a new Adv. Filter
+ *		Configuration document will be created.
+ *
+ * @returns True on success, otherwise False.
+ */
+bool kshark_export_user_mask(struct kshark_context *kshark_ctx,
+			     struct kshark_config_doc **conf)
+{
+	if (!*conf)
+		*conf = kshark_filter_config_new(KS_CONFIG_JSON);
+
+	if (!*conf)
+		return false;
+
+	switch ((*conf)->format) {
+	case KS_CONFIG_JSON:
+		return kshark_user_mask_to_json(kshark_ctx,
+						(*conf)->conf_doc);
+
+	default:
+		fprintf(stderr, "Document format %d not supported\n",
+			(*conf)->format);
+		return false;
+	}
+}
+
+static bool kshark_user_mask_from_json(struct kshark_context *kshark_ctx,
+				       struct json_object *jobj)
+{
+	json_object *jmask;
+	uint8_t mask;
+
+	if (!kshark_json_type_check(jobj, "kshark.config.filter"))
+		return false;
+	/*
+	 * Use the name of the filter to find the value of the filter maks.
+	 * Notice that the filter config document may contain no data for
+	 * the mask.
+	 */
+	if (!json_object_object_get_ex(jobj, KS_USER_FILTER_MASK_NAME,
+				       &jmask))
+		return false;
+
+	mask = json_object_get_int(jmask);
+	kshark_ctx->filter_mask = mask;
+
+	return true;
+}
+
+/**
+ * @brief Load from Configuration document the value of the user-specified
+ *	  filter mask.
+ *
+ * @param kshark_ctx: Input location for session context pointer.
+ * @param conf: Input location for the kshark_config_doc instance. Currently
+ *		only Json format is supported.
+ *
+ * @returns True, if a mask has been loaded. If the filter configuration
+ *	    document contains no data for the mask or in a case of an error,
+ *	    the function returns False.
+ */
+bool kshark_import_user_mask(struct kshark_context *kshark_ctx,
+			     struct kshark_config_doc *conf)
+{
+	switch (conf->format) {
+	case KS_CONFIG_JSON:
+		return kshark_user_mask_from_json(kshark_ctx,
+						  conf->conf_doc);
+
+	default:
+		fprintf(stderr, "Document format %d not supported\n",
+			conf->format);
+		return false;
+	}
+}
+
 static bool filter_is_set(struct tracecmd_filter_id *filter)
 {
 	return filter && filter->count;
@@ -1430,6 +1527,7 @@ kshark_export_all_filters(struct kshark_context *kshark_ctx,
 	    !kshark_export_all_event_filters(kshark_ctx, &conf) ||
 	    !kshark_export_all_task_filters(kshark_ctx, &conf) ||
 	    !kshark_export_all_cpu_filters(kshark_ctx, &conf) ||
+	    !kshark_export_user_mask(kshark_ctx, &conf) ||
 	    !kshark_export_adv_filters(kshark_ctx, &conf)) {
 		kshark_free_config_doc(conf);
 		return NULL;
@@ -1456,6 +1554,7 @@ bool kshark_import_all_filters(struct kshark_context *kshark_ctx,
 	ret = kshark_import_all_task_filters(kshark_ctx, conf);
 	ret |= kshark_import_all_cpu_filters(kshark_ctx, conf);
 	ret |= kshark_import_all_event_filters(kshark_ctx, conf);
+	ret |= kshark_import_user_mask(kshark_ctx, conf);
 	ret |= kshark_import_adv_filters(kshark_ctx, conf);
 
 	return ret;

@@ -505,6 +505,11 @@ enum kshark_config_formats {
 #define KS_ADV_EVENT_FILTER_NAME	"adv event filter"
 
 /**
+ * Field name for the Configuration document describing user-specified filter
+ * mask.
+ */
+#define KS_USER_FILTER_MASK_NAME	"filter mask"
+/**
  * Field name for the Configuration document describing the state of the Vis.
  * model.
  */
@@ -574,6 +579,12 @@ bool kshark_import_event_filter(struct tep_handle *pevent,
 				struct tracecmd_filter_id *filter,
 				const char *filter_name,
 				struct kshark_config_doc *conf);
+
+bool kshark_export_user_mask(struct kshark_context *kshark_ctx,
+			     struct kshark_config_doc **conf);
+
+bool kshark_import_user_mask(struct kshark_context *kshark_ctx,
+			     struct kshark_config_doc *conf);
 
 bool kshark_export_filter_array(struct tracecmd_filter_id *filter,
 				const char *filter_name,

@@ -112,7 +112,11 @@ private:
 
 	QWidgetAction	_graphFilterSyncAction;
 
+	QCheckBox	*_graphFilterSyncCBox;
+
 	QWidgetAction	_listFilterSyncAction;
+
+	QCheckBox	*_listFilterSyncCBox;
 
 	QAction		_showEventsAction;
 
@@ -217,6 +221,8 @@ private:
 		    bool resize, bool unloadPlugins);
 
 	void _deselect();
+
+	void _filterSyncCBoxUpdate(kshark_context *kshark_ctx);
 
 private slots:
 	void _captureFinished(int, QProcess::ExitStatus);
