@@ -54,6 +54,7 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
   _showTaskAction(this),
   _hideEventAction(this),
   _showEventAction(this),
+  _hideCPUAction(this),
   _addCPUPlotAction(this),
   _addTaskPlotAction(this),
   _removeCPUPlotAction(this),
@@ -107,6 +108,9 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 	descr += kshark_get_event_name_easy(_data->rows()[_row]);
 	descr += "] only";
 	lamAddAction(&_showEventAction, &KsQuickContextMenu::_showEvent);
+
+	descr = QString("Hide CPU [%1]").arg(_data->rows()[_row]->cpu);
+	lamAddAction(&_hideCPUAction, &KsQuickContextMenu::_hideCPU);
 
 	if (parentName == "KsTraceViewer") {
 		descr = "Add [";
@@ -192,6 +196,28 @@ void KsQuickContextMenu::_showEvent()
 	int eventId = kshark_get_event_id_easy(_data->rows()[_row]);
 
 	_data->applyPosEventFilter(QVector<int>(1, eventId));
+}
+
+void KsQuickContextMenu::_hideCPU()
+{
+	kshark_context *kshark_ctx(nullptr);
+	QVector<int> vec;
+
+	if (!kshark_instance(&kshark_ctx))
+		return;
+
+	vec =_getFilterVector(kshark_ctx->hide_cpu_filter,
+			      _data->rows()[_row]->cpu);
+	_data->applyNegCPUFilter(vec);
+}
+
+QVector<int> KsQuickContextMenu::_getFilterVector(tracecmd_filter_id *filter, int newId)
+{
+	QVector<int> vec = KsUtils::getFilterIds(filter);
+	if (!vec.contains(newId))
+		vec.append(newId);
+
+	return vec;
 }
 
 void KsQuickContextMenu::_addTaskPlot()

@@ -71,6 +71,8 @@ private:
 
 	void _showEvent();
 
+	void _hideCPU();
+
 	void _addCPUPlot();
 
 	void _addTaskPlot();
@@ -79,6 +81,8 @@ private:
 
 	void _removeTaskPlot();
 
+	QVector<int> _getFilterVector(tracecmd_filter_id *filter, int newId);
+
 	KsDataStore	*_data;
 
 	size_t		_row;
@@ -86,6 +90,8 @@ private:
 	QAction _hideTaskAction, _showTaskAction;
 
 	QAction _hideEventAction, _showEventAction;
+
+	QAction _hideCPUAction;
 
 	QAction _addCPUPlotAction;
 
