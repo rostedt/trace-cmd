@@ -2775,6 +2775,8 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 	 */
 	write(fd, V2_CPU, sizeof(V2_CPU));
 
+	buf[0] = 0;
+
 	/* read a reply message */
 	n = read(fd, buf, BUFSIZ);
 
