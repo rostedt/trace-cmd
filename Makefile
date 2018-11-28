@@ -251,8 +251,10 @@ all_cmd: $(CMD_TARGETS)
 
 CMAKE_COMMAND = /usr/bin/cmake
 
-gui: force $(CMD_TARGETS)
+$(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
 	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) ..
+
+gui: force $(CMD_TARGETS) $(kshark-dir)/build/Makefile
 	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
 	echo "gui build complete"
 	echo "  kernelshark located at $(kshark-dir)/bin"
@@ -337,9 +339,7 @@ install: install_cmd
 	@echo "      to install man pages, type \"make install_doc\""
 
 install_gui: install_cmd gui
-	$(Q)$(call do_install,$(obj)/kernel-shark/trace-view,$(bindir_SQ))
-	$(Q)$(call do_install,$(obj)/kernel-shark/trace-graph,$(bindir_SQ))
-	$(Q)$(call do_install,$(obj)/kernel-shark/kernelshark,$(bindir_SQ))
+	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build install
 
 install_libs: libs
 	$(Q)$(call do_install,$(LIBTRACECMD_SHARED),$(libdir_SQ))
