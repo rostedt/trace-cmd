@@ -67,8 +67,10 @@ void graphFilterSync(bool state)
 
 	if (state) {
 		kshark_ctx->filter_mask |= KS_GRAPH_VIEW_FILTER_MASK;
+		kshark_ctx->filter_mask |= KS_EVENT_VIEW_FILTER_MASK;
 	} else {
 		kshark_ctx->filter_mask &= ~KS_GRAPH_VIEW_FILTER_MASK;
+		kshark_ctx->filter_mask &= ~KS_EVENT_VIEW_FILTER_MASK;
 	}
 }
 
