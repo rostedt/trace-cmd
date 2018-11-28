@@ -1070,7 +1070,7 @@ static int ksmodel_get_entry_cpu(const struct kshark_entry *entry)
  * @param index: Optional output location for the index of the requested
  *		 entry inside the array.
  *
- * @returns Process Id of the task if an entry has been found. Else a negative
+ * @returns The CPU Id of the task if an entry has been found. Else a negative
  *	    Identifier (KS_EMPTY_BIN or KS_FILTERED_BIN).
  */
 int ksmodel_get_cpu_front(struct kshark_trace_histo *histo,
@@ -1103,7 +1103,7 @@ int ksmodel_get_cpu_front(struct kshark_trace_histo *histo,
  * @param index: Optional output location for the index of the requested
  *		 entry inside the array.
  *
- * @returns Process Id of the task if an entry has been found. Else a negative
+ * @returns The CPU Id of the task if an entry has been found. Else a negative
  *	    Identifier (KS_EMPTY_BIN or KS_FILTERED_BIN).
  */
 int ksmodel_get_cpu_back(struct kshark_trace_histo *histo,
