@@ -84,6 +84,8 @@ namespace KsUtils {
 
 QVector<int> getPidList();
 
+QVector<int> getFilterIds(tracecmd_filter_id *filter);
+
 /** @brief Geat the list of plugins. */
 inline QStringList getPluginList() {return plugins.split(";");}
 

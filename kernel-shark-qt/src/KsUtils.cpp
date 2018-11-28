@@ -36,6 +36,27 @@ QVector<int> getPidList()
 	return pids;
 }
 
+/** @brief Get a sorted vector of Id values of a filter. */
+QVector<int> getFilterIds(tracecmd_filter_id *filter)
+{
+	kshark_context *kshark_ctx(nullptr);
+	int *cpuFilter, n;
+	QVector<int> v;
+
+	if (!kshark_instance(&kshark_ctx))
+		return v;
+
+	cpuFilter = tracecmd_filter_ids(filter);
+	n = filter->count;
+	for (int i = 0; i < n; ++i)
+		v.append(cpuFilter[i]);
+
+	qSort(v);
+
+	free(cpuFilter);
+	return v;
+}
+
 /**
  * Set the bit of the filter mask of the kshark session context responsible
  * for the visibility of the events in the Table View.
