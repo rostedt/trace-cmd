@@ -269,12 +269,17 @@ void KsDataStore::_applyIdFilter(int filterId, QVector<int> vec)
 			kshark_filter_clear(kshark_ctx, KS_SHOW_TASK_FILTER);
 			kshark_filter_clear(kshark_ctx, KS_HIDE_TASK_FILTER);
 			break;
+		case KS_SHOW_CPU_FILTER:
+		case KS_HIDE_CPU_FILTER:
+			kshark_filter_clear(kshark_ctx, KS_SHOW_CPU_FILTER);
+			kshark_filter_clear(kshark_ctx, KS_HIDE_CPU_FILTER);
+			break;
 		default:
 			return;
 	}
 
-	for (auto &&pid: vec)
-		kshark_filter_add_id(kshark_ctx, filterId, pid);
+	for (auto &&val: vec)
+		kshark_filter_add_id(kshark_ctx, filterId, val);
 
 	if (!_tep)
 		return;
@@ -317,6 +322,18 @@ void KsDataStore::applyPosEventFilter(QVector<int> vec)
 void KsDataStore::applyNegEventFilter(QVector<int> vec)
 {
 	_applyIdFilter(KS_HIDE_EVENT_FILTER, vec);
+}
+
+/** Apply Show CPU filter. */
+void KsDataStore::applyPosCPUFilter(QVector<int> vec)
+{
+	_applyIdFilter(KS_SHOW_CPU_FILTER, vec);
+}
+
+/** Apply Hide CPU filter. */
+void KsDataStore::applyNegCPUFilter(QVector<int> vec)
+{
+	_applyIdFilter(KS_HIDE_CPU_FILTER, vec);
 }
 
 /** Disable all filters. */

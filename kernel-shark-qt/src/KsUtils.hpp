@@ -156,6 +156,10 @@ public:
 
 	void applyNegEventFilter(QVector<int>);
 
+	void applyPosCPUFilter(QVector<int>);
+
+	void applyNegCPUFilter(QVector<int>);
+
 	void clearAllFilters();
 
 signals:
