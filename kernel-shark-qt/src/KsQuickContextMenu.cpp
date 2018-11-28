@@ -26,6 +26,8 @@ KsQuickMarkerMenu::KsQuickMarkerMenu(KsDualMarkerSM *dm, QWidget *parent)
 	if (dm->activeMarker()._isSet) {
 		addSection("Marker menu");
 		_deselectAction.setText("Deselect");
+		_deselectAction.setShortcut(tr("Ctrl+D"));
+		_deselectAction.setStatusTip(tr("Deselect marker"));
 
 		connect(&_deselectAction,	&QAction::triggered,
 			this,			&KsQuickMarkerMenu::deselect);

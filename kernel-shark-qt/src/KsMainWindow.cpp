@@ -65,7 +65,8 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _colorPhaseSlider(Qt::Horizontal, this),
   _fullScreenModeAction("Full Screen Mode", this),
   _aboutAction("About", this),
-  _contentsAction("Contents", this)
+  _contentsAction("Contents", this),
+  _deselectShortcut(this)
 {
 	setWindowTitle("Kernel Shark");
 	_createActions();
@@ -113,6 +114,10 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 
 	connect(&_plugins,	&KsPluginManager::dataReload,
 		&_data,		&KsDataStore::reload);
+
+	_deselectShortcut.setKey(Qt::CTRL + Qt::Key_D);
+	connect(&_deselectShortcut,	&QShortcut::activated,
+		this,			&KsMainWindow::_deselect);
 
 	_resizeEmpty();
 }

@@ -147,6 +147,8 @@ private:
 
 	QAction		_contentsAction;
 
+	QShortcut        _deselectShortcut;
+
 	void _open();
 
 	void _restorSession();
