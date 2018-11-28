@@ -489,6 +489,16 @@ enum kshark_config_formats {
 #define KS_SHOW_TASK_FILTER_NAME	"show task filter"
 
 /**
+ * Field name for the Configuration document describing the Hide Task filter.
+ */
+#define KS_HIDE_CPU_FILTER_NAME		"hide cpu filter"
+
+/**
+ * Field name for the Configuration document describing the Show Task filter.
+ */
+#define KS_SHOW_CPU_FILTER_NAME		"show cpu filter"
+
+/**
  * Field name for the Configuration document describing the Advanced event
  * filter.
  */
@@ -565,19 +575,22 @@ bool kshark_import_event_filter(struct tep_handle *pevent,
 				const char *filter_name,
 				struct kshark_config_doc *conf);
 
-bool kshark_export_task_filter(struct tracecmd_filter_id *filter,
-			       const char *filter_name,
-			       struct kshark_config_doc *conf);
+bool kshark_export_filter_array(struct tracecmd_filter_id *filter,
+				const char *filter_name,
+				struct kshark_config_doc *conf);
 
-bool kshark_import_task_filter(struct tracecmd_filter_id *filter,
-			       const char *filter_name,
-			       struct kshark_config_doc *conf);
+bool kshark_import_filter_array(struct tracecmd_filter_id *filter,
+				const char *filter_name,
+				struct kshark_config_doc *conf);
 
 bool kshark_export_all_event_filters(struct kshark_context *kshark_ctx,
 				     struct kshark_config_doc **conf);
 
 bool kshark_export_all_task_filters(struct kshark_context *kshark_ctx,
 				    struct kshark_config_doc **conf);
+
+bool kshark_export_all_cpu_filters(struct kshark_context *kshark_ctx,
+				   struct kshark_config_doc **conf);
 
 struct kshark_config_doc *
 kshark_export_all_filters(struct kshark_context *kshark_ctx,
@@ -588,6 +601,9 @@ bool kshark_import_all_event_filters(struct kshark_context *kshark_ctx,
 
 bool kshark_import_all_task_filters(struct kshark_context *kshark_ctx,
 				    struct kshark_config_doc *conf);
+
+bool kshark_import_all_cpu_filters(struct kshark_context *kshark_ctx,
+				   struct kshark_config_doc *conf);
 
 bool kshark_import_all_filters(struct kshark_context *kshark_ctx,
 			       struct kshark_config_doc *conf);

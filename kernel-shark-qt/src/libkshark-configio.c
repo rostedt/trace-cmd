@@ -870,20 +870,20 @@ bool kshark_import_event_filter(struct tep_handle *pevent,
 	}
 }
 
-static bool kshark_task_filter_to_json(struct tracecmd_filter_id *filter,
-				       const char *filter_name,
-				       struct json_object *jobj)
+static bool kshark_filter_array_to_json(struct tracecmd_filter_id *filter,
+					const char *filter_name,
+					struct json_object *jobj)
 {
 	json_object *jfilter_data, *jpid = NULL;
 	int i, *ids;
 
 	/*
-	 * If this Json document already contains a description of the model,
+	 * If this Json document already contains a description of the filter,
 	 * delete this description.
 	 */
 	json_del_if_exist(jobj, filter_name);
 
-	/* Get the array of Ids to be fitered. */
+	/* Get the array of Ids to be filtered. */
 	ids = tracecmd_filter_ids(filter);
 	if (!ids)
 		return true;
@@ -918,7 +918,7 @@ static bool kshark_task_filter_to_json(struct tracecmd_filter_id *filter,
 }
 
 /**
- * @brief Record the current configuration of a Task Id filter into a
+ * @brief Record the current configuration of a simple Id filter into a
  *	  Configuration document.
  *
  * @param filter: Input location for an Id filter.
@@ -928,14 +928,14 @@ static bool kshark_task_filter_to_json(struct tracecmd_filter_id *filter,
  *
  * @returns True on success, otherwise False.
  */
-bool kshark_export_task_filter(struct tracecmd_filter_id *filter,
-			       const char *filter_name,
-			       struct kshark_config_doc *conf)
+bool kshark_export_filter_array(struct tracecmd_filter_id *filter,
+				const char *filter_name,
+				struct kshark_config_doc *conf)
 {
 	switch (conf->format) {
 	case KS_CONFIG_JSON:
-		return kshark_task_filter_to_json(filter, filter_name,
-						  conf->conf_doc);
+		return kshark_filter_array_to_json(filter, filter_name,
+						   conf->conf_doc);
 
 	default:
 		fprintf(stderr, "Document format %d not supported\n",
@@ -944,9 +944,9 @@ bool kshark_export_task_filter(struct tracecmd_filter_id *filter,
 	}
 }
 
-static bool kshark_task_filter_from_json(struct tracecmd_filter_id *filter,
-					 const char *filter_name,
-					 struct json_object *jobj)
+static bool kshark_filter_array_from_json(struct tracecmd_filter_id *filter,
+					  const char *filter_name,
+					  struct json_object *jobj)
 {
 	json_object *jfilter, *jpid;
 	int i, length;
@@ -981,7 +981,8 @@ static bool kshark_task_filter_from_json(struct tracecmd_filter_id *filter,
 }
 
 /**
- * @brief Load from Configuration document the configuration of a Task Id filter.
+ * @brief Load from Configuration document the configuration of a simple
+ *	  Id filter.
  *
  * @param filter: Input location for an Id filter.
  * @param filter_name: The name of the filter as showing up in the Config.
@@ -993,14 +994,14 @@ static bool kshark_task_filter_from_json(struct tracecmd_filter_id *filter,
  *	    document contains no data for this particular filter or in a case
  *	    of an error, the function returns False.
  */
-bool kshark_import_task_filter(struct tracecmd_filter_id *filter,
-			       const char *filter_name,
-			       struct kshark_config_doc *conf)
+bool kshark_import_filter_array(struct tracecmd_filter_id *filter,
+				const char *filter_name,
+				struct kshark_config_doc *conf)
 {
 	switch (conf->format) {
 	case KS_CONFIG_JSON:
-		return kshark_task_filter_from_json(filter, filter_name,
-						    conf->conf_doc);
+		return kshark_filter_array_from_json(filter, filter_name,
+						     conf->conf_doc);
 
 	default:
 		fprintf(stderr, "Document format %d not supported\n",
@@ -1269,14 +1270,52 @@ bool kshark_export_all_task_filters(struct kshark_context *kshark_ctx,
 
 	/* Save a filter only if it contains Id values. */
 	if (filter_is_set(kshark_ctx->show_task_filter))
-		ret &= kshark_export_task_filter(kshark_ctx->show_task_filter,
-						 KS_SHOW_TASK_FILTER_NAME,
-						 *conf);
+		ret &= kshark_export_filter_array(kshark_ctx->show_task_filter,
+						  KS_SHOW_TASK_FILTER_NAME,
+						  *conf);
 
 	if (filter_is_set(kshark_ctx->hide_task_filter))
-		ret &= kshark_export_task_filter(kshark_ctx->hide_task_filter,
-						 KS_HIDE_TASK_FILTER_NAME,
-						 *conf);
+		ret &= kshark_export_filter_array(kshark_ctx->hide_task_filter,
+						  KS_HIDE_TASK_FILTER_NAME,
+						  *conf);
+
+	return ret;
+}
+
+
+/**
+ * @brief Record the current configuration of "show cpu" and "hide cpu"
+ *	  filters into a Configuration document.
+ *
+ * @param kshark_ctx: Input location for session context pointer.
+ * @param conf: Input location for the kshark_config_doc instance. Currently
+ *		only Json format is supported. If NULL, a new Filter
+ *		Configuration document will be created.
+ *
+ * @returns True, if a filter has been recorded. If both filters contain
+ *	    no Id values or in a case of an error, the function returns False.
+ */
+bool kshark_export_all_cpu_filters(struct kshark_context *kshark_ctx,
+				   struct kshark_config_doc **conf)
+{
+	bool ret = true;
+
+	if (!*conf)
+		*conf = kshark_filter_config_new(KS_CONFIG_JSON);
+
+	if (!*conf)
+		return false;
+
+	/* Save a filter only if it contains Id values. */
+	if (filter_is_set(kshark_ctx->show_task_filter))
+		ret &= kshark_export_filter_array(kshark_ctx->show_cpu_filter,
+						  KS_SHOW_CPU_FILTER_NAME,
+						  *conf);
+
+	if (filter_is_set(kshark_ctx->hide_task_filter))
+		ret &= kshark_export_filter_array(kshark_ctx->hide_cpu_filter,
+						  KS_HIDE_CPU_FILTER_NAME,
+						  *conf);
 
 	return ret;
 }
@@ -1328,13 +1367,41 @@ bool kshark_import_all_task_filters(struct kshark_context *kshark_ctx,
 {
 	bool ret = false;
 
-	ret |= kshark_import_task_filter(kshark_ctx->hide_task_filter,
-					 KS_HIDE_TASK_FILTER_NAME,
-					 conf);
+	ret |= kshark_import_filter_array(kshark_ctx->hide_task_filter,
+					  KS_HIDE_TASK_FILTER_NAME,
+					  conf);
 
-	ret |= kshark_import_task_filter(kshark_ctx->show_task_filter,
-					 KS_SHOW_TASK_FILTER_NAME,
-					 conf);
+	ret |= kshark_import_filter_array(kshark_ctx->show_task_filter,
+					  KS_SHOW_TASK_FILTER_NAME,
+					  conf);
+
+	return ret;
+}
+
+/**
+ * @brief Load from Configuration document the configuration of "show cpu"
+ *	  and "hide cpu" filters.
+ *
+ * @param kshark_ctx: Input location for session context pointer.
+ * @param conf: Input location for the kshark_config_doc instance. Currently
+ *		only Json format is supported.
+ *
+ * @returns True, if a filter has been loaded. If the filter configuration
+ *	    document contains no data for any cpu filter or in a case of an
+ *	    error, the function returns False.
+ */
+bool kshark_import_all_cpu_filters(struct kshark_context *kshark_ctx,
+				    struct kshark_config_doc *conf)
+{
+	bool ret = false;
+
+	ret |= kshark_import_filter_array(kshark_ctx->hide_cpu_filter,
+					  KS_HIDE_CPU_FILTER_NAME,
+					  conf);
+
+	ret |= kshark_import_filter_array(kshark_ctx->show_cpu_filter,
+					  KS_SHOW_CPU_FILTER_NAME,
+					  conf);
 
 	return ret;
 }
@@ -1362,6 +1429,7 @@ kshark_export_all_filters(struct kshark_context *kshark_ctx,
 	if (!conf ||
 	    !kshark_export_all_event_filters(kshark_ctx, &conf) ||
 	    !kshark_export_all_task_filters(kshark_ctx, &conf) ||
+	    !kshark_export_all_cpu_filters(kshark_ctx, &conf) ||
 	    !kshark_export_adv_filters(kshark_ctx, &conf)) {
 		kshark_free_config_doc(conf);
 		return NULL;
@@ -1386,6 +1454,7 @@ bool kshark_import_all_filters(struct kshark_context *kshark_ctx,
 {
 	bool ret;
 	ret = kshark_import_all_task_filters(kshark_ctx, conf);
+	ret |= kshark_import_all_cpu_filters(kshark_ctx, conf);
 	ret |= kshark_import_all_event_filters(kshark_ctx, conf);
 	ret |= kshark_import_adv_filters(kshark_ctx, conf);
 
