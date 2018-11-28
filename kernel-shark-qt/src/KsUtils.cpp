@@ -186,10 +186,14 @@ void KsDataStore::update()
 	if (!kshark_instance(&kshark_ctx))
 		return;
 
+	_unregisterCPUCollections();
+
 	if (kshark_filter_is_set(kshark_ctx)) {
 		kshark_filter_entries(kshark_ctx, _rows, _dataSize);
 		emit updateWidgets(this);
 	}
+
+	registerCPUCollections();
 }
 
 /** Register a collection of visible entries for each CPU. */
