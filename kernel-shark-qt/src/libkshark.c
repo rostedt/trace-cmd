@@ -448,19 +448,18 @@ bool kshark_filter_is_set(struct kshark_context *kshark_ctx)
 	       filter_is_set(kshark_ctx->hide_event_filter);
 }
 
-static void unset_event_filter_flag(struct kshark_context *kshark_ctx,
-				    struct kshark_entry *e)
+static inline void unset_event_filter_flag(struct kshark_context *kshark_ctx,
+					   struct kshark_entry *e)
 {
 	/*
 	 * All entries, filtered-out by the event filters, will be treated
 	 * differently, when visualized. Because of this, ignore the value
 	 * of the GRAPH_VIEW flag provided by the user via
-	 * kshark_ctx->filter_mask and unset the EVENT_VIEW flag.
+	 * kshark_ctx->filter_mask. The value of the EVENT_VIEW flag in
+	 * kshark_ctx->filter_mask will be used instead.
 	 */
-	int event_mask = kshark_ctx->filter_mask;
+	int event_mask = kshark_ctx->filter_mask & ~KS_GRAPH_VIEW_FILTER_MASK;
 
-	event_mask &= ~KS_GRAPH_VIEW_FILTER_MASK;
-	event_mask |= KS_EVENT_VIEW_FILTER_MASK;
 	e->visible &= ~event_mask;
 }
 
