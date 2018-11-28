@@ -959,13 +959,28 @@ void KsMainWindow::_captureStarted()
 	_captureLocalServer.listen("KSCapture");
 }
 
-void KsMainWindow::_captureFinished(int exit, QProcess::ExitStatus st)
+/**
+ * If the authorization could not be obtained because the user dismissed
+ * the authentication dialog (clicked Cancel), pkexec exits with a return
+ * value of 126.
+ */
+#define PKEXEC_DISMISS_RET	126
+
+void KsMainWindow::_captureFinished(int ret, QProcess::ExitStatus st)
 {
 	QProcess *capture = (QProcess *)sender();
 
 	_captureLocalServer.close();
 
-	if (exit != 0 || st != QProcess::NormalExit) {
+	if (ret == PKEXEC_DISMISS_RET) {
+		/*
+		 * Authorization could not be obtained because the user
+		 * dismissed the authentication dialog.
+		 */
+		return;
+	}
+
+	if (ret != 0 || st != QProcess::NormalExit) {
 		QString message = "Capture process failed:<br>";
 
 		message += capture->errorString();
