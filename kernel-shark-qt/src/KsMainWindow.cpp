@@ -54,6 +54,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _showEventsAction("Show events", this),
   _showTasksAction("Show tasks", this),
   _hideTasksAction("Hide tasks", this),
+  _hideCPUsAction("Hide CPUs", this),
   _advanceFilterAction("Advance Filtering", this),
   _clearAllFilters("Clear all filters", this),
   _cpuSelectAction("CPUs", this),
@@ -207,6 +208,9 @@ void KsMainWindow::_createActions()
 	connect(&_hideTasksAction,	&QAction::triggered,
 		this,			&KsMainWindow::_hideTasks);
 
+	connect(&_hideCPUsAction,	&QAction::triggered,
+		this,			&KsMainWindow::_hideCPUs);
+
 	connect(&_advanceFilterAction,	&QAction::triggered,
 		this,			&KsMainWindow::_advancedFiltering);
 
@@ -329,6 +333,7 @@ void KsMainWindow::_createMenus()
 	filter->addAction(&_showEventsAction);
 	filter->addAction(&_showTasksAction);
 	filter->addAction(&_hideTasksAction);
+	filter->addAction(&_hideCPUsAction);
 	filter->addAction(&_advanceFilterAction);
 	filter->addAction(&_clearAllFilters);
 
@@ -599,6 +604,40 @@ void KsMainWindow::_hideTasks()
 
 	connect(dialog,		&KsCheckBoxDialog::apply,
 		&_data,		&KsDataStore::applyNegTaskFilter);
+
+	dialog->show();
+}
+
+void KsMainWindow::_hideCPUs()
+{
+	kshark_context *kshark_ctx(nullptr);
+	KsCheckBoxWidget *cpu_cbd;
+	KsCheckBoxDialog *dialog;
+
+	if (!kshark_instance(&kshark_ctx))
+		return;
+
+	cpu_cbd = new KsCPUCheckBoxWidget(_data.tep(), this);
+	dialog = new KsCheckBoxDialog(cpu_cbd, this);
+
+	if (!kshark_ctx->hide_cpu_filter ||
+	    !kshark_ctx->hide_cpu_filter->count) {
+		cpu_cbd->setDefault(false);
+	} else {
+		int nCPUs = tep_get_cpus(_data.tep());
+		QVector<bool> v(nCPUs, false);
+
+		for (int i = 0; i < nCPUs; ++i) {
+			if (tracecmd_filter_id_find(kshark_ctx->hide_cpu_filter,
+						    i))
+				v[i] = true;
+		}
+
+		cpu_cbd->set(v);
+	}
+
+	connect(dialog,		&KsCheckBoxDialog::apply,
+		&_data,		&KsDataStore::applyNegCPUFilter);
 
 	dialog->show();
 }
