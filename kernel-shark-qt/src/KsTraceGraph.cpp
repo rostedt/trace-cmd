@@ -439,6 +439,7 @@ void KsTraceGraph::addCPUPlot(int cpu)
 		return;
 
 	_glWindow._cpuList.append(cpu);
+	qSort(_glWindow._cpuList);
 	_selfUpdate();
 }
 
@@ -449,6 +450,7 @@ void KsTraceGraph::addTaskPlot(int pid)
 		return;
 
 	_glWindow._taskList.append(pid);
+	qSort(_glWindow._taskList);
 	_selfUpdate();
 }
 
