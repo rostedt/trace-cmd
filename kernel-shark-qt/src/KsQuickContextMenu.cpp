@@ -168,7 +168,7 @@ void KsQuickContextMenu::_hideTask()
 		return;
 
 	vec =_getFilterVector(kshark_ctx->hide_task_filter, pid);
-	_data->applyPosTaskFilter(vec);
+	_data->applyNegTaskFilter(vec);
 }
 
 void KsQuickContextMenu::_showTask()
