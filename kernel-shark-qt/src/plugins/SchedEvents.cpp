@@ -122,7 +122,7 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 			/*
 			 * Starting from the last element in this bin, go backward
 			 * in time until you find a trace entry that satisfies the
-			 * condition defined by plugin_switch_match_pid.
+			 * condition defined by plugin_switch_match_rec_pid.
 			 */
 			entryOpen =
 				ksmodel_get_entry_back(histo, bin, false,
@@ -133,12 +133,16 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 			/*
 			 * Starting from the last element in this bin, go backward
 			 * in time until you find a trace entry that satisfies the
-			 * condition defined by plugin_wakeup_match_pid.
+			 * condition defined by plugin_wakeup_match_rec_pid. Note
+			 * that the wakeup event does not belong to this task,
+			 * hence we cannot use the task's collection.
 			 */
 			entryOpen =
 				ksmodel_get_entry_back(histo, bin, false,
 						       plugin_wakeup_match_rec_pid,
-						       pid, col, &indexOpen);
+						       pid,
+						       nullptr, // No collection.
+						       &indexOpen);
 
 			if (entryOpen) {
 				int cpu = ksmodel_get_cpu_back(histo, bin,
