@@ -420,8 +420,13 @@ void KsTraceViewer::_prev()
 
 void KsTraceViewer::_updateSearchCount()
 {
-	int index(_it - _matchList.begin());
-	int total(_matchList.count());
+	int index, total;
+
+	if (_matchList.isEmpty())
+		return;
+
+	index = _it - _matchList.begin();
+	total =_matchList.count();
 
 	_searchCountLabel.setText(QString(" %1 / %2").arg(index).arg(total));
 }
@@ -655,6 +660,7 @@ size_t KsTraceViewer::_searchItems(int column,
 
 void KsTraceViewer::_setSearchIterator(int row)
 {
+	_it = _matchList.begin();
 	if (_matchList.isEmpty())
 		return;
 
@@ -662,7 +668,6 @@ void KsTraceViewer::_setSearchIterator(int row)
 	 * Move the iterator to the first element of the match list
 	 * after the selected one.
 	 */
-	_it = _matchList.begin();
 	while (*_it < row) {
 		++_it;  // Move the iterator.
 		if (_it == _matchList.end()) {
