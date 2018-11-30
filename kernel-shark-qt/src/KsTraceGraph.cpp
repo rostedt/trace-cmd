@@ -782,6 +782,12 @@ void KsTraceGraph::_onCustomContextMenu(const QPoint &point)
 		connect(menu,	&KsQuickMarkerMenu::deselect,
 			this,	&KsTraceGraph::deselect);
 
-		menu->exec(mapToGlobal(point));
+		QPoint global = mapToGlobal(point);
+		/*
+		 * The global coordinates have to be corrected for the offset
+		 * of the vertical scrollbar.
+		 */
+		global.ry() -= _scrollArea.verticalScrollBar()->value();
+		menu->exec(global);
 	}
 }
