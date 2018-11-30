@@ -59,6 +59,9 @@ struct plugin_sched_context {
 	 */
 	struct tep_format_field	*sched_wakeup_new_success_field;
 
+	/** List of Data collections used by this plugin. */
+	struct kshark_entry_collection	*collections;
+
 	/** Hash of the tasks for which the second pass is already done. */
 	struct tracecmd_filter_id	*second_pass_hash;
 };
@@ -74,6 +77,9 @@ bool plugin_switch_match_rec_pid(struct kshark_context *kshark_ctx,
 bool plugin_switch_match_entry_pid(struct kshark_context *kshark_ctx,
 				   struct kshark_entry *e,
 				   int pid);
+
+bool plugin_match_pid(struct kshark_context *kshark_ctx,
+		      struct kshark_entry *e, int pid);
 
 void plugin_draw(struct kshark_cpp_argv *argv, int pid, int draw_action);
 

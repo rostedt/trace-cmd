@@ -28,8 +28,6 @@
 
 #define PLUGIN_MIN_BOX_SIZE 4
 
-#define PLUGIN_MAX_ENTRIES 10000
-
 #define KS_TASK_COLLECTION_MARGIN 25
 
 //! @endcond
@@ -133,15 +131,13 @@ static void pluginDraw(plugin_sched_context *plugin_ctx,
 			/*
 			 * Starting from the last element in this bin, go backward
 			 * in time until you find a trace entry that satisfies the
-			 * condition defined by plugin_wakeup_match_rec_pid. Note
-			 * that the wakeup event does not belong to this task,
-			 * hence we cannot use the task's collection.
+			 * condition defined by plugin_wakeup_match_rec_pid.
 			 */
 			entryOpen =
 				ksmodel_get_entry_back(histo, bin, false,
 						       plugin_wakeup_match_rec_pid,
 						       pid,
-						       nullptr, // No collection.
+						       col,
 						       &indexOpen);
 
 			if (entryOpen) {
@@ -207,6 +203,9 @@ static void secondPass(kshark_entry **data,
 		       kshark_entry_collection *col,
 		       int pid)
 {
+	if (!col)
+		return;
+
 	const kshark_entry *e;
 	kshark_entry *last;
 	int first, n;
@@ -275,8 +274,8 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 	 * Try to find a collections for this task. It is OK if
 	 * coll = NULL.
 	 */
-	col = kshark_find_data_collection(kshark_ctx->collections,
-					  kshark_match_pid, pid);
+	col = kshark_find_data_collection(plugin_ctx->collections,
+					  plugin_match_pid, pid);
 	if (!col) {
 		/*
 		 * If a data collection for this task does not exist,
@@ -284,10 +283,12 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 		 */
 		kshark_entry **data = argvCpp->_histo->data;
 		int size = argvCpp->_histo->data_size;
-		col = kshark_register_data_collection(kshark_ctx,
-						      data, size,
-						      kshark_match_pid, pid,
-						      KS_TASK_COLLECTION_MARGIN);
+
+		col = kshark_add_collection_to_list(kshark_ctx,
+						    &plugin_ctx->collections,
+						    data, size,
+						    plugin_match_pid, pid,
+						    KS_TASK_COLLECTION_MARGIN);
 	}
 
 	if (!tracecmd_filter_id_find(plugin_ctx->second_pass_hash, pid)) {
@@ -296,14 +297,6 @@ void plugin_draw(kshark_cpp_argv *argv_c, int pid, int draw_action)
 		tracecmd_filter_id_add(plugin_ctx->second_pass_hash, pid);
 	}
 
-	/*
-	 * Plotting the latencies makes sense only in the case of a deep zoom.
-	 * Here we set a threshold based on the total number of entries being
-	 * visualized by the model.
-	 * Don't be afraid to play with different values for this threshold.
-	 */
-	if (argvCpp->_histo->tot_count > PLUGIN_MAX_ENTRIES)
-		return;
 	try {
 		pluginDraw(plugin_ctx, kshark_ctx,
 			   argvCpp->_histo, col,

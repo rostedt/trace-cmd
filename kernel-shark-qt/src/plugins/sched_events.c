@@ -42,6 +42,7 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 	plugin_ctx = plugin_sched_context_handler;
 	plugin_ctx->handle = kshark_ctx->handle;
 	plugin_ctx->pevent = kshark_ctx->pevent;
+	plugin_ctx->collections = NULL;
 
 	event = tep_find_event_by_name(plugin_ctx->pevent,
 				       "sched", "sched_switch");
@@ -279,6 +280,25 @@ bool plugin_switch_match_entry_pid(struct kshark_context *kshark_ctx,
 	return false;
 }
 
+/**
+ * @brief A match function to be used to process a data collections for
+ *	  the Sched events plugin.
+ *
+ * @param kshark_ctx: Input location for the session context pointer.
+ * @param e: kshark_entry to be checked.
+ * @param pid: Matching condition value.
+ *
+ * @returns True if the entry is relevant for the Sched events plugin.
+ *	    Otherwise false.
+ */
+bool plugin_match_pid(struct kshark_context *kshark_ctx,
+		      struct kshark_entry *e, int pid)
+{
+	return plugin_switch_match_entry_pid(kshark_ctx, e, pid) ||
+	       plugin_switch_match_rec_pid(kshark_ctx, e, pid) ||
+	       plugin_wakeup_match_rec_pid(kshark_ctx, e, pid);
+}
+
 static void plugin_sched_action(struct kshark_context *kshark_ctx,
 				struct tep_record *rec,
 				struct kshark_entry *entry)
@@ -326,6 +346,7 @@ static int plugin_sched_close(struct kshark_context *kshark_ctx)
 
 	tracecmd_filter_id_hash_free(plugin_ctx->second_pass_hash);
 
+	kshark_free_collection_list(plugin_ctx->collections);
 	free(plugin_ctx);
 	plugin_sched_context_handler = NULL;
 
