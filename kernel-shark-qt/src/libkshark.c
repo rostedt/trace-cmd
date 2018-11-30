@@ -33,6 +33,7 @@ static bool kshark_default_context(struct kshark_context **context)
 		return false;
 
 	kshark_ctx->event_handlers = NULL;
+	kshark_ctx->collections = NULL;
 	kshark_ctx->plugins = NULL;
 
 	kshark_ctx->show_task_filter = tracecmd_filter_id_hash_alloc();

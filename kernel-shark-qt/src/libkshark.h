@@ -413,6 +413,15 @@ struct kshark_entry_collection {
 };
 
 struct kshark_entry_collection *
+kshark_add_collection_to_list(struct kshark_context *kshark_ctx,
+			      struct kshark_entry_collection **col_list,
+			      struct kshark_entry **data,
+			      size_t n_rows,
+			      matching_condition_func cond,
+			      int val,
+			      size_t margin);
+
+struct kshark_entry_collection *
 kshark_register_data_collection(struct kshark_context *kshark_ctx,
 				struct kshark_entry **data, size_t n_rows,
 				matching_condition_func cond, int val,

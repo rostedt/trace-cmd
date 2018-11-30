@@ -781,14 +781,55 @@ kshark_register_data_collection(struct kshark_context *kshark_ctx,
 {
 	struct kshark_entry_collection *col;
 
+	col = kshark_add_collection_to_list(kshark_ctx,
+					    &kshark_ctx->collections,
+					    data, n_rows,
+					    cond, val,
+					    margin);
+
+	return col;
+}
+
+/**
+ * @brief Allocate and process data collection, defined with a given Matching
+ *	  condition function and value. Add this collection to a given list of
+ *	  collections.
+ *
+ * @param kshark_ctx: Input location for the session context pointer.
+ * @param col_list: Input location for the list of collections.
+ * @param data: Input location for the trace data.
+ * @param n_rows: The size of the inputted data.
+ * @param cond: Matching condition function for the collection to be
+ *	        registered.
+ * @param val: Matching condition value of for collection to be registered.
+ * @param margin: The size of the additional (margin) data which do not
+ *		  satisfy the matching condition, but is added at the
+ *		  beginning and at the end of each interval of the collection
+ *		  as well as at the beginning and at the end of data-set. If
+ *		  "0", no margin data is added.
+ *
+ * @returns Pointer to the registered Data collections on success, or NULL
+ *	    on failure.
+ */
+struct kshark_entry_collection *
+kshark_add_collection_to_list(struct kshark_context *kshark_ctx,
+			      struct kshark_entry_collection **col_list,
+			      struct kshark_entry **data,
+			      size_t n_rows,
+			      matching_condition_func cond,
+			      int val,
+			      size_t margin)
+{
+	struct kshark_entry_collection *col;
+
 	col = kshark_data_collection_alloc(kshark_ctx, data,
 					   0, n_rows,
 					   cond, val,
 					   margin);
 
 	if (col) {
-		col->next = kshark_ctx->collections;
-		kshark_ctx->collections = col;
+		col->next = *col_list;
+		*col_list = col;
 	}
 
 	return col;
