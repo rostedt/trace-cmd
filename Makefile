@@ -361,11 +361,11 @@ clean:
 	$(RM) tags TAGS cscope*
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
-	$(MAKE) -C $(src)/kernel-shark clean
-	$(MAKE) -C $(kshark-dir)/build clean
 	$(MAKE) -C $(src)/plugins clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
+	$(MAKE) -C $(src)/kernel-shark clean
+	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
 
 
 ##### PYTHON STUFF #####
