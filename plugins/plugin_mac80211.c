@@ -11,7 +11,7 @@
 
 #define INDENT 65
 
-static void print_string(struct trace_seq *s, struct tep_event_format *event,
+static void print_string(struct trace_seq *s, struct tep_event *event,
 			 const char *name, const void *data)
 {
 	struct tep_format_field *f = tep_find_field(event, name);
@@ -44,7 +44,7 @@ struct value_name {
 	const char *name;
 };
 
-static void _print_enum(struct trace_seq *s, struct tep_event_format *event,
+static void _print_enum(struct trace_seq *s, struct tep_event *event,
 			const char *name, const void *data,
 			const struct value_name *names, int n_names)
 {
@@ -77,7 +77,7 @@ static void _print_enum(struct trace_seq *s, struct tep_event_format *event,
 	_print_enum(s, ev, name, data, __n, sizeof(__n)/sizeof(__n[0]));	\
 	})
 
-static void _print_flag(struct trace_seq *s, struct tep_event_format *event,
+static void _print_flag(struct trace_seq *s, struct tep_event *event,
 			const char *name, const void *data,
 			const struct value_name *names, int n_names)
 {
@@ -125,7 +125,7 @@ static void _print_flag(struct trace_seq *s, struct tep_event_format *event,
 #define SP()	trace_seq_putc(s, ' ')
 
 static int drv_bss_info_changed(struct trace_seq *s, struct tep_record *record,
-				struct tep_event_format *event, void *context)
+				struct tep_event *event, void *context)
 {
 	void *data = record->data;
 
@@ -153,7 +153,7 @@ static int drv_bss_info_changed(struct trace_seq *s, struct tep_record *record,
 }
 
 static int drv_config(struct trace_seq *s, struct tep_record *record,
-		      struct tep_event_format *event, void *context)
+		      struct tep_event *event, void *context)
 {
 	void *data = record->data;
 

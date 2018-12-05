@@ -78,7 +78,7 @@ private:
 
 	void _makeFilterTable(struct kshark_context *kshark_ctx);
 
-	QStringList _getEventFormatFields(struct tep_event_format *event);
+	QStringList _getEventFormatFields(struct tep_event *event);
 
 	void _setSystemCombo(struct kshark_context *kshark_ctx);
 

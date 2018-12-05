@@ -44,7 +44,7 @@ static void find_long_size(struct tracecmd_ftrace *finfo)
 
 static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	/* Store the func ret id and event for later use */
 	event = tep_find_event_by_name(pevent, "ftrace", "funcgraph_exit");
@@ -63,7 +63,7 @@ static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *peve
 	} while (0)
 
 static int function_handler(struct trace_seq *s, struct tep_record *record,
-			    struct tep_event_format *event, void *context)
+			    struct tep_event *event, void *context)
 {
 	struct tep_handle *pevent = event->pevent;
 	unsigned long long function;
@@ -187,7 +187,7 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 
 static int
 print_graph_entry_leaf(struct trace_seq *s,
-		       struct tep_event_format *event,
+		       struct tep_event *event,
 		       struct tep_record *record,
 		       struct tep_record *ret_rec,
 		       struct tracecmd_ftrace *finfo)
@@ -237,7 +237,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 }
 
 static int print_graph_nested(struct trace_seq *s,
-			      struct tep_event_format *event,
+			      struct tep_event *event,
 			      struct tep_record *record)
 {
 	struct tep_handle *pevent = event->pevent;
@@ -278,7 +278,7 @@ static int print_graph_nested(struct trace_seq *s,
 
 static int
 fgraph_ent_handler(struct trace_seq *s, struct tep_record *record,
-		   struct tep_event_format *event, void *context)
+		   struct tep_event *event, void *context)
 {
 	struct tracecmd_ftrace *finfo = context;
 	struct tep_record *rec;
@@ -312,7 +312,7 @@ fgraph_ent_handler(struct trace_seq *s, struct tep_record *record,
 
 static int
 fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
-		   struct tep_event_format *event, void *context)
+		   struct tep_event *event, void *context)
 {
 	struct tracecmd_ftrace *finfo = context;
 	unsigned long long rettime, calltime;
@@ -363,7 +363,7 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 
 static int
 trace_stack_handler(struct trace_seq *s, struct tep_record *record,
-		    struct tep_event_format *event, void *context)
+		    struct tep_event *event, void *context)
 {
 	struct tracecmd_ftrace *finfo = context;
 	struct tep_format_field *field;
@@ -415,7 +415,7 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	struct tracecmd_ftrace *finfo)
 {
 	struct tep_handle *pevent;
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	finfo->handle = handle;
 

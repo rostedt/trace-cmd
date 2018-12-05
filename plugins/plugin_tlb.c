@@ -17,7 +17,7 @@ enum tlb_flush_reason {
 };
 
 static int tlb_flush_handler(struct trace_seq *s, struct tep_record *record,
-			     struct tep_event_format *event, void *context)
+			     struct tep_event *event, void *context)
 {
 	unsigned long long val;
 

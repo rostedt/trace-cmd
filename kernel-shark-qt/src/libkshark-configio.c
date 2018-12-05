@@ -691,7 +691,7 @@ static bool kshark_event_filter_to_json(struct tep_handle *pevent,
 					struct json_object *jobj)
 {
 	json_object *jfilter_data, *jevent, *jsystem, *jname;
-	struct tep_event_format *event;
+	struct tep_event *event;
 	int i, evt, *ids, nr_events;
 	char *temp;
 
@@ -797,7 +797,7 @@ static bool kshark_event_filter_from_json(struct tep_handle *pevent,
 {
 	json_object *jfilter, *jevent, *jsystem, *jname;
 	const char *system_str, *name_str;
-	struct tep_event_format *event;
+	struct tep_event *event;
 	int i, length;
 
 	/*
@@ -1015,7 +1015,7 @@ static bool kshark_adv_filters_to_json(struct kshark_context *kshark_ctx,
 {
 	struct tep_event_filter *adv_filter = kshark_ctx->advanced_event_filter;
 	json_object *jfilter_data, *jevent, *jsystem, *jname, *jfilter;
-	struct tep_event_format **events;
+	struct tep_event **events;
 	char *str;
 	int i;
 

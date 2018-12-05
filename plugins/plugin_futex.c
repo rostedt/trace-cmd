@@ -65,7 +65,7 @@ static void futex_print(struct trace_seq *s, const struct futex_args *args,
 }
 
 static int futex_handler(struct trace_seq *s, struct tep_record *record,
-			 struct tep_event_format *event, void *context)
+			 struct tep_event *event, void *context)
 {
 	const struct futex_op *fop;
 	struct futex_args args;

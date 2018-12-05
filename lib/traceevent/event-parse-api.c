@@ -16,7 +16,7 @@
  * This returns pointer to the element of the events array with the given index
  * If @tep is NULL, or @index is not in the range 0 .. nr_events, NULL is returned.
  */
-struct tep_event_format *tep_get_event(struct tep_handle *tep, int index)
+struct tep_event *tep_get_event(struct tep_handle *tep, int index)
 {
 	if (tep && tep->events && index < tep->nr_events)
 		return tep->events[index];
@@ -31,7 +31,7 @@ struct tep_event_format *tep_get_event(struct tep_handle *tep, int index)
  * This returns pointer to the first element of the events array
  * If @tep is NULL, NULL is returned.
  */
-struct tep_event_format *tep_get_first_event(struct tep_handle *tep)
+struct tep_event *tep_get_first_event(struct tep_handle *tep)
 {
 	return tep_get_event(tep, 0);
 }

@@ -50,9 +50,9 @@ struct tep_handle {
 	unsigned int printk_count;
 
 
-	struct tep_event_format **events;
+	struct tep_event **events;
 	int nr_events;
-	struct tep_event_format **sort_events;
+	struct tep_event **sort_events;
 	enum tep_event_sort_type last_type;
 
 	int type_offset;
@@ -86,7 +86,7 @@ struct tep_handle {
 	int parsing_failures;
 
 	/* cache */
-	struct tep_event_format *last_event;
+	struct tep_event *last_event;
 
 	char *trace_clock;
 };

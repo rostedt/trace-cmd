@@ -11,7 +11,7 @@
 #include "trace-seq.h"
 
 static int timer_expire_handler(struct trace_seq *s, struct tep_record *record,
-				struct tep_event_format *event, void *context)
+				struct tep_event *event, void *context)
 {
 	trace_seq_printf(s, "hrtimer=");
 
@@ -28,7 +28,7 @@ static int timer_expire_handler(struct trace_seq *s, struct tep_record *record,
 }
 
 static int timer_start_handler(struct trace_seq *s, struct tep_record *record,
-			       struct tep_event_format *event, void *context)
+			       struct tep_event *event, void *context)
 {
 	trace_seq_printf(s, "hrtimer=");
 

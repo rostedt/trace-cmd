@@ -71,7 +71,7 @@ struct event_data {
 	struct trace_hash_item	hash;
 	int			id;
 	int			trace;
-	struct tep_event_format	*event;
+	struct tep_event	*event;
 
 	struct event_data	*end;
 	struct event_data	*start;
@@ -795,8 +795,8 @@ static struct event_data *
 add_event(struct handle_data *h, const char *system, const char *event_name,
 	  enum event_data_type type)
 {
-	struct tep_event_format *event;
 	struct event_data *event_data;
+	struct tep_event *event;
 
 	event = tep_find_event_by_name(h->pevent, system, event_name);
 	if (!event)
@@ -870,9 +870,9 @@ mate_events(struct handle_data *h, struct event_data *start,
  * @global: The events are global and not per task
  */
 void tracecmd_mate_events(struct tracecmd_input *handle,
-			  struct tep_event_format *start_event,
+			  struct tep_event *start_event,
 			  const char *pid_field, const char *end_match_field,
-			  struct tep_event_format *end_event,
+			  struct tep_event *end_event,
 			  const char *start_match_field,
 			  int migrate, int global)
 {
@@ -1268,7 +1268,6 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 			int global)
 {
 	struct tep_handle *pevent = tracecmd_get_pevent(handle);
-	struct tep_event_format **events;
 	struct tep_format_field **fields;
 	struct handle_data *h;
 	struct event_data *event_data;
@@ -1286,6 +1285,7 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	struct event_data *process_exec;
 	struct event_data *start_event;
 	struct event_data *end_event;
+	struct tep_event **events;
 	int ret;
 	int i;
 

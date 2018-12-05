@@ -529,8 +529,8 @@ static void process_filters(struct handle_list *handles)
 
 static void init_wakeup(struct tracecmd_input *handle)
 {
-	struct tep_event_format *event;
 	struct tep_handle *pevent;
+	struct tep_event *event;
 
 	if (!show_wakeup)
 		return;
@@ -789,8 +789,8 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 	}
 	use_trace_clock = tracecmd_get_use_trace_clock(handle);
 	if (tsdiff) {
-		struct tep_event_format *event;
 		unsigned long long rec_ts = record->ts;
+		struct tep_event *event;
 
 		event = tep_find_event_by_record(pevent, record);
 		tep_print_event_task(pevent, &s, event, record);
@@ -927,8 +927,8 @@ test_stacktrace(struct handle_list *handles, struct tep_record *record,
 	struct stack_info_cpu *cpu_info;
 	struct handle_list *h;
 	struct tracecmd_input *handle;
-	struct tep_event_format *event;
 	struct tep_handle *pevent;
+	struct tep_event *event;
 	static int init;
 	int ret;
 	int id;
@@ -1116,8 +1116,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	struct handle_list *last_handle;
 	struct tep_record *record;
 	struct tep_record *last_record;
-	struct tep_event_format *event;
 	struct tep_handle *pevent;
+	struct tep_event *event;
 	int cpus;
 	int ret;
 
@@ -1335,8 +1335,8 @@ static void process_plugin_option(char *option)
 static void set_event_flags(struct tep_handle *pevent, struct event_str *list,
 			    unsigned int flag)
 {
-	struct tep_event_format **events;
-	struct tep_event_format *event;
+	struct tep_event **events;
+	struct tep_event *event;
 	struct event_str *str;
 	regex_t regex;
 	int ret;
@@ -1735,8 +1735,8 @@ void trace_report (int argc, char **argv)
 		}
 
 		if (show_events) {
-			struct tep_event_format **events;
-			struct tep_event_format *event;
+			struct tep_event **events;
+			struct tep_event *event;
 			int i;
 
 			events = tep_list_events(pevent, TEP_EVENT_SORT_SYSTEM);

@@ -28,7 +28,7 @@ struct plugin_sched_context {
 	struct tep_handle	*pevent;
 
 	/** Pointer to the sched_switch_event object. */
-	struct tep_event_format	*sched_switch_event;
+	struct tep_event	*sched_switch_event;
 
 	/** Pointer to the sched_switch_next_field format descriptor. */
 	struct tep_format_field	*sched_switch_next_field;
@@ -40,7 +40,7 @@ struct plugin_sched_context {
 	struct tep_format_field	*sched_switch_prev_state_field;
 
 	/** Pointer to the sched_wakeup_event object. */
-	struct tep_event_format	*sched_wakeup_event;
+	struct tep_event	*sched_wakeup_event;
 
 	/** Pointer to the sched_wakeup_pid_field format descriptor. */
 	struct tep_format_field	*sched_wakeup_pid_field;
@@ -49,7 +49,7 @@ struct plugin_sched_context {
 	struct tep_format_field	*sched_wakeup_success_field;
 
 	/** Pointer to the sched_wakeup_new_event object. */
-	struct tep_event_format	*sched_wakeup_new_event;
+	struct tep_event	*sched_wakeup_new_event;
 
 	/** Pointer to the sched_wakeup_new_pid_field format descriptor. */
 	struct tep_format_field	*sched_wakeup_new_pid_field;

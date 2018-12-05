@@ -531,7 +531,7 @@ void KsMainWindow::_showEvents()
 		 * The event filter contains IDs. Make this visible in the
 		 * CheckBox Widget.
 		 */
-		tep_event_format **events =
+		tep_event **events =
 			tep_list_events(_data.tep(), TEP_EVENT_SORT_SYSTEM);
 		int nEvts = tep_get_events_count(_data.tep());
 		QVector<bool> v(nEvts, false);

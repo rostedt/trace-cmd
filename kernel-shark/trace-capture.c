@@ -349,7 +349,7 @@ static char *find_tracecmd(void)
 
 static int add_trace_cmd_words(struct trace_capture *cap, char **args)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 	char **systems = cap->info->cap_systems;
 	const gchar *output;
 	int *events = cap->info->cap_events;
@@ -808,7 +808,7 @@ static int load_events(struct trace_capture *cap,
 {
 	struct shark_info *info = cap->info;
 	struct tracecmd_xml_system_node *event_node;
-	struct tep_event_format *event;
+	struct tep_event *event;
 	struct tep_handle *pevent = cap->pevent;
 	const char *name;
 	int *events = NULL;
@@ -997,7 +997,7 @@ static void save_events(struct trace_capture *cap,
 			struct tracecmd_xml_handle *handle)
 {
 	struct tep_handle *pevent = cap->pevent;
-	struct tep_event_format *event;
+	struct tep_event *event;
 	char **systems = cap->info->cap_systems;
 	int *events = cap->info->cap_events;
 	int i;

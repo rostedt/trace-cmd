@@ -151,8 +151,8 @@ KsAdvFilteringDialog::KsAdvFilteringDialog(QWidget *parent)
 
 void KsAdvFilteringDialog::_setSystemCombo(struct kshark_context *kshark_ctx)
 {
-	tep_event_format **events;
 	QStringList sysList;
+	tep_event **events;
 	int i(0), nEvts(0);
 
 	if (kshark_ctx->pevent) {
@@ -204,7 +204,7 @@ QStringList KsAdvFilteringDialog::_operators()
 
 void KsAdvFilteringDialog::_getFilters(struct kshark_context *kshark_ctx)
 {
-	tep_event_format **events;
+	tep_event **events;
 	char *str;
 
 	events = tep_list_events(kshark_ctx->pevent, TEP_EVENT_SORT_SYSTEM);
@@ -275,8 +275,8 @@ void KsAdvFilteringDialog::_help()
 void KsAdvFilteringDialog::_systemChanged(const QString &sysName)
 {
 	kshark_context *kshark_ctx(NULL);
-	tep_event_format **events;
 	QStringList evtsList;
+	tep_event **events;
 	int i, nEvts;
 
 	_eventComboBox.clear();
@@ -300,7 +300,7 @@ void KsAdvFilteringDialog::_systemChanged(const QString &sysName)
 }
 
 QStringList
-KsAdvFilteringDialog::_getEventFormatFields(struct tep_event_format *event)
+KsAdvFilteringDialog::_getEventFormatFields(struct tep_event *event)
 {
 	tep_format_field *field, **fields = tep_event_fields(event);
 	QStringList fieldList;
@@ -318,8 +318,8 @@ void KsAdvFilteringDialog::_eventChanged(const QString &evtName)
 {
 	QString sysName = _systemComboBox.currentText();
 	kshark_context *kshark_ctx(NULL);
-	tep_event_format **events;
 	QStringList fieldList;
+	tep_event **events;
 	int nEvts;
 
 	_fieldComboBox.clear();

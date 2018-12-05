@@ -149,7 +149,7 @@ QStringList KsCaptureControl::getArgs()
 		argv << "-e" << "all";
 	} else {
 		QVector<int> evtIds = _eventsWidget.getCheckedIds();
-		tep_event_format *event;
+		tep_event *event;
 
 		for (auto const &id: evtIds) {
 			event = tep_find_event(_localTEP, id);
@@ -198,7 +198,7 @@ void KsCaptureControl::_importSettings()
 	kshark_config_doc *conf, *jevents, *temp;
 	QVector<bool> v(nEvts, false);
 	tracecmd_filter_id *eventHash;
-	tep_event_format **events;
+	tep_event **events;
 	QString fileName;
 
 

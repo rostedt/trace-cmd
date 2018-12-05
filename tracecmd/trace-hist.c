@@ -530,7 +530,7 @@ process_sched_switch(struct tep_handle *pevent, struct tep_record *record)
 static void
 process_event(struct tep_handle *pevent, struct tep_record *record, int type)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 	const char *event_name;
 	unsigned long long val;
 	int pid;
@@ -592,11 +592,11 @@ process_record(struct tep_handle *pevent, struct tep_record *record)
 	process_event(pevent, record, type);
 }
 
-static struct tep_event_format *
+static struct tep_event *
 update_event(struct tep_handle *pevent,
 	     const char *sys, const char *name, int *id)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = tep_find_event_by_name(pevent, sys, name);
 	if (!event)
@@ -609,7 +609,7 @@ update_event(struct tep_handle *pevent,
 
 static void update_sched_wakeup(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "sched", "sched_wakeup", &sched_wakeup_type);
 	if (!event)
@@ -621,7 +621,7 @@ static void update_sched_wakeup(struct tep_handle *pevent)
 
 static void update_sched_wakeup_new(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "sched", "sched_wakeup_new", &sched_wakeup_new_type);
 	if (!event)
@@ -633,7 +633,7 @@ static void update_sched_wakeup_new(struct tep_handle *pevent)
 
 static void update_sched_switch(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "sched", "sched_switch", &sched_switch_type);
 	if (!event)
@@ -647,7 +647,7 @@ static void update_sched_switch(struct tep_handle *pevent)
 
 static void update_function(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "ftrace", "function", &function_type);
 	if (!event)
@@ -659,7 +659,7 @@ static void update_function(struct tep_handle *pevent)
 
 static void update_function_graph_entry(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "ftrace", "funcgraph_entry", &function_graph_entry_type);
 	if (!event)
@@ -671,7 +671,7 @@ static void update_function_graph_entry(struct tep_handle *pevent)
 
 static void update_function_graph_exit(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "ftrace", "funcgraph_exit", &function_graph_exit_type);
 	if (!event)
@@ -686,7 +686,7 @@ static void update_function_graph_exit(struct tep_handle *pevent)
 
 static void update_kernel_stack(struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	event = update_event(pevent, "ftrace", "kernel_stack", &kernel_stack_type);
 	if (!event)
@@ -934,8 +934,8 @@ static void print_chains(struct tep_handle *pevent)
 static void do_trace_hist(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = tracecmd_get_pevent(handle);
-	struct tep_event_format *event;
 	struct tep_record *record;
+	struct tep_event *event;
 	int cpus;
 	int cpu;
 	int ret;

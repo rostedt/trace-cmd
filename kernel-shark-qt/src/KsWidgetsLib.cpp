@@ -664,7 +664,7 @@ KsEventsCheckBoxWidget::KsEventsCheckBoxWidget(struct tep_handle *tep,
 : KsCheckBoxTreeWidget("Events", parent)
 {
 	QTreeWidgetItem *sysItem, *evtItem;
-	tep_event_format **events(nullptr);
+	tep_event **events(nullptr);
 	QString sysName, evtName;
 	int nEvts(0), i(0);
 

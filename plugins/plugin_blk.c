@@ -17,7 +17,7 @@
 
 struct blk_data {
 	unsigned long long	sector;
-	struct tep_event_format	*event;
+	struct tep_event	*event;
 	unsigned int		action;
 	unsigned int		pid;
 	unsigned int		device;
@@ -279,7 +279,7 @@ static const struct {
 };
 
 static int blktrace_handler(struct trace_seq *s, struct tep_record *record,
-			    struct tep_event_format *event, void *context)
+			    struct tep_event *event, void *context)
 {
 	struct tep_format_field *field;
 	unsigned long long val;

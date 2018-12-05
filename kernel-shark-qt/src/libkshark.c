@@ -998,7 +998,7 @@ static const char *kshark_get_latency(struct tep_handle *pe,
 
 static const char *kshark_get_info(struct tep_handle *pe,
 				   struct tep_record *record,
-				   struct tep_event_format *event)
+				   struct tep_event *event)
 {
 	char *pos;
 
@@ -1167,7 +1167,7 @@ int kshark_get_event_id_easy(struct kshark_entry *entry)
 const char *kshark_get_event_name_easy(struct kshark_entry *entry)
 {
 	struct kshark_context *kshark_ctx = NULL;
-	struct tep_event_format *event;
+	struct tep_event *event;
 
 	int event_id = kshark_get_event_id_easy(entry);
 	if (event_id == -EFAULT)
@@ -1206,7 +1206,7 @@ const char *kshark_get_event_name_easy(struct kshark_entry *entry)
 const char *kshark_get_info_easy(struct kshark_entry *entry)
 {
 	struct kshark_context *kshark_ctx = NULL;
-	struct tep_event_format *event;
+	struct tep_event *event;
 	struct tep_record *data;
 	const char *info = NULL;
 	int event_id;
@@ -1312,7 +1312,7 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 	task = tep_data_comm_from_pid(kshark_ctx->pevent, entry->pid);
 
 	if (entry->event_id >= 0) {
-		struct tep_event_format *event;
+		struct tep_event *event;
 		struct tep_record *data;
 
 		data = kshark_read_at(kshark_ctx, entry->offset);
