@@ -294,7 +294,7 @@ static int read4(struct tracecmd_input *handle, unsigned int *size)
 	if (do_read_check(handle, &data, 4))
 		return -1;
 
-	*size = __tep_data2host4(pevent, data);
+	*size = tep_read_number(pevent, &data, 4);
 	return 0;
 }
 
@@ -306,7 +306,7 @@ static int read8(struct tracecmd_input *handle, unsigned long long *size)
 	if (do_read_check(handle, &data, 8))
 		return -1;
 
-	*size = __tep_data2host8(pevent, data);
+	*size = tep_read_number(pevent, &data, 8);
 	return 0;
 }
 
@@ -2128,7 +2128,7 @@ static int handle_options(struct tracecmd_input *handle)
 		/* next 4 bytes is the size of the option */
 		if (do_read_check(handle, &size, 4))
 			return -1;
-		size = __tep_data2host4(handle->pevent, size);
+		size = tep_read_number(handle->pevent, &size, 4);
 		buf = malloc(size);
 		if (!buf)
 			return -ENOMEM;
@@ -2184,7 +2184,7 @@ static int handle_options(struct tracecmd_input *handle)
 				return -ENOMEM;
 			}
 			offset = *(unsigned long long *)buf;
-			buffer->offset = __tep_data2host8(handle->pevent, offset);
+			buffer->offset = tep_read_number(handle->pevent, &offset, 8);
 			break;
 		case TRACECMD_OPTION_TRACECLOCK:
 			if (!handle->ts2secs)
@@ -2200,7 +2200,7 @@ static int handle_options(struct tracecmd_input *handle)
 			break;
 		case TRACECMD_OPTION_CPUCOUNT:
 			cpus = *(int *)buf;
-			handle->cpus = __tep_data2host4(handle->pevent, cpus);
+			handle->cpus = tep_read_number(handle->pevent, &cpus, 4);
 			break;
 		default:
 			warning("unknown option %d", option);
@@ -2818,7 +2818,7 @@ static int read_copy_size8(struct tracecmd_input *handle, int fd, unsigned long 
 	if (__do_write_check(fd, size, 8))
 		return -1;
 
-	*size = __tep_data2host8(handle->pevent, *size);
+	*size = tep_read_number(handle->pevent, size, 8);
 	return 0;
 }
 
@@ -2831,7 +2831,7 @@ static int read_copy_size4(struct tracecmd_input *handle, int fd, unsigned int *
 	if (__do_write_check(fd, size, 4))
 		return -1;
 
-	*size = __tep_data2host4(handle->pevent, *size);
+	*size = tep_read_number(handle->pevent, size, 4);
 	return 0;
 }
 

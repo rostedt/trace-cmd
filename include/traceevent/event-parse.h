@@ -398,21 +398,6 @@ void tep_set_flag(struct tep_handle *tep, enum tep_flag flag);
 void tep_reset_flag(struct tep_handle *tep, enum tep_flag flag);
 int tep_check_flag(struct tep_handle *tep, enum tep_flag flag);
 
-unsigned short __tep_data2host2(struct tep_handle *pevent, unsigned short data);
-unsigned int __tep_data2host4(struct tep_handle *pevent, unsigned int data);
-unsigned long long
-__tep_data2host8(struct tep_handle *pevent, unsigned long long data);
-
-#define tep_data2host2(pevent, ptr)	__tep_data2host2(pevent, *(unsigned short *)(ptr))
-#define tep_data2host4(pevent, ptr)	__tep_data2host4(pevent, *(unsigned int *)(ptr))
-#define tep_data2host8(pevent, ptr)	\
-({								\
-	unsigned long long __val;				\
-								\
-	memcpy(&__val, (ptr), sizeof(unsigned long long));	\
-	__tep_data2host8(pevent, __val);				\
-})
-
 static inline int tep_host_bigendian(void)
 {
 	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };
@@ -464,8 +449,6 @@ enum tep_errno tep_parse_format(struct tep_handle *pevent,
 				struct tep_event **eventp,
 				const char *buf,
 				unsigned long size, const char *sys);
-void tep_free_event(struct tep_event *event);
-void tep_free_format_field(struct tep_format_field *field);
 
 void *tep_get_field_raw(struct trace_seq *s, struct tep_event *event,
 			const char *name, struct tep_record *record,

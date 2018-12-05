@@ -69,7 +69,7 @@ static int create_type_len(struct tep_handle *pevent, int time, int len)
 	else
 		time = (time << 5) | len;
 
-	return __tep_data2host4(pevent, time);
+	return tep_read_number(pevent, &time, 4);
 }
 
 static int write_record(struct tracecmd_input *handle,
@@ -100,7 +100,7 @@ static int write_record(struct tracecmd_input *handle,
 		*(unsigned *)ptr = time;
 		ptr += 4;
 		time = (unsigned int)(diff >> 27);
-		*(unsigned *)ptr = __tep_data2host4(pevent, time);
+		*(unsigned *)ptr = tep_read_number(pevent, &time, 4);
 		cpu_data->ts = record->ts;
 		cpu_data->index += 8;
 		return 0;
@@ -122,7 +122,7 @@ static int write_record(struct tracecmd_input *handle,
 
 	if (!len) {
 		len = record->size + 4;
-		*(unsigned *)ptr = __tep_data2host4(pevent, len);
+		*(unsigned *)ptr = tep_read_number(pevent, &len, 4);
 		ptr += 4;
 		index += 4;
 	}
@@ -141,12 +141,15 @@ static int write_record(struct tracecmd_input *handle,
 static void write_page(struct tep_handle *pevent,
 		       struct cpu_data *cpu_data, int long_size)
 {
-	if (long_size == 8)
+	if (long_size == 8) {
+		unsigned long long index = cpu_data->index - 16;
 		*(unsigned long long *)cpu_data->commit =
-			__tep_data2host8(pevent, (unsigned long long)cpu_data->index - 16);
-	else
+				tep_read_number(pevent, &index, 8);
+	} else {
+		unsigned int index = cpu_data->index - 12;
 		*(unsigned int *)cpu_data->commit =
-			__tep_data2host4(pevent, cpu_data->index - 12);
+			tep_read_number(pevent, &index, 4);
+	}
 	write(cpu_data->fd, cpu_data->page, page_size);
 }
 
@@ -239,7 +242,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 			ptr = cpu_data[cpu].page;
 
 			*(unsigned long long*)ptr =
-				__tep_data2host8(pevent, record->ts);
+				tep_read_number(pevent, &(record->ts), 8);
 			cpu_data[cpu].ts = record->ts;
 			ptr += 8;
 			cpu_data[cpu].commit = ptr;
