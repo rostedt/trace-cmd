@@ -3421,6 +3421,7 @@ static unsigned long long find_time_stamp(struct tep_handle *pevent)
 			if (ts)
 				break;
 		} while (r > 0);
+		close(fd);
 		if (ts)
 			break;
 	}
