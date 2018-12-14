@@ -223,7 +223,7 @@ void KsTraceViewer::_searchReset()
 {
 	_searchProgBar.setValue(0);
 	_searchCountLabel.setText("");
-	_proxyModel.searchProgress();
+	_proxyModel.searchReset();
 	_searchDone = false;
 }
 
