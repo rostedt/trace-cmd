@@ -2747,7 +2747,7 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle)
 	}
 }
 
-static void communicate_with_listener_v2(struct tracecmd_msg_handle *msg_handle)
+static void communicate_with_listener_v3(struct tracecmd_msg_handle *msg_handle)
 {
 	if (tracecmd_msg_send_init_data(msg_handle, &client_ports) < 0)
 		die("Cannot communicate with server");
@@ -2764,8 +2764,8 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 	/*
 	 * Write the protocol version, the magic number, and the dummy
 	 * option(0) (in ASCII). The client understands whether the client
-	 * uses the v2 protocol or not by checking a reply message from the
-	 * server. If the message is "V2", the server uses v2 protocol. On the
+	 * uses the v3 protocol or not by checking a reply message from the
+	 * server. If the message is "V3", the server uses v3 protocol. On the
 	 * other hands, if the message is just number strings, the server
 	 * returned port numbers. So, in that time, the client understands the
 	 * server uses the v1 protocol. However, the old server tells the
@@ -2773,7 +2773,7 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 	 * So, we add the dummy number (the magic number and 0 option) to the
 	 * first client message.
 	 */
-	write(fd, V2_CPU, sizeof(V2_CPU));
+	write(fd, V3_CPU, sizeof(V3_CPU));
 
 	buf[0] = 0;
 
@@ -2787,8 +2787,8 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 	} else {
 		if (memcmp(buf, "V2", n) != 0)
 			die("Cannot handle the protocol %s", buf);
-		/* OK, let's use v2 protocol */
-		write(fd, V2_MAGIC, sizeof(V2_MAGIC));
+		/* OK, let's use v3 protocol */
+		write(fd, V3_MAGIC, sizeof(V3_MAGIC));
 
 		n = read(fd, buf, BUFSIZ - 1);
 		if (n != 2 || memcmp(buf, "OK", 2) != 0) {
@@ -2857,20 +2857,20 @@ again:
 			die("Failed to allocate message handle");
 
 		msg_handle->cpu_count = local_cpu_count;
-		msg_handle->version = V2_PROTOCOL;
+		msg_handle->version = V3_PROTOCOL;
 	}
 
 	if (use_tcp)
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 
-	if (msg_handle->version == V2_PROTOCOL) {
+	if (msg_handle->version == V3_PROTOCOL) {
 		check_protocol_version(msg_handle);
 		if (msg_handle->version == V1_PROTOCOL) {
 			/* reconnect to the server for using the v1 protocol */
 			close(sfd);
 			goto again;
 		}
-		communicate_with_listener_v2(msg_handle);
+		communicate_with_listener_v3(msg_handle);
 	}
 
 	if (msg_handle->version == V1_PROTOCOL)
@@ -2888,9 +2888,9 @@ setup_connection(struct buffer_instance *instance)
 	msg_handle = setup_network();
 
 	/* Now create the handle through this socket */
-	if (msg_handle->version == V2_PROTOCOL) {
+	if (msg_handle->version == V3_PROTOCOL) {
 		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
-		tracecmd_msg_finish_sending_metadata(msg_handle);
+		tracecmd_msg_finish_sending_data(msg_handle);
 	} else
 		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,
 							      listed_events);
@@ -2903,7 +2903,7 @@ setup_connection(struct buffer_instance *instance)
 
 static void finish_network(struct tracecmd_msg_handle *msg_handle)
 {
-	if (msg_handle->version == V2_PROTOCOL)
+	if (msg_handle->version == V3_PROTOCOL)
 		tracecmd_msg_send_close_msg(msg_handle);
 	tracecmd_msg_handle_close(msg_handle);
 	free(host);

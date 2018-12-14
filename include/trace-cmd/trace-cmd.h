@@ -316,16 +316,16 @@ void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle);
 /* for clients */
 int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 				int **client_ports);
-int tracecmd_msg_metadata_send(struct tracecmd_msg_handle *msg_handle,
+int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 			       const char *buf, int size);
-int tracecmd_msg_finish_sending_metadata(struct tracecmd_msg_handle *msg_handle);
+int tracecmd_msg_finish_sending_data(struct tracecmd_msg_handle *msg_handle);
 void tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle);
 
 /* for server */
 int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle);
 int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
 				 int *ports);
-int tracecmd_msg_collect_metadata(struct tracecmd_msg_handle *msg_handle, int ofd);
+int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd);
 bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle);
 void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
 

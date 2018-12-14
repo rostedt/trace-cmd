@@ -366,7 +366,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 
 	/* Is the client using the new protocol? */
 	if (cpus == -1) {
-		if (memcmp(buf, V2_CPU, n) != 0) {
+		if (memcmp(buf, V3_CPU, n) != 0) {
 			/* If it did not send a version, then bail */
 			if (memcmp(buf, "-1V", 3)) {
 				plog("Unknown string %s\n", buf);
@@ -391,18 +391,18 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 			goto try_again;
 		}
 
-		/* Let the client know we use v2 protocol */
+		/* Let the client know we use v3 protocol */
 		write(fd, "V2", 3);
 
 		/* read the rest of dummy data */
-		n = read(fd, buf, sizeof(V2_MAGIC));
-		if (memcmp(buf, V2_MAGIC, n) != 0)
+		n = read(fd, buf, sizeof(V3_MAGIC));
+		if (memcmp(buf, V3_MAGIC, n) != 0)
 			goto out;
 
 		/* We're off! */
 		write(fd, "OK", 2);
 
-		msg_handle->version = V2_PROTOCOL;
+		msg_handle->version = V3_PROTOCOL;
 
 		/* read the CPU count, the page size, and options */
 		if ((pagesize = tracecmd_msg_initial_setting(msg_handle)) < 0)
@@ -557,7 +557,7 @@ static int *create_all_readers(const char *node, const char *port,
 		start_port = udp_port + 1;
 	}
 
-	if (msg_handle->version == V2_PROTOCOL) {
+	if (msg_handle->version == V3_PROTOCOL) {
 		/* send set of port numbers to the client */
 		if (tracecmd_msg_send_port_array(msg_handle, port_array) < 0) {
 			plog("Failed sending port array\n");
@@ -674,8 +674,8 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	stop_msg_handle = msg_handle;
 
 	/* Now we are ready to start reading data from the client */
-	if (msg_handle->version == V2_PROTOCOL)
-		tracecmd_msg_collect_metadata(msg_handle, ofd);
+	if (msg_handle->version == V3_PROTOCOL)
+		tracecmd_msg_collect_data(msg_handle, ofd);
 	else
 		collect_metadata_from_client(msg_handle, ofd);
 

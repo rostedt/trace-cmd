@@ -74,7 +74,7 @@ static stsize_t
 do_write_check(struct tracecmd_output *handle, const void *data, tsize_t size)
 {
 	if (handle->msg_handle)
-		return tracecmd_msg_metadata_send(handle->msg_handle, data, size);
+		return tracecmd_msg_data_send(handle->msg_handle, data, size);
 
 	return __do_write_check(handle->fd, data, size);
 }
