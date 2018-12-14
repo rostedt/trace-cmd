@@ -306,18 +306,29 @@ static bool matchCond(const QString &searchText, const QString &itemText)
 	return (itemText.compare(searchText, Qt::CaseInsensitive) == 0);
 }
 
+void KsTraceViewer::_lockSearchPanel(bool lock)
+{
+	_columnComboBox.setEnabled(!lock);
+	_selectComboBox.setEnabled(!lock);
+	_searchLineEdit.setReadOnly(lock);
+	_prevButton.setEnabled(!lock);
+	_nextButton.setEnabled(!lock);
+	_graphFollowsCheckBox.setEnabled(!lock);
+}
+
 void KsTraceViewer::_search()
 {
-	/* Disable the user input until the search is done. */
-	_searchLineEdit.setReadOnly(true);
 	if (!_searchDone) {
-		int xColumn, xSelect;
-		QString xText;
-
 		/*
 		 * The search is not done. This means that the search settings
 		 * have been modified since the last time we searched.
 		 */
+		int xColumn, xSelect;
+		QString xText;
+
+		/* Disable the user input until the search is done. */
+		_lockSearchPanel(true);
+
 		_matchList.clear();
 		xText = _searchLineEdit.text();
 		xColumn = _columnComboBox.currentIndex();
@@ -346,6 +357,9 @@ void KsTraceViewer::_search()
 			if (_graphFollows)
 				emit select(*_it); // Send a signal to the Graph widget.
 		}
+
+		/* Enable the user input. */
+		_lockSearchPanel(false);
 	} else {
 		/*
 		 * If the search is done, pressing "Enter" is equivalent
@@ -353,9 +367,6 @@ void KsTraceViewer::_search()
 		 */
 		this->_next();
 	}
-
-	/* Enable the user input. */
-	_searchLineEdit.setReadOnly(false);
 }
 
 void KsTraceViewer::_next()

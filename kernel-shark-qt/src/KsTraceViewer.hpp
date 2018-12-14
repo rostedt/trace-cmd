@@ -147,6 +147,8 @@ private:
 
 	void _graphFollowsChanged(int);
 
+	void _lockSearchPanel(bool lock);
+
 	void _search();
 
 	void _next();
