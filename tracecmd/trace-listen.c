@@ -624,8 +624,9 @@ static void stop_all_readers(int cpus, int *pid_array)
 }
 
 static int put_together_file(int cpus, int ofd, const char *node,
-			      const char *port)
+			     const char *port, bool write_options)
 {
+	struct tracecmd_output *handle;
 	char **temp_files;
 	int cpu;
 	int ret = -ENOMEM;
@@ -641,9 +642,20 @@ static int put_together_file(int cpus, int ofd, const char *node,
 			goto out;
 	}
 
-	tracecmd_attach_cpu_data_fd(ofd, cpus, temp_files);
-	ret = 0;
- out:
+	handle = tracecmd_get_output_handle_fd(ofd);
+	if (!handle) {
+		ret = -1;
+		goto out;
+	}
+
+	if (write_options) {
+		tracecmd_write_cpus(handle, cpus);
+		tracecmd_write_options(handle);
+	}
+	ret = tracecmd_write_cpu_data(handle, cpus, temp_files);
+
+out:
+	tracecmd_output_close(handle);
 	for (cpu--; cpu >= 0; cpu--) {
 		put_temp_file(temp_files[cpu]);
 	}
@@ -692,7 +704,8 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	/* wait a little to have the readers clean up */
 	sleep(1);
 
-	ret = put_together_file(cpus, ofd, node, port);
+	ret = put_together_file(cpus, ofd, node, port,
+				msg_handle->version < 3);
 
 	destroy_all_readers(cpus, pid_array, node, port);
 

@@ -2879,8 +2879,10 @@ again:
 	return msg_handle;
 }
 
+static void add_options(struct tracecmd_output *handle, char *date2ts, int flags);
+
 static struct tracecmd_msg_handle *
-setup_connection(struct buffer_instance *instance)
+setup_connection(struct buffer_instance *instance, char *date2ts, int flags)
 {
 	struct tracecmd_msg_handle *msg_handle;
 	struct tracecmd_output *network_handle;
@@ -2890,6 +2892,12 @@ setup_connection(struct buffer_instance *instance)
 	/* Now create the handle through this socket */
 	if (msg_handle->version == V3_PROTOCOL) {
 		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
+		/* For bisectablility, V3_PROTOCOL is still version == 2 */
+		if (msg_handle->version == 3) {
+			add_options(network_handle, date2ts, flags);
+			tracecmd_write_cpus(network_handle, instance->cpu_count);
+			tracecmd_write_options(network_handle);
+		}
 		tracecmd_msg_finish_sending_data(msg_handle);
 	} else
 		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,
@@ -2909,7 +2917,7 @@ static void finish_network(struct tracecmd_msg_handle *msg_handle)
 	free(host);
 }
 
-void start_threads(enum trace_type type, int global)
+void start_threads(enum trace_type type, int global, char *date2ts, int flags)
 {
 	struct buffer_instance *instance;
 	int *brass = NULL;
@@ -2931,7 +2939,7 @@ void start_threads(enum trace_type type, int global)
 		int x, pid;
 
 		if (host) {
-			instance->msg_handle = setup_connection(instance);
+			instance->msg_handle = setup_connection(instance, date2ts, flags);
 			if (!instance->msg_handle)
 				die("Failed to make connection");
 		}
@@ -3085,6 +3093,26 @@ enum {
 	DATA_FL_OFFSET		= 2,
 };
 
+static void add_options(struct tracecmd_output *handle, char *date2ts, int flags)
+{
+	int type = 0;
+
+	if (date2ts) {
+		if (flags & DATA_FL_DATE)
+			type = TRACECMD_OPTION_DATE;
+		else if (flags & DATA_FL_OFFSET)
+			type = TRACECMD_OPTION_OFFSET;
+	}
+
+	if (type)
+		tracecmd_add_option(handle, type, strlen(date2ts)+1, date2ts);
+
+	tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK, 0, NULL);
+	add_option_hooks(handle);
+	add_uname(handle);
+
+}
+
 static void record_data(char *date2ts, int flags)
 {
 	struct tracecmd_option **buffer_options;
@@ -3140,18 +3168,7 @@ static void record_data(char *date2ts, int flags)
 		if (!handle)
 			die("Error creating output file");
 
-		if (date2ts) {
-			int type = 0;
-
-			if (flags & DATA_FL_DATE)
-				type = TRACECMD_OPTION_DATE;
-			else if (flags & DATA_FL_OFFSET)
-				type = TRACECMD_OPTION_OFFSET;
-
-			if (type)
-				tracecmd_add_option(handle, type,
-						    strlen(date2ts)+1, date2ts);
-		}
+		add_options(handle, date2ts, flags);
 
 		/* Only record the top instance under TRACECMD_OPTION_CPUSTAT*/
 		if (!no_top_instance() && !top_instance.msg_handle) {
@@ -3161,13 +3178,6 @@ static void record_data(char *date2ts, int flags)
 				tracecmd_add_option(handle, TRACECMD_OPTION_CPUSTAT,
 						    s[i].len+1, s[i].buffer);
 		}
-
-		tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK,
-				    0, NULL);
-
-		add_option_hooks(handle);
-
-		add_uname(handle);
 
 		if (buffers) {
 			buffer_options = malloc(sizeof(*buffer_options) * buffers);
@@ -4977,7 +4987,7 @@ static void record_trace(int argc, char **argv,
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, finish);
 		if (!latency)
-			start_threads(type, ctx->global);
+			start_threads(type, ctx->global, ctx->date2ts, ctx->data_flags);
 	} else {
 		update_task_filter();
 		tracecmd_enable_tracing();

@@ -932,7 +932,13 @@ tracecmd_add_option(struct tracecmd_output *handle,
 	return option;
 }
 
-static int add_options(struct tracecmd_output *handle)
+int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus)
+{
+	cpus = convert_endian_4(handle, cpus);
+	return do_write_check(handle, &cpus, 4);
+}
+
+int tracecmd_write_options(struct tracecmd_output *handle)
 {
 	struct tracecmd_option *options;
 	unsigned short option;
@@ -1052,11 +1058,11 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	if (!handle)
 		return NULL;
 
-	cpus = convert_endian_4(handle, cpus);
-	if (do_write_check(handle, &cpus, 4))
+
+	if (tracecmd_write_cpus(handle, cpus) < 0)
 		goto out_free;
 
-	if (add_options(handle) < 0)
+	if (tracecmd_write_options(handle) < 0)
 		goto out_free;
 
 	if (do_write_check(handle, "latency  ", 10))
@@ -1077,8 +1083,8 @@ out_free:
 	return NULL;
 }
 
-static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
-				      int cpus, char * const *cpu_data_files)
+int tracecmd_write_cpu_data(struct tracecmd_output *handle,
+			    int cpus, char * const *cpu_data_files)
 {
 	off64_t *offsets = NULL;
 	unsigned long long *sizes = NULL;
@@ -1186,16 +1192,17 @@ static int __tracecmd_append_cpu_data(struct tracecmd_output *handle,
 int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			     int cpus, char * const *cpu_data_files)
 {
-	int endian4;
+	int ret;
 
-	endian4 = convert_endian_4(handle, cpus);
-	if (do_write_check(handle, &endian4, 4))
-		return -1;
+	ret = tracecmd_write_cpus(handle, cpus);
+	if (ret)
+		return ret;
 
-	if (add_options(handle) < 0)
-		return -1;
+	ret = tracecmd_write_options(handle);
+	if (ret)
+		return ret;
 
-	return __tracecmd_append_cpu_data(handle, cpus, cpu_data_files);
+	return tracecmd_write_cpu_data(handle, cpus, cpu_data_files);
 }
 
 int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
@@ -1224,35 +1231,38 @@ int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
 		return -1;
 	}
 
-	return __tracecmd_append_cpu_data(handle, cpus, cpu_data_files);
+	return tracecmd_write_cpu_data(handle, cpus, cpu_data_files);
 }
 
-int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
+struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 {
+	struct tracecmd_output *handle = NULL;
 	struct tracecmd_input *ihandle;
-	struct tracecmd_output *handle;
 	struct tep_handle *pevent;
-	int ret = -1;
+	int fd2;
 
 	/* Move the file descriptor to the beginning */
 	if (lseek(fd, 0, SEEK_SET) == (off_t)-1)
-		return -1;
+		return NULL;
+
+	/* dup fd to be used by the ihandle bellow */
+	fd2 = dup(fd);
+	if (fd2 < 0)
+		return NULL;
 
 	/* get a input handle from this */
-	ihandle = tracecmd_alloc_fd(fd);
+	ihandle = tracecmd_alloc_fd(fd2);
 	if (!ihandle)
-		return -1;
+		return NULL;
 
 	/* move the file descriptor to the end */
 	if (lseek(fd, 0, SEEK_END) == (off_t)-1)
 		goto out_free;
 
 	/* create a partial output handle */
-
-	handle = malloc(sizeof(*handle));
+	handle = calloc(1, sizeof(*handle));
 	if (!handle)
 		goto out_free;
-	memset(handle, 0, sizeof(*handle));
 
 	handle->fd = fd;
 
@@ -1264,24 +1274,14 @@ int tracecmd_attach_cpu_data_fd(int fd, int cpus, char * const *cpu_data_files)
 	handle->page_size = tracecmd_page_size(ihandle);
 	list_head_init(&handle->options);
 
-	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) >= 0)
-		ret = 0;
+	tracecmd_close(ihandle);
 
-	tracecmd_output_close(handle);
+	return handle;
+
  out_free:
 	tracecmd_close(ihandle);
-	return ret;
-}
-
-int tracecmd_attach_cpu_data(char *file, int cpus, char * const *cpu_data_files)
-{
-	int fd;
-
-	fd = open(file, O_RDWR);
-	if (fd < 0)
-		return -1;
-
-	return tracecmd_attach_cpu_data_fd(fd, cpus, cpu_data_files);
+	free(handle);
+	return NULL;
 }
 
 struct tracecmd_output *
