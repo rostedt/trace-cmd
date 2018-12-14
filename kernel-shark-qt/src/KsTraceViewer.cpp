@@ -331,6 +331,15 @@ void KsTraceViewer::_search()
 
 		_matchList.clear();
 		xText = _searchLineEdit.text();
+		if (xText.isEmpty()) {
+			/*
+			 * No text is provided by the user. Most probably this
+			 * is an accidental key press. Just reenable the input.
+			 */
+			_lockSearchPanel(false);
+			return;
+		}
+
 		xColumn = _columnComboBox.currentIndex();
 		xSelect = _selectComboBox.currentIndex();
 
