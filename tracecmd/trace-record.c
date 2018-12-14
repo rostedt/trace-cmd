@@ -2785,7 +2785,7 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 		msg_handle->version = V1_PROTOCOL;
 		plog("Use the v1 protocol\n");
 	} else {
-		if (memcmp(buf, "V2", n) != 0)
+		if (memcmp(buf, "V3", n) != 0)
 			die("Cannot handle the protocol %s", buf);
 		/* OK, let's use v3 protocol */
 		write(fd, V3_MAGIC, sizeof(V3_MAGIC));
@@ -2892,12 +2892,9 @@ setup_connection(struct buffer_instance *instance, char *date2ts, int flags)
 	/* Now create the handle through this socket */
 	if (msg_handle->version == V3_PROTOCOL) {
 		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
-		/* For bisectablility, V3_PROTOCOL is still version == 2 */
-		if (msg_handle->version == 3) {
-			add_options(network_handle, date2ts, flags);
-			tracecmd_write_cpus(network_handle, instance->cpu_count);
-			tracecmd_write_options(network_handle);
-		}
+		add_options(network_handle, date2ts, flags);
+		tracecmd_write_cpus(network_handle, instance->cpu_count);
+		tracecmd_write_options(network_handle);
 		tracecmd_msg_finish_sending_data(msg_handle);
 	} else
 		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,

@@ -387,12 +387,12 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 				last_proto[n] = 0;
 			}
 			/* Return the highest protocol we can use */
-			write(fd, "V2", 3);
+			write(fd, "V3", 3);
 			goto try_again;
 		}
 
 		/* Let the client know we use v3 protocol */
-		write(fd, "V2", 3);
+		write(fd, "V3", 3);
 
 		/* read the rest of dummy data */
 		n = read(fd, buf, sizeof(V3_MAGIC));
@@ -705,7 +705,7 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	sleep(1);
 
 	ret = put_together_file(cpus, ofd, node, port,
-				msg_handle->version < 3);
+				msg_handle->version < V3_PROTOCOL);
 
 	destroy_all_readers(cpus, pid_array, node, port);
 
