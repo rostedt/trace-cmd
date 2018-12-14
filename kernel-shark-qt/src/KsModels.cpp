@@ -80,7 +80,11 @@ void KsFilterProxyModel::_search(int column,
 			matchList->append(row);
 
 		if (_searchStop) {
-			_searchStop = false;
+			if (notify) {
+				_searchProgress = KS_PROGRESS_BAR_MAX;
+				_pbCond.notify_one();
+			}
+
 			break;
 		}
 

@@ -446,6 +446,7 @@ void KsTraceViewer::_searchStop()
 {
 	_searchStopAction->setVisible(false);
 	_proxyModel.searchStop();
+	_lockSearchPanel(false);
 }
 
 void KsTraceViewer::_clicked(const QModelIndex& i)
@@ -625,7 +626,6 @@ size_t KsTraceViewer::_searchItems(int column,
 {
 	int count, dataRow;
 
-	_searchProgBar.show();
 	_pbAction->setVisible(true);
 
 	if (_proxyModel.rowCount({}) < KS_SEARCH_SHOW_PROGRESS_MIN) {
@@ -635,15 +635,20 @@ size_t KsTraceViewer::_searchItems(int column,
 		 */
 		_proxyModel.search(column, searchText, cond, &_matchList,
 				   nullptr, nullptr);
-	} else if (column == KsViewModel::TRACE_VIEW_COL_INFO ||
-	    column == KsViewModel::TRACE_VIEW_COL_LAT) {
+	} else {
 		_searchStopAction->setVisible(true);
-		_proxyModel.search(column, searchText, cond, &_matchList,
-				   &_searchProgBar, &_searchCountLabel);
+
+		if (column == KsViewModel::TRACE_VIEW_COL_INFO ||
+		    column == KsViewModel::TRACE_VIEW_COL_LAT) {
+			_proxyModel.search(column, searchText,
+					   cond, &_matchList,
+					   &_searchProgBar,
+					   &_searchCountLabel);
+		} else {
+			_searchItemsMapReduce(column, searchText, cond);
+		}
 
 		_searchStopAction->setVisible(false);
-	} else {
-		_searchItemsMapReduce(column, searchText, cond);
 	}
 
 	count = _matchList.count();

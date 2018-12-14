@@ -178,7 +178,10 @@ public:
 	int searchProgress() const {return _searchProgress;}
 
 	/** Reset the progress value of the search. */
-	void searchReset() {_searchProgress = 0;}
+	void searchReset() {
+		_searchProgress = 0;
+		_searchStop = false;
+	}
 
 	/** Stop the serch for all threads. */
 	void searchStop() {_searchStop = true;}
