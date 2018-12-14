@@ -324,6 +324,7 @@ static void report_events(struct buffer_instance *instance)
 	char *system;
 	enum event_iter_type type;
 	enum event_process processed = PROCESSED_NONE;
+	enum event_process processed_part = PROCESSED_NONE;
 
 	str = get_instance_file_content(instance, "events/enable");
 	if (!str)
@@ -358,7 +359,6 @@ static void report_events(struct buffer_instance *instance)
 
 	reset_event_iter(iter);
 
-	processed = PROCESSED_NONE;
 	system = NULL;
 	while ((type = trace_event_iter_next(iter, path, system))) {
 
@@ -369,18 +369,18 @@ static void report_events(struct buffer_instance *instance)
 				continue;
 
 			system = iter->system_dent->d_name;
-			if (processed)
-				processed = PROCESSED_SYSTEM;
+			if (processed_part)
+				processed_part = PROCESSED_SYSTEM;
 			continue;
 		}
 
 		process_event_enable(path, iter->system_dent->d_name,
-				     iter->event_dent->d_name, &processed);
+				     iter->event_dent->d_name, &processed_part);
 	}
 
 	trace_event_iter_free(iter);
 
-	if (!processed)
+	if (!processed && !processed_part)
 		printf("  (none enabled)\n");
 
 	tracecmd_put_tracing_file(path);
