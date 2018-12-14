@@ -820,7 +820,7 @@ void KsMainWindow::_aboutInfo()
 
 void KsMainWindow::_contents()
 {
-	QDesktopServices::openUrl(QUrl("https://www.google.bg/search?q=kernelshark",
+	QDesktopServices::openUrl(QUrl("http://kernelshark.org/",
 				  QUrl::TolerantMode));
 }
 
