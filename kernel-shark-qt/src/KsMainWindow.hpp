@@ -110,11 +110,7 @@ private:
 
 	QAction		_exportFilterAction;
 
-	QWidgetAction	_graphFilterSyncAction;
-
 	QCheckBox	*_graphFilterSyncCBox;
-
-	QWidgetAction	_listFilterSyncAction;
 
 	QCheckBox	*_listFilterSyncCBox;
 
@@ -221,6 +217,8 @@ private:
 		    bool resize, bool unloadPlugins);
 
 	void _deselect();
+
+	void _updateFilterMenu();
 
 	void _filterSyncCBoxUpdate(kshark_context *kshark_ctx);
 

@@ -93,6 +93,8 @@ void listFilterSync(bool state);
 
 void graphFilterSync(bool state);
 
+QCheckBox *addCheckBoxToMenu(QMenu *menu, QString name);
+
 /** @brief Convert the timestamp of the trace record into a string showing
  *	   the time in seconds.
  *

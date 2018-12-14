@@ -49,9 +49,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _quitAction("Quit", this),
   _importFilterAction("Import Filter", this),
   _exportFilterAction("Export Filter", this),
-  _graphFilterSyncAction(this),
   _graphFilterSyncCBox(nullptr),
-  _listFilterSyncAction(this),
   _listFilterSyncCBox(nullptr),
   _showEventsAction("Show events", this),
   _showTasksAction("Show tasks", this),
@@ -292,21 +290,12 @@ void KsMainWindow::_createMenus()
 
 	/* Filter menu */
 	filter = menuBar()->addMenu("Filter");
+
+	connect(filter, 		&QMenu::aboutToShow,
+		this,			&KsMainWindow::_updateFilterMenu);
+
 	filter->addAction(&_importFilterAction);
 	filter->addAction(&_exportFilterAction);
-
-	auto lamMakeCBAction = [&](QWidgetAction *action, QString name)
-	{
-		QWidget  *containerWidget = new QWidget(filter);
-		containerWidget->setLayout(new QHBoxLayout());
-		containerWidget->layout()->setContentsMargins(FONT_WIDTH, FONT_HEIGHT/5,
-							      FONT_WIDTH, FONT_HEIGHT/5);
-		QCheckBox *checkBox = new QCheckBox(name, filter);
-		checkBox->setChecked(true);
-		containerWidget->layout()->addWidget(checkBox);
-		action->setDefaultWidget(containerWidget);
-		return checkBox;
-	};
 
 	/*
 	 * Set the default filter mask. Filter will apply to both View and
@@ -317,20 +306,20 @@ void KsMainWindow::_createMenus()
 
 	kshark_ctx->filter_mask |= KS_EVENT_VIEW_FILTER_MASK;
 
-	_graphFilterSyncCBox = lamMakeCBAction(&_graphFilterSyncAction,
-					       "Apply filters to Graph");
+	_graphFilterSyncCBox =
+		KsUtils::addCheckBoxToMenu(filter, "Apply filters to Graph");
+	_graphFilterSyncCBox->setChecked(true);
 
 	connect(_graphFilterSyncCBox,	&QCheckBox::stateChanged,
 		this,			&KsMainWindow::_graphFilterSync);
 
-	_listFilterSyncCBox = lamMakeCBAction(&_listFilterSyncAction,
-					      "Apply filters to List");
+	_listFilterSyncCBox =
+		KsUtils::addCheckBoxToMenu(filter, "Apply filters to List");
+	_listFilterSyncCBox->setChecked(true);
 
 	connect(_listFilterSyncCBox,	&QCheckBox::stateChanged,
 		this,			&KsMainWindow::_listFilterSync);
 
-	filter->addAction(&_graphFilterSyncAction);
-	filter->addAction(&_listFilterSyncAction);
 	filter->addAction(&_showEventsAction);
 	filter->addAction(&_showTasksAction);
 	filter->addAction(&_hideTasksAction);
@@ -444,6 +433,14 @@ void KsMainWindow::_filterSyncCBoxUpdate(kshark_context *kshark_ctx)
 		_graphFilterSyncCBox->setChecked(true);
 	else
 		_graphFilterSyncCBox->setChecked(false);
+}
+
+void KsMainWindow::_updateFilterMenu()
+{
+	kshark_context *kshark_ctx(nullptr);
+
+	if (kshark_instance(&kshark_ctx))
+		_filterSyncCBoxUpdate(kshark_ctx);
 }
 
 void KsMainWindow::_importFilter()

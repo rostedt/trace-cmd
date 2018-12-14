@@ -95,6 +95,31 @@ void graphFilterSync(bool state)
 	}
 }
 
+
+/**
+ * @brief Add a checkbox to a menu.
+ *
+ * @param menu: Input location for the menu object, to which the checkbox will be added.
+ * @param name: The name of the checkbox.
+ *
+ * @returns The checkbox object;
+ */
+QCheckBox *addCheckBoxToMenu(QMenu *menu, QString name)
+{
+	QWidget  *containerWidget = new QWidget(menu);
+	containerWidget->setLayout(new QHBoxLayout());
+	containerWidget->layout()->setContentsMargins(FONT_WIDTH, FONT_HEIGHT/5,
+						      FONT_WIDTH, FONT_HEIGHT/5);
+	QCheckBox *checkBox = new QCheckBox(name, menu);
+	containerWidget->layout()->addWidget(checkBox);
+
+	QWidgetAction *action = new QWidgetAction(menu);
+	action->setDefaultWidget(containerWidget);
+	menu->addAction(action);
+
+	return checkBox;
+}
+
 /**
  * @brief Simple CPU matching function to be user for data collections.
  *
