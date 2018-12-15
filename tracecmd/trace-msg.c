@@ -141,7 +141,8 @@ static int msg_write(int fd, struct tracecmd_msg *msg)
 	if (cmd < 0 || cmd >= MSG_NR_COMMANDS)
 		return -EINVAL;
 
-	dprint("msg send: %d (%s)\n", cmd, cmd_to_name(cmd));
+	dprint("msg send: %d (%s) [%d]\n",
+	       cmd, cmd_to_name(cmd), ntohl(msg->hdr.size));
 
 	msg_size = MSG_HDR_LEN + ntohl(msg->hdr.cmd_size);
 	data_size = ntohl(msg->hdr.size) - msg_size;
@@ -309,8 +310,9 @@ static int tracecmd_msg_recv(int fd, struct tracecmd_msg *msg)
 	if (ret < 0)
 		return ret;
 
-	dprint("msg received: %d (%s)\n",
-	       ntohl(msg->hdr.cmd), cmd_to_name(ntohl(msg->hdr.cmd)));
+	dprint("msg received: %d (%s) [%d]\n",
+	       ntohl(msg->hdr.cmd), cmd_to_name(ntohl(msg->hdr.cmd)),
+	       ntohl(msg->hdr.size));
 
 	size = ntohl(msg->hdr.size);
 	if (size > MSG_MAX_LEN)
