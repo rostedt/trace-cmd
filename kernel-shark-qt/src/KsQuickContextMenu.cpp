@@ -50,11 +50,14 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 : KsQuickMarkerMenu(dm, parent),
   _data(data),
   _row(row),
+  _graphSyncCBox(nullptr),
+  _listSyncCBox(nullptr),
   _hideTaskAction(this),
   _showTaskAction(this),
   _hideEventAction(this),
   _showEventAction(this),
   _hideCPUAction(this),
+  _showCPUAction(this),
   _addCPUPlotAction(this),
   _addTaskPlotAction(this),
   _removeCPUPlotAction(this),
@@ -85,6 +88,37 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 	parentName = parent->metaObject()->className();
 
 	addSection("Pointer menu");
+
+	if (parentName == "KsTraceViewer") {
+		_graphSyncCBox =
+			KsUtils::addCheckBoxToMenu(this, "Apply filters to Graph");
+
+		connect(_graphSyncCBox,	&QCheckBox::stateChanged,
+					&KsUtils::graphFilterSync);
+
+		/*
+		 * By defauls the filters will be append to the List (Table)
+		 * only.
+		 */
+		KsUtils::listFilterSync(true);
+		KsUtils::graphFilterSync(false);
+		_graphSyncCBox->setChecked(false);
+	}
+
+	if (parentName == "KsTraceGraph" &&
+	    (graphs = dynamic_cast<KsTraceGraph *>(parent))) {
+		_listSyncCBox =
+			KsUtils::addCheckBoxToMenu(this, "Apply filters to List");
+
+		connect(_listSyncCBox,	&QCheckBox::stateChanged,
+					&KsUtils::listFilterSync);
+
+		/* By defauls the filters will be append to the Graph only. */
+		KsUtils::graphFilterSync(true);
+		KsUtils::listFilterSync(false);
+		_listSyncCBox->setChecked(false);
+	}
+
 	descr = "Hide task [";
 	descr += taskName;
 	descr += "-";
@@ -113,6 +147,9 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 	lamAddAction(&_hideCPUAction, &KsQuickContextMenu::_hideCPU);
 
 	if (parentName == "KsTraceViewer") {
+		descr = QString("Show CPU [%1] only").arg(cpu);
+		lamAddAction(&_showCPUAction, &KsQuickContextMenu::_showCPU);
+
 		descr = "Add [";
 		descr += taskName;
 		descr += "-";
@@ -198,6 +235,13 @@ void KsQuickContextMenu::_showEvent()
 	_data->applyPosEventFilter(QVector<int>(1, eventId));
 }
 
+void KsQuickContextMenu::_showCPU()
+{
+	int cpu = _data->rows()[_row]->cpu;
+
+	_data->applyPosCPUFilter(QVector<int>(1, cpu));
+}
+
 void KsQuickContextMenu::_hideCPU()
 {
 	kshark_context *kshark_ctx(nullptr);
@@ -208,6 +252,7 @@ void KsQuickContextMenu::_hideCPU()
 
 	vec =_getFilterVector(kshark_ctx->hide_cpu_filter,
 			      _data->rows()[_row]->cpu);
+
 	_data->applyNegCPUFilter(vec);
 }
 

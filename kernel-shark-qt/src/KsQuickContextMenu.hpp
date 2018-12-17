@@ -71,6 +71,8 @@ private:
 
 	void _showEvent();
 
+	void _showCPU();
+
 	void _hideCPU();
 
 	void _addCPUPlot();
@@ -87,11 +89,13 @@ private:
 
 	size_t		_row;
 
+	QCheckBox	*_graphSyncCBox, *_listSyncCBox;
+
 	QAction _hideTaskAction, _showTaskAction;
 
 	QAction _hideEventAction, _showEventAction;
 
-	QAction _hideCPUAction;
+	QAction _hideCPUAction, _showCPUAction;
 
 	QAction _addCPUPlotAction;
 
