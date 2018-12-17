@@ -136,7 +136,7 @@ KsTraceGraph::KsTraceGraph(QWidget *parent)
 		this,			&KsTraceGraph::_updateTimeLegends);
 
 	_glWindow.setContextMenuPolicy(Qt::CustomContextMenu);
-	connect(&_glWindow,	&QTableView::customContextMenuRequested,
+	connect(&_glWindow,	&QWidget::customContextMenuRequested,
 		this,		&KsTraceGraph::_onCustomContextMenu);
 
 	_scrollArea.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -782,12 +782,15 @@ void KsTraceGraph::_onCustomContextMenu(const QPoint &point)
 		connect(menu,	&KsQuickMarkerMenu::deselect,
 			this,	&KsTraceGraph::deselect);
 
-		QPoint global = mapToGlobal(point);
 		/*
-		 * The global coordinates have to be corrected for the offset
-		 * of the vertical scrollbar.
+		 * Note that this slot was connected to the
+		 * customContextMenuRequested signal of the OpenGL widget.
+		 * Because of this the coordinates of the point are given with
+		 * respect to the frame of this widget.
 		 */
-		global.ry() -= _scrollArea.verticalScrollBar()->value();
+		QPoint global = _glWindow.mapToGlobal(point);
+		global.ry() -= menu->sizeHint().height() / 2;
+
 		menu->exec(global);
 	}
 }

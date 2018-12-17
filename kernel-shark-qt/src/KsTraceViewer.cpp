@@ -150,7 +150,7 @@ KsTraceViewer::KsTraceViewer(QWidget *parent)
 		this, &KsTraceViewer::_searchReset);
 
 	_view.setContextMenuPolicy(Qt::CustomContextMenu);
-	connect(&_view,	&QTableView::customContextMenuRequested,
+	connect(&_view,	&QWidget::customContextMenuRequested,
 		this,	&KsTraceViewer::_onCustomContextMenu);
 
 	connect(&_view,	&QTableView::clicked,
@@ -263,13 +263,22 @@ void KsTraceViewer::_onCustomContextMenu(const QPoint &point)
 		size_t row = _proxyModel.mapRowFromSource(i.row());
 		KsQuickContextMenu menu(_data, row, _mState, this);
 
+		/*
+		 * Note that this slot was connected to the
+		 * customContextMenuRequested signal of the Table widget.
+		 * Because of this the coordinates of the point are given with
+		 * respect to the frame of this widget.
+		 */
+		QPoint global = _view.mapToGlobal(point);
+		global.ry() -= menu.sizeHint().height() / 2;
+
 		connect(&menu,	&KsQuickContextMenu::addTaskPlot,
 			this,	&KsTraceViewer::addTaskPlot);
 
 		connect(&menu,	&KsQuickMarkerMenu::deselect,
 			this,	&KsTraceViewer::deselect);
 
-		menu.exec(mapToGlobal(point));
+		menu.exec(global);
 	}
 }
 
