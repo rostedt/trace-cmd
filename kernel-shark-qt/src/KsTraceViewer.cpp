@@ -272,6 +272,13 @@ void KsTraceViewer::_onCustomContextMenu(const QPoint &point)
 		QPoint global = _view.mapToGlobal(point);
 		global.ry() -= menu.sizeHint().height() / 2;
 
+		/*
+		 * Shift the menu so that it is not positioned under the mouse.
+		 * This will prevent from an accidental selection of the menu
+		 * item under the mouse.
+		 */
+		global.rx() += FONT_WIDTH;
+
 		connect(&menu,	&KsQuickContextMenu::addTaskPlot,
 			this,	&KsTraceViewer::addTaskPlot);
 
