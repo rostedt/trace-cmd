@@ -1680,7 +1680,7 @@ static void clear_trigger(const char *file)
 	 * to the file for each trigger.
 	 */
 	do {
-		len = find_trigger(file, trigger+1, BUFSIZ-1, 1);
+		len = find_trigger(file, trigger+1, BUFSIZ-1, 3);
 		if (len)
 			write_trigger(file, trigger);
 	} while (len);
