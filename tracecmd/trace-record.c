@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <getopt.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -96,7 +97,7 @@ static int fset;
 static unsigned recorder_flags;
 
 /* Try a few times to get an accurate date */
-static int date2ts_tries = 5;
+static int date2ts_tries = 50;
 
 static struct func_list *graph_funcs;
 
@@ -3495,8 +3496,8 @@ static char *get_date_to_ts(void)
 	unsigned long long min_ts;
 	unsigned long long ts;
 	struct tep_handle *pevent;
-	struct timeval start;
-	struct timeval end;
+	struct timespec start;
+	struct timespec end;
 	char *date2ts = NULL;
 	char *path;
 	char *buf;
@@ -3546,20 +3547,20 @@ static char *get_date_to_ts(void)
 		clear_trace_instances();
 		tracecmd_enable_tracing();
 
-		gettimeofday(&start, NULL);
+		clock_gettime(CLOCK_REALTIME, &start);
 		write(tfd, STAMP, 5);
-		gettimeofday(&end, NULL);
+		clock_gettime(CLOCK_REALTIME, &end);
 
 		tracecmd_disable_tracing();
 		ts = find_time_stamp(pevent);
 		if (!ts)
 			continue;
 
-		diff = (unsigned long long)end.tv_sec * 1000000;
-		diff += (unsigned long long)end.tv_usec;
+		diff = (unsigned long long)end.tv_sec * 1000000000LL;
+		diff += (unsigned long long)end.tv_nsec;
 		stamp = diff;
-		diff -= (unsigned long long)start.tv_sec * 1000000;
-		diff -= (unsigned long long)start.tv_usec;
+		diff -= (unsigned long long)start.tv_sec * 1000000000LL;
+		diff -= (unsigned long long)start.tv_nsec;
 
 		if (diff < min) {
 			min_ts = ts;
@@ -3584,7 +3585,8 @@ static char *get_date_to_ts(void)
 	 * The difference between the timestamp and the gtod is
 	 * stored as an ASCII string in hex.
 	 */
-	snprintf(date2ts, 19, "0x%llx", min_stamp - min_ts / 1000);
+	diff = min_stamp - min_ts;
+	snprintf(date2ts, 19, "0x%llx", diff/1000);
 
  out_pevent:
 	tep_free(pevent);
