@@ -960,31 +960,6 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	return -ENOMEM;
 }
 
-/**
- * @brief A thread-safe read of a record from a specific offset.
- *
- * @param kshark_ctx: Input location for the session context pointer.
- * @param offset: the offset into the file to find the record.
- *
- * @returns The returned pevent_record must be freed.
- */
-struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
-				  uint64_t offset)
-{
-	/*
-	 * Calling tracecmd_read_at() is not thread-safe. Use a mutex to
-	 * protect the access.
-	 */
-	pthread_mutex_lock(&kshark_ctx->input_mutex);
-
-	struct tep_record *data = tracecmd_read_at(kshark_ctx->handle,
-						      offset, NULL);
-
-	pthread_mutex_unlock(&kshark_ctx->input_mutex);
-
-	return data;
-}
-
 static const char *kshark_get_latency(struct tep_handle *pe,
 				      struct tep_record *record)
 {
@@ -1046,10 +1021,18 @@ int kshark_get_pid_easy(struct kshark_entry *entry)
 		/*
 		 * The entry has been touched by a plugin callback function.
 		 * Because of this we do not trust the value of "entry->pid".
+		 *
+		 * Currently the data reading operations are not thread-safe.
+		 * Use a mutex to protect the access.
 		 */
-		data = kshark_read_at(kshark_ctx, entry->offset);
+		pthread_mutex_lock(&kshark_ctx->input_mutex);
+
+		data = tracecmd_read_at(kshark_ctx->handle, entry->offset,
+					NULL);
 		pid = tep_data_pid(kshark_ctx->pevent, data);
 		free_record(data);
+
+		pthread_mutex_unlock(&kshark_ctx->input_mutex);
 	}
 
 	return pid;
@@ -1106,9 +1089,17 @@ const char *kshark_get_latency_easy(struct kshark_entry *entry)
 	if (entry->event_id < 0)
 		return NULL;
 
-	data = kshark_read_at(kshark_ctx, entry->offset);
+	/*
+	 * Currently the data reading operations are not thread-safe.
+	 * Use a mutex to protect the access.
+	 */
+	pthread_mutex_lock(&kshark_ctx->input_mutex);
+
+	data = tracecmd_read_at(kshark_ctx->handle, entry->offset, NULL);
 	lat = kshark_get_latency(kshark_ctx->pevent, data);
 	free_record(data);
+
+	pthread_mutex_unlock(&kshark_ctx->input_mutex);
 
 	return lat;
 }
@@ -1142,10 +1133,18 @@ int kshark_get_event_id_easy(struct kshark_entry *entry)
 		 * The entry has been touched by a plugin callback function.
 		 * Because of this we do not trust the value of
 		 * "entry->event_id".
+		 *
+		 * Currently the data reading operations are not thread-safe.
+		 * Use a mutex to protect the access.
 		 */
-		data = kshark_read_at(kshark_ctx, entry->offset);
+		pthread_mutex_lock(&kshark_ctx->input_mutex);
+
+		data = tracecmd_read_at(kshark_ctx->handle, entry->offset,
+					NULL);
 		event_id = tep_data_type(kshark_ctx->pevent, data);
 		free_record(data);
+
+		pthread_mutex_unlock(&kshark_ctx->input_mutex);
 	}
 
 	return (event_id == -1)? -EFAULT : event_id;
@@ -1184,7 +1183,14 @@ const char *kshark_get_event_name_easy(struct kshark_entry *entry)
 		}
 	}
 
+	/*
+	 * Currently the data reading operations are not thread-safe.
+	 * Use a mutex to protect the access.
+	 */
+	pthread_mutex_lock(&kshark_ctx->input_mutex);
 	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
+	pthread_mutex_unlock(&kshark_ctx->input_mutex);
+
 	if (event)
 		return event->name;
 
@@ -1223,14 +1229,21 @@ const char *kshark_get_info_easy(struct kshark_entry *entry)
 		}
 	}
 
-	data = kshark_read_at(kshark_ctx, entry->offset);
+	/*
+	 * Currently the data reading operations are not thread-safe.
+	 * Use a mutex to protect the access.
+	 */
+	pthread_mutex_lock(&kshark_ctx->input_mutex);
 
+	data = tracecmd_read_at(kshark_ctx->handle, entry->offset, NULL);
 	event_id = tep_data_type(kshark_ctx->pevent, data);
 	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
 	if (event)
 		info = kshark_get_info(kshark_ctx->pevent, data, event);
 
 	free_record(data);
+
+	pthread_mutex_unlock(&kshark_ctx->input_mutex);
 
 	return info;
 }
@@ -1315,7 +1328,8 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 		struct tep_event *event;
 		struct tep_record *data;
 
-		data = kshark_read_at(kshark_ctx, entry->offset);
+		data = tracecmd_read_at(kshark_ctx->handle, entry->offset,
+					NULL);
 
 		event = tep_data_event_from_type(kshark_ctx->pevent,
 						 entry->event_id);

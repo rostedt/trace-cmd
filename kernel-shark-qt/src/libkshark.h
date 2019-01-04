@@ -183,9 +183,6 @@ char* kshark_dump_custom_entry(struct kshark_context *kshark_ctx,
 			       const struct kshark_entry *entry,
 			       kshark_custom_info_func info_func);
 
-struct tep_record *kshark_read_at(struct kshark_context *kshark_ctx,
-				  uint64_t offset);
-
 /** Bit masks used to control the visibility of the entry after filtering. */
 enum kshark_filter_masks {
 	/**

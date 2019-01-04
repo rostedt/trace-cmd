@@ -184,7 +184,7 @@ bool plugin_wakeup_match_rec_pid(struct kshark_context *kshark_ctx,
 
 	if (plugin_ctx->sched_wakeup_event &&
 	    e->event_id == plugin_ctx->sched_wakeup_event->id) {
-		record = kshark_read_at(kshark_ctx, e->offset);
+		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
 
 		/* We only want those that actually woke up the task. */
 		ret = tep_read_number_field(plugin_ctx->sched_wakeup_success_field,
@@ -196,7 +196,7 @@ bool plugin_wakeup_match_rec_pid(struct kshark_context *kshark_ctx,
 
 	if (plugin_ctx->sched_wakeup_new_event &&
 	    e->event_id == plugin_ctx->sched_wakeup_new_event->id) {
-		record = kshark_read_at(kshark_ctx, e->offset);
+		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
 
 		/* We only want those that actually woke up the task. */
 		ret = tep_read_number_field(plugin_ctx->sched_wakeup_new_success_field,
@@ -238,7 +238,7 @@ bool plugin_switch_match_rec_pid(struct kshark_context *kshark_ctx,
 	    e->event_id == plugin_ctx->sched_switch_event->id) {
 		struct tep_record *record;
 
-		record = kshark_read_at(kshark_ctx, e->offset);
+		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
 		ret = tep_read_number_field(plugin_ctx->sched_switch_prev_state_field,
 					    record->data, &val);
 
