@@ -34,6 +34,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
     set (ks-guiLib_hdr  KsUtils.hpp
                         KsModels.hpp
                         KsGLWidget.hpp
+                        KsSearchFSM.hpp
                         KsDualMarker.hpp
                         KsWidgetsLib.hpp
                         KsTraceGraph.hpp
@@ -49,6 +50,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
                                                             KsModels.cpp
                                                             KsSession.cpp
                                                             KsGLWidget.cpp
+                                                            KsSearchFSM.cpp
                                                             KsDualMarker.cpp
                                                             KsWidgetsLib.cpp
                                                             KsTraceGraph.cpp

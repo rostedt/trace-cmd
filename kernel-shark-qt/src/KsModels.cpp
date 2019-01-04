@@ -48,33 +48,31 @@ void KsFilterProxyModel::setSource(KsViewModel *s)
 	_source = s;
 }
 
-void KsFilterProxyModel::_search(int column,
-				 const QString &searchText,
-				 condition_func cond,
-				 QList<int> *matchList,
-				 int first, int last,
-				 QProgressBar *pb,
-				 QLabel *l,
-				 bool notify)
+size_t KsFilterProxyModel::_search(int column,
+				   const QString &searchText,
+				   search_condition_func cond,
+				   QList<int> *matchList,
+				   int first, int last,
+				   QProgressBar *pb,
+				   QLabel *l,
+				   bool notify)
 {
-	int row, nRows(last - first + 1);
+	int index, row, nRows(last - first + 1);
 	int pbCount(1);
 	QString item;
 
-	_searchProgress = 0;
-
 	if (nRows > KS_PROGRESS_BAR_MAX)
-		pbCount = nRows / KS_PROGRESS_BAR_MAX;
+		pbCount = nRows / (KS_PROGRESS_BAR_MAX - _searchProgress);
 	else
 		_searchProgress = KS_PROGRESS_BAR_MAX - nRows;
 
 	/* Loop over the items of the proxy model. */
-	for (int r = first; r <= last; ++r) {
+	for (index = first; index <= last; ++index) {
 		/*
 		 * Use the index of the proxy model to retrieve the value
 		 * of the row number in the base model.
 		 */
-		row = mapRowFromSource(r);
+		row = mapRowFromSource(index);
 		item = _source->getValueStr(column, row);
 		if (cond(searchText, item))
 			matchList->append(row);
@@ -89,20 +87,25 @@ void KsFilterProxyModel::_search(int column,
 		}
 
 		/* Deal with the Progress bar of the seatch. */
-		if ((r - first) % pbCount == 0) {
+		if ((index - first) % pbCount == 0) {
 			if (notify) {
 				std::lock_guard<std::mutex> lk(_mutex);
 				++_searchProgress;
 				_pbCond.notify_one();
 			} else {
-				if (pb)
+				if (pb) {
 					pb->setValue(pb->value() + 1);
+					++_searchProgress;
+				}
+
 				if (l)
 					l->setText(QString(" %1").arg(matchList->count()));
 				QApplication::processEvents();
 			}
 		}
 	}
+
+	return index;
 }
 
 /** @brief Search the content of the table for a data satisfying an abstract
@@ -121,15 +124,40 @@ void KsFilterProxyModel::_search(int column,
  */
 size_t KsFilterProxyModel::search(int column,
 				  const QString &searchText,
-				  condition_func cond,
+				  search_condition_func cond,
 				  QList<int> *matchList,
 				  QProgressBar *pb,
 				  QLabel *l)
 {
 	int nRows = rowCount({});
+	_search(column, searchText, cond, matchList,
+		0, nRows - 1, pb, l, false);
 
-	_search(column, searchText, cond, matchList, 0, nRows - 1,
-		pb, l, false);
+	return matchList->count();
+}
+
+/** @brief Search the content of the table for a data satisfying an abstract
+ *	   condition.
+ *
+ * @param sm: Input location for the Search State machine object.
+ * @param matchList: Output location for a list containing the row indexes of
+ *
+ * @returns The number of cells satisfying the matching condition.
+ */
+size_t KsFilterProxyModel::search(KsSearchFSM *sm, QList<int> *matchList)
+{
+	int nRows = rowCount({});
+
+	sm->_lastRowSearched =
+		_search(sm->column(),
+			sm->searchText(),
+			sm->condition(),
+			matchList,
+			sm->_lastRowSearched + 1,
+			nRows - 1,
+			&sm->_searchProgBar,
+			&sm->_searchCountLabel,
+			false);
 
 	return matchList->count();
 }
@@ -152,7 +180,7 @@ size_t KsFilterProxyModel::search(int column,
  */
 QList<int> KsFilterProxyModel::searchMap(int column,
 					 const QString &searchText,
-					 condition_func cond,
+					 search_condition_func cond,
 					 int first,
 					 int last,
 					 bool notify)
@@ -325,7 +353,7 @@ void KsViewModel::update(KsDataStore *data)
  */
 size_t KsViewModel::search(int column,
 			   const QString &searchText,
-			   condition_func cond,
+			   search_condition_func cond,
 			   QList<size_t> *matchList)
 {
 	int nRows = rowCount({});

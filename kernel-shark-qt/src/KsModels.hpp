@@ -26,9 +26,7 @@
 // KernelShark
 #include "libkshark.h"
 #include "libkshark-model.h"
-
-/** Matching condition function type. To be user for searching. */
-typedef bool (*condition_func)(const QString &, const QString &);
+#include "KsSearchFSM.hpp"
 
 enum class DualMarkerState;
 
@@ -87,7 +85,7 @@ public:
 
 	size_t search(int column,
 		      const QString &searchText,
-		      condition_func cond,
+		      search_condition_func cond,
 		      QList<size_t> *matchList);
 
 	/** Table columns Identifiers. */
@@ -162,14 +160,16 @@ public:
 
 	size_t search(int column,
 		      const QString &searchText,
-		      condition_func cond,
+		      search_condition_func cond,
 		      QList<int> *matchList,
 		      QProgressBar *pb = nullptr,
 		      QLabel *l = nullptr);
 
+	size_t search(KsSearchFSM *sm, QList<int> *matchList);
+
 	QList<int> searchMap(int column,
 			     const QString  &searchText,
-			     condition_func  cond,
+			     search_condition_func  cond,
 			     int first,
 			     int last,
 			     bool notify);
@@ -183,9 +183,6 @@ public:
 		_searchStop = false;
 	}
 
-	/** Stop the serch for all threads. */
-	void searchStop() {_searchStop = true;}
-
 	/**
 	 * Use the "row" index in the Proxy model to retrieve the "row" index
 	 * in the source model.
@@ -196,6 +193,9 @@ public:
 		return this->data(this->index(r, 0)).toInt();
 	}
 
+	/** Get the source model. */
+	KsViewModel *source() {return _source;}
+
 	/**
 	 * A condition variable used to notify the main thread to update the
 	 * search progressbar.
@@ -205,24 +205,25 @@ public:
 	/** A mutex used by the condition variable. */
 	std::mutex		_mutex;
 
+	/** A flag used to stop the serch for all threads. */
+	bool			_searchStop;
+
 private:
 	int			_searchProgress;
-
-	bool			_searchStop;
 
 	/** Trace data array. */
 	kshark_entry		**_data;
 
 	KsViewModel	 	*_source;
 
-	void _search(int column,
-		     const QString &searchText,
-		     condition_func cond,
-		     QList<int> *matchList,
-		     int first, int last,
-		     QProgressBar *pb,
-		     QLabel *l,
-		     bool notify);
+	size_t _search(int column,
+		       const QString &searchText,
+		       search_condition_func cond,
+		       QList<int> *matchList,
+		       int first, int last,
+		       QProgressBar *pb,
+		       QLabel *l,
+		       bool notify);
 };
 
 /**

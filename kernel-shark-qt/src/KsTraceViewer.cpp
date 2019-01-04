@@ -40,23 +40,12 @@ KsTraceViewer::KsTraceViewer(QWidget *parent)
   _toolbar(this),
   _labelSearch("Search: Column", this),
   _labelGrFollows("Graph follows  ", this),
-  _columnComboBox(this),
-  _selectComboBox(this),
-  _searchLineEdit(this),
-  _prevButton("Prev", this),
-  _nextButton("Next", this),
-  _searchStopButton(QIcon::fromTheme("process-stop"), "", this),
-  _pbAction(nullptr),
+  _searchFSM(this),
   _graphFollowsCheckBox(this),
-  _searchProgBar(this),
-  _searchCountLabel("", this),
-  _searchDone(false),
   _graphFollows(true),
   _mState(nullptr),
   _data(nullptr)
 {
-	int bWidth;
-
 	this->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
 	/* Make a search toolbar. */
@@ -65,71 +54,51 @@ KsTraceViewer::KsTraceViewer(QWidget *parent)
 
 	/* On the toolbar make two Combo boxes for the search settings. */
 	_toolbar.addWidget(&_labelSearch);
-	_columnComboBox.addItems(_tableHeader);
+	_searchFSM._columnComboBox.addItems(_tableHeader);
 
 	/*
 	 * Using the old Signal-Slot syntax because
 	 * QComboBox::currentIndexChanged has overloads.
 	 */
-	connect(&_columnComboBox,	SIGNAL(currentIndexChanged(int)),
-		this,			SLOT(_searchEdit(int)));
-
-	_toolbar.addWidget(&_columnComboBox);
-
-	_selectComboBox.addItem("contains");
-	_selectComboBox.addItem("full match");
-	_selectComboBox.addItem("does not have");
+	connect(&_searchFSM._columnComboBox,	SIGNAL(currentIndexChanged(int)),
+		this,				SLOT(_searchEdit(int)));
 
 	/*
 	 * Using the old Signal-Slot syntax because
 	 * QComboBox::currentIndexChanged has overloads.
 	 */
-	connect(&_selectComboBox,	SIGNAL(currentIndexChanged(int)),
-		this,			SLOT(_searchEdit(int)));
-
-	_toolbar.addWidget(&_selectComboBox);
+	connect(&_searchFSM._selectComboBox,	SIGNAL(currentIndexChanged(int)),
+		this,				SLOT(_searchEdit(int)));
 
 	/* On the toolbar, make a Line edit field for search. */
-	_searchLineEdit.setMaximumWidth(FONT_WIDTH * 20);
+	_searchFSM._searchLineEdit.setMaximumWidth(FONT_WIDTH * 20);
 
-	connect(&_searchLineEdit,	&QLineEdit::returnPressed,
-		this,			&KsTraceViewer::_search);
+	connect(&_searchFSM._searchLineEdit,	&QLineEdit::returnPressed,
+		this,				&KsTraceViewer::_search);
 
-	connect(&_searchLineEdit,	&QLineEdit::textEdited,
-		this,			&KsTraceViewer::_searchEditText);
-
-	_toolbar.addWidget(&_searchLineEdit);
-	_toolbar.addSeparator();
+	connect(&_searchFSM._searchLineEdit,	&QLineEdit::textEdited,
+		this,				&KsTraceViewer::_searchEditText);
 
 	/* On the toolbar, add Prev & Next buttons. */
-	bWidth = FONT_WIDTH * 6;
+	connect(&_searchFSM._nextButton,	&QPushButton::pressed,
+		this,				&KsTraceViewer::_next);
 
-	_nextButton.setFixedWidth(bWidth);
-	_toolbar.addWidget(&_nextButton);
-	connect(&_nextButton,	&QPushButton::pressed,
-		this,		&KsTraceViewer::_next);
+	connect(&_searchFSM._prevButton,	&QPushButton::pressed,
+		this,				&KsTraceViewer::_prev);
 
-	_prevButton.setFixedWidth(bWidth);
-	_toolbar.addWidget(&_prevButton);
-	connect(&_prevButton,	&QPushButton::pressed,
-		this,		&KsTraceViewer::_prev);
 
-	_toolbar.addSeparator();
-	_searchProgBar.setMaximumWidth(FONT_WIDTH * 10);
-	_searchProgBar.setRange(0, 200);
-	_pbAction = _toolbar.addWidget(&_searchProgBar);
-	_pbAction->setVisible(false);
-	_toolbar.addWidget(&_searchCountLabel);
-	_searchStopAction = _toolbar.addWidget(&_searchStopButton);
-	_searchStopAction->setVisible(false);
-	connect(&_searchStopButton,	&QPushButton::pressed,
-		this,			&KsTraceViewer::_searchStop);
+	connect(&_searchFSM._searchStopButton,	&QPushButton::pressed,
+		this,				&KsTraceViewer::_searchStop);
+
+	connect(&_searchFSM._searchRestartButton,	&QPushButton::pressed,
+		this,				&KsTraceViewer::_searchContinue);
+
+	_searchFSM.placeInToolBar(&_toolbar);
 
 	/*
 	 * On the toolbar, make a Check box for connecting the search pannel
 	 * to the Graph widget.
 	 */
-	_toolbar.addSeparator();
 	_toolbar.addWidget(&_graphFollowsCheckBox);
 	_toolbar.addWidget(&_labelGrFollows);
 	_graphFollowsCheckBox.setCheckState(Qt::Checked);
@@ -221,10 +190,8 @@ void KsTraceViewer::reset()
 
 void KsTraceViewer::_searchReset()
 {
-	_searchProgBar.setValue(0);
-	_searchCountLabel.setText("");
+	_searchFSM.handleInput(sm_input_t::Change);
 	_proxyModel.searchReset();
-	_searchDone = false;
 }
 
 /** Get the index of the first (top) visible row. */
@@ -303,88 +270,26 @@ void KsTraceViewer::_graphFollowsChanged(int state)
 {
 	_graphFollows = (bool) state;
 
-	if (_graphFollows && _searchDone)
+	if (_graphFollows && _searchDone())
 		emit select(*_it); // Send a signal to the Graph widget.
-}
-
-static bool notHaveCond(const QString &searchText, const QString &itemText)
-{
-	return !itemText.contains(searchText, Qt::CaseInsensitive);
-}
-
-static bool containsCond(const QString &searchText, const QString &itemText)
-{
-	return itemText.contains(searchText, Qt::CaseInsensitive);
-}
-
-static bool matchCond(const QString &searchText, const QString &itemText)
-{
-	return (itemText.compare(searchText, Qt::CaseInsensitive) == 0);
-}
-
-void KsTraceViewer::_lockSearchPanel(bool lock)
-{
-	_columnComboBox.setEnabled(!lock);
-	_selectComboBox.setEnabled(!lock);
-	_searchLineEdit.setReadOnly(lock);
-	_prevButton.setEnabled(!lock);
-	_nextButton.setEnabled(!lock);
-	_graphFollowsCheckBox.setEnabled(!lock);
 }
 
 void KsTraceViewer::_search()
 {
-	if (!_searchDone) {
+	if (!_searchDone()) {
 		/*
 		 * The search is not done. This means that the search settings
 		 * have been modified since the last time we searched.
 		 */
-		int xColumn, xSelect;
-		QString xText;
-
-		/* Disable the user input until the search is done. */
-		_lockSearchPanel(true);
-
 		_matchList.clear();
-		xText = _searchLineEdit.text();
-		if (xText.isEmpty()) {
-			/*
-			 * No text is provided by the user. Most probably this
-			 * is an accidental key press. Just reenable the input.
-			 */
-			_lockSearchPanel(false);
-			return;
-		}
-
-		xColumn = _columnComboBox.currentIndex();
-		xSelect = _selectComboBox.currentIndex();
-
-		switch (xSelect) {
-			case Condition::Containes:
-				_searchItems(xColumn, xText, &containsCond);
-				break;
-
-			case Condition::Match:
-				_searchItems(xColumn, xText, &matchCond);
-				break;
-
-			case Condition::NotHave:
-				_searchItems(xColumn, xText, &notHaveCond);
-				break;
-
-			default:
-				break;
-		}
+		_searchItems();
 
 		if (!_matchList.empty()) {
-			this->showRow(*_it, true);
+			showRow(*_it, true);
 
 			if (_graphFollows)
 				emit select(*_it); // Send a signal to the Graph widget.
 		}
-
-		/* Enable the user input. */
-		_lockSearchPanel(false);
 	} else {
 		/*
 		 * If the search is done, pressing "Enter" is equivalent
@@ -396,13 +301,13 @@ void KsTraceViewer::_search()
 
 void KsTraceViewer::_next()
 {
-	if (!_searchDone) {
+	if (!_searchDone()) {
 		_search();
 		return;
 	}
 
 	if (!_matchList.empty()) { // Items have been found.
-		int row = _getSelectedDataRow();
+		int row = selectedRow();
 		/*
 		 * The iterator can only be at the selected row or if the
 		 * selected row is not a match at the first matching row after
@@ -410,7 +315,7 @@ void KsTraceViewer::_next()
 		 */
 		if (*_it == row) {
 			++_it; // Move the iterator.
-			if (_it == _matchList.end() ) {
+			if (_it == _matchList.end()) {
 				/*
 				 * This is the last item of the list.
 				 * Go back to the beginning.
@@ -431,7 +336,7 @@ void KsTraceViewer::_next()
 
 void KsTraceViewer::_prev()
 {
-	if (!_searchDone) {
+	if (!_searchDone()) {
 		_search();
 		return;
 	}
@@ -457,6 +362,7 @@ void KsTraceViewer::_prev()
 void KsTraceViewer::_updateSearchCount()
 {
 	int index, total;
+	QString countText;
 
 	if (_matchList.isEmpty())
 		return;
@@ -464,14 +370,20 @@ void KsTraceViewer::_updateSearchCount()
 	index = _it - _matchList.begin();
 	total =_matchList.count();
 
-	_searchCountLabel.setText(QString(" %1 / %2").arg(index).arg(total));
+	countText = QString(" %1 / %2").arg(index + 1).arg(total);
+	_searchFSM._searchCountLabel.setText(countText);
 }
 
 void KsTraceViewer::_searchStop()
 {
-	_searchStopAction->setVisible(false);
-	_proxyModel.searchStop();
-	_lockSearchPanel(false);
+	_proxyModel._searchStop = true;
+	_searchFSM.handleInput(sm_input_t::Stop);
+}
+
+void KsTraceViewer::_searchContinue()
+{
+	_proxyModel._searchStop = false;
+	_searchItems();
 }
 
 void KsTraceViewer::_clicked(const QModelIndex& i)
@@ -482,7 +394,7 @@ void KsTraceViewer::_clicked(const QModelIndex& i)
 	 */
 	size_t row = _proxyModel.mapRowFromSource(i.row());
 
-	if (_searchDone && _matchList.count()) {
+	if (_searchDone() && _matchList.count()) {
 		_setSearchIterator(row);
 		_updateSearchCount();
 	}
@@ -572,7 +484,7 @@ void KsTraceViewer::markSwitch()
 		_view.clearSelection();
 	}
 
-	row = _getSelectedDataRow();
+	row = selectedRow();
 	if (row >= 0) {
 		_setSearchIterator(row);
 		_updateSearchCount();
@@ -611,7 +523,7 @@ void KsTraceViewer::resizeEvent(QResizeEvent* event)
 void KsTraceViewer::keyReleaseEvent(QKeyEvent *event)
 {
 	if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down) {
-		int row = _getSelectedDataRow();
+		int row = selectedRow();
 		if (row >= 0)
 			emit select(row); // Send a signal to the Graph widget.
 
@@ -645,52 +557,52 @@ void KsTraceViewer::_resizeToContents()
 
 //! @endcond
 
-size_t KsTraceViewer::_searchItems(int column,
-				   const QString &searchText,
-				   condition_func cond)
+size_t KsTraceViewer::_searchItems()
 {
+	int column = _searchFSM._columnComboBox.currentIndex();
+	QString searchText = _searchFSM._searchLineEdit.text();
 	int count, dataRow;
 
-	_pbAction->setVisible(true);
+	if (searchText.isEmpty()) {
+		/*
+		 * No text is provided by the user. Most probably this
+		 * is an accidental key press. */
+		return 0;
+	}
 
 	if (_proxyModel.rowCount({}) < KS_SEARCH_SHOW_PROGRESS_MIN) {
 		/*
 		 * This is a small data-set. Do a single-threaded search
 		 * without showing the progress.
 		 */
-		_proxyModel.search(column, searchText, cond, &_matchList,
+		_proxyModel.search(column, searchText, _searchFSM.condition(), &_matchList,
 				   nullptr, nullptr);
 	} else {
-		_searchStopAction->setVisible(true);
+		_searchFSM.handleInput(sm_input_t::Start);
 
 		if (column == KsViewModel::TRACE_VIEW_COL_INFO ||
-		    column == KsViewModel::TRACE_VIEW_COL_LAT) {
-			_proxyModel.search(column, searchText,
-					   cond, &_matchList,
-					   &_searchProgBar,
-					   &_searchCountLabel);
-		} else {
-			_searchItemsMapReduce(column, searchText, cond);
-		}
-
-		_searchStopAction->setVisible(false);
+		    column == KsViewModel::TRACE_VIEW_COL_LAT)
+			_proxyModel.search(&_searchFSM, &_matchList);
+		else
+			_searchItemsMapReduce(column, searchText, _searchFSM.condition());
 	}
 
 	count = _matchList.count();
-
-	_pbAction->setVisible(false);
-	_searchDone = true;
+	_searchFSM.handleInput(sm_input_t::Finish);
 
 	if (count == 0) // No items have been found. Do nothing.
 		return 0;
 
-	dataRow = _getSelectedDataRow();
+	dataRow = selectedRow();
 	if (dataRow >= 0) {
 		_view.clearSelection();
 		_setSearchIterator(dataRow);
+		showRow(*_it, true);
+
+		if (_graphFollows)
+			emit select(*_it); // Send a signal to the Graph widget.
 	} else {
 		/* Move the iterator to the beginning of the match list. */
-		_view.clearSelection();
 		_it = _matchList.begin();
 	}
 
@@ -724,7 +636,7 @@ void KsTraceViewer::_setSearchIterator(int row)
 
 void KsTraceViewer::_searchItemsMapReduce(int column,
 					  const QString &searchText,
-					  condition_func cond)
+					  search_condition_func cond)
 {
 	int nThreads = std::thread::hardware_concurrency();
 	std::vector<QPair<int, int>> ranges(nThreads);
@@ -740,9 +652,9 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 	};
 
 	auto lamSearchReduce = [&] (QList<int> &resultList,
-				  const QList<int> &mapList) {
+				    const QList<int> &mapList) {
 		resultList << mapList;
-		_searchProgBar.setValue(_searchProgBar.value() + 1);
+		_searchFSM.incrementProgress();
 	};
 
 	for (auto &r: ranges) {
@@ -762,7 +674,7 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 	while (_proxyModel.searchProgress() < KS_PROGRESS_BAR_MAX - nThreads) {
 		std::unique_lock<std::mutex> lk(_proxyModel._mutex);
 		_proxyModel._pbCond.wait(lk);
-		_searchProgBar.setValue(_proxyModel.searchProgress());
+		_searchFSM.setProgress(_proxyModel.searchProgress());
 		QApplication::processEvents();
 	}
 
@@ -770,7 +682,11 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 		lamSearchReduce(_matchList, m.get());
 }
 
-int KsTraceViewer::_getSelectedDataRow()
+/**
+ * Get the currently selected row. If no row is selected the function
+ * returns -1.
+ */
+int KsTraceViewer::selectedRow()
 {
 	QItemSelectionModel *sm = _view.selectionModel();
 	int dataRow = -1;

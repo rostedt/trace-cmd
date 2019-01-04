@@ -18,6 +18,7 @@
 // KernelShark
 #include "KsUtils.hpp"
 #include "KsModels.hpp"
+#include "KsSearchFSM.hpp"
 #include "KsDualMarker.hpp"
 
 /**
@@ -65,6 +66,8 @@ public:
 
 	void clearSelection();
 
+	int selectedRow();
+
 	void update(KsDataStore *data);
 
 signals:
@@ -98,23 +101,9 @@ private:
 
 	QLabel		_labelSearch, _labelGrFollows;
 
-	QComboBox	_columnComboBox;
-
-	QComboBox	_selectComboBox;
-
-	QLineEdit	_searchLineEdit;
-
-	QPushButton	_prevButton, _nextButton, _searchStopButton;
-
-	QAction		*_pbAction, *_searchStopAction;
+	KsSearchFSM	_searchFSM;
 
 	QCheckBox	_graphFollowsCheckBox;
-
-	QProgressBar	_searchProgBar;
-
-	QLabel		_searchCountLabel;
-
-	bool		_searchDone;
 
 	bool		_graphFollows;
 
@@ -137,11 +126,10 @@ private:
 
 	void _resizeToContents();
 
-	size_t _searchItems(int column, const QString &searchText,
-			    condition_func cond);
+	size_t _searchItems();
 
 	void _searchItemsMapReduce(int column, const QString &searchText,
-				   condition_func cond);
+				   search_condition_func cond);
 
 	void _searchEditText(const QString &);
 
@@ -159,13 +147,19 @@ private:
 
 	void _searchStop();
 
+	void _searchContinue();
+
 	void _clicked(const QModelIndex& i);
 
 	void _onCustomContextMenu(const QPoint &);
 
 	void _setSearchIterator(int row);
 
-	int _getSelectedDataRow();
+	bool _searchDone()
+	{
+		return _searchFSM.getState() == search_state_t::Done_s ||
+		       _searchFSM.getState() == search_state_t::Paused_s;
+	}
 
 private slots:
 	void _searchEdit(int);
