@@ -626,7 +626,7 @@ int tracecmd_msg_finish_sending_data(struct tracecmd_msg_handle *msg_handle)
 	return 0;
 }
 
-int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd)
+int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 {
 	struct tracecmd_msg msg;
 	int t, n, cmd;
@@ -659,12 +659,33 @@ int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 				if (errno == EINTR)
 					continue;
 				warning("writing to file");
-				return -errno;
+				ret = -errno;
+				goto error;
 			}
 			t -= s;
 			s = n - t;
 		}
+
+		msg_free(&msg);
 	}
+
+	return 0;
+
+error:
+	error_operation_for_server(&msg);
+	msg_free(&msg);
+	return ret;
+}
+
+int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd)
+{
+	struct tracecmd_msg msg;
+	u32 cmd;
+	int ret;
+
+	ret = tracecmd_msg_read_data(msg_handle, ofd);
+	if (ret)
+		goto error;
 
 	/* check the finish message of the client */
 	while (!tracecmd_msg_done(msg_handle)) {
@@ -683,11 +704,14 @@ int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 			ret = -EINVAL;
 			goto error;
 		}
+
+		msg_free(&msg);
 	}
 
 	return 0;
 
 error:
 	error_operation_for_server(&msg);
+	msg_free(&msg);
 	return ret;
 }
