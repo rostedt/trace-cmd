@@ -2603,7 +2603,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 {
 	struct tracecmd_input *handle;
 	char test[] = { 23, 8, 68 };
-    unsigned int page_size;
+	unsigned int page_size;
 	char *version;
 	char buf[BUFSIZ];
 
