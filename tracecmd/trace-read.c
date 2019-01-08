@@ -386,7 +386,7 @@ static void add_pid_filter(const char *arg)
 static char *append_pid_filter(char *curr_filter, char *pid)
 {
 	char *filter;
-	int len;
+	int len, curr_len;
 
 #define FILTER_FMT "(common_pid==" __STR ")||(pid==" __STR ")||(next_pid==" __STR ")"
 
@@ -405,13 +405,13 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 			die("Failed to allocate for filter %s", curr_filter);
 		sprintf(filter, ".*:" FILTER_FMT, pid, pid, pid);
 	} else {
-
-		len += strlen(curr_filter);
+		curr_len = strlen(curr_filter);
+		len += curr_len;
 
 		filter = realloc(curr_filter, len);
 		if (!filter)
 			die("realloc");
-		sprintf(filter, "%s||" FILTER_FMT, filter, pid, pid, pid);
+		sprintf(filter + curr_len, "||" FILTER_FMT, pid, pid, pid);
 	}
 
 	return filter;
