@@ -490,13 +490,18 @@ void KsTraceViewer::markSwitch()
 		 */
 		size_t row =_mState->getMarker(state)._pos;
 
-		QModelIndex index = _proxyModel.mapFromSource(_model.index(row, 0));
+		QModelIndex index =
+			_proxyModel.mapFromSource(_model.index(row, 0));
 
 		/*
 		 * The row of the active marker will be colored according to
-		 * the assigned property of the current state of the Dual marker.
+		 * the assigned property of the current state of the Dual
+		 * marker. Auto-scrolling is temporarily disabled because we
+		 * do not want to scroll to the position of the marker yet.
 		 */
+		_view.setAutoScroll(false);
 		_view.selectRow(index.row());
+		_view.setAutoScroll(true);
 	} else {
 		_view.clearSelection();
 	}
