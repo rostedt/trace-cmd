@@ -375,6 +375,8 @@ void KsDataStore::clearAllFilters()
 	kshark_filter_clear(kshark_ctx, KS_HIDE_TASK_FILTER);
 	kshark_filter_clear(kshark_ctx, KS_SHOW_EVENT_FILTER);
 	kshark_filter_clear(kshark_ctx, KS_HIDE_EVENT_FILTER);
+	kshark_filter_clear(kshark_ctx, KS_SHOW_CPU_FILTER);
+	kshark_filter_clear(kshark_ctx, KS_HIDE_CPU_FILTER);
 
 	tep_filter_reset(kshark_ctx->advanced_event_filter);
 	kshark_clear_all_filters(kshark_ctx, _rows, _dataSize);
