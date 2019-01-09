@@ -128,6 +128,7 @@ endif # NO_PYTHON
 
 export PYTHON_PLUGINS
 export BUILD_PYTHON_WORKS
+export NO_PYTHON
 
 # $(call test-build, snippet, ret) -> ret if snippet compiles
 #                                  -> empty otherwise

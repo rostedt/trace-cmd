@@ -18,7 +18,11 @@ PLUGIN_OBJS += plugin_blk.o
 PLUGIN_OBJS += plugin_tlb.o
 
 PLUGIN_OBJS := $(PLUGIN_OBJS:%.o=$(bdir)/%.o)
-PLUGINS := $(PLUGIN_OBJS:$(bdir)/%.o=$(bdir)/%.so)
+PLUGIN_BUILD := $(PLUGIN_OBJS:$(bdir)/%.o=$(bdir)/%.so)
+PLUGINS := $(PLUGIN_BUILD)
+ifndef NO_PYTHON
+PLUGINS += $(bdir)/plugin_python.so
+endif
 DEPS := $(PLUGIN_OBJS:$(bdir)/%.o=$(bdir)/.%.d)
 
 all: $(PLUGINS)
@@ -32,7 +36,7 @@ $(DEPS): | $(bdir)
 $(PLUGIN_OBJS): $(bdir)/%.o : %.c
 	$(Q)$(do_compile_plugin_obj)
 
-$(PLUGINS): $(bdir)/%.so: $(bdir)/%.o
+$(PLUGIN_BUILD): $(bdir)/%.so: $(bdir)/%.o
 	$(Q)$(do_plugin_build)
 
 $(DEPS): $(bdir)/.%.d: %.c
