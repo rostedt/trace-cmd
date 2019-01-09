@@ -34,6 +34,8 @@ public:
 	: QTableView(parent) {};
 
 	void mousePressEvent(QMouseEvent *event) override;
+
+	void scrollTo(const QModelIndex &index, ScrollHint hint) override;
 };
 
 /**

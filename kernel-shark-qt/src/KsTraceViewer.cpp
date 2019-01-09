@@ -30,6 +30,23 @@ void KsTableView::mousePressEvent(QMouseEvent *e) {
 	QTableView::mousePressEvent(e);
 }
 
+/**
+ * Reimplemented the handler for Auto-scrolling. With this we disable
+ * the Horizontal Auto-scrolling.
+ */
+void KsTableView::scrollTo(const QModelIndex &index, ScrollHint hint)
+{
+	int bottomMargin(2);
+
+	if (hint == QAbstractItemView::EnsureVisible &&
+	    index.row() > indexAt(rect().topLeft()).row() &&
+	    index.row() < indexAt(rect().bottomLeft()).row() - bottomMargin)
+		return;
+
+	QTableView::scrollTo(index, hint);
+}
+
+
 /** Create a default (empty) Trace viewer widget. */
 KsTraceViewer::KsTraceViewer(QWidget *parent)
 : QWidget(parent),
@@ -500,6 +517,7 @@ void KsTraceViewer::resizeEvent(QResizeEvent* event)
 	int nColumns = _tableHeader.count();
 	int tableSize(0), viewSize, freeSpace;
 
+	_resizeToContents();
 	for (int c = 0; c < nColumns; ++c) {
 		tableSize += _view.columnWidth(c);
 	}
