@@ -118,9 +118,7 @@ private:
 
 	QAction		_showTasksAction;
 
-	QAction		_hideTasksAction;
-
-	QAction		_hideCPUsAction;
+	QAction		_showCPUsAction;
 
 	QAction		_advanceFilterAction;
 
@@ -172,6 +170,8 @@ private:
 	void _showTasks();
 
 	void _hideTasks();
+
+	void _showCPUs();
 
 	void _hideCPUs();
 
