@@ -87,7 +87,7 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 
 	parentName = parent->metaObject()->className();
 
-	addSection("Pointer menu");
+	addSection("Pointer filter menu");
 
 	descr = "Show task [";
 	descr += taskName;
@@ -123,6 +123,8 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 
 	descr = "Clear all filters";
 	lamAddAction(&_clearAllFilters, &KsQuickContextMenu::_clearFilters);
+
+	addSection("Pointer plot menu");
 
 	if (parentName == "KsTraceViewer") {
 		descr = "Add [";
