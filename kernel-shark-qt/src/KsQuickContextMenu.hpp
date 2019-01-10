@@ -85,6 +85,8 @@ private:
 
 	QVector<int> _getFilterVector(tracecmd_filter_id *filter, int newId);
 
+	void _clearFilters() {_data->clearAllFilters();}
+
 	KsDataStore	*_data;
 
 	size_t		_row;
@@ -104,6 +106,8 @@ private:
 	QAction _removeCPUPlotAction;
 
 	QAction _removeTaskPlotAction;
+
+	QAction _clearAllFilters;
 };
 
 /**

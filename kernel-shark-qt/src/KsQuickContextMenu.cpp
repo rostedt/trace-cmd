@@ -61,7 +61,8 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
   _addCPUPlotAction(this),
   _addTaskPlotAction(this),
   _removeCPUPlotAction(this),
-  _removeTaskPlotAction(this)
+  _removeTaskPlotAction(this),
+  _clearAllFilters(this)
 {
 	typedef void (KsQuickContextMenu::*mfp)();
 	QString taskName, parentName, descr;
@@ -119,6 +120,9 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 
 	descr = QString("Hide CPU [%1]").arg(_data->rows()[_row]->cpu);
 	lamAddAction(&_hideCPUAction, &KsQuickContextMenu::_hideCPU);
+
+	descr = "Clear all filters";
+	lamAddAction(&_clearAllFilters, &KsQuickContextMenu::_clearFilters);
 
 	if (parentName == "KsTraceViewer") {
 		descr = "Add [";
