@@ -104,8 +104,6 @@ private:
 	QAction _removeCPUPlotAction;
 
 	QAction _removeTaskPlotAction;
-
-	QAction _deselectAction;
 };
 
 /**

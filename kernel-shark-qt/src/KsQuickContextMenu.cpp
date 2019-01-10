@@ -61,8 +61,7 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
   _addCPUPlotAction(this),
   _addTaskPlotAction(this),
   _removeCPUPlotAction(this),
-  _removeTaskPlotAction(this),
-  _deselectAction(this)
+  _removeTaskPlotAction(this)
 {
 	typedef void (KsQuickContextMenu::*mfp)();
 	QString taskName, parentName, descr;
