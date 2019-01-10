@@ -750,8 +750,7 @@ static size_t get_records(struct kshark_context *kshark_ctx,
 										entry->event_id))) {
 					evt_handler->event_func(kshark_ctx, rec, entry);
 					evt_handler = evt_handler->next;
-					if (!evt_handler)
-						entry->visible &= ~KS_PLUGIN_UNTOUCHED_MASK;
+					entry->visible &= ~KS_PLUGIN_UNTOUCHED_MASK;
 				}
 
 				pid = entry->pid;
