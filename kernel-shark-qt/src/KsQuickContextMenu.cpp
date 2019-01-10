@@ -88,36 +88,6 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 
 	addSection("Pointer menu");
 
-	if (parentName == "KsTraceViewer") {
-		_graphSyncCBox =
-			KsUtils::addCheckBoxToMenu(this, "Apply filters to Graph");
-
-		connect(_graphSyncCBox,	&QCheckBox::stateChanged,
-					&KsUtils::graphFilterSync);
-
-		/*
-		 * By defauls the filters will be append to the List (Table)
-		 * only.
-		 */
-		KsUtils::listFilterSync(true);
-		KsUtils::graphFilterSync(false);
-		_graphSyncCBox->setChecked(false);
-	}
-
-	if (parentName == "KsTraceGraph" &&
-	    (graphs = dynamic_cast<KsTraceGraph *>(parent))) {
-		_listSyncCBox =
-			KsUtils::addCheckBoxToMenu(this, "Apply filters to List");
-
-		connect(_listSyncCBox,	&QCheckBox::stateChanged,
-					&KsUtils::listFilterSync);
-
-		/* By defauls the filters will be append to the Graph only. */
-		KsUtils::graphFilterSync(true);
-		KsUtils::listFilterSync(false);
-		_listSyncCBox->setChecked(false);
-	}
-
 	descr = "Hide task [";
 	descr += taskName;
 	descr += "-";
