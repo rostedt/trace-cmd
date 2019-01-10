@@ -88,13 +88,6 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 
 	addSection("Pointer menu");
 
-	descr = "Hide task [";
-	descr += taskName;
-	descr += "-";
-	descr += QString("%1").arg(pid);
-	descr += "]";
-	lamAddAction(&_hideTaskAction, &KsQuickContextMenu::_hideTask);
-
 	descr = "Show task [";
 	descr += taskName;
 	descr += "-";
@@ -102,23 +95,32 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 	descr += "] only";
 	lamAddAction(&_showTaskAction, &KsQuickContextMenu::_showTask);
 
-	descr = "Hide event [";
-	descr += kshark_get_event_name_easy(_data->rows()[_row]);
+	descr = "Hide task [";
+	descr += taskName;
+	descr += "-";
+	descr += QString("%1").arg(pid);
 	descr += "]";
-	lamAddAction(&_hideEventAction, &KsQuickContextMenu::_hideEvent);
+	lamAddAction(&_hideTaskAction, &KsQuickContextMenu::_hideTask);
 
 	descr = "Show event [";
 	descr += kshark_get_event_name_easy(_data->rows()[_row]);
 	descr += "] only";
 	lamAddAction(&_showEventAction, &KsQuickContextMenu::_showEvent);
 
-	descr = QString("Hide CPU [%1]").arg(_data->rows()[_row]->cpu);
-	lamAddAction(&_hideCPUAction, &KsQuickContextMenu::_hideCPU);
+	descr = "Hide event [";
+	descr += kshark_get_event_name_easy(_data->rows()[_row]);
+	descr += "]";
+	lamAddAction(&_hideEventAction, &KsQuickContextMenu::_hideEvent);
 
 	if (parentName == "KsTraceViewer") {
 		descr = QString("Show CPU [%1] only").arg(cpu);
 		lamAddAction(&_showCPUAction, &KsQuickContextMenu::_showCPU);
+	}
 
+	descr = QString("Hide CPU [%1]").arg(_data->rows()[_row]->cpu);
+	lamAddAction(&_hideCPUAction, &KsQuickContextMenu::_hideCPU);
+
+	if (parentName == "KsTraceViewer") {
 		descr = "Add [";
 		descr += taskName;
 		descr += "-";
