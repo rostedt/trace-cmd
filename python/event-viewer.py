@@ -203,8 +203,8 @@ class EventView(gtk.TreeView):
             return False
 
         if data == "ts":
-            cell.set_property("markup", "%d.%d" % (ev.ts/1000000000,
-                                                   ev.ts%1000000000))
+            cell.set_property("markup", "%d.%09d" % (ev.ts/1000000000,
+                                                     ev.ts%1000000000))
             data_func_cnt = data_func_cnt + 1
             if app:
                 app.inc_data_func()

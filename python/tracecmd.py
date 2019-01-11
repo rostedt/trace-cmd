@@ -62,7 +62,7 @@ class Event(object, DictMixin):
         self._format = format
 
     def __str__(self):
-        return "%d.%d CPU%d %s: pid=%d comm=%s type=%d" % \
+        return "%d.%09d CPU%d %s: pid=%d comm=%s type=%d" % \
                (self.ts/1000000000, self.ts%1000000000, self.cpu, self.name,
                 self.num_field("common_pid"), self.comm, self.type)
 
