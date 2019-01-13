@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <libgen.h>
+#include <pwd.h>
 
 #include "trace-local.h"
 #include "trace-msg.h"
@@ -1192,7 +1193,7 @@ static void trace_or_sleep(enum trace_type type)
 		sleep(10);
 }
 
-static void run_cmd(enum trace_type type, int argc, char **argv)
+static void run_cmd(enum trace_type type, uid_t euid, int argc, char **argv)
 {
 	int status;
 	int pid;
@@ -1213,6 +1214,10 @@ static void run_cmd(enum trace_type type, int argc, char **argv)
 			dup2(save_stdout, 1);
 			close(save_stdout);
 		}
+		if (setuid(euid))
+			die("Failed to setuid to %d: %s", euid, strerror(errno));
+		if (seteuid(euid))
+			die("Failed to seteuid to %d: %s", euid, strerror(errno));
 		if (execvp(argv[0], argv)) {
 			fprintf(stderr, "\n********************\n");
 			fprintf(stderr, " Unable to exec %s\n", argv[0]);
@@ -4308,6 +4313,7 @@ enum {
 	OPT_funcstack		= 254,
 	OPT_date		= 255,
 	OPT_module		= 256,
+	OPT_euid        = 257,
 };
 
 void trace_stop(int argc, char **argv)
@@ -4495,6 +4501,7 @@ struct common_record_context {
 	int manual;
 	int topt;
 	int do_child;
+	uid_t euid;
 	int run_command;
 };
 
@@ -4528,6 +4535,7 @@ static void parse_record_options(int argc,
 	char *pid;
 	char *sav;
 	int neg_event = 0;
+	struct passwd *pw;
 
 	init_common_record_context(ctx, curr_cmd);
 
@@ -4549,6 +4557,7 @@ static void parse_record_options(int argc,
 			{"quiet", no_argument, NULL, OPT_quiet},
 			{"help", no_argument, NULL, '?'},
 			{"module", required_argument, NULL, OPT_module},
+			{"user", required_argument, NULL, OPT_euid},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -4829,6 +4838,12 @@ static void parse_record_options(int argc,
 			ctx->instance->filter_mod = optarg;
 			ctx->filtered = 0;
 			break;
+		case OPT_euid:
+			pw = getpwnam(optarg);
+			if (!pw)
+				die("Can not find user %s", optarg);
+			ctx->euid = pw->pw_uid;
+			break;
 		case OPT_quiet:
 		case 'q':
 			quiet = 1;
@@ -4994,7 +5009,7 @@ static void record_trace(int argc, char **argv,
 	}
 
 	if (ctx->run_command)
-		run_cmd(type, (argc - optind) - 1, &argv[optind + 1]);
+		run_cmd(type, ctx->euid, (argc - optind) - 1, &argv[optind + 1]);
 	else {
 		update_task_filter();
 		tracecmd_enable_tracing();

@@ -326,6 +326,10 @@ OPTIONS
     executed will not be changed. This is useful if you want to monitor the
     output of the command being executed, but not see the output from trace-cmd.
 
+*--user*::
+    Run the command as the specified user. Useful to avoid running the
+    traced command as root.
+
 EXAMPLES
 --------
 
