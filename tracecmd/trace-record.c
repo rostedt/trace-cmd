@@ -191,6 +191,36 @@ enum {
 	RESET_HIGH_PRIO		= 100000,
 };
 
+enum trace_cmd {
+	CMD_extract,
+	CMD_start,
+	CMD_stream,
+	CMD_profile,
+	CMD_record,
+	CMD_record_agent,
+};
+
+struct common_record_context {
+	enum trace_cmd curr_cmd;
+	struct buffer_instance *instance;
+	const char *output;
+	char *date2ts;
+	char *max_graph_depth;
+	int data_flags;
+
+	int record_all;
+	int total_disable;
+	int disable;
+	int events;
+	int global;
+	int filtered;
+	int date;
+	int manual;
+	int topt;
+	int do_child;
+	int run_command;
+};
+
 static void add_reset_file(const char *file, const char *val, int prio)
 {
 	struct reset_file *reset;
@@ -2880,10 +2910,10 @@ again:
 	return msg_handle;
 }
 
-static void add_options(struct tracecmd_output *handle, char *date2ts, int flags);
+static void add_options(struct tracecmd_output *handle, struct common_record_context *ctx);
 
 static struct tracecmd_msg_handle *
-setup_connection(struct buffer_instance *instance, char *date2ts, int flags)
+setup_connection(struct buffer_instance *instance, struct common_record_context *ctx)
 {
 	struct tracecmd_msg_handle *msg_handle;
 	struct tracecmd_output *network_handle;
@@ -2893,7 +2923,7 @@ setup_connection(struct buffer_instance *instance, char *date2ts, int flags)
 	/* Now create the handle through this socket */
 	if (msg_handle->version == V3_PROTOCOL) {
 		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
-		add_options(network_handle, date2ts, flags);
+		add_options(network_handle, ctx);
 		tracecmd_write_cpus(network_handle, instance->cpu_count);
 		tracecmd_write_options(network_handle);
 		tracecmd_msg_finish_sending_data(msg_handle);
@@ -2915,7 +2945,7 @@ static void finish_network(struct tracecmd_msg_handle *msg_handle)
 	free(host);
 }
 
-void start_threads(enum trace_type type, int global, char *date2ts, int flags)
+void start_threads(enum trace_type type, struct common_record_context *ctx)
 {
 	struct buffer_instance *instance;
 	int *brass = NULL;
@@ -2937,7 +2967,7 @@ void start_threads(enum trace_type type, int global, char *date2ts, int flags)
 		int x, pid;
 
 		if (host) {
-			instance->msg_handle = setup_connection(instance, date2ts, flags);
+			instance->msg_handle = setup_connection(instance, ctx);
 			if (!instance->msg_handle)
 				die("Failed to make connection");
 		}
@@ -2952,7 +2982,7 @@ void start_threads(enum trace_type type, int global, char *date2ts, int flags)
 								   brass[0],
 								   instance->cpu_count,
 								   hooks, handle_init,
-								   global);
+								   ctx->global);
 				if (!pids[i].stream)
 					die("Creating stream for %d", i);
 			} else
@@ -3091,19 +3121,19 @@ enum {
 	DATA_FL_OFFSET		= 2,
 };
 
-static void add_options(struct tracecmd_output *handle, char *date2ts, int flags)
+static void add_options(struct tracecmd_output *handle, struct common_record_context *ctx)
 {
 	int type = 0;
 
-	if (date2ts) {
-		if (flags & DATA_FL_DATE)
+	if (ctx->date2ts) {
+		if (ctx->data_flags & DATA_FL_DATE)
 			type = TRACECMD_OPTION_DATE;
-		else if (flags & DATA_FL_OFFSET)
+		else if (ctx->data_flags & DATA_FL_OFFSET)
 			type = TRACECMD_OPTION_OFFSET;
 	}
 
 	if (type)
-		tracecmd_add_option(handle, type, strlen(date2ts)+1, date2ts);
+		tracecmd_add_option(handle, type, strlen(ctx->date2ts)+1, ctx->date2ts);
 
 	tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK, 0, NULL);
 	add_option_hooks(handle);
@@ -3111,7 +3141,7 @@ static void add_options(struct tracecmd_output *handle, char *date2ts, int flags
 
 }
 
-static void record_data(char *date2ts, int flags)
+static void record_data(struct common_record_context *ctx)
 {
 	struct tracecmd_option **buffer_options;
 	struct tracecmd_output *handle;
@@ -3166,7 +3196,7 @@ static void record_data(char *date2ts, int flags)
 		if (!handle)
 			die("Error creating output file");
 
-		add_options(handle, date2ts, flags);
+		add_options(handle, ctx);
 
 		/* Only record the top instance under TRACECMD_OPTION_CPUSTAT*/
 		if (!no_top_instance() && !top_instance.msg_handle) {
@@ -4469,35 +4499,6 @@ void trace_reset(int argc, char **argv)
 	exit(0);
 }
 
-enum trace_cmd {
-	CMD_extract,
-	CMD_start,
-	CMD_stream,
-	CMD_profile,
-	CMD_record
-};
-
-struct common_record_context {
-	enum trace_cmd curr_cmd;
-	struct buffer_instance *instance;
-	const char *output;
-	char *date2ts;
-	char *max_graph_depth;
-	int data_flags;
-
-	int record_all;
-	int total_disable;
-	int disable;
-	int events;
-	int global;
-	int filtered;
-	int date;
-	int manual;
-	int topt;
-	int do_child;
-	int run_command;
-};
-
 static void init_common_record_context(struct common_record_context *ctx,
 				       enum trace_cmd curr_cmd)
 {
@@ -4986,7 +4987,7 @@ static void record_trace(int argc, char **argv,
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, finish);
 		if (!latency)
-			start_threads(type, ctx->global, ctx->date2ts, ctx->data_flags);
+			start_threads(type, ctx);
 	} else {
 		update_task_filter();
 		tracecmd_enable_tracing();
@@ -5017,7 +5018,7 @@ static void record_trace(int argc, char **argv,
 		tracecmd_disable_all_tracing(0);
 
 	if (IS_RECORD(ctx)) {
-		record_data(ctx->date2ts, ctx->data_flags);
+		record_data(ctx);
 		delete_thread_data();
 	} else
 		print_stats();
@@ -5097,7 +5098,7 @@ void trace_extract(int argc, char **argv)
 		ctx.date2ts = get_date_to_ts();
 	}
 
-	record_data(ctx.date2ts, ctx.data_flags);
+	record_data(&ctx);
 	delete_thread_data();
 	destroy_stats();
 	finalize_record_trace(&ctx);
