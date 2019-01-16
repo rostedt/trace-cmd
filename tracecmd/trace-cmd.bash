@@ -9,6 +9,14 @@ show_instances()
    return 0
 }
 
+show_options()
+{
+   local cur="$1"
+   local options=$(trace-cmd list -o | sed -e 's/^\(no\)*\(.*\)/\2 no\2/')
+   COMPREPLY=( $(compgen -W "${options}" -- "${cur}") )
+   return 0
+}
+
 __show_files()
 {
     COMPREPLY=( $(compgen -f -- "$cur") )
@@ -147,6 +155,9 @@ __trace_cmd_record_complete()
             ;;
 	-B)
 	    show_instances "$cur"
+	    ;;
+	-O)
+	    show_options "$cur"
 	    ;;
         *)
 	    # stream start and profile do not show all options
