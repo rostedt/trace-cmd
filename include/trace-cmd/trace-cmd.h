@@ -321,7 +321,7 @@ void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle);
 
 /* for clients */
 int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
-				int **client_ports);
+				unsigned int **client_ports);
 int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 			       const char *buf, int size);
 int tracecmd_msg_finish_sending_data(struct tracecmd_msg_handle *msg_handle);

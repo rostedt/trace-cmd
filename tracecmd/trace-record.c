@@ -74,7 +74,7 @@ static int buffers;
 static int clear_function_filters;
 
 static char *host;
-static int *client_ports;
+static unsigned int *client_ports;
 static int sfd;
 
 /* Max size to let a per cpu file get */
@@ -2545,7 +2545,7 @@ static void connect_port(int cpu)
 	int s;
 	char buf[BUFSIZ];
 
-	snprintf(buf, BUFSIZ, "%d", client_ports[cpu]);
+	snprintf(buf, BUFSIZ, "%u", client_ports[cpu]);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -2755,7 +2755,7 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle)
 		/* No options */
 		write(msg_handle->fd, "0", 2);
 
-	client_ports = malloc(sizeof(int) * local_cpu_count);
+	client_ports = malloc(local_cpu_count * sizeof(*client_ports));
 	if (!client_ports)
 		die("Failed to allocate client ports for %d cpus", local_cpu_count);
 

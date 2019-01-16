@@ -386,12 +386,12 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 }
 
 int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
-				int **client_ports)
+				unsigned int **client_ports)
 {
 	struct tracecmd_msg send_msg;
 	struct tracecmd_msg recv_msg;
 	int fd = msg_handle->fd;
-	int *ports;
+	unsigned int *ports;
 	int i, cpus;
 	int ret;
 
