@@ -123,6 +123,7 @@ ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_VERS) > /dev/null 2>&1 && echo
 	BUILD_PYTHON_WORKS := 1
 else
 	BUILD_PYTHON := report_nopythondev
+	NO_PYTHON = 1
 endif
 endif # NO_PYTHON
 
