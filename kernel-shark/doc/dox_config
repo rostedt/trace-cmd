@@ -2,7 +2,7 @@
 # http://www.doxygen.org/manual/config.html
 
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME           = "kernel-shark-qt"
+PROJECT_NAME           = "kernel-shark"
 PROJECT_BRIEF = "Kernel Shark is a front-end reader of the Linux kernel tracing data."
 INPUT                  = ../src/ ../src/plugins/
 SOURCE_BROWSER         = YES

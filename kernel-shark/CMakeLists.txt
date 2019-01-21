@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 2.8.11 FATAL_ERROR)
 
 # Set the name and version of the project
-project(kernel-shark-qt)
+project(kernel-shark)
 
 set(KS_VERSION_MAJOR 0)
 set(KS_VERSION_MINOR 9)

@@ -163,7 +163,7 @@ objtree		:= $(BUILD_OUTPUT)
 src		:= $(srctree)
 obj		:= $(objtree)
 
-kshark-dir	= $(src)/kernel-shark-qt
+kshark-dir	= $(src)/kernel-shark
 
 export prefix bindir src obj
 
