@@ -194,10 +194,8 @@ INCLUDES += -I$(src)/include/traceevent
 INCLUDES += -I$(src)/include/trace-cmd
 INCLUDES += -I$(src)/lib/traceevent/include
 INCLUDES += -I$(src)/lib/trace-cmd/include
-INCLUDES += -I$(src)/kernel-shark/include
 INCLUDES += -I$(src)/tracecmd/include
 INCLUDES += -I$(obj)/tracecmd/include
-INCLUDES += -I$(obj)/kernel-shark/include
 
 include $(src)/features.mk
 
@@ -265,15 +263,6 @@ gui: force $(CMD_TARGETS) $(kshark-dir)/build/Makefile
 
 trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
-
-kernelshark: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark $(obj)/kernel-shark/$@
-
-trace-view: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark $(obj)/kernel-shark/$@
-
-trace-graph: force $(CMD_TARGETS)
-	$(Q)$(MAKE) -C $(src)/kernel-shark $(obj)/kernel-shark/$@
 
 $(LIBTRACEEVENT_SHARED): force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
@@ -368,7 +357,6 @@ clean:
 	$(MAKE) -C $(src)/plugins clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
-	$(MAKE) -C $(src)/kernel-shark clean
 	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
 
 
