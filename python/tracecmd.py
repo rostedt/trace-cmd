@@ -84,7 +84,7 @@ class Event(object, DictMixin):
 
     @cached_property
     def cpu(self):
-        return pevent_record_cpu_get(self._record)
+        return tep_record_cpu_get(self._record)
 
     @cached_property
     def name(self):
@@ -96,7 +96,7 @@ class Event(object, DictMixin):
 
     @cached_property
     def ts(self):
-        return pevent_record_ts_get(self._record)
+        return tep_record_ts_get(self._record)
 
     @cached_property
     def type(self):
@@ -106,7 +106,7 @@ class Event(object, DictMixin):
         f = tep_find_any_field(self._format, name)
         if f is None:
             return None
-        ret, val = tep_read_number_field(f, pevent_record_data_get(self._record))
+        ret, val = tep_read_number_field(f, tep_record_data_get(self._record))
         if ret:
             return None
         return val
@@ -142,7 +142,7 @@ class Field(object):
 
     def __long__(self):
         ret, val =  tep_read_number_field(self._field,
-                                             pevent_record_data_get(self._record))
+                                          tep_record_data_get(self._record))
         if ret:
             raise FieldError("Not a number field")
         return val
