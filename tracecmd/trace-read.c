@@ -419,9 +419,10 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 
 static void convert_comm_filter(struct tracecmd_input *handle)
 {
+	struct tep_cmdline *cmdline;
 	struct tep_handle *pevent;
 	struct pid_list *list;
-	struct cmdline *cmdline;
+
 	char pidstr[100];
 
 	if (!comm_list)
