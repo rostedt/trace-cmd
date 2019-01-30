@@ -488,7 +488,7 @@ static void do_trace_mem(struct tracecmd_input *handle)
 		die("No records found in file");
 
 	ret = tep_data_type(pevent, record);
-	event = tep_data_event_from_type(pevent, ret);
+	event = tep_find_event(pevent, ret);
 
 	common_type_field = tep_find_common_field(event, "common_type");
 	if (!common_type_field)

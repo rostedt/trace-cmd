@@ -1187,7 +1187,7 @@ const char *kshark_get_event_name_easy(struct kshark_entry *entry)
 	 * Use a mutex to protect the access.
 	 */
 	pthread_mutex_lock(&kshark_ctx->input_mutex);
-	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
+	event = tep_find_event(kshark_ctx->pevent, event_id);
 	pthread_mutex_unlock(&kshark_ctx->input_mutex);
 
 	if (event)
@@ -1236,7 +1236,7 @@ const char *kshark_get_info_easy(struct kshark_entry *entry)
 
 	data = tracecmd_read_at(kshark_ctx->handle, entry->offset, NULL);
 	event_id = tep_data_type(kshark_ctx->pevent, data);
-	event = tep_data_event_from_type(kshark_ctx->pevent, event_id);
+	event = tep_find_event(kshark_ctx->pevent, event_id);
 	if (event)
 		info = kshark_get_info(kshark_ctx->pevent, data, event);
 
@@ -1330,8 +1330,7 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 		data = tracecmd_read_at(kshark_ctx->handle, entry->offset,
 					NULL);
 
-		event = tep_data_event_from_type(kshark_ctx->pevent,
-						 entry->event_id);
+		event = tep_find_event(kshark_ctx->pevent, entry->event_id);
 
 		event_name = event? event->name : "[UNKNOWN EVENT]";
 		lat = kshark_get_latency(kshark_ctx->pevent, data);

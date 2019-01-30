@@ -3397,7 +3397,7 @@ find_ts_in_page(struct tep_handle *pevent, void *page, int size)
 			break;
 		free_record(last_record);
 		id = tep_data_type(pevent, record);
-		event = tep_data_event_from_type(pevent, id);
+		event = tep_find_event(pevent, id);
 		if (event) {
 			/* Make sure this is our event */
 			field = tep_find_field(event, "buf");

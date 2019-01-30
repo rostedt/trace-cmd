@@ -204,7 +204,7 @@ class Trace(object):
         rec = tracecmd_read_data(self._handle, cpu)
         if rec:
             type = tep_data_type(self._pevent, rec)
-            format = tep_data_event_from_type(self._pevent, type)
+            format = tep_find_event(self._pevent, type)
             # rec ownership goes over to Event instance
             return Event(self._pevent, rec, format)
         return None
@@ -216,7 +216,7 @@ class Trace(object):
             return None
         rec, cpu = res
         type = tep_data_type(self._pevent, rec)
-        format = tep_data_event_from_type(self._pevent, type)
+        format = tep_find_event(self._pevent, type)
         # rec ownership goes over to Event instance
         return Event(self._pevent, rec, format)
 
@@ -226,7 +226,7 @@ class Trace(object):
             return None
         rec, cpu = res
         type = tep_data_type(self._pevent, rec)
-        format = tep_data_event_from_type(self._pevent, type)
+        format = tep_find_event(self._pevent, type)
         return Event(self._pevent, rec, format)
 
     def peek_event(self, cpu):
@@ -234,7 +234,7 @@ class Trace(object):
         if rec is None:
             return None
         type = tep_data_type(self._pevent, rec)
-        format = tep_data_event_from_type(self._pevent, type)
+        format = tep_find_event(self._pevent, type)
         # rec ownership goes over to Event instance
         return Event(self._pevent, rec, format)
 
