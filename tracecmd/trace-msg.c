@@ -659,39 +659,34 @@ error:
 
 int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 {
-	struct tracecmd_msg msg;
-	u32 cmd;
 	int ret;
 
 	ret = tracecmd_msg_read_data(msg_handle, ofd);
 	if (ret)
-		goto error;
+		return ret;
 
-	/* check the finish message of the client */
+	return tracecmd_msg_wait_close(msg_handle);
+}
+
+int tracecmd_msg_wait_close(struct tracecmd_msg_handle *msg_handle)
+{
+	struct tracecmd_msg msg;
+	int ret = -1;
+
+	memset(&msg, 0, sizeof(msg));
 	while (!tracecmd_msg_done(msg_handle)) {
 		ret = tracecmd_msg_recv(msg_handle->fd, &msg);
-		if (ret < 0) {
-			warning("reading client");
-			return ret;
-		}
-
-		cmd = ntohl(msg.hdr.cmd);
-		if (cmd == MSG_CLOSE)
-			/* Finish this connection */
-			break;
-		else {
-			warning("Not accept the message %d", ntohl(msg.hdr.cmd));
-			ret = -EINVAL;
+		if (ret < 0)
 			goto error;
-		}
 
+		if (ntohl(msg.hdr.cmd) == MSG_CLOSE)
+			return 0;
+
+		error_operation(&msg);
 		msg_free(&msg);
 	}
 
-	return 0;
-
 error:
-	error_operation(&msg);
 	msg_free(&msg);
 	return ret;
 }
