@@ -345,6 +345,12 @@ void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle)
 	msg_server->done = true;
 }
 
+static void error_operation(struct tracecmd_msg *msg)
+{
+	warning("Message: cmd=%d size=%d\n",
+		ntohl(msg->hdr.cmd), ntohl(msg->hdr.size));
+}
+
 /*
  * A return value of 0 indicates time-out
  */
@@ -430,15 +436,6 @@ static bool process_option(struct tracecmd_msg_handle *msg_handle,
 		return true;
 	}
 	return false;
-}
-
-static void error_operation_for_server(struct tracecmd_msg *msg)
-{
-	u32 cmd;
-
-	cmd = ntohl(msg->hdr.cmd);
-
-	warning("Message: cmd=%d size=%d\n", cmd, ntohl(msg->hdr.size));
 }
 
 struct tracecmd_msg_handle *
@@ -545,7 +542,7 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 	return pagesize;
 
 error:
-	error_operation_for_server(&msg);
+	error_operation(&msg);
 	return ret;
 }
 
@@ -670,7 +667,7 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 	return 0;
 
 error:
-	error_operation_for_server(&msg);
+	error_operation(&msg);
 	msg_free(&msg);
 	return ret;
 }
@@ -709,7 +706,7 @@ int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 	return 0;
 
 error:
-	error_operation_for_server(&msg);
+	error_operation(&msg);
 	msg_free(&msg);
 	return ret;
 }
