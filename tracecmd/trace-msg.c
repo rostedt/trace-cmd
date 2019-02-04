@@ -75,7 +75,8 @@ struct tracecmd_msg_header {
 	C(TINIT,	1,	sizeof(struct tracecmd_msg_tinit)),	\
 	C(RINIT,	2,	sizeof(struct tracecmd_msg_rinit)),	\
 	C(SEND_DATA,	3,	0),					\
-	C(FIN_DATA,	4,	0),
+	C(FIN_DATA,	4,	0),					\
+	C(NOT_SUPP,	5,	0),
 
 #undef C
 #define C(a,b,c)	MSG_##a = b
@@ -370,6 +371,25 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	return 0;
 }
 
+static int tracecmd_msg_send_notsupp(struct tracecmd_msg_handle *msg_handle)
+{
+	struct tracecmd_msg msg;
+
+	tracecmd_msg_init(MSG_NOT_SUPP, &msg);
+	return tracecmd_msg_send(msg_handle->fd, &msg);
+}
+
+static int handle_unexpected_msg(struct tracecmd_msg_handle *msg_handle,
+				 struct tracecmd_msg *msg)
+{
+	/* Don't send MSG_NOT_SUPP back if we just received one */
+	if (ntohl(msg->hdr.cmd) == MSG_NOT_SUPP)
+		return 0;
+
+	return tracecmd_msg_send_notsupp(msg_handle);
+
+}
+
 int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 				unsigned int **client_ports)
 {
@@ -397,7 +417,7 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 		goto out;
 
 	if (ntohl(msg.hdr.cmd) != MSG_RINIT) {
-		ret = -EINVAL;
+		ret = -EOPNOTSUPP;
 		goto error;
 	}
 
@@ -413,6 +433,8 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 
 error:
 	error_operation(&msg);
+	if (ret == -EOPNOTSUPP)
+		handle_unexpected_msg(msg_handle, &msg);
 out:
 	msg_free(&msg);
 	return ret;
@@ -461,7 +483,6 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 	int ret;
 	int offset = 0;
 	u32 size;
-	u32 cmd;
 
 	ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 	if (ret < 0) {
@@ -470,9 +491,8 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 		return ret;
 	}
 
-	cmd = ntohl(msg.hdr.cmd);
-	if (cmd != MSG_TINIT) {
-		ret = -EINVAL;
+	if (ntohl(msg.hdr.cmd) != MSG_TINIT) {
+		ret = -EOPNOTSUPP;
 		goto error;
 	}
 
@@ -524,10 +544,14 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 		}
 	}
 
+	msg_free(&msg);
 	return pagesize;
 
 error:
 	error_operation(&msg);
+	if (ret == -EOPNOTSUPP)
+		handle_unexpected_msg(msg_handle, &msg);
+	msg_free(&msg);
 	return ret;
 }
 
@@ -627,8 +651,12 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 		if (cmd == MSG_FIN_DATA) {
 			/* Finish receiving data */
 			break;
-		} else if (cmd != MSG_SEND_DATA)
-			goto error;
+		} else if (cmd != MSG_SEND_DATA) {
+			ret = handle_unexpected_msg(msg_handle, &msg);
+			if (ret < 0)
+				goto error;
+			goto next;
+		}
 
 		n = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
 		t = n;
@@ -646,6 +674,7 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 			s = n - t;
 		}
 
+next:
 		msg_free(&msg);
 	}
 
@@ -683,6 +712,10 @@ int tracecmd_msg_wait_close(struct tracecmd_msg_handle *msg_handle)
 			return 0;
 
 		error_operation(&msg);
+		ret = handle_unexpected_msg(msg_handle, &msg);
+		if (ret < 0)
+			goto error;
+
 		msg_free(&msg);
 	}
 
