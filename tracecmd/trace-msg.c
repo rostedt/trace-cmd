@@ -549,12 +549,12 @@ int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
 	return 0;
 }
 
-void tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle)
+int tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle)
 {
 	struct tracecmd_msg msg;
 
 	tracecmd_msg_init(MSG_CLOSE, &msg);
-	tracecmd_msg_send(msg_handle->fd, &msg);
+	return tracecmd_msg_send(msg_handle->fd, &msg);
 }
 
 int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
