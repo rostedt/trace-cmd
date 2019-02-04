@@ -49,21 +49,6 @@ static inline void dprint(const char *fmt, ...)
 
 unsigned int page_size;
 
-struct tracecmd_msg_server {
-	struct tracecmd_msg_handle handle;
-	int			done;
-};
-
-static struct tracecmd_msg_server *
-make_server(struct tracecmd_msg_handle *msg_handle)
-{
-	if (!(msg_handle->flags & TRACECMD_MSG_FL_SERVER)) {
-		plog("Message handle not of type server\n");
-		return NULL;
-	}
-	return (struct tracecmd_msg_server *)msg_handle;
-}
-
 struct tracecmd_msg_opt {
 	be32 size;
 	be32 opt_cmd;
@@ -333,16 +318,12 @@ static int msg_wait_to = MSG_WAIT_MSEC;
 
 bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle)
 {
-	struct tracecmd_msg_server *msg_server = make_server(msg_handle);
-
-	return (volatile int)msg_server->done;
+	return (volatile int)msg_handle->done;
 }
 
 void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle)
 {
-	struct tracecmd_msg_server *msg_server = make_server(msg_handle);
-
-	msg_server->done = true;
+	msg_handle->done = true;
 }
 
 static void error_operation(struct tracecmd_msg *msg)
@@ -442,14 +423,8 @@ struct tracecmd_msg_handle *
 tracecmd_msg_handle_alloc(int fd, unsigned long flags)
 {
 	struct tracecmd_msg_handle *handle;
-	int size;
 
-	if (flags == TRACECMD_MSG_FL_SERVER)
-		size = sizeof(struct tracecmd_msg_server);
-	else
-		size = sizeof(struct tracecmd_msg_handle);
-
-	handle = calloc(1, size);
+	handle = calloc(1, sizeof(struct tracecmd_msg_handle));
 	if (!handle)
 		return NULL;
 

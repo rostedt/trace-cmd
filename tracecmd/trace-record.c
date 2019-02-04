@@ -2883,7 +2883,7 @@ again:
 	if (msg_handle) {
 		msg_handle->fd = sfd;
 	} else {
-		msg_handle = tracecmd_msg_handle_alloc(sfd, TRACECMD_MSG_FL_CLIENT);
+		msg_handle = tracecmd_msg_handle_alloc(sfd, 0);
 		if (!msg_handle)
 			die("Failed to allocate message handle");
 

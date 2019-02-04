@@ -293,16 +293,8 @@ void tracecmd_disable_all_tracing(int disable_tracer);
 void tracecmd_disable_tracing(void);
 void tracecmd_enable_tracing(void);
 
-enum tracecmd_msg_bits {
-	TRACECMD_MSG_BIT_CLIENT		= 0,
-	TRACECMD_MSG_BIT_SERVER		= 1,
-	TRACECMD_MSG_BIT_USE_TCP	= 2,
-};
-
 enum tracecmd_msg_flags {
-	TRACECMD_MSG_FL_CLIENT		= (1 << TRACECMD_MSG_BIT_CLIENT),
-	TRACECMD_MSG_FL_SERVER		= (1 << TRACECMD_MSG_BIT_SERVER),
-	TRACECMD_MSG_FL_USE_TCP		= (1 << TRACECMD_MSG_BIT_USE_TCP),
+	TRACECMD_MSG_FL_USE_TCP		= 1 << 0,
 };
 
 /* for both client and server */
@@ -311,6 +303,7 @@ struct tracecmd_msg_handle {
 	short			cpu_count;
 	short			version;	/* Current protocol version */
 	unsigned long		flags;
+	bool			done;
 };
 
 struct tracecmd_msg_handle *
