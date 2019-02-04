@@ -373,8 +373,7 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 				unsigned int **client_ports)
 {
-	struct tracecmd_msg send_msg;
-	struct tracecmd_msg recv_msg;
+	struct tracecmd_msg msg;
 	int fd = msg_handle->fd;
 	unsigned int *ports;
 	int i, cpus;
@@ -382,30 +381,41 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 
 	*client_ports = NULL;
 
-	tracecmd_msg_init(MSG_TINIT, &send_msg);
-	ret = make_tinit(msg_handle, &send_msg);
+	tracecmd_msg_init(MSG_TINIT, &msg);
+	ret = make_tinit(msg_handle, &msg);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	ret = tracecmd_msg_send(fd, &send_msg);
+	ret = tracecmd_msg_send(fd, &msg);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	ret = tracecmd_msg_wait_for_msg(fd, &recv_msg);
+	msg_free(&msg);
+
+	ret = tracecmd_msg_wait_for_msg(fd, &msg);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	if (ntohl(recv_msg.hdr.cmd) != MSG_RINIT)
-		return -EINVAL;
+	if (ntohl(msg.hdr.cmd) != MSG_RINIT) {
+		ret = -EINVAL;
+		goto error;
+	}
 
-	cpus = ntohl(recv_msg.rinit.cpus);
+	cpus = ntohl(msg.rinit.cpus);
 	ports = malloc_or_die(sizeof(*ports) * cpus);
 	for (i = 0; i < cpus; i++)
-		ports[i] = ntohl(recv_msg.port_array[i]);
+		ports[i] = ntohl(msg.port_array[i]);
 
 	*client_ports = ports;
 
+	msg_free(&msg);
 	return 0;
+
+error:
+	error_operation(&msg);
+out:
+	msg_free(&msg);
+	return ret;
 }
 
 static bool process_option(struct tracecmd_msg_handle *msg_handle,
