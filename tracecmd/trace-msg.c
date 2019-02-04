@@ -130,8 +130,6 @@ struct tracecmd_msg {
 	};
 } __attribute__((packed));
 
-struct tracecmd_msg *errmsg;
-
 static int msg_write(int fd, struct tracecmd_msg *msg)
 {
 	int cmd = ntohl(msg->hdr.cmd);
