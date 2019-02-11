@@ -68,9 +68,6 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 	plugin_ctx->sched_wakeup_pid_field =
 		tep_find_any_field(event, "pid");
 
-	plugin_ctx->sched_wakeup_success_field =
-		tep_find_field(event, "success");
-
 	event = tep_find_event_by_name(plugin_ctx->pevent,
 				       "sched", "sched_wakeup_new");
 	if (!event)
@@ -79,9 +76,6 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 	plugin_ctx->sched_wakeup_new_event = event;
 	plugin_ctx->sched_wakeup_new_pid_field =
 		tep_find_any_field(event, "pid");
-
-	plugin_ctx->sched_wakeup_new_success_field =
-		tep_find_field(event, "success");
 
 	plugin_ctx->second_pass_hash = tracecmd_filter_id_hash_alloc();
 
@@ -175,8 +169,7 @@ bool plugin_wakeup_match_rec_pid(struct kshark_context *kshark_ctx,
 {
 	struct plugin_sched_context *plugin_ctx;
 	struct tep_record *record = NULL;
-	unsigned long long val;
-	int ret, wakeup_pid = -1;
+	int wakeup_pid = -1;
 
 	plugin_ctx = plugin_sched_context_handler;
 	if (!plugin_ctx)
@@ -185,25 +178,13 @@ bool plugin_wakeup_match_rec_pid(struct kshark_context *kshark_ctx,
 	if (plugin_ctx->sched_wakeup_event &&
 	    e->event_id == plugin_ctx->sched_wakeup_event->id) {
 		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
-
-		/* We only want those that actually woke up the task. */
-		ret = tep_read_number_field(plugin_ctx->sched_wakeup_success_field,
-					    record->data, &val);
-
-		if (ret == 0 && val)
-			wakeup_pid = plugin_get_rec_wakeup_pid(record);
+		wakeup_pid = plugin_get_rec_wakeup_pid(record);
 	}
 
 	if (plugin_ctx->sched_wakeup_new_event &&
 	    e->event_id == plugin_ctx->sched_wakeup_new_event->id) {
 		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
-
-		/* We only want those that actually woke up the task. */
-		ret = tep_read_number_field(plugin_ctx->sched_wakeup_new_success_field,
-					    record->data, &val);
-
-		if (ret == 0 && val)
-			wakeup_pid = plugin_get_rec_wakeup_new_pid(record);
+		wakeup_pid = plugin_get_rec_wakeup_new_pid(record);
 	}
 
 	free_record(record);
