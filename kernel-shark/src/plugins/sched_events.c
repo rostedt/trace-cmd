@@ -111,24 +111,6 @@ int plugin_get_next_pid(struct tep_record *record)
 	return ret ? : val;
 }
 
-/**
- * @brief Get the Process Id of the task being woke up.
- *
- * @param record: Input location for a sched_wakeup record.
- */
-int plugin_get_rec_wakeup_pid(struct tep_record *record)
-{
-	struct plugin_sched_context *plugin_ctx =
-		plugin_sched_context_handler;
-	unsigned long long val;
-	int ret;
-
-	ret = tep_read_number_field(plugin_ctx->sched_wakeup_pid_field,
-				    record->data, &val);
-
-	return ret ? : val;
-}
-
 static void plugin_register_command(struct kshark_context *kshark_ctx,
 				    struct tep_record *record,
 				    int pid)
