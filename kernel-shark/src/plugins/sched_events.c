@@ -23,10 +23,27 @@
 /** Plugin context instance. */
 struct plugin_sched_context *plugin_sched_context_handler = NULL;
 
+static bool define_wakeup_event(struct tep_handle *tep, const char *wakeup_name,
+				struct tep_event **wakeup_event,
+				struct tep_format_field **pid_field)
+{
+	struct tep_event *event;
+
+	event = tep_find_event_by_name(tep, "sched", wakeup_name);
+	if (!event)
+		return false;
+
+	*wakeup_event = event;
+	*pid_field = tep_find_any_field(event, "pid");
+
+	return true;
+}
+
 static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 {
 	struct plugin_sched_context *plugin_ctx;
 	struct tep_event *event;
+	bool wakeup_found;
 
 	/* No context should exist when we initialize the plugin. */
 	assert(plugin_sched_context_handler == NULL);
@@ -59,23 +76,17 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 	plugin_ctx->sched_switch_prev_state_field =
 		tep_find_field(event, "prev_state");
 
-	event = tep_find_event_by_name(plugin_ctx->pevent,
-				      "sched", "sched_wakeup");
-	if (!event)
+
+	wakeup_found = define_wakeup_event(kshark_ctx->pevent, "sched_wakeup",
+					   &plugin_ctx->sched_wakeup_event,
+					   &plugin_ctx->sched_wakeup_pid_field);
+
+	wakeup_found |= define_wakeup_event(kshark_ctx->pevent, "sched_wakeup_new",
+					   &plugin_ctx->sched_wakeup_new_event,
+					   &plugin_ctx->sched_wakeup_new_pid_field);
+
+	if (!wakeup_found)
 		return false;
-
-	plugin_ctx->sched_wakeup_event = event;
-	plugin_ctx->sched_wakeup_pid_field =
-		tep_find_any_field(event, "pid");
-
-	event = tep_find_event_by_name(plugin_ctx->pevent,
-				       "sched", "sched_wakeup_new");
-	if (!event)
-		return false;
-
-	plugin_ctx->sched_wakeup_new_event = event;
-	plugin_ctx->sched_wakeup_new_pid_field =
-		tep_find_any_field(event, "pid");
 
 	plugin_ctx->second_pass_hash = tracecmd_filter_id_hash_alloc();
 
@@ -139,17 +150,51 @@ static void plugin_register_command(struct kshark_context *kshark_ctx,
 			tep_register_comm(kshark_ctx->pevent, comm, pid);
 }
 
-static int plugin_get_rec_wakeup_new_pid(struct tep_record *record)
+int find_wakeup_pid(struct kshark_context *kshark_ctx, struct kshark_entry *e,
+		    struct tep_event *wakeup_event, struct tep_format_field *pid_field)
 {
-	struct plugin_sched_context *plugin_ctx =
-		plugin_sched_context_handler;
+	struct tep_record *record;
 	unsigned long long val;
 	int ret;
 
-	ret = tep_read_number_field(plugin_ctx->sched_wakeup_new_pid_field,
-				    record->data, &val);
+	if (!wakeup_event || e->event_id != wakeup_event->id)
+		return -1;
 
-	return ret ? : val;
+	record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
+	ret = tep_read_number_field(pid_field, record->data, &val);
+	free_record(record);
+
+	if (ret)
+		return -1;
+
+	return val;
+}
+
+static bool wakeup_match_rec_pid(struct plugin_sched_context *plugin_ctx,
+				 struct kshark_context *kshark_ctx,
+				 struct kshark_entry *e,
+				 int pid)
+{
+	struct tep_event *wakeup_events[] = {
+		plugin_ctx->sched_wakeup_event,
+		plugin_ctx->sched_wakeup_new_event,
+	};
+	struct tep_format_field *wakeup_fields[] = {
+		plugin_ctx->sched_wakeup_pid_field,
+		plugin_ctx->sched_wakeup_new_pid_field,
+	};
+	int i, wakeup_pid = -1;
+
+	for (i = 0; i < sizeof(wakeup_events) / sizeof(wakeup_events[0]); i++) {
+		wakeup_pid = find_wakeup_pid(kshark_ctx, e, wakeup_events[i], wakeup_fields[i]);
+		if (wakeup_pid >= 0)
+			break;
+	}
+
+	if (wakeup_pid >= 0 && wakeup_pid == pid)
+		return true;
+
+	return false;
 }
 
 /**
@@ -168,31 +213,12 @@ bool plugin_wakeup_match_rec_pid(struct kshark_context *kshark_ctx,
 				 int pid)
 {
 	struct plugin_sched_context *plugin_ctx;
-	struct tep_record *record = NULL;
-	int wakeup_pid = -1;
 
 	plugin_ctx = plugin_sched_context_handler;
 	if (!plugin_ctx)
 		return false;
 
-	if (plugin_ctx->sched_wakeup_event &&
-	    e->event_id == plugin_ctx->sched_wakeup_event->id) {
-		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
-		wakeup_pid = plugin_get_rec_wakeup_pid(record);
-	}
-
-	if (plugin_ctx->sched_wakeup_new_event &&
-	    e->event_id == plugin_ctx->sched_wakeup_new_event->id) {
-		record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
-		wakeup_pid = plugin_get_rec_wakeup_new_pid(record);
-	}
-
-	free_record(record);
-
-	if (wakeup_pid >= 0 && wakeup_pid == pid)
-		return true;
-
-	return false;
+	return wakeup_match_rec_pid(plugin_ctx, kshark_ctx, e, pid);
 }
 
 /**
