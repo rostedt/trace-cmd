@@ -51,6 +51,12 @@ struct plugin_sched_context {
 	/** Pointer to the sched_wakeup_new_pid_field format descriptor. */
 	struct tep_format_field	*sched_wakeup_new_pid_field;
 
+	/** Pointer to the sched_waking_event object. */
+	struct tep_event        *sched_waking_event;
+
+	/** Pointer to the sched_waking_pid_field format descriptor. */
+	struct tep_format_field *sched_waking_pid_field;
+
 	/** List of Data collections used by this plugin. */
 	struct kshark_entry_collection	*collections;
 

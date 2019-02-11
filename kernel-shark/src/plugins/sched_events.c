@@ -85,6 +85,10 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 					   &plugin_ctx->sched_wakeup_new_event,
 					   &plugin_ctx->sched_wakeup_new_pid_field);
 
+	wakeup_found |= define_wakeup_event(kshark_ctx->pevent, "sched_waking",
+					   &plugin_ctx->sched_waking_event,
+					   &plugin_ctx->sched_waking_pid_field);
+
 	if (!wakeup_found)
 		return false;
 
@@ -158,10 +162,12 @@ static bool wakeup_match_rec_pid(struct plugin_sched_context *plugin_ctx,
 				 int pid)
 {
 	struct tep_event *wakeup_events[] = {
+		plugin_ctx->sched_waking_event,
 		plugin_ctx->sched_wakeup_event,
 		plugin_ctx->sched_wakeup_new_event,
 	};
 	struct tep_format_field *wakeup_fields[] = {
+		plugin_ctx->sched_waking_pid_field,
 		plugin_ctx->sched_wakeup_pid_field,
 		plugin_ctx->sched_wakeup_new_pid_field,
 	};
