@@ -68,6 +68,8 @@ public:
 
 	void clearSelection();
 
+	void passiveMarkerSelectRow(int row);
+
 	int selectedRow();
 
 	void update(KsDataStore *data);

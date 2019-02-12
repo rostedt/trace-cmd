@@ -706,6 +706,22 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 }
 
 /**
+ * @brief Color (select) the given row in the table, by using the color of the
+ * 	  Passive marker.
+ *
+ * @param row: The row index. If the Passive marker is selected and the input
+ *	        value is negative, the Passive marker will be deselected.
+ */
+void KsTraceViewer::passiveMarkerSelectRow(int row)
+{
+	DualMarkerState state = _mState->getState();
+
+	_view.setVisible(false);
+	_model.selectRow(!state, row);
+	_view.setVisible(true);
+}
+
+/**
  * Get the currently selected row. If no row is selected the function
  * returns -1.
  */
