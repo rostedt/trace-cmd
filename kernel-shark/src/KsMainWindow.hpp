@@ -218,6 +218,10 @@ private:
 
 	void _deselect();
 
+	void _deselectA();
+
+	void _deselectB();
+
 	void _updateFilterMenu();
 
 	void _filterSyncCBoxUpdate(kshark_context *kshark_ctx);

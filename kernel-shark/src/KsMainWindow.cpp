@@ -119,6 +119,12 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 	connect(&_deselectShortcut,	&QShortcut::activated,
 		this,			&KsMainWindow::_deselect);
 
+	connect(&_mState,	&KsDualMarkerSM::deselectA,
+		this,		&KsMainWindow::_deselectA);
+
+	connect(&_mState,	&KsDualMarkerSM::deselectB,
+		this,		&KsMainWindow::_deselectB);
+
 	_resizeEmpty();
 }
 
@@ -1134,6 +1140,30 @@ void KsMainWindow::_deselect()
 {
 	_view.clearSelection();
 	_mState.activeMarker().remove();
+	_mState.updateLabels();
+	_graph.glPtr()->model()->update();
+}
+
+void KsMainWindow::_deselectA()
+{
+	if (_mState.getState() == DualMarkerState::A)
+		_view.clearSelection();
+	else
+		_view.passiveMarkerSelectRow(KS_NO_ROW_SELECTED);
+
+	_mState.markerA().remove();
+	_mState.updateLabels();
+	_graph.glPtr()->model()->update();
+}
+
+void KsMainWindow::_deselectB()
+{
+	if (_mState.getState() == DualMarkerState::B)
+		_view.clearSelection();
+	else
+		_view.passiveMarkerSelectRow(KS_NO_ROW_SELECTED);
+
+	_mState.markerB().remove();
 	_mState.updateLabels();
 	_graph.glPtr()->model()->update();
 }
