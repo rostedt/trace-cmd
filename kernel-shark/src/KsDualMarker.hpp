@@ -19,6 +19,36 @@
 #include "KsUtils.hpp"
 #include "KsPlotTools.hpp"
 
+/**
+ * The Marker Button class provides a button that deselect the corresponding
+ * marker in the case of a Right  mouse click.
+ */
+class KsMarkerButton : public QPushButton
+{
+	Q_OBJECT
+public:
+	/**
+	 * @brief Create a default button.
+	 */
+	explicit KsMarkerButton(QWidget *parent = nullptr)
+	: QPushButton(parent) {}
+
+	/**
+	 * @brief Create a button with text.
+	 */
+	explicit KsMarkerButton(const QString &text, QWidget *parent = nullptr)
+	: QPushButton(text, parent) {}
+
+	void mousePressEvent(QMouseEvent *e);
+
+signals:
+	/**
+	 * This signal is emitted when the button is click by the Right mouse
+	 * button.
+	 */
+	void deselect();
+};
+
 class KsGLWidget;
 
 /** The KsGraphMark represents a marker for KernelShark GUI. */
@@ -161,10 +191,22 @@ signals:
 	 */
 	void machineToB();
 
-private:
-	QPushButton	 _buttonA;
+	/**
+	 * This signal is used to re-emitted the deselect signal of the
+	 * Marker A button.
+	 */
+	void deselectA();
 
-	QPushButton	 _buttonB;
+	/**
+	 * This signal is used to re-emitted the deselect signal of the
+	 * Marker B button.
+	 */
+	void deselectB();
+
+private:
+	KsMarkerButton	 _buttonA;
+
+	KsMarkerButton	 _buttonB;
 
 	QLabel		 _labelMA, _labelMB, _labelDelta;
 

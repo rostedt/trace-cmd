@@ -13,6 +13,21 @@
 #include "KsGLWidget.hpp"
 
 /**
+ * Reimplemented handler for mouse press events. Right mouse click events will
+ * deselect the corresponding marker.
+ */
+void KsMarkerButton::mousePressEvent(QMouseEvent *e)
+{
+	if(e->button() == Qt::RightButton) {
+		emit deselect();
+
+		return;
+	}
+
+	QPushButton::mousePressEvent(e);
+}
+
+/**
  * @brief Create KsGraphMark object.
  *
  * @param s: The Identifier of the marker (state A or state B).
@@ -178,6 +193,9 @@ KsDualMarkerSM::KsDualMarkerSM(QWidget *parent)
 	connect(&_buttonB,	&QPushButton::clicked,
 		this,		&KsDualMarkerSM::_doStateB);
 
+	connect(&_buttonB,	&KsMarkerButton::deselect,
+		this,		&KsDualMarkerSM::deselectB);
+
 	/* Define transitions from State B to State A. */
 	_stateB->addTransition(this,	&KsDualMarkerSM::machineToA, _stateA);
 
@@ -191,6 +209,9 @@ KsDualMarkerSM::KsDualMarkerSM(QWidget *parent)
 
 	connect(&_buttonA,	&QPushButton::clicked,
 		this,		&KsDualMarkerSM::_doStateA);
+
+	connect(&_buttonA,	&KsMarkerButton::deselect,
+		this,		&KsDualMarkerSM::deselectA);
 
 	_machine.addState(_stateA);
 	_machine.addState(_stateB);
