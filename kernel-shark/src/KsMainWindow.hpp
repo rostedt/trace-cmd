@@ -216,7 +216,7 @@ private:
 	void _error(const QString &text, const QString &errCode,
 		    bool resize, bool unloadPlugins);
 
-	void _deselect();
+	void _deselectActive();
 
 	void _deselectA();
 

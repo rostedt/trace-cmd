@@ -101,10 +101,10 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 		&_view,		&KsTraceViewer::showRow);
 
 	connect(&_graph,	&KsTraceGraph::deselect,
-		this,		&KsMainWindow::_deselect);
+		this,		&KsMainWindow::_deselectActive);
 
 	connect(&_view,		&KsTraceViewer::deselect,
-		this,		&KsMainWindow::_deselect);
+		this,		&KsMainWindow::_deselectActive);
 
 	connect(&_data,		&KsDataStore::updateWidgets,
 		&_view,		&KsTraceViewer::update);
@@ -117,7 +117,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 
 	_deselectShortcut.setKey(Qt::CTRL + Qt::Key_D);
 	connect(&_deselectShortcut,	&QShortcut::activated,
-		this,			&KsMainWindow::_deselect);
+		this,			&KsMainWindow::_deselectActive);
 
 	connect(&_mState,	&KsDualMarkerSM::deselectA,
 		this,		&KsMainWindow::_deselectA);
@@ -1136,7 +1136,7 @@ void KsMainWindow::_splitterMoved(int pos, int index)
 	_session.saveSplitterSize(_splitter);
 }
 
-void KsMainWindow::_deselect()
+void KsMainWindow::_deselectActive()
 {
 	_view.clearSelection();
 	_mState.activeMarker().remove();
