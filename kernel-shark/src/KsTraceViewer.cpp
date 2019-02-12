@@ -475,7 +475,7 @@ void KsTraceViewer::markSwitch()
 		 * The passive marker is not set.
 		 * Make sure that the model colors nothing.
 		 */
-		_model.selectRow(!state, -1);
+		_model.selectRow(!state, KS_NO_ROW_SELECTED);
 	}
 
 	/*
@@ -723,12 +723,12 @@ void KsTraceViewer::passiveMarkerSelectRow(int row)
 
 /**
  * Get the currently selected row. If no row is selected the function
- * returns -1.
+ * returns KS_NO_ROW_SELECTED (-1).
  */
 int KsTraceViewer::selectedRow()
 {
 	QItemSelectionModel *sm = _view.selectionModel();
-	int dataRow = -1;
+	int dataRow = KS_NO_ROW_SELECTED;
 
 	if (sm->hasSelection()) {
 		/* Only one row at the time can be selected. */

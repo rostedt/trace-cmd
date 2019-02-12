@@ -199,8 +199,8 @@ KsViewModel::KsViewModel(QObject *parent)
   _nRows(0),
   _header({"#", "CPU", "Time Stamp", "Task", "PID",
 	   "Latency", "Event", "Info"}),
-  _markA(-1),
-  _markB(-1)
+  _markA(KS_NO_ROW_SELECTED),
+  _markB(KS_NO_ROW_SELECTED)
 {}
 
 /**
@@ -311,10 +311,10 @@ void KsViewModel::selectRow(DualMarkerState state, int row)
 {
 	if (state == DualMarkerState::A) {
 		_markA = row;
-		_markB = -1;
+		_markB = KS_NO_ROW_SELECTED;
 	} else {
 		_markB = row;
-		_markA = -1;
+		_markA = KS_NO_ROW_SELECTED;
 	}
 }
 

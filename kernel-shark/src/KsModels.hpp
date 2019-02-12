@@ -28,6 +28,9 @@
 #include "libkshark-model.h"
 #include "KsSearchFSM.hpp"
 
+/** A negative row index, to be used for deselecting the Passive Marker. */
+#define KS_NO_ROW_SELECTED -1
+
 enum class DualMarkerState;
 
 class KsDataStore;
