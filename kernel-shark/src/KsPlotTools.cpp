@@ -1020,16 +1020,26 @@ void Graph::fillTaskGraph(int pid)
 		if (cpuFront >= 0) {
 			/*
 			 * The Lower Overflow Bin contains data from this Task.
-			 * Now look again in the Lower Overflow Bin and find
-			 * the Pid of the last active task on the same CPU.
+			 * Now look again in the Lower Overflow Bin and Bim 0
+			 * and find the Pid of the last active task on the same
+			 * CPU.
 			 */
-			int pidCpu = ksmodel_get_pid_back(_histoPtr,
-							  LOWER_OVERFLOW_BIN,
-							  cpuFront,
-							  false,
-							  _collectionPtr,
-							  nullptr);
-			if (pidCpu == pid) {
+			int pidCpu0, pidCpuLOB;
+
+			pidCpu0 = ksmodel_get_pid_back(_histoPtr,
+						       0,
+						       cpuFront,
+						       false,
+						       _collectionPtr,
+						       nullptr);
+
+			pidCpuLOB = ksmodel_get_pid_back(_histoPtr,
+							 LOWER_OVERFLOW_BIN,
+							 cpuFront,
+							 false,
+							 _collectionPtr,
+							 nullptr);
+			if (pidCpu0 < 0 && pidCpuLOB == pid) {
 				/*
 				 * The Task is the last one running on this
 				 * CPU. Set the Pid of the bin. In this case
