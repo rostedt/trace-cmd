@@ -929,13 +929,15 @@ void Graph::fillTaskGraph(int pid)
 		} else {
 			/*
 			 * No data from the Task in this bin. Check the CPU,
-			 * previously used by the task.
+			 * previously used by the task. We are looking for
+			 * data from another task running on the same CPU,
+			 * hence we cannot use the collection of this task.
 			 */
 			int cpuPid = ksmodel_get_pid_back(_histoPtr,
 							  bin,
 							  lastCpu,
 							  false,
-							  _collectionPtr,
+							  nullptr, // No collection
 							  nullptr);
 
 			if (cpuPid != KS_EMPTY_BIN) {
