@@ -10,8 +10,12 @@
   */
 
 // C
+#ifndef _GNU_SOURCE
 /** Use GNU C Library. */
 #define _GNU_SOURCE
+
+#endif
+
 #include <stdio.h>
 #include <sys/stat.h>
 
