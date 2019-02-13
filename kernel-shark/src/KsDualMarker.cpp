@@ -329,29 +329,39 @@ void KsDualMarkerSM::updateMarkers(const KsDataStore &data,
  */
 void KsDualMarkerSM::updateLabels()
 {
-	QString mark, delta;
+	char separator(' ');
+	int precision(6); // 1 microsecond precision.
+
+	auto lamSetTimeLabel = [&precision, &separator] (QLabel &l, int64_t t) {
+		QString time = KsUtils::Ts2String(t, precision);
+		int i = time.indexOf('.') + 4;
+
+		/* Insert separators for milliseconds amd microseconds. */
+		while (i < time.size()) {
+			time.insert(i, separator);
+			i = i + 4;
+		}
+
+		l.setText(time);
+	};
 
 	// Marker A
-	if (_markA._isSet) {
-		mark = KsUtils::Ts2String(_markA._ts, 7);
-		_labelMA.setText(mark);
-	} else {
-		_labelMA.setText("");
-	}
+	if (_markA._isSet)
+		lamSetTimeLabel(_labelMA, _markA._ts);
+	else
+		_labelMA.clear();
 
 	// Marker B
-	if (_markB._isSet) {
-		mark = KsUtils::Ts2String(_markB._ts, 7);
-		_labelMB.setText(mark);
-	} else {
-		_labelMB.setText("");
-	}
+	if (_markB._isSet)
+		lamSetTimeLabel(_labelMB, _markB._ts);
+	else
+		_labelMB.clear();
 
 	// Delta
 	if (_markA._isSet && _markB._isSet) {
-		delta = KsUtils::Ts2String(_markB._ts - _markA._ts, 7);
-		_labelDelta.setText(delta);
+		precision = 9; // 1 nanoseconds precision.
+		lamSetTimeLabel(_labelDelta, _markB._ts - _markA._ts);
 	} else {
-		_labelDelta.setText("");
+		_labelDelta.clear();
 	}
 }
