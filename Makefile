@@ -258,8 +258,8 @@ $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
 
 gui: force $(CMD_TARGETS) $(kshark-dir)/build/Makefile
 	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
-	echo "gui build complete"
-	echo "  kernelshark located at $(kshark-dir)/bin"
+	@echo "gui build complete"
+	@echo "  kernelshark located at $(kshark-dir)/bin"
 
 trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
