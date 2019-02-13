@@ -500,13 +500,11 @@ void ksmodel_shift_forward(struct kshark_trace_histo *histo, size_t n)
 		sizeof(histo->map[0]) * (histo->n_bins - n));
 
 	/*
-	 * The mapping index of the old Upper Overflow bin is now index of the
-	 * first new bin.
+	 * Calculate only the content of the new (non-overlapping) bins.
+	 * Start from the last copied bin and set the edge of each consecutive
+	 * bin.
 	 */
-	bin = UOB(histo) - n;
-	histo->map[bin] = histo->map[UOB(histo)];
-
-	/* Calculate only the content of the new (non-overlapping) bins. */
+	bin = histo->n_bins - n - 1;
 	for (; bin < histo->n_bins; ++bin) {
 		ksmodel_set_next_bin_edge(histo, bin, last_row);
 		if (histo->map[bin + 1] > 0)
