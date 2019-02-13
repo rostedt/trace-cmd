@@ -1552,7 +1552,7 @@ const struct kshark_entry dummy_entry = {
 static const struct kshark_entry *
 get_entry(const struct kshark_entry_request *req,
           struct kshark_entry **data,
-          ssize_t *index, size_t start, ssize_t end, int inc)
+          ssize_t *index, ssize_t start, ssize_t end, int inc)
 {
 	struct kshark_context *kshark_ctx = NULL;
 	const struct kshark_entry *e = NULL;
@@ -1564,6 +1564,11 @@ get_entry(const struct kshark_entry_request *req,
 	if (!kshark_instance(&kshark_ctx))
 		return e;
 
+	/*
+	 * We will do a sanity check in order to protect against infinite
+	 * loops.
+	 */
+	assert((inc > 0 && start < end) || (inc < 0 && start > end));
 	for (i = start; i != end; i += inc) {
 		if (req->cond(kshark_ctx, data[i], req->val)) {
 			/*

@@ -299,6 +299,7 @@ static void ksmodel_set_next_bin_edge(struct kshark_trace_histo *histo,
 static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 {
 	int i = 0, prev_not_empty;
+	ssize_t count_tmp;
 
 	histo->tot_count = 0;
 	memset(&histo->bin_count[0], 0,
@@ -329,12 +330,18 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 			 * empty bin, which will give us the number of data
 			 * rows in the "prev_not_empty" bin.
 			 */
-			histo->bin_count[prev_not_empty] =
-				histo->map[i] - histo->map[prev_not_empty];
+			count_tmp = histo->map[i] - histo->map[prev_not_empty];
+
+			/*
+			 * We will do a sanity check. The number of data rows
+			 * in the previous not empty bin must be greater than
+			 * zero.
+			 */
+			assert(count_tmp > 0);
+			histo->bin_count[prev_not_empty] = count_tmp;
 
 			if (prev_not_empty != LOB(histo))
-				histo->tot_count +=
-					histo->bin_count[prev_not_empty];
+				histo->tot_count += count_tmp;
 
 			prev_not_empty = i;
 		}
@@ -346,19 +353,22 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 		 * The Upper Overflow bin is empty. Use the size of the dataset
 		 * to calculate the content of the previouse not empty bin.
 		 */
-		histo->bin_count[prev_not_empty] = histo->data_size -
-						   histo->map[prev_not_empty];
+		count_tmp = histo->data_size - histo->map[prev_not_empty];
 	} else {
 		/*
 		 * Use the index of the first entry inside the Upper Overflow
 		 * bin to calculate the content of the previouse not empty
 		 * bin.
 		 */
-		histo->bin_count[prev_not_empty] = histo->map[UOB(histo)] -
-						   histo->map[prev_not_empty];
+		count_tmp = histo->map[UOB(histo)] - histo->map[prev_not_empty];
 	}
 
-	histo->tot_count += histo->bin_count[prev_not_empty];
+	/*
+	 * We will do a sanity check. The number of data rows in the last not
+	 * empty bin must be greater than zero.
+	 */
+	assert(count_tmp > 0);
+	histo->tot_count += histo->bin_count[prev_not_empty] = count_tmp;
 }
 
 /**
