@@ -88,6 +88,12 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 		append_file(recorder->page_size, recorder->fd1, recorder->fd2);
 	}
  close:
+	if (recorder->brass[0] >= 0)
+		close(recorder->brass[0]);
+
+	if (recorder->brass[1] >= 0)
+		close(recorder->brass[1]);
+
 	if (recorder->trace_fd >= 0)
 		close(recorder->trace_fd);
 
