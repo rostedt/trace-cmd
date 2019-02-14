@@ -4,18 +4,11 @@
  *
  */
 #define _LARGEFILE64_SOURCE
-#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <pthread.h>
 #include <fcntl.h>
+#include <time.h>
 #include <unistd.h>
-#include <ctype.h>
 #include <errno.h>
 
 #include "trace-cmd.h"

@@ -4,22 +4,13 @@
  *
  */
 #define _LARGEFILE64_SOURCE
-#include <dirent.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <getopt.h>
-#include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <sys/mman.h>
-#include <pthread.h>
 #include <regex.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <ctype.h>
 #include <errno.h>
 
 #include <linux/time64.h>
