@@ -37,6 +37,8 @@ public:
 
 	void paintGL() override;
 
+	void reset();
+
 	void mousePressEvent(QMouseEvent *event);
 
 	void mouseMoveEvent(QMouseEvent *event);

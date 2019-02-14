@@ -201,15 +201,13 @@ void KsTraceGraph::setMarkerSM(KsDualMarkerSM *m)
 /** Reset (empty) the widget. */
 void KsTraceGraph::reset()
 {
-	/* Clear the all graph lists and update. */
-	_glWindow._cpuList = {};
-	_glWindow._taskList = {};
+	/* Reset (empty) the OpenGL widget. */
+	_glWindow.reset();
 
 	_labelP2.setText("");
 	for (auto l1: {&_labelI1, &_labelI2, &_labelI3, &_labelI4, &_labelI5})
 		l1->setText("");
 
-	_glWindow.model()->reset();
 	_selfUpdate();
 	for (auto l2: {&_labelXMin, &_labelXMid, &_labelXMax})
 		l2->setText("");

@@ -109,6 +109,15 @@ void KsGLWidget::paintGL()
 	_mState->activeMarker().draw();
 }
 
+/** Reset (empty) the widget. */
+void KsGLWidget::reset()
+{
+	_cpuList = {};
+	_taskList = {};
+	_data = nullptr;
+	_model.reset();
+}
+
 /** Reimplemented event handler used to receive mouse press events. */
 void KsGLWidget::mousePressEvent(QMouseEvent *event)
 {
