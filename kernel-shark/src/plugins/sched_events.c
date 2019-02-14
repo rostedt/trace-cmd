@@ -49,7 +49,7 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 	assert(plugin_sched_context_handler == NULL);
 
 	plugin_sched_context_handler =
-		malloc(sizeof(*plugin_sched_context_handler));
+		calloc(1, sizeof(*plugin_sched_context_handler));
 	if (!plugin_sched_context_handler) {
 		fprintf(stderr,
 			"Failed to allocate memory for plugin_sched_context.\n");
