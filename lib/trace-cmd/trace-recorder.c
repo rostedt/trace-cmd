@@ -26,6 +26,13 @@
 # define F_GETPIPE_SZ	1032 /* The Linux number for the option */
 #endif
 
+#ifndef SPLICE_F_MOVE
+# define SPLICE_F_MOVE		1
+# define SPLICE_F_NONBLOCK	2
+# define SPLICE_F_MORE		4
+# define SPLICE_F_GIFT		8
+#endif
+
 struct tracecmd_recorder {
 	int		fd;
 	int		fd1;
@@ -122,10 +129,10 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 	recorder->cpu = cpu;
 	recorder->flags = flags;
 
-	recorder->fd_flags = 1; /* SPLICE_F_MOVE */
+	recorder->fd_flags = SPLICE_F_MOVE;
 
 	if (!(recorder->flags & TRACECMD_RECORD_BLOCK))
-		recorder->fd_flags |= 2; /* and NON_BLOCK */
+		recorder->fd_flags |= SPLICE_F_NONBLOCK;
 
 	/* Init to know what to free and release */
 	recorder->trace_fd = -1;
@@ -349,7 +356,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	long ret;
 
 	read = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
-		      recorder->pipe_size, 1 /* SPLICE_F_MOVE */);
+		      recorder->pipe_size, SPLICE_F_MOVE);
 	if (read < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
 			warning("recorder error in splice input");
@@ -421,7 +428,7 @@ static void set_nonblock(struct tracecmd_recorder *recorder)
 	fcntl(recorder->trace_fd, F_SETFL, flags | O_NONBLOCK);
 
 	/* Do not block on streams for write */
-	recorder->fd_flags |= 2; /* NON_BLOCK */
+	recorder->fd_flags |= SPLICE_F_NONBLOCK;
 }
 
 long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
