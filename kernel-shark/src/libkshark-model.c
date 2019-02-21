@@ -557,16 +557,17 @@ void ksmodel_shift_backward(struct kshark_trace_histo *histo, size_t n)
 		ksmodel_fill(histo, histo->data, histo->data_size);
 		return;
 	}
-	/* Set the new Lower Overflow bin. */
-	ksmodel_set_lower_edge(histo);
 
 	/*
-	 * Copy the the mapping indexes of all overlaping bins starting from
+	 * Copy the mapping indexes of all overlaping bins starting from
 	 * bin "0" of the old histo. Note that the number of overlaping bins
 	 * is histo->n_bins - n.
 	 */
 	memmove(&histo->map[n], &histo->map[0],
 		sizeof(histo->map[0]) * (histo->n_bins - n));
+
+	/* Set the new Lower Overflow bin. */
+	ksmodel_set_lower_edge(histo);
 
 	/* Calculate only the content of the new (non-overlapping) bins. */
 	for (bin = 0; bin < n; ++bin) {
