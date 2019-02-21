@@ -505,7 +505,11 @@ void ksmodel_shift_forward(struct kshark_trace_histo *histo, size_t n)
 	 * bin.
 	 */
 	bin = histo->n_bins - n - 1;
-	for (; bin < histo->n_bins; ++bin) {
+	for (; bin < histo->n_bins - 1; ++bin) {
+		/*
+		 * Note that this function will set the bin having index
+		 * "bin + 1".
+		 */
 		ksmodel_set_next_bin_edge(histo, bin, last_row);
 		if (histo->map[bin + 1] > 0)
 			last_row = histo->map[bin + 1];
@@ -570,7 +574,11 @@ void ksmodel_shift_backward(struct kshark_trace_histo *histo, size_t n)
 	ksmodel_set_lower_edge(histo);
 
 	/* Calculate only the content of the new (non-overlapping) bins. */
-	for (bin = 0; bin < n; ++bin) {
+	for (bin = 0; bin < n - 1; ++bin) {
+		/*
+		 * Note that this function will set the bin having index
+		 * "bin + 1".
+		 */
 		ksmodel_set_next_bin_edge(histo, bin, last_row);
 		if (histo->map[bin + 1] > 0)
 			last_row = histo->map[bin + 1];
