@@ -267,15 +267,6 @@ static void ksmodel_set_next_bin_edge(struct kshark_trace_histo *histo,
 	time = histo->min + next_bin * histo->bin_size;
 
 	/*
-	 * The timestamp of the very last entry of the dataset can be exactly
-	 * equal to the value of the upper edge of the range. This is very
-	 * likely to happen when we use ksmodel_set_in_range_bining(). In this
-	 * case we have to increase the size of the very last bin in order to
-	 * make sure that the last entry of the dataset will fall into it.
-	 */
-	if (next_bin == histo->n_bins - 1)
-		++time;
-	/*
 	 * Find the index of the first entry inside
 	 * the next bin (timestamp > time).
 	 */
