@@ -466,7 +466,10 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
 
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep)
 {
-	struct timespec req;
+	struct timespec req = {
+		.tv_sec = sleep / 1000000,
+		.tv_nsec = (sleep % 1000000) * 1000,
+	};
 	long read = 1;
 	long ret;
 
@@ -474,11 +477,9 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 
 	do {
 		/* Only sleep if we did not read anything last time */
-		if (!read && sleep) {
-			req.tv_sec = sleep / 1000000;
-			req.tv_nsec = (sleep % 1000000) * 1000;
+		if (!read && sleep)
 			nanosleep(&req, NULL);
-		}
+
 		read = 0;
 		do {
 			if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
