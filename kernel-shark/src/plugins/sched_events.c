@@ -74,8 +74,12 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 
 	event = tep_find_event_by_name(plugin_ctx->pevent,
 				       "sched", "sched_switch");
-	if (!event)
+	if (!event) {
+		plugin_free_context(plugin_ctx);
+		plugin_sched_context_handler = NULL;
+
 		return false;
+	}
 
 	plugin_ctx->sched_switch_event = event;
 	plugin_ctx->sched_switch_next_field =
@@ -320,11 +324,8 @@ static int plugin_sched_init(struct kshark_context *kshark_ctx)
 {
 	struct plugin_sched_context *plugin_ctx;
 
-	if (!plugin_sched_init_context(kshark_ctx)) {
-		free(plugin_sched_context_handler);
-		plugin_sched_context_handler = NULL;
+	if (!plugin_sched_init_context(kshark_ctx))
 		return 0;
-	}
 
 	plugin_ctx = plugin_sched_context_handler;
 
