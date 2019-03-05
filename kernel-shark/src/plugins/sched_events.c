@@ -104,9 +104,6 @@ static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 					   &plugin_ctx->sched_waking_event,
 					   &plugin_ctx->sched_waking_pid_field);
 
-	if (!wakeup_found)
-		return false;
-
 	plugin_ctx->second_pass_hash = tracecmd_filter_id_hash_alloc();
 
 	return true;
