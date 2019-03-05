@@ -39,6 +39,17 @@ static bool define_wakeup_event(struct tep_handle *tep, const char *wakeup_name,
 	return true;
 }
 
+static void plugin_free_context(struct plugin_sched_context *plugin_ctx)
+{
+	if (!plugin_ctx)
+		return;
+
+	tracecmd_filter_id_hash_free(plugin_ctx->second_pass_hash);
+	kshark_free_collection_list(plugin_ctx->collections);
+
+	free(plugin_ctx);
+}
+
 static bool plugin_sched_init_context(struct kshark_context *kshark_ctx)
 {
 	struct plugin_sched_context *plugin_ctx;
@@ -339,10 +350,7 @@ static int plugin_sched_close(struct kshark_context *kshark_ctx)
 					plugin_sched_action,
 					plugin_draw);
 
-	tracecmd_filter_id_hash_free(plugin_ctx->second_pass_hash);
-
-	kshark_free_collection_list(plugin_ctx->collections);
-	free(plugin_ctx);
+	plugin_free_context(plugin_ctx);
 	plugin_sched_context_handler = NULL;
 
 	return 1;
