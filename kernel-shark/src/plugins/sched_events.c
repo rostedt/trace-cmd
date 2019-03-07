@@ -148,7 +148,7 @@ static void plugin_register_command(struct kshark_context *kshark_ctx,
 			tep_register_comm(kshark_ctx->pevent, comm, pid);
 }
 
-int find_wakeup_pid(struct kshark_context *kshark_ctx, struct kshark_entry *e,
+static int find_wakeup_pid(struct kshark_context *kshark_ctx, struct kshark_entry *e,
 		    struct tep_event *wakeup_event, struct tep_format_field *pid_field)
 {
 	struct tep_record *record;
