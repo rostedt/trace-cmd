@@ -648,8 +648,8 @@ static void ksmodel_zoom(struct kshark_trace_histo *histo,
 	 * Avoid overzooming. If needed, adjust the Scale factor to a the value
 	 * which provides bin_size >= 5.
 	 */
-	if (zoom_in && range * (1 - r) < histo->n_bins * 5)
-		r = 1 - (histo->n_bins * 5) / range;
+	if (zoom_in && (int) range * (1. - r) < histo->n_bins * 5)
+		r = 1. - (histo->n_bins * 5.) / range;
 
 	/*
 	 * Now calculate the new range of the histo. Use the bin of the marker
