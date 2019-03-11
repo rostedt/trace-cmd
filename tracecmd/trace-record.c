@@ -4497,6 +4497,8 @@ void trace_reset(int argc, char **argv)
 	clear_triggers();
 	tracecmd_remove_instances();
 	clear_func_filters();
+	/* restore tracing_on to 1 */
+	tracecmd_enable_tracing();
 	exit(0);
 }
 
