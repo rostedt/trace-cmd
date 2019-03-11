@@ -3797,6 +3797,12 @@ static void reset_clock(void)
 		write_instance_file(instance, "trace_clock", "local", "clock");
 }
 
+static void reset_event_pid(void)
+{
+	add_event_pid("");
+}
+
+
 static void clear_triggers(void)
 {
 	struct buffer_instance *instance;
@@ -4500,6 +4506,7 @@ void trace_reset(int argc, char **argv)
 	clear_triggers();
 	/* set clock to "local" */
 	reset_clock();
+	reset_event_pid();
 	tracecmd_remove_instances();
 	clear_func_filters();
 	/* restore tracing_on to 1 */
