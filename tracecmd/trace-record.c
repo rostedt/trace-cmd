@@ -3794,6 +3794,14 @@ static void clear_filters(void)
 		clear_instance_filters(instance);
 }
 
+static void reset_clock(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		write_instance_file(instance, "trace_clock", "local", "clock");
+}
+
 static void clear_triggers(void)
 {
 	struct buffer_instance *instance;
@@ -4495,6 +4503,8 @@ void trace_reset(int argc, char **argv)
 	set_buffer_size();
 	clear_filters();
 	clear_triggers();
+	/* set clock to "local" */
+	reset_clock();
 	tracecmd_remove_instances();
 	clear_func_filters();
 	/* restore tracing_on to 1 */
