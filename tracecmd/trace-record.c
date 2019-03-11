@@ -4473,14 +4473,14 @@ void trace_reset(int argc, char **argv)
 		case 'a':
 			last_specified_all = 1;
 			add_all_instances();
-			for_each_instance(instance) {
-				instance->flags |= BUFFER_FL_KEEP;
+			for_each_instance(inst) {
+				inst->flags |= BUFFER_FL_KEEP;
 			}
 			break;
 		case 'd':
 			if (last_specified_all) {
 				for_each_instance(inst) {
-					instance->flags &= ~BUFFER_FL_KEEP;
+					inst->flags &= ~BUFFER_FL_KEEP;
 				}
 			} else {
 				if (is_top_instance(instance))
