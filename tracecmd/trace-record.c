@@ -853,19 +853,10 @@ static void clear_trace(void)
 	fclose(fp);
 }
 
-static void reset_max_latency(void)
+static void reset_max_latency(struct buffer_instance *instance)
 {
-	FILE *fp;
-	char *path;
-
-	/* reset the trace */
-	path = tracecmd_get_tracing_file("tracing_max_latency");
-	fp = fopen(path, "w");
-	if (!fp)
-		die("writing to '%s'", path);
-	tracecmd_put_tracing_file(path);
-	fwrite("0", 1, 1, fp);
-	fclose(fp);
+	 write_instance_file(instance,
+			     "tracing_max_latency", "0", "max_latency");
 }
 
 static void add_filter_pid(int pid, int exclude)
@@ -1931,6 +1922,14 @@ static int read_tracing_on(struct buffer_instance *instance)
 	return ret;
 }
 
+static void reset_max_latency_instance(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		reset_max_latency(instance);
+}
+
 void tracecmd_enable_tracing(void)
 {
 	struct buffer_instance *instance;
@@ -1941,7 +1940,7 @@ void tracecmd_enable_tracing(void)
 		write_tracing_on(instance, 1);
 
 	if (latency)
-		reset_max_latency();
+		reset_max_latency_instance();
 }
 
 void tracecmd_disable_tracing(void)
@@ -3802,7 +3801,6 @@ static void reset_event_pid(void)
 	add_event_pid("");
 }
 
-
 static void clear_triggers(void)
 {
 	struct buffer_instance *instance;
@@ -4507,6 +4505,7 @@ void trace_reset(int argc, char **argv)
 	/* set clock to "local" */
 	reset_clock();
 	reset_event_pid();
+	reset_max_latency_instance();
 	tracecmd_remove_instances();
 	clear_func_filters();
 	/* restore tracing_on to 1 */
