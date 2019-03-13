@@ -229,11 +229,13 @@ void KsMainWindow::_createActions()
 
 	/* Tools menu */
 	_managePluginsAction.setShortcut(tr("Ctrl+P"));
+	_managePluginsAction.setIcon(QIcon::fromTheme("preferences-system"));
 	_managePluginsAction.setStatusTip("Manage plugins");
 
 	connect(&_managePluginsAction,	&QAction::triggered,
 		this,			&KsMainWindow::_pluginSelect);
 
+	_addPluginsAction.setIcon(QIcon::fromTheme("applications-engineering"));
 	_addPluginsAction.setStatusTip("Add plugins");
 
 	connect(&_addPluginsAction,	&QAction::triggered,
