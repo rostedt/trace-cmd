@@ -132,6 +132,8 @@ private:
 	// Tools menu.
 	QAction		_pluginsAction;
 
+	QAction		_addPluginsAction;
+
 	QAction		_captureAction;
 
 	QWidgetAction	_colorAction;
@@ -184,6 +186,8 @@ private:
 	void _taskSelect();
 
 	void _pluginSelect();
+
+	void _pluginAdd();
 
 	void _record();
 

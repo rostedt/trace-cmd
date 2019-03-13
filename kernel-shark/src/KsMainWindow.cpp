@@ -59,6 +59,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _cpuSelectAction("CPUs", this),
   _taskSelectAction("Tasks", this),
   _pluginsAction("Plugins", this),
+  _addPluginsAction("Add plugins", this),
   _captureAction("Record", this),
   _colorAction(this),
   _colSlider(this),
@@ -233,6 +234,11 @@ void KsMainWindow::_createActions()
 	connect(&_pluginsAction,	&QAction::triggered,
 		this,			&KsMainWindow::_pluginSelect);
 
+	_addPluginsAction.setStatusTip("Add plugins");
+
+	connect(&_addPluginsAction,	&QAction::triggered,
+		this,			&KsMainWindow::_pluginAdd);
+
 	_captureAction.setIcon(QIcon::fromTheme("media-record"));
 	_captureAction.setShortcut(tr("Ctrl+R"));
 	_captureAction.setStatusTip("Capture trace data");
@@ -336,6 +342,7 @@ void KsMainWindow::_createMenus()
 	/* Tools menu */
 	tools = menuBar()->addMenu("Tools");
 	tools->addAction(&_pluginsAction);
+	tools->addAction(&_addPluginsAction);
 	tools->addAction(&_captureAction);
 	tools->addSeparator();
 	tools->addAction(&_colorAction);
@@ -794,6 +801,21 @@ void KsMainWindow::_pluginSelect()
 		&_plugins,	&KsPluginManager::updatePlugins);
 
 	dialog->show();
+}
+
+void KsMainWindow::_pluginAdd()
+{
+	QStringList fileNames;
+
+	fileNames =
+		QFileDialog::getOpenFileNames(this, "Add KernelShark plugins",
+					      KS_DIR,
+					      "KernelShark Plugins (*.so);;");
+
+	if (fileNames.isEmpty())
+		return;
+
+	_plugins.addPlugins(fileNames);
 }
 
 void KsMainWindow::_record()
