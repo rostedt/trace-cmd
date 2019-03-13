@@ -14,17 +14,27 @@
 
 # MESSAGE(" Looking for trace-cmd ...")
 
+# First search in the user provided paths.
 find_path(TRACECMD_BIN_DIR      NAMES  trace-cmd
                                 PATHS  $ENV{TRACE_CMD}/tracecmd/
-                                       ${CMAKE_SOURCE_DIR}/../tracecmd/)
+                                       ${CMAKE_SOURCE_DIR}/../tracecmd/
+                                NO_DEFAULT_PATH)
 
 find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd.h
                                 PATHS  $ENV{TRACE_CMD}/include/trace-cmd/
-                                       ${CMAKE_SOURCE_DIR}/../include/trace-cmd/)
+                                       ${CMAKE_SOURCE_DIR}/../include/trace-cmd/
+                                NO_DEFAULT_PATH)
 
 find_path(TRACECMD_LIBRARY_DIR  NAMES  libtracecmd.a
                                 PATHS  $ENV{TRACE_CMD}/lib/trace-cmd/
-                                       ${CMAKE_SOURCE_DIR}/../lib/trace-cmd/)
+                                       ${CMAKE_SOURCE_DIR}/../lib/trace-cmd/
+                                NO_DEFAULT_PATH)
+
+# If not found, search in the default system paths. Note that if the previous
+# search was successful "find_path" will do nothing this time.
+find_path(TRACECMD_BIN_DIR      NAMES  trace-cmd)
+find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd.h)
+find_path(TRACECMD_LIBRARY_DIR  NAMES  libtracecmd.a)
 
 IF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY_DIR)
 
