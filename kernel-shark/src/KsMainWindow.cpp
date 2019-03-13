@@ -58,7 +58,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _clearAllFilters("Clear all filters", this),
   _cpuSelectAction("CPUs", this),
   _taskSelectAction("Tasks", this),
-  _pluginsAction("Plugins", this),
+  _managePluginsAction("Manage plugins", this),
   _addPluginsAction("Add plugins", this),
   _captureAction("Record", this),
   _colorAction(this),
@@ -228,10 +228,10 @@ void KsMainWindow::_createActions()
 		this,			&KsMainWindow::_taskSelect);
 
 	/* Tools menu */
-	_pluginsAction.setShortcut(tr("Ctrl+P"));
-	_pluginsAction.setStatusTip("Manage plugins");
+	_managePluginsAction.setShortcut(tr("Ctrl+P"));
+	_managePluginsAction.setStatusTip("Manage plugins");
 
-	connect(&_pluginsAction,	&QAction::triggered,
+	connect(&_managePluginsAction,	&QAction::triggered,
 		this,			&KsMainWindow::_pluginSelect);
 
 	_addPluginsAction.setStatusTip("Add plugins");
@@ -341,7 +341,7 @@ void KsMainWindow::_createMenus()
 
 	/* Tools menu */
 	tools = menuBar()->addMenu("Tools");
-	tools->addAction(&_pluginsAction);
+	tools->addAction(&_managePluginsAction);
 	tools->addAction(&_addPluginsAction);
 	tools->addAction(&_captureAction);
 	tools->addSeparator();

@@ -130,7 +130,7 @@ private:
 	QAction		_taskSelectAction;
 
 	// Tools menu.
-	QAction		_pluginsAction;
+	QAction		_managePluginsAction;
 
 	QAction		_addPluginsAction;
 
