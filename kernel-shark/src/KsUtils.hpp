@@ -210,6 +210,9 @@ public:
 
 	void registerPlugin(const QString &plugin);
 	void unregisterPlugin(const QString &plugin);
+
+	void addPlugins(const QStringList &fileNames);
+
 	void unloadAll();
 
 	void updatePlugins(QVector<int> pluginId);

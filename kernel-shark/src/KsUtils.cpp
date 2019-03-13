@@ -596,6 +596,29 @@ void KsPluginManager::unregisterPlugin(const QString &plugin)
 	}
 }
 
+/** @brief Add to the list and initialize user-provided plugins. All other
+ *	   previously loaded plugins will be reinitialized and the data will be
+ *	   reloaded.
+ *
+ * @param fileNames: the library files (.so) of the plugins.
+*/
+void KsPluginManager::addPlugins(const QStringList &fileNames)
+{
+	kshark_context *kshark_ctx(nullptr);
+
+	if (!kshark_instance(&kshark_ctx))
+		return;
+
+	kshark_handle_plugins(kshark_ctx, KSHARK_PLUGIN_CLOSE);
+
+	for (auto const &p: fileNames)
+		registerPlugin(p);
+
+	kshark_handle_plugins(kshark_ctx, KSHARK_PLUGIN_INIT);
+
+	emit dataReload();
+}
+
 /** Unload all plugins. */
 void KsPluginManager::unloadAll()
 {
