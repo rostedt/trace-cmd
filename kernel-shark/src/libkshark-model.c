@@ -290,7 +290,7 @@ static void ksmodel_set_next_bin_edge(struct kshark_trace_histo *histo,
 static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 {
 	int i = 0, prev_not_empty;
-	ssize_t count_tmp;
+	ssize_t count_tmp = 0;
 
 	histo->tot_count = 0;
 	memset(&histo->bin_count[0], 0,
@@ -303,7 +303,7 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 		prev_not_empty = LOB(histo);
 	} else {
 		/* Loop till the first non-empty bin. */
-		while (histo->map[i] < 0) {
+		while (histo->map[i] < 0 && i < histo->n_bins) {
 			++i;
 		}
 
@@ -316,7 +316,8 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 	 */
 	for (; i < histo->n_bins; ++i) {
 		if (histo->map[i] != KS_EMPTY_BIN) {
-			/* The current bin is not empty, take its data row and
+			/*
+			 * The current bin is not empty, take its data row and
 			 * subtract it from the data row of the previous not
 			 * empty bin, which will give us the number of data
 			 * rows in the "prev_not_empty" bin.
@@ -358,7 +359,7 @@ static void ksmodel_set_bin_counts(struct kshark_trace_histo *histo)
 	 * We will do a sanity check. The number of data rows in the last not
 	 * empty bin must be greater than zero.
 	 */
-	assert(count_tmp > 0);
+	assert(count_tmp >= 0);
 	histo->tot_count += histo->bin_count[prev_not_empty] = count_tmp;
 }
 
