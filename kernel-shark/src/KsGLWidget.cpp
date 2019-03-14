@@ -86,8 +86,6 @@ void KsGLWidget::paintGL()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	loadColors();
-
 	/* Draw the time axis. */
 	if(_data)
 		_drawAxisX();
