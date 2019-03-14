@@ -1004,7 +1004,16 @@ void KsMainWindow::loadSession(const QString &fileName)
 		return;
 	}
 
-	_session.importFromFile(fileName);
+	if (!_session.importFromFile(fileName)) {
+		QString text("Unable to open session description file ");
+
+		text.append(fileName);
+		text.append(".\n");
+		_error(text, "loadSessErr1", true, true);
+
+		return;
+	}
+
 	_session.loadPlugins(kshark_ctx, &_plugins);
 
 	QString dataFile(_session.getDataFile(kshark_ctx));
