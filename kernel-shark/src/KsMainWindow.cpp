@@ -43,7 +43,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _capture(this),
   _captureLocalServer(this),
   _openAction("Open", this),
-  _restorSessionAction("Restore Last Session", this),
+  _restoreSessionAction("Restore Last Session", this),
   _importSessionAction("Import Session", this),
   _exportSessionAction("Export Sassion", this),
   _quitAction("Quit", this),
@@ -169,9 +169,9 @@ void KsMainWindow::_createActions()
 	connect(&_openAction,	&QAction::triggered,
 		this,		&KsMainWindow::_open);
 
-	_restorSessionAction.setIcon(QIcon::fromTheme("document-open-recent"));
-	connect(&_restorSessionAction,	&QAction::triggered,
-		this,			&KsMainWindow::_restorSession);
+	_restoreSessionAction.setIcon(QIcon::fromTheme("document-open-recent"));
+	connect(&_restoreSessionAction,	&QAction::triggered,
+		this,			&KsMainWindow::_restoreSession);
 
 	_importSessionAction.setIcon(QIcon::fromTheme("document-send"));
 	_importSessionAction.setStatusTip("Load a session");
@@ -293,7 +293,7 @@ void KsMainWindow::_createMenus()
 
 	sessions = file->addMenu("Sessions");
 	sessions->setIcon(QIcon::fromTheme("document-properties"));
-	sessions->addAction(&_restorSessionAction);
+	sessions->addAction(&_restoreSessionAction);
 	sessions->addAction(&_importSessionAction);
 	sessions->addAction(&_exportSessionAction);
 	file->addAction(&_quitAction);
@@ -368,7 +368,7 @@ void KsMainWindow::_open()
 		loadDataFile(fileName);
 }
 
-void KsMainWindow::_restorSession()
+void KsMainWindow::_restoreSession()
 {
 	QString file = KS_CONF_DIR;
 	file += "/lastsession.json";

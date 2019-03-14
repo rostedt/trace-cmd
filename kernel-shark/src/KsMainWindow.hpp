@@ -97,7 +97,7 @@ private:
 	// File menu.
 	QAction		_openAction;
 
-	QAction		_restorSessionAction;
+	QAction		_restoreSessionAction;
 
 	QAction		_importSessionAction;
 
@@ -153,7 +153,7 @@ private:
 
 	void _open();
 
-	void _restorSession();
+	void _restoreSession();
 
 	void _importSession();
 
