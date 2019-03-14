@@ -40,6 +40,12 @@ KsGLWidget::KsGLWidget(QWidget *parent)
 	connect(&_model, SIGNAL(modelReset()), this, SLOT(update()));
 }
 
+KsGLWidget::~KsGLWidget()
+{
+	for (auto &g: _graphs)
+		delete g;
+}
+
 /** Reimplemented function used to set up all required OpenGL resources. */
 void KsGLWidget::initializeGL()
 {

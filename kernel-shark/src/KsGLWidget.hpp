@@ -31,6 +31,8 @@ class KsGLWidget : public QOpenGLWidget
 public:
 	explicit KsGLWidget(QWidget *parent = NULL);
 
+	~KsGLWidget();
+
 	void initializeGL() override;
 
 	void resizeGL(int w, int h) override;
