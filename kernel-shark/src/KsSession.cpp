@@ -28,13 +28,19 @@ KsSession::~KsSession()
 }
 
 /** Import a user session from a Json file. */
-void KsSession::importFromFile(QString jfileName)
+bool KsSession::importFromFile(QString jfileName)
 {
-	if (_config)
-		kshark_free_config_doc(_config);
+	kshark_config_doc *configTmp =
+		kshark_open_config_file(jfileName.toStdString().c_str(),
+					"kshark.config.session");
 
-	_config = kshark_open_config_file(jfileName.toStdString().c_str(),
-					  "kshark.config.session");
+	if (configTmp) {
+		kshark_free_config_doc(_config);
+		_config = configTmp;
+		return true;
+	}
+
+	return false;
 }
 
 /** Export the current user session from a Json file. */

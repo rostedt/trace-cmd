@@ -37,7 +37,7 @@ public:
 	/** Get the configuration document object. */
 	kshark_config_doc *getConfDocPtr() const {return _config;}
 
-	void importFromFile(QString jfileName);
+	bool importFromFile(QString jfileName);
 
 	void exportToFile(QString jfileName);
 
