@@ -122,6 +122,8 @@ ColorTable getTaskColorTable()
 	std::vector<int> temp_pids(pids, pids + nTasks);
 	std::sort(temp_pids.begin(), temp_pids.end());
 
+	free(pids);
+
 	if (temp_pids[i] == 0) {
 		/* The "Idle" process (pid = 0) will be plotted in black. */
 		colors[i++] = {};
