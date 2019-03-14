@@ -71,7 +71,7 @@ static bool collection_add_entry(struct entry_list **list,
 static struct kshark_entry_collection *
 kshark_data_collection_alloc(struct kshark_context *kshark_ctx,
 			     struct kshark_entry **data,
-			     size_t first,
+			     ssize_t first,
 			     size_t n_rows,
 			     matching_condition_func cond,
 			     int val,
@@ -81,8 +81,18 @@ kshark_data_collection_alloc(struct kshark_context *kshark_ctx,
 	struct kshark_entry *last_vis_entry = NULL;
 	struct entry_list *col_list, *temp;
 	size_t resume_count = 0, break_count = 0;
-	size_t i, j, end, last_added = 0;
+	size_t i, j, last_added = 0;
+	ssize_t end;
 	bool good_data = false;
+
+	/* Create the collection. */
+	col_ptr = calloc(1, sizeof(*col_ptr));
+	if (!col_ptr)
+		goto fail;
+
+	end = first + n_rows - margin;
+	if (first >= end)
+		return col_ptr;
 
 	col_list = malloc(sizeof(*col_list));
 	if (!col_list)
@@ -106,7 +116,6 @@ kshark_data_collection_alloc(struct kshark_context *kshark_ctx,
 		temp->type = COLLECTION_IGNORE;
 	}
 
-	end = first + n_rows - margin;
 	for (i = first + margin; i < end; ++i) {
 		if (!cond(kshark_ctx, data[i], val)) {
 			/*
@@ -203,11 +212,6 @@ kshark_data_collection_alloc(struct kshark_context *kshark_ctx,
 	 * and COLLECTION_BREAK points.
 	 */
 	assert(break_count == resume_count);
-
-	/* Create the collection. */
-	col_ptr = malloc(sizeof(*col_ptr));
-	if (!col_ptr)
-		goto fail;
 
 	col_ptr->next = NULL;
 
