@@ -256,7 +256,7 @@ void KsSession::loadSplitterSize(QSplitter *splitter)
 {
 	kshark_config_doc *spl = kshark_config_alloc(KS_CONFIG_JSON);
 	json_object *jspl, *jgraphsize, *jviewsize;
-	int graphSize, viewSize;
+	int graphSize(1), viewSize(1);
 	QList<int> sizes;
 
 	if (!kshark_config_doc_get(_config, "Splitter", spl))
@@ -269,6 +269,10 @@ void KsSession::loadSplitterSize(QSplitter *splitter)
 
 		graphSize = json_object_get_int(jgraphsize);
 		viewSize = json_object_get_int(jviewsize);
+		if (graphSize == 0 && viewSize == 0) {
+			/* 0/0 spliter ratio is undefined. Make it 1/1. */
+			viewSize = graphSize = 1;
+		}
 	}
 
 	sizes << graphSize << viewSize;
