@@ -1624,7 +1624,7 @@ static struct json_object *kshark_open_json_file(const char *file_name,
 
  fail:
 	/* The document has a wrong type. */
-	fprintf(stderr, "Failed to open Json file %s\n.", file_name);
+	fprintf(stderr, "Failed to open Json file %s.\n", file_name);
 	fprintf(stderr, "The document has a wrong type.\n");
 
 	json_object_put(jobj);
