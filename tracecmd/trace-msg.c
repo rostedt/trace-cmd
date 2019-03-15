@@ -49,11 +49,6 @@ static inline void dprint(const char *fmt, ...)
 
 unsigned int page_size;
 
-struct tracecmd_msg_opt {
-	be32 size;
-	be32 opt_cmd;
-} __attribute__((packed));
-
 struct tracecmd_msg_tinit {
 	be32 cpus;
 	be32 page_size;
@@ -110,7 +105,6 @@ struct tracecmd_msg {
 		struct tracecmd_msg_rinit	rinit;
 	};
 	union {
-		struct tracecmd_msg_opt		*opt;
 		be32				*port_array;
 		void				*buf;
 	};
@@ -143,27 +137,17 @@ static int msg_write(int fd, struct tracecmd_msg *msg)
 	return __do_write_check(fd, msg->buf, data_size);
 }
 
-enum msg_opt_command {
-	MSGOPT_USETCP = 1,
-};
-
 static int make_tinit(struct tracecmd_msg_handle *msg_handle,
 		      struct tracecmd_msg *msg)
 {
-	struct tracecmd_msg_opt *opt;
 	int cpu_count = msg_handle->cpu_count;
 	int opt_num = 0;
 	int data_size = 0;
 
 	if (msg_handle->flags & TRACECMD_MSG_FL_USE_TCP) {
 		opt_num++;
-		opt = malloc(sizeof(*opt));
-		if (!opt)
-			return -ENOMEM;
-		opt->size = htonl(sizeof(*opt));
-		opt->opt_cmd = htonl(MSGOPT_USETCP);
-		msg->opt = opt;
-		data_size += sizeof(*opt);
+		msg->buf = strdup("tcp");
+		data_size += 4;
 	}
 
 	msg->tinit.cpus = htonl(cpu_count);
@@ -441,10 +425,10 @@ out:
 }
 
 static bool process_option(struct tracecmd_msg_handle *msg_handle,
-			   struct tracecmd_msg_opt *opt)
+			   const char *opt)
 {
-	/* currently the only option we have is to us TCP */
-	if (ntohl(opt->opt_cmd) == MSGOPT_USETCP) {
+	/* currently the only option we have is to use TCP */
+	if (strcmp(opt, "tcp") == 0) {
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 		return true;
 	}
@@ -475,15 +459,15 @@ void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle)
 
 int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 {
-	struct tracecmd_msg_opt *opt;
 	struct tracecmd_msg msg;
+	char *p, *buf_end;
+	ssize_t buf_len;
 	int pagesize;
-	int options, i, s;
+	int options, i;
 	int cpus;
 	int ret;
-	int offset = 0;
-	u32 size;
 
+	memset(&msg, 0, sizeof(msg));
 	ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 	if (ret < 0) {
 		if (ret == -ETIMEDOUT)
@@ -512,38 +496,36 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 		goto error;
 	}
 
-	size = MSG_HDR_LEN + ntohl(msg.hdr.cmd_size);
-	options = ntohl(msg.tinit.opt_num);
-	for (i = 0; i < options; i++) {
-		if (size + sizeof(*opt) > ntohl(msg.hdr.size)) {
-			plog("Not enough message for options\n");
-			ret = -EINVAL;
-			goto error;
-		}
-		opt = (void *)msg.opt + offset;
-		offset += ntohl(opt->size);
-		size += ntohl(opt->size);
-		if (ntohl(msg.hdr.size) < size) {
-			plog("Not enough message for options\n");
-			ret = -EINVAL;
-			goto error;
-		}
-		/* prevent a client from killing us */
-		if (ntohl(opt->size) > MAX_OPTION_SIZE) {
-			plog("Exceed MAX_OPTION_SIZE\n");
-			ret = -EINVAL;
-			goto error;
-		}
-		s = process_option(msg_handle, opt);
-		/* do we understand this option? */
-		if (!s) {
-			plog("Cannot understand(%d:%d:%d)\n",
-			     i, ntohl(opt->size), ntohl(opt->opt_cmd));
-			ret = -EINVAL;
-			goto error;
-		}
+	buf_len = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
+	if (buf_len < 0) {
+		ret = -EINVAL;
+		goto error;
 	}
 
+	if (buf_len == 0)
+		goto no_options;
+
+	if (((char *)msg.buf)[buf_len-1] != '\0') {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	buf_end = (char *)msg.buf + buf_len;
+	options = ntohl(msg.tinit.opt_num);
+	for (i = 0, p = msg.buf; i < options; i++, p++) {
+		if (p >= buf_end) {
+			ret = -EINVAL;
+			goto error;
+		}
+
+		/* do we understand this option? */
+		if (!process_option(msg_handle, p))
+			plog("Cannot understand option '%s'\n", p);
+
+		p = strchr(p, '\0');
+	}
+
+no_options:
 	msg_free(&msg);
 	return pagesize;
 
