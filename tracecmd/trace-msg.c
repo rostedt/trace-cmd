@@ -104,10 +104,7 @@ struct tracecmd_msg {
 		struct tracecmd_msg_tinit	tinit;
 		struct tracecmd_msg_rinit	rinit;
 	};
-	union {
-		be32				*port_array;
-		void				*buf;
-	};
+	void					*buf;
 } __attribute__((packed));
 
 static int msg_write(int fd, struct tracecmd_msg *msg)
@@ -159,19 +156,41 @@ static int make_tinit(struct tracecmd_msg_handle *msg_handle,
 	return 0;
 }
 
+static int write_ints(char *buf, size_t buf_len, int *arr, int arr_len)
+{
+	int i, ret, tot = 0;
+
+	for (i = 0; i < arr_len; i++) {
+		ret = snprintf(buf, buf_len, "%d", arr[i]);
+		if (ret < 0)
+			return ret;
+
+		/* Count the '\0' byte */
+		ret++;
+		tot += ret;
+		if (buf)
+			buf += ret;
+		if (buf_len >= ret)
+			buf_len -= ret;
+		else
+			buf_len = 0;
+	}
+
+	return tot;
+}
+
 static int make_rinit(struct tracecmd_msg *msg, int cpus, int *ports)
 {
-	int i;
+	int data_size;
+
+	data_size = write_ints(NULL, 0, ports, cpus);
+	msg->buf = malloc(data_size);
+	if (!msg->buf)
+		return -ENOMEM;
+	write_ints(msg->buf, data_size, ports, cpus);
 
 	msg->rinit.cpus = htonl(cpus);
-	msg->port_array = malloc(sizeof(*ports) * cpus);
-	if (!msg->port_array)
-		return -ENOMEM;
-
-	for (i = 0; i < cpus; i++)
-		msg->port_array[i] = htonl(ports[i]);
-
-	msg->hdr.size = htonl(ntohl(msg->hdr.size) + sizeof(*ports) * cpus);
+	msg->hdr.size = htonl(ntohl(msg->hdr.size) + data_size);
 
 	return 0;
 }
@@ -380,8 +399,9 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 	struct tracecmd_msg msg;
 	int fd = msg_handle->fd;
 	unsigned int *ports;
-	int i, cpus;
-	int ret;
+	int i, cpus, ret;
+	char *p, *buf_end;
+	ssize_t buf_len;
 
 	*client_ports = NULL;
 
@@ -405,10 +425,35 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 		goto error;
 	}
 
+	buf_len = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
+	if (buf_len <= 0) {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	if (((char *)msg.buf)[buf_len-1] != '\0') {
+		ret = -EINVAL;
+		goto error;
+	}
+
 	cpus = ntohl(msg.rinit.cpus);
 	ports = malloc_or_die(sizeof(*ports) * cpus);
-	for (i = 0; i < cpus; i++)
-		ports[i] = ntohl(msg.port_array[i]);
+	if (!ports) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	buf_end = (char *)msg.buf + buf_len;
+	for (i = 0, p = msg.buf; i < cpus; i++, p++) {
+		if (p >= buf_end) {
+			free(ports);
+			ret = -EINVAL;
+			goto error;
+		}
+
+		ports[i] = atoi(p);
+		p = strchr(p, '\0');
+	}
 
 	*client_ports = ports;
 
