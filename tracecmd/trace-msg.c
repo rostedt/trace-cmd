@@ -107,6 +107,11 @@ struct tracecmd_msg {
 	void					*buf;
 } __attribute__((packed));
 
+static int msg_buf_len(struct tracecmd_msg *msg)
+{
+	return ntohl(msg->hdr.size) - MSG_HDR_LEN - ntohl(msg->hdr.cmd_size);
+}
+
 static int msg_write(int fd, struct tracecmd_msg *msg)
 {
 	int cmd = ntohl(msg->hdr.cmd);
@@ -425,7 +430,7 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 		goto error;
 	}
 
-	buf_len = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
+	buf_len = msg_buf_len(&msg);
 	if (buf_len <= 0) {
 		ret = -EINVAL;
 		goto error;
@@ -541,7 +546,7 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 		goto error;
 	}
 
-	buf_len = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
+	buf_len = msg_buf_len(&msg);
 	if (buf_len < 0) {
 		ret = -EINVAL;
 		goto error;
@@ -689,7 +694,7 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 			goto next;
 		}
 
-		n = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
+		n = msg_buf_len(&msg);
 		t = n;
 		s = 0;
 		while (t > 0) {
