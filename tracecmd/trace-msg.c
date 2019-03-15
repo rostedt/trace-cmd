@@ -107,7 +107,7 @@ struct tracecmd_msg {
 	void					*buf;
 } __attribute__((packed));
 
-static int msg_buf_len(struct tracecmd_msg *msg)
+static inline int msg_buf_len(struct tracecmd_msg *msg)
 {
 	return ntohl(msg->hdr.size) - MSG_HDR_LEN - ntohl(msg->hdr.cmd_size);
 }
