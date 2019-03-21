@@ -2390,7 +2390,7 @@ static int read_and_parse_trace_clock(struct tracecmd_input *handle,
 int tracecmd_init_data(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = handle->pevent;
-    unsigned int cpus;
+	unsigned int cpus;
 	int ret;
 
 	if (read4(handle, &cpus) < 0)
