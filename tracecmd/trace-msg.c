@@ -590,6 +590,10 @@ int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 	int ret;
 	int count = 0;
 
+	/* Don't bother doing anything if there's nothing to do */
+	if (!size)
+		return 0;
+
 	tracecmd_msg_init(MSG_SEND_DATA, &msg);
 
 	msg.buf = malloc(MSG_MAX_DATA_LEN);
