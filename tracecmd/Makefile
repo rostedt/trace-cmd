@@ -39,7 +39,7 @@ all_objs := $(sort $(ALL_OBJS))
 all_deps := $(all_objs:$(bdir)/%.o=$(bdir)/.%.d)
 
 CONFIG_INCLUDES =
-CONFIG_LIBS	=
+CONFIG_LIBS	= -lrt
 CONFIG_FLAGS	=
 
 all: $(TARGETS)
