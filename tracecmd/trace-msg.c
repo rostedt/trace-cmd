@@ -104,7 +104,7 @@ struct tracecmd_msg {
 		struct tracecmd_msg_tinit	tinit;
 		struct tracecmd_msg_rinit	rinit;
 	};
-	void					*buf;
+	char					*buf;
 } __attribute__((packed));
 
 static inline int msg_buf_len(struct tracecmd_msg *msg)
@@ -436,7 +436,7 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 		goto error;
 	}
 
-	if (((char *)msg.buf)[buf_len-1] != '\0') {
+	if (msg.buf[buf_len-1] != '\0') {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -448,7 +448,7 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 		goto out;
 	}
 
-	buf_end = (char *)msg.buf + buf_len;
+	buf_end = msg.buf + buf_len;
 	for (i = 0, p = msg.buf; i < cpus; i++, p++) {
 		if (p >= buf_end) {
 			free(ports);
@@ -555,12 +555,12 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 	if (buf_len == 0)
 		goto no_options;
 
-	if (((char *)msg.buf)[buf_len-1] != '\0') {
+	if (msg.buf[buf_len-1] != '\0') {
 		ret = -EINVAL;
 		goto error;
 	}
 
-	buf_end = (char *)msg.buf + buf_len;
+	buf_end = msg.buf + buf_len;
 	options = ntohl(msg.tinit.opt_num);
 	for (i = 0, p = msg.buf; i < options; i++, p++) {
 		if (p >= buf_end) {
