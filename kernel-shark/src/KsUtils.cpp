@@ -439,8 +439,8 @@ void KsPluginManager::registerFromList(kshark_context *kshark_ctx)
 
 	auto lamRegUser = [&kshark_ctx](const QString &plugin)
 	{
-		const char *lib = plugin.toStdString().c_str();
-		kshark_register_plugin(kshark_ctx, lib);
+		std::string lib = plugin.toStdString();
+		kshark_register_plugin(kshark_ctx, lib.c_str());
 	};
 
 	_forEachInList(_ksPluginList,
@@ -474,8 +474,8 @@ void KsPluginManager::unregisterFromList(kshark_context *kshark_ctx)
 
 	auto lamUregUser = [&kshark_ctx](const QString &plugin)
 	{
-		const char *lib = plugin.toStdString().c_str();
-		kshark_unregister_plugin(kshark_ctx, lib);
+		std::string lib = plugin.toStdString();
+		kshark_unregister_plugin(kshark_ctx, lib.c_str());
 	};
 
 	_forEachInList(_ksPluginList,
