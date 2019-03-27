@@ -369,7 +369,7 @@ kshark_filter_config_new(enum kshark_config_formats format)
  * @returns kshark_config_doc instance on success, otherwise NULL. Use free()
  *	    to free the object.
  */
-struct kshark_config_doc *kshark_string_config_alloc()
+struct kshark_config_doc *kshark_string_config_alloc(void)
 {
 	return kshark_config_alloc(KS_CONFIG_STRING);
 }

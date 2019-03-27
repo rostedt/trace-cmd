@@ -541,7 +541,7 @@ kshark_record_config_new(enum kshark_config_formats);
 struct kshark_config_doc *
 kshark_filter_config_new(enum kshark_config_formats);
 
-struct kshark_config_doc *kshark_string_config_alloc();
+struct kshark_config_doc *kshark_string_config_alloc(void);
 
 bool kshark_type_check(struct kshark_config_doc *conf, const char *type);
 
