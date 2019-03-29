@@ -78,8 +78,8 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
     target_link_libraries(kshark-record kshark-gui)
 
     install(TARGETS kernelshark kshark-record kshark kshark-plot kshark-gui
-            RUNTIME DESTINATION /usr/local/bin/
-            LIBRARY DESTINATION /usr/local/lib/kshark/)
+            RUNTIME DESTINATION ${_INSTALL_PREFIX}/bin/
+            LIBRARY DESTINATION ${_INSTALL_PREFIX}/lib/kshark/)
 
     install(FILES "${KS_DIR}/kernelshark.desktop"
             DESTINATION /usr/share/applications/)
@@ -88,7 +88,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
             DESTINATION /usr/share/polkit-1/actions/)
 
     install(PROGRAMS "${KS_DIR}/bin/kshark-su-record"
-            DESTINATION /usr/local/bin/)
+            DESTINATION ${_INSTALL_PREFIX}/bin/)
 
 endif (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 

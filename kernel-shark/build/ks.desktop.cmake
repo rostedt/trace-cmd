@@ -4,6 +4,6 @@ Type=Application
 Name=Kernel Shark
 GenericName=Kernel Shark
 Comment=
-Exec=/usr/local/bin/kernelshark
+Exec=@_INSTALL_PREFIX@/bin/kernelshark
 Icon=@KS_DIR@/icons/ksharkicon.png
 Terminal=false

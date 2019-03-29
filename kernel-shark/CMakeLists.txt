@@ -40,6 +40,10 @@ set(EXECUTABLE_OUTPUT_PATH "${KS_DIR}/bin")
 set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -Wall -g -pthread")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -std=c++11 -pthread")
 
+if(NOT _INSTALL_PREFIX)
+	set(_INSTALL_PREFIX "/usr/local")
+endif()
+
 if (NOT _DEBUG)
 
 	set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -O2")
@@ -47,7 +51,7 @@ if (NOT _DEBUG)
 
 endif (NOT _DEBUG)
 
-SET(CMAKE_INSTALL_RPATH "/usr/local/lib/kshark/")
+SET(CMAKE_INSTALL_RPATH "${_INSTALL_PREFIX}/lib/kshark/")
 SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 include_directories(${KS_DIR}/src/
@@ -81,5 +85,8 @@ endif ()
 
 configure_file( ${KS_DIR}/build/ks.desktop.cmake
                 ${KS_DIR}/kernelshark.desktop)
+
+configure_file( ${KS_DIR}/build/org.freedesktop.kshark-record.policy.cmake
+                ${KS_DIR}/org.freedesktop.kshark-record.policy)
 
 message("")
