@@ -798,7 +798,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		tep_print_event_time(pevent, &s, event, record,
 					use_trace_clock);
 		buf[0] = 0;
-		if (use_trace_clock && !tep_check_flag(pevent, TEP_NSEC_OUTPUT))
+		if (use_trace_clock && !tep_test_flag(pevent, TEP_NSEC_OUTPUT))
 			rec_ts = (rec_ts + 500) / 1000;
 		if (last_ts) {
 			diff_ts = rec_ts - last_ts;

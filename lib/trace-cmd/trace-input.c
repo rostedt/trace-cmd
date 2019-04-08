@@ -1038,7 +1038,7 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 	struct kbuffer *kbuf = handle->cpu_data[cpu].kbuf;
 
 	/* FIXME: handle header page */
-	if (tep_get_header_page_ts_size(pevent) != 8) {
+	if (tep_get_header_timestamp_size(pevent) != 8) {
 		warning("expected a long long type for timestamp");
 		return -1;
 	}
