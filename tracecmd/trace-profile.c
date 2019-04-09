@@ -904,7 +904,7 @@ static void func_print(struct trace_seq *s, struct event_hash *event_hash)
 {
 	const char *func;
 
-	func = tep_find_function(event_hash->event_data->event->pevent,
+	func = tep_find_function(event_hash->event_data->event->tep,
 				 event_hash->val);
 	if (func)
 		trace_seq_printf(s, "func: %s()", func);
@@ -1927,7 +1927,7 @@ static void output_stacks(struct tep_handle *pevent, struct trace_hash *stack_ha
 static void output_event(struct event_hash *event_hash)
 {
 	struct event_data *event_data = event_hash->event_data;
-	struct tep_handle *pevent = event_data->event->pevent;
+	struct tep_handle *pevent = event_data->event->tep;
 	struct trace_seq s;
 
 	trace_seq_init(&s);

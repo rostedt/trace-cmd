@@ -102,12 +102,12 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 
 	for (data += field->offset; data < record->data + record->size;
 	     data += long_size) {
-		addr = tep_read_number(event->pevent, data, long_size);
+		addr = tep_read_number(event->tep, data, long_size);
 
 		if ((long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
 			break;
-		func = tep_find_function(event->pevent, addr);
+		func = tep_find_function(event->tep, addr);
 		if (PyList_Append(list, PyString_FromString(func))) {
 			Py_DECREF(list);
 			return NULL;

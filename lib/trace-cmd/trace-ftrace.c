@@ -65,7 +65,7 @@ static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *peve
 static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event *event, void *context)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	unsigned long long function;
 	const char *func;
 
@@ -192,7 +192,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 		       struct tep_record *ret_rec,
 		       struct tracecmd_ftrace *finfo)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
 	unsigned long long val;
@@ -240,7 +240,7 @@ static int print_graph_nested(struct trace_seq *s,
 			      struct tep_event *event,
 			      struct tep_record *record)
 {
-	struct tep_handle *pevent = event->pevent;
+	struct tep_handle *pevent = event->tep;
 	unsigned long long depth;
 	unsigned long long val;
 	const char *func;
@@ -285,7 +285,7 @@ fgraph_ent_handler(struct trace_seq *s, struct tep_record *record,
 	unsigned long long val, pid;
 	int cpu;
 
-	ret_event_check(finfo, event->pevent);
+	ret_event_check(finfo, event->tep);
 
 	if (tep_get_common_field_val(s, event, "common_pid", record, &pid, 1))
 		return trace_seq_putc(s, '!');
@@ -321,7 +321,7 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 	const char *func;
 	int i;
 
-	ret_event_check(finfo, event->pevent);
+	ret_event_check(finfo, event->tep);
 
 	if (tep_get_field_val(s, event, "rettime", record, &rettime, 1))
 		return trace_seq_putc(s, '!');
@@ -349,7 +349,7 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 	if (fgraph_tail->set) {
 		if (tep_get_field_val(s, event, "func", record, &val, 0))
 			return 0;
-		func = tep_find_function(event->pevent, val);
+		func = tep_find_function(event->tep, val);
 		if (!func)
 			return 0;
 		trace_seq_printf(s, " /* %s */", func);
@@ -383,13 +383,13 @@ trace_stack_handler(struct trace_seq *s, struct tep_record *record,
 
 	for (data += field->offset; data < record->data + record->size;
 	     data += finfo->long_size) {
-		addr = tep_read_number(event->pevent, data, finfo->long_size);
+		addr = tep_read_number(event->tep, data, finfo->long_size);
 
 		if ((finfo->long_size == 8 && addr == (unsigned long long)-1) ||
 		    ((int)addr == -1))
 			break;
 
-		func = tep_find_function(event->pevent, addr);
+		func = tep_find_function(event->tep, addr);
 		if (func)
 			trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
 		else

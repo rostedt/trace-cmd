@@ -386,8 +386,8 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 	 * We can only use the structure if file is of the same
 	 * endianness.
 	 */
-	if (tep_is_file_bigendian(event->pevent) ==
-	    tep_is_local_bigendian(event->pevent)) {
+	if (tep_is_file_bigendian(event->tep) ==
+	    tep_is_local_bigendian(event->tep)) {
 
 		trace_seq_printf(s, "%u/%u q%u%s %s%s %spge %snxe",
 				 role.level,
