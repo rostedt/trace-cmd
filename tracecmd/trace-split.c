@@ -64,7 +64,7 @@ static int create_type_len(struct tep_handle *pevent, int time, int len)
 			bigendian = 1;
 	}
 
-	if (tep_file_bigendian(pevent))
+	if (tep_is_file_bigendian(pevent))
 		time |= (len << 27);
 	else
 		time = (time << 5) | len;

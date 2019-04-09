@@ -966,7 +966,7 @@ static const char *kshark_get_latency(struct tep_handle *pe,
 		return NULL;
 
 	trace_seq_reset(&seq);
-	tep_data_lat_fmt(pe, &seq, record);
+	tep_data_latency_format(pe, &seq, record);
 	return seq.buffer;
 }
 

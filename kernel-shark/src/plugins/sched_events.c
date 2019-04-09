@@ -144,7 +144,7 @@ static void plugin_register_command(struct kshark_context *kshark_ctx,
 	 * implemented as a wrapper function in libtracevent.
 	 */
 
-	if (!tep_pid_is_registered(kshark_ctx->pevent, pid))
+	if (!tep_is_pid_registered(kshark_ctx->pevent, pid))
 			tep_register_comm(kshark_ctx->pevent, comm, pid);
 }
 
