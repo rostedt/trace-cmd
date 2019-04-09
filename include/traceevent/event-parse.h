@@ -50,8 +50,8 @@ typedef int (*tep_event_handler_func)(struct trace_seq *s,
 				      struct tep_event *event,
 				      void *context);
 
-typedef int (*tep_plugin_load_func)(struct tep_handle *pevent);
-typedef int (*tep_plugin_unload_func)(struct tep_handle *pevent);
+typedef int (*tep_plugin_load_func)(struct tep_handle *tep);
+typedef int (*tep_plugin_unload_func)(struct tep_handle *tep);
 
 struct tep_plugin_option {
 	struct tep_plugin_option	*next;
@@ -71,12 +71,12 @@ struct tep_plugin_option {
  * TEP_PLUGIN_LOADER:  (required)
  *   The function name to initialized the plugin.
  *
- *   int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
+ *   int TEP_PLUGIN_LOADER(struct tep_handle *tep)
  *
  * TEP_PLUGIN_UNLOADER:  (optional)
  *   The function called just before unloading
  *
- *   int TEP_PLUGIN_UNLOADER(struct tep_handle *pevent)
+ *   int TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
  *
  * TEP_PLUGIN_OPTIONS:  (optional)
  *   Plugin options that can be set before loading
@@ -379,9 +379,9 @@ struct tep_plugin_list;
 
 #define INVALID_PLUGIN_LIST_OPTION	((char **)((unsigned long)-1))
 
-struct tep_plugin_list *tep_load_plugins(struct tep_handle *pevent);
+struct tep_plugin_list *tep_load_plugins(struct tep_handle *tep);
 void tep_unload_plugins(struct tep_plugin_list *plugin_list,
-			struct tep_handle *pevent);
+			struct tep_handle *tep);
 char **tep_plugin_list_options(void);
 void tep_plugin_free_options_list(char **list);
 int tep_plugin_add_options(const char *name,
@@ -416,37 +416,37 @@ enum trace_flag_type {
 	TRACE_FLAG_SOFTIRQ		= 0x10,
 };
 
-int tep_set_function_resolver(struct tep_handle *pevent,
+int tep_set_function_resolver(struct tep_handle *tep,
 			      tep_func_resolver_t *func, void *priv);
-void tep_reset_function_resolver(struct tep_handle *pevent);
-int tep_register_comm(struct tep_handle *pevent, const char *comm, int pid);
-int tep_override_comm(struct tep_handle *pevent, const char *comm, int pid);
-int tep_register_trace_clock(struct tep_handle *pevent, const char *trace_clock);
-int tep_register_function(struct tep_handle *pevent, char *name,
+void tep_reset_function_resolver(struct tep_handle *tep);
+int tep_register_comm(struct tep_handle *tep, const char *comm, int pid);
+int tep_override_comm(struct tep_handle *tep, const char *comm, int pid);
+int tep_register_trace_clock(struct tep_handle *tep, const char *trace_clock);
+int tep_register_function(struct tep_handle *tep, char *name,
 			  unsigned long long addr, char *mod);
-int tep_register_print_string(struct tep_handle *pevent, const char *fmt,
+int tep_register_print_string(struct tep_handle *tep, const char *fmt,
 			      unsigned long long addr);
-bool tep_is_pid_registered(struct tep_handle *pevent, int pid);
+bool tep_is_pid_registered(struct tep_handle *tep, int pid);
 
-void tep_print_event_task(struct tep_handle *pevent, struct trace_seq *s,
+void tep_print_event_task(struct tep_handle *tep, struct trace_seq *s,
 			  struct tep_event *event,
 			  struct tep_record *record);
-void tep_print_event_time(struct tep_handle *pevent, struct trace_seq *s,
+void tep_print_event_time(struct tep_handle *tep, struct trace_seq *s,
 			  struct tep_event *event,
 			  struct tep_record *record,
 			  bool use_trace_clock);
-void tep_print_event_data(struct tep_handle *pevent, struct trace_seq *s,
+void tep_print_event_data(struct tep_handle *tep, struct trace_seq *s,
 			  struct tep_event *event,
 			  struct tep_record *record);
-void tep_print_event(struct tep_handle *pevent, struct trace_seq *s,
+void tep_print_event(struct tep_handle *tep, struct trace_seq *s,
 		     struct tep_record *record, bool use_trace_clock);
 
-int tep_parse_header_page(struct tep_handle *pevent, char *buf, unsigned long size,
+int tep_parse_header_page(struct tep_handle *tep, char *buf, unsigned long size,
 			  int long_size);
 
-enum tep_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
+enum tep_errno tep_parse_event(struct tep_handle *tep, const char *buf,
 			       unsigned long size, const char *sys);
-enum tep_errno tep_parse_format(struct tep_handle *pevent,
+enum tep_errno tep_parse_format(struct tep_handle *tep,
 				struct tep_event **eventp,
 				const char *buf,
 				unsigned long size, const char *sys);
@@ -466,8 +466,8 @@ int tep_get_any_field_val(struct trace_seq *s, struct tep_event *event,
 			  unsigned long long *val, int err);
 
 int tep_print_num_field(struct trace_seq *s, const char *fmt,
-			   struct tep_event *event, const char *name,
-			   struct tep_record *record, int err);
+			struct tep_event *event, const char *name,
+			struct tep_record *record, int err);
 
 int tep_print_func_field(struct trace_seq *s, const char *fmt,
 			 struct tep_event *event, const char *name,
@@ -478,51 +478,51 @@ enum tep_reg_handler {
 	TEP_REGISTER_SUCCESS_OVERWRITE,
 };
 
-int tep_register_event_handler(struct tep_handle *pevent, int id,
+int tep_register_event_handler(struct tep_handle *tep, int id,
 			       const char *sys_name, const char *event_name,
 			       tep_event_handler_func func, void *context);
-int tep_unregister_event_handler(struct tep_handle *pevent, int id,
+int tep_unregister_event_handler(struct tep_handle *tep, int id,
 				 const char *sys_name, const char *event_name,
 				 tep_event_handler_func func, void *context);
-int tep_register_print_function(struct tep_handle *pevent,
+int tep_register_print_function(struct tep_handle *tep,
 				tep_func_handler func,
 				enum tep_func_arg_type ret_type,
 				char *name, ...);
-int tep_unregister_print_function(struct tep_handle *pevent,
+int tep_unregister_print_function(struct tep_handle *tep,
 				  tep_func_handler func, char *name);
 
 struct tep_format_field *tep_find_common_field(struct tep_event *event, const char *name);
 struct tep_format_field *tep_find_field(struct tep_event *event, const char *name);
 struct tep_format_field *tep_find_any_field(struct tep_event *event, const char *name);
 
-const char *tep_find_function(struct tep_handle *pevent, unsigned long long addr);
+const char *tep_find_function(struct tep_handle *tep, unsigned long long addr);
 unsigned long long
-tep_find_function_address(struct tep_handle *pevent, unsigned long long addr);
-unsigned long long tep_read_number(struct tep_handle *pevent, const void *ptr, int size);
+tep_find_function_address(struct tep_handle *tep, unsigned long long addr);
+unsigned long long tep_read_number(struct tep_handle *tep, const void *ptr, int size);
 int tep_read_number_field(struct tep_format_field *field, const void *data,
 			  unsigned long long *value);
 
 struct tep_event *tep_get_first_event(struct tep_handle *tep);
 struct tep_event *tep_get_event(struct tep_handle *tep, int index);
 int tep_get_events_count(struct tep_handle *tep);
-struct tep_event *tep_find_event(struct tep_handle *pevent, int id);
+struct tep_event *tep_find_event(struct tep_handle *tep, int id);
 
 struct tep_event *
-tep_find_event_by_name(struct tep_handle *pevent, const char *sys, const char *name);
+tep_find_event_by_name(struct tep_handle *tep, const char *sys, const char *name);
 struct tep_event *
-tep_find_event_by_record(struct tep_handle *pevent, struct tep_record *record);
+tep_find_event_by_record(struct tep_handle *tep, struct tep_record *record);
 
-void tep_data_latency_format(struct tep_handle *pevent,
+void tep_data_latency_format(struct tep_handle *tep,
 			     struct trace_seq *s, struct tep_record *record);
-int tep_data_type(struct tep_handle *pevent, struct tep_record *rec);
-int tep_data_pid(struct tep_handle *pevent, struct tep_record *rec);
-int tep_data_preempt_count(struct tep_handle *pevent, struct tep_record *rec);
-int tep_data_flags(struct tep_handle *pevent, struct tep_record *rec);
-const char *tep_data_comm_from_pid(struct tep_handle *pevent, int pid);
+int tep_data_type(struct tep_handle *tep, struct tep_record *rec);
+int tep_data_pid(struct tep_handle *tep, struct tep_record *rec);
+int tep_data_preempt_count(struct tep_handle *tep, struct tep_record *rec);
+int tep_data_flags(struct tep_handle *tep, struct tep_record *rec);
+const char *tep_data_comm_from_pid(struct tep_handle *tep, int pid);
 struct tep_cmdline;
-struct tep_cmdline *tep_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
+struct tep_cmdline *tep_data_pid_from_comm(struct tep_handle *tep, const char *comm,
 					   struct tep_cmdline *next);
-int tep_cmdline_pid(struct tep_handle *pevent, struct tep_cmdline *cmdline);
+int tep_cmdline_pid(struct tep_handle *tep, struct tep_cmdline *cmdline);
 
 void tep_print_field(struct trace_seq *s, void *data,
 		     struct tep_format_field *field);
@@ -530,7 +530,7 @@ void tep_print_fields(struct trace_seq *s, void *data,
 		      int size __maybe_unused, struct tep_event *event);
 void tep_event_info(struct trace_seq *s, struct tep_event *event,
 		    struct tep_record *record);
-int tep_strerror(struct tep_handle *pevent, enum tep_errno errnum,
+int tep_strerror(struct tep_handle *tep, enum tep_errno errnum,
 		 char *buf, size_t buflen);
 
 struct tep_event **tep_list_events(struct tep_handle *tep,
@@ -544,19 +544,19 @@ enum tep_endian {
         TEP_LITTLE_ENDIAN = 0,
         TEP_BIG_ENDIAN
 };
-int tep_get_cpus(struct tep_handle *pevent);
-void tep_set_cpus(struct tep_handle *pevent, int cpus);
-int tep_get_long_size(struct tep_handle *pevent);
-void tep_set_long_size(struct tep_handle *pevent, int long_size);
-int tep_get_page_size(struct tep_handle *pevent);
-void tep_set_page_size(struct tep_handle *pevent, int _page_size);
-bool tep_is_file_bigendian(struct tep_handle *pevent);
-void tep_set_file_bigendian(struct tep_handle *pevent, enum tep_endian endian);
-bool tep_is_local_bigendian(struct tep_handle *pevent);
-void tep_set_local_bigendian(struct tep_handle *pevent, enum tep_endian endian);
-bool tep_is_latency_format(struct tep_handle *pevent);
-void tep_set_latency_format(struct tep_handle *pevent, int lat);
-int tep_get_header_page_size(struct tep_handle *pevent);
+int tep_get_cpus(struct tep_handle *tep);
+void tep_set_cpus(struct tep_handle *tep, int cpus);
+int tep_get_long_size(struct tep_handle *tep);
+void tep_set_long_size(struct tep_handle *tep, int long_size);
+int tep_get_page_size(struct tep_handle *tep);
+void tep_set_page_size(struct tep_handle *tep, int _page_size);
+bool tep_is_file_bigendian(struct tep_handle *tep);
+void tep_set_file_bigendian(struct tep_handle *tep, enum tep_endian endian);
+bool tep_is_local_bigendian(struct tep_handle *tep);
+void tep_set_local_bigendian(struct tep_handle *tep, enum tep_endian endian);
+bool tep_is_latency_format(struct tep_handle *tep);
+void tep_set_latency_format(struct tep_handle *tep, int lat);
+int tep_get_header_page_size(struct tep_handle *tep);
 void tep_set_parsing_failures(struct tep_handle *tep, int parsing_failures);
 int tep_get_parsing_failures(struct tep_handle *tep);
 int tep_get_header_timestamp_size(struct tep_handle *tep);
@@ -565,9 +565,9 @@ void tep_set_print_raw(struct tep_handle *tep, int print_raw);
 void tep_set_test_filters(struct tep_handle *tep, int test_filters);
 
 struct tep_handle *tep_alloc(void);
-void tep_free(struct tep_handle *pevent);
-void tep_ref(struct tep_handle *pevent);
-void tep_unref(struct tep_handle *pevent);
+void tep_free(struct tep_handle *tep);
+void tep_ref(struct tep_handle *tep);
+void tep_unref(struct tep_handle *tep);
 int tep_get_ref(struct tep_handle *tep);
 
 /* access to the internal parser */
@@ -579,8 +579,8 @@ const char *tep_get_input_buf(void);
 unsigned long long tep_get_input_buf_ptr(void);
 
 /* for debugging */
-void tep_print_funcs(struct tep_handle *pevent);
-void tep_print_printk(struct tep_handle *pevent);
+void tep_print_funcs(struct tep_handle *tep);
+void tep_print_printk(struct tep_handle *tep);
 
 /* ----------------------- filtering ----------------------- */
 
@@ -713,7 +713,7 @@ struct tep_event_filter {
 	char			error_buffer[TEP_FILTER_ERROR_BUFSZ];
 };
 
-struct tep_event_filter *tep_filter_alloc(struct tep_handle *pevent);
+struct tep_event_filter *tep_filter_alloc(struct tep_handle *tep);
 
 /* for backward compatibility */
 #define FILTER_NONE		TEP_ERRNO__NO_FILTER
