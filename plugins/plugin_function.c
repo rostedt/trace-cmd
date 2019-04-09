@@ -116,14 +116,14 @@ static int add_and_get_index(const char *parent, const char *child, int cpu)
 	return 0;
 }
 
-static void show_function(struct trace_seq *s, struct tep_handle *pevent,
+static void show_function(struct trace_seq *s, struct tep_handle *tep,
 			  const char *func, unsigned long long function)
 {
 	unsigned long long offset;
 
 	trace_seq_printf(s, "%s", func);
 	if (ftrace_offset->set) {
-		offset = tep_find_function_address(pevent, function);
+		offset = tep_find_function_address(tep, function);
 		trace_seq_printf(s, "+0x%x ", (int)(function - offset));
 	}
 }
@@ -131,7 +131,7 @@ static void show_function(struct trace_seq *s, struct tep_handle *pevent,
 static int function_handler(struct trace_seq *s, struct tep_record *record,
 			    struct tep_event *event, void *context)
 {
-	struct tep_handle *pevent = event->tep;
+	struct tep_handle *tep = event->tep;
 	unsigned long long function;
 	unsigned long long pfunction;
 	const char *func;
@@ -141,12 +141,12 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	if (tep_get_field_val(s, event, "ip", record, &function, 1))
 		return trace_seq_putc(s, '!');
 
-	func = tep_find_function(pevent, function);
+	func = tep_find_function(tep, function);
 
 	if (tep_get_field_val(s, event, "parent_ip", record, &pfunction, 1))
 		return trace_seq_putc(s, '!');
 
-	parent = tep_find_function(pevent, pfunction);
+	parent = tep_find_function(tep, pfunction);
 
 	if (parent && ftrace_indent->set)
 		index = add_and_get_index(parent, func, record->cpu);
@@ -154,14 +154,14 @@ static int function_handler(struct trace_seq *s, struct tep_record *record,
 	trace_seq_printf(s, "%*s", index*3, "");
 
 	if (func)
-		show_function(s, pevent, func, function);
+		show_function(s, tep, func, function);
 	else
 		trace_seq_printf(s, "0x%llx", function);
 
 	if (ftrace_parent->set) {
 		trace_seq_printf(s, " <-- ");
 		if (parent)
-			show_function(s, pevent, parent, pfunction);
+			show_function(s, tep, parent, pfunction);
 		else
 			trace_seq_printf(s, "0x%llx", pfunction);
 	}
