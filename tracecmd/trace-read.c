@@ -83,6 +83,7 @@ static int instances;
 
 static int *filter_cpus;
 static int nr_filter_cpus;
+static int test_filters_mode;
 
 static int show_wakeup;
 static int wakeup_id;
@@ -489,6 +490,7 @@ static void process_filters(struct handle_list *handles)
 	struct filter_str *filter;
 	struct tep_handle *pevent;
 	char errstr[200];
+	int filters = 0;
 	int ret;
 
 	pevent = tracecmd_get_pevent(handles->handle);
@@ -522,10 +524,12 @@ static void process_filters(struct handle_list *handles)
 			*filter_next = event_filter;
 			filter_next = &event_filter->next;
 		}
-
+		filters++;
 		free(filter->filter);
 		free(filter);
 	}
+	if (filters && test_filters_mode)
+		exit(0);
 }
 
 static void init_wakeup(struct tracecmd_input *handle)
@@ -1426,7 +1430,6 @@ void trace_report (int argc, char **argv)
 	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
-	int test_filters = 0;
 	int nanosec = 0;
 	int no_date = 0;
 	int global = 0;
@@ -1500,7 +1503,7 @@ void trace_report (int argc, char **argv)
 			add_hook(optarg);
 			break;
 		case 'T':
-			test_filters = 1;
+			test_filters_mode = 1;
 			break;
 		case 'f':
 			show_funcs = 1;
@@ -1692,7 +1695,7 @@ void trace_report (int argc, char **argv)
 		if (raw)
 			tep_set_print_raw(pevent, 1);
 
-		if (test_filters)
+		if (test_filters_mode)
 			tep_set_test_filters(pevent, 1);
 
 		if (functions)
