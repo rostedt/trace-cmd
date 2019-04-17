@@ -1720,7 +1720,7 @@ void trace_report (int argc, char **argv)
 
 		ret = tracecmd_read_headers(handle);
 		if (check_event_parsing) {
-			if (ret || tep_get_parsing_failures(pevent))
+			if (ret || tracecmd_get_parsing_failures(handle))
 				exit(EINVAL);
 			else
 				exit(0);

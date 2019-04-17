@@ -83,8 +83,6 @@ struct tep_handle {
 	struct event_handler *handlers;
 	struct tep_function_handler *func_handlers;
 
-	int parsing_failures;
-
 	/* cache */
 	struct tep_event *last_event;
 

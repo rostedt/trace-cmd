@@ -96,6 +96,7 @@ struct tracecmd_input {
 	char *			cpustats;
 	char *			uname;
 	struct input_buffer_instance	*buffers;
+	int			parsing_failures;
 
 	struct tracecmd_ftrace	finfo;
 
@@ -413,7 +414,7 @@ static int read_ftrace_file(struct tracecmd_input *handle,
 			printf("%.*s\n", (int)size, buf);
 	} else {
 		if (tep_parse_event(pevent, buf, size, "ftrace"))
-			tep_set_parsing_failures(pevent, 1);
+			handle->parsing_failures++;
 	}
 	free(buf);
 
@@ -447,7 +448,7 @@ static int read_event_file(struct tracecmd_input *handle,
 		}
 	} else {
 		if (tep_parse_event(pevent, buf, size, system))
-			tep_set_parsing_failures(pevent, 1);
+			handle->parsing_failures++;
 	}
 	free(buf);
 
@@ -705,6 +706,19 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 static int read_and_parse_cmdlines(struct tracecmd_input *handle);
 
 /**
+ * tracecmd_get_parsing_failures - get the count of parsing failures
+ * @handle: input handle for the trace.dat file
+ *
+ * This returns the count of failures while parsing the event files
+ */
+int tracecmd_get_parsing_failures(struct tracecmd_input *handle)
+{
+	if (handle)
+		return handle->parsing_failures;
+	return 0;
+}
+
+/**
  * tracecmd_read_headers - read the header information from trace.dat
  * @handle: input handle for the trace.dat file
  *
@@ -715,6 +729,8 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle);
 int tracecmd_read_headers(struct tracecmd_input *handle)
 {
 	int ret;
+
+	handle->parsing_failures = 0;
 
 	ret = read_header_files(handle);
 	if (ret < 0)

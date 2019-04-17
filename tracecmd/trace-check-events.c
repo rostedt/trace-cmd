@@ -13,6 +13,7 @@ void trace_check_events(int argc, char **argv)
 {
 	const char *tracing;
 	int ret, c;
+	int parsing_failures = 0;
 	struct tep_handle *pevent = NULL;
 	struct tep_plugin_list *list = NULL;
 
@@ -42,8 +43,8 @@ void trace_check_events(int argc, char **argv)
 	if (!pevent)
 		exit(EINVAL);
 	list = tracecmd_load_plugins(pevent);
-	ret = tracecmd_fill_local_events(tracing, pevent);
-	if (ret || tep_get_parsing_failures(pevent))
+	ret = tracecmd_fill_local_events(tracing, pevent, &parsing_failures);
+	if (ret || parsing_failures)
 		ret = EINVAL;
 	tracecmd_unload_plugins(list, pevent);
 	tep_free(pevent);

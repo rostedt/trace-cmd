@@ -330,33 +330,6 @@ void tep_set_latency_format(struct tep_handle *tep, int lat)
 }
 
 /**
- * tep_set_parsing_failures - set parsing failures flag
- * @tep: a handle to the tep_handle
- * @parsing_failures: the new value of the parsing_failures flag
- *
- * This sets flag "parsing_failures" to the given count
- */
-void tep_set_parsing_failures(struct tep_handle *tep, int parsing_failures)
-{
-	if (tep)
-		tep->parsing_failures = parsing_failures;
-}
-
-/**
- * tep_get_parsing_failures - get the parsing failures flag
- * @tep: a handle to the tep_handle
- *
- * This returns value of flag "parsing_failures"
- * If @tep is NULL, 0 is returned.
- */
-int tep_get_parsing_failures(struct tep_handle *tep)
-{
-	if (tep)
-		return tep->parsing_failures;
-	return 0;
-}
-
-/**
  * tep_is_old_format - get if an old kernel is used
  * @tep: a handle to the tep_handle
  *

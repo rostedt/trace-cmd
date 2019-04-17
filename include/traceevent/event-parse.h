@@ -557,8 +557,6 @@ void tep_set_local_bigendian(struct tep_handle *tep, enum tep_endian endian);
 bool tep_is_latency_format(struct tep_handle *tep);
 void tep_set_latency_format(struct tep_handle *tep, int lat);
 int tep_get_header_page_size(struct tep_handle *tep);
-void tep_set_parsing_failures(struct tep_handle *tep, int parsing_failures);
-int tep_get_parsing_failures(struct tep_handle *tep);
 int tep_get_header_timestamp_size(struct tep_handle *tep);
 bool tep_is_old_format(struct tep_handle *tep);
 void tep_set_print_raw(struct tep_handle *tep, int print_raw);

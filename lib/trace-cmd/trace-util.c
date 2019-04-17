@@ -1134,7 +1134,7 @@ struct tep_handle *tracecmd_local_events(const char *tracing_dir)
 	if (!pevent)
 		return NULL;
 
-	if (tracecmd_fill_local_events(tracing_dir, pevent)) {
+	if (tracecmd_fill_local_events(tracing_dir, pevent, NULL)) {
 		tep_free(pevent);
 		pevent = NULL;
 	}
@@ -1146,19 +1146,23 @@ struct tep_handle *tracecmd_local_events(const char *tracing_dir)
  * tracecmd_fill_local_events - Fill a pevent with the events on system
  * @tracing_dir: The directory that contains the events.
  * @pevent: Allocated pevent which will be filled
+ * @parsing_failures: return number of failures while parsing the event files
  *
  * Returns whether the operation succeeded
  */
-int tracecmd_fill_local_events(const char *tracing_dir, struct tep_handle *pevent)
+int tracecmd_fill_local_events(const char *tracing_dir,
+			       struct tep_handle *pevent, int *parsing_failures)
 {
 	struct dirent *dent;
 	char *events_dir;
 	struct stat st;
 	DIR *dir;
-	int ret, failure = 0;
+	int ret;
 
 	if (!tracing_dir)
 		return -1;
+	if (parsing_failures)
+		*parsing_failures = 0;
 
 	events_dir = append_file(tracing_dir, "events");
 	if (!events_dir)
@@ -1201,8 +1205,8 @@ int tracecmd_fill_local_events(const char *tracing_dir, struct tep_handle *peven
 
 		free(sys);
 
-		if (ret)
-			failure = 1;
+		if (ret && parsing_failures)
+			(*parsing_failures)++;
 	}
 
 	closedir(dir);
@@ -1211,8 +1215,6 @@ int tracecmd_fill_local_events(const char *tracing_dir, struct tep_handle *peven
 
  out_free:
 	free(events_dir);
-
-	tep_set_parsing_failures(pevent, failure);
 
 	return ret;
 }
