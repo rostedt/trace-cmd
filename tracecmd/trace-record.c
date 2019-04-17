@@ -86,6 +86,7 @@ static int do_ptrace;
 
 static int filter_task;
 static int filter_pid = -1;
+static bool no_filter = false;
 
 static int local_cpu_count;
 
@@ -1064,6 +1065,9 @@ static void update_task_filter(void)
 {
 	struct buffer_instance *instance;
 	int pid = getpid();
+
+	if (no_filter)
+		return;
 
 	if (filter_task)
 		add_filter_pid(pid, 0);
@@ -4379,9 +4383,9 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 }
 
 enum {
-
-	OPT_quiet		= 246,
-	OPT_debug		= 247,
+	OPT_quiet		= 245,
+	OPT_debug		= 246,
+	OPT_no_filter		= 247,
 	OPT_max_graph_depth	= 248,
 	OPT_tsoffset		= 249,
 	OPT_bycomm		= 250,
@@ -4605,6 +4609,7 @@ static void parse_record_options(int argc,
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"max-graph-depth", required_argument, NULL, OPT_max_graph_depth},
+			{"no-filter", no_argument, NULL, OPT_no_filter},
 			{"debug", no_argument, NULL, OPT_debug},
 			{"quiet", no_argument, NULL, OPT_quiet},
 			{"help", no_argument, NULL, '?'},
@@ -4878,6 +4883,9 @@ static void parse_record_options(int argc,
 			ctx->max_graph_depth = strdup(optarg);
 			if (!ctx->max_graph_depth)
 				die("Could not allocate option");
+			break;
+		case OPT_no_filter:
+			no_filter = true;
 			break;
 		case OPT_debug:
 			debug = 1;

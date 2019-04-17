@@ -83,6 +83,11 @@ OPTIONS
 
     The above are usually safe to use to compare fields.
 
+*--no-filter*::
+    Do not filter out the trace-cmd threads. By default, the threads are
+    filtered out to not be traced by events. This option will have the trace-cmd
+    threads also be traced.
+
 *-R* 'trigger'::
     Specify a trigger for the previous event. This must come after a *-e*. 
     This will add a given trigger to the given event. To only enable the trigger
