@@ -133,13 +133,15 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 KsMainWindow::~KsMainWindow()
 {
 	kshark_context *kshark_ctx(nullptr);
-	QString file = KS_CONF_DIR;
+	QString file = lastSessionFile();
 
-	file += "/lastsession.json";
+	if (!file.isEmpty()) {
+		QByteArray fileBA = file.toLocal8Bit();
 
-	_updateSession();
-	kshark_save_config_file(file.toLocal8Bit().data(),
-				_session.getConfDocPtr());
+		_updateSession();
+		kshark_save_config_file(fileBA.data(),
+					_session.getConfDocPtr());
+	}
 
 	_data.clear();
 
@@ -368,12 +370,60 @@ void KsMainWindow::_open()
 		loadDataFile(fileName);
 }
 
+QString KsMainWindow::_getCacheDir()
+{
+	QString dir;
+
+	auto lamMakePath = [&] (bool ask) {
+		if (ask) {
+			QMessageBox::StandardButton reply;
+			QString err("KernelShark cache directory not found!\n");
+			QString question =
+				QString("Do you want to create %1").arg(dir);
+
+			reply = QMessageBox::question(this, "KernelShark",
+						      err + question,
+						      QMessageBox::Yes |
+						      QMessageBox::No);
+
+			if (reply == QMessageBox::No) {
+				dir.clear();
+				return;
+			}
+		}
+
+		QDir().mkpath(dir);
+	};
+
+	dir = getenv("KS_USER_CACHE_DIR");
+	if (!dir.isEmpty()) {
+		if (!QDir(dir).exists())
+			lamMakePath(true);
+	} else {
+		dir = QString(QDir::homePath()) +
+		      "/.cache/kernelshark";
+		if (!QDir(dir).exists())
+			lamMakePath(false);
+	}
+
+	return dir;
+}
+
+/** Get the description file of the last session. */
+QString KsMainWindow::lastSessionFile()
+{
+	QString file;
+
+	file = _getCacheDir();
+	if (!file.isEmpty())
+		file += "/lastsession.json";
+
+	return file;
+}
+
 void KsMainWindow::_restoreSession()
 {
-	QString file = KS_CONF_DIR;
-	file += "/lastsession.json";
-
-	loadSession(file);
+	loadSession(lastSessionFile());
 	_graph.updateGeom();
 }
 

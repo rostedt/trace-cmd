@@ -37,6 +37,8 @@ public:
 
 	void loadSession(const QString &fileName);
 
+	QString lastSessionFile();
+
 	/**
 	 * @brief
 	 *
@@ -229,6 +231,8 @@ private:
 	void _updateFilterMenu();
 
 	void _filterSyncCBoxUpdate(kshark_context *kshark_ctx);
+
+	QString _getCacheDir();
 
 private slots:
 	void _captureFinished(int, QProcess::ExitStatus);
