@@ -596,8 +596,11 @@ size_t KsTraceViewer::_searchItems()
 	if (_proxyModel.rowCount({}) < KS_SEARCH_SHOW_PROGRESS_MIN) {
 		/*
 		 * This is a small data-set. Do a single-threaded search
-		 * without showing the progress.
+		 * without showing the progress. We will bypass the state
+		 * switching, hence the search condition has to be updated
+		 * by hand.
 		 */
+		_searchFSM.updateCondition();
 		_proxyModel.search(column, searchText, _searchFSM.condition(), &_matchList,
 				   nullptr, nullptr);
 	} else {
