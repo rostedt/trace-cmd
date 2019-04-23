@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <limits.h>
+#include <libgen.h>
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1364,6 +1365,28 @@ static int add_plugin_file(struct tep_handle *pevent, const char *path,
 	return -ENOMEM;
 }
 
+static char *trace_util_get_source_plugins_dir(void)
+{
+	char *p, path[PATH_MAX+1];
+	int ret;
+
+	ret = readlink("/proc/self/exe", path, PATH_MAX);
+	if (ret > PATH_MAX || ret < 0)
+		return NULL;
+
+	dirname(path);
+	p = strrchr(path, '/');
+	if (!p)
+		return NULL;
+	/* Check if we are in the the source tree */
+	if (strcmp(p, "/tracecmd") != 0)
+		return NULL;
+
+	strcpy(p, "/plugins");
+	return strdup(path);
+}
+
+
 int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
 			    int (*load_plugin)(struct tep_handle *pevent,
 					       const char *path,
@@ -1404,6 +1427,12 @@ int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
 	trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
 
 	free(path);
+
+	path = trace_util_get_source_plugins_dir();
+	if (path) {
+		trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
+		free(path);
+	}
 	return 0;
 }
 
