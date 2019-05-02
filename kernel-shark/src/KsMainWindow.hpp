@@ -151,6 +151,8 @@ private:
 
 	QAction		_contentsAction;
 
+	QAction		_bugReportAction;
+
 	QShortcut	_deselectShortcut;
 
 	QString		_lastDataFilePath, _lastConfFilePath, _lastPluginFilePath;
@@ -204,6 +206,8 @@ private:
 	void _aboutInfo();
 
 	void _contents();
+
+	void _bugReport();
 
 	void _captureStarted();
 

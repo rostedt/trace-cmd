@@ -67,6 +67,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _fullScreenModeAction("Full Screen Mode", this),
   _aboutAction("About", this),
   _contentsAction("Contents", this),
+  _bugReportAction("Report a bug", this),
   _deselectShortcut(this),
   _settings("kernelshark.org", "Kernel Shark") // organization , application
 {
@@ -288,6 +289,9 @@ void KsMainWindow::_createActions()
 	_contentsAction.setIcon(QIcon::fromTheme("help-contents"));
 	connect(&_contentsAction,	&QAction::triggered,
 		this,			&KsMainWindow::_contents);
+
+	connect(&_bugReportAction,	&QAction::triggered,
+		this,			&KsMainWindow::_bugReport);
 }
 
 void KsMainWindow::_createMenus()
@@ -365,6 +369,7 @@ void KsMainWindow::_createMenus()
 	help = menuBar()->addMenu("Help");
 	help->addAction(&_aboutAction);
 	help->addAction(&_contentsAction);
+	help->addAction(&_bugReportAction);
 }
 
 void KsMainWindow::_open()
@@ -921,6 +926,14 @@ void KsMainWindow::_contents()
 {
 	QDesktopServices::openUrl(QUrl("http://kernelshark.org/",
 				  QUrl::TolerantMode));
+}
+
+void KsMainWindow::_bugReport()
+{
+	QUrl bugs("https://bugzilla.kernel.org/buglist.cgi?component=Trace-cmd%2FKernelshark&product=Tools&resolution=---",
+		  QUrl::TolerantMode);
+
+	QDesktopServices::openUrl(bugs);
 }
 
 /** Load trace data for file. */
