@@ -112,6 +112,8 @@ inline QString Ts2String(int64_t ts, int prec)
 bool matchCPUVisible(struct kshark_context *kshark_ctx,
 			      struct kshark_entry *e, int cpu);
 
+bool isInstalled();
+
 QString getFile(QWidget *parent,
 		const QString &windowName,
 		const QString &filter,

@@ -142,10 +142,10 @@ bool matchCPUVisible(struct kshark_context *kshark_ctx,
  */
 bool isInstalled()
 {
-	QString appPath = QCoreApplication::applicationFilePath();
+	QString appPath = QCoreApplication::applicationDirPath();
 	QString installPath(_INSTALL_PREFIX);
 
-	installPath += "/bin/kernelshark";
+	installPath += "/bin";
 	installPath = QDir::cleanPath(installPath);
 
 	return appPath == installPath;
