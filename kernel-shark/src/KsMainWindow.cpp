@@ -360,11 +360,11 @@ void KsMainWindow::_createMenus()
 
 void KsMainWindow::_open()
 {
-	QString fileName =
-		QFileDialog::getOpenFileName(this,
-					     "Open File",
-					     KS_DIR,
-					     "trace-cmd files (*.dat);;All files (*)");
+	QString fileName;
+
+	fileName = KsUtils::getFile(this, "Open File",
+				    "trace-cmd files (*.dat);;All files (*)",
+				    _lastDataFilePath);
 
 	if (!fileName.isEmpty())
 		loadDataFile(fileName);
@@ -429,11 +429,11 @@ void KsMainWindow::_restoreSession()
 
 void KsMainWindow::_importSession()
 {
-	QString fileName =
-		QFileDialog::getOpenFileName(this,
-					     "Import Session",
-					     KS_DIR,
-					     "Kernel Shark Config files (*.json);;");
+	QString fileName;
+
+	fileName = KsUtils::getFile(this, "Import Session",
+				    "Kernel Shark Config files (*.json);;",
+				    _lastConfFilePath);
 
 	if (fileName.isEmpty())
 		return;
@@ -460,22 +460,14 @@ void KsMainWindow::_updateSession()
 
 void KsMainWindow::_exportSession()
 {
-	QString fileName =
-		QFileDialog::getSaveFileName(this,
-					     "Export Filter",
-					     KS_DIR,
-					     "Kernel Shark Config files (*.json);;");
+	QString fileName;
 
+	fileName = KsUtils::getSaveFile(this, "Export Filter",
+					"Kernel Shark Config files (*.json);;",
+					".json",
+					_lastConfFilePath);
 	if (fileName.isEmpty())
 		return;
-
-	if (!fileName.endsWith(".json")) {
-		fileName += ".json";
-		if (QFileInfo(fileName).exists()) {
-			if (!KsWidgetsLib::fileExistsDialog(fileName))
-				return;
-		}
-	}
 
 	_updateSession();
 	_session.exportToFile(fileName);
@@ -512,8 +504,9 @@ void KsMainWindow::_importFilter()
 	if (!kshark_instance(&kshark_ctx))
 		return;
 
-	fileName = QFileDialog::getOpenFileName(this, "Import Filter", KS_DIR,
-						"Kernel Shark Config files (*.json);;");
+	fileName = KsUtils::getFile(this, "Import Filter",
+				    "Kernel Shark Config files (*.json);;",
+				    _lastConfFilePath);
 
 	if (fileName.isEmpty())
 		return;
@@ -540,19 +533,13 @@ void KsMainWindow::_exportFilter()
 	if (!kshark_instance(&kshark_ctx))
 		return;
 
-	fileName = QFileDialog::getSaveFileName(this, "Export Filter", KS_DIR,
-						"Kernel Shark Config files (*.json);;");
+	fileName = KsUtils::getSaveFile(this, "Export Filter",
+					"Kernel Shark Config files (*.json);;",
+					".json",
+					_lastConfFilePath);
 
 	if (fileName.isEmpty())
 		return;
-
-	if (!fileName.endsWith(".json")) {
-		fileName += ".json";
-		if (QFileInfo(fileName).exists()) {
-			if (!KsWidgetsLib::fileExistsDialog(fileName))
-				return;
-		}
-	}
 
 	kshark_export_all_event_filters(kshark_ctx, &conf);
 	kshark_save_config_file(fileName.toStdString().c_str(), conf);
@@ -859,15 +846,12 @@ void KsMainWindow::_pluginAdd()
 {
 	QStringList fileNames;
 
-	fileNames =
-		QFileDialog::getOpenFileNames(this, "Add KernelShark plugins",
-					      KS_DIR,
-					      "KernelShark Plugins (*.so);;");
+	fileNames = KsUtils::getFiles(this, "Add KernelShark plugins",
+				     "KernelShark Plugins (*.so);;",
+				     _lastPluginFilePath);
 
-	if (fileNames.isEmpty())
-		return;
-
-	_plugins.addPlugins(fileNames);
+	if (!fileNames.isEmpty())
+		_plugins.addPlugins(fileNames);
 }
 
 void KsMainWindow::_record()

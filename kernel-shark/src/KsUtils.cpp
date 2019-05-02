@@ -11,6 +11,7 @@
 
 // KernelShark
 #include "KsUtils.hpp"
+#include "KsWidgetsLib.hpp"
 
 namespace KsUtils {
 
@@ -134,6 +135,126 @@ bool matchCPUVisible(struct kshark_context *kshark_ctx,
 		     struct kshark_entry *e, int cpu)
 {
 	return (e->cpu == cpu && (e->visible & KS_GRAPH_VIEW_FILTER_MASK));
+}
+
+/**
+ * @brief Check if the application runs from its installation location.
+ */
+bool isInstalled()
+{
+	QString appPath = QCoreApplication::applicationFilePath();
+	QString installPath(_INSTALL_PREFIX);
+
+	installPath += "/bin/kernelshark";
+	installPath = QDir::cleanPath(installPath);
+
+	return appPath == installPath;
+}
+
+static QString getFileDialog(QWidget *parent,
+			     const QString &windowName,
+			     const QString &filter,
+			     QString &lastFilePath,
+			     bool forSave)
+{
+	QString fileName;
+
+	if (lastFilePath.isEmpty()) {
+		lastFilePath = isInstalled() ? QDir::homePath() :
+					       QDir::currentPath();
+	}
+
+	if (forSave) {
+		fileName = QFileDialog::getSaveFileName(parent,
+							windowName,
+							lastFilePath,
+							filter);
+	} else {
+		fileName = QFileDialog::getOpenFileName(parent,
+							windowName,
+							lastFilePath,
+							filter);
+	}
+
+	if (!fileName.isEmpty())
+		lastFilePath = QFileInfo(fileName).path();
+
+	return fileName;
+}
+
+static QStringList getFilesDialog(QWidget *parent,
+				  const QString &windowName,
+				  const QString &filter,
+				  QString &lastFilePath)
+{
+	QStringList fileNames;
+
+	if (lastFilePath.isEmpty()) {
+		lastFilePath = isInstalled() ? QDir::homePath() :
+					       QDir::currentPath();
+	}
+
+	fileNames = QFileDialog::getOpenFileNames(parent,
+						  windowName,
+						  lastFilePath,
+						  filter);
+
+	if (!fileNames.isEmpty())
+		lastFilePath = QFileInfo(fileNames[0]).path();
+
+	return fileNames;
+}
+
+/**
+ * @brief Open a standard Qt getFileName dialog and return the name of the
+ *	  selected file. Only one file can be selected.
+ */
+QString getFile(QWidget *parent,
+		const QString &windowName,
+		const QString &filter,
+		QString &lastFilePath)
+{
+	return getFileDialog(parent, windowName, filter, lastFilePath, false);
+}
+
+/**
+ * @brief Open a standard Qt getFileName dialog and return the names of the
+ *	  selected files. Multiple files can be selected.
+ */
+QStringList getFiles(QWidget *parent,
+		     const QString &windowName,
+		     const QString &filter,
+		     QString &lastFilePath)
+{
+	return getFilesDialog(parent, windowName, filter, lastFilePath);
+}
+
+/**
+ * @brief Open a standard Qt getFileName dialog and return the name of the
+ *	  selected file. Only one file can be selected.
+ */
+QString getSaveFile(QWidget *parent,
+		    const QString &windowName,
+		    const QString &filter,
+		    const QString &extension,
+		    QString &lastFilePath)
+{
+	QString fileName = getFileDialog(parent,
+					 windowName,
+					 filter,
+					 lastFilePath,
+					 true);
+
+	if (!fileName.isEmpty() && !fileName.endsWith(extension)) {
+		fileName += extension;
+
+		if (QFileInfo(fileName).exists()) {
+			if (!KsWidgetsLib::fileExistsDialog(fileName))
+				fileName.clear();
+		}
+	}
+
+	return fileName;
 }
 
 }; // KsUtils

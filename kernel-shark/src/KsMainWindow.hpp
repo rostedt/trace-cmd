@@ -151,7 +151,9 @@ private:
 
 	QAction		_contentsAction;
 
-	QShortcut        _deselectShortcut;
+	QShortcut	_deselectShortcut;
+
+	QString		_lastDataFilePath, _lastConfFilePath, _lastPluginFilePath;
 
 	void _open();
 

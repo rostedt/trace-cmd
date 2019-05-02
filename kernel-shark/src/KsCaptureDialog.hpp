@@ -61,6 +61,8 @@ private:
 
 	QPushButton	_outputBrowseButton;
 
+	QString		_lastFilePath;
+
 	QStringList _getPlugins();
 
 	void _importSettings();

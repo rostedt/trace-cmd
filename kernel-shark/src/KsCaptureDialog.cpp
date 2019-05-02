@@ -206,10 +206,9 @@ void KsCaptureControl::_importSettings()
 	events = tep_list_events(_localTEP, TEP_EVENT_SORT_SYSTEM);
 
 	/* Get the configuration document. */
-	fileName = QFileDialog::getOpenFileName(this,
-						"Import from Filter",
-						KS_DIR,
-						"Kernel Shark Config files (*.json);;");
+	fileName = KsUtils::getFile(this, "Import from Filter",
+				    "Kernel Shark Config files (*.json);;",
+				    _lastFilePath);
 
 	if (fileName.isEmpty())
 		return;
@@ -256,22 +255,15 @@ void KsCaptureControl::_exportSettings()
 	json_object *jplugin;
 	QString plugin, out, comm;
 	QVector<int> ids;
-	QString fileName =
-		QFileDialog::getSaveFileName(this,
-					     "Export to File",
-					     KS_DIR,
-					     "Kernel Shark Config files (*.json);;");
+	QString fileName;
+
+	fileName = KsUtils::getSaveFile(this, "Export to File",
+					"Kernel Shark Config files (*.json);;",
+					".json",
+					_lastFilePath);
 
 	if (fileName.isEmpty())
 		return;
-
-	if (!fileName.endsWith(".json")) {
-		fileName += ".json";
-		if (QFileInfo(fileName).exists()) {
-			if (!KsWidgetsLib::fileExistsDialog(fileName))
-				return;
-		}
-	}
 
 	/* Create a configuration document. */
 	conf = kshark_record_config_new(KS_CONFIG_JSON);
@@ -312,10 +304,10 @@ void KsCaptureControl::_exportSettings()
 void KsCaptureControl::_browse()
 {
 	QString fileName =
-		QFileDialog::getSaveFileName(this,
-					     "Save File",
-					     KS_DIR,
-					     "trace-cmd files (*.dat);;All files (*)");
+		KsUtils::getSaveFile(this, "Save File",
+				     "trace-cmd files (*.dat);;All files (*)",
+				     ".dat",
+				     _lastFilePath);
 
 	if (!fileName.isEmpty())
 		_outputLineEdit.setText(fileName);

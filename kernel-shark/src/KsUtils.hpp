@@ -111,6 +111,23 @@ inline QString Ts2String(int64_t ts, int prec)
 
 bool matchCPUVisible(struct kshark_context *kshark_ctx,
 			      struct kshark_entry *e, int cpu);
+
+QString getFile(QWidget *parent,
+		const QString &windowName,
+		const QString &filter,
+		QString &lastFilePath);
+
+QStringList getFiles(QWidget *parent,
+		     const QString &windowName,
+		     const QString &filter,
+		     QString &lastFilePath);
+
+QString getSaveFile(QWidget *parent,
+		    const QString &windowName,
+		    const QString &filter,
+		    const QString &extension,
+		    QString &lastFilePath);
+
 }; // KsUtils
 
 /** Identifier of the Dual Marker active state. */
