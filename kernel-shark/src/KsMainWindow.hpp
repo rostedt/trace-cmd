@@ -155,6 +155,8 @@ private:
 
 	QString		_lastDataFilePath, _lastConfFilePath, _lastPluginFilePath;
 
+	QSettings	_settings;
+
 	void _open();
 
 	void _restoreSession();

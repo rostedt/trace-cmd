@@ -67,7 +67,8 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _fullScreenModeAction("Full Screen Mode", this),
   _aboutAction("About", this),
   _contentsAction("Contents", this),
-  _deselectShortcut(this)
+  _deselectShortcut(this),
+  _settings("kernelshark.org", "Kernel Shark") // organization , application
 {
 	setWindowTitle("Kernel Shark");
 	_createActions();
@@ -126,6 +127,10 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 	connect(&_mState,	&KsDualMarkerSM::deselectB,
 		this,		&KsMainWindow::_deselectB);
 
+	_lastDataFilePath = _settings.value("dataPath").toString();
+	_lastConfFilePath = _settings.value("confPath").toString();
+	_lastPluginFilePath = _settings.value("pluginPath").toString();
+
 	_resizeEmpty();
 }
 
@@ -142,6 +147,10 @@ KsMainWindow::~KsMainWindow()
 		kshark_save_config_file(fileBA.data(),
 					_session.getConfDocPtr());
 	}
+
+	_settings.setValue("dataPath", _lastDataFilePath);
+	_settings.setValue("confPath", _lastConfFilePath);
+	_settings.setValue("pluginPath", _lastPluginFilePath);
 
 	_data.clear();
 
