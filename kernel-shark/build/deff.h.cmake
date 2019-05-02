@@ -11,9 +11,6 @@
 /** KernelShark Version number. */
 #cmakedefine KS_VERSION_STRING "@KS_VERSION_STRING@"
 
-/** KernelShark source code path. */
-#cmakedefine KS_DIR "@KS_DIR@"
-
 /** KernelShark installation prefix path. */
 #cmakedefine _INSTALL_PREFIX "@_INSTALL_PREFIX@"
 
