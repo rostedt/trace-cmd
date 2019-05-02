@@ -41,6 +41,8 @@ public:
 
 	void reset();
 
+	void update() {resizeGL(width(), height());}
+
 	void mousePressEvent(QMouseEvent *event);
 
 	void mouseMoveEvent(QMouseEvent *event);

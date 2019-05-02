@@ -433,7 +433,6 @@ QString KsMainWindow::lastSessionFile()
 void KsMainWindow::_restoreSession()
 {
 	loadSession(lastSessionFile());
-	_graph.updateGeom();
 }
 
 void KsMainWindow::_importSession()
@@ -448,7 +447,6 @@ void KsMainWindow::_importSession()
 		return;
 
 	loadSession(fileName);
-	_graph.updateGeom();
 }
 
 void KsMainWindow::_updateSession()
@@ -1098,6 +1096,7 @@ void KsMainWindow::loadSession(const QString &fileName)
 
 	_session.loadTable(&_view);
 	_colorPhaseSlider.setValue(_session.getColorScheme() * 100);
+	_graph.updateGeom();
 }
 
 void KsMainWindow::_initCapture()

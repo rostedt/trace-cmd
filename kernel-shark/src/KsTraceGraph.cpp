@@ -538,6 +538,8 @@ void KsTraceGraph::updateGeom()
 			       * allow the scroll bar to disappear when the
 			       * widget is extended to maximum.
 			       */
+
+	_glWindow.update();
 }
 
 void KsTraceGraph::_updateGraphLegends()
