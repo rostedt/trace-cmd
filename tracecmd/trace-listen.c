@@ -761,6 +761,7 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 		plog("Error with getnameinfo: %s\n",
 		       gai_strerror(s));
 		close(cfd);
+		tracecmd_msg_handle_close(msg_handle);
 		return -1;
 	}
 
