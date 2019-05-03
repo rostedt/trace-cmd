@@ -242,13 +242,13 @@ class Trace(object):
 # Basic builtin test, execute module directly
 if __name__ == "__main__":
     t = Trace("trace.dat")
-    print "Trace contains data for %d cpus" % (t.cpus)
+    print("Trace contains data for %d cpus" % (t.cpus))
 
     for cpu in range(0, t.cpus):
-        print "CPU %d" % (cpu)
+        print("CPU %d" % (cpu))
         ev = t.read_event(cpu)
         while ev:
-            print "\t%s" % (ev)
+            print("\t%s" % (ev))
             ev = t.read_event(cpu)
 
 

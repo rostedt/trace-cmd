@@ -23,7 +23,7 @@ def timing(func):
       start = time.time()
       ret = func(*arg)
       end = time.time()
-      print '@%s took %0.3f s' % (func.func_name, (end-start))
+      print('@%s took %0.3f s' % (func.func_name, (end-start)))
       return ret
   return wrapper
 
@@ -63,7 +63,7 @@ class EventStore(gtk.GenericTreeModel):
 
     @timing
     def _load_trace(self):
-        print "Building trace index..."
+        print("Building trace index...")
         index = 0
         for cpu in range(0, trace.cpus):
             rec = tracecmd_read_data(self.trace._handle, cpu)
@@ -73,7 +73,7 @@ class EventStore(gtk.GenericTreeModel):
                 self.refs.append(self.EventRef(index, ts, offset, cpu))
                 index = index + 1
                 rec = tracecmd_read_data(self.trace._handle, cpu)
-        print "Loaded %d events from trace" % (index)
+        print("Loaded %d events from trace" % (index))
 
     @timing
     def _sort(self):
@@ -217,7 +217,7 @@ class EventView(gtk.TreeView):
         elif data == "comm":
             cell.set_property("markup", ev.comm)
         else:
-            print "Unknown Column:", data
+            print("Unknown Column:", data)
             return False
 
         return True
@@ -264,9 +264,9 @@ if __name__ == "__main__":
     else:
         filename = "trace.dat"
 
-    print "Initializing trace..."
+    print("Initializing trace...")
     trace = Trace(filename)
-    print "Initializing app..."
+    print("Initializing app...")
     app = EventViewerApp(trace)
-    print "Go!"
+    print("Go!")
     gtk.main()
