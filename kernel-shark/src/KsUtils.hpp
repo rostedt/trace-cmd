@@ -241,6 +241,8 @@ signals:
 private:
 	void _parsePluginList();
 
+	char *_pluginLibFromName(const QString &plugin, int &n);
+
 	template <class T>
 	void _forEachInList(const QStringList &pl,
 			    const QVector<bool> &reg,
