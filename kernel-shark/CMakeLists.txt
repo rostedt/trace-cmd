@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 2.8.11 FATAL_ERROR)
 # Set the name and version of the project
 project(kernel-shark)
 
+set(KS_APP_NAME "kernelshark")
 set(KS_VERSION_MAJOR 0)
 set(KS_VERSION_MINOR 9)
 set(KS_VERSION_PATCH 8)
@@ -39,6 +40,9 @@ if(NOT _INSTALL_PREFIX)
 	set(_INSTALL_PREFIX "/usr/local")
 endif()
 
+set(KS_PLUGIN_INSTALL_PREFIX ${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/plugins/)
+set(KS_ICON ksharkicon.png)
+
 if (NOT _DEBUG)
 
 	set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -O2")
@@ -46,7 +50,7 @@ if (NOT _DEBUG)
 
 endif (NOT _DEBUG)
 
-SET(CMAKE_INSTALL_RPATH "${_INSTALL_PREFIX}/lib/kshark/")
+SET(CMAKE_INSTALL_RPATH "${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/")
 SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 include_directories(${KS_DIR}/src/
@@ -79,7 +83,7 @@ if (_DOXYGEN_DOC AND DOXYGEN_FOUND)
 endif ()
 
 configure_file( ${KS_DIR}/build/ks.desktop.cmake
-                ${KS_DIR}/kernelshark.desktop)
+                ${KS_DIR}/${KS_APP_NAME}.desktop)
 
 configure_file( ${KS_DIR}/build/org.freedesktop.kshark-record.policy.cmake
                 ${KS_DIR}/org.freedesktop.kshark-record.policy)

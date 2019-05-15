@@ -619,8 +619,8 @@ char *KsPluginManager::_pluginLibFromName(const QString &plugin, int &n)
 		n = asprintf(&lib, "%s/plugin-%s.so",
 			     pathStr.c_str(), pluginStr.c_str());
 	} else {
-		n = asprintf(&lib, "%s/lib/kshark/plugins/plugin-%s.so",
-			     _INSTALL_PREFIX, pluginStr.c_str());
+		n = asprintf(&lib, "%s/plugin-%s.so",
+			     KS_PLUGIN_INSTALL_PREFIX, pluginStr.c_str());
 	}
 
 	return lib;

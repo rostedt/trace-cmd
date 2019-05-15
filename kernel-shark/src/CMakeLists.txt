@@ -69,23 +69,26 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
     set_target_properties(kshark-gui PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
 
-    message(STATUS "kernelshark")
-    add_executable(kernelshark          kernelshark.cpp)
-    target_link_libraries(kernelshark   kshark-gui)
+    message(STATUS ${KS_APP_NAME})
+    add_executable(${KS_APP_NAME}          kernelshark.cpp)
+    target_link_libraries(${KS_APP_NAME}   kshark-gui)
 
     message(STATUS "kshark-record")
     add_executable(kshark-record        kshark-record.cpp)
     target_link_libraries(kshark-record kshark-gui)
 
-    install(TARGETS kernelshark kshark-record kshark kshark-plot kshark-gui
+    install(TARGETS ${KS_APP_NAME} kshark-record kshark kshark-plot kshark-gui
             RUNTIME DESTINATION ${_INSTALL_PREFIX}/bin/
-            LIBRARY DESTINATION ${_INSTALL_PREFIX}/lib/kshark/)
+            LIBRARY DESTINATION ${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/)
 
-    install(FILES "${KS_DIR}/kernelshark.desktop"
-            DESTINATION /usr/share/applications/)
+    install(FILES "${KS_DIR}/${KS_APP_NAME}.desktop"
+            DESTINATION ${_INSTALL_PREFIX}/share/applications/)
+
+    install(FILES "${KS_DIR}/icons/${KS_ICON}"
+            DESTINATION ${_INSTALL_PREFIX}/share/icons/${KS_APP_NAME})
 
     install(FILES "${KS_DIR}/org.freedesktop.kshark-record.policy"
-            DESTINATION /usr/share/polkit-1/actions/)
+            DESTINATION ${_INSTALL_PREFIX}/share/polkit-1/actions/)
 
     install(PROGRAMS "${KS_DIR}/bin/kshark-su-record"
             DESTINATION ${_INSTALL_PREFIX}/bin/)
