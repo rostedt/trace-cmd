@@ -414,8 +414,10 @@ QString KsMainWindow::_getCacheDir()
 		if (!QDir(dir).exists())
 			lamMakePath(true);
 	} else {
-		dir = QString(QDir::homePath()) +
-		      "/.cache/kernelshark";
+		auto appCachePath = QStandardPaths::GenericCacheLocation;
+		dir = QStandardPaths::writableLocation(appCachePath);
+		dir += "/kernelshark";
+
 		if (!QDir(dir).exists())
 			lamMakePath(false);
 	}
