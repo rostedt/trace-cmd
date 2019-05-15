@@ -1089,8 +1089,10 @@ void Graph::draw(float size)
 	/* Draw as vartical lines all bins containing data. */
 	for (int i = 0; i < _size; ++i)
 		if (_bins[i]._idFront >= 0 || _bins[i]._idBack >= 0)
-			if (_bins[i]._visMask & KS_EVENT_VIEW_FILTER_MASK)
+			if (_bins[i]._visMask & KS_EVENT_VIEW_FILTER_MASK) {
+				_bins[i]._size = size;
 				_bins[i].draw();
+			}
 
 	auto lamCheckEnsblVal = [this] (int v) {
 		return v > 0 || (v == 0 && !this->_zeroSuppress);

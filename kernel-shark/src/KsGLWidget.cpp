@@ -84,24 +84,29 @@ void KsGLWidget::resizeGL(int w, int h)
 /** Reimplemented function used to plot trace graphs. */
 void KsGLWidget::paintGL()
 {
+	float size = 1.5 * _dpr;
+
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* Draw the time axis. */
 	if(_data)
-		_drawAxisX();
+		_drawAxisX(size);
 
 	/* Process and draw all graphs by using the built-in logic. */
 	_makeGraphs(_cpuList, _taskList);
 	for (auto const &g: _graphs)
-		g->draw(1.5 * _dpr);
+		g->draw(size);
 
 	/* Process and draw all plugin-specific shapes. */
 	_makePluginShapes(_cpuList, _taskList);
 	while (!_shapes.empty()) {
 		auto s = _shapes.front();
-		s->draw();
-		delete s;
 		_shapes.pop_front();
+
+		s->_size = size;
+		s->draw();
+
+		delete s;
 	}
 
 	/*
@@ -448,22 +453,21 @@ void KsGLWidget::findGraphIds(const kshark_entry &e,
 		*graphTask = -1;
 }
 
-void KsGLWidget::_drawAxisX()
+void KsGLWidget::_drawAxisX(float size)
 {
 	KsPlot::Point a0(_hMargin, _vMargin / 4), a1(_hMargin, _vMargin / 2);
-	KsPlot::Point b0(width()/2, _vMargin / 4), b1(width() / 2, _vMargin / 2);
+	KsPlot::Point b0(width() / 2, _vMargin / 4), b1(width() / 2, _vMargin / 2);
 	KsPlot::Point c0(width() - _hMargin, _vMargin / 4),
 			 c1(width() - _hMargin, _vMargin / 2);
-	int lineSize = 2 * _dpr;
 
 	a0._size = c0._size = _dpr;
 
 	a0.draw();
 	c0.draw();
-	KsPlot::drawLine(a0, a1, {}, lineSize);
-	KsPlot::drawLine(b0, b1, {}, lineSize);
-	KsPlot::drawLine(c0, c1, {}, lineSize);
-	KsPlot::drawLine(a0, c0, {}, lineSize);
+	KsPlot::drawLine(a0, a1, {}, size);
+	KsPlot::drawLine(b0, b1, {}, size);
+	KsPlot::drawLine(c0, c1, {}, size);
+	KsPlot::drawLine(a0, c0, {}, size);
 }
 
 void KsGLWidget::_makeGraphs(QVector<int> cpuList, QVector<int> taskList)

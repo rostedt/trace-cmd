@@ -189,7 +189,7 @@ private:
 
 	int 		_dpr;
 
-	void _drawAxisX();
+	void _drawAxisX(float size);
 
 	void _makeGraphs(QVector<int> cpuMask, QVector<int> taskMask);
 
