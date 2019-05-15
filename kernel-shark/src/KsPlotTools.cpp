@@ -379,6 +379,32 @@ void drawLine(const Point &a, const Point &b,
 			 size);
 }
 
+/**
+ * @brief Draw a dashed line between point "a" and point "b".
+ *
+ * @param a: The first finishing point of the line.
+ * @param b: The second finishing point of the line.
+ * @param col: The color of the line.
+ * @param size: The size of the line.
+ * @param period: The period of the dashed line.
+ */
+void drawDashedLine(const Point &a, const Point &b,
+		    const Color &col, float size, float period)
+{
+	int dx = b.x() - a.x(), dy = b.y() - a.y();
+	float mod = sqrt(dx * dx + dy * dy);
+	int n = mod / period;
+	Point p1, p2;
+
+	for (int i = 0; i < n; ++i) {
+		p1.setX(a.x() + (i + .25) * dx / n);
+		p1.setY(a.y() + (i + .25) * dy / n);
+		p2.setX(a.x() + (i + .75) * dx / n);
+		p2.setY(a.y() + (i + .75) * dy / n);
+		drawLine(p1, p2, col, size);
+	}
+}
+
 /** @brief Create a default line. The two points are initialized at (0, 0). */
 Line::Line()
 : Shape(2)
@@ -430,6 +456,7 @@ void Polygon::_draw(const Color &col, float size) const
  * @brief Create a default Mark.
  */
 Mark::Mark()
+: _dashed(false)
 {
 	_visible = false;
 	_cpu._color = Color(225, 255, 100);
@@ -440,7 +467,11 @@ Mark::Mark()
 
 void Mark::_draw(const Color &col, float size) const
 {
-	drawLine(_a, _b, col, size);
+	if (_dashed)
+		drawDashedLine(_a, _b, col, size, 3 * _cpu._size / size);
+	else
+		drawLine(_a, _b, col, size);
+
 	_cpu.draw();
 	_task.draw();
 }

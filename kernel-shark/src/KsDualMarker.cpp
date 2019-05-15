@@ -79,9 +79,19 @@ bool KsGraphMark::set(const KsDataStore &data,
 		      kshark_trace_histo *histo,
 		      size_t pos, int cpuGraph, int taskGraph)
 {
+	uint8_t visFlags;
+
 	_isSet = true;
 	_pos = pos;
 	_ts = data.rows()[_pos]->ts;
+	visFlags = data.rows()[_pos]->visible;
+
+	if ((visFlags & KS_TEXT_VIEW_FILTER_MASK) &&
+	    (visFlags & KS_GRAPH_VIEW_FILTER_MASK))
+		_mark.setDashed(false);
+	else
+		_mark.setDashed(true);
+
 	_cpu = cpuGraph;
 	_task = taskGraph;
 

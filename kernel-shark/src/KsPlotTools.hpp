@@ -204,7 +204,10 @@ private:
 };
 
 void drawLine(const Point &a, const Point &b,
-	      const Color &col, float s);
+	      const Color &col, float size);
+
+void drawDashedLine(const Point &a, const Point &b,
+		    const Color &col, float size, float period);
 
 /** This class represents a straight line. */
 class Line : public Shape {
@@ -326,6 +329,9 @@ public:
 
 	void setTaskVisible(bool v);
 
+	/** If True, the Mark will be plotted as a dashed line. */
+	void setDashed(bool d) {_dashed = d;}
+
 private:
 	void _draw(const Color &col, float size = 1.) const override;
 
@@ -340,6 +346,9 @@ private:
 
 	/** A point indicating the position of the Mark in a Task graph. */
 	Point _task;
+
+	/* If True, plot the Mark as a dashed line. */
+	bool _dashed;
 };
 
 /** This class represents a KernelShark graph's bin. */
