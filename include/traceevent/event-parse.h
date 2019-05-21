@@ -12,7 +12,7 @@
 #include <regex.h>
 #include <string.h>
 
-#include "trace-seq.h"
+#include "traceevent/trace-seq.h"
 
 #ifndef __maybe_unused
 #define __maybe_unused __attribute__((unused))

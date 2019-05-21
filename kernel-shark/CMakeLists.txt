@@ -56,8 +56,7 @@ SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 include_directories(${KS_DIR}/src/
                     ${KS_DIR}/build/src/
                     ${JSONC_INCLUDE_DIR}
-                    ${TRACECMD_INCLUDE_DIR}
-                    ${TRACEEVENT_INCLUDE_DIR})
+                    ${TRACECMD_INCLUDE_DIR})
 
 message("")
 message(STATUS "C flags      : " ${CMAKE_C_FLAGS})

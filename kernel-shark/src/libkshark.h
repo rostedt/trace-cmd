@@ -18,17 +18,16 @@
 #include <errno.h>
 
 // Json-C
-#include <json.h>
+#include <json-c/json.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // trace-cmd
-#include "trace-cmd.h"
-#include "trace-filter-hash.h"
-#include "event-parse.h"
-#include "trace-filter-hash.h"
+#include "trace-cmd/trace-cmd.h"
+#include "trace-cmd/trace-filter-hash.h"
+#include "traceevent/event-parse.h"
 
 // KernelShark
 #include "libkshark-plugin.h"
