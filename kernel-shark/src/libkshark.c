@@ -889,12 +889,6 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 
  fail_free:
 	free_rec_list(rec_list, n_cpus, type);
-	for (count = 0; count < total; count++) {
-		if (!rows[count])
-			break;
-		free(rows[count]);
-	}
-	free(rows);
 
  fail:
 	fprintf(stderr, "Failed to allocate memory during data loading.\n");
@@ -924,15 +918,15 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	ssize_t count, total = 0;
 	int n_cpus;
 
-	total = get_records(kshark_ctx, &rec_list, REC_RECORD);
+	total = get_records(kshark_ctx, &rec_list, type);
 	if (total < 0)
 		goto fail;
 
+	n_cpus = tracecmd_cpus(kshark_ctx->handle);
+
 	rows = calloc(total, sizeof(struct tep_record *));
 	if (!rows)
-		goto fail;
-
-	n_cpus = tracecmd_cpus(kshark_ctx->handle);
+		goto fail_free;
 
 	for (count = 0; count < total; count++) {
 		int next_cpu;
@@ -954,6 +948,9 @@ ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 	free_rec_list(rec_list, n_cpus, type);
 	*data_rows = rows;
 	return total;
+
+ fail_free:
+	free_rec_list(rec_list, n_cpus, type);
 
  fail:
 	fprintf(stderr, "Failed to allocate memory during data loading.\n");
