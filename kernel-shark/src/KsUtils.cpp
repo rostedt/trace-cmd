@@ -306,14 +306,14 @@ void KsDataStore::loadDataFile(const QString &file)
 
 void KsDataStore::_freeData()
 {
-	if (_dataSize) {
-		for (size_t r = 0; r < _dataSize; ++r)
+	if (_dataSize > 0) {
+		for (ssize_t r = 0; r < _dataSize; ++r)
 			free(_rows[r]);
 
 		free(_rows);
-		_rows = nullptr;
 	}
 
+	_rows = nullptr;
 	_dataSize = 0;
 }
 

@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 {
 	struct kshark_context *kshark_ctx;
 	struct kshark_entry **data = NULL;
-	size_t r, n_rows, n_tasks;
+	ssize_t r, n_rows, n_tasks;
 	char *entry_str;
 	bool status;
 	int *pids;
@@ -40,6 +40,10 @@ int main(int argc, char **argv)
 
 	/* Load the content of the file into an array of entries. */
 	n_rows = kshark_load_data_entries(kshark_ctx, &data);
+	if (n_rows < 1) {
+		kshark_free(kshark_ctx);
+		return 1;
+	}
 
 	/* Print to the screen the list of all tasks. */
 	n_tasks = kshark_get_task_pids(kshark_ctx, &pids);

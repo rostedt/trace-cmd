@@ -680,8 +680,8 @@ static void free_rec_list(struct rec_list **rec_list, int n_cpus,
 	free(rec_list);
 }
 
-static size_t get_records(struct kshark_context *kshark_ctx,
-			  struct rec_list ***rec_list, enum rec_type type)
+static ssize_t get_records(struct kshark_context *kshark_ctx,
+			   struct rec_list ***rec_list, enum rec_type type)
 {
 	struct kshark_event_handler *evt_handler;
 	struct tep_event_filter *adv_filter;
@@ -851,12 +851,12 @@ static int pick_next_cpu(struct rec_list **rec_list, int n_cpus,
  *	    negative error code on failure.
  */
 ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
-				struct kshark_entry ***data_rows)
+				 struct kshark_entry ***data_rows)
 {
 	struct kshark_entry **rows;
 	struct rec_list **rec_list;
 	enum rec_type type = REC_ENTRY;
-	size_t count, total = 0;
+	ssize_t count, total = 0;
 	int n_cpus;
 
 	if (*data_rows)
@@ -895,6 +895,7 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 		free(rows[count]);
 	}
 	free(rows);
+
  fail:
 	fprintf(stderr, "Failed to allocate memory during data loading.\n");
 	return -ENOMEM;
@@ -913,14 +914,14 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
  *	    negative error code on failure.
  */
 ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
-				struct tep_record ***data_rows)
+				 struct tep_record ***data_rows)
 {
 	struct tep_record **rows;
 	struct tep_record *rec;
 	struct rec_list **rec_list;
 	struct rec_list *temp_rec;
 	enum rec_type type = REC_RECORD;
-	size_t count, total = 0;
+	ssize_t count, total = 0;
 	int n_cpus;
 
 	total = get_records(kshark_ctx, &rec_list, REC_RECORD);

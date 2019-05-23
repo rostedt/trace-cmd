@@ -15,7 +15,7 @@ const char *default_file = "trace.dat";
 
 int main(int argc, char **argv)
 {
-	size_t i, n_rows, n_tasks, n_evts, count;
+	ssize_t i, n_rows, n_tasks, n_evts, count;
 	struct kshark_context *kshark_ctx;
 	struct kshark_entry **data = NULL;
 	struct tep_event_filter *adv_filter;
@@ -42,6 +42,10 @@ int main(int argc, char **argv)
 
 	/* Load the content of the file into an array of entries. */
 	n_rows = kshark_load_data_entries(kshark_ctx, &data);
+	if (n_rows < 1) {
+		kshark_free(kshark_ctx);
+		return 1;
+	}
 
 	/* Filter the trace data coming from trace-cmd. */
 	n_tasks = kshark_get_task_pids(kshark_ctx, &pids);

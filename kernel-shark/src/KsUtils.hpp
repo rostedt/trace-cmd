@@ -161,7 +161,7 @@ public:
 	struct kshark_entry **rows() const {return _rows;}
 
 	/** Get the size of the data array. */
-	size_t size() const {return _dataSize;}
+	ssize_t size() const {return _dataSize;}
 
 	void reload();
 
@@ -198,7 +198,7 @@ private:
 	struct kshark_entry	**_rows;
 
 	/** The size of the data array. */
-	size_t			_dataSize;
+	ssize_t			_dataSize;
 
 	void _freeData();
 	void _unregisterCPUCollections();

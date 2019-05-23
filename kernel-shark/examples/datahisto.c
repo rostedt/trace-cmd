@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 	struct kshark_context *kshark_ctx;
 	struct kshark_entry **data = NULL;
 	struct kshark_trace_histo histo;
-	size_t i, n_rows, n_tasks;
+	ssize_t i, n_rows, n_tasks;
 	bool status;
 	int *pids;
 
@@ -102,6 +102,10 @@ int main(int argc, char **argv)
 
 	/* Load the content of the file into an array of entries. */
 	n_rows = kshark_load_data_entries(kshark_ctx, &data);
+	if (n_rows < 1) {
+		kshark_free(kshark_ctx);
+		return 1;
+	}
 
 	/* Get a list of all tasks. */
 	n_tasks = kshark_get_task_pids(kshark_ctx, &pids);

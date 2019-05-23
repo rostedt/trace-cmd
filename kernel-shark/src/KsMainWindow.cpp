@@ -515,7 +515,7 @@ void KsMainWindow::_importFilter()
 	kshark_config_doc *conf;
 	QString fileName;
 
-	if (!kshark_instance(&kshark_ctx))
+	if (!kshark_instance(&kshark_ctx) || _data.size() < 1)
 		return;
 
 	fileName = KsUtils::getFile(this, "Import Filter",
@@ -995,11 +995,10 @@ void KsMainWindow::loadDataFile(const QString& fileName)
 
 	tload.join();
 
-	if (!_data.size()) {
-		QString text("File ");
+	if (_data.size() < 1) {
+		QString text("No data was loaded from file ");
 
-		text.append(fileName);
-		text.append(" contains no data.");
+		text.append(fileName + ".");
 		_error(text, "loadDataErr2", true, true);
 
 		return;
