@@ -238,6 +238,9 @@ endif
 override CFLAGS += $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 
+# Append version define
+override CFLAGS += -DTRACECMD_VERSION=\"$(TRACECMD_VERSION)\"
+override CFLAGS += -DTRACECMD_VERSION_GIT=\"$(shell git log -1 --pretty=format:"%H")\"
 
 CMD_TARGETS = trace-cmd $(BUILD_PYTHON)
 

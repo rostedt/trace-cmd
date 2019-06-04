@@ -3144,6 +3144,19 @@ static void add_uname(struct tracecmd_output *handle)
 	free(str);
 }
 
+static void add_version(struct tracecmd_output *handle)
+{
+	char *str;
+	int len;
+
+	len = asprintf(&str, "%s %s", TRACECMD_VERSION, TRACECMD_VERSION_GIT);
+	if (len < 0)
+		return;
+
+	tracecmd_add_option(handle, TRACECMD_OPTION_VERSION, len+1, str);
+	free(str);
+}
+
 static void print_stat(struct buffer_instance *instance)
 {
 	int cpu;
@@ -3181,7 +3194,7 @@ static void add_options(struct tracecmd_output *handle, struct common_record_con
 	tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK, 0, NULL);
 	add_option_hooks(handle);
 	add_uname(handle);
-
+	add_version(handle);
 }
 
 static void record_data(struct common_record_context *ctx)
