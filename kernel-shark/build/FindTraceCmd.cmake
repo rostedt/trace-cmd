@@ -2,13 +2,10 @@
 # This module finds an installed trace-cmd package.
 #
 # It sets the following variables:
-#  TRACEEVENT_INCLUDE_DIR, where to find traceevent header.
-#  TRACEEVENT_LIBRARY_DIR , where to find the traceevent library.
 #  TRACEEVENT_LIBRARY, traceevent the library.
 #  TRACEEVENT_FOUND, If false, do not try to use traceevent.
 #
 #  TRACECMD_INCLUDE_DIR, where to find trace-cmd header.
-#  TRACECMD_LIBRARY_DIR , where to find the trace-cmd library.
 #  TRACECMD_LIBRARY, the trace-cmd library.
 #  TRACECMD_FOUND, If false, do not try to use trace-cmd.
 
@@ -20,28 +17,33 @@ find_path(TRACECMD_BIN_DIR      NAMES  trace-cmd
                                        ${CMAKE_SOURCE_DIR}/../tracecmd/
                                 NO_DEFAULT_PATH)
 
-find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd.h
-                                PATHS  $ENV{TRACE_CMD}/include/trace-cmd/
-                                       ${CMAKE_SOURCE_DIR}/../include/trace-cmd/
+find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd/trace-cmd.h
+                                PATHS  $ENV{TRACE_CMD}/include/
+                                       ${CMAKE_SOURCE_DIR}/../include/
                                 NO_DEFAULT_PATH)
 
-find_path(TRACECMD_LIBRARY_DIR  NAMES  libtracecmd.a
-                                PATHS  $ENV{TRACE_CMD}/lib/trace-cmd/
-                                       ${CMAKE_SOURCE_DIR}/../lib/trace-cmd/
+find_library(TRACECMD_LIBRARY   NAMES  trace-cmd/libtracecmd.a
+                                PATHS  $ENV{TRACE_CMD}/lib/
+                                       ${CMAKE_SOURCE_DIR}/../lib/
+                                NO_DEFAULT_PATH)
+
+find_library(TRACEEVENT_LIBRARY NAMES  traceevent/libtraceevent.a
+                                PATHS  $ENV{TRACE_CMD}/lib/
+                                       ${CMAKE_SOURCE_DIR}/../lib/
                                 NO_DEFAULT_PATH)
 
 # If not found, search in the default system paths. Note that if the previous
 # search was successful "find_path" will do nothing this time.
 find_path(TRACECMD_BIN_DIR      NAMES  trace-cmd)
-find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd.h)
-find_path(TRACECMD_LIBRARY_DIR  NAMES  libtracecmd.a)
+find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd/trace-cmd.h)
+find_library(TRACECMD_LIBRARY   NAMES  trace-cmd/libtracecmd.so)
+find_library(TRACEEVENT_LIBRARY NAMES  traceevent/libtraceevent.so)
 
-IF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY_DIR)
+IF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY)
 
   SET(TRACECMD_FOUND TRUE)
-  SET(TRACECMD_LIBRARY "${TRACECMD_LIBRARY_DIR}/libtracecmd.a")
 
-ENDIF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY_DIR)
+ENDIF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY)
 
 IF (TRACECMD_FOUND)
 
@@ -53,21 +55,11 @@ ELSE (TRACECMD_FOUND)
 
 ENDIF (TRACECMD_FOUND)
 
-
-find_path(TRACEEVENT_INCLUDE_DIR  NAMES  event-parse.h
-                                  PATHS  $ENV{TRACE_CMD}/include/traceevent/
-                                         ${CMAKE_SOURCE_DIR}/../include/traceevent/)
-
-find_path(TRACEEVENT_LIBRARY_DIR  NAMES  libtraceevent.a
-                                  PATHS  $ENV{TRACE_CMD}/lib/traceevent/
-                                         ${CMAKE_SOURCE_DIR}/../lib/traceevent/)
-
-IF (TRACEEVENT_INCLUDE_DIR AND TRACEEVENT_LIBRARY_DIR)
+IF (TRACEEVENT_LIBRARY)
 
   SET(TRACEEVENT_FOUND TRUE)
-  SET(TRACEEVENT_LIBRARY "${TRACEEVENT_LIBRARY_DIR}/libtraceevent.a")
 
-ENDIF (TRACEEVENT_INCLUDE_DIR AND TRACEEVENT_LIBRARY_DIR)
+ENDIF (TRACEEVENT_LIBRARY)
 
 IF (TRACEEVENT_FOUND)
 

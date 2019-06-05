@@ -6,7 +6,7 @@
 #ifndef _TRACE_CMD_H
 #define _TRACE_CMD_H
 
-#include "event-parse.h"
+#include "traceevent/event-parse.h"
 
 #define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
 #define __weak __attribute__((weak))

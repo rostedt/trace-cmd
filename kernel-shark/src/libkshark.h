@@ -18,17 +18,16 @@
 #include <errno.h>
 
 // Json-C
-#include <json.h>
+#include <json-c/json.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // trace-cmd
-#include "trace-cmd.h"
-#include "trace-filter-hash.h"
-#include "event-parse.h"
-#include "trace-filter-hash.h"
+#include "trace-cmd/trace-cmd.h"
+#include "trace-cmd/trace-filter-hash.h"
+#include "traceevent/event-parse.h"
 
 // KernelShark
 #include "libkshark-plugin.h"
@@ -148,6 +147,13 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
 
 ssize_t kshark_load_data_records(struct kshark_context *kshark_ctx,
 				 struct tep_record ***data_rows);
+
+size_t kshark_load_data_matrix(struct kshark_context *kshark_ctx,
+			       uint64_t **offset_array,
+			       uint16_t **cpu_array,
+			       uint64_t **ts_array,
+			       uint16_t **pid_array,
+			       int **event_array);
 
 ssize_t kshark_get_task_pids(struct kshark_context *kshark_ctx, int **pids);
 

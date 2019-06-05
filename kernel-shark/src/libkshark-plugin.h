@@ -17,7 +17,7 @@ extern "C" {
 #endif // __cplusplus
 
 // trace-cmd
-#include "event-parse.h"
+#include "traceevent/event-parse.h"
 
 /* Quiet warnings over documenting simple structures */
 //! @cond Doxygen_Suppress
