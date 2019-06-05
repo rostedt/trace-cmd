@@ -28,8 +28,6 @@
 /* for debugging read instead of mmap */
 static int force_read = 0;
 
-#define PAGE_STOPPER		((struct page *)-1L)
-
 struct page_map {
 	struct list_head	list;
 	off64_t			offset;
@@ -65,6 +63,7 @@ struct cpu_data {
 	struct tep_record	*next;
 	struct page		*page;
 	struct kbuffer		*kbuf;
+	int			nr_pages;
 	int			page_cnt;
 	int			cpu;
 	int			pipe_fd;
@@ -146,16 +145,17 @@ static void add_record(struct page *page, struct tep_record *record)
 	record->prev = NULL;
 	page->records = record;
 }
-static const char *show_records(struct page **pages)
+static const char *show_records(struct page **pages, int nr_pages)
 {
 	static char buf[BUFSIZ + 1];
 	struct tep_record *record;
 	struct page *page;
 	int len;
+	int i;
 
 	memset(buf, 0, sizeof(buf));
 	len = 0;
-	for (i = 0; pages[i] != PAGE_STOPPER; i--) {
+	for (i = 0; i < nr_pages; i++) {
 		page = pages[i];
 		if (!page)
 			continue;
@@ -172,7 +172,7 @@ static const char *show_records(struct page **pages)
 #else
 static inline void remove_record(struct page *page, struct tep_record *record) {}
 static inline void add_record(struct page *page, struct tep_record *record) {}
-static const char *show_records(struct page **pages)
+static const char *show_records(struct page **pages, int nr_pages)
 {
 	return "";
 }
@@ -919,10 +919,20 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 				  int cpu, off64_t offset)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
+	struct page **pages;
 	struct page *page;
 	int index;
 
 	index = (offset - cpu_data->file_offset) / handle->page_size;
+	if (index >= cpu_data->nr_pages) {
+		pages = realloc(cpu_data->pages, (index + 1) * sizeof(*cpu_data->pages));
+		if (!pages)
+			return NULL;
+		memset(pages + cpu_data->nr_pages, 0,
+		       (index + 1 - cpu_data->nr_pages) * sizeof(*cpu_data->pages));
+		cpu_data->pages = pages;
+		cpu_data->nr_pages = index + 1;
+	}
 	if (cpu_data->pages[index]) {
 		cpu_data->pages[index]->ref_count++;
 		return cpu_data->pages[index];
@@ -954,6 +964,7 @@ static struct page *allocate_page(struct tracecmd_input *handle,
 static void __free_page(struct tracecmd_input *handle, struct page *page)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[page->cpu];
+	struct page **pages;
 	int index;
 
 	if (!page->ref_count)
@@ -973,6 +984,17 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	cpu_data->page_cnt--;
 
 	free(page);
+
+	for (index = cpu_data->nr_pages - 1; index > 0; index--)
+		if (cpu_data->pages[index])
+			break;
+	if (index < (cpu_data->nr_pages - 1)) {
+		pages = realloc(cpu_data->pages, (index + 1) * sizeof(*cpu_data->pages));
+		if (!pages)
+			return;
+		cpu_data->pages = pages;
+		cpu_data->nr_pages = index + 1;
+	}
 }
 
 static void free_page(struct tracecmd_input *handle, int cpu)
@@ -2026,7 +2048,6 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record)
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
-	int num_pages;
 	int i;
 
 	cpu_data->offset = cpu_data->file_offset;
@@ -2040,13 +2061,12 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 		return 0;
 	}
 
-	num_pages = (cpu_data->size + handle->page_size - 1) / handle->page_size;
-	cpu_data->pages = calloc(num_pages + 1, sizeof(*cpu_data->pages));
+	cpu_data->nr_pages = (cpu_data->size + handle->page_size - 1) / handle->page_size;
+	if (!cpu_data->nr_pages)
+		cpu_data->nr_pages = 1;
+	cpu_data->pages = calloc(cpu_data->nr_pages, sizeof(*cpu_data->pages));
 	if (!cpu_data->pages)
 		return -1;
-
-	/* Add stopper */
-	cpu_data->pages[num_pages] = PAGE_STOPPER;
 
 	if (handle->use_pipe) {
 		/* Just make a page, it will be nuked later */
@@ -2793,7 +2813,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 			if (handle->cpu_data[cpu].page_cnt)
 				warning("%d pages still allocated on cpu %d%s",
 					handle->cpu_data[cpu].page_cnt,
-					cpu, show_records(handle->cpu_data[cpu].pages));
+					cpu, show_records(handle->cpu_data[cpu].pages,
+							  handle->cpu_data[cpu].nr_pages));
 			free(handle->cpu_data[cpu].pages);
 		}
 	}
