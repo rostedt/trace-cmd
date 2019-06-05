@@ -92,6 +92,7 @@ int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval 
 	struct pid_record_data *last_pid;
 	fd_set rfds;
 	int top_rfd = 0;
+	int nr_fd;
 	int ret;
 	int i;
 
@@ -119,17 +120,22 @@ int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval 
 		return 1;
 	}
 
+	nr_fd = 0;
 	FD_ZERO(&rfds);
 
 	for (i = 0; i < nr_pids; i++) {
 		/* Do not process closed pipes */
 		if (pids[i].closed)
 			continue;
+		nr_fd++;
 		if (pids[i].brass[0] > top_rfd)
 			top_rfd = pids[i].brass[0];
 
 		FD_SET(pids[i].brass[0], &rfds);
 	}
+
+	if (!nr_fd)
+		return 0;
 
 	ret = select(top_rfd + 1, &rfds, NULL, NULL, tv);
 
