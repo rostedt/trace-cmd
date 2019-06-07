@@ -284,7 +284,7 @@ static struct usage_help usage_help[] = {
 	{
 		"check-events",
 		"parse trace event formats",
-		" %s check-format [-N]\n"
+		" %s check-events [-N]\n"
 		"          -N do not load any plugins\n"
 	},
 	{
