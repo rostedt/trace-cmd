@@ -89,6 +89,7 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
             DESTINATION ${_INSTALL_PREFIX}/share/applications/)
 
     install(FILES "${KS_DIR}/icons/${KS_ICON}"
+                  "${KS_DIR}/icons/${KS_ICON_FIN}"
             DESTINATION ${_INSTALL_PREFIX}/share/icons/${KS_APP_NAME})
 
     install(FILES "${KS_DIR}/org.freedesktop.kshark-record.policy"

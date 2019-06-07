@@ -55,7 +55,11 @@ if (NOT _INSTALL_PREFIX)
 endif (NOT _INSTALL_PREFIX)
 
 set(KS_PLUGIN_INSTALL_PREFIX ${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/plugins/)
-set(KS_ICON ksharkicon.png)
+
+set(KS_ICON        KS_icon_shark.svg)
+set(KS_ICON_FIN    KS_icon_fin.svg)
+set(KS_LOGO        KS_logo_symbol.svg)
+set(KS_LOGO_LABEL  KS_logo_horizontal.svg)
 
 set(CMAKE_INSTALL_RPATH "${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/")
 
