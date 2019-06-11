@@ -1112,6 +1112,7 @@ enum output_type {
 	OUTPUT_NORMAL,
 	OUTPUT_STAT_ONLY,
 	OUTPUT_UNAME_ONLY,
+	OUTPUT_VERSION_ONLY,
 };
 
 static void read_data_info(struct list_head *handle_list, enum output_type otype,
@@ -1160,6 +1161,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			continue;
 		case OUTPUT_UNAME_ONLY:
 			tracecmd_print_uname(handles->handle);
+		case OUTPUT_VERSION_ONLY:
+			tracecmd_print_version(handles->handle);
 			continue;
 		}
 
@@ -1386,6 +1389,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_version	= 238,
 	OPT_tsdiff	= 239,
 	OPT_ts2secs	= 240,
 	OPT_tsoffset	= 241,
@@ -1427,6 +1431,7 @@ void trace_report (int argc, char **argv)
 	int show_page_size = 0;
 	int show_printk = 0;
 	int show_uname = 0;
+	int show_version = 0;
 	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
@@ -1468,6 +1473,7 @@ void trace_report (int argc, char **argv)
 			{"debug", no_argument, NULL, OPT_debug},
 			{"profile", no_argument, NULL, OPT_profile},
 			{"uname", no_argument, NULL, OPT_uname},
+			{"version", no_argument, NULL, OPT_version},
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"ts2secs", required_argument, NULL, OPT_ts2secs},
@@ -1618,6 +1624,9 @@ void trace_report (int argc, char **argv)
 		case OPT_uname:
 			show_uname = 1;
 			break;
+		case OPT_version:
+			show_version = 1;
+			break;
 		case OPT_bycomm:
 			trace_profile_set_merge_like_comms();
 			break;
@@ -1767,6 +1776,9 @@ void trace_report (int argc, char **argv)
 	/* yeah yeah, uname overrides stat */
 	if (show_uname)
 		otype = OUTPUT_UNAME_ONLY;
+	/* and version overrides uname! */
+	if (show_version)
+		otype = OUTPUT_VERSION_ONLY;
 	read_data_info(&handle_list, otype, global);
 
 	list_for_each_entry(handles, &handle_list, list) {

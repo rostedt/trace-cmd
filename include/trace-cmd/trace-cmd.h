@@ -138,6 +138,7 @@ int tracecmd_init_data(struct tracecmd_input *handle);
 
 void tracecmd_print_stats(struct tracecmd_input *handle);
 void tracecmd_print_uname(struct tracecmd_input *handle);
+void tracecmd_print_version(struct tracecmd_input *handle);
 
 struct tep_record *
 tracecmd_read_page_record(struct tep_handle *pevent, void *page, int size,

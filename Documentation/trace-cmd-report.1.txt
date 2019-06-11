@@ -248,6 +248,10 @@ OPTIONS
     If the trace.dat file recorded uname during the run, this will retrieve that
     information.
 
+*--version*::
+    If the trace.dat file recorded the version of the executable used to create
+    it, report that version.
+
 *--ts-offset* offset::
     Add (or subtract if negative) an offset for all timestamps of the previous
     data file specified with *-i*. This is useful to merge sort multiple trace.dat

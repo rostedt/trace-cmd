@@ -94,6 +94,7 @@ struct tracecmd_input {
 	double			ts2secs;
 	char *			cpustats;
 	char *			uname;
+	char *			version;
 	struct input_buffer_instance	*buffers;
 	int			parsing_failures;
 
@@ -2220,6 +2221,9 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_UNAME:
 			handle->uname = strdup(buf);
 			break;
+		case TRACECMD_OPTION_VERSION:
+			handle->version = strdup(buf);
+			break;
 		case TRACECMD_OPTION_HOOK:
 			hook = tracecmd_create_event_hook(buf);
 			hook->next = handle->hooks;
@@ -2596,6 +2600,21 @@ void tracecmd_print_uname(struct tracecmd_input *handle)
 		printf("%s\n", handle->uname);
 	else
 		printf(" uname was not recorded in this file\n");
+}
+
+/**
+ * tracecmd_print_uname - prints the recorded uname if it was recorded
+ * @handle: input handle for the trace.dat file
+ *
+ * Looks for the option TRACECMD_OPTION_VERSION and prints out what's
+ * stored there, if it is found. Otherwise it prints that none were found.
+ */
+void tracecmd_print_version(struct tracecmd_input *handle)
+{
+	if (handle->version)
+		printf("%s\n", handle->version);
+	else
+		printf(" version was not recorded in this file\n");
 }
 
 /**

@@ -166,6 +166,7 @@ static struct usage_help usage_help[] = {
 		"          --check-events return whether all event formats can be parsed\n"
 		"          --stat - show the buffer stats that were reported at the end of the record.\n"
 		"          --uname - show uname of the record, if it was saved\n"
+		"          --version - show version used to build the trace-cmd exec that created the file\n"
 		"          --profile report stats on where tasks are blocked and such\n"
 		"          -G when profiling, set soft and hard irqs as global\n"
 		"          -H Allows users to hook two events together for timings\n"
