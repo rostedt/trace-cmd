@@ -47,7 +47,7 @@ all: $(TARGETS)
 $(bdir):
 	@mkdir -p $(bdir)
 
-$(bdir)/include: | $(bidr)
+$(bdir)/include: | $(bdir)
 	@mkdir -p $(bdir)/include
 
 $(TC_VERSION): force | $(bdir)/include
