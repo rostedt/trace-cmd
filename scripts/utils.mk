@@ -79,6 +79,15 @@ define make_version.h
 	echo '#define EXTRAVERSION ' $(EXTRAVERSION);					\
 	echo '#define VERSION_STRING "'$(VERSION).$(PATCHLEVEL).$(EXTRAVERSION)'"';	\
 	echo '#define FILE_VERSION '$(FILE_VERSION);					\
+	if [ -d $(src)/.git ]; then							\
+	  d=`git diff`;									\
+	  x="";										\
+	  if [ ! -z "$$d" ]; then x="+"; fi;						\
+	  echo '#define VERSION_GIT "'$(shell 						\
+		git log -1 --pretty=format:"%H" 2>/dev/null)$$x'"';			\
+	else										\
+	  echo '#define VERSION_GIT "not-a-git-repo"';					\
+	fi										\
 	) > $1
 endef
 

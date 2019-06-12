@@ -34,6 +34,7 @@
 #include <limits.h>
 #include <libgen.h>
 
+#include "version.h"
 #include "trace-local.h"
 #include "trace-msg.h"
 
@@ -3149,7 +3150,7 @@ static void add_version(struct tracecmd_output *handle)
 	char *str;
 	int len;
 
-	len = asprintf(&str, "%s %s", TRACECMD_VERSION, TRACECMD_VERSION_GIT);
+	len = asprintf(&str, "%s %s", VERSION_STRING, VERSION_GIT);
 	if (len < 0)
 		return;
 
