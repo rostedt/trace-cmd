@@ -207,7 +207,6 @@ struct common_record_context {
 	struct buffer_instance *instance;
 	const char *output;
 	char *date2ts;
-	char *max_graph_depth;
 	int data_flags;
 
 	int record_all;
@@ -4892,9 +4891,9 @@ static void parse_record_options(int argc,
 			ctx->data_flags |= DATA_FL_OFFSET;
 			break;
 		case OPT_max_graph_depth:
-			free(ctx->max_graph_depth);
-			ctx->max_graph_depth = strdup(optarg);
-			if (!ctx->max_graph_depth)
+			free(ctx->instance->max_graph_depth);
+			ctx->instance->max_graph_depth = strdup(optarg);
+			if (!ctx->instance->max_graph_depth)
 				die("Could not allocate option");
 			break;
 		case OPT_no_filter:
@@ -5056,10 +5055,12 @@ static void record_trace(int argc, char **argv,
 	update_plugins(type);
 	set_options();
 
-	if (ctx->max_graph_depth) {
-		for_all_instances(instance)
-			set_max_graph_depth(instance, ctx->max_graph_depth);
-		free(ctx->max_graph_depth);
+	for_all_instances(instance) {
+		if (instance->max_graph_depth) {
+			set_max_graph_depth(instance, instance->max_graph_depth);
+			free(instance->max_graph_depth);
+			instance->max_graph_depth = NULL;
+		}
 	}
 
 	allocate_seq();
@@ -5155,10 +5156,12 @@ void trace_extract(int argc, char **argv)
 	update_plugins(type);
 	set_options();
 
-	if (ctx.max_graph_depth) {
-		for_all_instances(instance)
-			set_max_graph_depth(instance, ctx.max_graph_depth);
-		free(ctx.max_graph_depth);
+	for_all_instances(instance) {
+		if (instance->max_graph_depth) {
+			set_max_graph_depth(instance, instance->max_graph_depth);
+			free(instance->max_graph_depth);
+			instance->max_graph_depth = NULL;
+		}
 	}
 
 	allocate_seq();

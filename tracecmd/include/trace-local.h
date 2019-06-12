@@ -183,6 +183,8 @@ struct buffer_instance {
 	struct tracecmd_msg_handle *msg_handle;
 	struct tracecmd_output *network_handle;
 
+	char			*max_graph_depth;
+
 	int			flags;
 	int			tracing_on_init_val;
 	int			tracing_on_fd;
