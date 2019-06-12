@@ -270,8 +270,10 @@ static void reset_save_file(const char *file, int prio)
 	char *content;
 
 	content = get_file_content(file);
-	add_reset_file(file, content, prio);
-	free(content);
+	if (content) {
+		add_reset_file(file, content, prio);
+		free(content);
+	}
 }
 
 /*
