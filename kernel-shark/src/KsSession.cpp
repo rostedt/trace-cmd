@@ -450,7 +450,7 @@ void KsSession::saveDualMarker(KsDualMarkerSM *dm)
  */
 void KsSession::loadDualMarker(KsDualMarkerSM *dm, KsTraceGraph *graphs)
 {
-	uint64_t pos;
+	size_t pos;
 
 	dm->reset();
 	dm->setState(DualMarkerState::A);
