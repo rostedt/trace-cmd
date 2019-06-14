@@ -489,12 +489,11 @@ KsCaptureDialog::KsCaptureDialog(QWidget *parent)
 	connect(&_captureCtrl._closeButton,	&QPushButton::pressed,
 		this,				&KsCaptureDialog::close);
 
-	if (KsUtils::isInstalled())
-		captureExe = QString(_INSTALL_PREFIX) + QString("/bin");
+	if (!KsUtils::isInstalled())
+		captureExe = QString(_INSTALL_PREFIX) + QString("/bin/trace-cmd");
 	else
-		captureExe = TRACECMD_BIN_DIR;
+		captureExe = TRACECMD_EXECUTABLE;
 
-	captureExe += "/trace-cmd";
 	_captureProc.setProgram(captureExe);
 
 	_captureMon.connectMe(&_captureProc, &_captureCtrl);

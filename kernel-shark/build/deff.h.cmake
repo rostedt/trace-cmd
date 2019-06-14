@@ -18,7 +18,7 @@
 #cmakedefine KS_PLUGIN_INSTALL_PREFIX "@KS_PLUGIN_INSTALL_PREFIX@"
 
 /** Location of the trace-cmd executable. */
-#cmakedefine TRACECMD_BIN_DIR "@TRACECMD_BIN_DIR@"
+#cmakedefine TRACECMD_EXECUTABLE "@TRACECMD_EXECUTABLE@"
 
 /** "pkexec" executable. */
 #cmakedefine DO_AS_ROOT "@DO_AS_ROOT@"

@@ -12,10 +12,14 @@
 # MESSAGE(" Looking for trace-cmd ...")
 
 # First search in the user provided paths.
-find_path(TRACECMD_BIN_DIR      NAMES  trace-cmd
-                                PATHS  $ENV{TRACE_CMD}/tracecmd/
-                                       ${CMAKE_SOURCE_DIR}/../tracecmd/
-                                NO_DEFAULT_PATH)
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+
+  find_program(TRACECMD_EXECUTABLE   NAMES  trace-cmd
+                                     PATHS  $ENV{TRACE_CMD}/tracecmd/
+                                            ${CMAKE_SOURCE_DIR}/../tracecmd/
+                                     NO_DEFAULT_PATH)
+
+endif (CMAKE_BUILD_TYPE MATCHES Debug)
 
 find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd/trace-cmd.h
                                 PATHS  $ENV{TRACE_CMD}/include/
@@ -34,16 +38,16 @@ find_library(TRACEEVENT_LIBRARY NAMES  traceevent/libtraceevent.a
 
 # If not found, search in the default system paths. Note that if the previous
 # search was successful "find_path" will do nothing this time.
-find_path(TRACECMD_BIN_DIR      NAMES  trace-cmd)
+find_program(TRACECMD_EXECUTABLE   NAMES  trace-cmd)
 find_path(TRACECMD_INCLUDE_DIR  NAMES  trace-cmd/trace-cmd.h)
 find_library(TRACECMD_LIBRARY   NAMES  trace-cmd/libtracecmd.so)
 find_library(TRACEEVENT_LIBRARY NAMES  traceevent/libtraceevent.so)
 
-IF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY)
+IF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY AND TRACECMD_EXECUTABLE)
 
   SET(TRACECMD_FOUND TRUE)
 
-ENDIF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY)
+ENDIF (TRACECMD_INCLUDE_DIR AND TRACECMD_LIBRARY AND TRACECMD_EXECUTABLE)
 
 IF (TRACECMD_FOUND)
 
