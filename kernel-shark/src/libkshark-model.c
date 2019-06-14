@@ -260,7 +260,8 @@ static size_t ksmodel_set_upper_edge(struct kshark_trace_histo *histo)
 static void ksmodel_set_next_bin_edge(struct kshark_trace_histo *histo,
 				      size_t bin, size_t last_row)
 {
-	size_t time_min, time_max, next_bin = bin + 1;
+	uint64_t time_min, time_max;
+	size_t next_bin = bin + 1;
 	ssize_t row;
 
 	/* Calculate the beginning and the end of the next bin. */
@@ -601,9 +602,9 @@ void ksmodel_shift_backward(struct kshark_trace_histo *histo, size_t n)
  * @param histo: Input location for the model descriptor.
  * @param ts: position in time to be visualized.
  */
-void ksmodel_jump_to(struct kshark_trace_histo *histo, size_t ts)
+void ksmodel_jump_to(struct kshark_trace_histo *histo, uint64_t ts)
 {
-	size_t min, max, range_min;
+	uint64_t min, max, range_min;
 
 	if (ts > histo->min && ts < histo->max) {
 		/*
