@@ -1423,7 +1423,7 @@ char* kshark_dump_custom_entry(struct kshark_context *kshark_ctx,
 	event_name = info_func(kshark_ctx, entry, false);
 	info = info_func(kshark_ctx, entry, true);
 
-	size = asprintf(&entry_str, "%li; %s-%i; CPU %i; ; %s; %s",
+	size = asprintf(&entry_str, "%" PRIu64 "; %s-%i; CPU %i; ; %s; %s",
 			entry->ts,
 			task,
 			entry->pid,
@@ -1472,7 +1472,7 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 		event_name = event? event->name : "[UNKNOWN EVENT]";
 		lat = kshark_get_latency(kshark_ctx->pevent, data);
 
-		size = asprintf(&temp_str, "%li; %s-%i; CPU %i; %s;",
+		size = asprintf(&temp_str, "%" PRIu64 "; %s-%i; CPU %i; %s;",
 				entry->ts,
 				task,
 				entry->pid,

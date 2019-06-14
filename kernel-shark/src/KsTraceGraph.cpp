@@ -277,7 +277,7 @@ void KsTraceGraph::_resetPointer(uint64_t ts, int cpu, int pid)
 	QString pointer;
 
 	kshark_convert_nano(ts, &sec, &usec);
-	pointer.sprintf("%lu.%06lu", sec, usec);
+	pointer.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
 	_labelP2.setText(pointer);
 
 	if (pid > 0 && cpu >= 0) {
@@ -313,7 +313,7 @@ void KsTraceGraph::_setPointerInfo(size_t i)
 	uint64_t sec, usec;
 
 	kshark_convert_nano(e->ts, &sec, &usec);
-	pointer.sprintf("%lu.%06lu", sec, usec);
+	pointer.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
 	_labelP2.setText(pointer);
 
 	comm.append("-");
@@ -601,17 +601,17 @@ void KsTraceGraph::_updateTimeLegends()
 	QString tMin, tMid, tMax;
 
 	kshark_convert_nano(_glWindow.model()->histo()->min, &sec, &usec);
-	tMin.sprintf("%lu.%06lu", sec, usec);
+	tMin.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
 	_labelXMin.setText(tMin);
 
 	tsMid = (_glWindow.model()->histo()->min +
 		 _glWindow.model()->histo()->max) / 2;
 	kshark_convert_nano(tsMid, &sec, &usec);
-	tMid.sprintf("%lu.%06lu", sec, usec);
+	tMid.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
 	_labelXMid.setText(tMid);
 
 	kshark_convert_nano(_glWindow.model()->histo()->max, &sec, &usec);
-	tMax.sprintf("%lu.%06lu", sec, usec);
+	tMax.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
 	_labelXMax.setText(tMax);
 }
 

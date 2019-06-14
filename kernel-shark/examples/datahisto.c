@@ -56,11 +56,11 @@ void dump_bin(struct kshark_trace_histo *histo, int bin,
 		puts ("EMPTY BIN");
 	} else {
 		entry_str = kshark_dump_entry(e_front);
-		printf("%li -> %s\n", i_front, entry_str);
+		printf("%zd -> %s\n", i_front, entry_str);
 		free(entry_str);
 
 		entry_str = kshark_dump_entry(e_back);
-		printf("%li -> %s\n", i_back, entry_str);
+		printf("%zd -> %s\n", i_back, entry_str);
 		free(entry_str);
 	}
 
