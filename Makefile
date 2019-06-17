@@ -252,8 +252,11 @@ all_cmd: $(CMD_TARGETS)
 
 CMAKE_COMMAND = /usr/bin/cmake
 
+# Build with "BUILD_TYPE=Release" to remove cmake debug info
+BUILD_TYPE ?= RelWithDebInfo
+
 $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
-	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -D_INSTALL_PREFIX=$(prefix) ..
+	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -D_INSTALL_PREFIX=$(prefix) ..
 
 gui: force $(CMD_TARGETS) $(kshark-dir)/build/Makefile
 	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build

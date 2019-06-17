@@ -51,6 +51,16 @@ changed by passing in "prefix" to the build.
 2.1.1.2 Use "make clean" if you want to delete all already compiled objects.
 This will also clean up all the files created by cmake.
 
+2.1.1.3 KernelShark has multiple build types (See section 2.1.2.3 for more
+details. By default, the build type is RelWithDebInfo, which will build
+a release candidate with debug information. To change the type, pass in
+the option BUILD_TYPE=<type> to the make process.
+
+    make BUILD_TYPE=Debug gui          - for "-g" option
+    make BUILD_TYPE=Release gui        - for "-O3" option
+    make BUILD_TYPE=RelWithDebInfo gui - for "-g -O2" option (default)
+    make BUILD_TYPE=MinSizeRel gui     - for "-Os" option
+
 2.1.2 Option 2 (expert) : standalone build of KernelShark (for hackers only)
 
    (note, you may need to do a normal make from the toplevel git
@@ -79,9 +89,10 @@ CMAKE_XXXX_FLAGS_PACKAGE Command-Line options (see the example below).
 Note that when built as a "Package" the RPATH-s of the executables are
 set directly to _INSTALL_PREFIX/lib/kernelshark/
 
-If no build types is specified, the type will be "Debug".
+If no build types is specified, the type will be "RelWithDebInfo".
 
 Examples:
+
     cmake -D_DOXYGEN_DOC=1 -D_INSTALL_PREFIX=/usr ../
 
     cmake -DCMAKE_BUILD_TYPE=Package -DCMAKE_C_FLAGS_PACKAGE="-O3 -pedantic"  ../
