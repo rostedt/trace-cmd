@@ -357,6 +357,7 @@ clean:
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
 	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
+	cd $(kshark-dir)/build; ./cmake_clean.sh
 
 
 ##### PYTHON STUFF #####

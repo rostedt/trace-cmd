@@ -49,7 +49,7 @@ changed by passing in "prefix" to the build.
    make prefix=/usr gui
 
 2.1.1.2 Use "make clean" if you want to delete all already compiled objects.
-Note, this will not clean up the files created by cmake. See section 2.1.2.4
+This will also clean up all the files created by cmake.
 
 2.1.2 Option 2 (expert) : standalone build of KernelShark (for hackers only)
 
