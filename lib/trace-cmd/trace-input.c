@@ -986,15 +986,17 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 
 	free(page);
 
-	for (index = cpu_data->nr_pages - 1; index > 0; index--)
-		if (cpu_data->pages[index])
-			break;
-	if (index < (cpu_data->nr_pages - 1)) {
-		pages = realloc(cpu_data->pages, (index + 1) * sizeof(*cpu_data->pages));
-		if (!pages)
-			return;
-		cpu_data->pages = pages;
-		cpu_data->nr_pages = index + 1;
+	if (handle->use_pipe) {
+		for (index = cpu_data->nr_pages - 1; index > 0; index--)
+			if (cpu_data->pages[index])
+				break;
+		if (index < (cpu_data->nr_pages - 1)) {
+			pages = realloc(cpu_data->pages, (index + 1) * sizeof(*cpu_data->pages));
+			if (!pages)
+				return;
+			cpu_data->pages = pages;
+			cpu_data->nr_pages = index + 1;
+		}
 	}
 }
 
