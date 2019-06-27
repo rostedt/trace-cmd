@@ -80,7 +80,7 @@ static int write_record(struct tracecmd_input *handle,
 	unsigned long long diff;
 	struct tep_handle *pevent;
 	void *page;
-	int len;
+	int len = 0;
 	char *ptr;
 	int index = 0;
 	int time;
@@ -106,12 +106,8 @@ static int write_record(struct tracecmd_input *handle,
 		return 0;
 	}
 
-	if (record->size) {
-		if (record->size < 28 * 4)
-			len = record->size / 4;
-		else
-			len = 0;
-	}
+	if (record->size && (record->size < 28 * 4))
+		len = record->size / 4;
 
 	time = (unsigned)diff;
 	time = create_type_len(pevent, time, len);
