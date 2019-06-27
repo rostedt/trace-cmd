@@ -626,7 +626,7 @@ static void stop_all_readers(int cpus, int *pid_array)
 static int put_together_file(int cpus, int ofd, const char *node,
 			     const char *port, bool write_options)
 {
-	struct tracecmd_output *handle;
+	struct tracecmd_output *handle = NULL;
 	char **temp_files;
 	int cpu;
 	int ret = -ENOMEM;
