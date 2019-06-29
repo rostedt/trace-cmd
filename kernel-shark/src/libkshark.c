@@ -252,13 +252,13 @@ void kshark_free(struct kshark_context *kshark_ctx)
 	free(kshark_ctx);
 }
 
-static inline uint8_t knuth_hash8(uint32_t val)
+static inline uint8_t knuth_hash(uint32_t val)
 {
 	/*
-	 * Hashing functions, based on Donald E. Knuth's Multiplicative
-	 * hashing. See The Art of Computer Programming (TAOCP).
-	 * Multiplication by the Prime number, closest to the golden
-	 * ratio of 2^8.
+	 * Small table hashing function adapted from Donald E. Knuth's 32 bit
+	 * multiplicative hash.  See The Art of Computer Programming (TAOCP).
+	 * Multiplication by the Prime number, closest to the golden ratio of
+	 * 2^8.
 	 */
 	return UINT8_C(val) * UINT8_C(157);
 }
@@ -282,7 +282,7 @@ kshark_add_task(struct kshark_context *kshark_ctx, int pid)
 	struct kshark_task_list *list;
 	uint8_t key;
 
-	key = knuth_hash8(pid);
+	key = knuth_hash(pid);
 	list = kshark_find_task(kshark_ctx, key, pid);
 	if (list)
 		return list;
