@@ -1373,6 +1373,7 @@ static char *trace_util_get_source_plugins_dir(void)
 	ret = readlink("/proc/self/exe", path, PATH_MAX);
 	if (ret > PATH_MAX || ret < 0)
 		return NULL;
+	path[ret] = 0;
 
 	dirname(path);
 	p = strrchr(path, '/');
