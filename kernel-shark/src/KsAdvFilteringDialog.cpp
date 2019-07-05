@@ -216,7 +216,7 @@ void KsAdvFilteringDialog::_getFilters(struct kshark_context *kshark_ctx)
 			continue;
 
 		_filters.insert(events[i]->id,
-				QString("%1/%2:%3\n").arg(events[i]->system,
+				QString("%1/%2:%3").arg(events[i]->system,
 							  events[i]->name, str));
 
 		free(str);
