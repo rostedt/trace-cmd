@@ -314,8 +314,8 @@ void usage(char **argv)
 	p = basename(arg);
 
 	printf("\n"
-	       "%s version %s\n\n"
-	       "usage:\n", p, VERSION_STRING);
+	       "%s version %s (%s)\n\n"
+	       "usage:\n", p, VERSION_STRING, VERSION_GIT);
 
 	if (argv[1])
 		help = find_help(argv[1]);
