@@ -159,6 +159,8 @@ private:
 
 	QSettings	_settings;
 
+	QMetaObject::Connection		_captureErrorConnection;
+
 	void _open();
 
 	void _restoreSession();

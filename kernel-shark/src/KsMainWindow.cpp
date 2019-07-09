@@ -155,6 +155,16 @@ KsMainWindow::~KsMainWindow()
 
 	_data.clear();
 
+	/*
+	 * Do not show error messages if the "capture" process is still
+	 * running (Capture dialog is not closed).
+	 */
+	if (_capture.state() != QProcess::NotRunning) {
+		disconnect(_captureErrorConnection);
+		_capture.close();
+		_capture.waitForFinished();
+	}
+
 	if (kshark_instance(&kshark_ctx))
 		kshark_free(kshark_ctx);
 }
@@ -1129,8 +1139,9 @@ void KsMainWindow::_initCapture()
 	connect(&_capture,	SIGNAL(finished(int, QProcess::ExitStatus)),
 		this,		SLOT(_captureFinished(int, QProcess::ExitStatus)));
 
-	connect(&_capture,	&QProcess::errorOccurred,
-		this,		&KsMainWindow::_captureError);
+	_captureErrorConnection =
+		connect(&_capture,	&QProcess::errorOccurred,
+			this,		&KsMainWindow::_captureError);
 
 	connect(&_captureLocalServer,	&QLocalServer::newConnection,
 		this,			&KsMainWindow::_readSocket);
