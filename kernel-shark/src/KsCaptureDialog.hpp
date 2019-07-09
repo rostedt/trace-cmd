@@ -119,6 +119,8 @@ public:
 	 */
 	bool		_argsModified;
 
+	bool		_captureStatus;
+
 private:
 	QVBoxLayout	_layout;
 

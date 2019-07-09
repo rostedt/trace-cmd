@@ -314,6 +314,7 @@ KsCaptureMonitor::KsCaptureMonitor(QWidget *parent)
 : QWidget(parent),
   _mergedChannels(false),
   _argsModified(false),
+  _captureStatus(false),
   _panel(this),
   _name("Output display", this),
   _space("max size ", this),
@@ -448,6 +449,9 @@ void KsCaptureMonitor::_captureFinished(int exit, QProcess::ExitStatus status)
 		_consolOutput.appendPlainText(errMessage);
 
 		QCoreApplication::processEvents();
+		_captureStatus = false;
+	} else {
+		_captureStatus = true;
 	}
 }
 
@@ -530,8 +534,12 @@ void KsCaptureDialog::_setChannelMode(int state)
 
 void KsCaptureDialog::_sendOpenReq(const QString &fileName)
 {
-	QLocalSocket *socket = new QLocalSocket(this);
+	QLocalSocket *socket;
 
+	if (!_captureMon._captureStatus)
+		return;
+
+	socket = new QLocalSocket(this);
 	socket->connectToServer("KSCapture", QIODevice::WriteOnly);
 	if (socket->waitForConnected()) {
 		QByteArray block;
