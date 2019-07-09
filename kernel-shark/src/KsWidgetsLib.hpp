@@ -333,6 +333,8 @@ struct KsEventsCheckBoxWidget : public KsCheckBoxTreeWidget
 	KsEventsCheckBoxWidget(struct tep_handle *pe,
 			       QWidget *parent = nullptr);
 
+	QStringList getCheckedEvents(bool option);
+
 	void removeSystem(QString name);
 };
 

@@ -706,6 +706,47 @@ KsEventsCheckBoxWidget::KsEventsCheckBoxWidget(struct tep_handle *tep,
 	_adjustSize();
 }
 
+/**
+ * @brief Get a list of all checked events. If the whole system is selected
+ *	  (the top level checkbox is checked), only the name of the system is
+ *	  added to the list.
+ *
+ * @param option: If True, "-e" is added as prefix to each element of the list.
+ *
+ * @returns A list of checked events or systems.
+ */
+QStringList KsEventsCheckBoxWidget::getCheckedEvents(bool option)
+{
+	QTreeWidgetItem *sysItem, *evtItem;
+	QStringList list;
+	QString optStr;
+	int nSys, nEvts;
+
+	if (option)
+		optStr = "-e";
+
+	nSys = _tree.topLevelItemCount();
+	for (int t = 0; t < nSys; ++t) {
+		sysItem = _tree.topLevelItem(t);
+		if (sysItem->checkState(0) == Qt::Checked) {
+			list << optStr + sysItem->text(0);
+		} else {
+			nEvts = sysItem->childCount();
+			for (int c = 0; c < nEvts; ++c) {
+				evtItem = sysItem->child(c);
+				if (evtItem->checkState(0) == Qt::Checked) {
+					list << optStr +
+						sysItem->text(0) +
+						":" +
+						evtItem->text(0);
+				}
+			}
+		}
+	}
+
+	return list;
+}
+
 /** Remove a System from the Checkbox tree. */
 void KsEventsCheckBoxWidget::removeSystem(QString name) {
 	QTreeWidgetItem *item =
