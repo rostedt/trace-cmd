@@ -310,7 +310,6 @@ bool kshark_config_doc_get(struct kshark_config_doc *conf,
 			if (!get_jval(conf, key, &tmp->conf_doc))
 				goto fail;
 
-			free(val->conf_doc);
 			val->conf_doc =
 				(char *) json_object_get_string(tmp->conf_doc);
 			free(tmp);
