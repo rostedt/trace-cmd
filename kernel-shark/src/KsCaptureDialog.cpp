@@ -143,23 +143,14 @@ QStringList KsCaptureControl::getArgs()
 	QStringList argv;
 
 	argv << "record";
-	argv << "-p" << _pluginsComboBox.currentText();
 
-	if (_eventsWidget.all()) {
+	if (_pluginsComboBox.currentText() != "nop")
+		argv << "-p" << _pluginsComboBox.currentText();
+
+	if (_eventsWidget.all())
 		argv << "-e" << "all";
-	} else {
-		QVector<int> evtIds = _eventsWidget.getCheckedIds();
-		tep_event *event;
-
-		for (auto const &id: evtIds) {
-			event = tep_find_event(_localTEP, id);
-			if (!event)
-				continue;
-
-			argv << "-e" + QString(event->system) +
-				":" + QString(event->name);
-		}
-	}
+	else
+		argv << _eventsWidget.getCheckedEvents(true);
 
 	argv << "-o" << outputFileName();
 	argv << _commandLineEdit.text().split(" ");
