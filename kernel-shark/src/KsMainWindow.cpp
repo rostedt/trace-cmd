@@ -1179,7 +1179,6 @@ void KsMainWindow::_captureFinished(int ret, QProcess::ExitStatus st)
 		QString message = "Capture process failed:<br>";
 
 		message += capture->errorString();
-		message += "<br>Try doing:<br> sudo make install";
 
 		_error(message, "captureFinishedErr", false, false);
 	}
@@ -1191,8 +1190,6 @@ void KsMainWindow::_captureError(QProcess::ProcessError error)
 	QString message = "Capture process failed:<br>";
 
 	message += capture->errorString();
-	message += "<br>Try doing:<br> sudo make install";
-
 	_error(message, "captureFinishedErr", false, false);
 }
 
