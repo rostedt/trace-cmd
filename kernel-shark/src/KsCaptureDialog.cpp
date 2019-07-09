@@ -553,6 +553,9 @@ void KsCaptureDialog::_sendOpenReq(const QString &fileName)
 		socket->flush();
 		socket->disconnectFromServer();
 	} else {
-		_captureMon.print(socket->errorString());
+		QString error(socket->errorString());
+
+		error += "\n(maybe KernelShark GUI is not open)";
+		_captureMon.print(error);
 	}
 }
