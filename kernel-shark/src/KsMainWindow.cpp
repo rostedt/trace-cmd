@@ -1028,10 +1028,12 @@ void KsMainWindow::loadDataFile(const QString& fileName)
 	}
 }
 
-void KsMainWindow::_error(const QString &text, const QString &errCode,
+void KsMainWindow::_error(const QString &mesg, const QString &errCode,
 			  bool resize, bool unloadPlugins)
 {
 	QErrorMessage *em = new QErrorMessage(this);
+	QString text = mesg;
+	QString html = mesg;
 
 	if (resize)
 		_resizeEmpty();
@@ -1039,8 +1041,11 @@ void KsMainWindow::_error(const QString &text, const QString &errCode,
 	if (unloadPlugins)
 		_plugins.unloadAll();
 
+	text.replace("<br>", "\n", Qt::CaseInsensitive);
+	html.replace("\n", "<br>", Qt::CaseInsensitive);
+
 	qCritical().noquote() << "ERROR: " << text;
-	em->showMessage(text, errCode);
+	em->showMessage(html, errCode);
 	em->exec();
 }
 
