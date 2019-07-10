@@ -1154,9 +1154,35 @@ void KsMainWindow::_captureStarted()
 	_captureLocalServer.listen("KSCapture");
 }
 
+/**
+ * If the authorization could not be obtained because the user dismissed
+ * the authentication dialog (clicked Cancel), pkexec exits with a return
+ * value of 126.
+ */
+#define PKEXEC_DISMISS_RET	126
+
 void KsMainWindow::_captureFinished(int ret, QProcess::ExitStatus st)
 {
+	QProcess *capture = (QProcess *)sender();
+
 	_captureLocalServer.close();
+
+	if (ret == PKEXEC_DISMISS_RET) {
+		/*
+		 * Authorization could not be obtained because the user
+		 * dismissed the authentication dialog.
+		 */
+		return;
+	}
+
+	if (ret != 0 || st != QProcess::NormalExit) {
+		QString message = "Capture process failed:<br>";
+
+		message += capture->errorString();
+		message += "<br>Try doing:<br> sudo make install";
+
+		_error(message, "captureFinishedErr", false, false);
+	}
 }
 
 void KsMainWindow::_captureError(QProcess::ProcessError error)
