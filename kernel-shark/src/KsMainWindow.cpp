@@ -1180,7 +1180,7 @@ void KsMainWindow::_captureFinished(int ret, QProcess::ExitStatus st)
 		return;
 	}
 
-	if (ret != 0 || st != QProcess::NormalExit) {
+	if (ret != 0 && st == QProcess::NormalExit) {
 		QString message = "Capture process failed:<br>";
 
 		message += capture->errorString();
