@@ -563,11 +563,19 @@ void KsTraceViewer::keyReleaseEvent(QKeyEvent *event)
 
 void KsTraceViewer::_resizeToContents()
 {
-	int rows, columnSize;
+	int rows, columnSize, markRow = selectedRow();
 
 	_view.setVisible(false);
 	_view.resizeColumnsToContents();
 	_view.setVisible(true);
+
+	/*
+	 * It looks like a Qt bug, but sometimes when no row is selected in
+	 * the table, the automatic resize of the widget (the lines above) has
+	 * the parasitic effect to select the first row of the table.
+	 */
+	if (markRow == KS_NO_ROW_SELECTED)
+		_view.clearSelection();
 
 	/*
 	 * Because of some unknown reason the first column doesn't get
