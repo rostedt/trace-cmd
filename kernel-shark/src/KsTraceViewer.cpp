@@ -285,10 +285,11 @@ void KsTraceViewer::_searchEditText(const QString &text)
 
 void KsTraceViewer::_graphFollowsChanged(int state)
 {
-	_graphFollows = (bool) state;
+	int row = selectedRow();
 
-	if (_graphFollows && _searchDone())
-		emit select(*_it); // Send a signal to the Graph widget.
+	_graphFollows = (bool) state;
+	if (_graphFollows && row != KS_NO_ROW_SELECTED)
+		emit select(row); // Send a signal to the Graph widget.
 }
 
 void KsTraceViewer::_search()
