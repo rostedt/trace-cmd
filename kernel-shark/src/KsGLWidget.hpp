@@ -41,6 +41,8 @@ public:
 
 	void reset();
 
+	bool isEmpty() const;
+
 	/** Reprocess all graphs. */
 	void update() {resizeGL(width(), height());}
 

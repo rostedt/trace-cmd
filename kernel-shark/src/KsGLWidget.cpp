@@ -88,9 +88,11 @@ void KsGLWidget::paintGL()
 
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	if (isEmpty())
+		return;
+
 	/* Draw the time axis. */
-	if(_data)
-		_drawAxisX(size);
+	_drawAxisX(size);
 
 	/* Process and draw all graphs by using the built-in logic. */
 	_makeGraphs(_cpuList, _taskList);
@@ -125,6 +127,13 @@ void KsGLWidget::reset()
 	_taskList = {};
 	_data = nullptr;
 	_model.reset();
+}
+
+/** Check if the widget is empty (not showing anything). */
+bool KsGLWidget::isEmpty() const {
+	return !_data ||
+	       !_data->size() ||
+	       (!_cpuList.size() && !_taskList.size());
 }
 
 /** Reimplemented event handler used to receive mouse press events. */
@@ -198,6 +207,9 @@ void KsGLWidget::mouseMoveEvent(QMouseEvent *event)
 	size_t row;
 	bool ret;
 
+	if (isEmpty())
+		return;
+
 	if (_rubberBand.isVisible())
 		_rangeBoundStretched(_posInRange(event->pos().x()));
 
@@ -224,6 +236,9 @@ void KsGLWidget::mouseMoveEvent(QMouseEvent *event)
 /** Reimplemented event handler used to receive mouse release events. */
 void KsGLWidget::mouseReleaseEvent(QMouseEvent *event)
 {
+	if (isEmpty())
+		return;
+
 	if (event->button() == Qt::LeftButton) {
 		size_t posMouseRel = _posInRange(event->pos().x());
 		int min, max;
@@ -250,6 +265,9 @@ void KsGLWidget::mouseDoubleClickEvent(QMouseEvent *event)
 void KsGLWidget::wheelEvent(QWheelEvent * event)
 {
 	int zoomFocus;
+
+	if (isEmpty())
+		return;
 
 	if (_mState->activeMarker()._isSet &&
 	    _mState->activeMarker().isVisible()) {

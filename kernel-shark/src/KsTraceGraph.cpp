@@ -234,6 +234,9 @@ void KsTraceGraph::_zoomOut()
 
 void KsTraceGraph::_quickZoomIn()
 {
+	if (_glWindow.isEmpty())
+		return;
+
 	/* Bin size will be 100 ns. */
 	_glWindow.model()->quickZoomIn(100);
 	if (_mState->activeMarker()._isSet &&
@@ -249,6 +252,9 @@ void KsTraceGraph::_quickZoomIn()
 
 void KsTraceGraph::_quickZoomOut()
 {
+	if (_glWindow.isEmpty())
+		return;
+
 	_glWindow.model()->quickZoomOut();
 }
 
@@ -645,6 +651,9 @@ void KsTraceGraph::_updateGraphs(GraphActions action)
 {
 	double k;
 	int bin;
+
+	if (_glWindow.isEmpty())
+		return;
 
 	/*
 	 * Set the "Key Pressed" flag. The flag will stay set as long as the user
