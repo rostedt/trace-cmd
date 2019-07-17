@@ -36,13 +36,7 @@ void ksmodel_init(struct kshark_trace_histo *histo)
 	 * Initialize an empty histo. The histo will have no bins and will
 	 * contain no data.
 	 */
-	histo->bin_size = 0;
-	histo->min = 0;
-	histo->max = 0;
-	histo->n_bins = 0;
-
-	histo->bin_count = NULL;
-	histo->map = NULL;
+	memset(histo, 0, sizeof(*histo));
 }
 
 /**
