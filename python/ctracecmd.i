@@ -108,7 +108,7 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 		    ((int)addr == -1))
 			break;
 		func = tep_find_function(event->tep, addr);
-		if (PyList_Append(list, PyString_FromString(func))) {
+		if (PyList_Append(list, PyUnicode_FromString(func))) {
 			Py_DECREF(list);
 			return NULL;
 		}
@@ -162,10 +162,10 @@ static PyObject *py_field_get_str(struct tep_format_field *f, struct tep_record 
 		 */
 		offset = val & 0xffff;
 
-		return PyString_FromString((char *)r->data + offset);
+		return PyUnicode_FromString((char *)r->data + offset);
 	}
 
-	return PyString_FromStringAndSize((char *)r->data + f->offset,
+	return PyUnicode_FromStringAndSize((char *)r->data + f->offset,
 				strnlen((char *)r->data + f->offset, f->size));
 }
 
@@ -177,7 +177,7 @@ static PyObject *py_format_get_keys(struct tep_event *ef)
 	list = PyList_New(0);
 
 	for (f = ef->format.fields; f; f = f->next) {
-		if (PyList_Append(list, PyString_FromString(f->name))) {
+		if (PyList_Append(list, PyUnicode_FromString(f->name))) {
 			Py_DECREF(list);
 			return NULL;
 		}
