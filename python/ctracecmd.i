@@ -117,6 +117,15 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 	return list;
 }
 
+static PyObject *fromMemory(void *buf, size_t len)
+{
+#if PY_MAJOR_VERSION >= 3
+		return PyMemoryView_FromMemory(buf, len, PyBUF_READ);
+#else
+		return PyBuffer_FromMemory(buf, len);
+#endif
+}
+
 static PyObject *py_field_get_data(struct tep_format_field *f, struct tep_record *r)
 {
 	if (!strncmp(f->type, "__data_loc ", 11)) {
@@ -137,10 +146,10 @@ static PyObject *py_field_get_data(struct tep_format_field *f, struct tep_record
 		offset = val & 0xffff;
 		len = val >> 16;
 
-		return PyBuffer_FromMemory((char *)r->data + offset, len);
+		return fromMemory(r->data + offset, len);
 	}
 
-	return PyBuffer_FromMemory((char *)r->data + f->offset, f->size);
+	return fromMemory(r->data + f->offset, f->size);
 }
 
 static PyObject *py_field_get_str(struct tep_format_field *f, struct tep_record *r)
