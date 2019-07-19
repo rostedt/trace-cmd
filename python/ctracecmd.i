@@ -117,14 +117,21 @@ static PyObject *py_field_get_stack(struct tep_handle *pevent,
 	return list;
 }
 
+#if PY_MAJOR_VERSION >= 3
 static PyObject *fromMemory(void *buf, size_t len)
 {
-#if PY_MAJOR_VERSION >= 3
 		return PyMemoryView_FromMemory(buf, len, PyBUF_READ);
-#else
-		return PyBuffer_FromMemory(buf, len);
-#endif
 }
+#define PY_INT_AS_LONG PyLong_AsLong
+#else
+static PyObject *fromMemory(void *buf, size_t len)
+{
+		return PyBuffer_FromMemory(buf, len);
+}
+#define PY_INT_AS_LONG PyInt_AS_LONG
+#endif
+
+
 
 static PyObject *py_field_get_data(struct tep_format_field *f, struct tep_record *r)
 {
@@ -226,7 +233,7 @@ static int python_callback(struct trace_seq *s,
 			Py_XDECREF(result);
 			return 0;
 		}
-		r = PyInt_AS_LONG(result);
+		r = PY_INT_AS_LONG(result);
 	} else if (result == Py_None)
 		r = 0;
 	else
