@@ -343,8 +343,10 @@ install_gui: install_cmd gui
 install_libs: libs
 	$(Q)$(call do_install,$(LIBTRACECMD_SHARED),$(libdir_SQ))
 	$(Q)$(call do_install,$(LIBTRACEEVENT_SHARED),$(libdir_SQ))
-	$(Q)$(call do_install,$(src)/include/traceevent/event-parse.h,$(includedir_SQ))
+	$(Q)$(call do_install,$(src)/include/traceevent/event-parse.h,$(includedir_SQ)/traceevent)
+	$(Q)$(call do_install,$(src)/include/traceevent/trace-seq.h,$(includedir_SQ)/traceevent)
 	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ))
+	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-filter-hash.h,$(includedir_SQ))
 
 doc:
 	$(MAKE) -C $(src)/Documentation all
