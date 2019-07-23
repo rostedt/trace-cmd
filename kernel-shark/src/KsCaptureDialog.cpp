@@ -55,13 +55,19 @@ KsCaptureControl::KsCaptureControl(QWidget *parent)
 		_topLayout.addWidget(line);
 	};
 
-	if (pluginList.count() == 0) {
+	if (pluginList.count() == 0 || !_localTEP) {
 		/*
-		 * No plugins have been found. Most likely this is because
-		 * the process has no Root privileges.
+		 * No plugins or events have been found. Most likely this is
+		 * because the process has no Root privileges or because
+		 * tracefs cannot be mounted.
 		 */
 		QString message("Error: No events or plugins found.\n");
-		message += "Root privileges are required.";
+
+		if (!_localTEP)
+			message += "Cannot find or mount tracing directory.\n";
+		if (!pluginList.count())
+			message += "Root privileges are required.\n";
+
 		QLabel *errorLabel = new QLabel(message);
 
 		errorLabel->setStyleSheet("QLabel {color : red;}");
