@@ -136,8 +136,11 @@ export NO_PYTHON
 test-build = $(if $(shell sh -c 'echo "$(1)" | \
 	$(CC) -o /dev/null -c -x c - > /dev/null 2>&1 && echo y'), $2)
 
+ifndef NO_UDIS86
 # have udis86 disassembler library?
 udis86-flags := $(call test-build,\#include <udis86.h>,-DHAVE_UDIS86 -ludis86)
+udis86-ldflags := -ludis86
+endif # NO_UDIS86
 
 define BLK_TC_FLUSH_SOURCE
 #include <linux/blktrace_api.h>
@@ -237,6 +240,7 @@ endif
 # Append required CFLAGS
 override CFLAGS += $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
+override LDFLAGS += $(udis86-ldflags)
 
 CMD_TARGETS = trace-cmd $(BUILD_PYTHON)
 
