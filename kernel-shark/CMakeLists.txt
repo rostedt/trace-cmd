@@ -13,6 +13,10 @@ message("\n project: Kernel Shark: (version: ${KS_VERSION_STRING})\n")
 
 set(KS_DIR ${CMAKE_SOURCE_DIR})
 
+if (NOT _INSTALL_PREFIX)
+    set(_INSTALL_PREFIX "/usr/local")
+endif (NOT _INSTALL_PREFIX)
+
 include(${KS_DIR}/build/FindTraceCmd.cmake)
 include(${KS_DIR}/build/FindJSONC.cmake)
 
@@ -49,10 +53,6 @@ endif (NOT CMAKE_C_FLAGS_PACKAGE)
 if (NOT CMAKE_CXX_FLAGS_PACKAGE)
     set(CMAKE_CXX_FLAGS_PACKAGE "-O3")
 endif (NOT CMAKE_CXX_FLAGS_PACKAGE)
-
-if (NOT _INSTALL_PREFIX)
-    set(_INSTALL_PREFIX "/usr/local")
-endif (NOT _INSTALL_PREFIX)
 
 set(KS_PLUGIN_INSTALL_PREFIX ${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/plugins/)
 

@@ -86,8 +86,13 @@ By default this build type adds the "-O2" compiler flag. Package maintainers
 can chose their own compiler flags by providing the corresponding
 CMAKE_XXXX_FLAGS_PACKAGE Command-Line options (see the example below).
 
-Note that when built as a "Package" the RPATH-s of the executables are
+-- Note that when built as a "Package" the RPATH-s of the executables are
 set directly to _INSTALL_PREFIX/lib/kernelshark/
+
+-- Note that when built as a "Debug" the "Record" dialog will try to use the
+version of the trace-cmd executable from the build location. In all other cases
+the dialog will derive the absolut path to the trace-cmd executable from
+"_INSTALL_PREFIX", hence the dialog will use the installed version.
 
 If no build types is specified, the type will be "RelWithDebInfo".
 
