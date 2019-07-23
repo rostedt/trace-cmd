@@ -5,4 +5,5 @@ then
     xhost +si:localuser:root &>/dev/null
 fi
 
-pkexec kshark-record -o ${PWD}/trace.dat
+THIS_DIR=`dirname $0`
+pkexec ${THIS_DIR}/kshark-record -o ${PWD}/trace.dat
