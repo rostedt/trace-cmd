@@ -18,6 +18,12 @@
 #include "KsCmakeDef.hpp"
 #include "KsCaptureDialog.hpp"
 
+extern "C" {
+  // To get access to geteuid()
+  #include <unistd.h>
+  #include <sys/types.h>
+}
+
 static inline tep_handle *local_events()
 {
 	return tracecmd_local_events(tracecmd_get_tracing_dir());
@@ -65,7 +71,9 @@ KsCaptureControl::KsCaptureControl(QWidget *parent)
 
 		if (!_localTEP)
 			message += "Cannot find or mount tracing directory.\n";
-		if (!pluginList.count())
+
+		// geteuid() returns 0 if running as effective id of root
+		if (!pluginList.count() && geteuid())
 			message += "Root privileges are required.\n";
 
 		QLabel *errorLabel = new QLabel(message);
