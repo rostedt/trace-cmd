@@ -749,10 +749,13 @@ QStringList KsEventsCheckBoxWidget::getCheckedEvents(bool option)
 
 /** Remove a System from the Checkbox tree. */
 void KsEventsCheckBoxWidget::removeSystem(QString name) {
-	QTreeWidgetItem *item =
-		_tree.findItems(name, Qt::MatchFixedString, 0)[0];
+	auto itemList = _tree.findItems(name, Qt::MatchFixedString, 0);
+	int index;
 
-	int index = _tree.indexOfTopLevelItem(item);
+	if (itemList.isEmpty())
+		return;
+
+	index = _tree.indexOfTopLevelItem(itemList[0]);
 	if (index >= 0)
 		_tree.takeTopLevelItem(index);
 }
