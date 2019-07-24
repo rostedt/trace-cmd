@@ -587,10 +587,10 @@ bool kshark_export_event_filter(struct tep_handle *pevent,
 				const char *filter_name,
 				struct kshark_config_doc *conf);
 
-bool kshark_import_event_filter(struct tep_handle *pevent,
-				struct tracecmd_filter_id *filter,
-				const char *filter_name,
-				struct kshark_config_doc *conf);
+int kshark_import_event_filter(struct tep_handle *pevent,
+			       struct tracecmd_filter_id *filter,
+			       const char *filter_name,
+			       struct kshark_config_doc *conf);
 
 bool kshark_export_user_mask(struct kshark_context *kshark_ctx,
 			     struct kshark_config_doc **conf);
