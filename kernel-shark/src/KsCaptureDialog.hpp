@@ -40,6 +40,12 @@ signals:
 	/** This signal is emitted when the "Apply" button is pressed. */
 	void argsReady(const QString &args);
 
+	/**
+	 * This signal is emitted when text has to be printed on the
+	 * KsCaptureMonitor widget.
+	 */
+	void print(const QString &message);
+
 private:
 	tep_handle		*_localTEP;
 

@@ -445,6 +445,9 @@ void KsCaptureMonitor::connectMe(QProcess *proc, KsCaptureControl *ctrl)
 
 	connect(ctrl,	&KsCaptureControl::argsReady,
 		this,	&KsCaptureMonitor::_argsReady);
+
+	connect(ctrl,	&KsCaptureControl::print,
+		this,	&KsCaptureMonitor::print);
 }
 
 void KsCaptureMonitor::_captureStarted()
