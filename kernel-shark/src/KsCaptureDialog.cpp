@@ -202,7 +202,7 @@ QStringList KsCaptureControl::_getPlugins()
 
 void KsCaptureControl::_importSettings()
 {
-	int nEvts = tep_get_events_count(_localTEP);
+	int nEvts = tep_get_events_count(_localTEP), nIds;
 	kshark_config_doc *conf, *jevents, *temp;
 	QVector<bool> v(nEvts, false);
 	tracecmd_filter_id *eventHash;
@@ -235,7 +235,14 @@ void KsCaptureControl::_importSettings()
 		return;
 
 	eventHash = tracecmd_filter_id_hash_alloc();
-	kshark_import_event_filter(_localTEP, eventHash, "Events", jevents);
+	nIds = kshark_import_event_filter(_localTEP, eventHash, "Events", jevents);
+	if (nIds < 0) {
+		QString err("WARNING: ");
+		err += "Some of the imported events are not available on this system.\n";
+		err += "All missing events are ignored.\n";
+		emit print(err);
+	}
+
 	for (int i = 0; i < nEvts; ++i) {
 		if (tracecmd_filter_id_find(eventHash, events[i]->id))
 			v[i] = true;
@@ -247,8 +254,19 @@ void KsCaptureControl::_importSettings()
 	/** Get all available plugins. */
 	temp = kshark_string_config_alloc();
 
-	if (kshark_config_doc_get(conf, "Plugin", temp))
-		_pluginsComboBox.setCurrentText(KS_C_STR_CAST(temp->conf_doc));
+	if (kshark_config_doc_get(conf, "Plugin", temp)) {
+		const char *plugin = KS_C_STR_CAST(temp->conf_doc);
+		int pluginIndex = _pluginsComboBox.findText(plugin);
+
+		if (pluginIndex >= 0) {
+			_pluginsComboBox.setCurrentText(KS_C_STR_CAST(temp->conf_doc));
+		} else {
+			QString err("WARNING: The traceer plugin \"");
+			err += plugin;
+			err += "\" is not available on this machine\n";
+			emit print(err);
+		}
+	}
 
 	if (kshark_config_doc_get(conf, "Output", temp))
 		_outputLineEdit.setText(KS_C_STR_CAST(temp->conf_doc));
