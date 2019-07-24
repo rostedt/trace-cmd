@@ -82,6 +82,9 @@ KsCaptureControl::KsCaptureControl(QWidget *parent)
 		_topLayout.addWidget(errorLabel);
 
 		lamAddLine();
+
+		/* Disable "Capture" buttons. */
+		_captureButton.setDisabled(true);
 	}
 
 	pluginList.prepend("nop");
