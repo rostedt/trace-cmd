@@ -209,6 +209,9 @@ void KsCaptureControl::_importSettings()
 	tep_event **events;
 	QString fileName;
 
+	auto lamImportError = [this] () {
+		emit print("ERROR: Unable to load the configuration file.\n");
+	};
 
 	/** Get all available events. */
 	events = tep_list_events(_localTEP, TEP_EVENT_SORT_SYSTEM);
@@ -218,21 +221,27 @@ void KsCaptureControl::_importSettings()
 				    "Kernel Shark Config files (*.json);;",
 				    _lastFilePath);
 
-	if (fileName.isEmpty())
+	if (fileName.isEmpty()) {
+		lamImportError();
 		return;
+	}
 
 	conf = kshark_open_config_file(fileName.toStdString().c_str(),
 				       "kshark.config.record");
-	if (!conf)
+	if (!conf) {
+		lamImportError();
 		return;
+	}
 
 	/*
 	 * Load the hash table of selected events from the configuration
 	 * document.
 	 */
 	jevents = kshark_config_alloc(KS_CONFIG_JSON);
-	if (!kshark_config_doc_get(conf, "Events", jevents))
+	if (!kshark_config_doc_get(conf, "Events", jevents)) {
+		lamImportError();
 		return;
+	}
 
 	eventHash = tracecmd_filter_id_hash_alloc();
 	nIds = kshark_import_event_filter(_localTEP, eventHash, "Events", jevents);
