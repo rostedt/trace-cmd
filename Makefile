@@ -136,9 +136,14 @@ export NO_PYTHON
 test-build = $(if $(shell sh -c 'echo "$(1)" | \
 	$(CC) -o /dev/null -c -x c - > /dev/null 2>&1 && echo y'), $2)
 
+UDIS86_AVAILABLE := $(call test-build,\#include <udis86.h>, y)
+ifneq ($(strip $(UDIS86_AVAILABLE)), y)
+NO_UDIS86 := 1
+endif
+
 ifndef NO_UDIS86
 # have udis86 disassembler library?
-udis86-flags := $(call test-build,\#include <udis86.h>,-DHAVE_UDIS86 -ludis86)
+udis86-flags := -DHAVE_UDIS86 -ludis86
 udis86-ldflags := -ludis86
 endif # NO_UDIS86
 
