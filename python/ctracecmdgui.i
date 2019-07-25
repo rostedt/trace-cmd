@@ -7,6 +7,7 @@
 #include <pygobject.h>
 #include <pyglib.h>
 #include <Python.h>
+#include <memoryobject.h>
 
 extern GtkTreeModel *trace_view_store_as_gtk_tree_model(struct trace_view_store *store);
 
