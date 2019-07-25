@@ -81,7 +81,7 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	} else
 		Py_DECREF(res);
 
-	str = PyString_FromString("pevent");
+	str = PyUnicode_FromString("pevent");
 	if (!str)
 		return -ENOMEM;
 
