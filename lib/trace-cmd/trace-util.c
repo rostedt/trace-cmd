@@ -608,7 +608,7 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 
 	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
-		warning("cound not load plugin '%s'\n%s\n",
+		warning("could not load plugin '%s'\n%s\n",
 			plugin, dlerror());
 		goto out_free;
 	}
@@ -629,7 +629,7 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 
 	func = dlsym(handle, TEP_PLUGIN_LOADER_NAME);
 	if (!func) {
-		warning("cound not find func '%s' in plugin '%s'\n%s\n",
+		warning("could not find func '%s' in plugin '%s'\n%s\n",
 			TEP_PLUGIN_LOADER_NAME, plugin, dlerror());
 		goto out_free;
 	}
@@ -1525,7 +1525,7 @@ static int read_options(struct tep_handle *pevent, const char *path,
 
 	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
-		warning("cound not load plugin '%s'\n%s\n",
+		warning("could not load plugin '%s'\n%s\n",
 			plugin, dlerror());
 		goto out_free;
 	}
