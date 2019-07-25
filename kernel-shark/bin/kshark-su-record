@@ -1,9 +1,6 @@
 #!/bin/bash
 
-if [ "$XDG_SESSION_TYPE" = "wayland" ]
-then
-    xhost +si:localuser:root &>/dev/null
-fi
+xhost +si:localuser:root &>/dev/null
 
 THIS_DIR=`dirname $0`
 pkexec env DISPLAY=${DISPLAY} ${THIS_DIR}/kshark-record -o ${PWD}/trace.dat
