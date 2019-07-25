@@ -2,5 +2,4 @@
 
 xhost +si:localuser:root &>/dev/null
 
-THIS_DIR=`dirname $0`
-pkexec env DISPLAY=${DISPLAY} ${THIS_DIR}/kshark-record -o ${PWD}/trace.dat
+pkexec kshark-record -o ${PWD}/trace.dat
