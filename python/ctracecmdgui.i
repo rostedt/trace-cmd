@@ -37,12 +37,21 @@ pytype_from_gtype(GType gtype)
 }
 
 /* help swig cope with g* types */
+#if PY_MAJOR_VERSION >= 3
+%typemap(in) gint {
+    $1 = PyLong_AsLong($input);
+}
+%typemap(out) gint {
+    $result = PyLong_FromLong($1);
+}
+#else
 %typemap(in) gint {
     $1 = PyInt_AsLong($input);
 }
 %typemap(out) gint {
     $result = PyInt_FromLong($1);
 }
+#endif
 %typemap(in) guint {
     $1 = PyLong_AsUnsignedLong($input);
 }
