@@ -5,9 +5,9 @@ cmake_minimum_required(VERSION 2.8.11 FATAL_ERROR)
 project(kernel-shark)
 
 set(KS_APP_NAME "kernelshark")
-set(KS_VERSION_MAJOR 0)
-set(KS_VERSION_MINOR 9)
-set(KS_VERSION_PATCH 8)
+set(KS_VERSION_MAJOR 1)
+set(KS_VERSION_MINOR 0)
+set(KS_VERSION_PATCH 0)
 set(KS_VERSION_STRING ${KS_VERSION_MAJOR}.${KS_VERSION_MINOR}.${KS_VERSION_PATCH})
 message("\n project: Kernel Shark: (version: ${KS_VERSION_STRING})\n")
 
