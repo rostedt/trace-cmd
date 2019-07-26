@@ -31,17 +31,6 @@ struct tep_plugin_option trace_ftrace_options[] = {
 static struct tep_plugin_option *fgraph_tail = &trace_ftrace_options[0];
 static struct tep_plugin_option *fgraph_depth = &trace_ftrace_options[1];
 
-static void find_long_size(struct tracecmd_ftrace *finfo)
-{
-	finfo->long_size = tracecmd_long_size(finfo->handle);
-}
-
-#define long_size_check(handle)				\
-	do {						\
-		if (!finfo->long_size)				\
-			find_long_size(finfo);		\
-	} while (0)
-
 static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *pevent)
 {
 	struct tep_event *event;
@@ -361,44 +350,6 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 	return 0;
 }
 
-static int
-trace_stack_handler(struct trace_seq *s, struct tep_record *record,
-		    struct tep_event *event, void *context)
-{
-	struct tracecmd_ftrace *finfo = context;
-	struct tep_format_field *field;
-	unsigned long long addr;
-	const char *func;
-	void *data = record->data;
-
-	field = tep_find_any_field(event, "caller");
-	if (!field) {
-		trace_seq_printf(s, "<CANT FIND FIELD %s>", "caller");
-		return 0;
-	}
-
-	trace_seq_puts(s, "<stack trace>\n");
-
-	long_size_check(finfo);
-
-	for (data += field->offset; data < record->data + record->size;
-	     data += finfo->long_size) {
-		addr = tep_read_number(event->tep, data, finfo->long_size);
-
-		if ((finfo->long_size == 8 && addr == (unsigned long long)-1) ||
-		    ((int)addr == -1))
-			break;
-
-		func = tep_find_function(event->tep, addr);
-		if (func)
-			trace_seq_printf(s, "=> %s (%llx)\n", func, addr);
-		else
-			trace_seq_printf(s, "=> %llx\n", addr);
-	}
-
-	return 0;
-}
-
 /**
  * tracecmd_ftrace_load_options - load the ftrace options
  *
@@ -429,9 +380,6 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 
 	tep_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
 				      fgraph_ret_handler, finfo);
-
-	tep_register_event_handler(pevent, -1, "ftrace", "kernel_stack",
-				      trace_stack_handler, finfo);
 
 	trace_util_add_options("ftrace", trace_ftrace_options);
 
