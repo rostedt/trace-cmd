@@ -538,20 +538,19 @@ load_plugins_dir(struct tep_handle *tep, const char *suffix,
 	closedir(dir);
 }
 
-static void
-load_plugins(struct tep_handle *tep, const char *suffix,
-	     void (*load_plugin)(struct tep_handle *tep,
-				 const char *path,
-				 const char *name,
-				 void *data),
-	     void *data)
+void tep_load_plugins_hook(struct tep_handle *tep, const char *suffix,
+			   void (*load_plugin)(struct tep_handle *tep,
+					       const char *path,
+					       const char *name,
+					       void *data),
+			   void *data)
 {
 	char *home;
 	char *path;
 	char *envdir;
 	int ret;
 
-	if (tep->flags & TEP_DISABLE_PLUGINS)
+	if (tep && tep->flags & TEP_DISABLE_PLUGINS)
 		return;
 
 	/*
@@ -559,7 +558,7 @@ load_plugins(struct tep_handle *tep, const char *suffix,
 	 * check that first.
 	 */
 #ifdef PLUGIN_DIR
-	if (!(tep->flags & TEP_DISABLE_SYS_PLUGINS))
+	if (!tep || !(tep->flags & TEP_DISABLE_SYS_PLUGINS))
 		load_plugins_dir(tep, suffix, PLUGIN_DIR,
 				 load_plugin, data);
 #endif
@@ -596,7 +595,7 @@ tep_load_plugins(struct tep_handle *tep)
 {
 	struct tep_plugin_list *list = NULL;
 
-	load_plugins(tep, ".so", load_plugin, &list);
+	tep_load_plugins_hook(tep, ".so", load_plugin, &list);
 	return list;
 }
 

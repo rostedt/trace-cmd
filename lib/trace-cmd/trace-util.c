@@ -33,12 +33,6 @@ static bool tracecmd_debug;
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
-struct tep_plugin_list {
-	struct tep_plugin_list	*next;
-	char			*name;
-	void			*handle;
-};
-
 /**
  * tracecmd_set_quiet - Set if to print output to the screen
  * @quiet: If non zero, print no output to the screen
@@ -57,32 +51,6 @@ void tracecmd_set_debug(bool debug)
 bool tracecmd_get_debug(void)
 {
 	return tracecmd_debug;
-}
-
-void trace_util_free_plugin_options_list(char **list)
-{
-	tracecmd_free_list(list);
-}
-
-/**
- * trace_util_print_plugins - print out the list of plugins loaded
- * @s: the trace_seq descripter to write to
- * @prefix: The prefix string to add before listing the option name
- * @suffix: The suffix string ot append after the option name
- * @list: The list of plugins (usually returned by tracecmd_load_plugins()
- *
- * Writes to the trace_seq @s the list of plugins (files) that is
- * returned by tracecmd_load_plugins(). Use @prefix and @suffix for formating:
- * @prefix = "  ", @suffix = "\n".
- */
-void trace_util_print_plugins(struct trace_seq *s,
-			      const char *prefix, const char *suffix,
-			      const struct tep_plugin_list *list)
-{
-	while (list) {
-		trace_seq_printf(s, "%s%s%s", prefix, list->name, suffix);
-		list = list->next;
-	}
 }
 
 void tracecmd_parse_cmdlines(struct tep_handle *pevent,
@@ -198,56 +166,6 @@ void tracecmd_parse_ftrace_printk(struct tep_handle *pevent,
 		tep_register_print_string(pevent, printk, addr);
 		free(printk);
 	}
-}
-
-static int load_plugin(struct tep_handle *pevent, const char *path,
-		       const char *file, void *data)
-{
-	struct tep_plugin_list **plugin_list = data;
-	tep_plugin_load_func func;
-	struct tep_plugin_list *list;
-	const char *alias;
-	char *plugin;
-	void *handle;
-	int ret;
-
-	ret = asprintf(&plugin, "%s/%s", path, file);
-	if (ret < 0)
-		return -ENOMEM;
-
-	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
-	if (!handle) {
-		warning("could not load plugin '%s'\n%s\n",
-			plugin, dlerror());
-		goto out_free;
-	}
-
-	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
-	if (!alias)
-		alias = file;
-
-	func = dlsym(handle, TEP_PLUGIN_LOADER_NAME);
-	if (!func) {
-		warning("could not find func '%s' in plugin '%s'\n%s\n",
-			TEP_PLUGIN_LOADER_NAME, plugin, dlerror());
-		goto out_free;
-	}
-
-	list = malloc(sizeof(*list));
-	if (!list)
-		goto out_free;
-	list->next = *plugin_list;
-	list->handle = handle;
-	list->name = plugin;
-	*plugin_list = list;
-
-	pr_stat("registering plugin: %s", plugin);
-	func(pevent);
-	return 0;
-
- out_free:
-	free(plugin);
-	return -1;
 }
 
 static int mount_debugfs(void)
@@ -880,57 +798,13 @@ char **tracecmd_local_plugins(const char *tracing_dir)
 	return plugins;
 }
 
-static void
-trace_util_load_plugins_dir(struct tep_handle *pevent, const char *suffix,
-			    const char *path,
-			    int (*load_plugin)(struct tep_handle *pevent,
-					       const char *path,
-					       const char *name,
-						void *data),
-			    void *data)
-{
-	struct dirent *dent;
-	struct stat st;
-	DIR *dir;
-	int ret;
-
-	ret = stat(path, &st);
-	if (ret < 0)
-		return;
-
-	if (!S_ISDIR(st.st_mode))
-		return;
-
-	dir = opendir(path);
-	if (!dir)
-		return;
-
-	while ((dent = readdir(dir))) {
-		const char *name = dent->d_name;
-
-		if (strcmp(name, ".") == 0 ||
-		    strcmp(name, "..") == 0)
-			continue;
-
-		/* Only load plugins that end in suffix */
-		if (strcmp(name + (strlen(name) - strlen(suffix)), suffix) != 0)
-			continue;
-
-		load_plugin(pevent, path, name, data);
-	}
-
-	closedir(dir);
-
-	return;
-}
-
 struct add_plugin_data {
 	int ret;
 	int index;
 	char **files;
 };
 
-static int add_plugin_file(struct tep_handle *pevent, const char *path,
+static void add_plugin_file(struct tep_handle *pevent, const char *path,
 			   const char *name, void *data)
 {
 	struct add_plugin_data *pdata = data;
@@ -939,7 +813,7 @@ static int add_plugin_file(struct tep_handle *pevent, const char *path,
 	int i;
 
 	if (pdata->ret)
-		return 0;
+		return;
 
 	size = pdata->index + 2;
 	ptr = realloc(pdata->files, sizeof(char *) * size);
@@ -953,7 +827,7 @@ static int add_plugin_file(struct tep_handle *pevent, const char *path,
 	pdata->files = ptr;
 	pdata->index++;
 	pdata->files[pdata->index] = NULL;
-	return 0;
+	return;
 
  out_free:
 	for (i = 0; i < pdata->index; i++)
@@ -961,79 +835,6 @@ static int add_plugin_file(struct tep_handle *pevent, const char *path,
 	free(pdata->files);
 	pdata->files = NULL;
 	pdata->ret = errno;
-	return -ENOMEM;
-}
-
-static char *trace_util_get_source_plugins_dir(void)
-{
-	char *p, path[PATH_MAX+1];
-	int ret;
-
-	ret = readlink("/proc/self/exe", path, PATH_MAX);
-	if (ret > PATH_MAX || ret < 0)
-		return NULL;
-	path[ret] = 0;
-
-	dirname(path);
-	p = strrchr(path, '/');
-	if (!p)
-		return NULL;
-	/* Check if we are in the the source tree */
-	if (strcmp(p, "/tracecmd") != 0)
-		return NULL;
-
-	strcpy(p, "/plugins");
-	return strdup(path);
-}
-
-
-int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
-			    int (*load_plugin)(struct tep_handle *pevent,
-					       const char *path,
-					       const char *name,
-					       void *data),
-			    void *data)
-{
-	char *home;
-	char *path;
-	char *envdir;
-	int ret;
-
-	if (tracecmd_disable_plugins)
-		return -EBUSY;
-
-/* If a system plugin directory was defined, check that first */
-#ifdef PLUGIN_DIR
-	if (!tracecmd_disable_sys_plugins)
-		trace_util_load_plugins_dir(pevent, suffix, PLUGIN_DIR,
-					    load_plugin, data);
-#endif
-
-	/* Next let the environment-set plugin directory override the system defaults */
-	envdir = getenv("TRACE_CMD_PLUGIN_DIR");
-	if (envdir)
-		trace_util_load_plugins_dir(pevent, suffix, envdir, load_plugin, data);
-
-	/* Now let the home directory override the environment or system defaults */
-	home = getenv("HOME");
-
-	if (!home)
-		return -EINVAL;
-
-	ret = asprintf(&path, "%s/%s", home, LOCAL_PLUGIN_DIR);
-	if (ret < 0)
-		return -ENOMEM;
-
-	trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
-
-	free(path);
-
-	path = trace_util_get_source_plugins_dir();
-	if (path) {
-		trace_util_load_plugins_dir(pevent, suffix, path, load_plugin, data);
-		free(path);
-	}
-	return 0;
 }
 
 /**
@@ -1056,7 +857,7 @@ char **trace_util_find_plugin_files(const char *suffix)
 
 	memset(&pdata, 0, sizeof(pdata));
 
-	trace_util_load_plugins(NULL, suffix, add_plugin_file, &pdata);
+	tep_load_plugins_hook(NULL, suffix, add_plugin_file, &pdata);
 
 	if (pdata.ret)
 		return TRACECMD_ERROR(pdata.ret);
@@ -1081,129 +882,6 @@ void trace_util_free_plugin_files(char **files)
 		free(files[i]);
 	}
 	free(files);
-}
-
-struct plugin_option_read {
-	struct tep_plugin_option	*options;
-};
-
-static int append_option(struct plugin_option_read *options,
-			 struct tep_plugin_option *option,
-			 const char *alias, void *handle)
-{
-	struct tep_plugin_option *op;
-
-	while (option->name) {
-		op = malloc(sizeof(*op));
-		if (!op)
-			return -ENOMEM;
-		*op = *option;
-		op->next = options->options;
-		options->options = op;
-		op->file = strdup(alias);
-		op->handle = handle;
-		option++;
-	}
-	return 0;
-}
-
-static int read_options(struct tep_handle *pevent, const char *path,
-			 const char *file, void *data)
-{
-	struct plugin_option_read *options = data;
-	struct tep_plugin_option *option;
-	const char *alias;
-	int unload = 0;
-	char *plugin;
-	void *handle;
-	int ret;
-
-	ret = asprintf(&plugin, "%s/%s", path, file);
-	if (ret < 0)
-		return -ENOMEM;
-
-	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
-	if (!handle) {
-		warning("could not load plugin '%s'\n%s\n",
-			plugin, dlerror());
-		goto out_free;
-	}
-
-	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
-	if (!alias)
-		alias = file;
-
-	option = dlsym(handle, TEP_PLUGIN_OPTIONS_NAME);
-	if (!option) {
-		unload = 1;
-		goto out_unload;
-	}
-
-	append_option(options, option, alias, handle);
-
- out_unload:
-	if (unload)
-		dlclose(handle);
- out_free:
-	free(plugin);
-	return 0;
-}
-
-struct tep_plugin_option *trace_util_read_plugin_options(void)
-{
-	struct plugin_option_read option = {
-		.options = NULL,
-	};
-
-	append_option(&option, trace_ftrace_options, "ftrace", NULL);
-
-	trace_util_load_plugins(NULL, ".so", read_options, &option);
-
-	return option.options;
-}
-
-void trace_util_free_options(struct tep_plugin_option *options)
-{
-	struct tep_plugin_option *op;
-	void *last_handle = NULL;
-
-	while (options) {
-		op = options;
-		options = op->next;
-		if (op->handle && op->handle != last_handle) {
-			last_handle = op->handle;
-			dlclose(op->handle);
-		}
-		free(op->file);
-		free(op);
-	}
-}
-
-struct tep_plugin_list *tracecmd_load_plugins(struct tep_handle *pevent)
-{
-	struct tep_plugin_list *list = NULL;
-
-	trace_util_load_plugins(pevent, ".so", load_plugin, &list);
-
-	return list;
-}
-
-void
-tracecmd_unload_plugins(struct tep_plugin_list *plugin_list, struct tep_handle *pevent)
-{
-	tep_plugin_unload_func func;
-	struct tep_plugin_list *list;
-
-	while (plugin_list) {
-		list = plugin_list;
-		plugin_list = list->next;
-		func = dlsym(list->handle, TEP_PLUGIN_UNLOADER_NAME);
-		if (func)
-			func(pevent);
-		dlclose(list->handle);
-		free(list->name);
-		free(list);
-	}
 }
 
 char *tracecmd_get_tracing_file(const char *name)

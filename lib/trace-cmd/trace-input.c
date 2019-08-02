@@ -2850,10 +2850,15 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 	if (!handle->pevent)
 		goto failed_read;
 
+	if (tracecmd_disable_plugins)
+		tep_set_flag(handle->pevent, TEP_DISABLE_PLUGINS);
+	if (tracecmd_disable_sys_plugins)
+		tep_set_flag(handle->pevent, TEP_DISABLE_SYS_PLUGINS);
+
 	/* register default ftrace functions first */
 	tracecmd_ftrace_overrides(handle, &handle->finfo);
 
-	handle->plugin_list = tracecmd_load_plugins(handle->pevent);
+	handle->plugin_list = tep_load_plugins(handle->pevent);
 
 	tep_set_file_bigendian(handle->pevent, buf[0]);
 	tep_set_local_bigendian(handle->pevent, tracecmd_host_bigendian());
@@ -3018,7 +3023,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 		tracecmd_close(handle->parent);
 	else {
 		/* Only main handle frees plugins and pevent */
-		tracecmd_unload_plugins(handle->plugin_list, handle->pevent);
+		tep_unload_plugins(handle->plugin_list, handle->pevent);
 		tep_free(handle->pevent);
 	}
 	free(handle);

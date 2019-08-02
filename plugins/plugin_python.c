@@ -20,7 +20,7 @@ static const char pyload[] =
 "finally:\n"
 "   file.close()\n";
 
-static int load_plugin(struct tep_handle *pevent, const char *path,
+static void load_plugin(struct tep_handle *pevent, const char *path,
 		       const char *name, void *data)
 {
 	PyObject *globals = data;
@@ -33,7 +33,7 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 	PyObject *res;
 
 	if (!full || !n)
-		return -ENOMEM;
+		return;
 
 	strcpy(full, path);
 	strcat(full, "/");
@@ -44,7 +44,7 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 
 	err = asprintf(&load, pyload, full, n);
 	if (err < 0)
-		return err;
+		return;
 
 	res = PyRun_String(load, Py_file_input, globals, globals);
 	if (!res) {
@@ -55,7 +55,6 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 
 	free(load);
 
-	return res ? 0 : -1;
 }
 
 int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
@@ -95,7 +94,7 @@ int TEP_PLUGIN_LOADER(struct tep_handle *pevent)
 	Py_DECREF(py_pevent);
 	Py_DECREF(str);
 
-	trace_util_load_plugins(pevent, ".py", load_plugin, globals);
+	tep_load_plugins_hook(pevent, ".py", load_plugin, globals);
 
 	return 0;
 }

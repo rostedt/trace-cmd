@@ -42,11 +42,17 @@ void trace_check_events(int argc, char **argv)
 	pevent = tep_alloc();
 	if (!pevent)
 		exit(EINVAL);
-	list = tracecmd_load_plugins(pevent);
+
+	if (tracecmd_disable_plugins)
+		tep_set_flag(pevent, TEP_DISABLE_PLUGINS);
+	if (tracecmd_disable_sys_plugins)
+		tep_set_flag(pevent, TEP_DISABLE_SYS_PLUGINS);
+
+	list = tep_load_plugins(pevent);
 	ret = tracecmd_fill_local_events(tracing, pevent, &parsing_failures);
 	if (ret || parsing_failures)
 		ret = EINVAL;
-	tracecmd_unload_plugins(list, pevent);
+	tep_unload_plugins(list, pevent);
 	tep_free(pevent);
 
 	return;

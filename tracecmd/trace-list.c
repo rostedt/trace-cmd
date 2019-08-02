@@ -317,12 +317,17 @@ static void show_plugin_options(void)
 	if (!pevent)
 		die("Can not allocate pevent\n");
 
+	if (tracecmd_disable_plugins)
+		tep_set_flag(pevent, TEP_DISABLE_PLUGINS);
+	if (tracecmd_disable_sys_plugins)
+		tep_set_flag(pevent, TEP_DISABLE_SYS_PLUGINS);
+
 	trace_seq_init(&s);
 
-	list = tracecmd_load_plugins(pevent);
+	list = tep_load_plugins(pevent);
 	tep_plugin_print_options(&s);
 	trace_seq_do_printf(&s);
-	tracecmd_unload_plugins(list, pevent);
+	tep_unload_plugins(list, pevent);
 	tep_free(pevent);
 }
 
@@ -343,12 +348,18 @@ static void show_plugins(void)
 	if (!pevent)
 		die("Can not allocate pevent\n");
 
+	if (tracecmd_disable_plugins)
+		tep_set_flag(pevent, TEP_DISABLE_PLUGINS);
+	if (tracecmd_disable_sys_plugins)
+		tep_set_flag(pevent, TEP_DISABLE_SYS_PLUGINS);
+
 	trace_seq_init(&s);
 
-	list = tracecmd_load_plugins(pevent);
-	trace_util_print_plugins(&s, "  ", "\n", list);
+	list = tep_load_plugins(pevent);
+	tep_print_plugins(&s, "  ", "\n", list);
+
 	trace_seq_do_printf(&s);
-	tracecmd_unload_plugins(list, pevent);
+	tep_unload_plugins(list, pevent);
 	tep_free(pevent);
 }
 
