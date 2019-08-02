@@ -30,18 +30,6 @@ int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
 static bool tracecmd_debug;
 
-static struct registered_plugin_options {
-	struct registered_plugin_options	*next;
-	struct tep_plugin_option			*options;
-} *registered_options;
-
-static struct trace_plugin_options {
-	struct trace_plugin_options	*next;
-	char				*plugin;
-	char				*option;
-	char				*value;
-} *trace_plugin_options;
-
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
@@ -50,52 +38,6 @@ struct tep_plugin_list {
 	char			*name;
 	void			*handle;
 };
-
-/**
- * trace_util_list_plugin_options - get list of plugin options
- *
- * Returns an array of char strings that list the currently registered
- * plugin options in the format of <plugin>:<option>. This list can be
- * used by toggling the option.
- *
- * Returns NULL if there's no options registered.
- *
- * Must be freed with trace_util_free_plugin_options_list().
- */
-char **trace_util_list_plugin_options(void)
-{
-	struct registered_plugin_options *reg;
-	struct tep_plugin_option *op;
-	char **list = NULL;
-	char *name;
-	int count = 0;
-
-	for (reg = registered_options; reg; reg = reg->next) {
-		for (op = reg->options; op->name; op++) {
-			char *alias = op->plugin_alias ? op->plugin_alias : op->file;
-			int ret;
-
-			ret = asprintf(&name, "%s:%s", alias, op->name);
-			if (ret < 0) {
-				warning("Failed to allocate plugin option %s:%s",
-					alias, op->name);
-				break;
-			}
-
-			list = realloc(list, count + 2);
-			if (!list) {
-				warning("Failed to allocate plugin list for %s", name);
-				free(name);
-				break;
-			}
-			list[count++] = name;
-			list[count] = NULL;
-		}
-	}
-	if (!count)
-		return NULL;
-	return list;
-}
 
 /**
  * tracecmd_set_quiet - Set if to print output to the screen
@@ -122,57 +64,6 @@ void trace_util_free_plugin_options_list(char **list)
 	tracecmd_free_list(list);
 }
 
-static int process_option(const char *plugin, const char *option, const char *val);
-static int update_option(const char *file, struct tep_plugin_option *option);
-
-/**
- * trace_util_add_options - Add a set of options by a plugin
- * @name: The name of the plugin adding the options
- * @options: The set of options being loaded
- *
- * Sets the options with the values that have been added by user.
- */
-int trace_util_add_options(const char *name, struct tep_plugin_option *options)
-{
-	struct registered_plugin_options *reg;
-	int ret;
-
-	reg = malloc(sizeof(*reg));
-	if (!reg)
-		return -ENOMEM;
-	reg->next = registered_options;
-	reg->options = options;
-	registered_options = reg;
-
-	while (options->name) {
-		ret = update_option("ftrace", options);
-		if (ret < 0)
-			return ret;
-		options++;
-	}
-	return 0;
-}
-
-/**
- * trace_util_remove_options - remove plugin options that were registered
- * @options: Options to removed that were registered with trace_util_add_options
- */
-void trace_util_remove_options(struct tep_plugin_option *options)
-{
-	struct registered_plugin_options **last;
-	struct registered_plugin_options *reg;
-
-	for (last = &registered_options; *last; last = &(*last)->next) {
-		if ((*last)->options == options) {
-			reg = *last;
-			*last = reg->next;
-			free(reg);
-			return;
-		}
-	}
-			
-}
-
 /**
  * trace_util_print_plugins - print out the list of plugins loaded
  * @s: the trace_seq descripter to write to
@@ -191,197 +82,6 @@ void trace_util_print_plugins(struct trace_seq *s,
 	while (list) {
 		trace_seq_printf(s, "%s%s%s", prefix, list->name, suffix);
 		list = list->next;
-	}
-}
-
-static void parse_option_name(char **option, char **plugin)
-{
-	char *p;
-
-	*plugin = NULL;
-
-	if ((p = strstr(*option, ":"))) {
-		*plugin = *option;
-		*p = '\0';
-		*option = strdup(p + 1);
-		if (!*option)
-			return;
-	}
-}
-
-static struct tep_plugin_option *
-find_registered_option(const char *plugin, const char *option)
-{
-	struct registered_plugin_options *reg;
-	struct tep_plugin_option *op;
-	const char *op_plugin;
-
-	for (reg = registered_options; reg; reg = reg->next) {
-		for (op = reg->options; op->name; op++) {
-			if (op->plugin_alias)
-				op_plugin = op->plugin_alias;
-			else
-				op_plugin = op->file;
-
-			if (plugin && strcmp(plugin, op_plugin) != 0)
-				continue;
-			if (strcmp(option, op->name) != 0)
-				continue;
-
-			return op;
-		}
-	}
-
-	return NULL;
-}
-
-static struct tep_plugin_option *
-find_registered_option_parse(const char *name)
-{
-	struct tep_plugin_option *option;
-	char *option_str;
-	char *plugin;
-
-	option_str = strdup(name);
-	if (!option_str)
-		return NULL;
-
-	parse_option_name(&option_str, &plugin);
-	option = find_registered_option(plugin, option_str);
-	free(option_str);
-	free(plugin);
-
-	return option;
-}
-
-/**
- * trace_util_plugin_option_value - return a plugin option value
- * @name: The name of the plugin option to find (format: <plugin>:<option>)
- *
- * Returns the value char string of the option. If the option is only
- * boolean, then it returns "1" if set, and "0" if not.
- *
- * Returns NULL if the option is not found.
- */
-const char *trace_util_plugin_option_value(const char *name)
-{
-	struct tep_plugin_option *option;
-
-	option = find_registered_option_parse(name);
-	if (!option)
-		return NULL;
-
-	if (option->value)
-		return option->value;
-
-	return option->set ? "1" : "0";
-}
-
-/**
- * trace_util_add_option - add an option/val pair to set plugin options
- * @name: The name of the option (format: <plugin>:<option> or just <option>)
- * @val: (optiona) the value for the option
- *
- * Modify a plugin option. If @val is given than the value of the option
- * is set (note, some options just take a boolean, so @val must be either
- * "1" or "0" or "true" or "false").
- */
-int trace_util_add_option(const char *name, const char *val)
-{
-	struct trace_plugin_options *op;
-	char *option_str;
-	char *plugin;
-	
-	option_str = strdup(name);
-	if (!option_str)
-		return -ENOMEM;
-
-	parse_option_name(&option_str, &plugin);
-
-	/* If the option exists, update the val */
-	for (op = trace_plugin_options; op; op = op->next) {
-		/* Both must be NULL or not NULL */
-		if ((!plugin || !op->plugin) && plugin != op->plugin)
-			continue;
-		if (plugin && strcmp(plugin, op->plugin) != 0)
-			continue;
-		if (strcmp(op->option, option_str) != 0)
-			continue;
-
-		/* update option */
-		free(op->value);
-		if (val) {
-			op->value = strdup(val);
-			if (!op->value)
-				goto out_free;
-		} else
-			op->value = NULL;
-
-		/* plugin and option_str don't get freed at the end */
-		free(plugin);
-		free(option_str);
-
-		plugin = op->plugin;
-		option_str = op->option;
-		break;
-	}
-
-	/* If not found, create */
-	if (!op) {
-		op = malloc(sizeof(*op));
-		if (!op)
-			return -ENOMEM;
-		memset(op, 0, sizeof(*op));
-		op->next = trace_plugin_options;
-		trace_plugin_options = op;
-
-		op->plugin = plugin;
-		op->option = option_str;
-
-		if (val) {
-			op->value = strdup(val);
-			if (!op->value)
-				goto out_free;
-		}
-	}
-
-	return process_option(plugin, option_str, val);
- out_free:
-	free(option_str);
-	return -ENOMEM;
-}
-
-static void print_op_data(struct trace_seq *s, const char *name,
-			  const char *op)
-{
-	if (op)
-		trace_seq_printf(s, "%8s:\t%s\n", name, op);
-}
-
-/**
- * trace_util_print_plugin_options - print out the registered plugin options
- * @s: The trace_seq descriptor to write the plugin options into
- * 
- * Writes a list of options into trace_seq @s.
- */
-void trace_util_print_plugin_options(struct trace_seq *s)
-{
-	struct registered_plugin_options *reg;
-	struct tep_plugin_option *op;
-
-	for (reg = registered_options; reg; reg = reg->next) {
-		if (reg != registered_options)
-			trace_seq_printf(s, "============\n");
-		for (op = reg->options; op->name; op++) {
-			if (op != reg->options)
-				trace_seq_printf(s, "------------\n");
-			print_op_data(s, "file", op->file);
-			print_op_data(s, "plugin", op->plugin_alias);
-			print_op_data(s, "option", op->name);
-			print_op_data(s, "desc", op->description);
-			print_op_data(s, "value", op->value);
-			trace_seq_printf(s, "%8s:\t%d\n", "set", op->set);
-		}
 	}
 }
 
@@ -500,124 +200,12 @@ void tracecmd_parse_ftrace_printk(struct tep_handle *pevent,
 	}
 }
 
-static void lower_case(char *str)
-{
-	if (!str)
-		return;
-	for (; *str; str++)
-		*str = tolower(*str);
-}
-
-static int update_option_value(struct tep_plugin_option *op, const char *val)
-{
-	char *op_val;
-	int ret = 1;
-
-	if (!val) {
-		/* toggle, only if option is boolean */
-		if (op->value)
-			/* Warn? */
-			return 0;
-		op->set ^= 1;
-		return 1;
-	}
-
-	/*
-	 * If the option has a value then it takes a string
-	 * otherwise the option is a boolean.
-	 */
-	if (op->value) {
-		op->value = val;
-		return 1;
-	}
-
-	/* Option is boolean, must be either "1", "0", "true" or "false" */
-
-	op_val = strdup(val);
-	if (!op_val)
-		return -ENOMEM;
-	lower_case(op_val);
-
-	if (strcmp(val, "1") == 0 || strcmp(val, "true") == 0)
-		op->set = 1;
-	else if (strcmp(val, "0") == 0 || strcmp(val, "false") == 0)
-		op->set = 0;
-	else
-		/* Warn on else? */
-		ret = 0;
-	free(op_val);
-
-	return ret;
-}
-
-static int process_option(const char *plugin, const char *option, const char *val)
-{
-	struct tep_plugin_option *op;
-
-	op = find_registered_option(plugin, option);
-	if (!op)
-		return 0;
-
-	return update_option_value(op, val);
-}
-
-static int update_option(const char *file, struct tep_plugin_option *option)
-{
-	struct trace_plugin_options *op;
-	char *plugin;
-
-	if (option->plugin_alias) {
-		plugin = strdup(option->plugin_alias);
-		if (!plugin)
-			return -ENOMEM;
-	} else {
-		char *p;
-		plugin = strdup(file);
-		if (!plugin)
-			return -ENOMEM;
-		p = strstr(plugin, ".");
-		if (p)
-			*p = '\0';
-	}
-
-	/* first look for named options */
-	for (op = trace_plugin_options; op; op = op->next) {
-		if (!op->plugin)
-			continue;
-		if (strcmp(op->plugin, plugin) != 0)
-			continue;
-		if (strcmp(op->option, option->name) != 0)
-			continue;
-
-		option->value = op->value;
-		option->set ^= 1;
-		goto out;
-	}
-
-	/* first look for unnamed options */
-	for (op = trace_plugin_options; op; op = op->next) {
-		if (op->plugin)
-			continue;
-		if (strcmp(op->option, option->name) != 0)
-			continue;
-
-		option->value = op->value;
-		option->set ^= 1;
-		break;
-	}
-
- out:
-	free(plugin);
-	return 0;
-}
-
 static int load_plugin(struct tep_handle *pevent, const char *path,
 		       const char *file, void *data)
 {
 	struct tep_plugin_list **plugin_list = data;
 	tep_plugin_load_func func;
 	struct tep_plugin_list *list;
-	struct tep_plugin_option *options;
 	const char *alias;
 	char *plugin;
 	void *handle;
@@ -637,16 +225,6 @@ static int load_plugin(struct tep_handle *pevent, const char *path,
 	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
 	if (!alias)
 		alias = file;
-
-	options = dlsym(handle, TEP_PLUGIN_OPTIONS_NAME);
-	if (options) {
-		while (options->name) {
-			ret = update_option(alias, options);
-			if (ret < 0)
-				goto out_free;
-			options++;
-		}
-	}
 
 	func = dlsym(handle, TEP_PLUGIN_LOADER_NAME);
 	if (!func) {

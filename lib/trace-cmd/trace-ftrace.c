@@ -359,7 +359,7 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
  */
 void tracecmd_ftrace_load_options(void)
 {
-	trace_util_add_options("ftrace", trace_ftrace_options);
+	tep_plugin_add_options("ftrace", trace_ftrace_options);
 }
 
 int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
@@ -381,7 +381,7 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 	tep_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
 				      fgraph_ret_handler, finfo);
 
-	trace_util_add_options("ftrace", trace_ftrace_options);
+	tep_plugin_add_options("ftrace", trace_ftrace_options);
 
 	/* Store the func ret id and event for later use */
 	event = tep_find_event_by_name(pevent, "ftrace", "funcgraph_exit");

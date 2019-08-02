@@ -215,7 +215,7 @@ int TEP_PLUGIN_LOADER(struct tep_handle *tep)
 	tep_register_event_handler(tep, -1, "ftrace", "kernel_stack",
 				      trace_stack_handler, NULL);
 
-	trace_util_add_options("ftrace", plugin_options);
+	tep_plugin_add_options("ftrace", plugin_options);
 
 	return 0;
 }
@@ -233,7 +233,7 @@ void TEP_PLUGIN_UNLOADER(struct tep_handle *tep)
 		free(fstack[i].stack);
 	}
 
-	trace_util_remove_options(plugin_options);
+	tep_plugin_remove_options(plugin_options);
 
 	free(fstack);
 	fstack = NULL;

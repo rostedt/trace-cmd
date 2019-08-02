@@ -341,9 +341,6 @@ void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
 /* --- Plugin handling --- */
 extern struct tep_plugin_option trace_ftrace_options[];
 
-int trace_util_add_options(const char *name, struct tep_plugin_option *options);
-void trace_util_remove_options(struct tep_plugin_option *options);
-int trace_util_add_option(const char *name, const char *val);
 int trace_util_load_plugins(struct tep_handle *pevent, const char *suffix,
 			    int (*load_plugin)(struct tep_handle *pevent,
 					       const char *path,
@@ -356,10 +353,7 @@ char **trace_util_find_plugin_files(const char *suffix);
 void trace_util_free_plugin_files(char **files);
 void trace_util_print_plugins(struct trace_seq *s, const char *prefix, const char *suffix,
 			      const struct tep_plugin_list *list);
-void trace_util_print_plugin_options(struct trace_seq *s);
-char **trace_util_list_plugin_options(void);
 void trace_util_free_plugin_options_list(char **list);
-const char *trace_util_plugin_option_value(const char *name);
 
 /* Used for trace-cmd list */
 void tracecmd_ftrace_load_options(void);

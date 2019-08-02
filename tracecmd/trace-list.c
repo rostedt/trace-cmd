@@ -320,7 +320,7 @@ static void show_plugin_options(void)
 	trace_seq_init(&s);
 
 	list = tracecmd_load_plugins(pevent);
-	trace_util_print_plugin_options(&s);
+	tep_plugin_print_options(&s);
 	trace_seq_do_printf(&s);
 	tracecmd_unload_plugins(list, pevent);
 	tep_free(pevent);

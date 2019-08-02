@@ -1337,7 +1337,7 @@ static void process_plugin_option(char *option)
 		*p = '\0';
 		val = p+1;
 	}
-	trace_util_add_option(name, val);
+	tep_plugin_add_option(name, val);
 }
 
 static void set_event_flags(struct tep_handle *pevent, struct event_str *list,

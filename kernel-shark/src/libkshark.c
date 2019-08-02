@@ -160,8 +160,8 @@ bool kshark_open(struct kshark_context *kshark_ctx, const char *file)
 	 * Turn off function trace indent and turn on show parent
 	 * if possible.
 	 */
-	trace_util_add_option("ftrace:parent", "1");
-	trace_util_add_option("ftrace:indent", "0");
+	tep_plugin_add_option("ftrace:parent", "1");
+	tep_plugin_add_option("ftrace:indent", "0");
 
 	return true;
 }
