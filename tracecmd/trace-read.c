@@ -100,6 +100,9 @@ static int no_softirqs;
 
 static int tsdiff;
 
+static int latency_format;
+static const char *format_type = TEP_PRINT_INFO;
+
 static struct tep_format_field *wakeup_task;
 static struct tep_format_field *wakeup_success;
 static struct tep_format_field *wakeup_new_task;
@@ -125,6 +128,35 @@ static struct hook_list *last_hook;
 #define WAKEUP_HASH_SIZE 1024
 static struct trace_hash wakeup_hash;
 
+static void print_event_name(struct trace_seq *s, struct tep_event *event)
+{
+	static const char *spaces = "                    "; /* 20 spaces */
+	int len;
+
+	trace_seq_printf(s, " %s: ", event->name);
+
+	/* Space out the event names evenly. */
+	len = strlen(event->name);
+	if (len < 20)
+		trace_seq_printf(s, "%.*s", 20 - len, spaces);
+}
+
+static void print_event(struct trace_seq *s, struct tracecmd_input *handle,
+			struct tep_record *record)
+{
+	struct tep_handle *tep = tracecmd_get_pevent(handle);
+	struct tep_event *event;
+	const char *lfmt = latency_format ? "%8.8s-%-5d %3d" : "%16s-%-5d [%03d]";
+	const char *tfmt = tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS ? " %6.1000d:" : "%12d:";
+
+	event = tep_find_event_by_record(tep, record);
+	tep_print_event(tep, s, record, lfmt, TEP_PRINT_COMM,
+			TEP_PRINT_PID, TEP_PRINT_CPU);
+	tep_print_event(tep, s, record, tfmt, TEP_PRINT_TIME);
+	print_event_name(s, event);
+	tep_print_event(tep, s, record, "%s", format_type);
+}
+
 /* Debug variables for testing tracecmd_read_at */
 #define TEST_READ_AT 0
 #if TEST_READ_AT
@@ -134,22 +166,18 @@ static int test_read_at_copy = 100;
 static int test_read_at_index;
 static void show_test(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent;
 	struct tep_record *record;
 	struct trace_seq s;
-	int cpu;
 
 	if (!test_read_at_offset) {
 		printf("\nNO RECORD COPIED\n");
 		return;
 	}
 
-	pevent = tracecmd_get_pevent(handle);
-
-	record = tracecmd_read_at(handle, test_read_at_offset, &cpu);
+	record = tracecmd_read_at(handle, test_read_at_offset, NULL);
 	printf("\nHERE'S THE COPY RECORD\n");
 	trace_seq_init(&s);
-	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	print_event(&s, handle, record);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -176,7 +204,6 @@ static int test_at_timestamp_cpu = -1;
 static int test_at_timestamp_index;
 static void show_test(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent;
 	struct tep_record *record;
 	struct trace_seq s;
 	int cpu = test_at_timestamp_cpu;
@@ -186,8 +213,6 @@ static void show_test(struct tracecmd_input *handle)
 		return;
 	}
 
-	pevent = tracecmd_get_pevent(handle);
-
 	if (tracecmd_set_cpu_to_timestamp(handle, cpu, test_at_timestamp_ts))
 		return;
 
@@ -196,7 +221,7 @@ static void show_test(struct tracecmd_input *handle)
 	       (void *)(record->offset & ~(page_size - 1)),
 	       (void *)record->offset);
 	trace_seq_init(&s);
-	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	print_event(&s, handle, record);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -221,12 +246,9 @@ static void test_save(struct tep_record *record, int cpu)
 #define DO_TEST
 static void show_test(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent;
 	struct tep_record *record;
 	struct trace_seq s;
 	int cpu = 0;
-
-	pevent = tracecmd_get_pevent(handle);
 
 	record = tracecmd_read_cpu_first(handle, cpu);
 	if (!record) {
@@ -237,7 +259,7 @@ static void show_test(struct tracecmd_input *handle)
 	printf("\nHERE'S THE FIRST RECORD with offset %p\n",
 	       (void *)record->offset);
 	trace_seq_init(&s);
-	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	print_event(&s, handle, record);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -253,7 +275,7 @@ static void show_test(struct tracecmd_input *handle)
 	printf("\nHERE'S THE LAST RECORD with offset %p\n",
 	       (void *)record->offset);
 	trace_seq_init(&s);
-	tep_print_event(pevent, &s, cpu, record->data, record->size, record->ts);
+	print_event(&s, handle, record);
 	trace_seq_do_printf(&s);
 	trace_seq_destroy(&s);
 	printf("\n");
@@ -268,6 +290,9 @@ static void test_save(struct tep_record *record, int cpu)
 #ifndef DO_TEST
 static void show_test(struct tracecmd_input *handle)
 {
+	/* quiet the compiler */
+	if (0)
+		print_event(NULL, NULL, NULL);
 }
 static void test_save(struct tep_record *record, int cpu)
 {
@@ -756,6 +781,8 @@ static void finish_wakeup(void)
 void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
+	const char *lfmt = latency_format ? "%8.8s-%-5d %3d" : "%16s-%-5d [%03d]";
+	const char *tfmt = tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS ? " %6.1000d:" : "%12d:";
 	struct tep_handle *pevent;
 	struct tep_event *event;
 	struct trace_seq s;
@@ -776,6 +803,8 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 	}
 
 	pevent = tracecmd_get_pevent(handle);
+	event = tep_find_event_by_record(pevent, record);
+	use_trace_clock = tracecmd_get_use_trace_clock(handle);
 
 	trace_seq_init(&s);
 	if (record->missed_events > 0)
@@ -793,11 +822,11 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 			trace_seq_putc(&s, '\n');
 		}
 	}
-	use_trace_clock = tracecmd_get_use_trace_clock(handle);
-	event = tep_find_event_by_record(pevent, record);
-	tep_print_event_task(pevent, &s, event, record);
-	tep_print_event_time(pevent, &s, event, record,
-			     use_trace_clock);
+
+	tep_print_event(pevent, &s, record, lfmt, TEP_PRINT_COMM,
+			TEP_PRINT_PID, TEP_PRINT_CPU);
+	tep_print_event(pevent, &s, record, tfmt, TEP_PRINT_TIME);
+
 	if (tsdiff) {
 		unsigned long long rec_ts = record->ts;
 
@@ -813,7 +842,8 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		trace_seq_printf(&s, " %-8s", buf);
 	}
 
-	tep_print_event_data(pevent, &s, event, record);
+	print_event_name(&s, event);
+	tep_print_event(pevent, &s, record, "%s", format_type);
 
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
@@ -1433,7 +1463,6 @@ void trace_report (int argc, char **argv)
 	int show_printk = 0;
 	int show_uname = 0;
 	int show_version = 0;
-	int latency_format = 0;
 	int show_events = 0;
 	int print_events = 0;
 	int nanosec = 0;
@@ -1703,7 +1732,7 @@ void trace_report (int argc, char **argv)
 			tep_set_flag(pevent, TEP_NSEC_OUTPUT);
 
 		if (raw)
-			tep_set_print_raw(pevent, 1);
+			format_type = TEP_PRINT_INFO_RAW;
 
 		if (test_filters_mode)
 			tep_set_test_filters(pevent, 1);
@@ -1766,9 +1795,6 @@ void trace_report (int argc, char **argv)
 		set_event_flags(pevent, nohandler_events, TEP_EVENT_FL_NOHANDLE);
 		set_event_flags(pevent, raw_events, TEP_EVENT_FL_PRINTRAW);
 	}
-
-	if (latency_format)
-		tep_set_latency_format(pevent, latency_format);
 
 	otype = OUTPUT_NORMAL;
 

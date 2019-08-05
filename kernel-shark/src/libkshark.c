@@ -1103,7 +1103,7 @@ static const char *kshark_get_latency(struct tep_handle *pe,
 		return NULL;
 
 	trace_seq_reset(&seq);
-	tep_data_latency_format(pe, &seq, record);
+	tep_print_event(pe, &seq, record, "%s", TEP_PRINT_LATENCY);
 	return seq.buffer;
 }
 
@@ -1117,7 +1117,7 @@ static const char *kshark_get_info(struct tep_handle *pe,
 		return NULL;
 
 	trace_seq_reset(&seq);
-	tep_event_info(&seq, event, record);
+	tep_print_event(pe, &seq, record, "%s", TEP_PRINT_INFO);
 
 	/*
 	 * The event info string contains a trailing newline.
