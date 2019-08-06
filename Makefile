@@ -174,7 +174,7 @@ obj		:= $(objtree)
 
 kshark-dir	= $(src)/kernel-shark
 
-export prefix bindir src obj
+export prefix bindir src obj kshark-dir
 
 LIBS = -ldl
 
@@ -356,12 +356,19 @@ install_libs: libs
 
 doc:
 	$(MAKE) -C $(src)/Documentation all
+doc_gui:
+	$(MAKE) -C $(kshark-dir)/Documentation all
+
 
 doc_clean:
 	$(MAKE) -C $(src)/Documentation clean
+doc_gui_clean:
+	$(MAKE) -C $(kshark-dir)/Documentation clean
 
 install_doc:
 	$(MAKE) -C $(src)/Documentation install
+install_doc_gui:
+	$(MAKE) -C $(kshark-dir)/Documentation install
 
 clean:
 	$(RM) *.o *~ *.a *.so .*.d

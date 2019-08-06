@@ -92,12 +92,12 @@ if (_DOXYGEN_DOC AND DOXYGEN_FOUND)
     add_custom_target(doc ALL)
     add_custom_command(TARGET doc
                        COMMAND doxygen dox_config > dox_build.log
-                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/doc)
+                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Documentation/doxygen)
 
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-                                          "${KS_DIR}/doc/dox_build.log"
-                                          "${KS_DIR}/doc/html"
-                                          "${KS_DIR}/doc/latex")
+                             "${KS_DIR}/Documentation/doxygen/dox_build.log"
+                             "${KS_DIR}/Documentation/doxygen/html"
+                             "${KS_DIR}/Documentation/doxygen/latex")
 
 endif ()
 
