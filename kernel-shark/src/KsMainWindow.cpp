@@ -904,6 +904,7 @@ void KsMainWindow::_record()
 void KsMainWindow::_setColorPhase(int f)
 {
 	KsPlot::Color::setRainbowFrequency(f / 100.);
+	_graph.glPtr()->loadColors();
 	_graph.glPtr()->model()->update();
 }
 
