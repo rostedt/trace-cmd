@@ -717,7 +717,7 @@ static int do_fork(int cfd)
 	pid_t pid;
 
 	/* in debug mode, we do not fork off children */
-	if (debug)
+	if (tracecmd_get_debug())
 		return 0;
 
 	pid = fork();
@@ -769,7 +769,7 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 
 	tracecmd_msg_handle_close(msg_handle);
 
-	if (!debug)
+	if (!tracecmd_get_debug())
 		exit(0);
 
 	return 0;
@@ -910,7 +910,7 @@ static void do_listen(char *port)
 	struct addrinfo *result, *rp;
 	int sfd, s;
 
-	if (!debug)
+	if (!tracecmd_get_debug())
 		signal_setup(SIGCHLD, sigstub);
 
 	make_pid_file();
@@ -1009,7 +1009,7 @@ void trace_listen(int argc, char **argv)
 			daemon = 1;
 			break;
 		case OPT_debug:
-			debug = 1;
+			tracecmd_set_debug(true);
 			break;
 		default:
 			usage(argv);

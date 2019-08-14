@@ -49,6 +49,9 @@ enum {
 void tracecmd_record_ref(struct tep_record *record);
 void free_record(struct tep_record *record);
 
+void tracecmd_set_debug(bool debug);
+bool tracecmd_get_debug(void);
+
 struct tracecmd_input;
 struct tracecmd_output;
 struct tracecmd_recorder;

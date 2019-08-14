@@ -4902,7 +4902,7 @@ static void parse_record_options(int argc,
 			no_filter = true;
 			break;
 		case OPT_debug:
-			debug = 1;
+			tracecmd_set_debug(true);
 			break;
 		case OPT_module:
 			if (ctx->instance->filter_mod)

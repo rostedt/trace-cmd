@@ -427,7 +427,7 @@ void trace_list(int argc, char **argv)
 				break;
 			case '-':
 				if (strcmp(argv[i], "--debug") == 0) {
-					debug = true;
+					tracecmd_set_debug(true);
 					break;
 				}
 				fprintf(stderr, "list: invalid option -- '%s'\n",

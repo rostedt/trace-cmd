@@ -32,7 +32,7 @@ static inline void dprint(const char *fmt, ...)
 {
 	va_list ap;
 
-	if (!debug)
+	if (!tracecmd_get_debug())
 		return;
 
 	va_start(ap, fmt);
@@ -351,7 +351,7 @@ static int tracecmd_msg_recv_wait(int fd, struct tracecmd_msg *msg)
 
 	pfd.fd = fd;
 	pfd.events = POLLIN;
-	ret = poll(&pfd, 1, debug ? -1 : msg_wait_to);
+	ret = poll(&pfd, 1, tracecmd_get_debug() ? -1 : msg_wait_to);
 	if (ret < 0)
 		return -errno;
 	else if (ret == 0)

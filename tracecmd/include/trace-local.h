@@ -12,7 +12,6 @@
 #include "trace-cmd.h"
 #include "event-utils.h"
 
-extern int debug;
 extern int quiet;
 
 /* fix stupid glib guint64 typecasts and printf formats */

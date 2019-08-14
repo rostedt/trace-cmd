@@ -28,6 +28,7 @@
 
 int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
+static bool tracecmd_debug;
 
 static struct registered_plugin_options {
 	struct registered_plugin_options	*next;
@@ -94,6 +95,26 @@ char **trace_util_list_plugin_options(void)
 	if (!count)
 		return NULL;
 	return list;
+}
+
+/**
+ * tracecmd_set_quiet - Set if to print output to the screen
+ * @quiet: If non zero, print no output to the screen
+ *
+ */
+void tracecmd_set_debug(bool debug)
+{
+	tracecmd_debug = debug;
+}
+
+/**
+ * tracecmd_get_quiet - Get if to print output to the screen
+ * Returns non zero, if no output to the screen should be printed
+ *
+ */
+bool tracecmd_get_debug(void)
+{
+	return tracecmd_debug;
 }
 
 void trace_util_free_plugin_options_list(char **list)

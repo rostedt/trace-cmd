@@ -782,10 +782,10 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 				 cpu, record->missed_events);
 	else if (record->missed_events < 0)
 		trace_seq_printf(&s, "CPU:%d [EVENTS DROPPED]\n", cpu);
-	if (buffer_breaks || debug) {
+	if (buffer_breaks || tracecmd_get_debug()) {
 		if (tracecmd_record_at_buffer_start(handle, record)) {
 			trace_seq_printf(&s, "CPU:%d [SUBBUFFER START]", cpu);
-			if (debug)
+			if (tracecmd_get_debug())
 				trace_seq_printf(&s, " [%lld:0x%llx]",
 						 tracecmd_page_ts(handle, record),
 						 record->offset & ~(page_size - 1));
@@ -816,7 +816,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		tep_print_event(pevent, &s, record, use_trace_clock);
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
-	if (debug) {
+	if (tracecmd_get_debug()) {
 		struct kbuffer *kbuf;
 		struct kbuffer_raw_info info;
 		void *page;
@@ -1616,7 +1616,7 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_debug:
 			buffer_breaks = 1;
-			debug = 1;
+			tracecmd_set_debug(true);
 			break;
 		case OPT_profile:
 			profile = 1;
