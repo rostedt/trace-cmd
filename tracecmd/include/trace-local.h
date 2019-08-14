@@ -208,6 +208,17 @@ void show_instance_file(struct buffer_instance *instance, const char *name);
 
 int count_cpus(void);
 
+/* moved from trace-cmd.h */
+void tracecmd_create_top_instance(char *name);
+void tracecmd_remove_instances(void);
+void tracecmd_filter_pid(int pid, int exclude);
+int tracecmd_add_event(const char *event_str, int stack);
+void tracecmd_enable_events(void);
+void tracecmd_disable_all_tracing(int disable_tracer);
+void tracecmd_disable_tracing(void);
+void tracecmd_enable_tracing(void);
+void tracecmd_stat_cpu(struct trace_seq *s, int cpu);
+
 /* No longer in event-utils.h */
 void __noreturn die(const char *fmt, ...); /* Can be overriden */
 void *malloc_or_die(unsigned int size); /* Can be overridden */

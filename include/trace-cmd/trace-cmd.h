@@ -127,8 +127,6 @@ int tracecmd_buffer_instances(struct tracecmd_input *handle);
 const char *tracecmd_buffer_instance_name(struct tracecmd_input *handle, int indx);
 struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx);
 int tracecmd_is_buffer_instance(struct tracecmd_input *handle);
-void tracecmd_create_top_instance(char *name);
-void tracecmd_remove_instances(void);
 
 void tracecmd_set_ts_offset(struct tracecmd_input *handle, unsigned long long offset);
 void tracecmd_set_ts2secs(struct tracecmd_input *handle, unsigned long long hz);
@@ -291,14 +289,7 @@ struct tracecmd_recorder *tracecmd_create_buffer_recorder_maxkb(const char *file
 
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
-void tracecmd_stat_cpu(struct trace_seq *s, int cpu);
 long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
-void tracecmd_filter_pid(int pid, int exclude);
-int tracecmd_add_event(const char *event_str, int stack);
-void tracecmd_enable_events(void);
-void tracecmd_disable_all_tracing(int disable_tracer);
-void tracecmd_disable_tracing(void);
-void tracecmd_enable_tracing(void);
 
 enum tracecmd_msg_flags {
 	TRACECMD_MSG_FL_USE_TCP		= 1 << 0,
