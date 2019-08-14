@@ -10,6 +10,7 @@ OBJS =
 OBJS += trace-hash.o
 OBJS += trace-hooks.o
 OBJS += trace-input.o
+OBJS += trace-output.o
 OBJS += trace-recorder.o
 OBJS += trace-util.o
 OBJS += trace-filter-hash.o

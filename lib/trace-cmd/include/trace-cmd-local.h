@@ -11,6 +11,13 @@
 #include "trace-cmd.h"
 #include "event-utils.h"
 
+/* trace.dat file format version */
+#define FILE_VERSION 6
+
+#define _STR(x)	#x
+#define STR(x)	_STR(x)
+#define FILE_VERSION_STRING STR(FILE_VERSION)
+
 extern int quiet;
 
 static ssize_t __do_write(int fd, const void *data, size_t size)

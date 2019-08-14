@@ -9,9 +9,4 @@
 #include "tc_version.h"
 #endif
 
-#define _STR(x)	#x
-#define STR(x)	_STR(x)
-
-#define FILE_VERSION_STRING STR(FILE_VERSION)
-
 #endif /* _VERSION_H */

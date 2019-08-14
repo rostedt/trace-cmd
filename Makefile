@@ -10,9 +10,6 @@ export TC_PATCHLEVEL
 export TC_EXTRAVERSION
 export TRACECMD_VERSION
 
-# file format version
-FILE_VERSION = 6
-
 MAKEFLAGS += --no-print-directory
 
 # Makefiles suck: This macro sets a default value of $(2) for the

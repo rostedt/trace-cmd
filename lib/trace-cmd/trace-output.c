@@ -23,7 +23,6 @@
 #include "trace-cmd-local.h"
 #include "list.h"
 #include "trace-msg.h"
-#include "version.h"
 
 /* We can't depend on the host size for size_t, all must be 64 bit */
 typedef unsigned long long	tsize_t;
