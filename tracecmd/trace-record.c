@@ -86,7 +86,6 @@ static bool use_tcp;
 static int do_ptrace;
 
 static int filter_task;
-static int filter_pid = -1;
 static bool no_filter = false;
 
 static int local_cpu_count;
@@ -866,6 +865,13 @@ static void add_filter_pid(int pid, int exclude)
 	struct filter_pids *p;
 	char buf[100];
 
+	for (p = filter_pids; p; p = p->next) {
+		if (p->pid == pid) {
+			p->exclude = exclude;
+			return;
+		}
+	}
+
 	p = malloc(sizeof(*p));
 	if (!p)
 		die("Failed to allocate pid filter");
@@ -1223,16 +1229,35 @@ static void enable_ptrace(void)
 	ptrace(PTRACE_TRACEME, 0, NULL, 0);
 }
 
-static void ptrace_wait(enum trace_type type, int main_pid)
+static void ptrace_wait(enum trace_type type)
 {
+	struct filter_pids *fpid;
 	unsigned long send_sig;
 	unsigned long child;
 	siginfo_t sig;
+	int main_pids;
 	int cstatus;
 	int status;
+	int i = 0;
+	int *pids;
 	int event;
 	int pid;
 	int ret;
+
+	pids = calloc(nr_filter_pids, sizeof(int));
+	if (!pids) {
+		warning("Unable to allocate array for %d PIDs", nr_filter_pids);
+		return;
+	}
+
+	for (fpid = filter_pids; fpid; fpid = fpid->next) {
+		if (fpid->exclude)
+			continue;
+		pids[i++] = fpid->pid;
+		if (i >= nr_filter_pids)
+			break;
+	}
+	main_pids = i;
 
 	do {
 		ret = trace_waitpid(type, -1, &status, WSTOPPED | __WALL);
@@ -1275,11 +1300,24 @@ static void ptrace_wait(enum trace_type type, int main_pid)
 			       PTRACE_O_TRACEEXIT);
 			ptrace(PTRACE_CONT, pid, NULL, send_sig);
 		}
-	} while (!finished && ret > 0 &&
-		 (!WIFEXITED(status) || pid != main_pid));
+		if (WIFEXITED(status) ||
+		   (WIFSTOPPED(status) && event == PTRACE_EVENT_EXIT)) {
+			for (i = 0; i < nr_filter_pids; i++) {
+				if (pid == pids[i]) {
+					pids[i] = 0;
+					main_pids--;
+					if (!main_pids)
+						finished = 1;
+					break;
+				}
+			}
+		}
+	} while (!finished && ret > 0);
+
+	free(pids);
 }
 #else
-static inline void ptrace_wait(enum trace_type type, int main_pid) { }
+static inline void ptrace_wait(enum trace_type type) { }
 static inline void enable_ptrace(void) { }
 static inline void ptrace_attach(int pid) { }
 
@@ -1289,8 +1327,8 @@ static void trace_or_sleep(enum trace_type type)
 {
 	struct timeval tv = { 1 , 0 };
 
-	if (do_ptrace && filter_pid >= 0)
-		ptrace_wait(type, filter_pid);
+	if (do_ptrace && filter_pids)
+		ptrace_wait(type);
 	else if (type & TRACE_TYPE_STREAM)
 		trace_stream_read(pids, recorder_threads, &tv);
 	else
@@ -1327,7 +1365,7 @@ static void run_cmd(enum trace_type type, int argc, char **argv)
 	}
 	if (do_ptrace) {
 		add_filter_pid(pid, 0);
-		ptrace_wait(type, pid);
+		ptrace_wait(type);
 	} else
 		trace_waitpid(type, pid, &status, 0);
 }
@@ -2318,7 +2356,7 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 	*event = *old_event;
 	add_event(instance, event);
 
-	if (event->filter || filter_task || filter_pid) {
+	if (event->filter || filter_task || filter_pids) {
 		event->filter_file = strdup(path);
 		if (!event->filter_file)
 			die("malloc filter file");
@@ -4924,9 +4962,9 @@ static void parse_record_options(int argc,
 		add_func(&ctx->instance->filter_funcs,
 			 ctx->instance->filter_mod, "*");
 
-	if (do_ptrace && !filter_task && (filter_pid < 0))
+	if (do_ptrace && !filter_task && !nr_filter_pids)
 		die(" -c can only be used with -F (or -P with event-fork support)");
-	if (ctx->do_child && !filter_task &&! filter_pid)
+	if (ctx->do_child && !filter_task && !nr_filter_pids)
 		die(" -c can only be used with -P or -F");
 
 	if ((argc - optind) >= 2) {
@@ -4997,6 +5035,7 @@ static void record_trace(int argc, char **argv,
 {
 	enum trace_type type = get_trace_cmd_type(ctx->curr_cmd);
 	struct buffer_instance *instance;
+	struct filter_pids *pid;
 
 	/*
 	 * If top_instance doesn't have any plugins or events, then
@@ -5083,8 +5122,12 @@ static void record_trace(int argc, char **argv,
 		update_task_filter();
 		tracecmd_enable_tracing();
 		/* We don't ptrace ourself */
-		if (do_ptrace && filter_pid >= 0)
-			ptrace_attach(filter_pid);
+		if (do_ptrace && filter_pids) {
+			for (pid = filter_pids; pid; pid = pid->next) {
+				if (!pid->exclude)
+					ptrace_attach(pid->pid);
+			}
+		}
 		/* sleep till we are woken with Ctrl^C */
 		printf("Hit Ctrl^C to stop recording\n");
 		while (!finished)
