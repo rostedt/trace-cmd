@@ -119,6 +119,9 @@ OPTIONS
      Used with either *-F* (or *-P* if kernel supports it) to trace the process'
      children too.
 
+*--user*::
+     Execute the specified *command* as given user.
+
 *-C* 'clock'::
      Set the trace clock to "clock".
 
