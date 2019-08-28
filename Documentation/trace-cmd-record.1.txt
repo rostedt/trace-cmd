@@ -288,6 +288,9 @@ OPTIONS
 
     '--module snd -n "*"' is equivalent to '-n :mod:snd'
 
+*--proc-map*::
+     Save the traced process address map into the trace.dat file. The traced
+     processes can be specified using the option *-P*, or as a given 'command'.
 
 *--profile*::
     With the *--profile* option, "trace-cmd" will enable tracing that can

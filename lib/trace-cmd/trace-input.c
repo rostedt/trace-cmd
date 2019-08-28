@@ -101,6 +101,7 @@ struct tracecmd_input {
 	struct tracecmd_ftrace	finfo;
 
 	struct hook_list	*hooks;
+	struct pid_addr_maps	*pid_maps;
 	/* file information */
 	size_t			header_files_start;
 	size_t			ftrace_files_start;
@@ -2136,6 +2137,167 @@ void tracecmd_set_ts2secs(struct tracecmd_input *handle,
 	handle->use_trace_clock = false;
 }
 
+static int trace_pid_map_cmp(const void *a, const void *b)
+{
+	struct tracecmd_proc_addr_map *m_a = (struct tracecmd_proc_addr_map *)a;
+	struct tracecmd_proc_addr_map *m_b = (struct tracecmd_proc_addr_map *)b;
+
+	if (m_a->start > m_b->start)
+		return 1;
+	if (m_a->start < m_b->start)
+		return -1;
+	return 0;
+}
+
+static void procmap_free(struct pid_addr_maps *maps)
+{
+	int i;
+
+	if (!maps)
+		return;
+	if (maps->lib_maps) {
+		for (i = 0; i < maps->nr_lib_maps; i++)
+			free(maps->lib_maps[i].lib_name);
+		free(maps->lib_maps);
+	}
+	free(maps->proc_name);
+	free(maps);
+}
+
+#define STR_PROCMAP_LINE_MAX	(PATH_MAX+22)
+static int trace_pid_map_load(struct tracecmd_input *handle, char *buf)
+{
+	struct pid_addr_maps *maps = NULL;
+	char mapname[STR_PROCMAP_LINE_MAX];
+	char *line;
+	int res;
+	int ret;
+	int i;
+
+	maps = calloc(1, sizeof(*maps));
+	if (!maps)
+		return -ENOMEM;
+
+	ret  = -EINVAL;
+	line = strchr(buf, '\n');
+	if (!line)
+		goto out_fail;
+
+	*line = '\0';
+	if (strlen(buf) > STR_PROCMAP_LINE_MAX)
+		goto out_fail;
+
+	res = sscanf(buf, "%x %x %s", &maps->pid, &maps->nr_lib_maps, mapname);
+	if (res != 3)
+		goto out_fail;
+
+	ret  = -ENOMEM;
+	maps->proc_name = strdup(mapname);
+	if (!maps->proc_name)
+		goto out_fail;
+
+	maps->lib_maps = calloc(maps->nr_lib_maps, sizeof(struct tracecmd_proc_addr_map));
+	if (!maps->lib_maps)
+		goto out_fail;
+
+	buf = line + 1;
+	line = strchr(buf, '\n');
+	for (i = 0; i < maps->nr_lib_maps; i++) {
+		if (!line)
+			break;
+		*line = '\0';
+		if (strlen(buf) > STR_PROCMAP_LINE_MAX)
+			break;
+		res = sscanf(buf, "%llx %llx %s", &maps->lib_maps[i].start,
+			     &maps->lib_maps[i].end, mapname);
+		if (res != 3)
+			break;
+		maps->lib_maps[i].lib_name = strdup(mapname);
+		if (!maps->lib_maps[i].lib_name)
+			goto out_fail;
+		buf = line + 1;
+		line = strchr(buf, '\n');
+	}
+
+	ret  = -EINVAL;
+	if (i != maps->nr_lib_maps)
+		goto out_fail;
+
+	qsort(maps->lib_maps, maps->nr_lib_maps,
+	      sizeof(*maps->lib_maps), trace_pid_map_cmp);
+
+	maps->next = handle->pid_maps;
+	handle->pid_maps = maps;
+
+	return 0;
+
+out_fail:
+	procmap_free(maps);
+	return ret;
+}
+
+static void trace_pid_map_free(struct pid_addr_maps *maps)
+{
+	struct pid_addr_maps *del;
+
+	while (maps) {
+		del = maps;
+		maps = maps->next;
+		procmap_free(del);
+	}
+}
+
+static int trace_pid_map_search(const void *a, const void *b)
+{
+	struct tracecmd_proc_addr_map *key = (struct tracecmd_proc_addr_map *)a;
+	struct tracecmd_proc_addr_map *map = (struct tracecmd_proc_addr_map *)b;
+
+	if (key->start >= map->end)
+		return 1;
+	if (key->start < map->start)
+		return -1;
+	return 0;
+}
+
+/**
+ * tracecmd_search_task_map - Search task memory address map
+ * @handle: input handle to the trace.dat file
+ * @pid: pid of the task
+ * @addr: address from the task memory space.
+ *
+ * Map of the task memory can be saved in the trace.dat file, using the option
+ * "--proc-map". If there is such information, this API can be used to look up
+ * into this memory map to find what library is loaded at the given @addr.
+ *
+ * A pointer to struct tracecmd_proc_addr_map is returned, containing the name
+ * of the library at given task @addr and the library start and end addresses.
+ */
+struct tracecmd_proc_addr_map *
+tracecmd_search_task_map(struct tracecmd_input *handle,
+			 int pid, unsigned long long addr)
+{
+	struct tracecmd_proc_addr_map *lib;
+	struct tracecmd_proc_addr_map key;
+	struct pid_addr_maps *maps;
+
+	if (!handle || !handle->pid_maps)
+		return NULL;
+
+	maps = handle->pid_maps;
+	while (maps) {
+		if (maps->pid == pid)
+			break;
+		maps = maps->next;
+	}
+	if (!maps || !maps->nr_lib_maps || !maps->lib_maps)
+		return NULL;
+	key.start = addr;
+	lib = bsearch(&key, maps->lib_maps, maps->nr_lib_maps,
+		      sizeof(*maps->lib_maps), trace_pid_map_search);
+
+	return lib;
+}
+
 static int handle_options(struct tracecmd_input *handle)
 {
 	unsigned long long offset;
@@ -2223,9 +2385,6 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_UNAME:
 			handle->uname = strdup(buf);
 			break;
-		case TRACECMD_OPTION_VERSION:
-			handle->version = strdup(buf);
-			break;
 		case TRACECMD_OPTION_HOOK:
 			hook = tracecmd_create_event_hook(buf);
 			hook->next = handle->hooks;
@@ -2234,6 +2393,10 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_CPUCOUNT:
 			cpus = *(int *)buf;
 			handle->cpus = tep_read_number(handle->pevent, &cpus, 4);
+			break;
+		case TRACECMD_OPTION_PROCMAPS:
+			if (buf[size-1] == '\0')
+				trace_pid_map_load(handle, buf);
 			break;
 		default:
 			warning("unknown option %d", option);
@@ -2847,6 +3010,9 @@ void tracecmd_close(struct tracecmd_input *handle)
 
 	tracecmd_free_hooks(handle->hooks);
 	handle->hooks = NULL;
+
+	trace_pid_map_free(handle->pid_maps);
+	handle->pid_maps = NULL;
 
 	if (handle->flags & TRACECMD_FL_BUFFER_INSTANCE)
 		tracecmd_close(handle->parent);

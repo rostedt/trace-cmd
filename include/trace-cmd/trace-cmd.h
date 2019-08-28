@@ -85,6 +85,7 @@ enum {
 	TRACECMD_OPTION_OFFSET,
 	TRACECMD_OPTION_CPUCOUNT,
 	TRACECMD_OPTION_VERSION,
+	TRACECMD_OPTION_PROCMAPS,
 };
 
 enum {
@@ -98,6 +99,12 @@ struct tracecmd_ftrace {
 	struct tep_event *fgraph_ret_event;
 	int fgraph_ret_id;
 	int long_size;
+};
+
+struct tracecmd_proc_addr_map {
+	unsigned long long	start;
+	unsigned long long	end;
+	char			*lib_name;
 };
 
 typedef void (*tracecmd_show_data_func)(struct tracecmd_input *handle,
@@ -209,6 +216,9 @@ unsigned long long tracecmd_page_ts(struct tracecmd_input *handle,
 unsigned int tracecmd_record_ts_delta(struct tracecmd_input *handle,
 				      struct tep_record *record);
 
+struct tracecmd_proc_addr_map *
+tracecmd_search_task_map(struct tracecmd_input *handle,
+			 int pid, unsigned long long addr);
 #ifndef SWIG
 /* hack for function graph work around */
 extern __thread struct tracecmd_input *tracecmd_curr_thread_handle;

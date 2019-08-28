@@ -84,6 +84,8 @@ static int max_kb;
 static bool use_tcp;
 
 static int do_ptrace;
+static int do_children;
+static int get_procmap;
 
 static int filter_task;
 static bool no_filter = false;
@@ -1068,6 +1070,121 @@ static char *make_pid_filter(char *curr_filter, const char *field)
 	return filter;
 }
 
+#define _STRINGIFY(x) #x
+#define STRINGIFY(x) _STRINGIFY(x)
+
+static int get_pid_addr_maps(int pid)
+{
+	struct buffer_instance *instance = &top_instance;
+	struct pid_addr_maps *maps = instance->pid_maps;
+	struct tracecmd_proc_addr_map *map;
+	unsigned long long begin, end;
+	struct pid_addr_maps *m;
+	char mapname[PATH_MAX+1];
+	char fname[PATH_MAX+1];
+	char buf[PATH_MAX+100];
+	FILE *f;
+	int ret;
+	int res;
+	int i;
+
+	sprintf(fname, "/proc/%d/exe", pid);
+	ret = readlink(fname, mapname, PATH_MAX);
+	if (ret >= PATH_MAX || ret < 0)
+		return -ENOENT;
+	mapname[ret] = 0;
+
+	sprintf(fname, "/proc/%d/maps", pid);
+	f = fopen(fname, "r");
+	if (!f)
+		return -ENOENT;
+
+	while (maps) {
+		if (pid == maps->pid)
+			break;
+		maps = maps->next;
+	}
+
+	ret = -ENOMEM;
+	if (!maps) {
+		maps = calloc(1, sizeof(*maps));
+		if (!maps)
+			goto out_fail;
+		maps->pid = pid;
+		maps->next = instance->pid_maps;
+		instance->pid_maps = maps;
+	} else {
+		for (i = 0; i < maps->nr_lib_maps; i++)
+			free(maps->lib_maps[i].lib_name);
+		free(maps->lib_maps);
+		maps->lib_maps = NULL;
+		maps->nr_lib_maps = 0;
+		free(maps->proc_name);
+	}
+
+	maps->proc_name = strdup(mapname);
+	if (!maps->proc_name)
+		goto out;
+
+	while (fgets(buf, sizeof(buf), f)) {
+		mapname[0] = '\0';
+		res = sscanf(buf, "%llx-%llx %*s %*x %*s %*d %"STRINGIFY(PATH_MAX)"s",
+			     &begin, &end, mapname);
+		if (res == 3 && mapname[0] != '\0') {
+			map = realloc(maps->lib_maps,
+				      (maps->nr_lib_maps + 1) * sizeof(*map));
+			if (!map)
+				goto out_fail;
+			map[maps->nr_lib_maps].end = end;
+			map[maps->nr_lib_maps].start = begin;
+			map[maps->nr_lib_maps].lib_name = strdup(mapname);
+			if (!map[maps->nr_lib_maps].lib_name)
+				goto out_fail;
+			maps->lib_maps = map;
+			maps->nr_lib_maps++;
+		}
+	}
+out:
+	fclose(f);
+	return 0;
+
+out_fail:
+	fclose(f);
+	if (maps) {
+		for (i = 0; i < maps->nr_lib_maps; i++)
+			free(maps->lib_maps[i].lib_name);
+		if (instance->pid_maps != maps) {
+			m = instance->pid_maps;
+			while (m) {
+				if (m->next == maps) {
+					m->next = maps->next;
+					break;
+				}
+				m = m->next;
+			}
+		} else
+			instance->pid_maps = maps->next;
+		free(maps->lib_maps);
+		maps->lib_maps = NULL;
+		maps->nr_lib_maps = 0;
+		free(maps->proc_name);
+		maps->proc_name = NULL;
+		free(maps);
+	}
+	return ret;
+}
+
+static void get_filter_pid_maps(void)
+{
+	struct filter_pids *p;
+
+	for (p = filter_pids; p; p = p->next) {
+		if (p->exclude)
+			continue;
+		get_pid_addr_maps(p->pid);
+	}
+}
+
 static void update_task_filter(void)
 {
 	struct buffer_instance *instance;
@@ -1075,6 +1192,9 @@ static void update_task_filter(void)
 
 	if (no_filter)
 		return;
+
+	if (get_procmap && filter_pids)
+		get_filter_pid_maps();
 
 	if (filter_task)
 		add_filter_pid(pid, 0);
@@ -1289,6 +1409,8 @@ static void ptrace_wait(enum trace_type type)
 				break;
 
 			case PTRACE_EVENT_EXIT:
+				if (get_procmap)
+					get_pid_addr_maps(pid);
 				ptrace(PTRACE_GETEVENTMSG, pid, NULL, &cstatus);
 				ptrace(PTRACE_DETACH, pid, NULL, NULL);
 				break;
@@ -1365,6 +1487,7 @@ static void run_cmd(enum trace_type type, int argc, char **argv)
 	}
 	if (do_ptrace) {
 		add_filter_pid(pid, 0);
+		ptrace_attach(pid);
 		ptrace_wait(type);
 	} else
 		trace_waitpid(type, pid, &status, 0);
@@ -3132,6 +3255,36 @@ static void append_buffer(struct tracecmd_output *handle,
 	}
 }
 
+
+static void
+add_pid_maps(struct tracecmd_output *handle, struct buffer_instance *instance)
+{
+	struct pid_addr_maps *maps = instance->pid_maps;
+	struct trace_seq s;
+	int i;
+
+	trace_seq_init(&s);
+	while (maps) {
+		if (!maps->nr_lib_maps) {
+			maps = maps->next;
+			continue;
+		}
+		trace_seq_reset(&s);
+		trace_seq_printf(&s, "%x %x %s\n",
+				 maps->pid, maps->nr_lib_maps, maps->proc_name);
+		for (i = 0; i < maps->nr_lib_maps; i++)
+			trace_seq_printf(&s, "%llx %llx %s\n",
+					maps->lib_maps[i].start,
+					maps->lib_maps[i].end,
+					maps->lib_maps[i].lib_name);
+		trace_seq_terminate(&s);
+		tracecmd_add_option(handle, TRACECMD_OPTION_PROCMAPS,
+				    s.len + 1, s.buffer);
+		maps = maps->next;
+	}
+	trace_seq_destroy(&s);
+}
+
 static void
 add_buffer_stat(struct tracecmd_output *handle, struct buffer_instance *instance)
 {
@@ -3324,6 +3477,10 @@ static void record_data(struct common_record_context *ctx)
 
 		if (!no_top_instance() && !top_instance.msg_handle)
 			print_stat(&top_instance);
+
+		for_all_instances(instance) {
+			add_pid_maps(handle, instance);
+		}
 
 		tracecmd_append_cpu_data(handle, local_cpu_count, temp_files);
 
@@ -4435,6 +4592,7 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 }
 
 enum {
+	OPT_procmap		= 244,
 	OPT_quiet		= 245,
 	OPT_debug		= 246,
 	OPT_no_filter		= 247,
@@ -4665,6 +4823,7 @@ static void parse_record_options(int argc,
 			{"debug", no_argument, NULL, OPT_debug},
 			{"quiet", no_argument, NULL, OPT_quiet},
 			{"help", no_argument, NULL, '?'},
+			{"proc-map", no_argument, NULL, OPT_procmap},
 			{"module", required_argument, NULL, OPT_module},
 			{NULL, 0, NULL, 0}
 		};
@@ -4754,6 +4913,7 @@ static void parse_record_options(int argc,
 				die("-c invalid: ptrace not supported");
 #endif
 				do_ptrace = 1;
+				do_children = 1;
 			} else {
 				save_option("event-fork");
 				ctx->do_child = 1;
@@ -4896,6 +5056,9 @@ static void parse_record_options(int argc,
 		case 'i':
 			ignore_event_not_found = 1;
 			break;
+		case OPT_procmap:
+			get_procmap = 1;
+			break;
 		case OPT_date:
 			ctx->date = 1;
 			if (ctx->data_flags & DATA_FL_OFFSET)
@@ -4962,7 +5125,7 @@ static void parse_record_options(int argc,
 		add_func(&ctx->instance->filter_funcs,
 			 ctx->instance->filter_mod, "*");
 
-	if (do_ptrace && !filter_task && !nr_filter_pids)
+	if (do_children && !filter_task && !nr_filter_pids)
 		die(" -c can only be used with -F (or -P with event-fork support)");
 	if (ctx->do_child && !filter_task && !nr_filter_pids)
 		die(" -c can only be used with -P or -F");
@@ -4975,6 +5138,13 @@ static void parse_record_options(int argc,
 			die("Command extract does not take any commands\n"
 			    "Did you mean 'record'?");
 		ctx->run_command = 1;
+	}
+
+	if (get_procmap) {
+		if (!ctx->run_command && !nr_filter_pids)
+			warning("--proc-map is ignored, no command or filtered PIDs are specified.");
+		else
+			do_ptrace = 1;
 	}
 }
 

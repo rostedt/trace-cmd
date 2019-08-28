@@ -156,6 +156,14 @@ struct func_list {
 	const char *mod;
 };
 
+struct pid_addr_maps {
+	struct pid_addr_maps		*next;
+	struct tracecmd_proc_addr_map	*lib_maps;
+	unsigned int			nr_lib_maps;
+	char				*proc_name;
+	int				pid;
+};
+
 struct buffer_instance {
 	struct buffer_instance	*next;
 	const char		*name;
@@ -181,6 +189,8 @@ struct buffer_instance {
 
 	struct tracecmd_msg_handle *msg_handle;
 	struct tracecmd_output *network_handle;
+
+	struct pid_addr_maps	*pid_maps;
 
 	char			*max_graph_depth;
 
