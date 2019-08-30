@@ -20,6 +20,9 @@
 #include "kbuffer.h"
 #include "list.h"
 
+#define _STRINGIFY(x) #x
+#define STRINGIFY(x) _STRINGIFY(x)
+
 #define MISSING_EVENTS (1 << 31)
 #define MISSING_STORED (1 << 30)
 
@@ -2169,11 +2172,12 @@ static void procmap_free(struct pid_addr_maps *maps)
 	free(maps);
 }
 
-#define STR_PROCMAP_LINE_MAX	(PATH_MAX+22)
+/* Needs to be a constant, and 4K should be good enough */
+#define STR_PROCMAP_LINE_MAX	4096
 static int trace_pid_map_load(struct tracecmd_input *handle, char *buf)
 {
 	struct pid_addr_maps *maps = NULL;
-	char mapname[STR_PROCMAP_LINE_MAX];
+	char mapname[STR_PROCMAP_LINE_MAX+1];
 	char *line;
 	int res;
 	int ret;
@@ -2192,7 +2196,7 @@ static int trace_pid_map_load(struct tracecmd_input *handle, char *buf)
 	if (strlen(buf) > STR_PROCMAP_LINE_MAX)
 		goto out_fail;
 
-	res = sscanf(buf, "%x %x %s", &maps->pid, &maps->nr_lib_maps, mapname);
+	res = sscanf(buf, "%x %x %"STRINGIFY(STR_PROCMAP_LINE_MAX)"s", &maps->pid, &maps->nr_lib_maps, mapname);
 	if (res != 3)
 		goto out_fail;
 
