@@ -12,8 +12,6 @@
 #include "trace-cmd.h"
 #include "event-utils.h"
 
-extern int quiet;
-
 /* fix stupid glib guint64 typecasts and printf formats */
 typedef unsigned long long u64;
 

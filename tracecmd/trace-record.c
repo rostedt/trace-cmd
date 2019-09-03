@@ -80,6 +80,8 @@ static char *host;
 static unsigned int *client_ports;
 static int sfd;
 
+static bool quiet;
+
 /* Max size to let a per cpu file get */
 static int max_kb;
 
@@ -3162,13 +3164,16 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 	/* Now create the handle through this socket */
 	if (msg_handle->version == V3_PROTOCOL) {
 		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
+		tracecmd_set_quiet(network_handle, quiet);
 		add_options(network_handle, ctx);
 		tracecmd_write_cpus(network_handle, instance->cpu_count);
 		tracecmd_write_options(network_handle);
 		tracecmd_msg_finish_sending_data(msg_handle);
-	} else
+	} else {
 		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,
 							      listed_events);
+		tracecmd_set_quiet(network_handle, quiet);
+	}
 
 	instance->network_handle = network_handle;
 
@@ -3444,9 +3449,10 @@ static void record_data(struct common_record_context *ctx)
 	if (!local)
 		return;
 
-	if (latency)
+	if (latency) {
 		handle = tracecmd_create_file_latency(output_file, local_cpu_count);
-	else {
+		tracecmd_set_quiet(handle, quiet);
+	} else {
 		if (!local_cpu_count)
 			return;
 
@@ -3478,6 +3484,7 @@ static void record_data(struct common_record_context *ctx)
 		handle = tracecmd_create_init_file_glob(output_file, listed_events);
 		if (!handle)
 			die("Error creating output file");
+		tracecmd_set_quiet(handle, quiet);
 
 		add_options(handle, ctx);
 
@@ -5155,7 +5162,7 @@ static void parse_record_options(int argc,
 			break;
 		case OPT_quiet:
 		case 'q':
-			quiet = 1;
+			quiet = true;
 			break;
 		default:
 			usage(argv);

@@ -53,6 +53,9 @@ struct tracecmd_output;
 struct tracecmd_recorder;
 struct hook_list;
 
+void tracecmd_set_quiet(struct tracecmd_output *handle, bool set_quiet);
+bool tracecmd_get_quiet(struct tracecmd_output *handle);
+
 static inline int tracecmd_host_bigendian(void)
 {
 	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4 };

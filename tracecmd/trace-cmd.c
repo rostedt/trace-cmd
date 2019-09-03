@@ -16,8 +16,6 @@
 int silence_warnings;
 int show_status;
 
-int quiet;
-
 void warning(const char *fmt, ...)
 {
 	va_list ap;

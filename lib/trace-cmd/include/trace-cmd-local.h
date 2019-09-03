@@ -18,8 +18,6 @@
 #define STR(x)	_STR(x)
 #define FILE_VERSION_STRING STR(FILE_VERSION)
 
-extern int quiet;
-
 static ssize_t __do_write(int fd, const void *data, size_t size)
 {
 	ssize_t tot = 0;

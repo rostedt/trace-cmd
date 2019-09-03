@@ -53,6 +53,7 @@ struct tracecmd_output {
 	char			*tracing_dir;
 	int			options_written;
 	int			nr_options;
+	bool			quiet;
 	struct list_head 	options;
 	struct tracecmd_msg_handle *msg_handle;
 };
@@ -101,6 +102,29 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 		return val;
 
 	return tep_read_number(handle->pevent, &val, 8);
+}
+
+/**
+ * tracecmd_set_quiet - Set if to print output to the screen
+ * @quiet: If non zero, print no output to the screen
+ *
+ */
+void tracecmd_set_quiet(struct tracecmd_output *handle, bool set_quiet)
+{
+	if (handle)
+		handle->quiet = set_quiet;
+}
+
+/**
+ * tracecmd_get_quiet - Get if to print output to the screen
+ * Returns non zero, if no output to the screen should be printed
+ *
+ */
+bool tracecmd_get_quiet(struct tracecmd_output *handle)
+{
+	if (handle)
+		return handle->quiet;
+	return false;
 }
 
 void tracecmd_output_free(struct tracecmd_output *handle)
@@ -1157,7 +1181,7 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 		goto out_free;
 
 	for (i = 0; i < cpus; i++) {
-		if (!quiet)
+		if (!tracecmd_get_quiet(handle))
 			fprintf(stderr, "CPU%d data recorded at offset=0x%llx\n",
 				i, (unsigned long long) offsets[i]);
 		offset = lseek64(handle->fd, offsets[i], SEEK_SET);
@@ -1172,7 +1196,7 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 			    check_size, sizes[i]);
 			goto out_free;
 		}
-		if (!quiet)
+		if (!tracecmd_get_quiet(handle))
 			fprintf(stderr, "    %llu bytes in size\n",
 				(unsigned long long)check_size);
 	}
