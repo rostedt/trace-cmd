@@ -365,6 +365,10 @@ struct hook_list {
 struct hook_list *tracecmd_create_event_hook(const char *arg);
 void tracecmd_free_hooks(struct hook_list *hooks);
 
+void tracecmd_plog(const char *fmt, ...);
+void tracecmd_plog_error(const char *fmt, ...);
+int tracecmd_set_logfile(char *logfile);
+
 /* --- Hack! --- */
 int tracecmd_blk_hack(struct tracecmd_input *handle);
 

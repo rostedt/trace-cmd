@@ -12,7 +12,4 @@
 
 extern unsigned int page_size;
 
-void plog(const char *fmt, ...);
-void pdie(const char *fmt, ...);
-
 #endif /* _TRACE_MSG_H_ */

@@ -34,8 +34,6 @@ static char *output_dir;
 static char *default_output_file = "trace";
 static char *output_file;
 
-static FILE *logfp;
-
 static int backlog = 5;
 
 static int do_daemon;
@@ -43,6 +41,13 @@ static int do_daemon;
 /* Used for signaling INT to finish */
 static struct tracecmd_msg_handle *stop_msg_handle;
 static bool done;
+
+#define pdie(fmt, ...)					\
+	do {						\
+		tracecmd_plog_error(fmt, ##__VA_ARGS__);\
+		remove_pid_file();			\
+		exit(-1);				\
+	} while (0)
 
 #define  TEMP_FILE_STR "%s.%s:%s.cpu%d", output_file, host, port, cpu
 static char *get_temp_file(const char *host, const char *port, int cpu)
@@ -114,43 +119,6 @@ static void finish(int sig)
 	done = true;
 }
 
-#define LOG_BUF_SIZE 1024
-static void __plog(const char *prefix, const char *fmt, va_list ap,
-		   FILE *fp)
-{
-	static int newline = 1;
-	char buf[LOG_BUF_SIZE];
-	int r;
-
-	r = vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
-
-	if (r > LOG_BUF_SIZE)
-		r = LOG_BUF_SIZE;
-
-	if (logfp) {
-		if (newline)
-			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
-		else
-			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
-		newline = buf[r - 1] == '\n';
-		fflush(logfp);
-		return;
-	}
-
-	fprintf(fp, "%.*s", r, buf);
-}
-
-void plog(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	__plog("", fmt, ap, stdout);
-	va_end(ap);
-	/* Make sure it gets to the screen, in case we crash afterward */
-	fflush(stdout);
-}
-
 static void make_pid_name(int mode, char *buf)
 {
 	snprintf(buf, PATH_MAX, VAR_RUN_DIR "/trace-cmd-net.pid");
@@ -167,26 +135,6 @@ static void remove_pid_file(void)
 	make_pid_name(mode, buf);
 
 	unlink(buf);
-}
-
-void pdie(const char *fmt, ...)
-{
-	va_list ap;
-	char *str = "";
-
-	va_start(ap, fmt);
-	__plog("Error: ", fmt, ap, stderr);
-	va_end(ap);
-	if (errno)
-		str = strerror(errno);
-	if (logfp)
-		fprintf(logfp, "\n%s\n", str);
-	else
-		fprintf(stderr, "\n%s\n", str);
-
-	remove_pid_file();
-
-	exit(-1);
 }
 
 static int process_udp_child(int sfd, const char *host, const char *port,
@@ -369,15 +317,15 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 		if (memcmp(buf, V3_CPU, n) != 0) {
 			/* If it did not send a version, then bail */
 			if (memcmp(buf, "-1V", 3)) {
-				plog("Unknown string %s\n", buf);
+				tracecmd_plog("Unknown string %s\n", buf);
 				goto out;
 			}
 			/* Skip "-1" */
-			plog("Cannot handle the protocol %s\n", buf+2);
+			tracecmd_plog("Cannot handle the protocol %s\n", buf+2);
 
 			/* If it returned the same command as last time, bail! */
 			if (last_proto && strncmp(last_proto, buf, n) == 0) {
-				plog("Repeat of version %s sent\n", last_proto);
+				tracecmd_plog("Repeat of version %s sent\n", last_proto);
 				goto out;
 			}
 			free(last_proto);
@@ -410,7 +358,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 	} else {
 		/* The client is using the v1 protocol */
 
-		plog("cpus=%d\n", cpus);
+		tracecmd_plog("cpus=%d\n", cpus);
 		if (cpus < 0)
 			goto out;
 
@@ -424,7 +372,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 
 		pagesize = atoi(buf);
 
-		plog("pagesize=%d\n", pagesize);
+		tracecmd_plog("pagesize=%d\n", pagesize);
 		if (pagesize <= 0)
 			goto out;
 
@@ -473,7 +421,7 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 	}
 
 	if (msg_handle->flags & TRACECMD_MSG_FL_USE_TCP)
-		plog("Using TCP for live connection\n");
+		tracecmd_plog("Using TCP for live connection\n");
 
 	ret = pagesize;
  out:
@@ -560,7 +508,7 @@ static int *create_all_readers(const char *node, const char *port,
 	if (msg_handle->version == V3_PROTOCOL) {
 		/* send set of port numbers to the client */
 		if (tracecmd_msg_send_port_array(msg_handle, port_array) < 0) {
-			plog("Failed sending port array\n");
+			tracecmd_plog("Failed sending port array\n");
 			goto out_free;
 		}
 	} else {
@@ -755,11 +703,9 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 			service, NI_MAXSERV, NI_NUMERICSERV);
 
 	if (s == 0)
-		plog("Connected with %s:%s\n",
-		       host, service);
+		tracecmd_plog("Connected with %s:%s\n", host, service);
 	else {
-		plog("Error with getnameinfo: %s\n",
-		       gai_strerror(s));
+		tracecmd_plog("Error with getnameinfo: %s\n", gai_strerror(s));
 		close(cfd);
 		tracecmd_msg_handle_close(msg_handle);
 		return -1;
@@ -1030,8 +976,7 @@ void trace_listen(int argc, char **argv)
 
 	if (logfile) {
 		/* set the writes to a logfile instead */
-		logfp = fopen(logfile, "w");
-		if (!logfp)
+		if (tracecmd_set_logfile(logfile) < 0)
 			die("creating log file %s", logfile);
 	}
 

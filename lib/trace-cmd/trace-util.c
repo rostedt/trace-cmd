@@ -30,6 +30,8 @@ int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
 static bool tracecmd_debug;
 
+static FILE *logfp;
+
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
@@ -950,4 +952,72 @@ void __weak *malloc_or_die(unsigned int size)
 	if (!data)
 		die("malloc");
 	return data;
+}
+
+#define LOG_BUF_SIZE 1024
+static void __plog(const char *prefix, const char *fmt, va_list ap, FILE *fp)
+{
+	static int newline = 1;
+	char buf[LOG_BUF_SIZE];
+	int r;
+
+	r = vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);
+
+	if (r > LOG_BUF_SIZE)
+		r = LOG_BUF_SIZE;
+
+	if (logfp) {
+		if (newline)
+			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
+		else
+			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
+		newline = buf[r - 1] == '\n';
+		fflush(logfp);
+		return;
+	}
+
+	fprintf(fp, "%.*s", r, buf);
+}
+
+void tracecmd_plog(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	__plog("", fmt, ap, stdout);
+	va_end(ap);
+	/* Make sure it gets to the screen, in case we crash afterward */
+	fflush(stdout);
+}
+
+void tracecmd_plog_error(const char *fmt, ...)
+{
+	va_list ap;
+	char *str = "";
+
+	va_start(ap, fmt);
+	__plog("Error: ", fmt, ap, stderr);
+	va_end(ap);
+	if (errno)
+		str = strerror(errno);
+	if (logfp)
+		fprintf(logfp, "\n%s\n", str);
+	else
+		fprintf(stderr, "\n%s\n", str);
+}
+
+/**
+ * tracecmd_set_logfile - Set file for logging
+ * @logfile: Name of the log file
+ *
+ * Returns 0 on successful completion or -1 in case of error
+ */
+int tracecmd_set_logfile(char *logfile)
+{
+	if (logfp)
+		fclose(logfp);
+	logfp = fopen(logfile, "w");
+	if (!logfp)
+		return -1;
+	return 0;
 }

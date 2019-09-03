@@ -318,7 +318,7 @@ static int tracecmd_msg_recv(int fd, struct tracecmd_msg *msg)
 
 	return 0;
 error:
-	plog("Receive an invalid message(size=%d)\n", size);
+	tracecmd_plog("Receive an invalid message(size=%d)\n", size);
 	return -ENOMSG;
 }
 
@@ -531,7 +531,7 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 	}
 
 	cpus = ntohl(msg.tinit.cpus);
-	plog("cpus=%d\n", cpus);
+	tracecmd_plog("cpus=%d\n", cpus);
 	if (cpus < 0) {
 		ret = -EINVAL;
 		goto error;
@@ -540,7 +540,7 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 	msg_handle->cpu_count = cpus;
 
 	pagesize = ntohl(msg.tinit.page_size);
-	plog("pagesize=%d\n", pagesize);
+	tracecmd_plog("pagesize=%d\n", pagesize);
 	if (pagesize <= 0) {
 		ret = -EINVAL;
 		goto error;
@@ -570,7 +570,7 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 
 		/* do we understand this option? */
 		if (!process_option(msg_handle, p))
-			plog("Cannot understand option '%s'\n", p);
+			tracecmd_plog("Cannot understand option '%s'\n", p);
 
 		p = strchr(p, '\0');
 	}

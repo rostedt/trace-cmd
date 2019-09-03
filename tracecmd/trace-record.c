@@ -3055,7 +3055,7 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 	if (n < 0 || !buf[0]) {
 		/* the server uses the v1 protocol, so we'll use it */
 		msg_handle->version = V1_PROTOCOL;
-		plog("Use the v1 protocol\n");
+		tracecmd_plog("Use the v1 protocol\n");
 	} else {
 		if (memcmp(buf, "V3", n) != 0)
 			die("Cannot handle the protocol %s", buf);
