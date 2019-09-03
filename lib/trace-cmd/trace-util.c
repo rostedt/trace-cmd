@@ -29,7 +29,7 @@
 
 int tracecmd_disable_sys_plugins;
 int tracecmd_disable_plugins;
-static bool tracecmd_debug;
+static bool debug;
 
 static FILE *logfp;
 
@@ -37,23 +37,23 @@ static FILE *logfp;
 #define STR(x) _STR(x)
 
 /**
- * tracecmd_set_quiet - Set if to print output to the screen
- * @quiet: If non zero, print no output to the screen
- *
+ * tracecmd_set_debug - Set debug mode of the tracecmd library
+ * @set_debug: The new "debug" mode. If true, the tracecmd library is
+ * in "debug" mode
  */
-void tracecmd_set_debug(bool debug)
+void tracecmd_set_debug(bool set_debug)
 {
-	tracecmd_debug = debug;
+	debug = set_debug;
 }
 
 /**
- * tracecmd_get_quiet - Get if to print output to the screen
- * Returns non zero, if no output to the screen should be printed
+ * tracecmd_get_debug - Get debug mode of tracecmd library
+ * Returns true, if the tracecmd library is in debug mode.
  *
  */
 bool tracecmd_get_debug(void)
 {
-	return tracecmd_debug;
+	return debug;
 }
 
 void tracecmd_parse_cmdlines(struct tep_handle *pevent,
