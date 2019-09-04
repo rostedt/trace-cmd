@@ -877,12 +877,17 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 					trace_seq_printf(&s, "\n TIME EXTEND: ");
 					break;
 				case KBUFFER_TYPE_TIME_STAMP:
-					trace_seq_printf(&s, "\n TIME STAMP?: ");
+					trace_seq_printf(&s, "\n TIME STAMP: ");
 					break;
 				}
-				trace_seq_printf(&s, "delta:%lld length:%d",
-						 pi->delta,
-						 pi->length);
+				if (pi->type == KBUFFER_TYPE_TIME_STAMP)
+					trace_seq_printf(&s, "timestamp:%lld length:%d",
+							 pi->delta,
+							 pi->length);
+				else
+					trace_seq_printf(&s, "delta:%lld length:%d",
+							 pi->delta,
+							 pi->length);
 			}
 		}
 	}
