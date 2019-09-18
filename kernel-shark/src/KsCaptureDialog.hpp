@@ -19,6 +19,20 @@
 #include "KsWidgetsLib.hpp"
 
 /**
+ * The KsCommandLineEdit class is used to override the default size hints of
+ * the QPlainTextEdit class.
+ */
+struct KsCommandLineEdit : public QPlainTextEdit
+{
+	KsCommandLineEdit(QString text, QWidget *parent = 0);
+
+private:
+	QSize sizeHint() const override;
+
+	QSize minimumSizeHint() const override;
+};
+
+/**
  * The KsCaptureControl class provides a control panel for the KernelShark
  * Capture dialog.
  */
@@ -57,7 +71,9 @@ private:
 
 	QLabel		_pluginsLabel, _outputLabel, _commandLabel;
 
-	QLineEdit	_outputLineEdit, _commandLineEdit;
+	QLineEdit	_outputLineEdit;
+
+	KsCommandLineEdit	_commandLineEdit;
 
 	QToolBar	_settingsToolBar, _controlToolBar;
 

@@ -29,6 +29,25 @@ static inline tep_handle *local_events()
 	return tracecmd_local_events(tracecmd_get_tracing_dir());
 }
 
+/**
+ * @brief Create KsCommandLineEdit.
+ *
+ * @param text: Defaulst text to be shown.
+ * @param parent: The parent of this widget.
+ */
+KsCommandLineEdit::KsCommandLineEdit(QString text, QWidget *parent)
+: QPlainTextEdit(text, parent) {}
+
+QSize KsCommandLineEdit::minimumSizeHint() const
+{
+	return {FONT_WIDTH * 30, FONT_HEIGHT * 2};
+}
+
+QSize KsCommandLineEdit::sizeHint() const
+{
+	return {FONT_WIDTH * 30, FONT_HEIGHT * 3};
+}
+
 /** @brief Create KsCaptureControl widget. */
 KsCaptureControl::KsCaptureControl(QWidget *parent)
 : QWidget(parent),
@@ -117,7 +136,11 @@ KsCaptureControl::KsCaptureControl(QWidget *parent)
 	_commandLabel.adjustSize();
 	_commandLabel.setFixedWidth(_outputLabel.width());
 	_execLayout.addWidget(&_commandLabel, row, 0);
+
 	_commandLineEdit.setFixedWidth(FONT_WIDTH * 30);
+	_commandLineEdit.setMinimumHeight(FONT_HEIGHT * 2);
+	_commandLineEdit.setMaximumHeight(FONT_HEIGHT * 9);
+
 	_execLayout.addWidget(&_commandLineEdit, row, 1);
 	_commandCheckBox.setCheckState(Qt::Unchecked);
 	_commandCheckBox.adjustSize();
@@ -171,7 +194,7 @@ QStringList KsCaptureControl::getArgs()
 
 	argv << "-o" << outputFileName();
 
-	argv << KsUtils::splitArguments(_commandLineEdit.text());
+	argv << KsUtils::splitArguments(_commandLineEdit.toPlainText());
 
 	return argv;
 }
@@ -282,7 +305,7 @@ void KsCaptureControl::_importSettings()
 		_outputLineEdit.setText(KS_C_STR_CAST(temp->conf_doc));
 
 	if (kshark_config_doc_get(conf, "Command", temp))
-		_commandLineEdit.setText(KS_C_STR_CAST(temp->conf_doc));
+		_commandLineEdit.setPlainText(KS_C_STR_CAST(temp->conf_doc));
 }
 
 void KsCaptureControl::_exportSettings()
@@ -330,7 +353,7 @@ void KsCaptureControl::_exportSettings()
 	kshark_config_doc_add(conf, "Output", kshark_json_to_conf(jout));
 
 	/* Save the command. */
-	comm = _commandLineEdit.text();
+	comm = _commandLineEdit.toPlainText();
 	json_object *jcomm = json_object_new_string(comm.toStdString().c_str());
 	kshark_config_doc_add(conf, "Command", kshark_json_to_conf(jcomm));
 
