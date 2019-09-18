@@ -757,6 +757,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
 	struct tep_handle *pevent;
+	struct tep_event *event;
 	struct trace_seq s;
 	int cpu = record->cpu;
 	bool use_trace_clock;
@@ -793,14 +794,13 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		}
 	}
 	use_trace_clock = tracecmd_get_use_trace_clock(handle);
+	event = tep_find_event_by_record(pevent, record);
+	tep_print_event_task(pevent, &s, event, record);
+	tep_print_event_time(pevent, &s, event, record,
+			     use_trace_clock);
 	if (tsdiff) {
 		unsigned long long rec_ts = record->ts;
-		struct tep_event *event;
 
-		event = tep_find_event_by_record(pevent, record);
-		tep_print_event_task(pevent, &s, event, record);
-		tep_print_event_time(pevent, &s, event, record,
-					use_trace_clock);
 		buf[0] = 0;
 		if (use_trace_clock && !tep_test_flag(pevent, TEP_NSEC_OUTPUT))
 			rec_ts = (rec_ts + 500) / 1000;
@@ -811,9 +811,10 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		}
 		last_ts = rec_ts;
 		trace_seq_printf(&s, " %-8s", buf);
-		tep_print_event_data(pevent, &s, event, record);
-	} else
-		tep_print_event(pevent, &s, record, use_trace_clock);
+	}
+
+	tep_print_event_data(pevent, &s, event, record);
+
 	if (s.len && *(s.buffer + s.len - 1) == '\n')
 		s.len--;
 	if (tracecmd_get_debug()) {
