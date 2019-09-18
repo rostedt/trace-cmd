@@ -257,6 +257,47 @@ QString getSaveFile(QWidget *parent,
 	return fileName;
 }
 
+/**
+ * Separate the command line arguments inside the string taking into account
+ * possible shell quoting and new lines.
+ */
+QStringList splitArguments(QString cmd)
+{
+	QString::SplitBehavior opt = QString::SkipEmptyParts;
+	int i, progress = 0, size;
+	QStringList argv;
+	QChar quote = 0;
+
+	/* Remove all new lines. */
+	cmd.replace("\\\n", " ");
+
+	size = cmd.count();
+	auto lamMid = [&] () {return cmd.mid(progress, i - progress);};
+	for (i = 0; i < size; ++i) {
+		if (cmd[i] == '\\') {
+			cmd.remove(i, 1);
+			size --;
+			continue;
+		}
+
+		if (cmd[i] == '\'' || cmd[i] == '"') {
+			if (quote.isNull()) {
+				argv << lamMid().split(" ", opt);
+				quote = cmd[i++];
+				progress = i;
+			} else if (quote == cmd[i]) {
+				argv << lamMid();
+				quote = 0;
+				progress = ++i;
+			}
+		}
+	}
+
+	argv << cmd.right(size - progress).split(" ", opt);
+
+	return argv;
+}
+
 }; // KsUtils
 
 /** A stream operator for converting QColor into KsPlot::Color. */

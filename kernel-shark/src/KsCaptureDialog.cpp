@@ -170,7 +170,8 @@ QStringList KsCaptureControl::getArgs()
 		argv << _eventsWidget.getCheckedEvents(true);
 
 	argv << "-o" << outputFileName();
-	argv << _commandLineEdit.text().split(" ");
+
+	argv << KsUtils::splitArguments(_commandLineEdit.text());
 
 	return argv;
 }
@@ -350,7 +351,10 @@ void KsCaptureControl::_browse()
 
 void KsCaptureControl::_apply()
 {
-	emit argsReady(getArgs().join(" "));
+	QStringList argv = getArgs();
+
+	if (argv.count())
+		emit argsReady(argv.join(" "));
 }
 
 /** @brief Create KsCaptureMonitor widget. */
@@ -543,7 +547,7 @@ void KsCaptureDialog::_capture()
 	int argc;
 
 	if(_captureMon._argsModified) {
-		argv = _captureMon.text().split(" ");
+		argv = KsUtils::splitArguments(_captureMon.text());
 	} else {
 		argv = _captureCtrl.getArgs();
 	}

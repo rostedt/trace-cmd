@@ -130,6 +130,8 @@ QString getSaveFile(QWidget *parent,
 		    const QString &extension,
 		    QString &lastFilePath);
 
+QStringList splitArguments(QString cmd);
+
 }; // KsUtils
 
 /** Identifier of the Dual Marker active state. */
