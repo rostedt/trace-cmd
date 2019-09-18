@@ -23,3 +23,7 @@ target_link_libraries(dplot   kshark-plot)
 message(STATUS "widgetdemo")
 add_executable(widgetdemo          widgetdemo.cpp)
 target_link_libraries(widgetdemo   kshark-gui)
+
+message(STATUS "cmd_split")
+add_executable(cmd_split           cmd_split.cpp)
+target_link_libraries(cmd_split    kshark-gui)
