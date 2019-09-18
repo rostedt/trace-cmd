@@ -90,6 +90,7 @@ enum {
 	TRACECMD_FL_IGNORE_DATE		= (1 << 0),
 	TRACECMD_FL_BUFFER_INSTANCE	= (1 << 1),
 	TRACECMD_FL_LATENCY		= (1 << 2),
+	TRACECMD_FL_IN_USECS		= (1 << 3),
 };
 
 struct tracecmd_ftrace {

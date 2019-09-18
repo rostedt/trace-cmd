@@ -2582,6 +2582,14 @@ static void extract_trace_clock(struct tracecmd_input *handle, char *line)
 	sscanf(data, "%ms", &clock);
 	/* TODO: report if it fails to allocate */
 	handle->trace_clock = clock;
+
+	if (!clock)
+		return;
+
+	if (!strcmp(clock, "local") || !strcmp(clock, "global")
+	    || !strcmp(clock, "uptime") || !strcmp(clock, "perf")
+	    || !strncmp(clock, "mono", 4))
+		handle->flags |= TRACECMD_FL_IN_USECS;
 }
 
 void tracecmd_parse_trace_clock(struct tracecmd_input *handle,
