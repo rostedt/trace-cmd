@@ -142,7 +142,7 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 			descr = "Remove [";
 			descr += taskName;
 			descr += "-";
-			descr += QString("%1").arg(_data->rows()[_row]->pid);
+			descr += QString("%1").arg(pid);
 			descr += "] plot";
 			lamAddAction(&_removeTaskPlotAction,
 				     &KsQuickContextMenu::_removeTaskPlot);
@@ -150,7 +150,7 @@ KsQuickContextMenu::KsQuickContextMenu(KsDataStore *data, size_t row,
 			descr = "Add [";
 			descr += taskName;
 			descr += "-";
-			descr += QString("%1").arg(_data->rows()[_row]->pid);
+			descr += QString("%1").arg(pid);
 			descr += "] plot";
 			lamAddAction(&_addTaskPlotAction,
 				     &KsQuickContextMenu::_addTaskPlot);
