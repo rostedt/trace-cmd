@@ -358,7 +358,6 @@ KsCaptureMonitor::KsCaptureMonitor(QWidget *parent)
 : QWidget(parent),
   _mergedChannels(false),
   _argsModified(false),
-  _captureStatus(false),
   _panel(this),
   _name("Output display", this),
   _space("max size ", this),
@@ -496,9 +495,6 @@ void KsCaptureMonitor::_captureFinished(int exit, QProcess::ExitStatus status)
 		_consolOutput.appendPlainText(errMessage);
 
 		QCoreApplication::processEvents();
-		_captureStatus = false;
-	} else {
-		_captureStatus = true;
 	}
 }
 
@@ -558,6 +554,17 @@ void KsCaptureDialog::_capture()
 	_captureProc.start();
 	_captureProc.waitForFinished();
 
+	/* Reset the _argsModified flag. */
+	_captureMon._argsModified = false;
+
+	if (_captureProc.exitCode() != 0 ||
+	    _captureProc.exitStatus() != QProcess::NormalExit)
+		return;
+
+	/*
+	 * Capture finished successfully. Open the produced tracing data file
+	 * in KernelShark.
+	 */
 	argc = argv.count();
 	for (int i = 0; i < argc; ++i) {
 		if (argv[i] == "-o") {
@@ -565,9 +572,6 @@ void KsCaptureDialog::_capture()
 			break;
 		}
 	}
-
-	/* Reset the _argsModified flag. */
-	_captureMon._argsModified = false;
 }
 
 void KsCaptureDialog::_setChannelMode(int state)
@@ -582,9 +586,6 @@ void KsCaptureDialog::_setChannelMode(int state)
 void KsCaptureDialog::_sendOpenReq(const QString &fileName)
 {
 	QLocalSocket *socket;
-
-	if (!_captureMon._captureStatus)
-		return;
 
 	socket = new QLocalSocket(this);
 	socket->connectToServer("KSCapture", QIODevice::WriteOnly);
