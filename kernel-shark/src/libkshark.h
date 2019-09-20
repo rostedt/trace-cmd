@@ -72,7 +72,8 @@ struct kshark_entry {
 };
 
 /** Size of the task's hash table. */
-#define KS_TASK_HASH_SIZE 256
+#define KS_TASK_HASH_SHIFT 16
+#define KS_TASK_HASH_SIZE (1 << KS_TASK_HASH_SHIFT)
 
 /** Linked list of tasks. */
 struct kshark_task_list {
