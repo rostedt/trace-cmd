@@ -7,10 +7,10 @@ add_library(kshark SHARED libkshark.c
                           libkshark-configio.c
                           libkshark-collection.c)
 
-target_link_libraries(kshark ${CMAKE_DL_LIBS}
+target_link_libraries(kshark ${TRACEEVENT_LIBRARY}
+                             ${TRACECMD_LIBRARY}
                              ${JSONC_LIBRARY}
-                             ${TRACEEVENT_LIBRARY}
-                             ${TRACECMD_LIBRARY})
+                             ${CMAKE_DL_LIBS})
 
 set_target_properties(kshark  PROPERTIES SUFFIX	".so.${KS_VERSION_STRING}")
 
@@ -23,8 +23,8 @@ if (OPENGL_FOUND AND GLUT_FOUND)
                                      KsPlotTools.cpp)
 
     target_link_libraries(kshark-plot  kshark
-                                       ${OPENGL_LIBRARIES}
-                                       ${GLUT_LIBRARY})
+                                       ${GLUT_LIBRARY}
+                                       ${OPENGL_LIBRARIES})
 
     set_target_properties(kshark-plot PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
 
@@ -65,11 +65,11 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
                                                             KsAdvFilteringDialog.cpp)
 
     target_link_libraries(kshark-gui kshark-plot
-                                     ${CMAKE_DL_LIBS}
+                                     Qt5::Widgets
+                                     Qt5::Network
                                      ${TRACEEVENT_LIBRARY}
                                      ${TRACECMD_LIBRARY}
-                                     Qt5::Widgets
-                                     Qt5::Network)
+                                     ${CMAKE_DL_LIBS})
 
     set_target_properties(kshark-gui PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
 
