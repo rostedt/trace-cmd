@@ -215,6 +215,8 @@ private:
 
 	void _captureError(QProcess::ProcessError error);
 
+	void _captureErrorMessage(QProcess *capture);
+
 	void _readSocket();
 
 	void _splitterMoved(int pos, int index);

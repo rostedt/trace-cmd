@@ -1199,18 +1199,18 @@ void KsMainWindow::_captureFinished(int ret, QProcess::ExitStatus st)
 		return;
 	}
 
-	if (ret != 0 && st == QProcess::NormalExit) {
-		QString message = "Capture process failed:<br>";
-
-		message += capture->errorString();
-		message += capture->readAllStandardError();
-		_error(message, "captureFinishedErr", false, false);
-	}
+	if (ret != 0 && st == QProcess::NormalExit)
+		_captureErrorMessage(capture);
 }
 
 void KsMainWindow::_captureError(QProcess::ProcessError error)
 {
 	QProcess *capture = (QProcess *)sender();
+	_captureErrorMessage(capture);
+}
+
+void KsMainWindow::_captureErrorMessage(QProcess *capture)
+{
 	QString message = "Capture process failed:<br>";
 
 	message += capture->errorString();
