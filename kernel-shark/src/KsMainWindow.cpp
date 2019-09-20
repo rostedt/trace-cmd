@@ -890,7 +890,6 @@ void KsMainWindow::_record()
 #endif
 
 	if (geteuid() && !canDoAsRoot) {
-		QErrorMessage *em = new QErrorMessage(this);
 		QString message;
 
 		message = "Record is currently not supported.";
@@ -899,8 +898,7 @@ void KsMainWindow::_record()
 		message += " ./cmake_clean.sh <br> cmake .. <br> make <br>";
 		message += " sudo make install";
 
-		em->showMessage(message);
-		qCritical() << "ERROR: " << message;
+		_error(message, "recordCantStart", false, false);
 		return;
 	}
 
