@@ -883,23 +883,26 @@ void KsMainWindow::_pluginAdd()
 
 void KsMainWindow::_record()
 {
-#ifndef DO_AS_ROOT
+	bool canDoAsRoot(false);
 
-	QErrorMessage *em = new QErrorMessage(this);
-	QString message;
-
-	message = "Record is currently not supported.";
-	message += " Install \"pkexec\" and then do:<br>";
-	message += " cd build <br> sudo ./cmake_uninstall.sh <br>";
-	message += " ./cmake_clean.sh <br> cmake .. <br> make <br>";
-	message += " sudo make install";
-
-	em->showMessage(message);
-	qCritical() << "ERROR: " << message;
-
-	return;
-
+#ifdef DO_AS_ROOT
+	canDoAsRoot = true;
 #endif
+
+	if (geteuid() && !canDoAsRoot) {
+		QErrorMessage *em = new QErrorMessage(this);
+		QString message;
+
+		message = "Record is currently not supported.";
+		message += " Install \"pkexec\" and then do:<br>";
+		message += " cd build <br> sudo ./cmake_uninstall.sh <br>";
+		message += " ./cmake_clean.sh <br> cmake .. <br> make <br>";
+		message += " sudo make install";
+
+		em->showMessage(message);
+		qCritical() << "ERROR: " << message;
+		return;
+	}
 
 	_capture.start();
 }
@@ -1134,9 +1137,24 @@ void KsMainWindow::loadSession(const QString &fileName)
 
 void KsMainWindow::_initCapture()
 {
-#ifdef DO_AS_ROOT
+	bool canDoAsRoot(false);
 
-	_capture.setProgram("kshark-su-record");
+#ifdef DO_AS_ROOT
+	canDoAsRoot = true;
+#endif
+
+	if (geteuid() && !canDoAsRoot)
+		return;
+
+	if (geteuid()) {
+		_capture.setProgram("kshark-su-record");
+	} else {
+		QStringList argv;
+
+		_capture.setProgram("kshark-record");
+		argv << QString("-o") << QDir::homePath() + "/trace.dat";
+		_capture.setArguments(argv);
+	}
 
 	connect(&_capture,	&QProcess::started,
 		this,		&KsMainWindow::_captureStarted);
@@ -1155,7 +1173,6 @@ void KsMainWindow::_initCapture()
 	connect(&_captureLocalServer,	&QLocalServer::newConnection,
 		this,			&KsMainWindow::_readSocket);
 
-#endif
 }
 
 void KsMainWindow::_captureStarted()
