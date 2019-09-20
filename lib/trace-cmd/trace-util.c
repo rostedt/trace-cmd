@@ -73,33 +73,6 @@ void tracecmd_parse_cmdlines(struct tep_handle *pevent,
 	}
 }
 
-static void extract_trace_clock(struct tep_handle *pevent, char *line)
-{
-	char *data;
-	char *clock;
-	char *next = NULL;
-
-	data = strtok_r(line, "[]", &next);
-	sscanf(data, "%ms", &clock);
-	tep_register_trace_clock(pevent, clock);
-	free(clock);
-}
-
-void tracecmd_parse_trace_clock(struct tep_handle *pevent,
-				char *file, int size __maybe_unused)
-{
-	char *line;
-	char *next = NULL;
-
-	line = strtok_r(file, " ", &next);
-	while (line) {
-		/* current trace_clock is shown as "[local]". */
-		if (*line == '[')
-			return extract_trace_clock(pevent, line);
-		line = strtok_r(NULL, " ", &next);
-	}
-}
-
 void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {

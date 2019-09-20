@@ -95,6 +95,7 @@ struct tracecmd_input {
 	char *			cpustats;
 	char *			uname;
 	char *			version;
+	char *			trace_clock;
 	struct input_buffer_instance	*buffers;
 	int			parsing_failures;
 
@@ -2571,6 +2572,33 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 	return 0;
 }
 
+static void extract_trace_clock(struct tracecmd_input *handle, char *line)
+{
+	char *clock = NULL;
+	char *next = NULL;
+	char *data;
+
+	data = strtok_r(line, "[]", &next);
+	sscanf(data, "%ms", &clock);
+	/* TODO: report if it fails to allocate */
+	handle->trace_clock = clock;
+}
+
+void tracecmd_parse_trace_clock(struct tracecmd_input *handle,
+				char *file, int size __maybe_unused)
+{
+	char *line;
+	char *next = NULL;
+
+	line = strtok_r(file, " ", &next);
+	while (line) {
+		/* current trace_clock is shown as "[local]". */
+		if (*line == '[')
+			return extract_trace_clock(handle, line);
+		line = strtok_r(NULL, " ", &next);
+	}
+}
+
 static int read_and_parse_trace_clock(struct tracecmd_input *handle,
 							struct tep_handle *pevent)
 {
@@ -2580,7 +2608,7 @@ static int read_and_parse_trace_clock(struct tracecmd_input *handle,
 	if (read_data_and_size(handle, &trace_clock, &size) < 0)
 		return -1;
 	trace_clock[size] = 0;
-	tracecmd_parse_trace_clock(pevent, trace_clock, size);
+	tracecmd_parse_trace_clock(handle, trace_clock, size);
 	free(trace_clock);
 	return 0;
 }
@@ -2618,7 +2646,7 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		if (read_and_parse_trace_clock(handle, pevent) < 0) {
 			char clock[] = "[local]";
 			warning("File has trace_clock bug, using local clock");
-			tracecmd_parse_trace_clock(pevent, clock, 8);
+			tracecmd_parse_trace_clock(handle, clock, 8);
 		}
 	}
 
@@ -3011,6 +3039,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	free(handle->cpustats);
 	free(handle->cpu_data);
 	free(handle->uname);
+	free(handle->trace_clock);
 	close(handle->fd);
 
 	tracecmd_free_hooks(handle->hooks);

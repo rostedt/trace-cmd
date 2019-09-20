@@ -18,7 +18,6 @@
 #define TRACECMD_PTR2ERR(ptr)	((unisgned long)(ptr) & ~TRACECMD_ERR_MSK)
 
 void tracecmd_parse_cmdlines(struct tep_handle *pevent, char *file, int size);
-void tracecmd_parse_trace_clock(struct tep_handle *pevent, char *file, int size);
 void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigned int size);
 void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
 
@@ -126,6 +125,8 @@ int tracecmd_copy_headers(struct tracecmd_input *handle, int fd);
 void tracecmd_set_flag(struct tracecmd_input *handle, int flag);
 void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
 unsigned long tracecmd_get_flags(struct tracecmd_input *handle);
+
+void tracecmd_parse_trace_clock(struct tracecmd_input *handle, char *file, int size);
 
 int tracecmd_make_pipe(struct tracecmd_input *handle, int cpu, int fd, int cpus);
 
