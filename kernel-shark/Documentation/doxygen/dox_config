@@ -4,7 +4,7 @@
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "KernelShark"
 PROJECT_BRIEF = "Kernel Shark is a front-end reader of the Linux kernel tracing data."
-INPUT                  = ../src/ ../src/plugins/
+INPUT                  = ../../src/ ../../src/plugins/
 SOURCE_BROWSER         = YES
 QT_AUTOBRIEF           = YES
 TAB_SIZE               = 8
@@ -13,4 +13,4 @@ CASE_SENSE_NAMES       = YES
 SORT_MEMBER_DOCS       = NO
 STRICT_PROTO_MATCHING  = YES
 DOT_MULTI_TARGETS      = YES
-PROJECT_LOGO           = ../icons/KS_logo_stacked.svg
+PROJECT_LOGO           = ../../icons/KS_logo_stacked.svg
