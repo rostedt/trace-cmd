@@ -1211,9 +1211,10 @@ void KsMainWindow::_captureError(QProcess::ProcessError error)
 
 void KsMainWindow::_captureErrorMessage(QProcess *capture)
 {
-	QString message = "Capture process failed:<br>";
+	QString message = "Capture process failed: ";
 
 	message += capture->errorString();
+	message += "<br>Standard Error: ";
 	message += capture->readAllStandardError();
 	_error(message, "captureFinishedErr", false, false);
 }
