@@ -238,6 +238,8 @@ private:
 
 	void _deselectB();
 
+	void _rootWarning();
+
 	void _updateFilterMenu();
 
 	void _filterSyncCBoxUpdate(kshark_context *kshark_ctx);

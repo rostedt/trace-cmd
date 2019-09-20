@@ -76,6 +76,9 @@ KsMainWindow::KsMainWindow(QWidget *parent)
 	_createMenus();
 	_initCapture();
 
+	if (geteuid() == 0)
+		_rootWarning();
+
 	_splitter.addWidget(&_graph);
 	_splitter.addWidget(&_view);
 	setCentralWidget(&_splitter);
@@ -1270,4 +1273,29 @@ void KsMainWindow::_deselectB()
 	_mState.markerB().remove();
 	_mState.updateLabels();
 	_graph.glPtr()->model()->update();
+}
+
+void KsMainWindow::_rootWarning()
+{
+	QString cbFlag("noRootWarn");
+
+	if (_settings.value(cbFlag).toBool())
+		return;
+
+	QMessageBox warn;
+	warn.setText("KernelShark is running with Root privileges.");
+	warn.setInformativeText("Continue at your own risk.");
+	warn.setIcon(QMessageBox::Warning);
+	warn.setStandardButtons(QMessageBox::Close);
+
+	QCheckBox cb("Don't show this message again.");
+
+	auto lamCbChec = [&] (int state) {
+		if (state)
+			_settings.setValue(cbFlag, true);
+	};
+
+	connect(&cb, &QCheckBox::stateChanged, lamCbChec);
+	warn.setCheckBox(&cb);
+	warn.exec();
 }
