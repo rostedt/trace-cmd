@@ -12,23 +12,13 @@
 
 #include "trace-filter-hash.h"
 
-#define FILTER_HASH_SIZE	256
-
-static inline uint8_t knuth_hash(uint32_t val)
-{
-	/*
-	 * Small table hashing function adapted from Donald E. Knuth's 32 bit
-	 * multiplicative hash.  See The Art of Computer Programming (TAOCP).
-	 * Multiplication by the Prime number, closest to the golden ratio of
-	 * 2^8.
-	 */
-	return UINT8_C(val) * UINT8_C(157);
-}
+#define FILTER_HASH_BITS	8
+#define FILTER_HASH_SIZE	(1 << FILTER_HASH_BITS)
 
 struct tracecmd_filter_id_item *
 tracecmd_filter_id_find(struct tracecmd_filter_id *hash, int id)
 {
-	int key = knuth_hash(id);
+	int key = tracecmd_quick_hash(id, FILTER_HASH_BITS);
 	struct tracecmd_filter_id_item *item = hash->hash[key];
 
 	while (item) {
@@ -42,7 +32,7 @@ tracecmd_filter_id_find(struct tracecmd_filter_id *hash, int id)
 
 void tracecmd_filter_id_add(struct tracecmd_filter_id *hash, int id)
 {
-	int key = knuth_hash(id);
+	int key = tracecmd_quick_hash(id, FILTER_HASH_BITS);
 	struct tracecmd_filter_id_item *item;
 
 	item = calloc(1, sizeof(*item));
@@ -57,7 +47,7 @@ void tracecmd_filter_id_add(struct tracecmd_filter_id *hash, int id)
 
 void tracecmd_filter_id_remove(struct tracecmd_filter_id *hash, int id)
 {
-	int key = knuth_hash(id);
+	int key = tracecmd_quick_hash(id, FILTER_HASH_BITS);
 	struct tracecmd_filter_id_item **next = &hash->hash[key];
 	struct tracecmd_filter_id_item *item;
 
