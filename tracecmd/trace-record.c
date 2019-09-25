@@ -2403,6 +2403,7 @@ static void set_mask(struct buffer_instance *instance)
 	path = get_instance_file(instance, "tracing_cpumask");
 	if (!path)
 		die("could not allocate path");
+	reset_save_file(path, RESET_DEFAULT_PRIO);
 
 	ret = stat(path, &st);
 	if (ret < 0) {
