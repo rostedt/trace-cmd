@@ -4096,6 +4096,40 @@ static void reset_clock(void)
 		write_instance_file(instance, "trace_clock", "local", "clock");
 }
 
+static void reset_cpu_mask(void)
+{
+	struct buffer_instance *instance;
+	int cpus = count_cpus();
+	int fullwords;
+	char *buf;
+	int bits;
+	int len;
+
+	fullwords = cpus / 32;
+	bits = cpus % 32;
+	len = (fullwords + 1) * 9;
+
+	buf = malloc(len + 1);
+	if (!buf) {
+		warning("Unable to allocate %d bytes for cpu mask", len + 1);
+		return;
+	}
+	buf[0] = '\0';
+	if (bits) {
+		sprintf(buf, "%x", (1 << bits) - 1);
+	} else if (fullwords) {
+		strcat(buf, "ffffffff");
+		fullwords--;
+	}
+	while (fullwords-- > 0)
+		strcat(buf, ",ffffffff");
+
+	for_all_instances(instance)
+		write_instance_file(instance, "tracing_cpumask", buf, "cpumask");
+
+	free(buf);
+}
+
 static void reset_event_pid(void)
 {
 	add_event_pid("");
@@ -4808,6 +4842,7 @@ void trace_reset(int argc, char **argv)
 	reset_clock();
 	reset_event_pid();
 	reset_max_latency_instance();
+	reset_cpu_mask();
 	tracecmd_remove_instances();
 	clear_func_filters();
 	/* restore tracing_on to 1 */
