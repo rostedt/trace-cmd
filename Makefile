@@ -116,8 +116,7 @@ PYTHON_PKGCONFIG_VERS ?= $(PYTHON_VERS)
 
 # Can build python?
 ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_PKGCONFIG_VERS) > /dev/null 2>&1 && echo y"), y)
-	PYTHON_PLUGINS := plugin_python.so
-	BUILD_PYTHON := $(PYTHON) $(PYTHON_PLUGINS)
+	BUILD_PYTHON := $(PYTHON)
 	BUILD_PYTHON_WORKS := 1
 else
 	BUILD_PYTHON := report_nopythondev
@@ -125,7 +124,6 @@ else
 endif
 endif # NO_PYTHON
 
-export PYTHON_PLUGINS
 export BUILD_PYTHON_WORKS
 export NO_PYTHON
 
@@ -417,12 +415,6 @@ python: $(PYTHON)
 
 PHONY += python-gui
 python-gui: $(PYTHON_GUI)
-
-PHONY += python-plugin
-python-plugin: $(PYTHON_PLUGINS)
-
-plugin_python.so: force $(obj)/lib/traceevent/plugins/trace_python_dir
-	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $(obj)/lib/traceevent/plugins/plugin_python.so
 
 dist:
 	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \

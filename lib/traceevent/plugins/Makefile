@@ -21,7 +21,7 @@ PLUGIN_OBJS := $(PLUGIN_OBJS:%.o=$(bdir)/%.o)
 PLUGIN_BUILD := $(PLUGIN_OBJS:$(bdir)/%.o=$(bdir)/%.so)
 PLUGINS := $(PLUGIN_BUILD)
 ifndef NO_PYTHON
-PLUGINS += $(bdir)/plugin_python.so
+PLUGINS += $(bdir)/plugin_python_loader.so
 endif
 DEPS := $(PLUGIN_OBJS:$(bdir)/%.o=$(bdir)/.%.d)
 
@@ -44,10 +44,10 @@ $(DEPS): $(bdir)/.%.d: %.c
 
 $(PLUGIN_OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
-$(bdir)/plugin_python.o: $(bdir)/%.o : %.c $(bdir)/trace_python_dir
+$(bdir)/plugin_python_loader.o: $(bdir)/%.o : %.c $(bdir)/trace_python_dir
 	$(Q)$(do_compile_python_plugin_obj)
 
-$(bdir)/plugin_python.so: $(bdir)/%.so: $(bdir)/%.o
+$(bdir)/plugin_python_loader.so: $(bdir)/%.so: $(bdir)/%.o
 	$(Q)$(do_python_plugin_build)
 
 PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
