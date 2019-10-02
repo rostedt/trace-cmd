@@ -19,7 +19,7 @@
 #include "event-utils.h"
 #include "trace-seq.h"
 
-#define LOCAL_PLUGIN_DIR ".traceevent/plugins"
+#define LOCAL_PLUGIN_DIR ".local/lib/traceevent/plugins/"
 
 static struct registered_plugin_options {
 	struct registered_plugin_options	*next;
@@ -557,9 +557,9 @@ void tep_load_plugins_hook(struct tep_handle *tep, const char *suffix,
 	 * If a system plugin directory was defined,
 	 * check that first.
 	 */
-#ifdef PLUGIN_DIR
+#ifdef PLUGIN_TRACEEVENT_DIR
 	if (!tep || !(tep->flags & TEP_DISABLE_SYS_PLUGINS))
-		load_plugins_dir(tep, suffix, PLUGIN_DIR,
+		load_plugins_dir(tep, suffix, PLUGIN_TRACEEVENT_DIR,
 				 load_plugin, data);
 #endif
 

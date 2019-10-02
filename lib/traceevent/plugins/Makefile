@@ -53,11 +53,11 @@ $(bdir)/plugin_python_loader.so: $(bdir)/%.so: $(bdir)/%.o
 PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
 
 $(PLUGINS_INSTALL): $(bdir)/%.install : $(bdir)/%.so force
-	$(Q)$(call do_install_data,$<,$(plugin_dir_SQ))
+	$(Q)$(call do_install_data,$<,$(plugin_traceevent_dir_SQ))
 
 install_plugins: $(PLUGINS_INSTALL)
 
-# The following targets are necessary to trigger a rebuild when $(PLUGIN_DIR)
+# The following targets are necessary to trigger a rebuild when $(PLUGIN_DIR_TRACEEVENT)
 # and $(PYTHON_DIR) change. Without them, a full clean build would necessary
 # in order to get the binaries updated.
 

@@ -56,15 +56,15 @@ export img_install img_install_SQ
 export DESTDIR DESTDIR_SQ
 
 ifeq ($(prefix),$(HOME))
-plugin_dir = $(HOME)/.trace-cmd/plugins
+plugin_traceevent_dir = $(HOME)/.local/lib/traceevent/plugins
 python_dir = $(HOME)/.trace-cmd/python
 var_dir = $(HOME)/.trace-cmd/
 else
-plugin_dir = $(libdir)/trace-cmd/plugins
+plugin_traceevent_dir = $(libdir)/traceevent/plugins
 python_dir ?= $(libdir)/trace-cmd/python
-PLUGIN_DIR = -DPLUGIN_DIR="$(plugin_dir)"
+PLUGIN_DIR_TRACEEVENT = -DPLUGIN_TRACEEVENT_DIR="$(plugin_traceevent_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
-PLUGIN_DIR_SQ = '$(subst ','\'',$(PLUGIN_DIR))'
+PLUGIN_DIR_TRACEEVENT_SQ = '$(subst ','\'',$(PLUGIN_DIR_TRACEEVENT))'
 PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
 var_dir = /var
 endif
@@ -72,7 +72,7 @@ endif
 # Shell quotes
 bindir_SQ = $(subst ','\'',$(bindir))
 bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
-plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
+plugin_traceevent_dir_SQ = $(subst ','\'',$(plugin_traceevent_dir))
 python_dir_SQ = $(subst ','\'',$(python_dir))
 
 VAR_DIR = -DVAR_DIR="$(var_dir)"
@@ -85,10 +85,10 @@ HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
 BASH_COMPLETE_DIR ?= /etc/bash_completion.d
 
-export PLUGIN_DIR
+export PLUGIN_DIR_TRACEEVENT
 export PYTHON_DIR
 export PYTHON_DIR_SQ
-export plugin_dir_SQ
+export plugin_traceevent_dir_SQ
 export python_dir_SQ
 export var_dir
 
@@ -239,7 +239,7 @@ LIBS += -laudit
 endif
 
 # Append required CFLAGS
-override CFLAGS += $(INCLUDES) $(PLUGIN_DIR_SQ) $(VAR_DIR)
+override CFLAGS += $(INCLUDES) $(PLUGIN_DIR_TRACEEVENT_SQ) $(VAR_DIR)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 override LDFLAGS += $(udis86-ldflags)
 
