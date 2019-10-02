@@ -273,16 +273,16 @@ gui: force $(CMD_TARGETS) $(kshark-dir)/build/Makefile
 trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 
-$(LIBTRACEEVENT_SHARED): force
+$(LIBTRACEEVENT_SHARED): force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
-$(LIBTRACEEVENT_STATIC): force
+$(LIBTRACEEVENT_STATIC): force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
-$(LIBTRACECMD_STATIC): force $(obj)/plugins/trace_plugin_dir
+$(LIBTRACECMD_STATIC): force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
 
-$(LIBTRACECMD_SHARED): force $(obj)/plugins/trace_plugin_dir
+$(LIBTRACECMD_SHARED): force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
 
 libtraceevent.so: $(LIBTRACEEVENT_SHARED)
@@ -292,14 +292,14 @@ libtracecmd.so: $(LIBTRACECMD_SHARED)
 
 libs: $(LIBTRACECMD_SHARED) $(LIBTRACEEVENT_SHARED)
 
-plugins: force $(obj)/plugins/trace_plugin_dir $(obj)/plugins/trace_python_dir
-	$(Q)$(MAKE) -C $(src)/plugins
+plugins: force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir $(obj)/lib/traceevent/plugins/trace_python_dir
+	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins
 
-$(obj)/plugins/trace_plugin_dir: force
-	$(Q)$(MAKE) -C $(src)/plugins $@
+$(obj)/lib/traceevent/plugins/traceevent_plugin_dir: force
+	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
 
-$(obj)/plugins/trace_python_dir: force
-	$(Q)$(MAKE) -C $(src)/plugins $@
+$(obj)/lib/traceevent/plugins/trace_python_dir: force
+	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
 
 show_gui_make:
 	@echo "Note: to build the gui, type \"make gui\""
@@ -325,7 +325,7 @@ cscope: force
 	$(call find_tag_files) | cscope -b -q
 
 install_plugins: force
-	$(Q)$(MAKE) -C $(src)/plugins $@
+	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
 
 install_python: force
 	$(Q)$(MAKE) -C $(src)/python $@
@@ -372,7 +372,7 @@ clean:
 	$(RM) tags TAGS cscope*
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
-	$(MAKE) -C $(src)/plugins clean
+	$(MAKE) -C $(src)/lib/traceevent/plugins clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
 	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
@@ -421,8 +421,8 @@ python-gui: $(PYTHON_GUI)
 PHONY += python-plugin
 python-plugin: $(PYTHON_PLUGINS)
 
-plugin_python.so: force $(obj)/plugins/trace_python_dir
-	$(Q)$(MAKE) -C $(src)/plugins $(obj)/plugins/plugin_python.so
+plugin_python.so: force $(obj)/lib/traceevent/plugins/trace_python_dir
+	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $(obj)/lib/traceevent/plugins/plugin_python.so
 
 dist:
 	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \

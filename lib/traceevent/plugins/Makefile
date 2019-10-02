@@ -1,6 +1,6 @@
 include $(src)/scripts/utils.mk
 
-bdir:=$(obj)/plugins
+bdir:=$(obj)/lib/traceevent/plugins
 
 PLUGIN_OBJS =
 PLUGIN_OBJS += plugin_jbd2.o
@@ -61,7 +61,7 @@ install_plugins: $(PLUGINS_INSTALL)
 # and $(PYTHON_DIR) change. Without them, a full clean build would necessary
 # in order to get the binaries updated.
 
-$(bdir)/trace_plugin_dir: $(bdir) force
+$(bdir)/traceevent_plugin_dir: $(bdir) force
 	$(Q)$(N)$(call update_dir, 'PLUGIN_DIR=$(PLUGIN_DIR)')
 
 $(bdir)/trace_python_dir: $(bdir) force
@@ -75,7 +75,7 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) -f $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d $(bdir)/trace_plugin_dir $(bdir)/trace_python_dir
+	$(RM) -f $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d $(bdir)/traceevent_plugin_dir $(bdir)/trace_python_dir
 
 force:
 .PHONY: clean force

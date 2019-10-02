@@ -40,8 +40,6 @@ $(bdir)/libtracecmd.so: $(OBJS)
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 
-$(bdir)/trace-util.o: $(obj)/plugins/trace_plugin_dir
-
 $(DEPS): $(bdir)/.%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
 
