@@ -4100,27 +4100,14 @@ static void reset_cpu_mask(void)
 {
 	struct buffer_instance *instance;
 	int cpus = count_cpus();
-	int fullwords;
-	char *buf;
-	int bits;
-	int len;
+	int fullwords = (cpus - 1) / 32;
+	int bits = (cpus - 1) % 32 + 1;
+	int len = (fullwords + 1) * 9;
+	char buf[len + 1];
 
-	fullwords = cpus / 32;
-	bits = cpus % 32;
-	len = (fullwords + 1) * 9;
-
-	buf = malloc(len + 1);
-	if (!buf) {
-		warning("Unable to allocate %d bytes for cpu mask", len + 1);
-		return;
-	}
 	buf[0] = '\0';
-	if (bits) {
-		sprintf(buf, "%x", (1 << bits) - 1);
-	} else if (fullwords) {
-		strcat(buf, "ffffffff");
-		fullwords--;
-	}
+
+	sprintf(buf, "%x", (unsigned int)((1ULL << bits) - 1));
 	while (fullwords-- > 0)
 		strcat(buf, ",ffffffff");
 
