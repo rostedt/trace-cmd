@@ -20,10 +20,6 @@
 void tracecmd_parse_cmdlines(struct tep_handle *pevent, char *file, int size);
 void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigned int size);
 void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
-
-extern int tracecmd_disable_sys_plugins;
-extern int tracecmd_disable_plugins;
-
 struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep);
 
 char **tracecmd_event_systems(const char *tracing_dir);
@@ -53,6 +49,46 @@ struct tracecmd_input;
 struct tracecmd_output;
 struct tracecmd_recorder;
 struct hook_list;
+
+/* --- tracecmd plugins --- */
+
+extern int tracecmd_disable_sys_plugins;
+extern int tracecmd_disable_plugins;
+
+enum tracecmd_context {
+	TRACECMD_INPUT,
+	TRACECMD_OUTPUT,
+};
+
+enum tracecmd_plugin_flag {
+	TRACECMD_DISABLE_SYS_PLUGINS	= 1,
+	TRACECMD_DISABLE_PLUGINS	= 1 << 1,
+};
+
+struct trace_plugin_context;
+
+struct trace_plugin_context *
+tracecmd_plugin_context_create(enum tracecmd_context context, void *data);
+
+void tracecmd_plugin_set_flag(struct trace_plugin_context *context,
+			      enum tracecmd_plugin_flag flag);
+
+#define TRACECMD_PLUGIN_LOADER tracecmd_plugin_loader
+#define TRACECMD_PLUGIN_UNLOADER tracecmd_plugin_unloader
+#define TRACECMD_PLUGIN_ALIAS tracecmd_plugin_alias
+#define _MAKE_STR(x)	#x
+#define MAKE_STR(x)	_MAKE_STR(x)
+#define TRACECMD_PLUGIN_LOADER_NAME MAKE_STR(TRACECMD_PLUGIN_LOADER)
+#define TRACECMD_PLUGIN_UNLOADER_NAME MAKE_STR(TRACECMD_PLUGIN_UNLOADER)
+#define TRACECMD_PLUGIN_ALIAS_NAME MAKE_STR(TRACECMD_PLUGIN_ALIAS)
+
+typedef int (*tracecmd_plugin_load_func)(struct trace_plugin_context *trace);
+typedef int (*tracecmd_plugin_unload_func)(struct trace_plugin_context *trace);
+
+struct tracecmd_input *
+tracecmd_plugin_context_input(struct trace_plugin_context *trace_context);
+struct tracecmd_output *
+tracecmd_plugin_context_output(struct trace_plugin_context *trace_context);
 
 void tracecmd_set_quiet(struct tracecmd_output *handle, bool set_quiet);
 bool tracecmd_get_quiet(struct tracecmd_output *handle);

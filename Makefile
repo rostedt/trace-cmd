@@ -57,14 +57,17 @@ export DESTDIR DESTDIR_SQ
 
 ifeq ($(prefix),$(HOME))
 plugin_traceevent_dir = $(HOME)/.local/lib/traceevent/plugins
-python_dir = $(HOME)/.trace-cmd/python
+plugin_tracecmd_dir = $(libdir)/trace-cmd/plugins
+python_dir ?= $(libdir)/traceevent/python
 var_dir = $(HOME)/.trace-cmd/
 else
 plugin_traceevent_dir = $(libdir)/traceevent/plugins
 python_dir ?= $(libdir)/trace-cmd/python
 PLUGIN_DIR_TRACEEVENT = -DPLUGIN_TRACEEVENT_DIR="$(plugin_traceevent_dir)"
+PLUGIN_DIR_TRACECMD = -DPLUGIN_TRACECMD_DIR="$(plugin_tracecmd_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
 PLUGIN_DIR_TRACEEVENT_SQ = '$(subst ','\'',$(PLUGIN_DIR_TRACEEVENT))'
+PLUGIN_DIR_TRACECMD_SQ = '$(subst ','\'',$(PLUGIN_DIR_TRACECMD))'
 PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
 var_dir = /var
 endif
@@ -73,6 +76,7 @@ endif
 bindir_SQ = $(subst ','\'',$(bindir))
 bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
 plugin_traceevent_dir_SQ = $(subst ','\'',$(plugin_traceevent_dir))
+plugin_tracecmd_dir_SQ = $(subst ','\'',$(plugin_tracecmd_dir))
 python_dir_SQ = $(subst ','\'',$(python_dir))
 
 VAR_DIR = -DVAR_DIR="$(var_dir)"
@@ -86,9 +90,11 @@ HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 BASH_COMPLETE_DIR ?= /etc/bash_completion.d
 
 export PLUGIN_DIR_TRACEEVENT
+export PLUGIN_DIR_TRACECMD
 export PYTHON_DIR
 export PYTHON_DIR_SQ
 export plugin_traceevent_dir_SQ
+export plugin_tracecmd_dir_SQ
 export python_dir_SQ
 export var_dir
 
@@ -248,7 +254,8 @@ LIBS += -laudit
 endif
 
 # Append required CFLAGS
-override CFLAGS += $(INCLUDES) $(PLUGIN_DIR_TRACEEVENT_SQ) $(VAR_DIR)
+override CFLAGS += $(INCLUDES) $(VAR_DIR)
+override CFLAGS += $(PLUGIN_DIR_TRACEEVENT_SQ) $(PLUGIN_DIR_TRACECMD_SQ)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 override LDFLAGS += $(udis86-ldflags)
 
@@ -277,13 +284,16 @@ gui: force $(CMD_TARGETS) $(kshark-dir)/build/Makefile
 	@echo "gui build complete"
 	@echo "  kernelshark located at $(kshark-dir)/bin"
 
-trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC)
+trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC) \
+	force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 
-$(LIBTRACEEVENT_SHARED): force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
+$(LIBTRACEEVENT_SHARED): force $(obj)/lib/traceevent/plugins/trace_python_dir \
+			 $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
-$(LIBTRACEEVENT_STATIC): force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
+$(LIBTRACEEVENT_STATIC): force $(obj)/lib/traceevent/plugins/trace_python_dir \
+			 $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
 
 $(LIBTRACECMD_STATIC): force
@@ -299,11 +309,20 @@ libtracecmd.so: $(LIBTRACECMD_SHARED)
 
 libs: $(LIBTRACECMD_SHARED) $(LIBTRACEEVENT_SHARED)
 
-plugins: force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir $(obj)/lib/traceevent/plugins/trace_python_dir
+plugins_traceevent: force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir \
+		   $(obj)/lib/traceevent/plugins/trace_python_dir
 	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins
+
+plugins_tracecmd: force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins
+
+plugins: plugins_traceevent plugins_tracecmd
 
 $(obj)/lib/traceevent/plugins/traceevent_plugin_dir: force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
+
+$(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir: force
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins $@
 
 $(obj)/lib/traceevent/plugins/trace_python_dir: force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
@@ -331,8 +350,12 @@ cscope: force
 	$(RM) cscope*
 	$(call find_tag_files) | cscope -b -q
 
-install_plugins: force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
+install_plugins_traceevent: force
+	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins install_plugins
+install_plugins_tracecmd: force
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins install_plugins
+
+install_plugins: install_plugins_traceevent install_plugins_tracecmd
 
 install_python: force
 	$(Q)$(MAKE) -C $(src)/python $@
@@ -380,6 +403,7 @@ clean:
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
 	$(MAKE) -C $(src)/lib/traceevent/plugins clean
+	$(MAKE) -C $(src)/lib/trace-cmd/plugins clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
 	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
