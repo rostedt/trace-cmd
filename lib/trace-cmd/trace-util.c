@@ -863,6 +863,48 @@ void trace_util_free_plugin_files(char **files)
 	free(files);
 }
 
+static char *get_source_plugins_dir(void)
+{
+	char *p, path[PATH_MAX+1];
+	int ret;
+
+	ret = readlink("/proc/self/exe", path, PATH_MAX);
+	if (ret > PATH_MAX || ret < 0)
+		return NULL;
+
+	dirname(path);
+	p = strrchr(path, '/');
+	if (!p)
+		return NULL;
+	/* Check if we are in the the source tree */
+	if (strcmp(p, "/tracecmd") != 0)
+		return NULL;
+
+	strcpy(p, "/lib/traceevent/plugins");
+	return strdup(path);
+}
+
+struct tep_plugin_list*
+trace_load_plugins(struct tep_handle *tep)
+{
+	struct tep_plugin_list *list;
+	char *path;
+
+	if (tracecmd_disable_plugins)
+		tep_set_flag(tep, TEP_DISABLE_PLUGINS);
+	if (tracecmd_disable_sys_plugins)
+		tep_set_flag(tep, TEP_DISABLE_SYS_PLUGINS);
+
+	path = get_source_plugins_dir();
+	if (path)
+		tep_add_plugin_path(tep, path, TEP_PLUGIN_LAST);
+	free(path);
+
+	list = tep_load_plugins(tep);
+
+	return list;
+}
+
 char *tracecmd_get_tracing_file(const char *name)
 {
 	static const char *tracing;
