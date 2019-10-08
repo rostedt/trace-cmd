@@ -831,6 +831,9 @@ static void __clear_trace(struct buffer_instance *instance)
 	FILE *fp;
 	char *path;
 
+	if (is_guest(instance))
+		return;
+
 	/* reset the trace */
 	path = get_instance_file(instance, "trace");
 	fp = fopen(path, "w");
@@ -1539,6 +1542,9 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 	char *path;
 	char zero = '0';
 
+	if (is_guest(instance))
+		return;
+
 	path = get_instance_file(instance, "current_tracer");
 	fp = fopen(path, "w");
 	if (!fp) {
@@ -1634,6 +1640,9 @@ static void disable_func_stack_trace_instance(struct buffer_instance *instance)
 	char *cond;
 	int size;
 	int ret;
+
+	if (is_guest(instance))
+		return;
 
 	path = get_instance_file(instance, "current_tracer");
 	ret = stat(path, &st);
@@ -1827,6 +1836,9 @@ reset_events_instance(struct buffer_instance *instance)
 	int fd;
 	int i;
 	int ret;
+
+	if (is_guest(instance))
+		return;
 
 	if (use_old_event_method()) {
 		/* old way only had top instance */
@@ -2140,6 +2152,9 @@ static void write_tracing_on(struct buffer_instance *instance, int on)
 	int ret;
 	int fd;
 
+	if (is_guest(instance))
+		return;
+
 	fd = open_tracing_on(instance);
 	if (fd < 0)
 		return;
@@ -2158,6 +2173,9 @@ static int read_tracing_on(struct buffer_instance *instance)
 	int fd;
 	char buf[10];
 	int ret;
+
+	if (is_guest(instance))
+		return -1;
 
 	fd = open_tracing_on(instance);
 	if (fd < 0)
@@ -2305,6 +2323,9 @@ static void update_pid_filters(struct buffer_instance *instance)
 	int ret;
 	int fd;
 
+	if (is_guest(instance))
+		return;
+
 	fd = open_instance_fd(instance, "set_event_pid",
 			      O_WRONLY | O_CLOEXEC | O_TRUNC);
 	if (fd < 0)
@@ -2400,6 +2421,9 @@ static void set_mask(struct buffer_instance *instance)
 	int fd;
 	int ret;
 
+	if (is_guest(instance))
+		return;
+
 	if (!instance->cpumask)
 		return;
 
@@ -2431,6 +2455,9 @@ static void enable_events(struct buffer_instance *instance)
 {
 	struct event_list *event;
 
+	if (is_guest(instance))
+		return;
+
 	for (event = instance->events; event; event = event->next) {
 		if (!event->neg)
 			update_event(event, event->filter, 0, '1');
@@ -2453,6 +2480,9 @@ static void set_clock(struct buffer_instance *instance)
 	char *path;
 	char *content;
 	char *str;
+
+	if (is_guest(instance))
+		return;
 
 	if (!instance->clock)
 		return;
@@ -2482,6 +2512,9 @@ static void set_max_graph_depth(struct buffer_instance *instance, char *max_grap
 {
 	char *path;
 	int ret;
+
+	if (is_guest(instance))
+		return;
 
 	path = get_instance_file(instance, "max_graph_depth");
 	reset_save_file(path, RESET_DEFAULT_PRIO);
@@ -2707,6 +2740,9 @@ static void expand_event_instance(struct buffer_instance *instance)
 {
 	struct event_list *compressed_list = instance->events;
 	struct event_list *event;
+
+	if (is_guest(instance))
+		return;
 
 	reset_event_list(instance);
 
@@ -3634,6 +3670,9 @@ static void set_funcs(struct buffer_instance *instance)
 	int set_notrace = 0;
 	int ret;
 
+	if (is_guest(instance))
+		return;
+
 	ret = write_func_file(instance, "set_ftrace_filter", &instance->filter_funcs);
 	if (ret < 0)
 		die("set_ftrace_filter does not exist. Can not filter functions");
@@ -3930,6 +3969,9 @@ static void set_buffer_size_instance(struct buffer_instance *instance)
 	int ret;
 	int fd;
 
+	if (is_guest(instance))
+		return;
+
 	if (!buffer_size)
 		return;
 
@@ -4159,6 +4201,9 @@ static void make_instances(void)
 	int ret;
 
 	for_each_instance(instance) {
+		if (is_guest(instance))
+			continue;
+
 		path = get_instance_dir(instance);
 		ret = stat(path, &st);
 		if (ret < 0) {
@@ -4180,7 +4225,7 @@ void tracecmd_remove_instances(void)
 
 	for_each_instance(instance) {
 		/* Only delete what we created */
-		if (instance->flags & BUFFER_FL_KEEP)
+		if (is_guest(instance) || (instance->flags & BUFFER_FL_KEEP))
 			continue;
 		if (instance->tracing_on_fd > 0) {
 			close(instance->tracing_on_fd);
@@ -4262,7 +4307,7 @@ static void check_function_plugin(void)
 
 static int __check_doing_something(struct buffer_instance *instance)
 {
-	return (instance->flags & BUFFER_FL_PROFILE) ||
+	return is_guest(instance) || (instance->flags & BUFFER_FL_PROFILE) ||
 		instance->plugin || instance->events;
 }
 
@@ -4283,6 +4328,9 @@ update_plugin_instance(struct buffer_instance *instance,
 		       enum trace_type type)
 {
 	const char *plugin = instance->plugin;
+
+	if (is_guest(instance))
+		return;
 
 	if (!plugin)
 		return;
@@ -4383,6 +4431,9 @@ static void record_stats(void)
 	int cpu;
 
 	for_all_instances(instance) {
+		if (is_guest(instance))
+			continue;
+
 		s_save = instance->s_save;
 		s_print = instance->s_print;
 		for (cpu = 0; cpu < instance->cpu_count; cpu++) {
@@ -4409,6 +4460,9 @@ static void destroy_stats(void)
 	int cpu;
 
 	for_all_instances(instance) {
+		if (is_guest(instance))
+			continue;
+
 		for (cpu = 0; cpu < instance->cpu_count; cpu++) {
 			trace_seq_destroy(&instance->s_save[cpu]);
 			trace_seq_destroy(&instance->s_print[cpu]);
