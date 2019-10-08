@@ -382,11 +382,11 @@ static long splice_data(struct tracecmd_recorder *recorder)
 	read = splice(recorder->trace_fd, NULL, recorder->brass[1], NULL,
 		      recorder->pipe_size, SPLICE_F_MOVE);
 	if (read < 0) {
-		if (errno != EAGAIN && errno != EINTR) {
-			warning("recorder error in splice input");
-			return -1;
-		}
-		return 0;
+		if (errno == EAGAIN || errno == EINTR || errno == ENOTCONN)
+			return 0;
+
+		warning("recorder error in splice input");
+		return -1;
 	} else if (read == 0)
 		return 0;
 
@@ -421,11 +421,11 @@ static long read_data(struct tracecmd_recorder *recorder)
 
 	r = read(recorder->trace_fd, buf, recorder->page_size);
 	if (r < 0) {
-		if (errno != EAGAIN && errno != EINTR) {
-			warning("recorder error in read output");
-			return -1;
-		}
-		return 0;
+		if (errno == EAGAIN || errno == EINTR || errno == ENOTCONN)
+			return 0;
+
+		warning("recorder error in read input");
+		return -1;
 	}
 
 	left = r;

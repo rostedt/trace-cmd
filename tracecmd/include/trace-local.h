@@ -12,6 +12,8 @@
 #include "trace-cmd.h"
 #include "event-utils.h"
 
+#define TRACE_AGENT_DEFAULT_PORT	823
+
 /* fix stupid glib guint64 typecasts and printf formats */
 typedef unsigned long long u64;
 
@@ -61,6 +63,8 @@ void trace_split(int argc, char **argv);
 
 void trace_listen(int argc, char **argv);
 
+void trace_agent(int argc, char **argv);
+
 void trace_restore(int argc, char **argv);
 
 void trace_clear(int argc, char **argv);
@@ -84,6 +88,10 @@ void trace_show(int argc, char **argv);
 void trace_list(int argc, char **argv);
 
 void trace_usage(int argc, char **argv);
+
+int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
+		       int cpus, int *fds,
+		       int argc, char **argv);
 
 struct hook_list;
 
@@ -181,6 +189,7 @@ struct buffer_instance {
 	struct func_list	*notrace_funcs;
 
 	const char		*clock;
+	unsigned int		*client_ports;
 
 	struct trace_seq	*s_save;
 	struct trace_seq	*s_print;
@@ -199,6 +208,13 @@ struct buffer_instance {
 	int			tracing_on_fd;
 	int			buffer_size;
 	int			cpu_count;
+
+	int			argc;
+	char			**argv;
+
+	unsigned int		cid;
+	unsigned int		port;
+	int			*fds;
 };
 
 extern struct buffer_instance top_instance;
