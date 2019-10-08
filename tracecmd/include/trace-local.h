@@ -14,6 +14,10 @@
 
 #define TRACE_AGENT_DEFAULT_PORT	823
 
+#define GUEST_PIPE_NAME		"trace-pipe-cpu"
+#define GUEST_DIR_FMT		"/var/lib/trace-cmd/virt/%s"
+#define GUEST_FIFO_FMT		GUEST_DIR_FMT "/" GUEST_PIPE_NAME "%d"
+
 /* fix stupid glib guint64 typecasts and printf formats */
 typedef unsigned long long u64;
 
@@ -64,6 +68,8 @@ void trace_split(int argc, char **argv);
 void trace_listen(int argc, char **argv);
 
 void trace_agent(int argc, char **argv);
+
+void trace_setup_guest(int argc, char **argv);
 
 void trace_restore(int argc, char **argv);
 
