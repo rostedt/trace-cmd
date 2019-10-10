@@ -96,6 +96,8 @@ KsTraceGraph::KsTraceGraph(QWidget *parent)
 	_legendAxisX.layout()->addWidget(&_labelXMin);
 	_legendAxisX.layout()->addWidget(&_labelXMid);
 	_legendAxisX.layout()->addWidget(&_labelXMax);
+	_legendAxisX.setStyleSheet("QLabel { background-color : white; color: black}");
+
 	_drawWindow.setMinimumSize(100, 100);
 	_drawWindow.setStyleSheet("QWidget {background-color : white;}");
 
@@ -580,7 +582,7 @@ void KsTraceGraph::_updateGraphLegends()
 			width = STRING_WIDTH(graphName);
 
 		name->setAlignment(Qt::AlignBottom);
-		name->setStyleSheet("QLabel {background-color : white;}");
+		name->setStyleSheet("QLabel {background-color : white; color : black}");
 		name->setFixedHeight(KS_GRAPH_HEIGHT);
 		layout->addWidget(name);
 	};
