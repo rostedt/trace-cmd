@@ -171,20 +171,12 @@ KsDualMarkerSM::KsDualMarkerSM(QWidget *parent)
 				"styleSheet",
 				styleSheetA);
 
-	_stateA->assignProperty(&_buttonB,
-				"styleSheet",
-				"color : rgb(70, 70, 70)");
-
 	styleSheetB = "background : " +
 		      _markB._color.name() +
 		      "; color : white";
 
 	_stateB = new QState;
 	_stateB->setObjectName("B");
-	_stateB->assignProperty(&_buttonA,
-				"styleSheet",
-				"color : rgb(70, 70, 70)");
-
 	_stateB->assignProperty(&_buttonB,
 				"styleSheet",
 				styleSheetB);
@@ -223,6 +215,7 @@ KsDualMarkerSM::KsDualMarkerSM(QWidget *parent)
 	connect(&_buttonA,	&KsMarkerButton::deselect,
 		this,		&KsDualMarkerSM::deselectA);
 
+	_machine.setGlobalRestorePolicy(QState::RestoreProperties);
 	_machine.addState(_stateA);
 	_machine.addState(_stateB);
 	_machine.setInitialState(_stateA);
