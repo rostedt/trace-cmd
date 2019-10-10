@@ -62,7 +62,7 @@ KsTraceGraph::KsTraceGraph(QWidget *parent)
 
 	_pointerBar.addWidget(&_labelP1);
 	_labelP2.setFrameStyle(QFrame::Panel | QFrame::Sunken);
-	_labelP2.setStyleSheet("QLabel { background-color : white;}");
+	_labelP2.setStyleSheet("QLabel { background-color : white; color: black}");
 	_labelP2.setTextInteractionFlags(Qt::TextSelectableByMouse);
 	_labelP2.setFixedWidth(FONT_WIDTH * 16);
 	_pointerBar.addWidget(&_labelP2);
