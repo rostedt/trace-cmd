@@ -156,7 +156,7 @@ KsDualMarkerSM::KsDualMarkerSM(QWidget *parent)
 
 	for (auto const &l: {&_labelMA, &_labelMB, &_labelDelta}) {
 		l->setFrameStyle(QFrame::Panel | QFrame::Sunken);
-		l->setStyleSheet("QLabel {background-color : white;}");
+		l->setStyleSheet("QLabel {background-color : white; color : black}");
 		l->setTextInteractionFlags(Qt::TextSelectableByMouse);
 		l->setFixedWidth(FONT_WIDTH * 16);
 	}
