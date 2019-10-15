@@ -1282,7 +1282,7 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 			break;
 	}
 
-	if (cpu < handle->cpus) {
+	if (cpu < handle->cpus && handle->cpu_data[cpu].page) {
 		if (pcpu)
 			*pcpu = cpu;
 		return read_event(handle, offset, cpu);
