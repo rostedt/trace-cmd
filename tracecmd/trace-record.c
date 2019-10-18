@@ -4113,8 +4113,6 @@ static void reset_cpu_mask(void)
 
 	for_all_instances(instance)
 		write_instance_file(instance, "tracing_cpumask", buf, "cpumask");
-
-	free(buf);
 }
 
 static void reset_event_pid(void)
