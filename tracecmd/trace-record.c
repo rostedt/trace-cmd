@@ -813,11 +813,14 @@ static int
 write_instance_file(struct buffer_instance *instance,
 		    const char *file, const char *str, const char *type)
 {
+	struct stat st;
 	char *path;
 	int ret;
 
 	path = get_instance_file(instance, file);
-	ret = write_file(path, str, type);
+	ret = stat(path, &st);
+	if (ret == 0)
+		ret = write_file(path, str, type);
 	tracecmd_put_tracing_file(path);
 
 	return ret;
