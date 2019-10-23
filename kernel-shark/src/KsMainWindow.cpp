@@ -69,7 +69,7 @@ KsMainWindow::KsMainWindow(QWidget *parent)
   _contentsAction("Contents", this),
   _bugReportAction("Report a bug", this),
   _deselectShortcut(this),
-  _settings("kernelshark.org", "Kernel Shark") // organization , application
+  _settings(_getCacheDir() + "/setting.ini", QSettings::IniFormat)
 {
 	setWindowTitle("Kernel Shark");
 	_createActions();
@@ -430,6 +430,9 @@ QString KsMainWindow::_getCacheDir()
 		auto appCachePath = QStandardPaths::GenericCacheLocation;
 		dir = QStandardPaths::writableLocation(appCachePath);
 		dir += "/kernelshark";
+
+		if (geteuid() == 0)
+			dir.replace(QDir::homePath(), "/root");
 
 		if (!QDir(dir).exists())
 			lamMakePath(false);
