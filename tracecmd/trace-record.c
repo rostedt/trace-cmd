@@ -5151,6 +5151,8 @@ static void add_hook(struct buffer_instance *instance, const char *arg)
 	struct hook_list *hook;
 
 	hook = tracecmd_create_event_hook(arg);
+	if (!hook)
+		die("Failed to create event hook %s", arg);
 
 	hook->instance = instance;
 	hook->next = hooks;
