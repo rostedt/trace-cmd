@@ -2311,6 +2311,9 @@ static int handle_options(struct tracecmd_input *handle)
 	char *buf;
 	int cpus;
 
+	/* By default, use usecs, unless told otherwise */
+	handle->flags |= TRACECMD_FL_IN_USECS;
+
 	for (;;) {
 		if (do_read_check(handle, &option, 2))
 			return -1;
@@ -2586,10 +2589,11 @@ static void extract_trace_clock(struct tracecmd_input *handle, char *line)
 	if (!clock)
 		return;
 
-	if (!strcmp(clock, "local") || !strcmp(clock, "global")
-	    || !strcmp(clock, "uptime") || !strcmp(clock, "perf")
-	    || !strncmp(clock, "mono", 4))
-		handle->flags |= TRACECMD_FL_IN_USECS;
+	/* Clear usecs if not one of the specified clocks */
+	if (strcmp(clock, "local") && strcmp(clock, "global") &&
+	    strcmp(clock, "uptime") && strcmp(clock, "perf") &&
+	    strncmp(clock, "mono", 4))
+		handle->flags &= ~TRACECMD_FL_IN_USECS;
 }
 
 void tracecmd_parse_trace_clock(struct tracecmd_input *handle,
