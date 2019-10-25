@@ -22,6 +22,7 @@ ifeq ($(VERBOSE),1)
   print_plugin_obj_compile =
   print_plugin_build =
   print_install =
+  print_update =
 else
   Q = @
   S = -s
@@ -33,6 +34,7 @@ else
   print_plugin_build =		echo '  $(GUI)BUILD PLUGIN       '$(GOBJ);
   print_static_lib_build =	echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
   print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	$(DESTDIR_SQ)$2';
+  print_update =		echo '  $(GUI)UPDATE             '$(GOBJ);
 endif
 
 do_fpic_compile =					\
@@ -96,7 +98,7 @@ define update_version.h
 	if [ -r $@ ] && cmp -s $@ $@.tmp; then				\
 		rm -f $@.tmp;						\
 	else								\
-		echo '  UPDATE                 '$(notdir $(strip $@));	\
+		$(print_update)						\
 		mv -f $@.tmp $@;					\
 	fi);
 endef
@@ -106,7 +108,7 @@ define update_dir
 	if [ -r $@ ] && cmp -s $@ $@.tmp; then				\
 		rm -f $@.tmp;						\
 	else								\
-		echo '  UPDATE                 '$(notdir $(strip $@));	\
+		$(print_update)						\
 		mv -f $@.tmp $@;					\
 	fi);
 endef
