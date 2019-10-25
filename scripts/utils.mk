@@ -15,6 +15,13 @@ endif
 ifeq ($(VERBOSE),1)
   Q =
   S =
+else
+  Q = @
+  S = -s
+endif
+
+# Use empty print_* macros if either SILENT or VERBOSE.
+ifeq ($(findstring 1,$(SILENT)$(VERBOSE)),1)
   print_compile =
   print_app_build =
   print_fpic_compile =
@@ -24,8 +31,6 @@ ifeq ($(VERBOSE),1)
   print_install =
   print_update =
 else
-  Q = @
-  S = -s
   print_compile =		echo '  $(GUI)COMPILE            '$(GOBJ);
   print_app_build =		echo '  $(GUI)BUILD              '$(GOBJ);
   print_fpic_compile =		echo '  $(GUI)COMPILE FPIC       '$(GOBJ);

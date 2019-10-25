@@ -101,6 +101,8 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
+SILENT := $(if $(findstring s,$(filter-out --%,$(MAKEFLAGS))),1)
+
 SWIG_DEFINED := $(shell if command -v swig; then echo 1; else echo 0; fi)
 ifeq ($(SWIG_DEFINED), 0)
 BUILD_PYTHON := report_noswig
@@ -188,7 +190,7 @@ export LIBTRACEEVENT_DIR LIBTRACECMD_DIR
 export LIBTRACECMD_STATIC LIBTRACECMD_SHARED
 export LIBTRACEEVENT_STATIC LIBTRACEEVENT_SHARED
 
-export Q VERBOSE EXT
+export Q SILENT VERBOSE EXT
 
 # Include the utils
 include scripts/utils.mk
