@@ -674,6 +674,46 @@ static int read_event_files(struct tracecmd_output *handle,
 	return ret;
 }
 
+#define KPTR_UNINITIALIZED 'X'
+
+static void set_proc_kptr_restrict(int reset)
+{
+	char *path = "/proc/sys/kernel/kptr_restrict";
+	static char saved = KPTR_UNINITIALIZED;
+	int fd, ret = -1;
+	struct stat st;
+	char buf;
+
+	if ((reset && saved == KPTR_UNINITIALIZED) ||
+	    (stat(path, &st) < 0))
+		return;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		goto err;
+
+	if (reset) {
+		buf = saved;
+	} else {
+		if (read(fd, &buf, 1) < 0)
+			goto err;
+		saved = buf;
+		buf = '0';
+	}
+	close(fd);
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		goto err;
+	if (write(fd, &buf, 1) > 0)
+		ret = 0;
+err:
+	if (fd > 0)
+		close(fd);
+	if (ret)
+		warning("can't set kptr_restrict");
+}
+
 static int read_proc_kallsyms(struct tracecmd_output *handle,
 			      const char *kallsyms)
 {
@@ -698,12 +738,16 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 	endian4 = convert_endian_4(handle, size);
 	if (do_write_check(handle, &endian4, 4))
 		return -1;
+
+	set_proc_kptr_restrict(0);
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
 		errno = EINVAL;
 		warning("error in size of file '%s'", path);
+		set_proc_kptr_restrict(1);
 		return -1;
 	}
+	set_proc_kptr_restrict(1);
 
 	return 0;
 }
