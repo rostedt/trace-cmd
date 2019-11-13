@@ -229,7 +229,6 @@ struct common_record_context {
 	int topt;
 	int do_child;
 	int run_command;
-	int saved_cmdlines_size;
 };
 
 static void add_reset_file(const char *file, const char *val, int prio)
@@ -1809,39 +1808,6 @@ static void set_options(void)
 			exit(-1);
 		free(opt);
 	}
-}
-
-static void set_saved_cmdlines_size(struct common_record_context *ctx)
-{
-	char *path, *str;
-	int fd, len, ret;
-
-	if (!ctx->saved_cmdlines_size)
-		return;
-
-	path = tracecmd_get_tracing_file("saved_cmdlines_size");
-	if (!path)
-		goto err;
-
-	reset_save_file(path, RESET_DEFAULT_PRIO);
-
-	fd = open(path, O_WRONLY);
-	tracecmd_put_tracing_file(path);
-	if (fd < 0)
-		goto err;
-
-	len = asprintf(&str, "%d", ctx->saved_cmdlines_size);
-	if (len < 0)
-		die("%s couldn't allocate memory", __func__);
-
-	if (write(fd, str, len) > 0)
-		ret = 0;
-
-	close(fd);
-	free(str);
-err:
-	if (ret)
-		warning("Couldn't set saved_cmdlines_size");
 }
 
 static int trace_check_file_exists(struct buffer_instance *instance, char *file)
@@ -5226,7 +5192,6 @@ enum {
 	OPT_date		= 255,
 	OPT_module		= 256,
 	OPT_nofifos		= 257,
-	OPT_cmdlines_size	= 258,
 };
 
 void trace_stop(int argc, char **argv)
@@ -5504,7 +5469,6 @@ static void parse_record_options(int argc,
 			{"by-comm", no_argument, NULL, OPT_bycomm},
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"max-graph-depth", required_argument, NULL, OPT_max_graph_depth},
-			{"cmdlines-size", required_argument, NULL, OPT_cmdlines_size},
 			{"no-filter", no_argument, NULL, OPT_no_filter},
 			{"debug", no_argument, NULL, OPT_debug},
 			{"quiet", no_argument, NULL, OPT_quiet},
@@ -5518,7 +5482,7 @@ static void parse_record_options(int argc,
 		if (IS_EXTRACT(ctx))
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
-			opts = "+hae:f:FA:p:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:kK:sSiTm:M:H:qK";
+			opts = "+hae:f:FA:p:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -5833,9 +5797,6 @@ static void parse_record_options(int argc,
 			if (!ctx->instance->max_graph_depth)
 				die("Could not allocate option");
 			break;
-		case OPT_cmdlines_size:
-			ctx->saved_cmdlines_size = atoi(optarg);
-			break;
 		case OPT_no_filter:
 			no_filter = true;
 			break;
@@ -6031,7 +5992,6 @@ static void record_trace(int argc, char **argv,
 			enable_events(instance);
 	}
 
-	set_saved_cmdlines_size(ctx);
 	set_buffer_size();
 	update_plugins(type);
 	set_options();
