@@ -280,6 +280,12 @@ OPTIONS
     A value of one will only show where userspace enters the kernel but not any
     functions called in the kernel. The default is zero, which means no limit.
 
+*--cmdlines-size* 'size'::
+    Set the number of entries the kernel tracing file "saved_cmdlines" can
+    contain. This file is a circular buffer which stores the mapping between
+    cmdlines and PIDs. If full, it leads to unresolved cmdlines ("<...>") within
+    the trace. The kernel default value is 128.
+
 *--module* 'module'::
     Filter a module's name in function tracing. It is equivalent to adding
     ':mod:module' after all other functions being filtered. If no other function
