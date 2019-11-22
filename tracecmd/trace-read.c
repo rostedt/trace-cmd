@@ -781,7 +781,6 @@ static void finish_wakeup(void)
 void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
-	const char *lfmt = latency_format ? "%8.8s-%-5d %3d" : "%16s-%-5d [%03d]";
 	const char *tfmt = tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS ? " %6.1000d:" : "%12d:";
 	struct tep_handle *pevent;
 	struct tep_event *event;
@@ -823,8 +822,17 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		}
 	}
 
-	tep_print_event(pevent, &s, record, lfmt, TEP_PRINT_COMM,
-			TEP_PRINT_PID, TEP_PRINT_CPU);
+	if (latency_format)
+		tep_print_event(pevent, &s, record, "%8.8s-%-5d %3d%s",
+				TEP_PRINT_COMM,
+				TEP_PRINT_PID,
+				TEP_PRINT_CPU,
+				TEP_PRINT_LATENCY);
+	else
+		tep_print_event(pevent, &s, record, "%16s-%-5d [%03d]",
+				TEP_PRINT_COMM,
+				TEP_PRINT_PID,
+				TEP_PRINT_CPU);
 	tep_print_event(pevent, &s, record, tfmt, TEP_PRINT_TIME);
 
 	if (tsdiff) {
