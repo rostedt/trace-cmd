@@ -80,39 +80,42 @@ void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 	char *func;
 	char *line;
 	char *next = NULL;
-	char *addr_str;
 	char *mod;
 	char ch;
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {
+		int func_start, func_end = 0;
+		int mod_start, mod_end = 0;
+		int n;
+
 		mod = NULL;
 		errno = 0;
-		sscanf(line, "%ms %c %ms\t[%ms",
-			     &addr_str, &ch, &func, &mod);
+		n = sscanf(line, "%16llx %c %n%*s%n%*1[\t][%n%*s%n",
+			   &addr, &ch, &func_start, &func_end, &mod_start, &mod_end);
 		if (errno) {
-			free(addr_str);
-			free(func);
-			free(mod);
 			perror("sscanf");
 			return;
 		}
-		addr = strtoull(addr_str, NULL, 16);
-		free(addr_str);
 
-		/* truncate the extra ']' */
-		if (mod)
-			mod[strlen(mod) - 1] = 0;
+		if (n != 2 || !func_end)
+			return;
 
+		func = line + func_start;
 		/*
 		 * Hacks for
 		 *  - arm arch that adds a lot of bogus '$a' functions
 		 *  - x86-64 that reports per-cpu variable offsets as absolute
 		 */
-		if (func[0] != '$' && ch != 'A' && ch != 'a')
+		if (func[0] != '$' && ch != 'A' && ch != 'a') {
+			line[func_end] = 0;
+			if (mod_end) {
+				mod = line + mod_start;
+				/* truncate the extra ']' */
+				line[mod_end - 1] = 0;
+			}
 			tep_register_function(pevent, func, addr, mod);
-		free(func);
-		free(mod);
+		}
 
 		line = strtok_r(NULL, "\n", &next);
 	}
