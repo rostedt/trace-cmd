@@ -422,6 +422,12 @@ QString KsMainWindow::_getCacheDir()
 		QDir().mkpath(dir);
 	};
 
+	auto lamRootHome = [] () {
+		struct passwd *pwd = getpwuid(0);
+
+		return pwd ? QString(pwd->pw_dir) : QString("/root");
+	};
+
 	dir = getenv("KS_USER_CACHE_DIR");
 	if (!dir.isEmpty()) {
 		if (!QDir(dir).exists())
@@ -432,7 +438,7 @@ QString KsMainWindow::_getCacheDir()
 		dir += "/kernelshark";
 
 		if (geteuid() == 0)
-			dir.replace(QDir::homePath(), "/root");
+			dir.replace(QDir::homePath(), lamRootHome());
 
 		if (!QDir(dir).exists())
 			lamMakePath(false);
