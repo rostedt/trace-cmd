@@ -445,13 +445,13 @@ void kshark_reset_data_collection(struct kshark_entry_collection *col);
 void kshark_free_collection_list(struct kshark_entry_collection *col);
 
 const struct kshark_entry *
-kshark_get_collection_entry_front(struct kshark_entry_request **req,
+kshark_get_collection_entry_front(struct kshark_entry_request *req,
 				  struct kshark_entry **data,
 				  const struct kshark_entry_collection *col,
 				  ssize_t *index);
 
 const struct kshark_entry *
-kshark_get_collection_entry_back(struct kshark_entry_request **req,
+kshark_get_collection_entry_back(struct kshark_entry_request *req,
 				 struct kshark_entry **data,
 				 const struct kshark_entry_collection *col,
 				 ssize_t *index);

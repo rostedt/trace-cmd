@@ -918,7 +918,7 @@ ksmodel_get_entry_front(struct kshark_trace_histo *histo,
 		return NULL;
 
 	if (col && col->size)
-		entry = kshark_get_collection_entry_front(&req, histo->data,
+		entry = kshark_get_collection_entry_front(req, histo->data,
 							  col, index);
 	else
 		entry = kshark_get_entry_front(req, histo->data, index);
@@ -965,8 +965,8 @@ ksmodel_get_entry_back(struct kshark_trace_histo *histo,
 		return NULL;
 
 	if (col && col->size)
-		entry = kshark_get_collection_entry_back(&req, histo->data,
-							  col, index);
+		entry = kshark_get_collection_entry_back(req, histo->data,
+							 col, index);
 	else
 		entry = kshark_get_entry_back(req, histo->data, index);
 
@@ -1178,7 +1178,7 @@ bool ksmodel_cpu_visible_event_exist(struct kshark_trace_histo *histo,
 	req->vis_mask = KS_EVENT_VIEW_FILTER_MASK;
 
 	if (col && col->size)
-		entry = kshark_get_collection_entry_front(&req, histo->data,
+		entry = kshark_get_collection_entry_front(req, histo->data,
 							  col, index);
 	else
 		entry = kshark_get_entry_front(req, histo->data, index);
@@ -1231,7 +1231,7 @@ bool ksmodel_task_visible_event_exist(struct kshark_trace_histo *histo,
 	req->vis_mask = KS_EVENT_VIEW_FILTER_MASK;
 
 	if (col && col->size)
-		entry = kshark_get_collection_entry_front(&req, histo->data,
+		entry = kshark_get_collection_entry_front(req, histo->data,
 							  col, index);
 	else
 		entry = kshark_get_entry_front(req, histo->data, index);

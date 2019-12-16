@@ -308,29 +308,28 @@ map_collection_index_from_source(const struct kshark_entry_collection *col,
 
 static ssize_t
 map_collection_request_init(const struct kshark_entry_collection *col,
-			    struct kshark_entry_request **req,
+			    struct kshark_entry_request *req,
 			    bool front, size_t *end)
 {
-	struct kshark_entry_request *req_tmp = *req;
 	int col_index_flag;
 	ssize_t col_index;
 	size_t req_end;
 
-	if (req_tmp->next || col->size == 0) {
+	if (req->next || col->size == 0) {
 		fprintf(stderr, "Unexpected input in ");
 		fprintf(stderr, "map_collection_request_init()\n");
 		goto do_nothing;
 	}
 
-	req_end = front ? req_tmp->first + req_tmp->n - 1 :
-			  req_tmp->first - req_tmp->n + 1;
+	req_end = front ? req->first + req->n - 1 :
+			  req->first - req->n + 1;
 
 	/*
 	 * Find the first Resume Point of the collection which is equal or
 	 * greater than the first index of this request.
 	 */
 	col_index = map_collection_index_from_source(col,
-						     req_tmp->first,
+						     req->first,
 						     &col_index_flag);
 
 	/*
@@ -370,8 +369,8 @@ map_collection_request_init(const struct kshark_entry_collection *col,
 		 * going backwards, so the proper place to start will be the
 		 * Break point of "col_index".
 		 */
-		req_tmp->first = front ? col->resume_points[++col_index] :
-					 col->break_points[col_index];
+		req->first = front ? col->resume_points[++col_index] :
+				     col->break_points[col_index];
 	}
 
 	if (col_index_flag == COLLECTION_BEFORE) {
@@ -403,8 +402,8 @@ map_collection_request_init(const struct kshark_entry_collection *col,
 		 * backwards, so the proper place to start will be the Break
 		 * point of "col_index - 1".
 		 */
-		req_tmp->first = front ? col->resume_points[col_index] :
-					 col->break_points[--col_index];
+		req->first = front ? col->resume_points[col_index] :
+				     col->break_points[--col_index];
 	}
 
 	*end = req_end;
@@ -412,8 +411,6 @@ map_collection_request_init(const struct kshark_entry_collection *col,
 	return col_index;
 
 do_nothing:
-	kshark_free_entry_request(*req);
-	*req = NULL;
 	*end = KS_EMPTY_BIN;
 
 	return KS_EMPTY_BIN;
@@ -426,9 +423,8 @@ do_nothing:
  */
 static int
 map_collection_back_request(const struct kshark_entry_collection *col,
-			    struct kshark_entry_request **req)
+			    struct kshark_entry_request *req)
 {
-	struct kshark_entry_request *req_tmp;
 	size_t req_first, req_end;
 	ssize_t col_index;
 	int req_count;
@@ -442,7 +438,6 @@ map_collection_back_request(const struct kshark_entry_collection *col,
 	 * the end of the inputted request and create a separate request for
 	 * each of those interest.
 	 */
-	req_tmp = *req;
 	req_count = 1;
 	while (col_index >= 0 && req_end <= col->break_points[col_index]) {
 		if (req_end >= col->resume_points[col_index]) {
@@ -451,7 +446,7 @@ map_collection_back_request(const struct kshark_entry_collection *col,
 			 * the "col_index" collection interval. Close the
 			 * collection request here and return.
 			 */
-			req_tmp->n = req_tmp->first - req_end + 1;
+			req->n = req->first - req_end + 1;
 			break;
 		}
 
@@ -461,8 +456,8 @@ map_collection_back_request(const struct kshark_entry_collection *col,
 		 * end of this interval and move to the next one. Try to make
 		 * another request there.
 		 */
-		req_tmp->n = req_tmp->first -
-		             col->resume_points[col_index] + 1;
+		req->n = req->first -
+			 col->resume_points[col_index] + 1;
 
 		--col_index;
 
@@ -478,18 +473,18 @@ map_collection_back_request(const struct kshark_entry_collection *col,
 			/* Make a new request. */
 			req_first = col->break_points[col_index];
 
-			req_tmp->next =
+			req->next =
 				kshark_entry_request_alloc(req_first,
 							   0,
-							   req_tmp->cond,
-							   req_tmp->val,
-							   req_tmp->vis_only,
-							   req_tmp->vis_mask);
+							   req->cond,
+							   req->val,
+							   req->vis_only,
+							   req->vis_mask);
 
-			if (!req_tmp->next)
+			if (!req->next)
 				goto fail;
 
-			req_tmp = req_tmp->next;
+			req = req->next;
 			++req_count;
 		}
 	}
@@ -497,10 +492,9 @@ map_collection_back_request(const struct kshark_entry_collection *col,
 	return req_count;
 
 fail:
-	fprintf(stderr, "Failed to allocate memory for ");
-	fprintf(stderr, "Collection data request.\n");
-	kshark_free_entry_request(*req);
-	*req = NULL;
+	fprintf(stderr,
+		"Failed to allocate memory for Collection data request.\n");
+
 	return -ENOMEM;
 }
 
@@ -511,9 +505,8 @@ fail:
  */
 static int
 map_collection_front_request(const struct kshark_entry_collection *col,
-			     struct kshark_entry_request **req)
+			     struct kshark_entry_request *req)
 {
-	struct kshark_entry_request *req_tmp;
 	size_t req_first, req_end;
 	ssize_t col_index;
 	int req_count;
@@ -528,7 +521,6 @@ map_collection_front_request(const struct kshark_entry_collection *col,
 	 * each of those interest.
 	 */
 	req_count = 1;
-	req_tmp = *req;
 	while (col_index < col->size &&
 	       req_end >= col->resume_points[col_index]) {
 		if (req_end <= col->break_points[col_index]) {
@@ -537,7 +529,7 @@ map_collection_front_request(const struct kshark_entry_collection *col,
 			 * the "col_index" collection interval.
 			 * Close the collection request here and return.
 			 */
-			req_tmp->n = req_end - req_tmp->first + 1;
+			req->n = req_end - req->first + 1;
 			break;
 		}
 
@@ -547,8 +539,8 @@ map_collection_front_request(const struct kshark_entry_collection *col,
 		 * request at the end of the interval and move to the next
 		 * interval. Try to make another request there.
 		 */
-		req_tmp->n = col->break_points[col_index] -
-			     req_tmp->first + 1;
+		req->n = col->break_points[col_index] -
+			 req->first + 1;
 
 		++col_index;
 
@@ -565,18 +557,18 @@ map_collection_front_request(const struct kshark_entry_collection *col,
 			/* Make a new request. */
 			req_first = col->resume_points[col_index];
 
-			req_tmp->next =
+			req->next =
 				kshark_entry_request_alloc(req_first,
 							   0,
-							   req_tmp->cond,
-							   req_tmp->val,
-							   req_tmp->vis_only,
-							   req_tmp->vis_mask);
+							   req->cond,
+							   req->val,
+							   req->vis_only,
+							   req->vis_mask);
 
-			if (!req_tmp->next)
+			if (!req->next)
 				goto fail;
 
-			req_tmp = req_tmp->next;
+			req = req->next;
 			++req_count;
 		}
 	}
@@ -584,10 +576,9 @@ map_collection_front_request(const struct kshark_entry_collection *col,
 	return req_count;
 
 fail:
-	fprintf(stderr, "Failed to allocate memory for ");
-	fprintf(stderr, "Collection data request.\n");
-	kshark_free_entry_request(*req);
-	*req = NULL;
+	fprintf(stderr,
+		"Failed to allocate memory for Collection data request.\n");
+
 	return -ENOMEM;
 }
 
@@ -616,7 +607,7 @@ fail:
  *	    "Dummy entry".
  */
 const struct kshark_entry *
-kshark_get_collection_entry_front(struct kshark_entry_request **req,
+kshark_get_collection_entry_front(struct kshark_entry_request *req,
 				  struct kshark_entry **data,
 				  const struct kshark_entry_collection *col,
 				  ssize_t *index)
@@ -624,26 +615,28 @@ kshark_get_collection_entry_front(struct kshark_entry_request **req,
 	const struct kshark_entry *entry = NULL;
 	int req_count;
 
+	if (index)
+		*index = KS_EMPTY_BIN;
+
 	/*
 	 * Use the intervals of the Data collection to redefine the data
 	 * request in a way which will ignore the data outside of the
 	 * intervals of the collection.
 	 */
 	req_count = map_collection_front_request(col, req);
-
-	if (index && !req_count)
-		*index = KS_EMPTY_BIN;
+	if (req_count <= 0)
+		return NULL;
 
 	/*
 	 * Loop over the list of redefined requests and search until you find
 	 * the first matching entry.
 	 */
-	while (*req) {
-		entry = kshark_get_entry_front(*req, data, index);
+	while (req) {
+		entry = kshark_get_entry_front(req, data, index);
 		if (entry)
 			break;
 
-		*req = (*req)->next;
+		req = req->next;
 	}
 
 	return entry;
@@ -674,7 +667,7 @@ kshark_get_collection_entry_front(struct kshark_entry_request **req,
  *	    "Dummy entry".
  */
 const struct kshark_entry *
-kshark_get_collection_entry_back(struct kshark_entry_request **req,
+kshark_get_collection_entry_back(struct kshark_entry_request *req,
 				 struct kshark_entry **data,
 				 const struct kshark_entry_collection *col,
 				 ssize_t *index)
@@ -682,25 +675,28 @@ kshark_get_collection_entry_back(struct kshark_entry_request **req,
 	const struct kshark_entry *entry = NULL;
 	int req_count;
 
+	if (index)
+		*index = KS_EMPTY_BIN;
+
 	/*
 	 * Use the intervals of the Data collection to redefine the data
 	 * request in a way which will ignore the data outside of the
 	 * intervals of the collection.
 	 */
 	req_count = map_collection_back_request(col, req);
-	if (index && !req_count)
-		*index = KS_EMPTY_BIN;
+	if (req_count <= 0)
+		return NULL;
 
 	/*
 	 * Loop over the list of redefined requests and search until you find
 	 * the first matching entry.
 	 */
-	while (*req) {
-		entry = kshark_get_entry_back(*req, data, index);
+	while (req) {
+		entry = kshark_get_entry_back(req, data, index);
 		if (entry)
 			break;
 
-		*req = (*req)->next;
+		req = req->next;
 	}
 
 	return entry;
