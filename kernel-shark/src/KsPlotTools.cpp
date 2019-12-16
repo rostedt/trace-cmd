@@ -829,14 +829,17 @@ void Graph::fillCPUGraph(int cpu)
 			pidBack = KS_FILTERED_BIN;
 
 		visMask = 0x0;
-		if (ksmodel_cpu_visible_event_exist(_histoPtr, bin,
-							       cpu,
-							       _collectionPtr,
-							       &index))
-
-			visMask = _histoPtr->data[index]->visible;
-		else if (eFront)
-			visMask = eFront->visible;
+		if (eFront) {
+			if (!(eFront->visible & KS_EVENT_VIEW_FILTER_MASK) &&
+			    ksmodel_cpu_visible_event_exist(_histoPtr, bin,
+								       cpu,
+								       _collectionPtr,
+								       &index)) {
+				visMask = _histoPtr->data[index]->visible;
+			} else {
+				visMask = eFront->visible;
+			}
+		}
 	};
 
 	auto lamSetBin = [&] (int bin)
@@ -918,6 +921,7 @@ void Graph::fillCPUGraph(int cpu)
 void Graph::fillTaskGraph(int pid)
 {
 	int cpuFront, cpuBack(0), pidFront(0), pidBack(0), lastCpu(-1), bin(0);
+	struct kshark_entry *eFront;
 	uint8_t visMask;
 	ssize_t index;
 
@@ -991,12 +995,15 @@ void Graph::fillTaskGraph(int pid)
 
 	auto lamGetPidCPU = [&] (int bin)
 	{
+		eFront = nullptr;
 		/* Get the CPU used by this task. */
 		cpuFront = ksmodel_get_cpu_front(_histoPtr, bin,
 						 pid,
 						 false,
 						 _collectionPtr,
-						 nullptr);
+						 &index);
+		if (index >= 0)
+			eFront = _histoPtr->data[index];
 
 		cpuBack = ksmodel_get_cpu_back(_histoPtr, bin,
 					       pid,
@@ -1026,12 +1033,17 @@ void Graph::fillTaskGraph(int pid)
 						       nullptr);
 
 			visMask = 0x0;
-			if (ksmodel_task_visible_event_exist(_histoPtr,
-							     bin,
-							     pid,
-							     _collectionPtr,
-							     &index)) {
-				visMask = _histoPtr->data[index]->visible;
+			if (eFront) {
+				if (!(eFront->visible & KS_EVENT_VIEW_FILTER_MASK) &&
+				    ksmodel_task_visible_event_exist(_histoPtr,
+								     bin,
+								     pid,
+								     _collectionPtr,
+								     &index)) {
+					visMask = _histoPtr->data[index]->visible;
+				} else {
+					visMask = eFront->visible;
+				}
 			}
 		}
 	};
