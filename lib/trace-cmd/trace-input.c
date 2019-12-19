@@ -3398,6 +3398,13 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 	new_handle->nr_buffers = 0;
 	new_handle->buffers = NULL;
 	new_handle->ref = 1;
+	if (handle->trace_clock) {
+		new_handle->trace_clock = strdup(handle->trace_clock);
+		if (!new_handle->trace_clock) {
+			free(new_handle);
+			return NULL;
+		}
+	}
 	new_handle->parent = handle;
 	new_handle->cpustats = NULL;
 	new_handle->hooks = NULL;
