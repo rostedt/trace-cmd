@@ -183,6 +183,23 @@ __trace_cmd_report_complete()
     esac
 }
 
+__trace_cmd_dump_complete()
+{
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
+
+    case "$prev" in
+	-i)
+	    __show_files
+	    ;;
+	*)
+	    cmd_options dump "$cur"
+	    ;;
+    esac
+}
+
 __show_command_options()
 {
     local command="$1"
@@ -244,6 +261,10 @@ _trace_cmd_complete()
 	    ;;
 	report)
 	    __trace_cmd_report_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+	dump)
+	    __trace_cmd_dump_complete "${prev}" "${cur}" ${words[@]}
 	    return 0
 	    ;;
         *)
