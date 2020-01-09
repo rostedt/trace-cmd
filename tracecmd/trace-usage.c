@@ -311,6 +311,26 @@ static struct usage_help usage_help[] = {
 		"          -N do not load any plugins\n"
 	},
 	{
+		"dump",
+		"read out the meta data from a trace file",
+		" %s dump [options]\n"
+		"          -i input file, default is trace.dat\n"
+		"          -v validate a trace file\n"
+		"          --all print all meta data from a trace file\n"
+		"          --summary print a meta data summary\n"
+		"          --head-page print header page information\n"
+		"          --head-event print header event information\n"
+		"          --ftrace-events print ftrace events format\n"
+		"          --systems print recorded event systems\n"
+		"          --events print format of recorded events\n"
+		"          --kallsyms print information of the mapping of function addresses to the function names\n"
+		"          --printk print trace_printk() format strings\n"
+		"          --cmd-lines print information mapping a PID to a process name\n"
+		"          --options print options\n"
+		"          --flyrecord information of offset and count of recorded events per CPU\n"
+		"          -h, --help show usage information\n"
+	},
+	{
 		NULL, NULL, NULL
 	}
 };
