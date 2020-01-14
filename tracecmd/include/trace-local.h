@@ -14,6 +14,7 @@
 
 #define TRACE_AGENT_DEFAULT_PORT	823
 
+#define DEFAUT_INPUT_FILE	"trace.dat"
 #define GUEST_PIPE_NAME		"trace-pipe-cpu"
 #define GUEST_DIR_FMT		"/var/lib/trace-cmd/virt/%s"
 #define GUEST_FIFO_FMT		GUEST_DIR_FMT "/" GUEST_PIPE_NAME "%d"

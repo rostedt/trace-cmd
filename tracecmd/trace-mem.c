@@ -548,7 +548,7 @@ void trace_mem(int argc, char **argv)
 	}
 
 	if (!input_file)
-		input_file = "trace.dat";
+		input_file = DEFAUT_INPUT_FILE;
 
 	handle = tracecmd_alloc(input_file);
 	if (!handle)

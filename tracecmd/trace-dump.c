@@ -13,7 +13,6 @@
 
 #include "trace-local.h"
 
-#define DEF_INPUT_FILE	"trace.dat"
 #define TRACING_STR	"tracing"
 #define HEAD_PAGE_STR	"header_page"
 #define HEAD_PAGE_EVENT	"header_event"
@@ -602,7 +601,7 @@ void trace_dump(int argc, char **argv)
 	}
 
 	if (!input_file)
-		input_file = DEF_INPUT_FILE;
+		input_file = DEFAUT_INPUT_FILE;
 
 	if (!verbosity && !validate)
 		verbosity = SUMMARY;
