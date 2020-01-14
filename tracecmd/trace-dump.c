@@ -14,7 +14,6 @@
 #include "trace-local.h"
 
 #define DEF_INPUT_FILE	"trace.dat"
-#define MAGIC_HEAD	{ 0x17, 0x08, 0x44 }
 #define TRACING_STR	"tracing"
 #define HEAD_PAGE_STR	"header_page"
 #define HEAD_PAGE_EVENT	"header_event"
@@ -142,7 +141,7 @@ static int read_file_number(int fd, void *digit, int size)
 
 static void dump_initial_format(int fd)
 {
-	char magic[] = MAGIC_HEAD;
+	char magic[] = TRACECMD_MAGIC;
 	char buf[DUMP_SIZE];
 	int val4;
 

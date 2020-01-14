@@ -8,6 +8,8 @@
 
 #include "traceevent/event-parse.h"
 
+#define TRACECMD_MAGIC { 23, 8, 68 }
+
 #define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
 #define __weak __attribute__((weak))
 #define __noreturn __attribute__((noreturn))
