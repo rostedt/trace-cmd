@@ -1746,7 +1746,7 @@ tracecmd_read_page_record(struct tep_handle *pevent, void *page, int size,
 
 	record = malloc(sizeof(*record));
 	if (!record)
-		return NULL;
+		goto out_free;
 	memset(record, 0, sizeof(*record));
 
 	record->ts = ts;
