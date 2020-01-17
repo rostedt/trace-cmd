@@ -24,15 +24,10 @@ void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigne
 void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
 struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep);
 
-char **tracecmd_event_systems(const char *tracing_dir);
-char **tracecmd_system_events(const char *tracing_dir, const char *system);
 struct tep_handle *tracecmd_local_events(const char *tracing_dir);
 int tracecmd_fill_local_events(const char *tracing_dir,
 			       struct tep_handle *pevent, int *parsing_failures);
-char **tracecmd_local_plugins(const char *tracing_dir);
 
-char **tracecmd_add_list(char **list, const char *name, int len);
-void tracecmd_free_list(char **list);
 int *tracecmd_add_id(int *list, int id, int len);
 
 enum {
@@ -183,9 +178,6 @@ void tracecmd_print_stats(struct tracecmd_input *handle);
 void tracecmd_print_uname(struct tracecmd_input *handle);
 void tracecmd_print_version(struct tracecmd_input *handle);
 
-struct tep_record *
-tracecmd_read_page_record(struct tep_handle *pevent, void *page, int size,
-			  struct tep_record *last_record);
 struct tep_record *
 tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
 

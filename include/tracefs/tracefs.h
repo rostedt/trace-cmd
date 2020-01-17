@@ -33,4 +33,20 @@ int tracefs_instance_file_write(struct tracefs_instance *instance,
 char *tracefs_instance_file_read(struct tracefs_instance *instance,
 				 char *file, int *psize);
 
+/* events */
+struct tep_record *
+tracefs_read_page_record(struct tep_handle *tep, void *page, int size,
+			  struct tep_record *last_record);
+void tracefs_list_free(char **list);
+char **tracefs_event_systems(const char *tracing_dir);
+char **tracefs_system_events(const char *tracing_dir, const char *system);
+int tracefs_iterate_raw_events(struct tep_handle *tep,
+				struct tracefs_instance *instance,
+				int (*callback)(struct tep_event *,
+						struct tep_record *,
+						int, void *),
+				void *callback_context);
+
+char **tracefs_tracers(const char *tracing_dir);
+
 #endif /* _TRACE_FS_H */

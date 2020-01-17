@@ -4164,95 +4164,34 @@ static void add_func(struct func_list **list, const char *mod, const char *func)
 	*list = item;
 }
 
-static unsigned long long
-find_ts_in_page(struct tep_handle *pevent, void *page, int size)
+static int find_ts(struct tep_event *event, struct tep_record *record,
+		   int cpu, void *context)
 {
+	unsigned long long *ts = (unsigned long long *)context;
 	struct tep_format_field *field;
-	struct tep_record *last_record = NULL;
-	struct tep_record *record;
-	struct tep_event *event;
-	unsigned long long ts = 0;
-	int id;
 
-	if (size <= 0)
-		return 0;
+	if (!ts)
+		return -1;
 
-	while (!ts) {
-		record = tracecmd_read_page_record(pevent, page, size,
-						   last_record);
-		if (!record)
-			break;
-		free_record(last_record);
-		id = tep_data_type(pevent, record);
-		event = tep_find_event(pevent, id);
-		if (event) {
-			/* Make sure this is our event */
-			field = tep_find_field(event, "buf");
-			/* the trace_marker adds a '\n' */
-			if (field && strcmp(STAMP"\n", record->data + field->offset) == 0)
-				ts = record->ts;
-		}
-		last_record = record;
+	field = tep_find_field(event, "buf");
+	if (field && strcmp(STAMP"\n", record->data + field->offset) == 0) {
+		*ts = record->ts;
+		return 1;
 	}
-	free_record(last_record);
 
-	return ts;
+	return 0;
 }
 
-static unsigned long long find_time_stamp(struct tep_handle *pevent)
+static unsigned long long find_time_stamp(struct tep_handle *tep)
 {
-	struct dirent *dent;
 	unsigned long long ts = 0;
-	void *page;
-	char *path;
-	char *file;
-	DIR *dir;
-	int len;
-	int fd;
-	int r;
 
-	path = tracefs_get_tracing_file("per_cpu");
-	if (!path)
-		return 0;
+	if (!tracefs_iterate_raw_events(tep, NULL, find_ts, &ts))
+		return ts;
 
-	dir = opendir(path);
-	if (!dir)
-		goto out;
-
-	len = strlen(path);
-	file = malloc(len + strlen("trace_pipe_raw") + 32);
-	page = malloc(page_size);
-	if (!file || !page)
-		die("Failed to allocate time_stamp info");
-
-	while ((dent = readdir(dir))) {
-		const char *name = dent->d_name;
-
-		if (strncmp(name, "cpu", 3) != 0)
-			continue;
-
-		sprintf(file, "%s/%s/trace_pipe_raw", path, name);
-		fd = open(file, O_RDONLY | O_NONBLOCK);
-		if (fd < 0)
-			continue;
-		do {
-			r = read(fd, page, page_size);
-			ts = find_ts_in_page(pevent, page, r);
-			if (ts)
-				break;
-		} while (r > 0);
-		close(fd);
-		if (ts)
-			break;
-	}
-	free(file);
-	free(page);
-	closedir(dir);
-
- out:
-	tracefs_put_tracing_file(path);
-	return ts;
+	return 0;
 }
+
 
 static char *read_file(char *file, int *psize)
 {
@@ -4271,7 +4210,7 @@ static char *get_date_to_ts(void)
 	unsigned long long min_stamp;
 	unsigned long long min_ts;
 	unsigned long long ts;
-	struct tep_handle *pevent;
+	struct tep_handle *tep;
 	struct timespec start;
 	struct timespec end;
 	char *date2ts = NULL;
@@ -4283,16 +4222,18 @@ static char *get_date_to_ts(void)
 	int i;
 
 	/* Set up a pevent to read the raw format */
-	pevent = tep_alloc();
-	if (!pevent) {
+	tep = tep_alloc();
+	if (!tep) {
 		warning("failed to alloc pevent, --date ignored");
 		return NULL;
 	}
 
+	tep_set_file_bigendian(tep, tracecmd_host_bigendian());
+
 	buf = read_file("events/header_page", &size);
 	if (!buf)
 		goto out_pevent;
-	ret = tep_parse_header_page(pevent, buf, size, sizeof(unsigned long));
+	ret = tep_parse_header_page(tep, buf, size, sizeof(unsigned long));
 	free(buf);
 	if (ret < 0) {
 		warning("Can't parse header page, --date ignored");
@@ -4303,7 +4244,7 @@ static char *get_date_to_ts(void)
 	buf = read_file("events/ftrace/print/format", &size);
 	if (!buf)
 		goto out_pevent;
-	ret = tep_parse_event(pevent, buf, size, "ftrace");
+	ret = tep_parse_event(tep, buf, size, "ftrace");
 	free(buf);
 	if (ret < 0) {
 		warning("Can't parse print event, --date ignored");
@@ -4328,7 +4269,7 @@ static char *get_date_to_ts(void)
 		clock_gettime(CLOCK_REALTIME, &end);
 
 		tracecmd_disable_tracing();
-		ts = find_time_stamp(pevent);
+		ts = find_time_stamp(tep);
 		if (!ts)
 			continue;
 
@@ -4365,7 +4306,7 @@ static char *get_date_to_ts(void)
 	snprintf(date2ts, 19, "0x%llx", diff/1000);
 
  out_pevent:
-	tep_free(pevent);
+	tep_free(tep);
 
 	return date2ts;
 }

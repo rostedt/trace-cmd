@@ -204,7 +204,7 @@ QStringList KsCaptureControl::_getPlugins()
 	QStringList pluginList;
 	char **all_plugins;
 
-	all_plugins = tracecmd_local_plugins(tracefs_get_tracing_dir());
+	all_plugins = tracefs_tracers(tracefs_get_tracing_dir());
 
 	if (!all_plugins)
 		return pluginList;
