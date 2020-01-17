@@ -34,7 +34,7 @@ void show_instance_file(struct buffer_instance *instance, const char *name)
 {
 	char *path;
 
-	path = get_instance_file(instance, name);
+	path = tracefs_instance_get_file(instance->tracefs, name);
 	dump_file_content(path);
 	tracefs_put_tracing_file(path);
 }

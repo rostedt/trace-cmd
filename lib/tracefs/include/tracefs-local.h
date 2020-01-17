@@ -8,5 +8,6 @@
 
 /* Can be overridden */
 void warning(const char *fmt, ...);
+int str_read_file(const char *file, char **buffer);
 
 #endif /* _TRACE_FS_LOCAL_H */

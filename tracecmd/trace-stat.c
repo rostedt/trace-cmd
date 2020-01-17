@@ -31,7 +31,7 @@ static int get_instance_file_fd(struct buffer_instance *instance,
 	char *path;
 	int fd;
 
-	path = get_instance_file(instance, file);
+	path = tracefs_instance_get_file(instance->tracefs, file);
 	fd = open(path, O_RDONLY);
 	tracefs_put_tracing_file(path);
 
@@ -348,7 +348,7 @@ static void report_events(struct buffer_instance *instance)
 
 	free(str);
 
-	path = get_instance_file(instance, "events");
+	path = tracefs_instance_get_file(instance->tracefs, "events");
 	if (!path)
 		die("malloc");
 
@@ -437,7 +437,7 @@ static void report_event_filters(struct buffer_instance *instance)
 	enum event_iter_type type;
 	enum event_process processed = PROCESSED_NONE;
 
-	path = get_instance_file(instance, "events");
+	path = tracefs_instance_get_file(instance->tracefs, "events");
 	if (!path)
 		die("malloc");
 
@@ -510,7 +510,7 @@ static void report_event_triggers(struct buffer_instance *instance)
 	enum event_iter_type type;
 	enum event_process processed = PROCESSED_NONE;
 
-	path = get_instance_file(instance, "events");
+	path = tracefs_instance_get_file(instance->tracefs, "events");
 	if (!path)
 		die("malloc");
 
@@ -599,7 +599,7 @@ static void report_graph_funcs(struct buffer_instance *instance)
 {
 	char *path;
 
-	path = get_instance_file(instance, "set_graph_function");
+	path = tracefs_instance_get_file(instance->tracefs, "set_graph_function");
 	if (!path)
 		die("malloc");
 
@@ -607,7 +607,7 @@ static void report_graph_funcs(struct buffer_instance *instance)
 	
 	tracefs_put_tracing_file(path);
 
-	path = get_instance_file(instance, "set_graph_notrace");
+	path = tracefs_instance_get_file(instance->tracefs, "set_graph_notrace");
 	if (!path)
 		die("malloc");
 
@@ -620,7 +620,7 @@ static void report_ftrace_filters(struct buffer_instance *instance)
 {
 	char *path;
 
-	path = get_instance_file(instance, "set_ftrace_filter");
+	path = tracefs_instance_get_file(instance->tracefs, "set_ftrace_filter");
 	if (!path)
 		die("malloc");
 
@@ -628,7 +628,7 @@ static void report_ftrace_filters(struct buffer_instance *instance)
 	
 	tracefs_put_tracing_file(path);
 
-	path = get_instance_file(instance, "set_ftrace_notrace");
+	path = tracefs_instance_get_file(instance->tracefs, "set_ftrace_notrace");
 	if (!path)
 		die("malloc");
 
@@ -858,7 +858,8 @@ static void stat_instance(struct buffer_instance *instance)
 	if (instance != &top_instance) {
 		if (instance != first_instance)
 			printf("---------------\n");
-		printf("Instance: %s\n", instance->name);
+		printf("Instance: %s\n",
+			tracefs_instance_get_name(instance->tracefs));
 	}
 
 	report_plugin(instance);
@@ -882,6 +883,8 @@ void trace_stat (int argc, char **argv)
 	int topt = 0;
 	int status;
 	int c;
+
+	init_top_instance();
 
 	for (;;) {
 		c = getopt(argc-1, argv+1, "tB:");

@@ -17,4 +17,20 @@ const char *tracefs_get_tracing_dir(void);
 /* tracefs_find_tracing_dir must be freed */
 char *tracefs_find_tracing_dir(void);
 
+/* ftarce instances */
+struct tracefs_instance;
+
+struct tracefs_instance *tracefs_instance_alloc(const char *name);
+void tracefs_instance_free(struct tracefs_instance *instance);
+int tracefs_instance_create(struct tracefs_instance *instance);
+int tracefs_instance_destroy(struct tracefs_instance *instance);
+char *tracefs_instance_get_name(struct tracefs_instance *instance);
+char *
+tracefs_instance_get_file(struct tracefs_instance *instance, const char *file);
+char *tracefs_instance_get_dir(struct tracefs_instance *instance);
+int tracefs_instance_file_write(struct tracefs_instance *instance,
+				const char *file, const char *str);
+char *tracefs_instance_file_read(struct tracefs_instance *instance,
+				 char *file, int *psize);
+
 #endif /* _TRACE_FS_H */

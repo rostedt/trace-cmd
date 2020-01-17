@@ -8,6 +8,7 @@ DEFAULT_TARGET = $(bdir)/libtracefs.a
 
 OBJS =
 OBJS += tracefs-utils.o
+OBJS += tracefs-instance.o
 
 OBJS := $(OBJS:%.o=$(bdir)/%.o)
 DEPS := $(OBJS:$(bdir)/%.o=$(bdir)/.%.d)

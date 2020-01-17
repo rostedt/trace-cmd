@@ -10,6 +10,9 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <linux/limits.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "tracefs.h"
 
@@ -180,4 +183,44 @@ char *tracefs_get_tracing_file(const char *name)
 void tracefs_put_tracing_file(char *name)
 {
 	free(name);
+}
+
+int str_read_file(const char *file, char **buffer)
+{
+	char stbuf[BUFSIZ];
+	char *buf = NULL;
+	int size = 0;
+	char *nbuf;
+	int fd;
+	int r;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0) {
+		warning("File %s not found", file);
+		return -1;
+	}
+
+	do {
+		r = read(fd, stbuf, BUFSIZ);
+		if (r <= 0)
+			continue;
+		nbuf = realloc(buf, size+r+1);
+		if (!nbuf) {
+			warning("Failed to allocate file buffer");
+			size = -1;
+			break;
+		}
+		buf = nbuf;
+		memcpy(buf+size, stbuf, r);
+		size += r;
+	} while (r > 0);
+
+	close(fd);
+	if (r == 0 && size > 0) {
+		buf[size] = '\0';
+		*buffer = buf;
+	} else
+		free(buf);
+
+	return size;
 }
