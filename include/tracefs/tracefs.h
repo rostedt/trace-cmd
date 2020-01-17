@@ -49,4 +49,10 @@ int tracefs_iterate_raw_events(struct tep_handle *tep,
 
 char **tracefs_tracers(const char *tracing_dir);
 
+struct tep_handle *tracefs_local_events(const char *tracing_dir);
+struct tep_handle *tracefs_local_events_system(const char *tracing_dir,
+					       const char * const *sys_names);
+int tracefs_fill_local_events(const char *tracing_dir,
+			       struct tep_handle *tep, int *parsing_failures);
+
 #endif /* _TRACE_FS_H */

@@ -440,3 +440,188 @@ char **tracefs_tracers(const char *tracing_dir)
 
 	return plugins;
 }
+
+static int load_events(struct tep_handle *tep,
+		       const char *tracing_dir, const char *system)
+{
+	int ret = 0, failure = 0;
+	char **events = NULL;
+	struct stat st;
+	int len = 0;
+	int i;
+
+	events = tracefs_system_events(tracing_dir, system);
+	if (!events)
+		return -ENOENT;
+
+	for (i = 0; events[i]; i++) {
+		char *format;
+		char *buf;
+
+		ret = asprintf(&format, "%s/events/%s/%s/format",
+			       tracing_dir, system, events[i]);
+		if (ret < 0) {
+			failure = -ENOMEM;
+			break;
+		}
+
+		ret = stat(format, &st);
+		if (ret < 0)
+			goto next_event;
+
+		len = str_read_file(format, &buf);
+		if (len < 0)
+			goto next_event;
+
+		ret = tep_parse_event(tep, buf, len, system);
+		free(buf);
+next_event:
+		free(format);
+		if (ret)
+			failure = ret;
+	}
+
+	if (events) {
+		for (i = 0; events[i]; i++)
+			free(events[i]);
+		free(events);
+	}
+	return failure;
+}
+
+static int read_header(struct tep_handle *tep, const char *tracing_dir)
+{
+	struct stat st;
+	char *header;
+	char *buf;
+	int len;
+	int ret = -1;
+
+	header = append_file(tracing_dir, "events/header_page");
+
+	ret = stat(header, &st);
+	if (ret < 0)
+		goto out;
+
+	len = str_read_file(header, &buf);
+	if (len < 0)
+		goto out;
+
+	tep_parse_header_page(tep, buf, len, sizeof(long));
+
+	free(buf);
+
+	ret = 0;
+ out:
+	free(header);
+	return ret;
+}
+
+static bool contains(const char *name, const char * const *names)
+{
+	if (!names)
+		return false;
+	for (; *names; names++)
+		if (strcmp(name, *names) == 0)
+			return true;
+	return false;
+}
+
+static int fill_local_events_system(const char *tracing_dir,
+				    struct tep_handle *tep,
+				    const char * const *sys_names,
+				    int *parsing_failures)
+{
+	char **systems = NULL;
+	int ret;
+	int i;
+
+	if (!tracing_dir)
+		tracing_dir = tracefs_get_tracing_dir();
+	if (!tracing_dir)
+		return -1;
+
+	systems = tracefs_event_systems(tracing_dir);
+	if (!systems)
+		return -1;
+
+	ret = read_header(tep, tracing_dir);
+	if (ret < 0) {
+		ret = -1;
+		goto out;
+	}
+
+	if (parsing_failures)
+		*parsing_failures = 0;
+
+	for (i = 0; systems[i]; i++) {
+		if (sys_names && !contains(systems[i], sys_names))
+			continue;
+		ret = load_events(tep, tracing_dir, systems[i]);
+		if (ret && parsing_failures)
+			(*parsing_failures)++;
+	}
+	/* always succeed because parsing failures are not critical */
+	ret = 0;
+out:
+	if (systems) {
+		for (i = 0; systems[i]; i++)
+			free(systems[i]);
+		free(systems);
+	}
+	return ret;
+}
+
+/**
+ * tracefs_local_events_system - create a tep from the events of the specified subsystem.
+ *
+ * @tracing_dir: The directory that contains the events.
+ * @sys_name: Array of system names, to load the events from.
+ * The last element from the array must be NULL
+ *
+ * Returns a tep structure that contains the tep local to
+ * the system.
+ */
+struct tep_handle *tracefs_local_events_system(const char *tracing_dir,
+					       const char * const *sys_names)
+{
+	struct tep_handle *tep = NULL;
+
+	tep = tep_alloc();
+	if (!tep)
+		return NULL;
+
+	if (fill_local_events_system(tracing_dir, tep, sys_names, NULL)) {
+		tep_free(tep);
+		tep = NULL;
+	}
+
+	return tep;
+}
+
+/**
+ * tracefs_local_events - create a tep from the events on system
+ * @tracing_dir: The directory that contains the events.
+ *
+ * Returns a tep structure that contains the teps local to
+ * the system.
+ */
+struct tep_handle *tracefs_local_events(const char *tracing_dir)
+{
+	return tracefs_local_events_system(tracing_dir, NULL);
+}
+
+/**
+ * tracefs_fill_local_events - Fill a tep with the events on system
+ * @tracing_dir: The directory that contains the events.
+ * @tep: Allocated tep handler which will be filled
+ * @parsing_failures: return number of failures while parsing the event files
+ *
+ * Returns whether the operation succeeded
+ */
+int tracefs_fill_local_events(const char *tracing_dir,
+			       struct tep_handle *tep, int *parsing_failures)
+{
+	return fill_local_events_system(tracing_dir, tep,
+					NULL, parsing_failures);
+}

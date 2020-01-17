@@ -26,7 +26,7 @@ extern "C" {
 
 static inline tep_handle *local_events()
 {
-	return tracecmd_local_events(tracefs_get_tracing_dir());
+	return tracefs_local_events(tracefs_get_tracing_dir());
 }
 
 /**

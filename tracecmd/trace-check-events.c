@@ -45,7 +45,7 @@ void trace_check_events(int argc, char **argv)
 		exit(EINVAL);
 
 	list = trace_load_plugins(pevent);
-	ret = tracecmd_fill_local_events(tracing, pevent, &parsing_failures);
+	ret = tracefs_fill_local_events(tracing, pevent, &parsing_failures);
 	if (ret || parsing_failures)
 		ret = EINVAL;
 	tep_unload_plugins(list, pevent);

@@ -4204,6 +4204,7 @@ static char *read_file(char *file, int *psize)
  */
 static char *get_date_to_ts(void)
 {
+	const char *systems[] = {"ftrace", NULL};
 	unsigned long long min = -1ULL;
 	unsigned long long diff;
 	unsigned long long stamp;
@@ -4221,10 +4222,10 @@ static char *get_date_to_ts(void)
 	int ret;
 	int i;
 
-	/* Set up a pevent to read the raw format */
-	tep = tep_alloc();
+	/* Set up a tep to read the raw format */
+	tep = tracefs_local_events_system(NULL, systems);
 	if (!tep) {
-		warning("failed to alloc pevent, --date ignored");
+		warning("failed to alloc tep, --date ignored");
 		return NULL;
 	}
 
@@ -4237,17 +4238,6 @@ static char *get_date_to_ts(void)
 	free(buf);
 	if (ret < 0) {
 		warning("Can't parse header page, --date ignored");
-		goto out_pevent;
-	}
-
-	/* Find the format for ftrace:print. */
-	buf = read_file("events/ftrace/print/format", &size);
-	if (!buf)
-		goto out_pevent;
-	ret = tep_parse_event(tep, buf, size, "ftrace");
-	free(buf);
-	if (ret < 0) {
-		warning("Can't parse print event, --date ignored");
 		goto out_pevent;
 	}
 
@@ -4304,7 +4294,6 @@ static char *get_date_to_ts(void)
 	 */
 	diff = min_stamp - min_ts;
 	snprintf(date2ts, 19, "0x%llx", diff/1000);
-
  out_pevent:
 	tep_free(tep);
 

@@ -24,10 +24,6 @@ void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigne
 void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
 struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep);
 
-struct tep_handle *tracecmd_local_events(const char *tracing_dir);
-int tracecmd_fill_local_events(const char *tracing_dir,
-			       struct tep_handle *pevent, int *parsing_failures);
-
 int *tracecmd_add_id(int *list, int id, int len);
 
 enum {
