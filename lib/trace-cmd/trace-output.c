@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <glob.h>
 
+#include "tracefs.h"
 #include "trace-cmd-local.h"
 #include "list.h"
 #include "trace-msg.h"
@@ -238,7 +239,7 @@ static tsize_t copy_file(struct tracecmd_output *handle,
 static const char *find_tracing_dir(struct tracecmd_output *handle)
 {
 	if (!handle->tracing_dir)
-		handle->tracing_dir = tracecmd_find_tracing_dir();
+		handle->tracing_dir = tracefs_find_tracing_dir();
 
 	return handle->tracing_dir;
 }

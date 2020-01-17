@@ -23,8 +23,6 @@
 #include "event-utils.h"
 
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
-#define TRACEFS_PATH "/sys/kernel/tracing"
-#define DEBUGFS_PATH "/sys/kernel/debug"
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
 
 int tracecmd_disable_sys_plugins;
@@ -32,9 +30,6 @@ int tracecmd_disable_plugins;
 static bool debug;
 
 static FILE *logfp;
-
-#define _STR(x) #x
-#define STR(x) _STR(x)
 
 /**
  * tracecmd_set_debug - Set debug mode of the tracecmd library
@@ -145,113 +140,6 @@ void tracecmd_parse_ftrace_printk(struct tep_handle *pevent,
 		tep_register_print_string(pevent, printk, addr);
 		free(printk);
 	}
-}
-
-static int mount_debugfs(void)
-{
-	struct stat st;
-	int ret;
-
-	/* make sure debugfs exists */
-	ret = stat(DEBUGFS_PATH, &st);
-	if (ret < 0)
-		return -1;
-
-	ret = mount("nodev", DEBUGFS_PATH,
-		    "debugfs", 0, NULL);
-
-	return ret;
-}
-
-static int mount_tracefs(void)
-{
-	struct stat st;
-	int ret;
-
-	/* make sure debugfs exists */
-	ret = stat(TRACEFS_PATH, &st);
-	if (ret < 0)
-		return -1;
-
-	ret = mount("nodev", TRACEFS_PATH,
-		    "tracefs", 0, NULL);
-
-	return ret;
-}
-
-char *tracecmd_find_tracing_dir(void)
-{
-	char *debug_str = NULL;
-	char fspath[PATH_MAX+1];
-	char *tracing_dir;
-	char type[100];
-	int use_debug = 0;
-	FILE *fp;
-
-	if ((fp = fopen("/proc/mounts","r")) == NULL) {
-		warning("Can't open /proc/mounts for read");
-		return NULL;
-	}
-
-	while (fscanf(fp, "%*s %"
-		      STR(PATH_MAX)
-		      "s %99s %*s %*d %*d\n",
-		      fspath, type) == 2) {
-		if (strcmp(type, "tracefs") == 0)
-			break;
-		if (!debug_str && strcmp(type, "debugfs") == 0) {
-			debug_str = strdup(fspath);
-			if (!debug_str) {
-				fclose(fp);
-				return NULL;
-			}
-		}
-	}
-	fclose(fp);
-
-	if (strcmp(type, "tracefs") != 0) {
-		if (mount_tracefs() < 0) {
-			if (debug_str) {
-				strncpy(fspath, debug_str, PATH_MAX);
-				fspath[PATH_MAX] = 0;
-			} else {
-				if (mount_debugfs() < 0) {
-					warning("debugfs not mounted, please mount");
-					free(debug_str);
-					return NULL;
-				}
-				strcpy(fspath, DEBUGFS_PATH);
-			}
-			use_debug = 1;
-		} else
-			strcpy(fspath, TRACEFS_PATH);
-	}
-	free(debug_str);
-
-	if (use_debug) {
-		int ret;
-
-		ret = asprintf(&tracing_dir, "%s/tracing", fspath);
-		if (ret < 0)
-			return NULL;
-	} else {
-		tracing_dir = strdup(fspath);
-		if (!tracing_dir)
-			return NULL;
-	}
-
-	return tracing_dir;
-}
-
-const char *tracecmd_get_tracing_dir(void)
-{
-	static const char *tracing_dir;
-
-	if (tracing_dir)
-		return tracing_dir;
-
-	tracing_dir = tracecmd_find_tracing_dir();
-	return tracing_dir;
 }
 
 /* FIXME: append_file() is duplicated and could be consolidated */
@@ -903,30 +791,6 @@ trace_load_plugins(struct tep_handle *tep)
 	list = tep_load_plugins(tep);
 
 	return list;
-}
-
-char *tracecmd_get_tracing_file(const char *name)
-{
-	static const char *tracing;
-	char *file;
-	int ret;
-
-	if (!tracing) {
-		tracing = tracecmd_find_tracing_dir();
-		if (!tracing)
-			return NULL;
-	}
-
-	ret = asprintf(&file, "%s/%s", tracing, name);
-	if (ret < 0)
-		return NULL;
-
-	return file;
-}
-
-void tracecmd_put_tracing_file(char *name)
-{
-	free(name);
 }
 
 void __noreturn __vdie(const char *fmt, va_list ap)

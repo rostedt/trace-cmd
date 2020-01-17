@@ -7,6 +7,7 @@
 #include <getopt.h>
 #include <errno.h>
 
+#include "tracefs.h"
 #include "trace-local.h"
 
 void trace_check_events(int argc, char **argv)
@@ -28,7 +29,7 @@ void trace_check_events(int argc, char **argv)
 			break;
 		}
 	}
-	tracing = tracecmd_get_tracing_dir();
+	tracing = tracefs_get_tracing_dir();
 
 	if (!tracing) {
 		printf("Can not find or mount tracing directory!\n"

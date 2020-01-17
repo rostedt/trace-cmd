@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include "tracefs.h"
 #include "trace-local.h"
 
 
@@ -35,7 +36,7 @@ void show_instance_file(struct buffer_instance *instance, const char *name)
 
 	path = get_instance_file(instance, name);
 	dump_file_content(path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 enum {
@@ -49,9 +50,9 @@ void show_file(const char *name)
 {
 	char *path;
 
-	path = tracecmd_get_tracing_file(name);
+	path = tracefs_get_tracing_file(name);
 	dump_file_content(path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 typedef int (*process_file_func)(char *buf, int len);
@@ -86,11 +87,11 @@ static void process_file_re(process_file_func func,
 
 	free(str);
 
-	path = tracecmd_get_tracing_file(name);
+	path = tracefs_get_tracing_file(name);
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading %s", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	do {
 		n = getline(&buf, &l, fp);
@@ -132,12 +133,12 @@ static char *get_event_file(const char *type, char *buf, int len)
 	if (!event)
 		die("no event found in %s\n", buf);
 
-	path = tracecmd_get_tracing_file("events");
+	path = tracefs_get_tracing_file("events");
 	ret = asprintf(&file, "%s/%s/%s/%s", path, system, event, type);
 	if (ret < 0)
 		die("Failed to allocate event file %s %s", system, event);
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return file;
 }
@@ -282,9 +283,9 @@ static void show_buffers(void)
 	char *path;
 	int printed = 0;
 
-	path = tracecmd_get_tracing_file("instances");
+	path = tracefs_get_tracing_file("instances");
 	dir = opendir(path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (!dir)
 		die("Can not read instance directory");
 

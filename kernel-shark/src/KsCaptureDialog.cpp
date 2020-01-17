@@ -26,7 +26,7 @@ extern "C" {
 
 static inline tep_handle *local_events()
 {
-	return tracecmd_local_events(tracecmd_get_tracing_dir());
+	return tracecmd_local_events(tracefs_get_tracing_dir());
 }
 
 /**
@@ -204,7 +204,7 @@ QStringList KsCaptureControl::_getPlugins()
 	QStringList pluginList;
 	char **all_plugins;
 
-	all_plugins = tracecmd_local_plugins(tracecmd_get_tracing_dir());
+	all_plugins = tracecmd_local_plugins(tracefs_get_tracing_dir());
 
 	if (!all_plugins)
 		return pluginList;

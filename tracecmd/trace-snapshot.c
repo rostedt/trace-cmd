@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "tracefs.h"
 #include "trace-local.h"
 
 static void write_file(const char *name, char *val)
@@ -20,7 +21,7 @@ static void write_file(const char *name, char *val)
 	int fd;
 	ssize_t n;
 
-	path = tracecmd_get_tracing_file(name);
+	path = tracefs_get_tracing_file(name);
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
 		die("writing %s", path);
@@ -29,7 +30,7 @@ static void write_file(const char *name, char *val)
 	if (n < 0)
 		die("failed to write to %s\n", path);
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	close(fd);
 }
 
@@ -91,11 +92,11 @@ void trace_snapshot (int argc, char **argv)
 		file = cpu_path;
 	}
 
-	name = tracecmd_get_tracing_file(file);
+	name = tracefs_get_tracing_file(file);
 	ret = stat(name, &st);
 	if (ret < 0)
 		die("Snapshot feature is not supported by this kernel");
-	tracecmd_put_tracing_file(name);
+	tracefs_put_tracing_file(name);
 
 	if (!reset_snap && !take_snap && !free_snap) {
 		show_file(file);

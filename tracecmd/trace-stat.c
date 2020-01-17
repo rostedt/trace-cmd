@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 
+#include "tracefs.h"
 #include "trace-local.h"
 
 #ifndef BUFSIZ
@@ -32,7 +33,7 @@ static int get_instance_file_fd(struct buffer_instance *instance,
 
 	path = get_instance_file(instance, file);
 	fd = open(path, O_RDONLY);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return fd;
 }
@@ -383,7 +384,7 @@ static void report_events(struct buffer_instance *instance)
 	if (!processed && !processed_part)
 		printf("  (none enabled)\n");
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 static void
@@ -456,7 +457,7 @@ static void report_event_filters(struct buffer_instance *instance)
 
 	trace_event_iter_free(iter);
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 static void
@@ -529,7 +530,7 @@ static void report_event_triggers(struct buffer_instance *instance)
 
 	trace_event_iter_free(iter);
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 enum func_states {
@@ -604,7 +605,7 @@ static void report_graph_funcs(struct buffer_instance *instance)
 
 	list_functions(path, "Function Graph Filter");
 	
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	path = get_instance_file(instance, "set_graph_notrace");
 	if (!path)
@@ -612,7 +613,7 @@ static void report_graph_funcs(struct buffer_instance *instance)
 
 	list_functions(path, "Function Graph No Trace");
 	
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 static void report_ftrace_filters(struct buffer_instance *instance)
@@ -625,7 +626,7 @@ static void report_ftrace_filters(struct buffer_instance *instance)
 
 	list_functions(path, "Function Filter");
 	
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	path = get_instance_file(instance, "set_ftrace_notrace");
 	if (!path)
@@ -633,7 +634,7 @@ static void report_ftrace_filters(struct buffer_instance *instance)
 
 	list_functions(path, "Function No Trace");
 	
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 static void report_buffers(struct buffer_instance *instance)

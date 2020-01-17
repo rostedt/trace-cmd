@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include "tracefs.h"
 #include "trace-local.h"
 
 #define PROC_FILE "/proc/sys/kernel/stack_tracer_enabled"
@@ -86,7 +87,7 @@ static void reset_trace(void)
 	int fd;
 	int n;
 
-	path = tracecmd_get_tracing_file("stack_max_size");
+	path = tracefs_get_tracing_file("stack_max_size");
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
 		die("writing %s", path);
@@ -95,7 +96,7 @@ static void reset_trace(void)
 	n = write(fd, buf, 1);
 	if (n < 0)
 		die("writing into %s", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	close(fd);
 }
 
@@ -116,11 +117,11 @@ static void read_trace(void)
 	else
 		printf("(stack tracer not running)\n");
 
-	path = tracecmd_get_tracing_file("stack_trace");
+	path = tracefs_get_tracing_file("stack_trace");
 	fp = fopen(path, "r");
 	if (!fp)
 		die("reading to '%s'", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	while ((r = getline(&buf, &n, fp)) >= 0) {
 		/*

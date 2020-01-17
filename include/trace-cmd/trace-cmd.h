@@ -104,12 +104,6 @@ static inline int tracecmd_host_bigendian(void)
 	return *ptr == 0x01020304;
 }
 
-/* tracecmd_get_tracing_dir must *not* be freed */
-const char *tracecmd_get_tracing_dir(void);
-
-/* tracecmd_find_tracing_dir must be freed */
-char *tracecmd_find_tracing_dir(void);
-
 /* --- Opening and Reading the trace.dat file --- */
 
 enum {
@@ -247,9 +241,6 @@ tracecmd_show_data_func
 tracecmd_get_show_data_func(struct tracecmd_input *handle);
 void tracecmd_set_show_data_func(struct tracecmd_input *handle,
 				 tracecmd_show_data_func func);
-
-char *tracecmd_get_tracing_file(const char *name);
-void tracecmd_put_tracing_file(char *name);
 
 int tracecmd_record_at_buffer_start(struct tracecmd_input *handle, struct tep_record *record);
 unsigned long long tracecmd_page_ts(struct tracecmd_input *handle,

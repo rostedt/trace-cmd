@@ -39,6 +39,7 @@
 #include <linux/vm_sockets.h>
 #endif
 
+#include "tracefs.h"
 #include "version.h"
 #include "trace-local.h"
 #include "trace-msg.h"
@@ -337,21 +338,21 @@ static void test_set_event_pid(void)
 	if (tested)
 		return;
 
-	path = tracecmd_get_tracing_file("set_event_pid");
+	path = tracefs_get_tracing_file("set_event_pid");
 	ret = stat(path, &st);
 	if (!ret) {
 		have_set_event_pid = 1;
 		reset_save_file(path, RESET_DEFAULT_PRIO);
 	}
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
-	path = tracecmd_get_tracing_file("options/event-fork");
+	path = tracefs_get_tracing_file("options/event-fork");
 	ret = stat(path, &st);
 	if (!ret) {
 		have_event_fork = 1;
 		reset_save_file(path, RESET_DEFAULT_PRIO);
 	}
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	tested = 1;
 }
@@ -442,13 +443,13 @@ static int __add_all_instances(const char *tracing_dir)
  */
 void add_all_instances(void)
 {
-	char *tracing_dir = tracecmd_find_tracing_dir();
+	char *tracing_dir = tracefs_find_tracing_dir();
 	if (!tracing_dir)
 		die("malloc");
 
 	__add_all_instances(tracing_dir);
 
-	tracecmd_put_tracing_file(tracing_dir);
+	tracefs_put_tracing_file(tracing_dir);
 }
 
 /**
@@ -474,7 +475,7 @@ void tracecmd_stat_cpu_instance(struct buffer_instance *instance,
 	path = get_instance_file(instance, file);
 	free(file);
 	fd = open(path, O_RDONLY);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (fd < 0)
 		return;
 
@@ -772,9 +773,9 @@ static int set_ftrace(int set, int use_proc)
 	int ret;
 
 	/* First check if the function-trace option exists */
-	path = tracecmd_get_tracing_file("options/function-trace");
+	path = tracefs_get_tracing_file("options/function-trace");
 	ret = set_ftrace_enable(path, set);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	/* Always enable ftrace_enable proc file when set is true */
 	if (ret < 0 || set || use_proc)
@@ -790,7 +791,7 @@ static int set_ftrace(int set, int use_proc)
  *
  * Returns the path name of the @file for the given @instance.
  *
- * Must use tracecmd_put_tracing_file() to free the returned string.
+ * Must use tracefs_put_tracing_file() to free the returned string.
  */
 char *
 get_instance_file(struct buffer_instance *instance, const char *file)
@@ -803,10 +804,10 @@ get_instance_file(struct buffer_instance *instance, const char *file)
 		ret = asprintf(&buf, "instances/%s/%s", instance->name, file);
 		if (ret < 0)
 			die("Failed to allocate name for %s/%s", instance->name, file);
-		path = tracecmd_get_tracing_file(buf);
+		path = tracefs_get_tracing_file(buf);
 		free(buf);
 	} else
-		path = tracecmd_get_tracing_file(file);
+		path = tracefs_get_tracing_file(file);
 
 	return path;
 }
@@ -825,7 +826,7 @@ get_instance_dir(struct buffer_instance *instance)
 	ret = asprintf(&buf, "instances/%s", instance->name);
 	if (ret < 0)
 		die("Failed to allocate for instance %s", instance->name);
-	path = tracecmd_get_tracing_file(buf);
+	path = tracefs_get_tracing_file(buf);
 	free(buf);
 
 	return path;
@@ -868,7 +869,7 @@ write_instance_file(struct buffer_instance *instance,
 	ret = stat(path, &st);
 	if (ret == 0)
 		ret = write_file(path, str, type);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return ret;
 }
@@ -886,7 +887,7 @@ static void __clear_trace(struct buffer_instance *instance)
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	fwrite("0", 1, 1, fp);
 	fclose(fp);
 }
@@ -905,11 +906,11 @@ static void clear_trace(void)
 	char *path;
 
 	/* reset the trace */
-	path = tracecmd_get_tracing_file("trace");
+	path = tracefs_get_tracing_file("trace");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("writing to '%s'", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	fwrite("0", 1, 1, fp);
 	fclose(fp);
 }
@@ -956,7 +957,7 @@ static void update_ftrace_pid(const char *pid, int reset)
 		if (fd >= 0)
 			close(fd);
 		if (path)
-			tracecmd_put_tracing_file(path);
+			tracefs_put_tracing_file(path);
 		fd = -1;
 		path = NULL;
 		return;
@@ -970,7 +971,7 @@ static void update_ftrace_pid(const char *pid, int reset)
 
 	if (fd < 0) {
 		if (!path)
-			path = tracecmd_get_tracing_file("set_ftrace_pid");
+			path = tracefs_get_tracing_file("set_ftrace_pid");
 		if (!path)
 			return;
 		ret = stat(path, &st);
@@ -1601,12 +1602,12 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 		 * plugin for those if name is "nop".
 		 */
 		if (!strncmp(name, "nop", 3)) {
-			tracecmd_put_tracing_file(path);
+			tracefs_put_tracing_file(path);
 			return;
 		}
 		die("writing to '%s'", path);
 	}
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	fwrite(name, 1, strlen(name), fp);
 	fclose(fp);
@@ -1619,11 +1620,11 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 	path = get_instance_file(instance, "options/func_stack_trace");
 	fp = fopen(path, "w");
 	if (!fp) {
-		tracecmd_put_tracing_file(path);
-		path = tracecmd_get_tracing_file("options/func_stack_trace");
+		tracefs_put_tracing_file(path);
+		path = tracefs_get_tracing_file("options/func_stack_trace");
 		fp = fopen(path, "w");
 		if (!fp) {
-			tracecmd_put_tracing_file(path);
+			tracefs_put_tracing_file(path);
 			return;
 		}
 	}
@@ -1632,7 +1633,7 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 	 * the original content.
 	 */
 	add_reset_file(path, "0", RESET_HIGH_PRIO);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	fwrite(&zero, 1, 1, fp);
 	fclose(fp);
 }
@@ -1662,11 +1663,11 @@ static int set_option(const char *option)
 	FILE *fp;
 	char *path;
 
-	path = tracecmd_get_tracing_file("trace_options");
+	path = tracefs_get_tracing_file("trace_options");
 	fp = fopen(path, "w");
 	if (!fp)
 		warning("writing to '%s'", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	if (!fp)
 		return -1;
@@ -1693,7 +1694,7 @@ static void disable_func_stack_trace_instance(struct buffer_instance *instance)
 
 	path = get_instance_file(instance, "current_tracer");
 	ret = stat(path, &st);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (ret < 0)
 		return;
 
@@ -1727,7 +1728,7 @@ static void add_reset_options(void)
 	if (keep)
 		return;
 
-	path = tracecmd_get_tracing_file("trace_options");
+	path = tracefs_get_tracing_file("trace_options");
 	content = get_file_content(path);
 
 	for (opt = options; opt; opt = opt->next) {
@@ -1790,7 +1791,7 @@ static void add_reset_options(void)
 
 		add_reset_file(path, option, RESET_DEFAULT_PRIO);
 	}
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	free(content);
 }
 
@@ -1819,14 +1820,14 @@ static void set_saved_cmdlines_size(struct common_record_context *ctx)
 	if (!ctx->saved_cmdlines_size)
 		return;
 
-	path = tracecmd_get_tracing_file("saved_cmdlines_size");
+	path = tracefs_get_tracing_file("saved_cmdlines_size");
 	if (!path)
 		goto err;
 
 	reset_save_file(path, RESET_DEFAULT_PRIO);
 
 	fd = open(path, O_WRONLY);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (fd < 0)
 		goto err;
 
@@ -1852,7 +1853,7 @@ static int trace_check_file_exists(struct buffer_instance *instance, char *file)
 
 	path = get_instance_file(instance, file);
 	ret = stat(path, &st);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return ret < 0 ? 0 : 1;
 }
@@ -1884,11 +1885,11 @@ static void old_update_events(const char *name, char update)
 		name = "*:*";
 
 	/* need to use old way */
-	path = tracecmd_get_tracing_file("set_event");
+	path = tracefs_get_tracing_file("set_event");
 	fp = fopen(path, "w");
 	if (!fp)
 		die("opening '%s'", path);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	/* Disable the event with "!" */
 	if (update == '0')
@@ -1935,12 +1936,12 @@ reset_events_instance(struct buffer_instance *instance)
 		die("opening to '%s'", path);
 	ret = write(fd, &c, 1);
 	close(fd);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	path = get_instance_file(instance, "events/*/filter");
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (ret < 0)
 		return;
 
@@ -2182,9 +2183,9 @@ static void check_tracing_enabled(void)
 	char *path;
 
 	if (fd < 0) {
-		path = tracecmd_get_tracing_file("tracing_enabled");
+		path = tracefs_get_tracing_file("tracing_enabled");
 		fd = open(path, O_WRONLY | O_CLOEXEC);
-		tracecmd_put_tracing_file(path);
+		tracefs_put_tracing_file(path);
 
 		if (fd < 0)
 			return;
@@ -2205,7 +2206,7 @@ static int open_instance_fd(struct buffer_instance *instance,
 		if (is_top_instance(instance))
 			die("opening '%s'", path);
 	}
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return fd;
 }
@@ -2526,7 +2527,7 @@ static void set_mask(struct buffer_instance *instance)
 
 	close(fd);
  out:
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	free(instance->cpumask);
 	instance->cpumask = NULL;
 }
@@ -2583,7 +2584,7 @@ static void set_clock(struct buffer_instance *instance)
 	add_reset_file(path, str, RESET_DEFAULT_PRIO);
 
 	free(content);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	write_instance_file(instance, "trace_clock", instance->clock, "clock");
 }
@@ -2598,7 +2599,7 @@ static void set_max_graph_depth(struct buffer_instance *instance, char *max_grap
 
 	path = get_instance_file(instance, "max_graph_depth");
 	reset_save_file(path, RESET_DEFAULT_PRIO);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	ret = write_instance_file(instance, "max_graph_depth", max_graph_depth,
 				  NULL);
 	if (ret < 0)
@@ -2721,7 +2722,7 @@ static int expand_event_files(struct buffer_instance *instance,
 
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	free(p);
 
 	if (ret < 0)
@@ -3182,7 +3183,7 @@ create_recorder_instance_pipe(struct buffer_instance *instance,
 	if (instance->name)
 		path = get_instance_dir(instance);
 	else
-		path = tracecmd_find_tracing_dir();
+		path = tracefs_find_tracing_dir();
 
 	if (!path)
 		die("malloc");
@@ -3193,7 +3194,7 @@ create_recorder_instance_pipe(struct buffer_instance *instance,
 	recorder = tracecmd_create_buffer_recorder_fd(brass[1], cpu, flags, path);
 
 	if (instance->name)
-		tracecmd_put_tracing_file(path);
+		tracefs_put_tracing_file(path);
 
 	return recorder;
 }
@@ -3234,7 +3235,7 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 
 	record = tracecmd_create_buffer_recorder_maxkb(file, cpu, recorder_flags,
 						       path, max_kb);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return record;
 }
@@ -3287,9 +3288,9 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 		if (instance->name && !is_agent(instance))
 			path = get_instance_dir(instance);
 		else
-			path = tracecmd_find_tracing_dir();
+			path = tracefs_find_tracing_dir();
 		recorder = tracecmd_create_buffer_recorder_fd(fd, cpu, flags, path);
-		tracecmd_put_tracing_file(path);
+		tracefs_put_tracing_file(path);
 	} else {
 		file = get_temp_file(instance, cpu);
 		recorder = create_recorder_instance(instance, file, cpu, brass);
@@ -4124,7 +4125,7 @@ static int write_func_file(struct buffer_instance *instance,
 	close(fd);
 	ret = 0;
  free:
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	return ret;
  failed:
 	die("Failed to write %s to %s.\n"
@@ -4142,7 +4143,7 @@ static int functions_filtered(struct buffer_instance *instance)
 
 	path = get_instance_file(instance, "set_ftrace_filter");
 	fd = open(path, O_RDONLY);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (fd < 0) {
 		if (is_top_instance(instance))
 			warning("Can not set set_ftrace_filter");
@@ -4265,7 +4266,7 @@ static unsigned long long find_time_stamp(struct tep_handle *pevent)
 	int fd;
 	int r;
 
-	path = tracecmd_get_tracing_file("per_cpu");
+	path = tracefs_get_tracing_file("per_cpu");
 	if (!path)
 		return 0;
 
@@ -4304,7 +4305,7 @@ static unsigned long long find_time_stamp(struct tep_handle *pevent)
 	closedir(dir);
 
  out:
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	return ts;
 }
 
@@ -4319,7 +4320,7 @@ static char *read_instance_file(struct buffer_instance *instance, char *file, in
 
 	path = get_instance_file(instance, file);
 	fd = open(path, O_RDONLY);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (fd < 0) {
 		warning("%s not found, --date ignored", file);
 		return NULL;
@@ -4400,9 +4401,9 @@ static char *get_date_to_ts(void)
 		goto out_pevent;
 	}
 
-	path = tracecmd_get_tracing_file("trace_marker");
+	path = tracefs_get_tracing_file("trace_marker");
 	tfd = open(path, O_WRONLY);
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 	if (tfd < 0) {
 		warning("Can not open 'trace_marker', --date ignored");
 		goto out_pevent;
@@ -4491,7 +4492,7 @@ static void set_buffer_size_instance(struct buffer_instance *instance)
 		warning("Can't write to %s", path);
 	close(fd);
  out:
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 void set_buffer_size(void)
@@ -4560,7 +4561,7 @@ static void clear_instance_triggers(struct buffer_instance *instance)
 
 	trace_event_iter_free(iter);
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 static void
@@ -4621,7 +4622,7 @@ static void clear_instance_filters(struct buffer_instance *instance)
 
 	trace_event_iter_free(iter);
 
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 }
 
 static void clear_filters(void)
@@ -4687,7 +4688,7 @@ static void clear_func_filters(void)
 		for (i = 0; files[i]; i++) {
 			path = get_instance_file(instance, files[i]);
 			clear_func_filter(path);
-			tracecmd_put_tracing_file(path);
+			tracefs_put_tracing_file(path);
 		}
 	}
 }
@@ -4712,7 +4713,7 @@ static void make_instances(void)
 		} else
 			/* Don't delete instances that already exist */
 			instance->flags |= BUFFER_FL_KEEP;
-		tracecmd_put_tracing_file(path);
+		tracefs_put_tracing_file(path);
 	}
 }
 
@@ -4734,7 +4735,7 @@ void tracecmd_remove_instances(void)
 		ret = rmdir(path);
 		if (ret < 0)
 			die("rmdir %s", path);
-		tracecmd_put_tracing_file(path);
+		tracefs_put_tracing_file(path);
 	}
 }
 
@@ -5043,7 +5044,7 @@ static int test_stacktrace_trigger(struct buffer_instance *instance)
 		ret = 1;
 	close(fd);
  out:
-	tracecmd_put_tracing_file(path);
+	tracefs_put_tracing_file(path);
 
 	return ret;
 }
