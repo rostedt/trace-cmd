@@ -35,6 +35,8 @@ $(DEPS): | $(bdir)
 $(bdir)/libtracecmd.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
+LIBS = -L$(obj)/lib/traceevent -ltraceevent
+
 $(bdir)/libtracecmd.so: $(OBJS)
 	$(Q)$(call do_compile_shared_library)
 
