@@ -22,6 +22,8 @@ $(bdir):
 $(OBJS): | $(bdir)
 $(DEPS): | $(bdir)
 
+LIBS = -L$(obj)/lib/trace-cmd -ltracecmd
+
 $(bdir)/libtracefs.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
