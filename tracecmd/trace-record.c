@@ -1899,44 +1899,6 @@ enum {
 	STATE_COPY,
 };
 
-static int find_trigger(const char *file, char *buf, int size, int fields)
-{
-	FILE *fp;
-	int state = STATE_NEWLINE;
-	int ch;
-	int len = 0;
-
-	fp = fopen(file, "r");
-	if (!fp)
-		return 0;
-
-	while ((ch = fgetc(fp)) != EOF) {
-		if (ch == '\n') {
-			if (state == STATE_COPY)
-				break;
-			state = STATE_NEWLINE;
-			continue;
-		}
-		if (state == STATE_SKIP)
-			continue;
-		if (state == STATE_NEWLINE && ch == '#') {
-			state = STATE_SKIP;
-			continue;
-		}
-		if (state == STATE_COPY && ch == ':' && --fields < 1)
-			break;
-
-		state = STATE_COPY;
-		buf[len++] = ch;
-		if (len == size - 1)
-			break;
-	}
-	buf[len] = 0;
-	fclose(fp);
-
-	return len;
-}
-
 static char *read_file(const char *file)
 {
 	char stbuf[BUFSIZ];
@@ -2056,34 +2018,63 @@ static void write_trigger(const char *file, const char *trigger)
 		show_error(file, "trigger");
 }
 
-static void write_func_filter(const char *file, const char *trigger)
-{
-	if (write_file(file, trigger) < 0)
-		show_error(file, "function filter");
-}
-
-static void clear_trigger(const char *file)
+static int clear_trigger(const char *file)
 {
 	char trigger[BUFSIZ];
+	char *save = NULL;
+	char *line;
+	char *buf;
 	int len;
+	int ret;
+
+	buf = read_file(file);
+	if (!buf) {
+		perror(file);
+		return 0;
+	}
 
 	trigger[0] = '!';
 
+	for (line = strtok_r(buf, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
+		if (line[0] == '#')
+			continue;
+		len = strlen(line);
+		if (len > BUFSIZ - 2)
+			len = BUFSIZ - 2;
+		strncpy(trigger + 1, line, len);
+		trigger[len + 1] = '\0';
+		/* We don't want any filters or extra on the line */
+		strtok(trigger, " ");
+		write_file(file, trigger);
+	}
+
+	free(buf);
+
 	/*
-	 * To delete a trigger, we need to write a '!trigger'
-	 * to the file for each trigger.
+	 * Some triggers have an order in removing them.
+	 * They will not be removed if done in the wrong order.
 	 */
-	do {
-		len = find_trigger(file, trigger+1, BUFSIZ-1, 3);
-		if (len)
-			write_trigger(file, trigger);
-	} while (len);
+	buf = read_file(file);
+	if (!buf)
+		return 0;
+
+	ret = 0;
+	for (line = strtok(buf, "\n"); line; line = strtok(NULL, "\n")) {
+		if (line[0] == '#')
+			continue;
+		ret = 1;
+		break;
+	}
+	free(buf);
+	return ret;
 }
 
 static void clear_func_filter(const char *file)
 {
-	char trigger[BUFSIZ];
+	char filter[BUFSIZ];
 	struct stat st;
+	char *line;
+	char *buf;
 	char *p;
 	int len;
 	int ret;
@@ -2100,33 +2091,44 @@ static void clear_func_filter(const char *file)
 		die("opening to '%s'", file);
 	close(fd);
 
-	/* Now remove triggers */
-	trigger[0] = '!';
+	buf = read_file(file);
+	if (!buf) {
+		perror(file);
+		return;
+	}
+
+	/* Now remove filters */
+	filter[0] = '!';
 
 	/*
-	 * To delete a trigger, we need to write a '!trigger'
-	 * to the file for each trigger.
+	 * To delete a filter, we need to write a '!filter'
+	 * to the file for each filter.
 	 */
-	do {
-		len = find_trigger(file, trigger+1, BUFSIZ-1, 3);
-		if (len) {
-			/*
-			 * To remove "unlimited" triggers, we must remove
-			 * the ":unlimited" from what we write.
-			 */
-			if ((p = strstr(trigger, ":unlimited"))) {
-				*p = '\0';
-				len = p - trigger;
-			}
-			/*
-			 * The write to this file expects white space
-			 * at the end :-p
-			 */
-			trigger[len] = '\n';
-			trigger[len+1] = '\0';
-			write_func_filter(file, trigger);
+	for (line = strtok(buf, "\n"); line; line = strtok(NULL, "\n")) {
+		if (line[0] == '#')
+			continue;
+		len = strlen(line);
+		if (len > BUFSIZ - 2)
+			len = BUFSIZ - 2;
+
+		strncpy(filter + 1, line, len);
+		filter[len + 1] = '\0';
+		/*
+		 * To remove "unlimited" filters, we must remove
+		 * the ":unlimited" from what we write.
+		 */
+		if ((p = strstr(filter, ":unlimited"))) {
+			*p = '\0';
+			len = p - filter;
 		}
-	} while (len > 0);
+		/*
+		 * The write to this file expects white space
+		 * at the end :-p
+		 */
+		filter[len] = '\n';
+		filter[len+1] = '\0';
+		write_file(file, filter);
+	}
 }
 
 static void update_reset_triggers(void)
@@ -4435,8 +4437,8 @@ void set_buffer_size(void)
 		set_buffer_size_instance(instance);
 }
 
-static void
-process_event_trigger(char *path, struct event_iter *iter, enum event_process *processed)
+static int
+process_event_trigger(char *path, struct event_iter *iter)
 {
 	const char *system = iter->system_dent->d_name;
 	const char *event = iter->event_dent->d_name;
@@ -4459,19 +4461,21 @@ process_event_trigger(char *path, struct event_iter *iter, enum event_process *p
 	if (ret < 0)
 		goto out;
 
-	clear_trigger(trigger);
+	ret = clear_trigger(trigger);
  out:
 	free(trigger);
 	free(file);
+	return ret;
 }
 
 static void clear_instance_triggers(struct buffer_instance *instance)
 {
-	struct event_iter *iter;
-	char *path;
-	char *system;
 	enum event_iter_type type;
-	enum event_process processed = PROCESSED_NONE;
+	struct event_iter *iter;
+	char *system;
+	char *path;
+	int retry = 0;
+	int ret;
 
 	path = tracefs_instance_get_file(instance->tracefs, "events");
 	if (!path)
@@ -4479,7 +4483,6 @@ static void clear_instance_triggers(struct buffer_instance *instance)
 
 	iter = trace_event_iter_alloc(path);
 
-	processed = PROCESSED_NONE;
 	system = NULL;
 	while ((type = trace_event_iter_next(iter, path, system))) {
 
@@ -4488,10 +4491,38 @@ static void clear_instance_triggers(struct buffer_instance *instance)
 			continue;
 		}
 
-		process_event_trigger(path, iter, &processed);
+		ret = process_event_trigger(path, iter);
+		if (ret > 0)
+			retry++;
 	}
 
 	trace_event_iter_free(iter);
+
+	if (retry) {
+		int i;
+
+		/* Order matters for some triggers */
+		for (i = 0; i < retry; i++) {
+			int tries = 0;
+
+			iter = trace_event_iter_alloc(path);
+			system = NULL;
+			while ((type = trace_event_iter_next(iter, path, system))) {
+
+				if (type == EVENT_ITER_SYSTEM) {
+					system = iter->system_dent->d_name;
+					continue;
+				}
+
+				ret = process_event_trigger(path, iter);
+				if (ret > 0)
+					tries++;
+			}
+			trace_event_iter_free(iter);
+			if (!tries)
+				break;
+		}
+	}
 
 	tracefs_put_tracing_file(path);
 }
