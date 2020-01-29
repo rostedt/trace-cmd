@@ -351,6 +351,96 @@ static void test_tracers(void)
 	free(tfile);
 }
 
+static void test_check_events(struct tep_handle *tep, char *system, bool exist)
+{
+	struct dirent *dent;
+	char file[PATH_MAX];
+	char buf[1024];
+	char *edir = NULL;
+	const char *tdir;
+	DIR *dir;
+	int fd;
+
+	tdir  = tracefs_get_tracing_dir();
+	CU_TEST(tdir != NULL);
+
+	asprintf(&edir, "%s/events/%s", tdir, system);
+	dir = opendir(edir);
+	CU_TEST(dir != NULL);
+
+	while ((dent = readdir(dir))) {
+		if (dent->d_name[0] == '.')
+			continue;
+		sprintf(file, "%s/%s/id", edir, dent->d_name);
+		fd = open(file, O_RDONLY);
+		if (fd < 0)
+			continue;
+		CU_TEST(read(fd, buf, 1024) > 0);
+		if (exist) {
+			CU_TEST(tep_find_event(tep, atoi(buf)) != NULL);
+		} else {
+			CU_TEST(tep_find_event(tep, atoi(buf)) == NULL);
+		}
+
+		close(fd);
+	}
+
+	closedir(dir);
+	free(edir);
+
+}
+
+static void test_local_events(void)
+{
+	struct tep_handle *tep;
+	const char *tdir;
+	char **systems;
+	char *lsystems[3];
+	int i;
+
+	tdir  = tracefs_get_tracing_dir();
+	CU_TEST(tdir != NULL);
+
+	tep = tracefs_local_events(tdir);
+	CU_TEST(tep != NULL);
+
+	systems = tracefs_event_systems(tdir);
+	CU_TEST(systems != NULL);
+
+	for (i = 0; systems[i]; i++)
+		test_check_events(tep, systems[i], true);
+	tep_free(tep);
+
+	memset(lsystems, 0, sizeof(lsystems));
+	for (i = 0; systems[i]; i++) {
+		if (!lsystems[0])
+			lsystems[0] = systems[i];
+		else if (!lsystems[2])
+			lsystems[2] = systems[i];
+		else
+			break;
+	}
+
+	if (lsystems[0] && lsystems[2]) {
+		tep = tracefs_local_events_system(tdir,
+						  (const char * const *)lsystems);
+		CU_TEST(tep != NULL);
+		test_check_events(tep, lsystems[0], true);
+		test_check_events(tep, lsystems[2], false);
+	}
+	tep_free(tep);
+
+	tep = tep_alloc();
+	CU_TEST(tep != NULL);
+	CU_TEST(tracefs_fill_local_events(tdir, tep, NULL) == 0);
+	for (i = 0; systems[i]; i++)
+		test_check_events(tep, systems[i], true);
+
+	tep_free(tep);
+
+	tracefs_list_free(systems);
+}
+
 static int test_suite_destroy(void)
 {
 	tracefs_instance_destroy(test_instance);
@@ -396,4 +486,6 @@ void test_tracefs_lib(void)
 		    test_iter_raw_events);
 	CU_add_test(suite, "tracefs_tracers API",
 		    test_tracers);
+	CU_add_test(suite, "tracefs_local events API",
+		    test_local_events);
 }
