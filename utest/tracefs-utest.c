@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
+#include <dirent.h>
 
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
@@ -258,6 +259,69 @@ static void test_instance_file(void)
 	free(inst_dir);
 }
 
+static void exclude_string(char **strings, char *name)
+{
+	int i;
+
+	for (i = 0; strings[i]; i++) {
+		if (strcmp(strings[i], name) == 0) {
+			free(strings[i]);
+			strings[i] = strdup("/");
+			return;
+		}
+	}
+}
+
+static void test_check_files(const char *fdir, char **files)
+{
+	struct dirent *dent;
+	DIR *dir;
+	int i;
+
+	dir = opendir(fdir);
+	CU_TEST(dir != NULL);
+
+	while ((dent = readdir(dir)))
+		exclude_string(files, dent->d_name);
+
+	closedir(dir);
+
+	for (i = 0; files[i]; i++)
+		CU_TEST(files[i][0] == '/');
+}
+
+static void test_system_event(void)
+{
+	const char *tdir;
+	char **systems;
+	char **events;
+	char *sdir = NULL;
+
+	tdir  = tracefs_get_tracing_dir();
+	CU_TEST(tdir != NULL);
+
+	systems = tracefs_event_systems(tdir);
+	CU_TEST(systems != NULL);
+
+	events = tracefs_system_events(tdir, systems[0]);
+	CU_TEST(events != NULL);
+
+	asprintf(&sdir, "%s/events/%s", tdir, systems[0]);
+	CU_TEST(sdir != NULL);
+	test_check_files(sdir, events);
+	free(sdir);
+	sdir = NULL;
+
+	asprintf(&sdir, "%s/events", tdir);
+	CU_TEST(sdir != NULL);
+	test_check_files(sdir, systems);
+
+	tracefs_list_free(systems);
+	tracefs_list_free(events);
+
+	free(sdir);
+}
+
 static int test_suite_destroy(void)
 {
 	tracefs_instance_destroy(test_instance);
@@ -297,6 +361,8 @@ void test_tracefs_lib(void)
 		    test_trace_file);
 	CU_add_test(suite, "instance file / directory APIs",
 		    test_instance_file);
+	CU_add_test(suite, "systems and events APIs",
+		    test_system_event);
 	CU_add_test(suite, "tracefs_iterate_raw_events API",
 		    test_iter_raw_events);
 }
