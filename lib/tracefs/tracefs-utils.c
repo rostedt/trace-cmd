@@ -161,6 +161,9 @@ char *tracefs_get_tracing_file(const char *name)
 	char *file;
 	int ret;
 
+	if (!name)
+		return NULL;
+
 	if (!tracing) {
 		tracing = tracefs_find_tracing_dir();
 		if (!tracing)
