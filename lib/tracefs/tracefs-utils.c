@@ -133,7 +133,7 @@ char *tracefs_find_tracing_dir(void)
  * tracefs_get_tracing_dir - Get tracing directory
  *
  * Returns string containing the full path to the system's tracing directory.
- * Must use tracefs_put_tracing_file() to free the returned string.
+ * The returned string must *not* be freed.
  */
 const char *tracefs_get_tracing_dir(void)
 {
