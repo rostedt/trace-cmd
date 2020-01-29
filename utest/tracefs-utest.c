@@ -322,6 +322,35 @@ static void test_system_event(void)
 	free(sdir);
 }
 
+static void test_tracers(void)
+{
+	const char *tdir;
+	char **tracers;
+	char *tfile;
+	char *tracer;
+	int i;
+
+	tdir  = tracefs_get_tracing_dir();
+	CU_TEST(tdir != NULL);
+
+	tracers = tracefs_tracers(tdir);
+	CU_TEST(tracers != NULL);
+
+	tfile = tracefs_instance_file_read(NULL, ALL_TRACERS, NULL);
+
+	tracer = strtok(tfile, " ");
+	while (tracer) {
+		exclude_string(tracers, tracer);
+		tracer = strtok(NULL, " ");
+	}
+
+	for (i = 0; tracers[i]; i++)
+		CU_TEST(tracers[i][0] == '/');
+
+	tracefs_list_free(tracers);
+	free(tfile);
+}
+
 static int test_suite_destroy(void)
 {
 	tracefs_instance_destroy(test_instance);
@@ -365,4 +394,6 @@ void test_tracefs_lib(void)
 		    test_system_event);
 	CU_add_test(suite, "tracefs_iterate_raw_events API",
 		    test_iter_raw_events);
+	CU_add_test(suite, "tracefs_tracers API",
+		    test_tracers);
 }
