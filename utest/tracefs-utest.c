@@ -138,6 +138,126 @@ static void test_trace_file(void)
 	tracefs_put_tracing_file(file);
 }
 
+static void test_instance_file_read(struct tracefs_instance *inst, char *fname)
+{
+	const char *tdir  = tracefs_get_tracing_dir();
+	char buf[BUFSIZ];
+	char *fpath;
+	char *file;
+	size_t fsize = 0;
+	int size = 0;
+	int fd;
+
+	if (inst) {
+		CU_TEST(asprintf(&fpath, "%s/instances/%s/%s",
+			tdir, tracefs_instance_get_name(inst), fname) > 0);
+	} else {
+		CU_TEST(asprintf(&fpath, "%s/%s", tdir, fname) > 0);
+	}
+
+	memset(buf, 0, BUFSIZ);
+	fd = open(fpath, O_RDONLY);
+	CU_TEST(fd >= 0);
+	fsize = read(fd, buf, BUFSIZ);
+	CU_TEST(fsize >= 0);
+	close(fd);
+	buf[BUFSIZ - 1] = 0;
+
+	file = tracefs_instance_file_read(inst, fname, &size);
+	CU_TEST(file != NULL);
+	CU_TEST(size == fsize);
+	CU_TEST(strcmp(file, buf) == 0);
+
+	free(fpath);
+	free(file);
+}
+
+#define ALL_TRACERS	"available_tracers"
+#define CUR_TRACER	"current_tracer"
+static void test_instance_file(void)
+{
+	struct tracefs_instance *instance = NULL;
+	const char *name = get_rand_str();
+	char *inst_name = NULL;
+	const char *tdir;
+	char *inst_file;
+	char *inst_dir;
+	struct stat st;
+	char *fname;
+	char *file1;
+	char *file2;
+	char *tracer;
+	int size;
+	int ret;
+
+	tdir  = tracefs_get_tracing_dir();
+	CU_TEST(tdir != NULL);
+	CU_TEST(asprintf(&inst_dir, "%s/instances/%s", tdir, name) > 0);
+	CU_TEST(stat(inst_dir, &st) != 0);
+
+	instance = tracefs_instance_alloc(name);
+	CU_TEST(instance != NULL);
+	CU_TEST(stat(inst_dir, &st) != 0);
+	inst_name = tracefs_instance_get_name(instance);
+	CU_TEST(inst_name != NULL);
+	CU_TEST(strcmp(inst_name, name) == 0);
+
+	CU_TEST(tracefs_instance_create(instance) == 0);
+	CU_TEST(stat(inst_dir, &st) == 0);
+	CU_TEST(S_ISDIR(st.st_mode));
+
+	fname = tracefs_instance_get_dir(NULL);
+	CU_TEST(fname != NULL);
+	CU_TEST(strcmp(fname, tdir) == 0);
+	free(fname);
+
+	fname = tracefs_instance_get_dir(instance);
+	CU_TEST(fname != NULL);
+	CU_TEST(strcmp(fname, inst_dir) == 0);
+	free(fname);
+
+	CU_TEST(asprintf(&fname, "%s/"ALL_TRACERS, tdir) > 0);
+	CU_TEST(fname != NULL);
+	inst_file = tracefs_instance_get_file(NULL, ALL_TRACERS);
+	CU_TEST(inst_file != NULL);
+	CU_TEST(strcmp(fname, inst_file) == 0);
+	tracefs_put_tracing_file(inst_file);
+	free(fname);
+
+	CU_TEST(asprintf(&fname, "%s/instances/%s/"ALL_TRACERS, tdir, name) > 0);
+	CU_TEST(fname != NULL);
+	CU_TEST(stat(fname, &st) == 0);
+	inst_file = tracefs_instance_get_file(instance, ALL_TRACERS);
+	CU_TEST(inst_file != NULL);
+	CU_TEST(strcmp(fname, inst_file) == 0);
+
+	test_instance_file_read(NULL, ALL_TRACERS);
+	test_instance_file_read(instance, ALL_TRACERS);
+
+	file1 = tracefs_instance_file_read(instance, ALL_TRACERS, NULL);
+	CU_TEST(file1 != NULL);
+	tracer = strtok(file1, " ");
+	CU_TEST(tracer != NULL);
+	ret = tracefs_instance_file_write(instance, CUR_TRACER, tracer);
+	CU_TEST(ret == strlen(tracer));
+	file2 = tracefs_instance_file_read(instance, CUR_TRACER, &size);
+	CU_TEST(file2 != NULL);
+	CU_TEST(size >= strlen(tracer));
+	CU_TEST(strncmp(file2, tracer, strlen(tracer)) == 0);
+	free(file1);
+	free(file2);
+
+	tracefs_put_tracing_file(inst_file);
+	free(fname);
+
+	CU_TEST(tracefs_instance_destroy(NULL) != 0);
+	CU_TEST(tracefs_instance_destroy(instance) == 0);
+	CU_TEST(tracefs_instance_destroy(instance) != 0);
+	tracefs_instance_free(instance);
+	CU_TEST(stat(inst_dir, &st) != 0);
+	free(inst_dir);
+}
+
 static int test_suite_destroy(void)
 {
 	tracefs_instance_destroy(test_instance);
@@ -175,6 +295,8 @@ void test_tracefs_lib(void)
 	}
 	CU_add_test(suite, "tracing file / directory APIs",
 		    test_trace_file);
+	CU_add_test(suite, "instance file / directory APIs",
+		    test_instance_file);
 	CU_add_test(suite, "tracefs_iterate_raw_events API",
 		    test_iter_raw_events);
 }
