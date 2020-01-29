@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
@@ -85,6 +86,58 @@ static void test_iter_raw_events(void)
 	CU_TEST(test_found == TEST_ARRAY_SIZE);
 }
 
+#define RAND_STR_SIZE 20
+#define RAND_ASCII "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+static const char *get_rand_str()
+{
+	static char str[RAND_STR_SIZE];
+	static char sym[] = RAND_ASCII;
+	struct timespec clk;
+	int i;
+
+	clock_gettime(CLOCK_REALTIME, &clk);
+	srand(clk.tv_nsec);
+	for (i = 0; i < RAND_STR_SIZE; i++)
+		str[i] = sym[rand() % (sizeof(sym) - 1)];
+
+	str[RAND_STR_SIZE - 1] = 0;
+	return str;
+}
+
+static void test_trace_file(void)
+{
+	const char *tmp = get_rand_str();
+	const char *tdir;
+	struct stat st;
+	char *file;
+	char *dir;
+
+	dir = tracefs_find_tracing_dir();
+	CU_TEST(dir != NULL);
+	CU_TEST(stat(dir, &st) == 0);
+	CU_TEST(S_ISDIR(st.st_mode));
+
+	tdir  = tracefs_get_tracing_dir();
+	CU_TEST(tdir != NULL);
+	CU_TEST(stat(tdir, &st) == 0);
+	CU_TEST(S_ISDIR(st.st_mode));
+
+	CU_TEST(strcmp(dir, tdir) == 0);
+	free(dir);
+
+	file = tracefs_get_tracing_file(NULL);
+	CU_TEST(file == NULL);
+	file = tracefs_get_tracing_file(tmp);
+	CU_TEST(file != NULL);
+	CU_TEST(stat(file, &st) != 0);
+	tracefs_put_tracing_file(file);
+
+	file = tracefs_get_tracing_file("trace");
+	CU_TEST(file != NULL);
+	CU_TEST(stat(file, &st) == 0);
+	tracefs_put_tracing_file(file);
+}
+
 static int test_suite_destroy(void)
 {
 	tracefs_instance_destroy(test_instance);
@@ -120,6 +173,8 @@ void test_tracefs_lib(void)
 		fprintf(stderr, "Suite \"%s\" cannot be ceated\n", TRACEFS_SUITE);
 		return;
 	}
+	CU_add_test(suite, "tracing file / directory APIs",
+		    test_trace_file);
 	CU_add_test(suite, "tracefs_iterate_raw_events API",
 		    test_iter_raw_events);
 }
