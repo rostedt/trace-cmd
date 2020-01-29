@@ -207,7 +207,7 @@ TRACE_LIBS = -L$(LIBTRACECMD_DIR) -ltracecmd		\
 	     -L$(LIBTRACEFS_DIR) -ltracefs
 
 export LIBS TRACE_LIBS
-export LIBTRACEEVENT_DIR LIBTRACECMD_DIR
+export LIBTRACEEVENT_DIR LIBTRACECMD_DIR LIBTRACEFS_DIR
 export LIBTRACECMD_STATIC LIBTRACECMD_SHARED
 export LIBTRACEEVENT_STATIC LIBTRACEEVENT_SHARED
 export LIBTRACEFS_STATIC LIBTRACEFS_SHARED
@@ -240,6 +240,9 @@ export VSOCK_DEFINED
 ifeq ($(VSOCK_DEFINED), 1)
 CFLAGS += -DVSOCK
 endif
+
+CUNIT_INSTALLED := $(shell if (echo -e "\#include <CUnit/Basic.h>\n void main(){CU_initialize_registry();}" | $(CC) -x c -lcunit - >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
+export CUNIT_INSTALLED
 
 export CFLAGS
 export INCLUDES
@@ -326,7 +329,6 @@ $(LIBTRACEFS_STATIC): force
 $(LIBTRACEFS_SHARED): force
 	$(Q)$(MAKE) -C $(src)/lib/tracefs $@
 
-
 libtraceevent.so: $(LIBTRACEEVENT_SHARED)
 libtraceevent.a: $(LIBTRACEEVENT_STATIC)
 libtracecmd.a: $(LIBTRACECMD_STATIC)
@@ -335,6 +337,12 @@ libtracefs.a: $(LIBTRACEFS_STATIC)
 libtracefs.so: $(LIBTRACEFS_SHARED)
 
 libs: $(LIBTRACECMD_SHARED) $(LIBTRACEEVENT_SHARED) $(LIBTRACEFS_SHARED)
+
+test: force $(LIBTRACEEVENT_STATIC) $(LIBTRACEFS_STATIC) $(LIBTRACECMD_STATIC)
+ifneq ($(CUNIT_INSTALLED),1)
+	$(error CUnit framework not installed, cannot build unit tests))
+endif
+	$(Q)$(MAKE) -C $(src)/utest $@
 
 plugins_traceevent: force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir \
 		   $(obj)/lib/traceevent/plugins/trace_python_dir
@@ -437,6 +445,7 @@ clean:
 	$(MAKE) -C $(src)/lib/tracefs clean
 	$(MAKE) -C $(src)/lib/traceevent/plugins clean
 	$(MAKE) -C $(src)/lib/trace-cmd/plugins clean
+	$(MAKE) -C $(src)/utest clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
 	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
