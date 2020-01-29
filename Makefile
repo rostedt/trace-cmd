@@ -51,6 +51,13 @@ libdir_SQ = '$(subst ','\'',$(libdir))'
 includedir = $(prefix)/include
 includedir_SQ = '$(subst ','\'',$(includedir))'
 
+ifeq ($(prefix),/usr/local)
+etcdir ?= /etc
+else
+etcdir ?= $(prefix)/etc
+endif
+etcdir_SQ = '$(subst ','\'',$(etcdir))'
+
 export man_dir man_dir_SQ html_install html_install_SQ INSTALL
 export img_install img_install_SQ
 export DESTDIR DESTDIR_SQ
@@ -87,8 +94,8 @@ HELP_DIR = -DHELP_DIR=$(html_install)
 HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 #' emacs highlighting gets confused by the above escaped quote.
 
-BASH_COMPLETE_DIR ?= /etc/bash_completion.d
-LD_SO_CONF_DIR ?= /etc/ld.so.conf.d
+BASH_COMPLETE_DIR ?= $(etcdir)/bash_completion.d
+LD_SO_CONF_DIR ?= $(etcdir)/ld.so.conf.d
 TRACE_LD_FILE ?= trace.conf
 
 export PLUGIN_DIR_TRACEEVENT
