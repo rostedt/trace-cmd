@@ -43,7 +43,7 @@ find_library(TRACECMD_LIBRARY   NAMES  trace-cmd/libtracecmd.a
                                        ${CMAKE_SOURCE_DIR}/../lib/
                                 NO_DEFAULT_PATH)
 
-find_library(TRACEFS_LIBRARY    NAMES  trace-cmd/libtracefs.a
+find_library(TRACEFS_LIBRARY    NAMES  tracefs/libtracefs.a
                                 PATHS  $ENV{TRACE_CMD}/lib/
                                        ${CMAKE_SOURCE_DIR}/../lib/
                                 NO_DEFAULT_PATH)
