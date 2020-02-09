@@ -126,7 +126,6 @@ endif
 
 ifndef NO_PYTHON
 PYTHON		:= ctracecmd.so
-PYTHON_GUI	:= ctracecmd.so ctracecmdgui.so
 
 PYTHON_VERS ?= python
 PYTHON_PKGCONFIG_VERS ?= $(PYTHON_VERS)
@@ -482,14 +481,9 @@ export PYGTK_CFLAGS
 ctracecmd.so: force $(LIBTRACECMD_STATIC)
 	$(Q)$(MAKE) -C $(src)/python $@
 
-ctracecmdgui.so: force $(LIBTRACECMD_STATIC) trace-view
-	$(Q)$(MAKE) -C $(src)/python $@
-
 PHONY += python
 python: $(PYTHON)
 
-PHONY += python-gui
-python-gui: $(PYTHON_GUI)
 
 dist:
 	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \
