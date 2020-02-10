@@ -30,31 +30,31 @@ static int kmem_cache_alloc_type;
 static int kmem_cache_alloc_node_type;
 static int kmem_cache_free_type;
 
-struct tep_format_field *common_type_field;
+static struct tep_format_field *common_type_field;
 
-struct tep_format_field *kmalloc_callsite_field;
-struct tep_format_field *kmalloc_bytes_req_field;
-struct tep_format_field *kmalloc_bytes_alloc_field;
-struct tep_format_field *kmalloc_ptr_field;
+static struct tep_format_field *kmalloc_callsite_field;
+static struct tep_format_field *kmalloc_bytes_req_field;
+static struct tep_format_field *kmalloc_bytes_alloc_field;
+static struct tep_format_field *kmalloc_ptr_field;
 
-struct tep_format_field *kmalloc_node_callsite_field;
-struct tep_format_field *kmalloc_node_bytes_req_field;
-struct tep_format_field *kmalloc_node_bytes_alloc_field;
-struct tep_format_field *kmalloc_node_ptr_field;
+static struct tep_format_field *kmalloc_node_callsite_field;
+static struct tep_format_field *kmalloc_node_bytes_req_field;
+static struct tep_format_field *kmalloc_node_bytes_alloc_field;
+static struct tep_format_field *kmalloc_node_ptr_field;
 
-struct tep_format_field *kfree_ptr_field;
+static struct tep_format_field *kfree_ptr_field;
 
-struct tep_format_field *kmem_cache_callsite_field;
-struct tep_format_field *kmem_cache_bytes_req_field;
-struct tep_format_field *kmem_cache_bytes_alloc_field;
-struct tep_format_field *kmem_cache_ptr_field;
+static struct tep_format_field *kmem_cache_callsite_field;
+static struct tep_format_field *kmem_cache_bytes_req_field;
+static struct tep_format_field *kmem_cache_bytes_alloc_field;
+static struct tep_format_field *kmem_cache_ptr_field;
 
-struct tep_format_field *kmem_cache_node_callsite_field;
-struct tep_format_field *kmem_cache_node_bytes_req_field;
-struct tep_format_field *kmem_cache_node_bytes_alloc_field;
-struct tep_format_field *kmem_cache_node_ptr_field;
+static struct tep_format_field *kmem_cache_node_callsite_field;
+static struct tep_format_field *kmem_cache_node_bytes_req_field;
+static struct tep_format_field *kmem_cache_node_bytes_alloc_field;
+static struct tep_format_field *kmem_cache_node_ptr_field;
 
-struct tep_format_field *kmem_cache_free_ptr_field;
+static struct tep_format_field *kmem_cache_free_ptr_field;
 
 static void *zalloc(size_t size)
 {
