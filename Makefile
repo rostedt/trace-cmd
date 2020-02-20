@@ -364,6 +364,7 @@ $(obj)/lib/traceevent/plugins/trace_python_dir: force
 show_gui_make:
 	@echo "Note: to build the gui, type \"make gui\""
 	@echo "      to build man pages, type \"make doc\""
+	@echo "      to build unit tests, type \"make test\""
 
 PHONY += show_gui_make
 
