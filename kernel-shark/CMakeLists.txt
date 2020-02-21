@@ -17,6 +17,10 @@ if (NOT _INSTALL_PREFIX)
     set(_INSTALL_PREFIX "/usr/local")
 endif (NOT _INSTALL_PREFIX)
 
+if (NOT _LIBDIR)
+    set(_LIBDIR "${_INSTALL_PREFIX}/lib")
+endif (NOT _LIBDIR)
+
 include(${KS_DIR}/build/FindTraceCmd.cmake)
 include(${KS_DIR}/build/FindJSONC.cmake)
 
@@ -54,14 +58,14 @@ if (NOT CMAKE_CXX_FLAGS_PACKAGE)
     set(CMAKE_CXX_FLAGS_PACKAGE "-O3")
 endif (NOT CMAKE_CXX_FLAGS_PACKAGE)
 
-set(KS_PLUGIN_INSTALL_PREFIX ${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/plugins/)
+set(KS_PLUGIN_INSTALL_PREFIX ${_LIBDIR}/${KS_APP_NAME}/plugins/)
 
 set(KS_ICON        KS_icon_shark.svg)
 set(KS_ICON_FIN    KS_icon_fin.svg)
 set(KS_LOGO        KS_logo_symbol.svg)
 set(KS_LOGO_LABEL  KS_logo_horizontal.svg)
 
-set(CMAKE_INSTALL_RPATH "${_INSTALL_PREFIX}/lib/${KS_APP_NAME}/")
+set(CMAKE_INSTALL_RPATH "${_LIBDIR}/${KS_APP_NAME}/")
 
 if (CMAKE_BUILD_TYPE MATCHES Package)
 
