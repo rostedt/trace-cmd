@@ -128,6 +128,7 @@ static int len_filter_pids;
 
 static int have_set_event_pid;
 static int have_event_fork;
+static int have_func_fork;
 
 struct opt_list {
 	struct opt_list *next;
@@ -350,6 +351,14 @@ static void test_set_event_pid(void)
 	ret = stat(path, &st);
 	if (!ret) {
 		have_event_fork = 1;
+		reset_save_file(path, RESET_DEFAULT_PRIO);
+	}
+	tracefs_put_tracing_file(path);
+
+	path = tracefs_get_tracing_file("options/function-fork");
+	ret = stat(path, &st);
+	if (!ret) {
+		have_func_fork = 1;
 		reset_save_file(path, RESET_DEFAULT_PRIO);
 	}
 	tracefs_put_tracing_file(path);
@@ -5784,6 +5793,8 @@ static void parse_record_options(int argc,
 				save_option("event-fork");
 				ctx->do_child = 1;
 			}
+			if (have_func_fork)
+				save_option("function-fork");
 			break;
 		case 'C':
 			ctx->instance->clock = optarg;
