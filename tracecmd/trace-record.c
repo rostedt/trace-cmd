@@ -1431,6 +1431,7 @@ static void ptrace_wait(enum trace_type type)
 static inline void ptrace_wait(enum trace_type type) { }
 static inline void enable_ptrace(void) { }
 static inline void ptrace_attach(int pid) { }
+static inline void add_event_pid(const char *buf) { }
 
 #endif /* NO_PTRACE */
 
