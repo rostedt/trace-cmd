@@ -27,6 +27,8 @@ endef
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
 
+MAKE:=$(MAKE) CC=$(CC)
+
 EXT = -std=gnu99
 INSTALL = install
 
