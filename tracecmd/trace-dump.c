@@ -366,6 +366,52 @@ static void dump_option_xlong(int fd, int size, char *desc)
 	read_file_number(fd, &val, size);
 	do_print(OPTIONS, "0x%llX\n", val);
 }
+
+static void dump_option_timeshift(int fd, int size)
+{
+	long long *offsets = NULL;
+	long long *times = NULL;
+	long long trace_id;
+	unsigned int count;
+	int i;
+
+	/*
+	 * long long int (8 bytes) trace session ID
+	 * int (4 bytes) count of timestamp offsets.
+	 * long long array of size [count] of times,
+	 *      when the offsets were calculated.
+	 * long long array of size [count] of timestamp offsets.
+	 */
+	if (size < 12) {
+		do_print(OPTIONS, "Broken time shift option, size %s", size);
+		return;
+	}
+	do_print(OPTIONS, "\t\t[Option TimeShift, %d bytes]\n", size);
+	read_file_number(fd, &trace_id, 8);
+	do_print(OPTIONS, "0x%llX [peer's trace id]\n", trace_id);
+	read_file_number(fd, &count, 4);
+	do_print(OPTIONS, "%lld [samples count]\n", count);
+	times = calloc(count, sizeof(long long));
+	if (!times)
+		goto out;
+	offsets = calloc(count, sizeof(long long));
+	if (!offsets)
+		goto out;
+
+	for (i = 0; i < count; i++)
+		read_file_number(fd, times + i, 8);
+	for (i = 0; i < count; i++)
+		read_file_number(fd, offsets + i, 8);
+
+	for (i = 0; i < count; i++)
+		do_print(OPTIONS, "\t%lld %lld [offset @ time]\n",
+			 offsets[i], times[i]);
+
+out:
+	free(times);
+	free(offsets);
+}
+
 static void dump_options(int fd)
 {
 	unsigned short option;
@@ -418,6 +464,9 @@ static void dump_options(int fd)
 			break;
 		case TRACECMD_OPTION_TRACEID:
 			dump_option_xlong(fd, size, "TRACEID");
+			break;
+		case TRACECMD_OPTION_TIME_SHIFT:
+			dump_option_timeshift(fd, size);
 			break;
 		default:
 			do_print(OPTIONS, " %d %d\t[Unknown option, size - skipping]\n",
