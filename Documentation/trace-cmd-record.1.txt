@@ -338,6 +338,13 @@ OPTIONS
     the offset will also be in nanoseconds even if the displayed units are
     in microseconds.
 
+*--tsync-interval*::
+    Set the loop interval, in ms, for timestamps synchronization with guests:
+        If a negative number is specified, timestamps synchronization is disabled
+        If 0 is specified, no loop is performed - timestamps offset is calculated only twice,"
+        at the beginning and at the end of the trace.
+        Timestamps synchronization with guests works only if there is support for VSOCK.\n"
+
 *--stderr*::
     Have output go to stderr instead of stdout, but the output of the command
     executed will not be changed. This is useful if you want to monitor the

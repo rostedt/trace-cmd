@@ -672,6 +672,11 @@ static void tell_guests_to_stop(void)
 			tracecmd_msg_send_close_msg(instance->msg_handle);
 	}
 
+	for_all_instances(instance) {
+		if (is_guest(instance))
+			tracecmd_host_tsync_complete(instance);
+	}
+
 	/* Wait for guests to acknowledge */
 	for_all_instances(instance) {
 		if (is_guest(instance)) {
@@ -3686,6 +3691,10 @@ static void connect_to_agent(struct buffer_instance *instance)
 {
 	struct tracecmd_msg_handle *msg_handle;
 	int sd, ret, nr_fifos, nr_cpus, page_size;
+	unsigned int tsync_protos_reply = 0;
+	unsigned int tsync_port = 0;
+	char *protos = NULL;
+	int protos_count = 0;
 	unsigned int *ports;
 	int i, *fds = NULL;
 	bool use_fifos = false;
@@ -3706,17 +3715,32 @@ static void connect_to_agent(struct buffer_instance *instance)
 	if (!msg_handle)
 		die("Failed to allocate message handle");
 
+	if (instance->tsync.loop_interval >= 0)
+		tracecmd_tsync_proto_getall(&protos, &protos_count);
+
 	ret = tracecmd_msg_send_trace_req(msg_handle, instance->argc,
 					  instance->argv, use_fifos,
-					  top_instance.trace_id);
+					  top_instance.trace_id,
+					  protos, protos_count);
 	if (ret < 0)
 		die("Failed to send trace request");
 
+	free(protos);
+
 	ret = tracecmd_msg_recv_trace_resp(msg_handle, &nr_cpus, &page_size,
 					   &ports, &use_fifos,
-					   &instance->trace_id);
+					   &instance->trace_id,
+					   &tsync_protos_reply, &tsync_port);
 	if (ret < 0)
-		die("Failed to receive trace response");
+		die("Failed to receive trace response %d", ret);
+
+	if (protos_count && tsync_protos_reply) {
+		if (tsync_proto_is_supported(tsync_protos_reply)) {
+			instance->tsync.sync_proto = tsync_protos_reply;
+			tracecmd_host_tsync(instance, tsync_port);
+		} else
+			warning("Failed to negotiate timestamps synchronization with the guest");
+	}
 
 	if (use_fifos) {
 		if (nr_cpus != nr_fifos) {
@@ -3764,7 +3788,8 @@ static void setup_guest(struct buffer_instance *instance)
 	close(fd);
 }
 
-static void setup_agent(struct buffer_instance *instance, struct common_record_context *ctx)
+static void setup_agent(struct buffer_instance *instance,
+			struct common_record_context *ctx)
 {
 	struct tracecmd_output *network_handle;
 
@@ -5324,6 +5349,7 @@ void init_top_instance(void)
 }
 
 enum {
+	OPT_tsyncinterval	= 242,
 	OPT_user		= 243,
 	OPT_procmap		= 244,
 	OPT_quiet		= 245,
@@ -5627,6 +5653,7 @@ static void parse_record_options(int argc,
 			{"proc-map", no_argument, NULL, OPT_procmap},
 			{"user", required_argument, NULL, OPT_user},
 			{"module", required_argument, NULL, OPT_module},
+			{"tsync-interval", required_argument, NULL, OPT_tsyncinterval},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -5969,6 +5996,10 @@ static void parse_record_options(int argc,
 			ctx->instance->filter_mod = optarg;
 			ctx->filtered = 0;
 			break;
+		case OPT_tsyncinterval:
+			top_instance.tsync.loop_interval = atoi(optarg);
+			guest_sync_set = true;
+			break;
 		case OPT_quiet:
 		case 'q':
 			quiet = true;
@@ -5999,6 +6030,7 @@ static void parse_record_options(int argc,
 					add_argv(instance, "-C", true);
 				}
 			}
+			instance->tsync.loop_interval = top_instance.tsync.loop_interval;
 		}
 	}
 

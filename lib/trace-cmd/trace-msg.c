@@ -29,6 +29,8 @@
 
 typedef __u32 u32;
 typedef __be32 be32;
+typedef __u64 u64;
+typedef __s64 s64;
 
 static inline void dprint(const char *fmt, ...)
 {
@@ -61,6 +63,18 @@ struct tracecmd_msg_rinit {
 	be32 cpus;
 } __attribute__((packed));
 
+#define TRACE_REQ_PARAM_SIZE  (2 * sizeof(int))
+enum trace_req_params {
+	TRACE_REQUEST_ARGS,
+	TRACE_REQUEST_TSYNC_PROTOS,
+};
+
+struct tracecmd_msg_trace_req_param {
+	int id;
+	int length;
+	char *value;
+};
+
 struct tracecmd_msg_trace_req {
 	be32 flags;
 	be32 argc;
@@ -72,6 +86,13 @@ struct tracecmd_msg_trace_resp {
 	be32 cpus;
 	be32 page_size;
 	u64 trace_id;
+	be32 tsync_proto;
+	be32 tsync_port;
+} __attribute__((packed));
+
+struct tracecmd_msg_tsync {
+	be32 sync_protocol;
+	be32 sync_msg_id;
 } __attribute__((packed));
 
 struct tracecmd_msg_header {
@@ -89,7 +110,8 @@ struct tracecmd_msg_header {
 	C(NOT_SUPP,	5,	0),					\
 	C(TRACE_REQ,	6,	sizeof(struct tracecmd_msg_trace_req)),	\
 	C(TRACE_RESP,	7,	sizeof(struct tracecmd_msg_trace_resp)),\
-	C(CLOSE_RESP,	8,	0),
+	C(CLOSE_RESP,	8,	0),					\
+	C(TIME_SYNC,	9,	sizeof(struct tracecmd_msg_tsync)),
 
 #undef C
 #define C(a,b,c)	MSG_##a = b
@@ -123,6 +145,7 @@ struct tracecmd_msg {
 		struct tracecmd_msg_rinit	rinit;
 		struct tracecmd_msg_trace_req	trace_req;
 		struct tracecmd_msg_trace_resp	trace_resp;
+		struct tracecmd_msg_tsync	tsync;
 	};
 	char					*buf;
 } __attribute__((packed));
@@ -261,6 +284,17 @@ static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
 		ret = -ECOMM;
 
 	msg_free(msg);
+
+	return ret;
+}
+
+static int msg_send_nofree(int fd, struct tracecmd_msg *msg)
+{
+	int ret = 0;
+
+	ret = msg_write(fd, msg);
+	if (ret < 0)
+		ret = -ECOMM;
 
 	return ret;
 }
@@ -814,59 +848,194 @@ int tracecmd_msg_wait_close_resp(struct tracecmd_msg_handle *msg_handle)
 	return tracecmd_msg_wait_for_cmd(msg_handle, MSG_CLOSE_RESP);
 }
 
-static int make_trace_req(struct tracecmd_msg *msg, int argc, char **argv,
-			  bool use_fifos, unsigned long long trace_id)
+static int make_trace_req_protos(char **buf, int *size,
+				 int protos_size, char *tsync_protos)
 {
-	size_t args_size = 0;
+	size_t buf_size;
+	char *nbuf;
+	char *p;
+
+	buf_size = TRACE_REQ_PARAM_SIZE + protos_size;
+	nbuf = realloc(*buf, *size + buf_size);
+	if (!nbuf)
+		return -1;
+
+	p = nbuf + *size;
+	memset(p, 0, buf_size);
+
+	*(unsigned int *)p = htonl(TRACE_REQUEST_TSYNC_PROTOS);
+	p += sizeof(int);
+	*(unsigned int *)p = htonl(protos_size);
+	p += sizeof(int);
+
+	memcpy(p, tsync_protos, protos_size);
+
+	*size += buf_size;
+	*buf = nbuf;
+	return 0;
+}
+
+static int make_trace_req_args(char **buf, int *size, int argc, char **argv)
+{
+	size_t args_size;
+	size_t buf_size;
+	char *nbuf;
 	char *p;
 	int i;
 
+	args_size = sizeof(int);
 	for (i = 0; i < argc; i++)
 		args_size += strlen(argv[i]) + 1;
 
-	msg->hdr.size = htonl(ntohl(msg->hdr.size) + args_size);
-	msg->trace_req.flags = use_fifos ? htonl(MSG_TRACE_USE_FIFOS) : htonl(0);
-	msg->trace_req.argc = htonl(argc);
-	msg->trace_req.trace_id = htonll(trace_id);
-	msg->buf = calloc(args_size, 1);
-	if (!msg->buf)
-		return -ENOMEM;
+	buf_size = TRACE_REQ_PARAM_SIZE + args_size;
+	nbuf = realloc(*buf, *size + buf_size);
+	if (!nbuf)
+		return -1;
 
-	p = msg->buf;
+	p = nbuf + *size;
+	memset(p, 0, buf_size);
+
+	*(unsigned int *)p = htonl(TRACE_REQUEST_ARGS);
+	p += sizeof(int);
+	*(unsigned int *)p = htonl(args_size);
+	p += sizeof(int);
+
+	*(unsigned int *)p = htonl(argc);
+	p += sizeof(int);
 	for (i = 0; i < argc; i++)
 		p = stpcpy(p, argv[i]) + 1;
+
+	*size += buf_size;
+	*buf = nbuf;
+	return 0;
+}
+
+static int make_trace_req(struct tracecmd_msg *msg, int argc, char **argv,
+			  bool use_fifos, unsigned long long trace_id,
+			  char *tsync_protos, int tsync_protos_size)
+{
+	int size = 0;
+	char *buf = NULL;
+
+	msg->trace_req.flags = 0;
+	if (use_fifos)
+		msg->trace_req.flags |= MSG_TRACE_USE_FIFOS;
+	msg->trace_req.flags = htonl(msg->trace_req.flags);
+	msg->trace_req.trace_id = htonll(trace_id);
+
+	if (argc && argv)
+		make_trace_req_args(&buf, &size, argc, argv);
+	if (tsync_protos_size && tsync_protos)
+		make_trace_req_protos(&buf, &size,
+				      tsync_protos_size, tsync_protos);
+
+	msg->buf = buf;
+	msg->hdr.size = htonl(ntohl(msg->hdr.size) + size);
 
 	return 0;
 }
 
 int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int argc, char **argv, bool use_fifos,
-				unsigned long long trace_id)
+				unsigned long long trace_id,
+				char *tsync_protos,
+				int tsync_protos_size)
 {
 	struct tracecmd_msg msg;
 	int ret;
 
 	tracecmd_msg_init(MSG_TRACE_REQ, &msg);
-	ret = make_trace_req(&msg, argc, argv, use_fifos, trace_id);
+	ret = make_trace_req(&msg, argc, argv, use_fifos,
+			     trace_id, tsync_protos, tsync_protos_size);
 	if (ret < 0)
 		return ret;
 
 	return tracecmd_msg_send(msg_handle->fd, &msg);
 }
 
- /*
-  * NOTE: On success, the returned `argv` should be freed with:
-  *     free(argv[0]);
-  *     free(argv);
-  */
+static int get_trace_req_protos(char *buf, int length,
+				char **tsync_protos,
+				unsigned int *tsync_protos_size)
+{
+	*tsync_protos = malloc(length);
+	if (!*tsync_protos)
+		return -1;
+	memcpy(*tsync_protos, buf, length);
+	*tsync_protos_size = length;
+
+	return 0;
+}
+
+static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
+{
+	unsigned int nr_args;
+	char *p, *buf_end;
+	char **args = NULL;
+	char *vagrs = NULL;
+	int ret;
+	int i;
+
+	if (length <= sizeof(int) || buf[length - 1] != '\0') {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	nr_args = ntohl(*(unsigned int *)buf);
+	buf += sizeof(int);
+	length -= sizeof(int);
+
+	args = calloc(nr_args, sizeof(*args));
+	if (!args) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	vagrs = calloc(length, sizeof(char));
+	if (!vagrs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	memcpy(vagrs, buf, length);
+	buf_end = vagrs + length;
+	for (i = 0, p = vagrs; i < nr_args; i++, p++) {
+		if (p >= buf_end) {
+			ret = -EINVAL;
+			goto out;
+		}
+		args[i] = p;
+		p = strchr(p, '\0');
+	}
+
+	*argc = nr_args;
+	*argv = args;
+	return 0;
+
+out:
+	free(args);
+	free(vagrs);
+	return ret;
+
+}
+
+/*
+ * NOTE: On success, the returned `argv` should be freed with:
+ *     free(argv[0]);
+ *     free(argv);
+ * and `tsync_protos` with free(tsync_protos);
+ */
 int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int *argc, char ***argv, bool *use_fifos,
-				unsigned long long *trace_id)
+				unsigned long long *trace_id,
+				char **tsync_protos,
+				unsigned int *tsync_protos_size)
 {
 	struct tracecmd_msg msg;
-	char *p, *buf_end, **args;
-	int i, ret, nr_args;
+	unsigned int param_id;
+	int param_length;
 	ssize_t buf_len;
+	char *p;
+	int ret;
 
 	ret = tracecmd_msg_recv(msg_handle->fd, &msg);
 	if (ret < 0)
@@ -877,48 +1046,45 @@ int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
 		goto out;
 	}
 
-	nr_args = ntohl(msg.trace_req.argc);
-	if (nr_args <= 0) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	buf_len = ntohl(msg.hdr.size) - MSG_HDR_LEN - ntohl(msg.hdr.cmd_size);
-	buf_end = (char *)msg.buf + buf_len;
-	if (buf_len <= 0 && ((char *)msg.buf)[buf_len-1] != '\0') {
+	if (buf_len < 0) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	args = calloc(nr_args, sizeof(*args));
-	if (!args) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	for (i = 0, p = msg.buf; i < nr_args; i++, p++) {
-		if (p >= buf_end) {
-			ret = -EINVAL;
-			goto out_args;
-		}
-		args[i] = p;
-		p = strchr(p, '\0');
-	}
-
-	*argc = nr_args;
-	*argv = args;
 	*use_fifos = ntohl(msg.trace_req.flags) & MSG_TRACE_USE_FIFOS;
 	*trace_id = ntohll(msg.trace_req.trace_id);
-	/*
-	 * On success we're passing msg.buf to the caller through argv[0] so we
-	 * reset it here before calling msg_free().
-	 */
-	msg.buf = NULL;
+	p = msg.buf;
+	while (buf_len > 2 * sizeof(int)) {
+		param_id = ntohl(*((unsigned int *)p));
+		p += sizeof(int);
+		buf_len -= sizeof(int);
+		param_length = ntohl(*((unsigned int *)p));
+		p += sizeof(int);
+		buf_len -= sizeof(int);
+		if (buf_len < param_length)
+			break;
+		ret = 0;
+		switch (param_id) {
+		case TRACE_REQUEST_ARGS:
+			ret = get_trace_req_args(p, param_length, argc, argv);
+			break;
+		case TRACE_REQUEST_TSYNC_PROTOS:
+			ret = get_trace_req_protos(p, param_length,
+						   tsync_protos, tsync_protos_size);
+			break;
+		default:
+			break;
+		}
+		if (ret)
+			break;
+		buf_len -= param_length;
+		p += param_length;
+	}
+
 	msg_free(&msg);
 	return 0;
 
-out_args:
-	free(args);
 out:
 	error_operation(&msg);
 	if (ret == -EOPNOTSUPP)
@@ -927,9 +1093,118 @@ out:
 	return ret;
 }
 
+/**
+ * tracecmd_msg_send_time_sync - Send a time sync packet
+ * @msg_handle: message handle, holding the communication context
+ * @sync_protocol: id of the time synch protocol
+ * @sync_msg_id: id if the time synch message, protocol dependent
+ * @payload_size: size of the packet payload, 0 in case of no payload
+ * @payload: pointer to the packet payload, or NULL in case of no payload
+ *
+ * Returns 0 if packet is sent successfully, or negative error otherwise.
+ */
+int tracecmd_msg_send_time_sync(struct tracecmd_msg_handle *msg_handle,
+				unsigned int sync_protocol,
+				unsigned int sync_msg_id,
+				unsigned int payload_size, char *payload)
+{
+	struct tracecmd_msg msg;
+
+	tracecmd_msg_init(MSG_TIME_SYNC, &msg);
+	msg.tsync.sync_protocol = htonl(sync_protocol);
+	msg.tsync.sync_msg_id = htonl(sync_msg_id);
+	msg.hdr.size = htonl(ntohl(msg.hdr.size) + payload_size);
+
+	msg.buf = payload;
+	return msg_send_nofree(msg_handle->fd, &msg);
+}
+
+/**
+ * tracecmd_msg_recv_time_sync - Receive a time sync packet
+ * @msg_handle: message handle, holding the communication context
+ * @sync_protocol: return the id of the packet's time synch protocol
+ * @sync_msg_id: return the id of the packet's time synch message
+ * @payload_size: size of the packet's payload, can be:
+ *		 NULL - the payload is not interested and should be ignored
+ *		 pointer to int, with value 0 - update with the size of the payload
+ *						allocate memory and cpy the payload
+ *						into it
+ *		 pointer to int, with value greater than 0 - expected size of the
+ *							     payload, preallocated
+ *							     memory is passed to the API
+ *							     with that size
+ *@payload: pointer to the packet payload, can be:
+ *	     NULL - the payload is not interested and should be ignored
+ *	     pointer to char *, with value NULL - a new memory is allocated and returned
+ *						  here, containing the packet's payload
+ *						  the @payload_size is updated with the
+ *						  size of the allocated memory. It must be
+ *						  freed by free()
+ *	     pointer to char *, with no-NULL value - A prealocated array is passed, with size
+ *						     @payload_size. If payload's size is equal
+ *						     or less, it will be copied here.
+ *
+ * Returns 0 if packet is received successfully, or negative error otherwise.
+ */
+int tracecmd_msg_recv_time_sync(struct tracecmd_msg_handle *msg_handle,
+				unsigned int *sync_protocol,
+				unsigned int *sync_msg_id,
+				unsigned int *payload_size, char **payload)
+{
+	struct tracecmd_msg msg;
+	int ret = -1;
+	int buf_size;
+
+	memset(&msg, 0, sizeof(msg));
+	ret = tracecmd_msg_recv(msg_handle->fd, &msg);
+	if (ret < 0)
+		goto out;
+
+	if (ntohl(msg.hdr.cmd) != MSG_TIME_SYNC) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (sync_protocol)
+		*sync_protocol = ntohl(msg.tsync.sync_protocol);
+	if (sync_msg_id)
+		*sync_msg_id = ntohl(msg.tsync.sync_msg_id);
+
+	buf_size = msg_buf_len(&msg);
+	if (buf_size < 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (buf_size && payload && payload_size) {
+		if (*payload_size) {
+			if (*payload_size < buf_size || *payload == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			memcpy(*payload, msg.buf, buf_size);
+			goto out;
+		}
+
+		*payload = malloc(buf_size);
+		if (*payload == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		*payload_size = buf_size;
+		memcpy(*payload, msg.buf, buf_size);
+	}
+
+out:
+	msg_free(&msg);
+	return ret;
+}
+
 static int make_trace_resp(struct tracecmd_msg *msg, int page_size, int nr_cpus,
 			   unsigned int *ports, bool use_fifos,
-			   unsigned long long trace_id)
+			   unsigned long long trace_id,
+			   unsigned int tsync_proto,
+			   unsigned int tsync_port)
 {
 	int data_size;
 
@@ -940,7 +1215,11 @@ static int make_trace_resp(struct tracecmd_msg *msg, int page_size, int nr_cpus,
 	write_uints(msg->buf, data_size, ports, nr_cpus);
 
 	msg->hdr.size = htonl(ntohl(msg->hdr.size) + data_size);
-	msg->trace_resp.flags = use_fifos ? htonl(MSG_TRACE_USE_FIFOS) : htonl(0);
+	msg->trace_resp.flags = use_fifos ? MSG_TRACE_USE_FIFOS : 0;
+	msg->trace_resp.flags = htonl(msg->trace_resp.flags);
+	msg->trace_resp.tsync_proto = htonl(tsync_proto);
+	msg->trace_resp.tsync_port = htonl(tsync_port);
+
 	msg->trace_resp.cpus = htonl(nr_cpus);
 	msg->trace_resp.page_size = htonl(page_size);
 	msg->trace_resp.trace_id = htonll(trace_id);
@@ -951,14 +1230,16 @@ static int make_trace_resp(struct tracecmd_msg *msg, int page_size, int nr_cpus,
 int tracecmd_msg_send_trace_resp(struct tracecmd_msg_handle *msg_handle,
 				 int nr_cpus, int page_size,
 				 unsigned int *ports, bool use_fifos,
-				 unsigned long long trace_id)
+				 unsigned long long trace_id,
+				 unsigned int tsync_proto,
+				 unsigned int tsync_port)
 {
 	struct tracecmd_msg msg;
 	int ret;
 
 	tracecmd_msg_init(MSG_TRACE_RESP, &msg);
 	ret = make_trace_resp(&msg, page_size, nr_cpus, ports,
-			      use_fifos, trace_id);
+			      use_fifos, trace_id, tsync_proto, tsync_port);
 	if (ret < 0)
 		return ret;
 
@@ -968,7 +1249,9 @@ int tracecmd_msg_send_trace_resp(struct tracecmd_msg_handle *msg_handle,
 int tracecmd_msg_recv_trace_resp(struct tracecmd_msg_handle *msg_handle,
 				 int *nr_cpus, int *page_size,
 				 unsigned int **ports, bool *use_fifos,
-				 unsigned long long *trace_id)
+				 unsigned long long *trace_id,
+				 unsigned int *tsync_proto,
+				 unsigned int *tsync_port)
 {
 	struct tracecmd_msg msg;
 	char *p, *buf_end;
@@ -994,6 +1277,8 @@ int tracecmd_msg_recv_trace_resp(struct tracecmd_msg_handle *msg_handle,
 	*nr_cpus = ntohl(msg.trace_resp.cpus);
 	*page_size = ntohl(msg.trace_resp.page_size);
 	*trace_id = ntohll(msg.trace_resp.trace_id);
+	*tsync_proto = ntohl(msg.trace_resp.tsync_proto);
+	*tsync_port = ntohl(msg.trace_resp.tsync_port);
 	*ports = calloc(*nr_cpus, sizeof(**ports));
 	if (!*ports) {
 		ret = -ENOMEM;

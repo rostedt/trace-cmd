@@ -60,6 +60,10 @@ static struct usage_help usage_help[] = {
 		"          --no-filter include trace-cmd threads in the trace\n"
 		"          --proc-map save the traced processes address map into the trace.dat file\n"
 		"          --user execute the specified [command ...] as given user\n"
+		"          --tsync-interval set the loop interval, in ms, for timestamps synchronization with guests:"
+		"               If a negative number is specified, timestamps synchronization is disabled"
+		"               If 0 is specified, no loop is performed - timestamps offset is calculated only twice,"
+		"                                                         at the beginnig and at the end of the trace\n"
 	},
 	{
 		"start",

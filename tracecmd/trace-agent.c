@@ -19,6 +19,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <linux/vm_sockets.h>
+#include <pthread.h>
 
 #include "trace-local.h"
 #include "trace-msg.h"
@@ -125,11 +126,30 @@ cleanup:
 	return ret;
 }
 
+static char *get_clock(int argc, char **argv)
+{
+	int i;
+
+	if (!argc || !argv)
+		return NULL;
+
+	for (i = 0; i < argc - 1; i++) {
+		if (!strcmp("-C", argv[i]))
+			return argv[i+1];
+	}
+	return NULL;
+}
+
 static void agent_handle(int sd, int nr_cpus, int page_size)
 {
 	struct tracecmd_msg_handle *msg_handle;
+	unsigned int tsync_protos_size = 0;
+	unsigned int tsync_proto = 0;
 	unsigned long long trace_id;
+	unsigned int tsync_port = 0;
+	char *tsync_protos = NULL;
 	unsigned int *ports;
+	pthread_t sync_thr;
 	char **argv = NULL;
 	int argc = 0;
 	bool use_fifos;
@@ -146,7 +166,8 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 		die("Failed to allocate message handle");
 
 	ret = tracecmd_msg_recv_trace_req(msg_handle, &argc, &argv,
-					  &use_fifos, &trace_id);
+					  &use_fifos, &trace_id,
+					  &tsync_protos, &tsync_protos_size);
 	if (ret < 0)
 		die("Failed to receive trace request");
 
@@ -155,16 +176,28 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 
 	if (!use_fifos)
 		make_vsocks(nr_cpus, fds, ports);
-
+	if (tsync_protos) {
+		tsync_proto = tracecmd_guest_tsync(tsync_protos,
+						   tsync_protos_size,
+						   get_clock(argc, argv),
+						   &tsync_port, &sync_thr);
+		if (!tsync_proto)
+			warning("Failed to negotiate timestamps synchronization with the host");
+	}
 	trace_id = tracecmd_generate_traceid();
 	ret = tracecmd_msg_send_trace_resp(msg_handle, nr_cpus, page_size,
-					   ports, use_fifos, trace_id);
+					   ports, use_fifos, trace_id,
+					   tsync_proto, tsync_port);
 	if (ret < 0)
 		die("Failed to send trace response");
 
 	trace_record_agent(msg_handle, nr_cpus, fds, argc, argv,
 			   use_fifos, trace_id);
 
+	if (tsync_proto)
+		pthread_join(sync_thr, NULL);
+
+	free(tsync_protos);
 	free(argv[0]);
 	free(argv);
 	free(ports);
