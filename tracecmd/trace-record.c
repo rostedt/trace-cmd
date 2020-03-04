@@ -5247,6 +5247,7 @@ void init_top_instance(void)
 		top_instance.tracefs = tracefs_instance_alloc(NULL);
 	top_instance.cpu_count = tracecmd_count_cpus();
 	top_instance.flags = BUFFER_FL_KEEP;
+	top_instance.trace_id = tracecmd_generate_traceid();
 	init_instance(&top_instance);
 }
 
