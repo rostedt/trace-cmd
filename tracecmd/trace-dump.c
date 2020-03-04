@@ -412,6 +412,65 @@ out:
 	free(offsets);
 }
 
+void dump_option_guest(int fd, int size)
+{
+	unsigned long long trace_id;
+	char *buf, *p;
+	int cpu, pid;
+	int cpus;
+	int i;
+
+	do_print(OPTIONS, "\t\t[Option GUEST, %d bytes]\n", size);
+
+	/*
+	 * Guest name, null terminated string
+	 * long long (8 bytes) trace-id
+	 * int (4 bytes) number of guest CPUs
+	 * array of size number of guest CPUs:
+	 *	int (4 bytes) Guest CPU id
+	 *	int (4 bytes) Host PID, running the guest CPU
+	 */
+	buf = calloc(1, size);
+	if (!buf)
+		return;
+	if (read_file_bytes(fd, buf, size))
+		goto out;
+
+	p = buf;
+	do_print(OPTIONS, "%s [Guest name]\n", p);
+	size -= strlen(buf) + 1;
+	p += strlen(buf) + 1;
+
+	if (size < sizeof(long long))
+		goto out;
+	trace_id = tep_read_number(tep, p, sizeof(long long));
+	size -= sizeof(long long);
+	p += sizeof(long long);
+	do_print(OPTIONS, "0x%llX [trace id]\n", trace_id);
+
+	if (size < sizeof(int))
+		goto out;
+	cpus = tep_read_number(tep, p, sizeof(int));
+	size -= sizeof(int);
+	p += sizeof(int);
+	do_print(OPTIONS, "%d [Guest CPUs]\n", cpus);
+
+	for (i = 0; i < cpus; i++) {
+		if (size < 2 * sizeof(int))
+			goto out;
+		cpu = tep_read_number(tep, p, sizeof(int));
+		size -= sizeof(int);
+		p += sizeof(int);
+		pid = tep_read_number(tep, p, sizeof(int));
+		size -= sizeof(int);
+		p += sizeof(int);
+		do_print(OPTIONS, "  %d %d [guest cpu, host pid]\n", cpu, pid);
+	}
+
+out:
+	free(buf);
+}
+
 static void dump_options(int fd)
 {
 	unsigned short option;
@@ -467,6 +526,9 @@ static void dump_options(int fd)
 			break;
 		case TRACECMD_OPTION_TIME_SHIFT:
 			dump_option_timeshift(fd, size);
+			break;
+		case TRACECMD_OPTION_GUEST:
+			dump_option_guest(fd, size);
 			break;
 		default:
 			do_print(OPTIONS, " %d %d\t[Unknown option, size - skipping]\n",

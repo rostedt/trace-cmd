@@ -82,6 +82,14 @@ struct ts_offset_sample {
 	long long	offset;
 };
 
+struct guest_trace_info {
+	struct guest_trace_info	*next;
+	char			*name;
+	unsigned long long	trace_id;
+	int			vcpu_count;
+	int			*cpu_pid;
+};
+
 struct host_trace_info {
 	unsigned long long	trace_id;
 	bool			sync_enable;
@@ -115,6 +123,7 @@ struct tracecmd_input {
 	char *			trace_clock;
 	struct input_buffer_instance	*buffers;
 	int			parsing_failures;
+	struct guest_trace_info	*guest;
 
 	struct tracecmd_ftrace	finfo;
 
@@ -2197,6 +2206,86 @@ static void procmap_free(struct pid_addr_maps *maps)
 	free(maps);
 }
 
+static void trace_guests_free(struct tracecmd_input *handle)
+{
+	struct guest_trace_info *guest;
+
+	while (handle->guest) {
+		guest = handle->guest;
+		handle->guest = handle->guest->next;
+		free(guest->name);
+		free(guest->cpu_pid);
+		free(guest);
+	}
+}
+
+static int trace_guest_load(struct tracecmd_input *handle, char *buf, int size)
+{
+	struct guest_trace_info *guest = NULL;
+	int cpu;
+	int i;
+
+	guest = calloc(1, sizeof(struct guest_trace_info));
+	if (!guest)
+		goto error;
+
+	/*
+	 * Guest name, null terminated string
+	 * long long (8 bytes) trace-id
+	 * int (4 bytes) number of guest CPUs
+	 * array of size number of guest CPUs:
+	 *	int (4 bytes) Guest CPU id
+	 *	int (4 bytes) Host PID, running the guest CPU
+	 */
+
+	guest->name = strndup(buf, size);
+	if (!guest->name)
+		goto error;
+	buf += strlen(guest->name) + 1;
+	size -= strlen(guest->name) + 1;
+
+	if (size < sizeof(long long))
+		goto error;
+	guest->trace_id = tep_read_number(handle->pevent, buf, sizeof(long long));
+	buf += sizeof(long long);
+	size -= sizeof(long long);
+
+	if (size < sizeof(int))
+		goto error;
+	guest->vcpu_count = tep_read_number(handle->pevent, buf, sizeof(int));
+	buf += sizeof(int);
+	size -= sizeof(int);
+
+	guest->cpu_pid = calloc(guest->vcpu_count, sizeof(int));
+	if (!guest->cpu_pid)
+		goto error;
+
+	for (i = 0; i < guest->vcpu_count; i++) {
+		if (size < 2 * sizeof(int))
+			goto error;
+		cpu = tep_read_number(handle->pevent, buf, sizeof(int));
+		buf += sizeof(int);
+		if (cpu >= guest->vcpu_count)
+			goto error;
+		guest->cpu_pid[cpu] = tep_read_number(handle->pevent,
+						      buf, sizeof(int));
+		buf += sizeof(int);
+		size -= 2 * sizeof(int);
+	}
+
+	guest->next = handle->guest;
+	handle->guest = guest;
+	return 0;
+
+error:
+	if (guest) {
+		free(guest->cpu_pid);
+		free(guest->name);
+		free(guest);
+	}
+	return -1;
+}
+
 /* Needs to be a constant, and 4K should be good enough */
 #define STR_PROCMAP_LINE_MAX	4096
 static int trace_pid_map_load(struct tracecmd_input *handle, char *buf)
@@ -2467,6 +2556,9 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_TRACEID:
 			handle->trace_id = tep_read_number(handle->pevent,
 							   &cpus, 8);
+			break;
+		case TRACECMD_OPTION_GUEST:
+			trace_guest_load(handle, buf, size);
 			break;
 		default:
 			warning("unknown option %d", option);
@@ -3122,6 +3214,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	handle->pid_maps = NULL;
 
 	trace_tsync_offset_free(&handle->host);
+	trace_guests_free(handle);
 
 	if (handle->flags & TRACECMD_FL_BUFFER_INSTANCE)
 		tracecmd_close(handle->parent);
@@ -3584,6 +3677,41 @@ void tracecmd_set_show_data_func(struct tracecmd_input *handle,
 unsigned long long tracecmd_get_traceid(struct tracecmd_input *handle)
 {
 	return handle->trace_id;
+}
+
+/**
+ * tracecmd_get_guest_cpumap - get the mapping of guest VCPU to host process
+ * @handle: input handle for the trace.dat file
+ * @trace_id: ID of the guest tracing session
+ * @name: return, name of the guest
+ * @vcpu_count: return, number of VPUs
+ * @cpu_pid: return, array with guest VCPU to host process mapping
+ *
+ * Returns @name of the guest, number of VPUs (@vcpu_count)
+ * and array @cpu_pid with size @vcpu_count. Array index is VCPU id, array
+ * content is PID of the host process, running this VCPU.
+ *
+ * This information is stored in host trace.dat file
+ */
+int tracecmd_get_guest_cpumap(struct tracecmd_input *handle,
+			      unsigned long long trace_id,
+			      char **name,
+			      int *vcpu_count, int **cpu_pid)
+{
+	struct guest_trace_info	*guest = handle->guest;
+
+	while (guest) {
+		if (guest->trace_id == trace_id)
+			break;
+		guest = guest->next;
+	}
+	if (!guest)
+		return -1;
+
+	*name = guest->name;
+	*vcpu_count = guest->vcpu_count;
+	*cpu_pid = guest->cpu_pid;
+	return 0;
 }
 
 /**

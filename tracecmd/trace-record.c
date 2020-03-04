@@ -3061,6 +3061,19 @@ static int set_vcpu_pid_mapping(struct guest *guest, int cpu, int pid)
 	return 0;
 }
 
+static struct guest *get_guest_info(unsigned int guest_cid)
+{
+	int i;
+
+	if (!guests)
+		return NULL;
+
+	for (i = 0; i < guests_len; i++)
+		if (guest_cid == guests[i].cid)
+			return guests + i;
+	return NULL;
+}
+
 static char *get_qemu_guest_name(char *arg)
 {
 	char *tok, *end = arg;
@@ -3875,6 +3888,49 @@ static void append_buffer(struct tracecmd_output *handle,
 	}
 }
 
+static void
+add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance)
+{
+	struct guest *guest = get_guest_info(instance->cid);
+	char *buf, *p;
+	int size;
+	int i;
+
+	if (!guest)
+		return;
+	for (i = 0; i < guest->cpu_max; i++)
+		if (!guest->cpu_pid[i])
+			break;
+
+	size = strlen(guest->name) + 1;
+	size +=  sizeof(long long);	/* trace_id */
+	size +=  sizeof(int);		/* cpu count */
+	size += i * 2 * sizeof(int);	/* cpu,pid pair */
+
+	buf = calloc(1, size);
+	if (!buf)
+		return;
+	p = buf;
+	strcpy(p, guest->name);
+	p += strlen(guest->name) + 1;
+
+	memcpy(p, &instance->trace_id, sizeof(long long));
+	p += sizeof(long long);
+
+	memcpy(p, &i, sizeof(int));
+	p += sizeof(int);
+	for (i = 0; i < guest->cpu_max; i++) {
+		if (!guest->cpu_pid[i])
+			break;
+		memcpy(p, &i, sizeof(int));
+		p += sizeof(int);
+		memcpy(p, &guest->cpu_pid[i], sizeof(int));
+		p += sizeof(int);
+	}
+
+	tracecmd_add_option(handle, TRACECMD_OPTION_GUEST, size, buf);
+	free(buf);
+}
 
 static void
 add_pid_maps(struct tracecmd_output *handle, struct buffer_instance *instance)
@@ -4157,6 +4213,11 @@ static void record_data(struct common_record_context *ctx)
 
 		for_all_instances(instance) {
 			add_pid_maps(handle, instance);
+		}
+
+		for_all_instances(instance) {
+			if (is_guest(instance))
+				add_guest_info(handle, instance);
 		}
 
 		tracecmd_append_cpu_data(handle, local_cpu_count, temp_files);
