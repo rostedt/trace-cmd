@@ -82,6 +82,7 @@ struct tracecmd_input {
 	struct tep_plugin_list	*plugin_list;
 	struct tracecmd_input	*parent;
 	unsigned long		flags;
+	unsigned long long	trace_id;
 	int			fd;
 	int			long_size;
 	int			page_size;
@@ -2319,6 +2320,10 @@ static int handle_options(struct tracecmd_input *handle)
 			if (buf[size-1] == '\0')
 				trace_pid_map_load(handle, buf);
 			break;
+		case TRACECMD_OPTION_TRACEID:
+			handle->trace_id = tep_read_number(handle->pevent,
+							   &cpus, 8);
+			break;
 		default:
 			warning("unknown option %d", option);
 			break;
@@ -3421,4 +3426,15 @@ void tracecmd_set_show_data_func(struct tracecmd_input *handle,
 				 tracecmd_show_data_func func)
 {
 	handle->show_data_func = func;
+}
+
+/**
+ * tracecmd_get_traceid - get the trace id of the session
+ * @handle: input handle for the trace.dat file
+ *
+ * Returns the trace id, written in the trace file
+ */
+unsigned long long tracecmd_get_traceid(struct tracecmd_input *handle)
+{
+	return handle->trace_id;
 }

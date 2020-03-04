@@ -3904,6 +3904,13 @@ add_pid_maps(struct tracecmd_output *handle, struct buffer_instance *instance)
 }
 
 static void
+add_trace_id(struct tracecmd_output *handle, struct buffer_instance *instance)
+{
+	tracecmd_add_option(handle, TRACECMD_OPTION_TRACEID,
+			    sizeof(long long), &instance->trace_id);
+}
+
+static void
 add_buffer_stat(struct tracecmd_output *handle, struct buffer_instance *instance)
 {
 	struct trace_seq s;
@@ -4008,6 +4015,8 @@ static void add_options(struct tracecmd_output *handle, struct common_record_con
 	add_option_hooks(handle);
 	add_uname(handle);
 	add_version(handle);
+	if (!no_top_instance())
+		add_trace_id(handle, &top_instance);
 }
 
 static void write_guest_file(struct buffer_instance *instance)

@@ -358,6 +358,14 @@ static void dump_option_int(int fd, int size, char *desc)
 	do_print(OPTIONS, "%d\n", val);
 }
 
+static void dump_option_xlong(int fd, int size, char *desc)
+{
+	long long val;
+
+	do_print(OPTIONS, "\t\t[Option %s, %d bytes]\n", desc, size);
+	read_file_number(fd, &val, size);
+	do_print(OPTIONS, "0x%llX\n", val);
+}
 static void dump_options(int fd)
 {
 	unsigned short option;
@@ -407,6 +415,9 @@ static void dump_options(int fd)
 			break;
 		case TRACECMD_OPTION_PROCMAPS:
 			dump_option_string(fd, size, "PROCMAPS");
+			break;
+		case TRACECMD_OPTION_TRACEID:
+			dump_option_xlong(fd, size, "TRACEID");
 			break;
 		default:
 			do_print(OPTIONS, " %d %d\t[Unknown option, size - skipping]\n",
