@@ -21,7 +21,9 @@
 #include <glob.h>
 
 #include "tracefs.h"
+#include "trace-cmd.h"
 #include "trace-cmd-local.h"
+#include "trace-write-local.h"
 #include "list.h"
 #include "trace-msg.h"
 

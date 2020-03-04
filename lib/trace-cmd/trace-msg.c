@@ -22,7 +22,7 @@
 #include <sys/types.h>
 #include <linux/types.h>
 
-#include "trace-cmd-local.h"
+#include "trace-write-local.h"
 #include "trace-local.h"
 #include "trace-msg.h"
 
