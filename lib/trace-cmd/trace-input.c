@@ -83,8 +83,8 @@ struct ts_offset_sample {
 };
 
 struct host_trace_info {
-	bool			sync_enable;
 	unsigned long long	trace_id;
+	bool			sync_enable;
 	int			ts_samples_count;
 	struct ts_offset_sample	*ts_samples;
 };
