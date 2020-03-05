@@ -3695,8 +3695,8 @@ unsigned long long tracecmd_get_traceid(struct tracecmd_input *handle)
  */
 int tracecmd_get_guest_cpumap(struct tracecmd_input *handle,
 			      unsigned long long trace_id,
-			      char **name,
-			      int *vcpu_count, int **cpu_pid)
+			      const char **name,
+			      int *vcpu_count, const int **cpu_pid)
 {
 	struct guest_trace_info	*guest = handle->guest;
 
