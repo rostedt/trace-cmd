@@ -122,6 +122,50 @@ static char *get_instance_file_content(struct buffer_instance *instance,
 	return str;
 }
 
+static void report_instances(void)
+{
+	struct dirent *dent;
+	bool first = true;
+	char *path = NULL;
+	DIR *dir = NULL;
+	struct stat st;
+	int ret;
+
+	path = tracefs_get_tracing_file("instances");
+	if (!path)
+		return;
+	ret = stat(path, &st);
+	if (ret < 0 || !S_ISDIR(st.st_mode))
+		goto out;
+
+	dir = opendir(path);
+	if (!dir)
+		goto out;
+
+	while ((dent = readdir(dir))) {
+		char *instance;
+
+		if (strcmp(dent->d_name, ".") == 0 ||
+		    strcmp(dent->d_name, "..") == 0)
+			continue;
+		instance = append_file(path, dent->d_name);
+		ret = stat(instance, &st);
+		free(instance);
+		if (ret < 0 || !S_ISDIR(st.st_mode))
+			continue;
+		if (first) {
+			first = false;
+			printf("\nInstances:\n");
+		}
+		printf(" %s\n", dent->d_name);
+	}
+
+out:
+	if (dir)
+		closedir(dir);
+	tracefs_put_tracing_file(path);
+}
+
 static void report_plugin(struct buffer_instance *instance)
 {
 	char *str;
@@ -860,7 +904,8 @@ static void stat_instance(struct buffer_instance *instance)
 			printf("---------------\n");
 		printf("Instance: %s\n",
 			tracefs_instance_get_name(instance->tracefs));
-	}
+	} else
+		report_instances();
 
 	report_plugin(instance);
 	report_events(instance);
