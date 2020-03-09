@@ -130,7 +130,7 @@ static void write_guest_time_shift(struct buffer_instance *instance)
 	struct iovec vector[4];
 	long long *offsets;
 	long long *ts;
-	char *file;
+	const char *file;
 	int count;
 	int ret;
 	int fd;
@@ -139,12 +139,10 @@ static void write_guest_time_shift(struct buffer_instance *instance)
 	if (ret < 0 || !count || !ts || !offsets)
 		return;
 
-	file = trace_get_guest_file(DEFAULT_INPUT_FILE,
-				tracefs_instance_get_name(instance->tracefs));
+	file = instance->output_file;
 	fd = open(file, O_RDWR);
 	if (fd < 0)
 		die("error opening %s", file);
-	free(file);
 	handle = tracecmd_get_output_handle_fd(fd);
 	vector[0].iov_len = 8;
 	vector[0].iov_base = &top_instance.trace_id;

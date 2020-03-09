@@ -189,6 +189,7 @@ struct buffer_instance {
 	struct tracefs_instance	*tracefs;
 	unsigned long long	trace_id;
 	char			*cpumask;
+	char			*output_file;
 	struct event_list	*events;
 	struct event_list	**event_next;
 

@@ -69,8 +69,6 @@ static int rt_prio;
 
 static int keep;
 
-static const char *output_file = DEFAULT_INPUT_FILE;
-
 static int latency;
 static int sleep_time = 1000;
 static int recorder_threads;
@@ -524,6 +522,7 @@ static void reset_event_list(struct buffer_instance *instance)
 
 static char *get_temp_file(struct buffer_instance *instance, int cpu)
 {
+	const char *output_file = instance->output_file;
 	const char *name;
 	char *file = NULL;
 	int size;
@@ -572,6 +571,7 @@ static void put_temp_file(char *file)
 
 static void delete_temp_file(struct buffer_instance *instance, int cpu)
 {
+	const char *output_file = instance->output_file;
 	const char *name;
 	char file[PATH_MAX];
 
@@ -3777,6 +3777,7 @@ static void connect_to_agent(struct buffer_instance *instance)
 static void setup_guest(struct buffer_instance *instance)
 {
 	struct tracecmd_msg_handle *msg_handle = instance->msg_handle;
+	const char *output_file = instance->output_file;
 	char *file;
 	int fd;
 
@@ -3786,8 +3787,10 @@ static void setup_guest(struct buffer_instance *instance)
 	if (!file)
 		die("Failed to allocate memory");
 
+	free(instance->output_file);
+	instance->output_file = file;
+
 	fd = open(file, O_CREAT|O_WRONLY|O_TRUNC, 0644);
-	put_temp_file(file);
 	if (fd < 0)
 		die("Failed to open", file);
 
@@ -4119,15 +4122,10 @@ static void write_guest_file(struct buffer_instance *instance)
 	char **temp_files;
 	int i, fd;
 
-	file = trace_get_guest_file(output_file,
-				    tracefs_instance_get_name(instance->tracefs));
-	if (!file)
-		die("Failed to allocate memory");
-
+	file = instance->output_file;
 	fd = open(file, O_RDWR);
 	if (fd < 0)
 		die("error opening %s", file);
-	put_temp_file(file);
 
 	handle = tracecmd_get_output_handle_fd(fd);
 	if (!handle)
@@ -4176,7 +4174,7 @@ static void record_data(struct common_record_context *ctx)
 		return;
 
 	if (latency) {
-		handle = tracecmd_create_file_latency(output_file, local_cpu_count);
+		handle = tracecmd_create_file_latency(ctx->output, local_cpu_count);
 		tracecmd_set_quiet(handle, quiet);
 	} else {
 		if (!local_cpu_count)
@@ -4207,7 +4205,7 @@ static void record_data(struct common_record_context *ctx)
 				touch_file(temp_files[i]);
 		}
 
-		handle = tracecmd_create_init_file_glob(output_file, listed_events);
+		handle = tracecmd_create_init_file_glob(ctx->output, listed_events);
 		if (!handle)
 			die("Error creating output file");
 		tracecmd_set_quiet(handle, quiet);
@@ -6165,11 +6163,14 @@ static void record_trace(int argc, char **argv,
 	check_doing_something();
 	check_function_plugin();
 
-	if (ctx->output)
-		output_file = ctx->output;
+	if (!ctx->output)
+		ctx->output = DEFAULT_INPUT_FILE;
 
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
+		instance->output_file = strdup(ctx->output);
+		if (!instance->output_file)
+			die("Failed to allocate output file name for instance");
 		if (!ctx->manual && instance->flags & BUFFER_FL_PROFILE)
 			enable_profile(instance);
 
@@ -6300,8 +6301,8 @@ void trace_extract(int argc, char **argv)
 	update_first_instance(ctx.instance, 1);
 	check_function_plugin();
 
-	if (ctx.output)
-		output_file = ctx.output;
+	if (!ctx.output)
+		ctx.output = DEFAULT_INPUT_FILE;
 
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
