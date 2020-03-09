@@ -23,7 +23,7 @@
 #include "trace-local.h"
 
 static unsigned int page_size;
-static const char *default_input_file = DEFAUT_INPUT_FILE;
+static const char *default_input_file = DEFAULT_INPUT_FILE;
 static const char *input_file;
 
 enum split_types {

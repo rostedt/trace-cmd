@@ -139,7 +139,7 @@ static void write_guest_time_shift(struct buffer_instance *instance)
 	if (ret < 0 || !count || !ts || !offsets)
 		return;
 
-	file = trace_get_guest_file(DEFAUT_INPUT_FILE,
+	file = trace_get_guest_file(DEFAULT_INPUT_FILE,
 				tracefs_instance_get_name(instance->tracefs));
 	fd = open(file, O_RDWR);
 	if (fd < 0)

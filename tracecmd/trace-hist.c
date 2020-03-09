@@ -1037,7 +1037,7 @@ void trace_hist(int argc, char **argv)
 	}
 
 	if (!input_file)
-		input_file = DEFAUT_INPUT_FILE;
+		input_file = DEFAULT_INPUT_FILE;
 
 	handle = tracecmd_alloc(input_file);
 	if (!handle)

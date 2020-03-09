@@ -69,7 +69,7 @@ static int rt_prio;
 
 static int keep;
 
-static const char *output_file = DEFAUT_INPUT_FILE;
+static const char *output_file = DEFAULT_INPUT_FILE;
 
 static int latency;
 static int sleep_time = 1000;

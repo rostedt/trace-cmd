@@ -74,7 +74,7 @@ struct pid_list *comm_list;
 
 static unsigned int page_size;
 static int input_fd;
-static const char *default_input_file = DEFAUT_INPUT_FILE;
+static const char *default_input_file = DEFAULT_INPUT_FILE;
 static const char *input_file;
 static int multi_inputs;
 static int max_file_size;

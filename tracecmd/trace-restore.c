@@ -25,7 +25,7 @@
 void trace_restore (int argc, char **argv)
 {
 	struct tracecmd_output *handle;
-	const char *output_file = DEFAUT_INPUT_FILE;
+	const char *output_file = DEFAULT_INPUT_FILE;
 	const char *output = NULL;
 	const char *input = NULL;
 	const char *tracing_dir = NULL;
