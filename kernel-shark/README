@@ -19,6 +19,7 @@ KernelShark has the following external dependencies:
 2. In order to install the packages on Fedora, as root do the following:
     dnf install gcc gcc-c++ git cmake json-c-devel -y
     dnf install freeglut-devel redhat-rpm-config -y
+    dnf install libXmu-devel libXi-devel -y
     dnf install qt5-qtbase-devel -y
 
 2.1 I you want to be able to generate Doxygen documentation:
