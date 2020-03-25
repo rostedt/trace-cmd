@@ -2658,6 +2658,21 @@ static void set_max_graph_depth(struct buffer_instance *instance, char *max_grap
 		die("could not write to max_graph_depth");
 }
 
+static bool check_file_in_dir(char *dir, char *file)
+{
+	struct stat st;
+	char *path;
+	int ret;
+
+	ret = asprintf(&path, "%s/%s", dir, file);
+	if (ret < 0)
+		die("Failed to allocate id file path for %s/%s", dir, file);
+	ret = stat(path, &st);
+	free(path);
+	if (ret < 0 || S_ISDIR(st.st_mode))
+		return false;
+	return true;
+}
 
 /**
  * create_event - create and event descriptor
@@ -2703,14 +2718,19 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		free(p);
 
 	if (old_event->trigger) {
-		event->trigger = strdup(old_event->trigger);
-		ret = asprintf(&p, "%s/trigger", path_dirname);
-		if (ret < 0)
-			die("Failed to allocate trigger path for %s", path);
-		ret = stat(p, &st);
-		if (ret < 0)
-			die("trigger specified but not supported by this kernel");
-		event->trigger_file = p;
+		if (check_file_in_dir(path_dirname, "trigger")) {
+			event->trigger = strdup(old_event->trigger);
+			ret = asprintf(&p, "%s/trigger", path_dirname);
+			if (ret < 0)
+				die("Failed to allocate trigger path for %s", path);
+			event->trigger_file = p;
+		} else {
+			/* Check if this is event or system.
+			 * Systems do not have trigger files by design
+			 */
+			if (check_file_in_dir(path_dirname, "id"))
+				die("trigger specified but not supported by this kernel");
+		}
 	}
 
 	return event;
@@ -2815,14 +2835,29 @@ static int expand_event_files(struct buffer_instance *instance,
 	return save_event_tail == instance->event_next;
 }
 
+static int expand_events_all(struct buffer_instance *instance,
+			     char *system_name, char *event_name,
+			     struct event_list *event)
+{
+	char *name;
+	int ret;
+
+	ret = asprintf(&name, "%s/%s", system_name, event_name);
+	if (ret < 0)
+		die("Failed to allocate system/event for %s/%s",
+		     system_name, event_name);
+	ret = expand_event_files(instance, name, event);
+	free(name);
+
+	return ret;
+}
+
 static void expand_event(struct buffer_instance *instance, struct event_list *event)
 {
 	const char *name = event->event;
 	char *str;
 	char *ptr;
-	int len;
 	int ret;
-	int ret2;
 
 	/*
 	 * We allow the user to use "all" to enable all events.
@@ -2833,41 +2868,37 @@ static void expand_event(struct buffer_instance *instance, struct event_list *ev
 		return;
 	}
 
-	ptr = strchr(name, ':');
+	str = strdup(name);
+	if (!str)
+		die("Failed to allocate %s string", name);
 
+	ptr = strchr(str, ':');
 	if (ptr) {
-		len = ptr - name;
-		str = malloc(strlen(name) + 1); /* may add '*' */
-		if (!str)
-			die("Failed to allocate event for %s", name);
-		strcpy(str, name);
-		str[len] = '/';
+		*ptr = '\0';
 		ptr++;
-		if (!strlen(ptr)) {
-			str[len + 1] = '*';
-			str[len + 2] = '\0';
-		}
 
-		ret = expand_event_files(instance, str, event);
+		if (strlen(ptr))
+			ret = expand_events_all(instance, str, ptr, event);
+		else
+			ret = expand_events_all(instance, str, "*", event);
+
 		if (!ignore_event_not_found && ret)
 			die("No events enabled with %s", name);
-		free(str);
-		return;
+
+		goto out;
 	}
 
 	/* No ':' so enable all matching systems and events */
-	ret = expand_event_files(instance, name, event);
+	ret = expand_event_files(instance, str, event);
+	ret &= expand_events_all(instance, "*", str, event);
+	if (event->trigger)
+		ret &= expand_events_all(instance, str, "*", event);
 
-	len = strlen(name) + strlen("*/") + 1;
-	str = malloc(len);
-	if (!str)
-		die("Failed to allocate event for %s", name);
-	snprintf(str, len, "*/%s", name);
-	ret2 = expand_event_files(instance, str, event);
-	free(str);
-
-	if (!ignore_event_not_found && ret && ret2)
+	if (!ignore_event_not_found && ret)
 		die("No events enabled with %s", name);
+
+out:
+	free(str);
 }
 
 static void expand_event_instance(struct buffer_instance *instance)
