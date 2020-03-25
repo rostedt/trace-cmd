@@ -2707,7 +2707,7 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 		if (ret < 0)
 			die("Failed to allocate trigger path for %s", path);
 		ret = stat(p, &st);
-		if (ret > 0)
+		if (ret < 0)
 			die("trigger specified but not supported by this kernel");
 		event->trigger_file = p;
 	}
