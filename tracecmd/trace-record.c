@@ -2702,7 +2702,8 @@ create_event(struct buffer_instance *instance, char *path, struct event_list *ol
 	else
 		free(p);
 
-	if (event->trigger) {
+	if (old_event->trigger) {
+		event->trigger = strdup(old_event->trigger);
 		ret = asprintf(&p, "%s/trigger", path_dirname);
 		if (ret < 0)
 			die("Failed to allocate trigger path for %s", path);
@@ -2883,6 +2884,7 @@ static void expand_event_instance(struct buffer_instance *instance)
 		event = compressed_list;
 		compressed_list = event->next;
 		expand_event(instance, event);
+		free(event->trigger);
 		free(event);
 	}
 }
