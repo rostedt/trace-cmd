@@ -181,11 +181,7 @@ private:
 
 	void _showTasks();
 
-	void _hideTasks();
-
 	void _showCPUs();
-
-	void _hideCPUs();
 
 	void _advancedFiltering();
 

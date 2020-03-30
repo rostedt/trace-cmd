@@ -669,41 +669,6 @@ void KsMainWindow::_showTasks()
 	dialog->show();
 }
 
-void KsMainWindow::_hideTasks()
-{
-	kshark_context *kshark_ctx(nullptr);
-	KsCheckBoxWidget *tasks_cbd;
-	KsCheckBoxDialog *dialog;
-
-	if (!kshark_instance(&kshark_ctx))
-		return;
-
-	tasks_cbd = new KsTasksCheckBoxWidget(_data.tep(), false, this);
-	dialog = new KsCheckBoxDialog(tasks_cbd, this);
-
-	if (!kshark_ctx->hide_task_filter ||
-	    !kshark_ctx->hide_task_filter->count) {
-		tasks_cbd->setDefault(false);
-	} else {
-		QVector<int> pids = KsUtils::getPidList();
-		int nPids = pids.count();
-		QVector<bool> v(nPids, false);
-
-		for (int i = 0; i < nPids; ++i) {
-			if (tracecmd_filter_id_find(kshark_ctx->hide_task_filter,
-						    pids[i]))
-				v[i] = true;
-		}
-
-		tasks_cbd->set(v);
-	}
-
-	connect(dialog,		&KsCheckBoxDialog::apply,
-		&_data,		&KsDataStore::applyNegTaskFilter);
-
-	dialog->show();
-}
-
 void KsMainWindow::_showCPUs()
 {
 	kshark_context *kshark_ctx(nullptr);
@@ -733,40 +698,6 @@ void KsMainWindow::_showCPUs()
 
 	connect(dialog,		&KsCheckBoxDialog::apply,
 		&_data,		&KsDataStore::applyPosCPUFilter);
-
-	dialog->show();
-}
-
-void KsMainWindow::_hideCPUs()
-{
-	kshark_context *kshark_ctx(nullptr);
-	KsCheckBoxWidget *cpu_cbd;
-	KsCheckBoxDialog *dialog;
-
-	if (!kshark_instance(&kshark_ctx))
-		return;
-
-	cpu_cbd = new KsCPUCheckBoxWidget(_data.tep(), this);
-	dialog = new KsCheckBoxDialog(cpu_cbd, this);
-
-	if (!kshark_ctx->hide_cpu_filter ||
-	    !kshark_ctx->hide_cpu_filter->count) {
-		cpu_cbd->setDefault(false);
-	} else {
-		int nCPUs = tep_get_cpus(_data.tep());
-		QVector<bool> v(nCPUs, false);
-
-		for (int i = 0; i < nCPUs; ++i) {
-			if (tracecmd_filter_id_find(kshark_ctx->hide_cpu_filter,
-						    i))
-				v[i] = true;
-		}
-
-		cpu_cbd->set(v);
-	}
-
-	connect(dialog,		&KsCheckBoxDialog::apply,
-		&_data,		&KsDataStore::applyNegCPUFilter);
 
 	dialog->show();
 }
