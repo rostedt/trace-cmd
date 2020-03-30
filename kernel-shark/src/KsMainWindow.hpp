@@ -19,6 +19,7 @@
 // KernelShark
 #include "KsTraceViewer.hpp"
 #include "KsTraceGraph.hpp"
+#include "KsWidgetsLib.hpp"
 #include "KsSession.hpp"
 #include "KsUtils.hpp"
 
@@ -176,6 +177,14 @@ private:
 	void _listFilterSync(int state);
 
 	void _graphFilterSync(int state);
+
+	void _presetCBWidget(tracecmd_filter_id *showFilter,
+			     tracecmd_filter_id *hideFilter,
+			     KsCheckBoxWidget *cbw);
+
+	void _applyFilter(QVector<int> all, QVector<int> show,
+			  std::function<void(QVector<int>)> posFilter,
+			  std::function<void(QVector<int>)> negFilter);
 
 	void _showEvents();
 

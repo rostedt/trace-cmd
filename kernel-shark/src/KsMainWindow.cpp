@@ -594,42 +594,127 @@ void KsMainWindow::_graphFilterSync(int state)
 	_data.update();
 }
 
+void KsMainWindow::_presetCBWidget(tracecmd_filter_id *showFilter,
+				   tracecmd_filter_id *hideFilter,
+				   KsCheckBoxWidget *cbw)
+{
+	if (!kshark_this_filter_is_set(showFilter) &&
+	    !kshark_this_filter_is_set(hideFilter)) {
+		/*
+		 * No filter is set currently. All CheckBoxes of the Widget
+		 * will be checked.
+		 */
+		cbw->setDefault(true);
+	} else {
+		QVector<int> ids = cbw->getIds();
+		QVector<bool>  status;
+		int n = ids.count();
+		bool show, hide;
+
+		if (kshark_this_filter_is_set(showFilter)) {
+			/*
+			 * The "show only" filter is set. The default status
+			 * of all CheckBoxes will be "unchecked".
+			 */
+			status = QVector<bool>(n, false);
+			for (int i = 0; i < n; ++i) {
+				show = !!tracecmd_filter_id_find(showFilter,
+							         ids[i]);
+
+				hide = !!tracecmd_filter_id_find(hideFilter,
+							         ids[i]);
+
+				if (show && !hide) {
+					/*
+					 * Both "show" and "hide" define this
+					 * Id as visible. Set the status of
+					 * its CheckBoxes to "checked".
+					 */
+					status[i] = true;
+				}
+			}
+		} else {
+			/*
+			 * Only the "do not show" filter is set. The default
+			 * status of all CheckBoxes will be "checked".
+			 */
+			status = QVector<bool>(n, true);
+			for (int i = 0; i < n; ++i) {
+				hide = !!tracecmd_filter_id_find(hideFilter,
+							         ids[i]);
+
+				if (hide)
+					status[i] = false;
+			}
+		}
+
+		cbw->set(status);
+	}
+}
+
+void KsMainWindow::_applyFilter(QVector<int> all, QVector<int> show,
+				std::function<void(QVector<int>)> posFilter,
+				std::function<void(QVector<int>)> negFilter)
+{
+	if (show.count() < all.count() / 2) {
+		posFilter(show);
+	} else {
+		/*
+		 * It is more efficiant to apply negative (do not show) filter.
+		 */
+		QVector<int> diff;
+
+		/*
+		 * The Ids may not be sorted, because in the widgets the items
+		 * are shown sorted by name. Get those Ids sorted first.
+		 */
+		std::sort(all.begin(), all.end());
+		std::sort(show.begin(), show.end());
+
+		/*
+		 * The IDs of the "do not show" filter are given by the
+		 * difference between "all" Ids and the Ids of the "show only"
+		 * filter.
+		 */
+		std::set_difference(all.begin(), all.end(),
+				    show.begin(), show.end(),
+				    std::inserter(diff, diff.begin()));
+
+		negFilter(diff);
+	}
+}
+
+/* Quiet warnings over documenting simple structures */
+//! @cond Doxygen_Suppress
+
+#define LAMDA_FILTER(method) [=] (QVector<int> vec) {method(vec);}
+
+//! @endcond
+
 void KsMainWindow::_showEvents()
 {
 	kshark_context *kshark_ctx(nullptr);
 	KsCheckBoxWidget *events_cb;
 	KsCheckBoxDialog *dialog;
+	QVector<bool> v;
 
 	if (!kshark_instance(&kshark_ctx))
 		return;
 
 	events_cb = new KsEventsCheckBoxWidget(_data.tep(), this);
 	dialog = new KsCheckBoxDialog(events_cb, this);
+	_presetCBWidget(kshark_ctx->show_event_filter,
+		        kshark_ctx->hide_event_filter,
+		        events_cb);
 
-	if (!kshark_ctx->show_event_filter ||
-	    !kshark_ctx->show_event_filter->count) {
-		events_cb->setDefault(true);
-	} else {
-		/*
-		 * The event filter contains IDs. Make this visible in the
-		 * CheckBox Widget.
-		 */
-		tep_event **events =
-			tep_list_events(_data.tep(), TEP_EVENT_SORT_SYSTEM);
-		int nEvts = tep_get_events_count(_data.tep());
-		QVector<bool> v(nEvts, false);
+	auto lamFilter = [=] (QVector<int> show) {
+		QVector<int> all = KsUtils::getEventIdList();
+		_applyFilter(all, show,
+			     LAMDA_FILTER(_data.applyPosEventFilter),
+			     LAMDA_FILTER(_data.applyNegEventFilter));
+	};
 
-		for (int i = 0; i < nEvts; ++i) {
-			if (tracecmd_filter_id_find(kshark_ctx->show_event_filter,
-						    events[i]->id))
-				v[i] = true;
-		}
-
-		events_cb->set(v);
-	}
-
-	connect(dialog,		&KsCheckBoxDialog::apply,
-		&_data,		&KsDataStore::applyPosEventFilter);
+	connect(dialog,		&KsCheckBoxDialog::apply, lamFilter);
 
 	dialog->show();
 }
@@ -639,32 +724,25 @@ void KsMainWindow::_showTasks()
 	kshark_context *kshark_ctx(nullptr);
 	KsCheckBoxWidget *tasks_cbd;
 	KsCheckBoxDialog *dialog;
+	QVector<bool> v;
 
 	if (!kshark_instance(&kshark_ctx))
 		return;
 
 	tasks_cbd = new KsTasksCheckBoxWidget(_data.tep(), true, this);
 	dialog = new KsCheckBoxDialog(tasks_cbd, this);
+	_presetCBWidget(kshark_ctx->show_task_filter,
+			kshark_ctx->hide_task_filter,
+			tasks_cbd);
 
-	if (!kshark_ctx->show_task_filter ||
-	    !kshark_ctx->show_task_filter->count) {
-		tasks_cbd->setDefault(true);
-	} else {
-		QVector<int> pids = KsUtils::getPidList();
-		int nPids = pids.count();
-		QVector<bool> v(nPids, false);
+	auto lamFilter = [=] (QVector<int> show) {
+		QVector<int> all = KsUtils::getEventIdList();
+		_applyFilter(all, show,
+			     LAMDA_FILTER(_data.applyPosTaskFilter),
+			     LAMDA_FILTER(_data.applyNegTaskFilter));
+	};
 
-		for (int i = 0; i < nPids; ++i) {
-			if (tracecmd_filter_id_find(kshark_ctx->show_task_filter,
-						    pids[i]))
-				v[i] = true;
-		}
-
-		tasks_cbd->set(v);
-	}
-
-	connect(dialog,		&KsCheckBoxDialog::apply,
-		&_data,		&KsDataStore::applyPosTaskFilter);
+	connect(dialog,		&KsCheckBoxDialog::apply, lamFilter);
 
 	dialog->show();
 }
@@ -674,30 +752,25 @@ void KsMainWindow::_showCPUs()
 	kshark_context *kshark_ctx(nullptr);
 	KsCheckBoxWidget *cpu_cbd;
 	KsCheckBoxDialog *dialog;
+	QVector<bool> v;
 
 	if (!kshark_instance(&kshark_ctx))
 		return;
 
 	cpu_cbd = new KsCPUCheckBoxWidget(_data.tep(), this);
 	dialog = new KsCheckBoxDialog(cpu_cbd, this);
+	_presetCBWidget(kshark_ctx->show_cpu_filter,
+			kshark_ctx->hide_cpu_filter,
+			cpu_cbd);
 
-	if (!kshark_ctx->show_cpu_filter ||
-	    !kshark_ctx->show_cpu_filter->count) {
-		cpu_cbd->setDefault(true);
-	} else {
-		int nCPUs = tep_get_cpus(_data.tep());
-		QVector<bool> v(nCPUs, false);
+	auto lamFilter = [=] (QVector<int> show) {
+		QVector<int> all = KsUtils::getEventIdList();
+		_applyFilter(all, show,
+			     LAMDA_FILTER(_data.applyPosCPUFilter),
+			     LAMDA_FILTER(_data.applyNegCPUFilter));
+	};
 
-		for (int i = 0; i < nCPUs; ++i) {
-			if (tracecmd_filter_id_find(kshark_ctx->show_cpu_filter, i))
-				v[i] = true;
-		}
-
-		cpu_cbd->set(v);
-	}
-
-	connect(dialog,		&KsCheckBoxDialog::apply,
-		&_data,		&KsDataStore::applyPosCPUFilter);
+	connect(dialog,		&KsCheckBoxDialog::apply, lamFilter);
 
 	dialog->show();
 }
