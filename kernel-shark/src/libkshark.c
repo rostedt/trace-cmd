@@ -445,7 +445,14 @@ void kshark_filter_clear(struct kshark_context *kshark_ctx, int filter_id)
 	tracecmd_filter_id_clear(filter);
 }
 
-static bool filter_is_set(struct tracecmd_filter_id *filter)
+/**
+ * @brief Check if a given Id filter is set.
+ *
+ * @param filter: Input location for the Id filster.
+ *
+ * @returns True if the Id filter is set, otherwise False.
+ */
+bool kshark_this_filter_is_set(struct tracecmd_filter_id *filter)
 {
 	return filter && filter->count;
 }
@@ -459,12 +466,12 @@ static bool filter_is_set(struct tracecmd_filter_id *filter)
  */
 bool kshark_filter_is_set(struct kshark_context *kshark_ctx)
 {
-	return filter_is_set(kshark_ctx->show_task_filter) ||
-	       filter_is_set(kshark_ctx->hide_task_filter) ||
-	       filter_is_set(kshark_ctx->show_cpu_filter) ||
-	       filter_is_set(kshark_ctx->hide_cpu_filter) ||
-	       filter_is_set(kshark_ctx->show_event_filter) ||
-	       filter_is_set(kshark_ctx->hide_event_filter);
+	return kshark_this_filter_is_set(kshark_ctx->show_task_filter) ||
+-              kshark_this_filter_is_set(kshark_ctx->hide_task_filter) ||
+-              kshark_this_filter_is_set(kshark_ctx->show_cpu_filter) ||
+-              kshark_this_filter_is_set(kshark_ctx->hide_cpu_filter) ||
+-              kshark_this_filter_is_set(kshark_ctx->show_event_filter) ||
+-              kshark_this_filter_is_set(kshark_ctx->hide_event_filter);
 }
 
 static inline void unset_event_filter_flag(struct kshark_context *kshark_ctx,

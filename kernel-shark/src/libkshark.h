@@ -261,6 +261,8 @@ void kshark_filter_add_id(struct kshark_context *kshark_ctx,
 
 void kshark_filter_clear(struct kshark_context *kshark_ctx, int filter_id);
 
+bool kshark_this_filter_is_set(struct tracecmd_filter_id *filter);
+
 bool kshark_filter_is_set(struct kshark_context *kshark_ctx);
 
 void kshark_filter_entries(struct kshark_context *kshark_ctx,

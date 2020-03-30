@@ -1306,11 +1306,6 @@ bool kshark_import_user_mask(struct kshark_context *kshark_ctx,
 	}
 }
 
-static bool filter_is_set(struct tracecmd_filter_id *filter)
-{
-	return filter && filter->count;
-}
-
 /**
  * @brief Record the current configuration of "show task" and "hide task"
  *	  filters into a Json document.
@@ -1335,13 +1330,13 @@ bool kshark_export_all_event_filters(struct kshark_context *kshark_ctx,
 		return false;
 
 	/* Save a filter only if it contains Id values. */
-	if (filter_is_set(kshark_ctx->show_event_filter))
+	if (kshark_this_filter_is_set(kshark_ctx->show_event_filter))
 		ret &= kshark_export_event_filter(kshark_ctx->pevent,
 						  kshark_ctx->show_event_filter,
 						  KS_SHOW_EVENT_FILTER_NAME,
 						  *conf);
 
-	if (filter_is_set(kshark_ctx->hide_event_filter))
+	if (kshark_this_filter_is_set(kshark_ctx->hide_event_filter))
 		ret &= kshark_export_event_filter(kshark_ctx->pevent,
 						  kshark_ctx->hide_event_filter,
 						  KS_HIDE_EVENT_FILTER_NAME,
@@ -1374,12 +1369,12 @@ bool kshark_export_all_task_filters(struct kshark_context *kshark_ctx,
 		return false;
 
 	/* Save a filter only if it contains Id values. */
-	if (filter_is_set(kshark_ctx->show_task_filter))
+	if (kshark_this_filter_is_set(kshark_ctx->show_task_filter))
 		ret &= kshark_export_filter_array(kshark_ctx->show_task_filter,
 						  KS_SHOW_TASK_FILTER_NAME,
 						  *conf);
 
-	if (filter_is_set(kshark_ctx->hide_task_filter))
+	if (kshark_this_filter_is_set(kshark_ctx->hide_task_filter))
 		ret &= kshark_export_filter_array(kshark_ctx->hide_task_filter,
 						  KS_HIDE_TASK_FILTER_NAME,
 						  *conf);
@@ -1412,12 +1407,12 @@ bool kshark_export_all_cpu_filters(struct kshark_context *kshark_ctx,
 		return false;
 
 	/* Save a filter only if it contains Id values. */
-	if (filter_is_set(kshark_ctx->show_task_filter))
+	if (kshark_this_filter_is_set(kshark_ctx->show_task_filter))
 		ret &= kshark_export_filter_array(kshark_ctx->show_cpu_filter,
 						  KS_SHOW_CPU_FILTER_NAME,
 						  *conf);
 
-	if (filter_is_set(kshark_ctx->hide_task_filter))
+	if (kshark_this_filter_is_set(kshark_ctx->hide_task_filter))
 		ret &= kshark_export_filter_array(kshark_ctx->hide_cpu_filter,
 						  KS_HIDE_CPU_FILTER_NAME,
 						  *conf);
