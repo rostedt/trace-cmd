@@ -230,7 +230,7 @@ void KsCaptureControl::_importSettings()
 	kshark_config_doc *conf, *jevents, *temp;
 	QVector<bool> v(nEvts, false);
 	tracecmd_filter_id *eventHash;
-	tep_event **events;
+	QVector<int> eventIds;
 	QString fileName;
 
 	auto lamImportError = [this] () {
@@ -238,7 +238,7 @@ void KsCaptureControl::_importSettings()
 	};
 
 	/** Get all available events. */
-	events = tep_list_events(_localTEP, TEP_EVENT_SORT_SYSTEM);
+	eventIds = KsUtils::getEventIdList(TEP_EVENT_SORT_SYSTEM);
 
 	/* Get the configuration document. */
 	fileName = KsUtils::getFile(this, "Import from Filter",
@@ -277,7 +277,7 @@ void KsCaptureControl::_importSettings()
 	}
 
 	for (int i = 0; i < nEvts; ++i) {
-		if (tracecmd_filter_id_find(eventHash, events[i]->id))
+		if (tracecmd_filter_id_find(eventHash, eventIds[i]))
 			v[i] = true;
 	}
 

@@ -15,6 +15,22 @@
 
 namespace KsUtils {
 
+/** @brief Get a sorted vector of CPU Ids. */
+QVector<int> getCPUList()
+{
+	kshark_context *kshark_ctx(nullptr);
+	int nCPUs;
+
+	if (!kshark_instance(&kshark_ctx))
+		return {};
+
+	nCPUs = tep_get_cpus(kshark_ctx->pevent);
+	QVector<int> allCPUs = QVector<int>(nCPUs);
+	std::iota(allCPUs.begin(), allCPUs.end(), 0);
+
+	return allCPUs;
+}
+
 /** @brief Get a sorted vector of Task's Pids. */
 QVector<int> getPidList()
 {
@@ -35,6 +51,28 @@ QVector<int> getPidList()
 	qSort(pids);
 
 	return pids;
+}
+
+/**
+ * @brief Get a sorted vector of Event Ids.
+ */
+QVector<int> getEventIdList(tep_event_sort_type sortType)
+{
+	kshark_context *kshark_ctx(nullptr);
+	tep_event **events;
+	int nEvts;
+
+	if (!kshark_instance(&kshark_ctx))
+		return {};
+
+	nEvts = tep_get_events_count(kshark_ctx->pevent);
+	events = tep_list_events(kshark_ctx->pevent, sortType);
+
+	QVector<int> allEvts(nEvts);
+	for (int i = 0; i < nEvts; ++i)
+		allEvts[i] = events[i]->id;
+
+	return allEvts;
 }
 
 /** @brief Get a sorted vector of Id values of a filter. */

@@ -82,7 +82,11 @@ std::chrono::high_resolution_clock::now() - t0).count()
 
 namespace KsUtils {
 
+QVector<int> getCPUList();
+
 QVector<int> getPidList();
+
+QVector<int> getEventIdList(tep_event_sort_type sortType=TEP_EVENT_SORT_ID);
 
 QVector<int> getFilterIds(tracecmd_filter_id *filter);
 
