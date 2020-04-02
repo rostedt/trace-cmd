@@ -18,6 +18,7 @@ OBJS += trace-msg.o
 OBJS += trace-plugin.o
 ifeq ($(VSOCK_DEFINED), 1)
 OBJS += trace-timesync.o
+OBJS += trace-timesync-ptp.o
 endif
 
 # Additional util objects
