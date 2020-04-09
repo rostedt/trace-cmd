@@ -3176,6 +3176,34 @@ struct tracecmd_input *tracecmd_open(const char *file)
 }
 
 /**
+ * tracecmd_open_head - create a tracecmd_handle from a given file, read
+ *			and parse only the trace headers from the file
+ * @file: the file name of the file that is of tracecmd data type.
+ */
+struct tracecmd_input *tracecmd_open_head(const char *file)
+{
+	struct tracecmd_input *handle;
+	int fd;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	handle = tracecmd_alloc_fd(fd);
+	if (!handle)
+		return NULL;
+
+	if (tracecmd_read_headers(handle) < 0)
+		goto fail;
+
+	return handle;
+
+fail:
+	tracecmd_close(handle);
+	return NULL;
+}
+
+/**
  * tracecmd_ref - add a reference to the handle
  * @handle: input handle for the trace.dat file
  *
