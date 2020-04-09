@@ -31,6 +31,7 @@ static void *tsync_host_thread(void *data)
 	pthread_exit(0);
 }
 
+#define TSYNC_PER_CPU
 int tracecmd_host_tsync(struct buffer_instance *instance,
 			 unsigned int tsync_port)
 {
@@ -54,9 +55,11 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 		goto out;
 	}
 
+#ifdef TSYNC_PER_CPU
 	ret = trace_get_guest_cpu_mapping(instance->cid,
 					  &instance->tsync.cpu_max,
 					  &instance->tsync.cpu_pid);
+#endif
 
 	instance->tsync.msg_handle = msg_handle;
 	if (top_instance.clock)
