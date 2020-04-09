@@ -8,16 +8,22 @@
 
 #include <stdbool.h>
 
+struct clock_sync_cpu {
+	int		cpu;
+	int		sync_size;	/* Allocated size of sync_ts and sync_offsets */
+	int		sync_count;	/* Number of elements in sync_ts and sync_offsets */
+	long long	*sync_ts;
+	long long	*sync_offsets;
+};
+
 struct clock_sync_context {
 	void				*proto_data;	/* time sync protocol specific data */
 	bool				is_server;	/* server side time sync role */
 	struct tracefs_instance		*instance;	/* ftrace buffer, used for time sync events */
 
-	/* Arrays with calculated time offsets at given time */
-	int				sync_size;	/* Allocated size of sync_ts and sync_offsets */
-	int				sync_count;	/* Number of elements in sync_ts and sync_offsets */
-	long long			*sync_ts;
-	long long			*sync_offsets;
+	/* Arrays with calculated time offsets at given time, per each host CPU */
+	int cpu_sync_size;
+	struct clock_sync_cpu *cpu_sync;
 
 	/* Identifiers of local and remote time sync peers: cid and port */
 	unsigned int			local_cid;

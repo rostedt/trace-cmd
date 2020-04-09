@@ -435,6 +435,8 @@ struct tracecmd_time_sync {
 	char				*clock_str;
 	struct tracecmd_msg_handle	*msg_handle;
 	void				*context;
+	int				cpu_max;
+	int				*cpu_pid;
 };
 
 void tracecmd_tsync_init(void);
@@ -444,8 +446,10 @@ bool tsync_proto_is_supported(unsigned int proto_id);
 void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync);
 void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync);
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
-				int *count,
+				int cpu_index, int *cpu, int *count,
 				long long **ts, long long **offsets);
+int tracecmd_tsync_get_cpu_count(struct tracecmd_time_sync *tsync,
+				   int *cpu_count, int *max_cpu);
 void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
 
 /* --- Plugin handling --- */

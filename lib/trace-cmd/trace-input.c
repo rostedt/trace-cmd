@@ -82,6 +82,11 @@ struct ts_offset_sample {
 	long long	offset;
 };
 
+struct ts_offset_cpu {
+	int			ts_samples_count;
+	struct ts_offset_sample	*ts_samples;
+};
+
 struct guest_trace_info {
 	struct guest_trace_info	*next;
 	char			*name;
@@ -94,8 +99,8 @@ struct host_trace_info {
 	unsigned long long	peer_trace_id;
 	bool			sync_enable;
 	struct tracecmd_input	*peer_data;
-	int			ts_samples_count;
-	struct ts_offset_sample	*ts_samples;
+	int			cpu_count;
+	struct ts_offset_cpu	*cpu_time_offsets;
 };
 
 struct tracecmd_input {
@@ -1138,8 +1143,10 @@ timestamp_correction_calc(unsigned long long ts, struct ts_offset_sample *min,
 static unsigned long long timestamp_correct(unsigned long long ts,
 					    struct tracecmd_input *handle)
 {
-	struct host_trace_info	*host = &handle->host;
+	struct host_trace_info  *host = &handle->host;
+	struct ts_offset_cpu *cpu_offset = NULL;
 	int min, mid, max;
+	int i;
 
 	if (handle->ts_offset)
 		return ts + handle->ts_offset;
@@ -1147,39 +1154,49 @@ static unsigned long long timestamp_correct(unsigned long long ts,
 	if (!host->sync_enable)
 		return ts;
 
+	/* ToDo - find actual host CPU of this guest ts */
+	for (i = 0; i < host->cpu_count; i++) {
+		if (host->cpu_time_offsets[i].ts_samples_count) {
+			cpu_offset = &host->cpu_time_offsets[i];
+				break;
+		}
+	}
+	if (!cpu_offset)
+		return ts;
+
 	/* We have one sample, nothing to calc here */
-	if (host->ts_samples_count == 1)
-		return ts + host->ts_samples[0].offset;
+	if (cpu_offset->ts_samples_count == 1)
+		return ts + cpu_offset->ts_samples[0].offset;
 
 	/* We have two samples, nothing to search here */
-	if (host->ts_samples_count == 2)
-		return timestamp_correction_calc(ts, &host->ts_samples[0],
-						 &host->ts_samples[1]);
+	if (cpu_offset->ts_samples_count == 2)
+		return timestamp_correction_calc(ts, &cpu_offset->ts_samples[0],
+						 &cpu_offset->ts_samples[1]);
 
 	/* We have more than two samples */
-	if (ts <= host->ts_samples[0].time)
+	if (ts <= cpu_offset->ts_samples[0].time)
 		return timestamp_correction_calc(ts,
-						 &host->ts_samples[0],
-						 &host->ts_samples[1]);
-	else if (ts >= host->ts_samples[host->ts_samples_count-1].time)
+						 &cpu_offset->ts_samples[0],
+						 &cpu_offset->ts_samples[1]);
+	else if (ts >= cpu_offset->ts_samples[cpu_offset->ts_samples_count - 1].time)
 		return timestamp_correction_calc(ts,
-						 &host->ts_samples[host->ts_samples_count-2],
-						 &host->ts_samples[host->ts_samples_count-1]);
+						 &cpu_offset->ts_samples[cpu_offset->ts_samples_count - 2],
+						 &cpu_offset->ts_samples[cpu_offset->ts_samples_count - 1]);
 	min = 0;
-	max = host->ts_samples_count-1;
+	max = cpu_offset->ts_samples_count - 1;
 	mid = (min + max)/2;
 	while (min <= max) {
-		if (ts < host->ts_samples[mid].time)
+		if (ts < cpu_offset->ts_samples[mid].time)
 			max = mid - 1;
-		else if (ts > host->ts_samples[mid].time)
+		else if (ts > cpu_offset->ts_samples[mid].time)
 			min = mid + 1;
 		else
 			break;
 		mid = (min + max)/2;
 	}
 
-	return timestamp_correction_calc(ts, &host->ts_samples[mid],
-					 &host->ts_samples[mid+1]);
+	return timestamp_correction_calc(ts, &cpu_offset->ts_samples[mid],
+					 &cpu_offset->ts_samples[mid+1]);
 }
 
 /*
@@ -2171,26 +2188,62 @@ static int tsync_offset_cmp(const void *a, const void *b)
 	return 0;
 }
 
-static void tsync_offset_load(struct tracecmd_input *handle, char *buf)
+static int tsync_offset_load_cpu(struct tracecmd_input *handle,
+			      char *buf, int buf_size,
+			      int cpu, int sample_count)
 {
 	struct host_trace_info *host = &handle->host;
-	long long *buf8 = (long long *)buf;
+	struct ts_offset_sample *ts_samples = NULL;
+	struct ts_offset_cpu *cpu_offsets;
+	int read = 0;
 	int i, j;
 
-	for (i = 0; i < host->ts_samples_count; i++) {
-		host->ts_samples[i].time = tep_read_number(handle->pevent,
-							   buf8 + i, 8);
-		host->ts_samples[i].offset = tep_read_number(handle->pevent,
-						buf8 + host->ts_samples_count+i, 8);
+	if (host->cpu_count <= cpu) {
+		cpu_offsets = realloc(host->cpu_time_offsets,
+				      (cpu + 1) * sizeof(struct host_trace_info));
+		if (!cpu_offsets)
+			goto error;
+		for (i = host->cpu_count; i <= cpu; i++)
+			memset(cpu_offsets + i, 0, sizeof(struct ts_offset_cpu));
+		host->cpu_time_offsets = cpu_offsets;
+		host->cpu_count = cpu + 1;
 	}
-	qsort(host->ts_samples, host->ts_samples_count,
+
+	ts_samples = calloc(sample_count, sizeof(struct ts_offset_sample));
+	if (!ts_samples)
+		goto error;
+	for (i = 0; i < sample_count; i++) {
+		if (buf_size < 8)
+			goto error;
+		ts_samples[i].time = tep_read_number(handle->pevent, buf, 8);
+		buf += 8;
+		buf_size -= 8;
+		read += 8;
+	}
+	for (i = 0; i < sample_count; i++) {
+		if (buf_size < 8)
+			goto error;
+		ts_samples[i].offset = tep_read_number(handle->pevent, buf, 8);
+		buf += 8;
+		buf_size -= 8;
+		read += 8;
+	}
+
+	qsort(ts_samples, sample_count,
 	      sizeof(struct ts_offset_sample), tsync_offset_cmp);
 	/* Filter possible samples with equal time */
-	for (i = 0, j = 0; i < host->ts_samples_count; i++) {
-		if (i == 0 || host->ts_samples[i].time != host->ts_samples[i-1].time)
-			host->ts_samples[j++] = host->ts_samples[i];
+	for (i = 0, j = 0; i < sample_count; i++) {
+		if (i == 0 || ts_samples[i].time != ts_samples[i-1].time)
+			ts_samples[j++] = ts_samples[i];
 	}
-	host->ts_samples_count = j;
+
+	host->cpu_time_offsets[cpu].ts_samples_count = j;
+	host->cpu_time_offsets[cpu].ts_samples = ts_samples;
+	return read;
+
+error:
+	free(ts_samples);
+	return -1;
 }
 
 static void tsync_check_enable(struct tracecmd_input *handle)
@@ -2201,7 +2254,7 @@ static void tsync_check_enable(struct tracecmd_input *handle)
 	host->sync_enable = false;
 
 	if (!host->peer_data || !host->peer_data->guest ||
-	    !host->ts_samples_count || !host->ts_samples)
+	    !host->cpu_count || !host->cpu_time_offsets)
 		return;
 	if (host->peer_trace_id != host->peer_data->trace_id)
 		return;
@@ -2217,10 +2270,51 @@ static void tsync_check_enable(struct tracecmd_input *handle)
 	host->sync_enable = true;
 }
 
+static int tsync_offset_load(struct tracecmd_input *handle,
+			      char *buf, int buf_size, int cpus)
+{
+	int count, cpu;
+	int ret;
+	int i;
+
+	for (i = 0; i < cpus; i++) {
+		if (buf_size < 8)
+			break;
+		cpu = tep_read_number(handle->pevent, buf, 4);
+		buf += 4;
+		count = tep_read_number(handle->pevent, buf, 4);
+		buf += 4;
+		buf_size -= 8;
+		if (buf_size < count * 16) /* 8 time + 8 offset */
+			break;
+		if (cpu < 0) {
+			if (cpus > 1) {
+				warning("Invalid time stamp correction for CPU %d", cpu);
+				return -1;
+			}
+			cpu = 0;
+		}
+		ret = tsync_offset_load_cpu(handle, buf, buf_size, cpu, count);
+		if (ret < 0)
+			break;
+		buf_size -= ret;
+		buf += ret;
+	}
+
+	return 0;
+}
+
 static void trace_tsync_offset_free(struct host_trace_info *host)
 {
-	free(host->ts_samples);
-	host->ts_samples = NULL;
+	int i;
+
+	for (i = 0; i < host->cpu_count; i++)
+		free(host->cpu_time_offsets[i].ts_samples);
+
+	free(host->cpu_time_offsets);
+	host->cpu_time_offsets = NULL;
+	host->cpu_count = 0;
+
 	if (host->peer_data) {
 		tracecmd_close(host->peer_data);
 		host->peer_data = NULL;
@@ -2479,7 +2573,6 @@ static int handle_options(struct tracecmd_input *handle)
 	struct input_buffer_instance *buffer;
 	struct hook_list *hook;
 	char *buf;
-	int samples_size;
 	int cpus;
 
 	/* By default, use usecs, unless told otherwise */
@@ -2530,27 +2623,19 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_TIME_SHIFT:
 			/*
 			 * long long int (8 bytes) trace session ID
+			 * int (4 bytes) number of CPUs with calculated time offsets
+			 * For each CPU:
+			 * int (4 bytes) CPU id.
 			 * int (4 bytes) count of timestamp offsets.
-			 * long long array of size [count] of times,
-			 *      when the offsets were calculated.
+			 * long long array of size [count] of timestamps,
 			 * long long array of size [count] of timestamp offsets.
 			 */
 			if (size < 12 || handle->flags & TRACECMD_FL_IGNORE_DATE)
 				break;
 			handle->host.peer_trace_id = tep_read_number(handle->pevent,
 								     buf, 8);
-			handle->host.ts_samples_count = tep_read_number(handle->pevent,
-									buf + 8, 4);
-			samples_size = (8 * handle->host.ts_samples_count);
-			if (size != (12 + (2 * samples_size))) {
-				warning("Failed to extract Time Shift information from the file: found size %d, expected is %d",
-					size, 12 + (2 * samples_size));
-				break;
-			}
-			handle->host.ts_samples = malloc(2 * samples_size);
-			if (!handle->host.ts_samples)
-				return -ENOMEM;
-			tsync_offset_load(handle, buf + 12);
+			cpus = tep_read_number(handle->pevent, buf + 8, 4);
+			tsync_offset_load(handle, buf + 12, size - 12, cpus);
 			break;
 		case TRACECMD_OPTION_CPUSTAT:
 			buf[size-1] = '\n';
@@ -3889,7 +3974,7 @@ unsigned long long tracecmd_get_tsync_peer(struct tracecmd_input *handle)
 int tracecmd_enable_tsync(struct tracecmd_input *handle, bool enable)
 {
 	if (enable &&
-	    (!handle->host.ts_samples || !handle->host.ts_samples_count))
+	    (!handle->host.cpu_count || !handle->host.cpu_time_offsets))
 		return -1;
 
 	handle->host.sync_enable = enable;

@@ -308,6 +308,10 @@ int trace_open_vsock(unsigned int cid, unsigned int port);
 
 char *trace_get_guest_file(const char *file, const char *guest);
 
+int trace_get_guest_cpu_mapping(unsigned int guest_cid,
+				int *cpu_max, int **cpu_pid);
+
+
 /* No longer in event-utils.h */
 void __noreturn die(const char *fmt, ...); /* Can be overriden */
 void *malloc_or_die(unsigned int size); /* Can be overridden */

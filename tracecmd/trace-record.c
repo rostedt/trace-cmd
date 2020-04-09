@@ -3241,6 +3241,24 @@ static struct guest *get_guest_info(unsigned int guest_cid)
 	return NULL;
 }
 
+int trace_get_guest_cpu_mapping(unsigned int guest_cid,
+				int *cpu_max, int **cpu_pid)
+{
+	struct guest *guest;
+
+	guest = get_guest_info(guest_cid);
+	if (!guest)
+		return -1;
+
+	if (cpu_pid)
+		*cpu_pid = guest->cpu_pid;
+	if (cpu_max)
+		*cpu_max = guest->cpu_max;
+
+	return 0;
+}
+
+
 static char *get_qemu_guest_name(char *arg)
 {
 	char *tok, *end = arg;

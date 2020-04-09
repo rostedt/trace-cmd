@@ -373,13 +373,17 @@ static void dump_option_timeshift(int fd, int size)
 	long long *times = NULL;
 	long long trace_id;
 	unsigned int count;
-	int i;
+	unsigned int cpus;
+	int cpu;
+	int i, j;
 
 	/*
 	 * long long int (8 bytes) trace session ID
+	 * int (4 bytes) number of CPUs with calculated time offsets
+	 * For each CPU
+	 * int (4 bytes) CPU id.
 	 * int (4 bytes) count of timestamp offsets.
-	 * long long array of size [count] of times,
-	 *      when the offsets were calculated.
+	 * long long array of size [count] of timestamps,
 	 * long long array of size [count] of timestamp offsets.
 	 */
 	if (size < 12) {
@@ -388,25 +392,41 @@ static void dump_option_timeshift(int fd, int size)
 	}
 	do_print(OPTIONS, "\t\t[Option TimeShift, %d bytes]\n", size);
 	read_file_number(fd, &trace_id, 8);
+	size -= 8;
 	do_print(OPTIONS, "0x%llX [peer's trace id]\n", trace_id);
-	read_file_number(fd, &count, 4);
-	do_print(OPTIONS, "%lld [samples count]\n", count);
-	times = calloc(count, sizeof(long long));
-	if (!times)
-		goto out;
-	offsets = calloc(count, sizeof(long long));
-	if (!offsets)
-		goto out;
+	read_file_number(fd, &cpus, 4);
+	size -= 4;
+	do_print(OPTIONS, "%lld [CPU count]\n", cpus);
 
-	for (i = 0; i < count; i++)
-		read_file_number(fd, times + i, 8);
-	for (i = 0; i < count; i++)
-		read_file_number(fd, offsets + i, 8);
+	for (j = 0; j < cpus; j++) {
+		if (size < 4)
+			goto out;
+		read_file_number(fd, &cpu, 4);
+		size -= 4;
+		do_print(OPTIONS, " %d [cpu id]\n", cpu);
+		read_file_number(fd, &count, 4);
+		size -= 4;
+		do_print(OPTIONS, " %d [samples count]\n", count);
+		if (size < (2 * count * sizeof(long long)))
+			goto out;
+		size -= (2 * count * sizeof(long long));
+		times = realloc(times, count * sizeof(long long));
+		if (!times)
+			goto out;
+		offsets = realloc(offsets, count * sizeof(long long));
+		if (!offsets)
+			goto out;
+		memset(times, 0, count * sizeof(long long));
+		memset(offsets, 0, count * sizeof(long long));
+		for (i = 0; i < count; i++)
+			read_file_number(fd, times + i, 8);
+		for (i = 0; i < count; i++)
+			read_file_number(fd, offsets + i, 8);
 
-	for (i = 0; i < count; i++)
-		do_print(OPTIONS, "\t%lld %lld [offset @ time]\n",
-			 offsets[i], times[i]);
-
+		for (i = 0; i < count; i++)
+			do_print(OPTIONS, "\t%lld %lld [offset @ time]\n",
+					offsets[i], times[i]);
+	}
 out:
 	free(times);
 	free(offsets);

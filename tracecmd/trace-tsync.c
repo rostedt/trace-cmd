@@ -15,48 +15,7 @@
 #include "trace-local.h"
 #include "trace-msg.h"
 
-static int get_first_cpu(cpu_set_t **pin_mask, size_t *m_size)
-{
-	int cpus = tracecmd_count_cpus();
-	cpu_set_t *cpu_mask;
-	int mask_size;
-	int i;
-
-	cpu_mask = CPU_ALLOC(cpus);
-	*pin_mask = CPU_ALLOC(cpus);
-	if (!cpu_mask || !*pin_mask || 1)
-		goto error;
-
-	mask_size = CPU_ALLOC_SIZE(cpus);
-	CPU_ZERO_S(mask_size, cpu_mask);
-	CPU_ZERO_S(mask_size, *pin_mask);
-
-	if (sched_getaffinity(0, mask_size, cpu_mask) == -1)
-		goto error;
-
-	for (i = 0; i < cpus; i++) {
-		if (CPU_ISSET_S(i, mask_size, cpu_mask)) {
-			CPU_SET_S(i, mask_size, *pin_mask);
-			break;
-		}
-	}
-
-	if (CPU_COUNT_S(mask_size, *pin_mask) < 1)
-		goto error;
-
-	CPU_FREE(cpu_mask);
-	*m_size = mask_size;
-	return 0;
-
-error:
-	if (cpu_mask)
-		CPU_FREE(cpu_mask);
-	if (*pin_mask)
-		CPU_FREE(*pin_mask);
-	*pin_mask = NULL;
-	*m_size = 0;
-	return -1;
-}
+#define TSYNC_DEBUG
 
 static void *tsync_host_thread(void *data)
 {
@@ -78,7 +37,6 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 	struct tracecmd_msg_handle *msg_handle = NULL;
 	cpu_set_t *pin_mask = NULL;
 	pthread_attr_t attrib;
-	size_t mask_size = 0;
 	int ret;
 	int fd;
 
@@ -96,16 +54,19 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 		goto out;
 	}
 
+	ret = trace_get_guest_cpu_mapping(instance->cid,
+					  &instance->tsync.cpu_max,
+					  &instance->tsync.cpu_pid);
+
 	instance->tsync.msg_handle = msg_handle;
 	if (top_instance.clock)
 		instance->tsync.clock_str = strdup(top_instance.clock);
-	pthread_mutex_init(&instance->tsync.lock, NULL);
-	pthread_cond_init(&instance->tsync.cond, NULL);
+	ret = pthread_mutex_init(&instance->tsync.lock, NULL);
+	if (!ret)
+		ret = pthread_cond_init(&instance->tsync.cond, NULL);
 
 	pthread_attr_init(&attrib);
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
-	if (!get_first_cpu(&pin_mask, &mask_size))
-		pthread_attr_setaffinity_np(&attrib, mask_size, pin_mask);
 
 	ret = pthread_create(&instance->tsync_thread, &attrib,
 			     tsync_host_thread, &instance->tsync);
@@ -126,41 +87,81 @@ out:
 
 static void write_guest_time_shift(struct buffer_instance *instance)
 {
-	struct tracecmd_output *handle;
-	struct iovec vector[4];
+	struct tracecmd_output *handle = NULL;
+	struct iovec *vector = NULL;
 	long long *offsets;
+	int vector_count;
+	int *count = NULL;
+	int *cpu = NULL;
 	long long *ts;
+	int cpu_count;
+	int max_cpu;
 	const char *file;
-	int count;
+	int i, j, k;
 	int ret;
 	int fd;
 
-	ret = tracecmd_tsync_get_offsets(&instance->tsync, &count, &ts, &offsets);
-	if (ret < 0 || !count || !ts || !offsets)
+	ret = tracecmd_tsync_get_cpu_count(&instance->tsync,
+					   &cpu_count, &max_cpu);
+	if (ret < 0 || cpu_count < 1)
 		return;
+	vector_count = 2;
+	vector_count += (4 * cpu_count);
+	vector = calloc(vector_count, sizeof(struct iovec));
+	count = calloc(cpu_count, sizeof(int));
+	cpu = calloc(cpu_count, sizeof(int));
+	if (!vector || !count || !cpu)
+		goto out;
 
 	file = instance->output_file;
 	fd = open(file, O_RDWR);
 	if (fd < 0)
 		die("error opening %s", file);
-	handle = tracecmd_get_output_handle_fd(fd);
-	vector[0].iov_len = 8;
-	vector[0].iov_base = &top_instance.trace_id;
-	vector[1].iov_len = 4;
-	vector[1].iov_base = &count;
-	vector[2].iov_len = 8 * count;
-	vector[2].iov_base = ts;
-	vector[3].iov_len = 8 * count;
-	vector[3].iov_base = offsets;
-	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 4);
-	tracecmd_append_options(handle);
-	tracecmd_output_close(handle);
+
+	i = 0;
+	vector[i].iov_len = 8;
+	vector[i].iov_base = &top_instance.trace_id;
+	i++;
+	vector[i].iov_len = 4;
+	vector[i].iov_base = &cpu_count;
+	i++;
+	for (j = 0, k = 0; j < max_cpu && i <= (vector_count - 4) && k < cpu_count; j++) {
+		ret = tracecmd_tsync_get_offsets(&instance->tsync, j, &cpu[k],
+						 &count[k], &ts, &offsets);
+		if (ret < 0)
+			return;
+		if (!count[k] || !ts || !offsets)
+			continue;
+
+		vector[i].iov_len = 4;
+		vector[i].iov_base = &cpu[k];
+		vector[i + 1].iov_len = 4;
+		vector[i + 1].iov_base = &count[k];
+		vector[i + 2].iov_len = 8 * count[k];
+		vector[i + 2].iov_base = ts;
+		vector[i + 3].iov_len = 8 * count[k];
+		vector[i + 3].iov_base = offsets;
+		i += 4;
 #ifdef TSYNC_DEBUG
-	if (count > 1)
-		printf("Got %d timestamp synch samples for guest %s in %lld ns trace\n\r",
-			count, tracefs_instance_get_name(instance->tracefs),
-			ts[count - 1] - ts[0]);
+		printf("Got %d timestamp synch samples for guest %s, host cpu %d in %lld ns trace\n\r",
+			count[k], tracefs_instance_get_name(instance->tracefs),
+			cpu[k], ts[count[k] - 1] - ts[0]);
 #endif
+		k++;
+	}
+
+	handle = tracecmd_get_output_handle_fd(fd);
+	if (!handle) {
+		close(fd);
+		goto out;
+	}
+	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, i);
+	tracecmd_append_options(handle);
+out:
+	tracecmd_output_close(handle);
+	free(vector);
+	free(count);
+	free(cpu);
 }
 
 void tracecmd_host_tsync_complete(struct buffer_instance *instance)
@@ -212,9 +213,7 @@ unsigned int tracecmd_guest_tsync(char *tsync_protos,
 				  unsigned int *tsync_port, pthread_t *thr_id)
 {
 	struct tracecmd_time_sync *tsync = NULL;
-	cpu_set_t *pin_mask = NULL;
 	pthread_attr_t attrib;
-	size_t mask_size = 0;
 	unsigned int proto;
 	int ret;
 	int fd;
@@ -243,13 +242,9 @@ unsigned int tracecmd_guest_tsync(char *tsync_protos,
 	pthread_attr_init(&attrib);
 	tsync->sync_proto = proto;
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
-	if (!get_first_cpu(&pin_mask, &mask_size))
-		pthread_attr_setaffinity_np(&attrib, mask_size, pin_mask);
 
 	ret = pthread_create(thr_id, &attrib, tsync_agent_thread, tsync);
 
-	if (pin_mask)
-		CPU_FREE(pin_mask);
 	pthread_attr_destroy(&attrib);
 
 	if (ret)
