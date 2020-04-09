@@ -199,6 +199,7 @@ static char *get_source_plugins_dir(void)
 	if (ret > PATH_MAX || ret < 0)
 		return NULL;
 
+	path[ret] = 0;
 	dirname(path);
 	p = strrchr(path, '/');
 	if (!p)
