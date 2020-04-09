@@ -119,6 +119,7 @@ enum {
 	TRACECMD_FL_BUFFER_INSTANCE	= (1 << 1),
 	TRACECMD_FL_LATENCY		= (1 << 2),
 	TRACECMD_FL_IN_USECS		= (1 << 3),
+	TRACECMD_FL_FLYRECORD		= (1 << 4),
 };
 
 struct tracecmd_ftrace {

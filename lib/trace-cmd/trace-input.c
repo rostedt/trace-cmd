@@ -141,6 +141,8 @@ struct tracecmd_input {
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
 
+static int read_options_type(struct tracecmd_input *handle);
+
 void tracecmd_set_flag(struct tracecmd_input *handle, int flag)
 {
 	handle->flags |= flag;
@@ -747,6 +749,19 @@ int tracecmd_get_parsing_failures(struct tracecmd_input *handle)
 	return 0;
 }
 
+static int read_cpus(struct tracecmd_input *handle)
+{
+	unsigned int cpus;
+
+	if (read4(handle, &cpus) < 0)
+		return -1;
+
+	handle->cpus = cpus;
+	tep_set_cpus(handle->pevent, handle->cpus);
+
+	return 0;
+}
+
 /**
  * tracecmd_read_headers - read the header information from trace.dat
  * @handle: input handle for the trace.dat file
@@ -782,6 +797,12 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 		return -1;
 
 	if (read_and_parse_cmdlines(handle) < 0)
+		return -1;
+
+	if (read_cpus(handle) < 0)
+		return -1;
+
+	if (read_options_type(handle) < 0)
 		return -1;
 
 	tep_set_long_size(handle->pevent, handle->long_size);
@@ -2576,22 +2597,12 @@ static int handle_options(struct tracecmd_input *handle)
 	return 0;
 }
 
-static int read_cpu_data(struct tracecmd_input *handle)
+static int read_options_type(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent = handle->pevent;
-	enum kbuffer_long_size long_size;
-	enum kbuffer_endian endian;
-	unsigned long long size;
-	unsigned long long max_size = 0;
-	unsigned long long pages;
 	char buf[10];
-	int cpus;
-	int cpu;
 
 	if (do_read_check(handle, buf, 10))
 		return -1;
-
-	cpus = handle->cpus;
 
 	/* check if this handles options */
 	if (strncmp(buf, "options", 7) == 0) {
@@ -2602,16 +2613,40 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	}
 
 	/*
+	 * Check if this is a latency report or flyrecord.
+	 */
+	if (strncmp(buf, "latency", 7) == 0)
+		handle->flags |= TRACECMD_FL_LATENCY;
+	else if (strncmp(buf, "flyrecord", 9) == 0)
+		handle->flags |= TRACECMD_FL_FLYRECORD;
+	else
+		return -1;
+
+	return 0;
+}
+
+static int read_cpu_data(struct tracecmd_input *handle)
+{
+	struct tep_handle *pevent = handle->pevent;
+	enum kbuffer_long_size long_size;
+	enum kbuffer_endian endian;
+	unsigned long long size;
+	unsigned long long max_size = 0;
+	unsigned long long pages;
+	int cpus;
+	int cpu;
+
+	/*
 	 * Check if this is a latency report or not.
 	 */
-	if (strncmp(buf, "latency", 7) == 0) {
-		handle->flags |= TRACECMD_FL_LATENCY;
+	if (handle->flags & TRACECMD_FL_LATENCY)
 		return 1;
-	}
 
 	/* We expect this to be flyrecord */
-	if (strncmp(buf, "flyrecord", 9) != 0)
+	if (!(handle->flags & TRACECMD_FL_FLYRECORD))
 		return -1;
+
+	cpus = handle->cpus;
 
 	handle->cpu_data = malloc(sizeof(*handle->cpu_data) * handle->cpus);
 	if (!handle->cpu_data)
@@ -2795,14 +2830,7 @@ static int read_and_parse_trace_clock(struct tracecmd_input *handle,
 int tracecmd_init_data(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = handle->pevent;
-	unsigned int cpus;
 	int ret;
-
-	if (read4(handle, &cpus) < 0)
-		return -1;
-	handle->cpus = cpus;
-
-	tep_set_cpus(pevent, handle->cpus);
 
 	ret = read_cpu_data(handle);
 	if (ret < 0)
@@ -3579,25 +3607,28 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 	if (ret < 0) {
 		warning("could not seek to buffer %s offset %ld\n",
 			buffer->name, buffer->offset);
-		tracecmd_close(new_handle);
-		return NULL;
+		goto error;
 	}
 
-	ret = read_cpu_data(new_handle);
+	ret = read_options_type(new_handle);
+	if (!ret)
+		ret = read_cpu_data(new_handle);
 	if (ret < 0) {
 		warning("failed to read sub buffer %s\n", buffer->name);
-		tracecmd_close(new_handle);
-		return NULL;
+		goto error;
 	}
 
 	ret = lseek64(handle->fd, offset, SEEK_SET);
 	if (ret < 0) {
 		warning("could not seek to back to offset %ld\n", offset);
-		tracecmd_close(new_handle);
-		return NULL;
+		goto error;
 	}
 
 	return new_handle;
+
+error:
+	tracecmd_close(new_handle);
+	return NULL;
 }
 
 int tracecmd_is_buffer_instance(struct tracecmd_input *handle)
