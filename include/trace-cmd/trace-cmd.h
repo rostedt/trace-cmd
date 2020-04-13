@@ -147,7 +147,7 @@ struct tracecmd_input *tracecmd_open_head(const char *file);
 struct tracecmd_input *tracecmd_open_fd(int fd);
 int tracecmd_pair_peer(struct tracecmd_input *handle,
 		       struct tracecmd_input *peer);
-int tracecmd_unpair_peer(struct tracecmd_input *handle);
+void tracecmd_unpair_peer(struct tracecmd_input *handle);
 void tracecmd_ref(struct tracecmd_input *handle);
 void tracecmd_close(struct tracecmd_input *handle);
 int tracecmd_read_headers(struct tracecmd_input *handle);

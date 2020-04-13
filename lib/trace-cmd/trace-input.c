@@ -3245,18 +3245,16 @@ fail:
  *
  * This removes any peer that is linked to the  @handle.
  */
-int tracecmd_unpair_peer(struct tracecmd_input *handle)
+void tracecmd_unpair_peer(struct tracecmd_input *handle)
 {
 	if (!handle)
-		return -1;
+		return;
 
 	if (handle->host.peer_data) {
 		tracecmd_close(handle->host.peer_data);
 		handle->host.peer_data = NULL;
 		tsync_check_enable(handle);
 	}
-
-	return 0;
 }
 
 /**
