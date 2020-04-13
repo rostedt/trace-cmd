@@ -91,8 +91,9 @@ struct guest_trace_info {
 };
 
 struct host_trace_info {
-	unsigned long long	trace_id;
+	unsigned long long	peer_trace_id;
 	bool			sync_enable;
+	struct tracecmd_input	*peer_data;
 	int			ts_samples_count;
 	struct ts_offset_sample	*ts_samples;
 };
@@ -2194,10 +2195,38 @@ static void tsync_offset_load(struct tracecmd_input *handle, char *buf)
 		host->sync_enable = true;
 }
 
+static void tsync_check_enable(struct tracecmd_input *handle)
+{
+	struct host_trace_info	*host = &handle->host;
+	struct guest_trace_info *guest;
+
+	host->sync_enable = false;
+
+	if (!host->peer_data || !host->peer_data->guest ||
+	    !host->ts_samples_count || !host->ts_samples)
+		return;
+	if (host->peer_trace_id != host->peer_data->trace_id)
+		return;
+	guest = host->peer_data->guest;
+	while (guest) {
+		if (guest->trace_id == handle->trace_id)
+			break;
+		guest = guest->next;
+	}
+	if (!guest)
+		return;
+
+	host->sync_enable = true;
+}
+
 static void trace_tsync_offset_free(struct host_trace_info *host)
 {
 	free(host->ts_samples);
 	host->ts_samples = NULL;
+	if (host->peer_data) {
+		tracecmd_close(host->peer_data);
+		host->peer_data = NULL;
+	}
 }
 
 static int trace_pid_map_cmp(const void *a, const void *b)
@@ -2510,8 +2539,8 @@ static int handle_options(struct tracecmd_input *handle)
 			 */
 			if (size < 12 || handle->flags & TRACECMD_FL_IGNORE_DATE)
 				break;
-			handle->host.trace_id = tep_read_number(handle->pevent,
-								buf, 8);
+			handle->host.peer_trace_id = tep_read_number(handle->pevent,
+								     buf, 8);
 			handle->host.ts_samples_count = tep_read_number(handle->pevent,
 									buf + 8, 4);
 			samples_size = (8 * handle->host.ts_samples_count);
@@ -3204,6 +3233,64 @@ fail:
 }
 
 /**
+ * tracecmd_unpair_peer - Link a tracing peer to this handle
+ * @handle: input handle for the trace.dat file
+ * @peer: input handle for the tracing peer
+ *
+ * When tracing host and one or more guest machines at the same time,
+ * guest and host are tracing peers. There is information in both trace
+ * files, related to host PID to guest vCPU mapping, timestamp synchronization
+ * and other. This information is useful when opening files at the same time and
+ * merging the events. When the host is set as a tracing peer to the guest, then
+ * the timestamps of guest's events are recalculated to match the host event's time
+ *
+ * Returns 1, if a peer is already paired, -1 in case of an error or 0 otherwise
+ */
+int tracecmd_unpair_peer(struct tracecmd_input *handle)
+{
+	if (!handle)
+		return -1;
+
+	if (handle->host.peer_data) {
+		tracecmd_close(handle->host.peer_data);
+		handle->host.peer_data = NULL;
+		tsync_check_enable(handle);
+	}
+
+	return 0;
+}
+
+/**
+ * tracecmd_pair_peer - Link a tracing peer to this handle
+ * @handle: input handle for the trace.dat file
+ * @peer: input handle for the tracing peer
+ *
+ * When tracing host and one or more guest machines at the same time,
+ * guest and host are tracing peers. There is information in both trace
+ * files, related to host PID to guest vCPU mapping, timestamp synchronization
+ * and other. This information is useful when opening files at the same time and
+ * merging the events. When the host is set as a tracing peer to the guest, then
+ * the timestamps of guest's events are recalculated to match the host event's time
+ *
+ * Returns 1, if a peer is already paired, -1 in case of an error or 0 otherwise
+ */
+int tracecmd_pair_peer(struct tracecmd_input *handle,
+		       struct tracecmd_input *peer)
+{
+	if (!handle)
+		return -1;
+
+	if (handle->host.peer_data)
+		return 1;
+
+	handle->host.peer_data = peer;
+	tracecmd_ref(peer);
+	tsync_check_enable(handle);
+
+	return 0;
+}
+
+/**
  * tracecmd_ref - add a reference to the handle
  * @handle: input handle for the trace.dat file
  *
@@ -3785,7 +3872,7 @@ int tracecmd_get_guest_cpumap(struct tracecmd_input *handle,
  */
 unsigned long long tracecmd_get_tsync_peer(struct tracecmd_input *handle)
 {
-	return handle->host.trace_id;
+	return handle->host.peer_trace_id;
 }
 
 /**
