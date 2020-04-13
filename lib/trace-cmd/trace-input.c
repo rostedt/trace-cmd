@@ -3856,9 +3856,12 @@ int tracecmd_get_guest_cpumap(struct tracecmd_input *handle,
 	if (!guest)
 		return -1;
 
-	*name = guest->name;
-	*vcpu_count = guest->vcpu_count;
-	*cpu_pid = guest->cpu_pid;
+	if (name)
+		*name = guest->name;
+	if (vcpu_count)
+		*vcpu_count = guest->vcpu_count;
+	if (cpu_pid)
+		*cpu_pid = guest->cpu_pid;
 	return 0;
 }
 
