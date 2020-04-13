@@ -3233,9 +3233,8 @@ fail:
 }
 
 /**
- * tracecmd_unpair_peer - Link a tracing peer to this handle
+ * tracecmd_unpair_peer - Remove the linked tracing peer of this handle
  * @handle: input handle for the trace.dat file
- * @peer: input handle for the tracing peer
  *
  * When tracing host and one or more guest machines at the same time,
  * guest and host are tracing peers. There is information in both trace
@@ -3244,7 +3243,7 @@ fail:
  * merging the events. When the host is set as a tracing peer to the guest, then
  * the timestamps of guest's events are recalculated to match the host event's time
  *
- * Returns 1, if a peer is already paired, -1 in case of an error or 0 otherwise
+ * This removes any peer that is linked to the  @handle.
  */
 int tracecmd_unpair_peer(struct tracecmd_input *handle)
 {
