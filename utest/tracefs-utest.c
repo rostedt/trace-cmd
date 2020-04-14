@@ -252,20 +252,20 @@ static void test_instance_file(void)
 	tracefs_put_tracing_file(inst_file);
 	free(fname);
 
-	CU_TEST(tracefs_file_exist(NULL, (char *)name) == false);
-	CU_TEST(tracefs_dir_exist(NULL, (char *)name) == false);
-	CU_TEST(tracefs_file_exist(instance, (char *)name) == false);
-	CU_TEST(tracefs_dir_exist(instance, (char *)name) == false);
+	CU_TEST(tracefs_file_exists(NULL, (char *)name) == false);
+	CU_TEST(tracefs_dir_exists(NULL, (char *)name) == false);
+	CU_TEST(tracefs_file_exists(instance, (char *)name) == false);
+	CU_TEST(tracefs_dir_exists(instance, (char *)name) == false);
 
-	CU_TEST(tracefs_file_exist(NULL, CUR_TRACER) == true);
-	CU_TEST(tracefs_dir_exist(NULL, CUR_TRACER) == false);
-	CU_TEST(tracefs_file_exist(instance, CUR_TRACER) == true);
-	CU_TEST(tracefs_dir_exist(instance, CUR_TRACER) == false);
+	CU_TEST(tracefs_file_exists(NULL, CUR_TRACER) == true);
+	CU_TEST(tracefs_dir_exists(NULL, CUR_TRACER) == false);
+	CU_TEST(tracefs_file_exists(instance, CUR_TRACER) == true);
+	CU_TEST(tracefs_dir_exists(instance, CUR_TRACER) == false);
 
-	CU_TEST(tracefs_file_exist(NULL, PER_CPU) == false);
-	CU_TEST(tracefs_dir_exist(NULL, PER_CPU) == true);
-	CU_TEST(tracefs_file_exist(instance, PER_CPU) == false);
-	CU_TEST(tracefs_dir_exist(instance, PER_CPU) == true);
+	CU_TEST(tracefs_file_exists(NULL, PER_CPU) == false);
+	CU_TEST(tracefs_dir_exists(NULL, PER_CPU) == true);
+	CU_TEST(tracefs_file_exists(instance, PER_CPU) == false);
+	CU_TEST(tracefs_dir_exists(instance, PER_CPU) == true);
 
 	CU_TEST(tracefs_instance_destroy(NULL) != 0);
 	CU_TEST(tracefs_instance_destroy(instance) == 0);

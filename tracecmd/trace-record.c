@@ -4791,7 +4791,7 @@ static void clear_instance_error_log(struct buffer_instance *instance)
 {
 	char *file;
 
-	if (!tracefs_file_exist(instance->tracefs, "error_log"))
+	if (!tracefs_file_exists(instance->tracefs, "error_log"))
 		return;
 
 	file = tracefs_instance_get_file(instance->tracefs, "error_log");

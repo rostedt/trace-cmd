@@ -248,7 +248,7 @@ char *tracefs_instance_file_read(struct tracefs_instance *instance,
 	return buf;
 }
 
-static bool check_file_exist(struct tracefs_instance *instance,
+static bool check_file_exists(struct tracefs_instance *instance,
 			     char *name, bool dir)
 {
 	char file[PATH_MAX];
@@ -267,7 +267,7 @@ static bool check_file_exist(struct tracefs_instance *instance,
 }
 
 /**
- * tracefs_file_exist - Check if a file with given name exists in given instance
+ * tracefs_file_exists - Check if a file with given name exists in given instance
  * @instance: ftrace instance, can be NULL for the top instance
  * @name: name of the file
  *
@@ -275,19 +275,19 @@ static bool check_file_exist(struct tracefs_instance *instance,
  *
  * If a directory with the given name exists, false is returned.
  */
-bool tracefs_file_exist(struct tracefs_instance *instance, char *name)
+bool tracefs_file_exists(struct tracefs_instance *instance, char *name)
 {
-	return check_file_exist(instance, name, false);
+	return check_file_exists(instance, name, false);
 }
 
 /**
- * tracefs_dir_exist - Check if a directory with given name exists in given instance
+ * tracefs_dir_exists - Check if a directory with given name exists in given instance
  * @instance: ftrace instance, can be NULL for the top instance
  * @name: name of the directory
  *
  * Returns true if the directory exists, false otherwise
  */
-bool tracefs_dir_exist(struct tracefs_instance *instance, char *name)
+bool tracefs_dir_exists(struct tracefs_instance *instance, char *name)
 {
-	return check_file_exist(instance, name, true);
+	return check_file_exists(instance, name, true);
 }

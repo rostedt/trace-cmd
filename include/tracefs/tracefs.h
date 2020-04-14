@@ -33,8 +33,8 @@ int tracefs_instance_file_write(struct tracefs_instance *instance,
 char *tracefs_instance_file_read(struct tracefs_instance *instance,
 				 char *file, int *psize);
 
-bool tracefs_file_exist(struct tracefs_instance *instance, char *name);
-bool tracefs_dir_exist(struct tracefs_instance *instance, char *name);
+bool tracefs_file_exists(struct tracefs_instance *instance, char *name);
+bool tracefs_dir_exists(struct tracefs_instance *instance, char *name);
 
 /* events */
 void tracefs_list_free(char **list);
