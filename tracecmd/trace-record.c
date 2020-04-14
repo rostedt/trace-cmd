@@ -4787,6 +4787,28 @@ static void clear_triggers(void)
 		clear_instance_triggers(instance);
 }
 
+static void clear_instance_error_log(struct buffer_instance *instance)
+{
+	char *file;
+
+	if (!tracefs_file_exist(instance->tracefs, "error_log"))
+		return;
+
+	file = tracefs_instance_get_file(instance->tracefs, "error_log");
+	if (!file)
+		return;
+	write_file(file, " ");
+	tracefs_put_tracing_file(file);
+}
+
+static void clear_error_log(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance)
+		clear_instance_error_log(instance);
+}
+
 static void clear_all_synth_events(void)
 {
 	char sevent[BUFSIZ];
@@ -5531,6 +5553,7 @@ void trace_reset(int argc, char **argv)
 	clear_filters();
 	clear_triggers();
 	clear_all_synth_events();
+	clear_error_log();
 	/* set clock to "local" */
 	reset_clock();
 	reset_event_pid();
