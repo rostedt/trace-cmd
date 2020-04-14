@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include <linux/limits.h>
 #include "tracefs.h"
 #include "tracefs-local.h"
 
@@ -246,4 +246,48 @@ char *tracefs_instance_file_read(struct tracefs_instance *instance,
 		*psize = size;
 
 	return buf;
+}
+
+static bool check_file_exist(struct tracefs_instance *instance,
+			     char *name, bool dir)
+{
+	char file[PATH_MAX];
+	struct stat st;
+	char *path;
+	int ret;
+
+	path = tracefs_instance_get_dir(instance);
+	snprintf(file, PATH_MAX, "%s/%s", path, name);
+	tracefs_put_tracing_file(path);
+	ret = stat(file, &st);
+	if (ret < 0)
+		return false;
+
+	return !dir == !S_ISDIR(st.st_mode);
+}
+
+/**
+ * tracefs_file_exist - Check if a file with given name exists in given instance
+ * @instance: ftrace instance, can be NULL for the top instance
+ * @name: name of the file
+ *
+ * Returns true if the file exists, false otherwise
+ *
+ * If a directory with the given name exists, false is returned.
+ */
+bool tracefs_file_exist(struct tracefs_instance *instance, char *name)
+{
+	return check_file_exist(instance, name, false);
+}
+
+/**
+ * tracefs_dir_exist - Check if a directory with given name exists in given instance
+ * @instance: ftrace instance, can be NULL for the top instance
+ * @name: name of the directory
+ *
+ * Returns true if the directory exists, false otherwise
+ */
+bool tracefs_dir_exist(struct tracefs_instance *instance, char *name)
+{
+	return check_file_exist(instance, name, true);
 }
