@@ -14,6 +14,8 @@ DESCRIPTION
 The trace-cmd(1) stat displays the various status of the tracing (ftrace)
 system. The status that it shows is:
 
+*Instances:* List all configured ftrace instances.
+
 *Tracer:* if one of the tracers (like function_graph) is active. Otherwise
   nothing is displayed.
 
