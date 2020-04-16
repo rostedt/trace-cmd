@@ -897,6 +897,22 @@ static void report_traceon(struct buffer_instance *instance)
 	free(str);
 }
 
+static void report_errorlog(struct buffer_instance *instance)
+{
+	char *str;
+
+	if (!tracefs_file_exists(instance->tracefs, "error_log"))
+		return;
+	str = get_instance_file_content(instance, "error_log");
+	if (!str)
+		return;
+
+	if (str[0])
+		printf("\nError log:\n%s\n", str);
+
+	free(str);
+}
+
 static void stat_instance(struct buffer_instance *instance)
 {
 	if (instance != &top_instance) {
@@ -920,6 +936,7 @@ static void stat_instance(struct buffer_instance *instance)
 	report_kprobes(instance);
 	report_uprobes(instance);
 	report_traceon(instance);
+	report_errorlog(instance);
 }
 
 void trace_stat (int argc, char **argv)

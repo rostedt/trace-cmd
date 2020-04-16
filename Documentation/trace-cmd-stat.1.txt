@@ -43,6 +43,8 @@ system. The status that it shows is:
 
 *Uprobes:* Shows any uprobes that are defined for tracing.
 
+*Error log:* Dump the content of ftrace error_log file.
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
