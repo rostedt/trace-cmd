@@ -30,7 +30,7 @@ static int kmem_cache_alloc_type;
 static int kmem_cache_alloc_node_type;
 static int kmem_cache_free_type;
 
-static struct tep_format_field *common_type_field;
+static struct tep_format_field *common_type_mem;
 
 static struct tep_format_field *kmalloc_callsite_field;
 static struct tep_format_field *kmalloc_bytes_req_field;
@@ -369,7 +369,7 @@ process_record(struct tep_handle *pevent, struct tep_record *record)
 	unsigned long long val;
 	int type;
 
-	tep_read_number_field(common_type_field, record->data, &val);
+	tep_read_number_field(common_type_mem, record->data, &val);
 	type = val;
 
 	if (type == kmalloc_type)
@@ -490,8 +490,8 @@ static void do_trace_mem(struct tracecmd_input *handle)
 	ret = tep_data_type(pevent, record);
 	event = tep_find_event(pevent, ret);
 
-	common_type_field = tep_find_common_field(event, "common_type");
-	if (!common_type_field)
+	common_type_mem = tep_find_common_field(event, "common_type");
+	if (!common_type_mem)
 		die("Can't find a 'type' field?");
 
 	update_kmalloc(pevent);

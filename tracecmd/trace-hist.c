@@ -27,7 +27,7 @@ static int kernel_stack_type;
 
 static int long_size;
 
-static struct tep_format_field *common_type_field;
+static struct tep_format_field *common_type_hist;
 static struct tep_format_field *common_pid_field;
 static struct tep_format_field *sched_wakeup_comm_field;
 static struct tep_format_field *sched_wakeup_new_comm_field;
@@ -568,7 +568,7 @@ process_record(struct tep_handle *pevent, struct tep_record *record)
 	unsigned long long val;
 	int type;
 
-	tep_read_number_field(common_type_field, record->data, &val);
+	tep_read_number_field(common_type_hist, record->data, &val);
 	type = val;
 
 	if (type == function_type)
@@ -956,8 +956,8 @@ static void do_trace_hist(struct tracecmd_input *handle)
 
 	long_size = tracecmd_long_size(handle);
 
-	common_type_field = tep_find_common_field(event, "common_type");
-	if (!common_type_field)
+	common_type_hist = tep_find_common_field(event, "common_type");
+	if (!common_type_hist)
 		die("Can't find a 'type' field?");
 
 	common_pid_field = tep_find_common_field(event, "common_pid");
