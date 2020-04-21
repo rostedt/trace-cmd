@@ -122,6 +122,24 @@ static char *get_instance_file_content(struct buffer_instance *instance,
 	return str;
 }
 
+static void report_file(struct buffer_instance *instance,
+			char *name, char *def_value, char *description)
+{
+	char *str;
+	char *cont;
+
+	if (!tracefs_file_exists(instance->tracefs, name))
+		return;
+	str = get_instance_file_content(instance, name);
+	if (!str)
+		return;
+	cont = strstrip(str);
+	if (cont[0] && strcmp(cont, def_value) != 0)
+		printf("\n%s%s\n", description, cont);
+
+	free(str);
+}
+
 static void report_instances(void)
 {
 	struct dirent *dent;
@@ -164,26 +182,6 @@ out:
 	if (dir)
 		closedir(dir);
 	tracefs_put_tracing_file(path);
-}
-
-static void report_plugin(struct buffer_instance *instance)
-{
-	char *str;
-	char *cont;
-
-	str = get_instance_file_content(instance, "current_tracer");
-	if (!str)
-		return;
-
-	cont = strstrip(str);
-
-	/* We only care if the plugin is something other than nop */
-	if (strcmp(cont, "nop") == 0)
-		goto out;
-
-	printf("\nTracer: %s\n", cont);
- out:
-	free(str);
 }
 
 struct event_iter *trace_event_iter_alloc(const char *path)
@@ -817,23 +815,6 @@ static void report_cpumask(struct buffer_instance *instance)
 	free(str);
 }
 
-static void report_latency(struct buffer_instance *instance)
-{
-	char *str;
-	char *cont;
-
-	str = get_instance_file_content(instance, "tracing_max_latency");
-	if (!str)
-		return;
-
-	cont = strstrip(str);
-
-	if (strcmp(cont, "0") != 0)
-		printf("\nMax Latency: %s\n", cont);
-
-	free(str);
-}
-
 static void report_probes(struct buffer_instance *instance,
 			  const char *file, const char *string)
 {
@@ -897,22 +878,6 @@ static void report_traceon(struct buffer_instance *instance)
 	free(str);
 }
 
-static void report_errorlog(struct buffer_instance *instance)
-{
-	char *str;
-
-	if (!tracefs_file_exists(instance->tracefs, "error_log"))
-		return;
-	str = get_instance_file_content(instance, "error_log");
-	if (!str)
-		return;
-
-	if (str[0])
-		printf("\nError log:\n%s\n", str);
-
-	free(str);
-}
-
 static void stat_instance(struct buffer_instance *instance)
 {
 	if (instance != &top_instance) {
@@ -922,7 +887,7 @@ static void stat_instance(struct buffer_instance *instance)
 			tracefs_instance_get_name(instance->tracefs));
 	}
 
-	report_plugin(instance);
+	report_file(instance, "current_tracer", "nop", "Tracer: ");
 	report_events(instance);
 	report_event_filters(instance);
 	report_event_triggers(instance);
@@ -931,11 +896,11 @@ static void stat_instance(struct buffer_instance *instance)
 	report_buffers(instance);
 	report_clock(instance);
 	report_cpumask(instance);
-	report_latency(instance);
+	report_file(instance, "tracing_max_latency", "0", "Max Latency: ");
 	report_kprobes(instance);
 	report_uprobes(instance);
 	report_traceon(instance);
-	report_errorlog(instance);
+	report_file(instance, "error_log", "", "Error log:\n");
 	if (instance == &top_instance)
 		report_instances();
 }
