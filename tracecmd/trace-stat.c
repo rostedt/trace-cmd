@@ -899,6 +899,9 @@ static void stat_instance(struct buffer_instance *instance)
 	report_file(instance, "tracing_max_latency", "0", "Max Latency: ");
 	report_kprobes(instance);
 	report_uprobes(instance);
+	report_file(instance, "set_event_pid", "", "Filtered event PIDs:\n");
+	report_file(instance, "set_ftrace_pid", "no pid",
+		    "Filtered function tracer PIDs:\n");
 	report_traceon(instance);
 	report_file(instance, "error_log", "", "Error log:\n");
 	if (instance == &top_instance)
