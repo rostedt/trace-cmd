@@ -2191,8 +2191,6 @@ static void tsync_offset_load(struct tracecmd_input *handle, char *buf)
 			host->ts_samples[j++] = host->ts_samples[i];
 	}
 	host->ts_samples_count = j;
-	if (j)
-		host->sync_enable = true;
 }
 
 static void tsync_check_enable(struct tracecmd_input *handle)
