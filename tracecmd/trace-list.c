@@ -5,6 +5,7 @@
  */
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "tracefs.h"
 #include "trace-local.h"
@@ -306,6 +307,42 @@ static void show_buffers(void)
 }
 
 
+static void show_systems(void)
+{
+	struct dirent *dent;
+	char *path;
+	DIR *dir;
+
+	path = tracefs_get_tracing_file("events");
+	dir = opendir(path);
+
+	if (!dir)
+		die("Can not read events directory");
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		struct stat st;
+		char *spath;
+		int ret;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		if (asprintf(&spath, "%s/%s", path, name) < 0)
+			continue;
+		ret = stat(spath, &st);
+		if (!ret && S_ISDIR(st.st_mode))
+			printf("%s\n", name);
+
+		free(spath);
+	}
+
+	printf("\n");
+	closedir(dir);
+	tracefs_put_tracing_file(path);
+}
+
 static void show_plugin_options(void)
 {
 	struct tep_handle *pevent;
@@ -366,6 +403,7 @@ void trace_list(int argc, char **argv)
 	int plug = 0;
 	int plug_op = 0;
 	int flags = 0;
+	int systems = 0;
 	int show_all = 1;
 	int i;
 	const char *arg;
@@ -427,6 +465,10 @@ void trace_list(int argc, char **argv)
 				funcre = arg;
 				show_all = 0;
 				break;
+			case 's':
+				systems = 1;
+				show_all = 0;
+				break;
 			case '-':
 				if (strcmp(argv[i], "--debug") == 0) {
 					tracecmd_set_debug(true);
@@ -465,8 +507,11 @@ void trace_list(int argc, char **argv)
 
 	if (clocks)
 		show_clocks();
-
+	if (systems)
+		show_systems();
 	if (show_all) {
+		printf("event systems:\n");
+		show_systems();
 		printf("events:\n");
 		show_events(NULL, 0);
 		printf("\ntracers:\n");
