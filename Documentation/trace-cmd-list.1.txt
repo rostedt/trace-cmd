@@ -13,7 +13,7 @@ DESCRIPTION
 -----------
 The trace-cmd(1) list displays the available plugins, events or Ftrace options
 that are configured on the current machine.  If no option is given, then it
-lists all plugins, events and Ftrace options to standard output.
+lists all plugins, event systems, events and Ftrace options to standard output.
 
 OPTIONS
 -------
@@ -33,6 +33,9 @@ OPTIONS
 
 *-R*::
     Used with *-e* 'regex' to show those events triggers.
+
+*-s*::
+    This option will list the available event systems.
 
 *-t*::
     This option will list the available tracers that are enabled on the
