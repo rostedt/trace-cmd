@@ -170,12 +170,14 @@ public:
 
 	size_t search(KsSearchFSM *sm, QList<int> *matchList);
 
-	QList<int> searchMap(int column,
-			     const QString  &searchText,
-			     search_condition_func  cond,
-			     int first,
-			     int last,
-			     bool notify);
+	QList<int> searchThread(int column,
+				const QString &searchText,
+				search_condition_func cond,
+				int step,
+				int first,
+				int last,
+				int *lastRowSearched,
+				bool notify);
 
 	/** Get the progress of the search. */
 	int searchProgress() const {return _searchProgress;}
@@ -223,9 +225,11 @@ private:
 		       const QString &searchText,
 		       search_condition_func cond,
 		       QList<int> *matchList,
+		       int step,
 		       int first, int last,
 		       QProgressBar *pb,
 		       QLabel *l,
+		       int *lastRowSearched,
 		       bool notify);
 };
 

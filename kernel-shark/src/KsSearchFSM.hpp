@@ -168,9 +168,10 @@ public:
 
 	/**
 	 * Last row, tested for matching. To be used when restarting the
-	 * search.
+	 * search. Note that the field uses "int" as a type because this
+	 * is the type supported by the Qt widget (QTableView).
 	 */
-	ssize_t		_lastRowSearched;
+	int		_lastRowSearched;
 
 //! @cond Doxygen_Suppress
 

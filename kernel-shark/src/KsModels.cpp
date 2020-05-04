@@ -52,22 +52,25 @@ size_t KsFilterProxyModel::_search(int column,
 				   const QString &searchText,
 				   search_condition_func cond,
 				   QList<int> *matchList,
+				   int step,
 				   int first, int last,
 				   QProgressBar *pb,
 				   QLabel *l,
+				   int *lastRowSearched,
 				   bool notify)
 {
 	int index, row, nRows(last - first + 1);
-	int pbCount(1);
+	int milestone(1), pbCount(1);
 	QString item;
 
 	if (nRows > KS_PROGRESS_BAR_MAX)
-		pbCount = nRows / (KS_PROGRESS_BAR_MAX - _searchProgress);
+		milestone = pbCount = nRows / (KS_PROGRESS_BAR_MAX - step -
+					       _searchProgress);
 	else
 		_searchProgress = KS_PROGRESS_BAR_MAX - nRows;
 
 	/* Loop over the items of the proxy model. */
-	for (index = first; index <= last; ++index) {
+	for (index = first; index <= last; index += step) {
 		/*
 		 * Use the index of the proxy model to retrieve the value
 		 * of the row number in the base model.
@@ -78,17 +81,23 @@ size_t KsFilterProxyModel::_search(int column,
 			matchList->append(row);
 
 		if (_searchStop) {
-			if (notify) {
-				_searchProgress = KS_PROGRESS_BAR_MAX;
+			if (lastRowSearched)
+				*lastRowSearched = index;
+
+			if (notify)
 				_pbCond.notify_one();
-			}
 
 			break;
 		}
 
 		/* Deal with the Progress bar of the seatch. */
-		if ((index - first) % pbCount == 0) {
+		if ((index - first) >= milestone) {
+			milestone += pbCount;
 			if (notify) {
+				/*
+				 * This is a multi-threaded search. Notify
+				 * the main thread to update the progress bar.
+				 */
 				std::lock_guard<std::mutex> lk(_mutex);
 				++_searchProgress;
 				_pbCond.notify_one();
@@ -100,6 +109,7 @@ size_t KsFilterProxyModel::_search(int column,
 
 				if (l)
 					l->setText(QString(" %1").arg(matchList->count()));
+
 				QApplication::processEvents();
 			}
 		}
@@ -130,8 +140,17 @@ size_t KsFilterProxyModel::search(int column,
 				  QLabel *l)
 {
 	int nRows = rowCount({});
-	_search(column, searchText, cond, matchList,
-		0, nRows - 1, pb, l, false);
+	_search(column,
+		searchText,
+		cond,
+		matchList,
+		1,		// step
+		0,		// first
+		nRows - 1,	// last
+		pb,
+		l,
+		nullptr,
+		false);
 
 	return matchList->count();
 }
@@ -148,16 +167,17 @@ size_t KsFilterProxyModel::search(KsSearchFSM *sm, QList<int> *matchList)
 {
 	int nRows = rowCount({});
 
-	sm->_lastRowSearched =
-		_search(sm->column(),
-			sm->searchText(),
-			sm->condition(),
-			matchList,
-			sm->_lastRowSearched + 1,
-			nRows - 1,
-			&sm->_searchProgBar,
-			&sm->_searchCountLabel,
-			false);
+	_search(sm->column(),
+		sm->searchText(),
+		sm->condition(),
+		matchList,
+		1,				// step
+		sm->_lastRowSearched + 1,	// first
+		nRows - 1,			// last
+		&sm->_searchProgBar,
+		&sm->_searchCountLabel,
+		&sm->_lastRowSearched,
+		false);
 
 	return matchList->count();
 }
@@ -168,26 +188,41 @@ size_t KsFilterProxyModel::search(KsSearchFSM *sm, QList<int> *matchList)
  * @param column: The number of the column to search in.
  * @param searchText: The text to search for.
  * @param cond: Matching condition function.
+ * @param step: The step used by the thread of the search when looping over
+ *		the data.
  * @param first: Row index specifying the position inside the table from
  *		 where the search starts.
  * @param last:  Row index specifying the position inside the table from
  *		 where the search ends.
+ * @param lastRowSearched: Output location for parameter showing the index of
+ *			   the last searched item (data row).
  * @param notify: Input location for flag specifying if the search has to
  *		  notify the main thread when to update the progress bar.
  *
  * @returns A list containing the row indexes of the cells satisfying matching
  *	    condition.
  */
-QList<int> KsFilterProxyModel::searchMap(int column,
-					 const QString &searchText,
-					 search_condition_func cond,
-					 int first,
-					 int last,
-					 bool notify)
+QList<int> KsFilterProxyModel::searchThread(int column,
+					    const QString &searchText,
+					    search_condition_func cond,
+					    int step,
+					    int first,
+					    int last,
+					    int *lastRowSearched,
+					    bool notify)
 {
 	QList<int> matchList;
-	_search(column, searchText, cond, &matchList, first, last,
-		nullptr, nullptr, notify);
+	_search(column,
+		searchText,
+		cond,
+		&matchList,
+		step,
+		first,
+		last,
+		nullptr,
+		nullptr,
+		lastRowSearched,
+		notify);
 
 	return matchList;
 }

@@ -12,6 +12,7 @@
 // C++11
 #include <thread>
 #include <future>
+#include <queue>
 
 // KernelShark
 #include "KsQuickContextMenu.hpp"
@@ -676,49 +677,129 @@ void KsTraceViewer::_setSearchIterator(int row)
 void KsTraceViewer::_searchItemsMT()
 {
 	int nThreads = std::thread::hardware_concurrency();
+	int startFrom, nRows(_proxyModel.rowCount({}));
 	std::vector<QPair<int, int>> ranges(nThreads);
 	std::vector<std::future<QList<int>>> maps;
-	int i(0), nRows(_proxyModel.rowCount({}));
-	int delta(nRows / nThreads);
+	std::mutex lrs_mtx;
 
-	auto lamSearchMap = [&] (const QPair<int, int> &range,
-				 bool notify) {
-		return _proxyModel.searchMap(_searchFSM._columnComboBox.currentIndex(),
-					     _searchFSM._searchLineEdit.text(),
-					     _searchFSM.condition(),
-					     range.first, range.second,
-					     notify);
+	auto lamLRSUpdate = [&] (int lastRowSearched) {
+		std::lock_guard<std::mutex> lock(lrs_mtx);
+
+		if (_searchFSM._lastRowSearched > lastRowSearched ||
+		    _searchFSM._lastRowSearched < 0) {
+			/*
+			 * This thread has been slower and processed
+			 * less data. Take the place where it stopped
+			 * as a starting point of the next search.
+			 */
+			_searchFSM._lastRowSearched = lastRowSearched;
+		}
 	};
 
-	auto lamSearchReduce = [&] (QList<int> &resultList,
-				    const QList<int> &mapList) {
-		resultList << mapList;
-		_searchFSM.incrementProgress();
+	auto lamSearchMap = [&] (const int first, bool notify) {
+		int lastRowSearched;
+		QList<int> list;
+
+		list = _proxyModel.searchThread(_searchFSM._columnComboBox.currentIndex(),
+						_searchFSM._searchLineEdit.text(),
+						_searchFSM.condition(),
+						nThreads,
+						first, nRows - 1,
+						&lastRowSearched,
+						notify);
+
+		lamLRSUpdate(lastRowSearched);
+
+		return list;
 	};
 
-	for (auto &r: ranges) {
-		r.first = (i++) * delta;
-		r.second = r.first + delta - 1;
-	}
+	using merge_pair_t = std::pair<int, int>;
+	using merge_container_t = std::vector<merge_pair_t>;
 
-	/*
-	 * If the range is not multiple of the number of threads, adjust
-	 * the last range interval.
-	 */
-	ranges.back().second = nRows - 1;
-	maps.push_back(std::async(lamSearchMap, ranges[0], true));
+	auto lamComp = [] (const merge_pair_t& itemA, const merge_pair_t& itemB) {
+		return itemA.second > itemB.second;
+	};
+
+	using merge_queue_t = std::priority_queue<merge_pair_t,
+						  merge_container_t,
+						  decltype(lamComp)>;
+
+	auto lamSearchMerge = [&] (QList<int> &resultList,
+				   QVector< QList<int> >&mapList) {
+		merge_queue_t queue(lamComp);
+		int id, stop(-1);
+
+		auto pop = [&] () {
+			if (queue.size() == 0)
+				return stop;
+
+			auto item = queue.top();
+			queue.pop();
+
+			if (!mapList[item.first].empty()) {
+				/*
+				 * Replace the popped item with the next
+				 * matching item fron the same search thread.
+				 */
+				queue.push(std::make_pair(item.first,
+							  mapList[item.first].front()));
+				mapList[item.first].pop_front();
+			}
+
+			if (_searchFSM.getState() == search_state_t::Paused_s &&
+			    item.second > _searchFSM._lastRowSearched) {
+				/*
+				 * The search has been paused and we already
+				 * passed the last row searched by the slowest
+				 * search thread. Stop here and ignore all
+				 * following matches found by faster threads.
+				 */
+				return stop;
+			}
+
+			return item.second;
+		};
+
+		for (int i = 0; i < mapList.size(); ++i)
+			if ( mapList[i].count()) {
+				queue.push(std::make_pair(i, mapList[i].front()));
+				mapList[i].pop_front();
+			}
+
+		id = pop();
+		while (id >= 0) {
+			resultList.append(id);
+			id = pop();
+		}
+	};
+
+	startFrom = _searchFSM._lastRowSearched + 1;
+	_searchFSM._lastRowSearched = -1;
+
+	/* Start the thread that will update the progress bar. */
+	maps.push_back(std::async(lamSearchMap,
+				  startFrom,
+				  true)); // notify = true
+
+	/* Start all other threads. */
 	for (int r = 1; r < nThreads; ++r)
-		maps.push_back(std::async(lamSearchMap, ranges[r], false));
+		maps.push_back(std::async(lamSearchMap,
+					  startFrom + r,
+					  false)); // notify = false
 
-	while (_proxyModel.searchProgress() < KS_PROGRESS_BAR_MAX - nThreads) {
+	while (_searchFSM.getState() == search_state_t::InProgress_s &&
+	       _proxyModel.searchProgress() < KS_PROGRESS_BAR_MAX - nThreads - 1) {
 		std::unique_lock<std::mutex> lk(_proxyModel._mutex);
 		_proxyModel._pbCond.wait(lk);
 		_searchFSM.setProgress(_proxyModel.searchProgress());
 		QApplication::processEvents();
 	}
 
+	QVector<QList<int>> res;
 	for (auto &m: maps)
-		lamSearchReduce(_matchList, m.get());
+		res.append(std::move(m.get()));
+
+	lamSearchMerge(_matchList, res);
 }
 
 /**
