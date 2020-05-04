@@ -132,8 +132,9 @@ private:
 
 	size_t _searchItems();
 
-	void _searchItemsMapReduce(int column, const QString &searchText,
-				   search_condition_func cond);
+	void _searchItemsST() {_proxyModel.search(&_searchFSM, &_matchList);}
+
+	void _searchItemsMT();
 
 	void _searchEditText(const QString &);
 

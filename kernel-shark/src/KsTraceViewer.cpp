@@ -621,9 +621,9 @@ size_t KsTraceViewer::_searchItems()
 
 		if (column == KsViewModel::TRACE_VIEW_COL_INFO ||
 		    column == KsViewModel::TRACE_VIEW_COL_LAT)
-			_proxyModel.search(&_searchFSM, &_matchList);
+			_searchItemsST();
 		else
-			_searchItemsMapReduce(column, searchText, _searchFSM.condition());
+			_searchItemsMT();
 	}
 
 	count = _matchList.count();
@@ -673,9 +673,7 @@ void KsTraceViewer::_setSearchIterator(int row)
 	}
 }
 
-void KsTraceViewer::_searchItemsMapReduce(int column,
-					  const QString &searchText,
-					  search_condition_func cond)
+void KsTraceViewer::_searchItemsMT()
 {
 	int nThreads = std::thread::hardware_concurrency();
 	std::vector<QPair<int, int>> ranges(nThreads);
@@ -685,7 +683,9 @@ void KsTraceViewer::_searchItemsMapReduce(int column,
 
 	auto lamSearchMap = [&] (const QPair<int, int> &range,
 				 bool notify) {
-		return _proxyModel.searchMap(column, searchText, cond,
+		return _proxyModel.searchMap(_searchFSM._columnComboBox.currentIndex(),
+					     _searchFSM._searchLineEdit.text(),
+					     _searchFSM.condition(),
 					     range.first, range.second,
 					     notify);
 	};
