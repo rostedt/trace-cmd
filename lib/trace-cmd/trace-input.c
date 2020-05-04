@@ -3712,6 +3712,8 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 
 	new_handle->flags |= TRACECMD_FL_BUFFER_INSTANCE;
 
+	new_handle->pid_maps = NULL;
+
 	/* Save where we currently are */
 	offset = lseek64(handle->fd, 0, SEEK_CUR);
 
