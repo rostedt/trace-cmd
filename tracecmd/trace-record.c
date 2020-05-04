@@ -6222,6 +6222,8 @@ static void record_trace(int argc, char **argv,
 	if (!ctx->output)
 		ctx->output = DEFAULT_INPUT_FILE;
 
+	make_instances();
+
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
 		instance->output_file = strdup(ctx->output);
@@ -6235,8 +6237,6 @@ static void record_trace(int argc, char **argv,
 		if (instance->tracing_on_init_val < 0)
 			instance->tracing_on_init_val = 1;
 	}
-
-	make_instances();
 
 	if (ctx->events)
 		expand_event_list();
