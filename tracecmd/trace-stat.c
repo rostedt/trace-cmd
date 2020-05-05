@@ -920,8 +920,7 @@ static void stat_instance(struct buffer_instance *instance)
 			printf("---------------\n");
 		printf("Instance: %s\n",
 			tracefs_instance_get_name(instance->tracefs));
-	} else
-		report_instances();
+	}
 
 	report_plugin(instance);
 	report_events(instance);
@@ -937,6 +936,8 @@ static void stat_instance(struct buffer_instance *instance)
 	report_uprobes(instance);
 	report_traceon(instance);
 	report_errorlog(instance);
+	if (instance == &top_instance)
+		report_instances();
 }
 
 void trace_stat (int argc, char **argv)
