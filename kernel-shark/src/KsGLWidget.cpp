@@ -341,6 +341,11 @@ void KsGLWidget::keyReleaseEvent(QKeyEvent *event)
 }
 
 /**
+ * The maximum number of CPU plots to be shown by default when the GUI starts.
+ */
+#define KS_MAX_START_PLOTS 16
+
+/**
  * @brief Load and show trace data.
  *
  * @param data: Input location for the KsDataStore object.
@@ -358,7 +363,6 @@ void KsGLWidget::loadData(KsDataStore *data)
 	 * One bin will correspond to one pixel.
 	 */
 	nBins = width() - _hMargin * 2;
-	nCPUs = tep_get_cpus(_data->tep());
 
 	_model.reset();
 
@@ -368,8 +372,13 @@ void KsGLWidget::loadData(KsDataStore *data)
 	ksmodel_set_bining(_model.histo(), nBins, tMin, tMax);
 	_model.fill(_data->rows(), _data->size());
 
-	/* Make a default CPU list. All CPUs will be plotted. */
+	/* Make a default CPU list. All CPUs (or the first N_max) will be plotted. */
 	_cpuList = {};
+
+	nCPUs = tep_get_cpus(_data->tep());
+	if (nCPUs > KS_MAX_START_PLOTS)
+		nCPUs = KS_MAX_START_PLOTS;
+
 	for (int i = 0; i < nCPUs; ++i)
 		_cpuList.append(i);
 
