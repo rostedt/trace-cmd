@@ -62,6 +62,10 @@ public:
 		_plugins.unregisterPlugin(plugin);
 	}
 
+	void setCPUPlots(QVector<int> cpus);
+
+	void setTaskPlots(QVector<int> pids);
+
 	void resizeEvent(QResizeEvent* event);
 
 	/** Set the Full Screen mode. */

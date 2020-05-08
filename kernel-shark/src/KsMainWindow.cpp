@@ -172,6 +172,45 @@ KsMainWindow::~KsMainWindow()
 		kshark_free(kshark_ctx);
 }
 
+/** Set the list ot CPU cores to be plotted. */
+void KsMainWindow::setCPUPlots(QVector<int> cpus)
+{
+	int nCPUs = tep_get_cpus(_data.tep());
+	auto lamCPUCheck = [=] (int cpu) {
+		if (cpu >= nCPUs) {
+			qWarning() << "Warning: No CPU" << cpu << "found in the data.";
+			return true;
+		}
+
+		return false;
+	};
+
+	cpus.erase(std::remove_if(cpus.begin(), cpus.end(), lamCPUCheck),
+		   cpus.end());
+
+	_graph.cpuReDraw(cpus);
+}
+
+/** Set the list ot tasks (pids) to be plotted. */
+void KsMainWindow::setTaskPlots(QVector<int> pids)
+{
+	QVector<int> allPids = KsUtils::getPidList();
+	auto lamPidCheck = [=] (int pid) {
+		int i = allPids.indexOf(pid);
+		if (i < 0) {
+			qWarning() << "Warning: No Pid" << pid << "found in the data.";
+			return true;
+		}
+
+		return false;
+	};
+
+	pids.erase(std::remove_if(pids.begin(), pids.end(), lamPidCheck),
+		   pids.end());
+
+	_graph.taskReDraw(pids);
+}
+
 /**
  * Reimplemented event handler used to update the geometry of the window on
  * resize events.
