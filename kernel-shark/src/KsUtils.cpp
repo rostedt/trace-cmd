@@ -336,6 +336,30 @@ QStringList splitArguments(QString cmd)
 	return argv;
 }
 
+/** Parse a string containing Ids. The string can be of the form "1 4-7 9". */
+QVector<int> parseIdList(QString v_str)
+{
+	QStringList list = v_str.split(",", QString::SkipEmptyParts);
+	QVector<int> v;
+
+	for (auto item: list) {
+		int i = item.indexOf('-');
+		if (i > 0) {
+			/* This item is an interval. */
+			int to = item.right(item.size() - i - 1).toInt();
+			int from = item.left(i).toInt();
+			int s = v.size();
+
+			v.resize(s + to - from + 1);
+			std::iota(v.begin() + s, v.end(), from);
+		} else {
+			v.append(item.toInt());
+		}
+	}
+
+	return v;
+}
+
 }; // KsUtils
 
 /** A stream operator for converting QColor into KsPlot::Color. */

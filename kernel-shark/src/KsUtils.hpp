@@ -136,6 +136,8 @@ QString getSaveFile(QWidget *parent,
 
 QStringList splitArguments(QString cmd);
 
+QVector<int> parseIdList(QString v_str);
+
 }; // KsUtils
 
 /** Identifier of the Dual Marker active state. */
