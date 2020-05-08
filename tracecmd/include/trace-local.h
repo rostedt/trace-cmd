@@ -184,6 +184,17 @@ struct pid_addr_maps {
 	int				pid;
 };
 
+struct opt_list {
+	struct opt_list *next;
+	const char	*option;
+};
+
+struct filter_pids {
+	struct filter_pids *next;
+	int pid;
+	int exclude;
+};
+
 struct buffer_instance {
 	struct buffer_instance	*next;
 	struct tracefs_instance	*tracefs;
@@ -201,6 +212,18 @@ struct buffer_instance {
 	char			*filter_mod;
 	struct func_list	*filter_funcs;
 	struct func_list	*notrace_funcs;
+
+	struct opt_list		*options;
+	struct filter_pids	*filter_pids;
+	char			*common_pid_filter;
+	int			nr_filter_pids;
+	int			len_filter_pids;
+	bool			ptrace_child;
+
+	int			have_set_event_pid;
+	int			have_event_fork;
+	int			have_func_fork;
+	int			get_procmap;
 
 	const char		*clock;
 	unsigned int		*client_ports;
@@ -260,7 +283,6 @@ int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu);
 /* moved from trace-cmd.h */
 void tracecmd_create_top_instance(char *name);
 void tracecmd_remove_instances(void);
-void tracecmd_filter_pid(int pid, int exclude);
 int tracecmd_add_event(const char *event_str, int stack);
 void tracecmd_enable_events(void);
 void tracecmd_disable_all_tracing(int disable_tracer);
