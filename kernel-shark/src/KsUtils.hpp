@@ -32,7 +32,7 @@
 
 //! @cond Doxygen_Suppress
 
-auto fontHeight = []()
+static auto fontHeight = []()
 {
 	QFont font;
 	QFontMetrics fm(font);
@@ -40,7 +40,7 @@ auto fontHeight = []()
 	return fm.height();
 };
 
-auto stringWidth = [](QString s)
+static auto stringWidth = [](QString s)
 {
 	QFont font;
 	QFontMetrics fm(font);
