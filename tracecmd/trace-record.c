@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/utsname.h>
 #ifndef NO_PTRACE
 #include <sys/ptrace.h>
@@ -33,6 +34,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <libgen.h>
+#include <poll.h>
 #include <pwd.h>
 #include <grp.h>
 #ifdef VSOCK
@@ -1229,6 +1231,81 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 		if (type & TRACE_TYPE_STREAM)
 			trace_stream_read(pids, recorder_threads, &tv);
 	} while (1);
+}
+
+#ifndef __NR_pidfd_open
+#define __NR_pidfd_open 434
+#endif
+
+static int pidfd_open(pid_t pid, unsigned int flags) {
+	return syscall(__NR_pidfd_open, pid, flags);
+}
+
+static int trace_waitpidfd(id_t pidfd) {
+	struct pollfd pollfd;
+
+	pollfd.fd = pidfd;
+	pollfd.events = POLLIN;
+
+	while (!finished) {
+		int ret = poll(&pollfd, 1, -1);
+		/* If waitid was interrupted, keep waiting */
+		if (ret < 0 && errno == EINTR)
+			continue;
+		else if (ret < 0)
+			return 1;
+		else
+			break;
+	}
+
+	return 0;
+}
+
+static int trace_wait_for_processes(struct buffer_instance *instance) {
+	int ret = 0;
+	int nr_fds = 0;
+	int i;
+	int *pidfds;
+	struct filter_pids *pid;
+
+	pidfds = malloc(sizeof(int) * instance->nr_process_pids);
+	if (!pidfds)
+		return 1;
+
+	for (pid = instance->process_pids;
+	     pid && instance->nr_process_pids;
+	     pid = pid->next) {
+		if (pid->exclude) {
+			instance->nr_process_pids--;
+			continue;
+		}
+		pidfds[nr_fds] = pidfd_open(pid->pid, 0);
+
+		/* If the pid doesn't exist, the process has probably exited */
+		if (pidfds[nr_fds] < 0 && errno == ESRCH) {
+			instance->nr_process_pids--;
+			continue;
+		} else if (pidfds[nr_fds] < 0) {
+			ret = 1;
+			goto out;
+		}
+
+		nr_fds++;
+		instance->nr_process_pids--;
+	}
+
+	for (i = 0; i < nr_fds; i++) {
+		if (trace_waitpidfd(pidfds[i])) {
+			ret = 1;
+			goto out;
+		}
+	}
+
+out:
+	for (i = 0; i < nr_fds; i++)
+		close(pidfds[i]);
+	free(pidfds);
+	return ret;
 }
 #ifndef NO_PTRACE
 
@@ -5866,7 +5943,9 @@ static void parse_record_options(int argc,
 				fpids_count += add_filter_pid(ctx->instance,
 							      atoi(pid), 0);
 				pid = strtok_r(NULL, ",", &sav);
+				ctx->instance->nr_process_pids++;
 			}
+			ctx->instance->process_pids = ctx->instance->filter_pids;
 			free(pids);
 			break;
 		case 'c':
@@ -6345,6 +6424,7 @@ static void record_trace(int argc, char **argv,
 		tracecmd_msg_wait_close(ctx->instance->msg_handle);
 	} else {
 		bool pwait = false;
+		bool wait_indefinitely = false;
 
 		update_task_filter();
 		tracecmd_enable_tracing();
@@ -6361,7 +6441,16 @@ static void record_trace(int argc, char **argv,
 		}
 		/* sleep till we are woken with Ctrl^C */
 		printf("Hit Ctrl^C to stop recording\n");
-		while (!finished)
+		for_all_instances(instance) {
+			/* If an instance is not tracing individual processes
+			 * or there is an error while waiting for a process to
+			 * exit, fallback to waiting indefinitely.
+			 */
+			if (!instance->nr_process_pids ||
+			    trace_wait_for_processes(instance))
+				wait_indefinitely = true;
+		}
+		while (!finished && wait_indefinitely)
 			trace_or_sleep(type, pwait);
 	}
 

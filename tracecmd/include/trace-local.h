@@ -215,9 +215,11 @@ struct buffer_instance {
 
 	struct opt_list		*options;
 	struct filter_pids	*filter_pids;
+	struct filter_pids	*process_pids;
 	char			*common_pid_filter;
 	int			nr_filter_pids;
 	int			len_filter_pids;
+	int			nr_process_pids;
 	bool			ptrace_child;
 
 	int			have_set_event_pid;
