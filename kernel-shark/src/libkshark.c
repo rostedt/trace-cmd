@@ -489,6 +489,11 @@ static inline void unset_event_filter_flag(struct kshark_context *kshark_ctx,
 	e->visible &= ~event_mask;
 }
 
+static void set_all_visible(uint16_t *v) {
+	/*  Keep the original value of the PLUGIN_UNTOUCHED bit flag. */
+	*v |= 0xFF & ~KS_PLUGIN_UNTOUCHED_MASK;
+}
+
 /**
  * @brief This function loops over the array of entries specified by "data"
  *	  and "n_entries" and sets the "visible" fields of each entry
@@ -525,7 +530,7 @@ void kshark_filter_entries(struct kshark_context *kshark_ctx,
 	/* Apply only the Id filters. */
 	for (i = 0; i < n_entries; ++i) {
 		/* Start with and entry which is visible everywhere. */
-		data[i]->visible = 0xFF;
+		set_all_visible(&data[i]->visible);
 
 		/* Apply event filtering. */
 		if (!kshark_show_event(kshark_ctx, data[i]->event_id))
@@ -555,9 +560,8 @@ void kshark_clear_all_filters(struct kshark_context *kshark_ctx,
 			      size_t n_entries)
 {
 	int i;
-
 	for (i = 0; i < n_entries; ++i)
-		data[i]->visible = 0xFF;
+		set_all_visible(&data[i]->visible);
 }
 
 static void kshark_set_entry_values(struct kshark_context *kshark_ctx,
