@@ -70,7 +70,7 @@ $(bdir)/%.o: %.c
 	$(Q)$(call do_compile)
 
 $(all_deps): $(bdir)/.%.d: %.c
-	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
+	$(Q)$(CC) -M -MT $(bdir)/$*.o $(CPPFLAGS) $(CFLAGS) $< > $@
 
 $(all_deps): $(TC_VERSION)
 

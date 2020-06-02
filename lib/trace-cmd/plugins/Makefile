@@ -26,7 +26,7 @@ $(PLUGIN_BUILD): $(bdir)/%.so: $(bdir)/%.o
 	$(Q)$(do_plugin_build)
 
 $(DEPS): $(bdir)/.%.d: %.c
-	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
+	$(Q)$(CC) -M -MT $(bdir)/$*.o $(CPPFLAGS) $(CFLAGS) $< > $@
 
 $(PLUGIN_OBJS): $(bdir)/%.o : $(bdir)/.%.d
 

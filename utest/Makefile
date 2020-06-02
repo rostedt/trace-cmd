@@ -30,6 +30,7 @@ $(bdir)/%.o: %.c
 
 $(DEPS): $(bdir)/.%.d: %.c
 	$(Q)$(CC) -M $(CPPFLAGS) $(CFLAGS) $< > $@
+	$(Q)$(CC) -M -MT $(bdir)/$*.o $(CPPFLAGS) $(CFLAGS) $< > $@
 
 $(OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
