@@ -53,6 +53,7 @@ static struct usage_help usage_help[] = {
 		"          --module filter module name\n"
 		"          --by-comm used with --profile, merge events for related comms\n"
 		"          --profile enable tracing options needed for report --profile\n"
+		"          -G when profiling, set soft and hard irqs as global\n"
 		"          --func-stack perform a stack trace for function tracer\n"
 		"             (use with caution)\n"
 		"          --max-graph-depth limit function_graph depth\n"
