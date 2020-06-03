@@ -69,7 +69,7 @@ static struct usage_help usage_help[] = {
 		"start",
 		"start tracing without recording into a file",
 		" %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
-		"          Uses same options as record, but does not run a command.\n"
+		"          Uses same options as record.\n"
 		"          It only enables the tracing and exits\n"
 	},
 	{

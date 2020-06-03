@@ -21,7 +21,7 @@ system or can be extracted with trace-cmd-extract(1).
 OPTIONS
 -------
 The options are the same as 'trace-cmd-record(1)', except that it does not
-take options specific to recording (*-s*, *-o*, *-F*, *-N*, and *-t*).
+take options specific to recording (*-s*, *-o*, *-N*, and *-t*).
 
 SEE ALSO
 --------

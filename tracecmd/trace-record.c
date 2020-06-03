@@ -1598,7 +1598,8 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 		/* child */
 		update_task_filter();
 		tracecmd_enable_tracing();
-		enable_ptrace();
+		if (type != TRACE_TYPE_START)
+			enable_ptrace();
 		/*
 		 * If we are using stderr for stdout, switch
 		 * it back to the saved stdout for the code we run.
@@ -1619,6 +1620,8 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 			die("Failed to exec %s", argv[0]);
 		}
 	}
+	if (type & TRACE_TYPE_START)
+		exit(0);
 	if (do_ptrace) {
 		ptrace_attach(NULL, pid);
 		ptrace_wait(type);
@@ -5782,6 +5785,14 @@ static void add_arg(struct buffer_instance *instance,
 	/* Not found? */
 }
 
+static inline void cmd_check_die(struct common_record_context *ctx,
+				 enum trace_cmd id, char *cmd, char *param)
+{
+	if (ctx->curr_cmd == id)
+		die("%s has no effect with the command %s\n"
+		    "Did you mean 'record'?", param, cmd);
+}
+
 static void parse_record_options(int argc,
 				 char **argv,
 				 enum trace_cmd curr_cmd,
@@ -6114,6 +6125,7 @@ static void parse_record_options(int argc,
 				die("Failed to allocate user name");
 			break;
 		case OPT_procmap:
+			cmd_check_die(ctx, CMD_start, *(argv+1), "--proc-map");
 			ctx->instance->get_procmap = 1;
 			break;
 		case OPT_date:
@@ -6221,9 +6233,6 @@ static void parse_record_options(int argc,
 		die(" -c can only be used with -F (or -P with event-fork support)");
 
 	if ((argc - optind) >= 2) {
-		if (IS_START(ctx))
-			die("Command start does not take any commands\n"
-			    "Did you mean 'record'?");
 		if (IS_EXTRACT(ctx))
 			die("Command extract does not take any commands\n"
 			    "Did you mean 'record'?");
@@ -6243,6 +6252,9 @@ static void parse_record_options(int argc,
 			top_instance.get_procmap = 0;
 		}
 	}
+
+	if (do_ptrace && IS_START(ctx))
+		die("ptrace not supported with command start");
 
 	for_all_instances(instance) {
 		if (instance->get_procmap && !instance->nr_filter_pids) {
@@ -6410,10 +6422,6 @@ static void record_trace(int argc, char **argv,
 		signal(SIGINT, finish);
 		if (!latency)
 			start_threads(type, ctx);
-	} else {
-		update_task_filter();
-		tracecmd_enable_tracing();
-		exit(0);
 	}
 
 	if (ctx->run_command) {
@@ -6428,6 +6436,10 @@ static void record_trace(int argc, char **argv,
 
 		update_task_filter();
 		tracecmd_enable_tracing();
+
+		if (type & TRACE_TYPE_START)
+			exit(0);
+
 		/* We don't ptrace ourself */
 		if (do_ptrace) {
 			for_all_instances(instance) {
