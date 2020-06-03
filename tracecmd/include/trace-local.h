@@ -57,6 +57,8 @@ void trace_reset(int argc, char **argv);
 
 void trace_start(int argc, char **argv);
 
+void trace_set(int argc, char **argv);
+
 void trace_extract(int argc, char **argv);
 
 void trace_stream(int argc, char **argv);

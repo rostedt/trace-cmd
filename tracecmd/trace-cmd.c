@@ -90,6 +90,7 @@ struct command commands[] = {
 	{"check-events", trace_check_events},
 	{"record", trace_record},
 	{"start", trace_start},
+	{"set", trace_set},
 	{"extract", trace_extract},
 	{"stop", trace_stop},
 	{"stream", trace_stream},

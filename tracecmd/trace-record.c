@@ -63,6 +63,7 @@ enum trace_type {
 	TRACE_TYPE_START	= (1 << 1),
 	TRACE_TYPE_STREAM	= (1 << 2),
 	TRACE_TYPE_EXTRACT	= (1 << 3),
+	TRACE_TYPE_SET		= (1 << 4),
 };
 
 static tracecmd_handle_init_func handle_init = NULL;
@@ -187,6 +188,7 @@ enum trace_cmd {
 	CMD_profile,
 	CMD_record,
 	CMD_record_agent,
+	CMD_set,
 };
 
 struct common_record_context {
@@ -1635,7 +1637,7 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 		ptrace_wait(type);
 	} else
 		trace_waitpid(type, pid, &status, 0);
-	if (type & TRACE_TYPE_START)
+	if (type & (TRACE_TYPE_START | TRACE_TYPE_SET))
 		exit(0);
 }
 
@@ -5740,6 +5742,7 @@ static void init_common_record_context(struct common_record_context *ctx,
 
 #define IS_EXTRACT(ctx) ((ctx)->curr_cmd == CMD_extract)
 #define IS_START(ctx) ((ctx)->curr_cmd == CMD_start)
+#define IS_CMDSET(ctx) ((ctx)->curr_cmd == CMD_set)
 #define IS_STREAM(ctx) ((ctx)->curr_cmd == CMD_stream)
 #define IS_PROFILE(ctx) ((ctx)->curr_cmd == CMD_profile)
 #define IS_RECORD(ctx) ((ctx)->curr_cmd == CMD_record)
@@ -5832,6 +5835,9 @@ static void parse_record_options(int argc,
 
 	init_common_record_context(ctx, curr_cmd);
 
+	if (IS_CMDSET(ctx))
+		keep = 1;
+
 	for (;;) {
 		int option_index = 0;
 		int ret;
@@ -5884,6 +5890,7 @@ static void parse_record_options(int argc,
 			usage(argv);
 			break;
 		case 'a':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-a");
 			if (IS_EXTRACT(ctx)) {
 				add_all_instances();
 			} else {
@@ -5961,6 +5968,7 @@ static void parse_record_options(int argc,
 			filter_task = 1;
 			break;
 		case 'G':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-G");
 			ctx->global = 1;
 			break;
 		case 'P':
@@ -6036,6 +6044,7 @@ static void parse_record_options(int argc,
 			ctx->disable = 1;
 			break;
 		case 'o':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-o");
 			if (IS_RECORD_AGENT(ctx))
 				die("-o incompatible with agent recording");
 			if (host)
@@ -6073,10 +6082,12 @@ static void parse_record_options(int argc,
 			save_option(ctx->instance, "stacktrace");
 			break;
 		case 'H':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-H");
 			add_hook(ctx->instance, optarg);
 			ctx->events = 1;
 			break;
 		case 's':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-s");
 			if (IS_EXTRACT(ctx)) {
 				if (optarg)
 					usage(argv);
@@ -6088,15 +6099,18 @@ static void parse_record_options(int argc,
 			sleep_time = atoi(optarg);
 			break;
 		case 'S':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-S");
 			ctx->manual = 1;
 			/* User sets events for profiling */
 			if (!event)
 				ctx->events = 0;
 			break;
 		case 'r':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-r");
 			rt_prio = atoi(optarg);
 			break;
 		case 'N':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-N");
 			if (!IS_RECORD(ctx))
 				die("-N only available with record");
 			if (IS_RECORD_AGENT(ctx))
@@ -6116,6 +6130,7 @@ static void parse_record_options(int argc,
 			ctx->instance->cpumask = alloc_mask_from_hex(ctx->instance, optarg);
 			break;
 		case 't':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-t");
 			if (IS_EXTRACT(ctx))
 				ctx->topt = 1; /* Extract top instance also */
 			else
@@ -6133,6 +6148,7 @@ static void parse_record_options(int argc,
 				ctx->instance->flags |= BUFFER_FL_PROFILE;
 			break;
 		case 'k':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-k");
 			keep = 1;
 			break;
 		case 'i':
@@ -6145,9 +6161,11 @@ static void parse_record_options(int argc,
 			break;
 		case OPT_procmap:
 			cmd_check_die(ctx, CMD_start, *(argv+1), "--proc-map");
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--proc-map");
 			ctx->instance->get_procmap = 1;
 			break;
 		case OPT_date:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--date");
 			ctx->date = 1;
 			if (ctx->data_flags & DATA_FL_OFFSET)
 				die("Can not use both --date and --ts-offset");
@@ -6157,12 +6175,15 @@ static void parse_record_options(int argc,
 			func_stack = 1;
 			break;
 		case OPT_nosplice:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--nosplice");
 			recorder_flags |= TRACECMD_RECORD_NOSPLICE;
 			break;
 		case OPT_nofifos:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--nofifos");
 			no_fifos = true;
 			break;
 		case OPT_profile:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--profile");
 			handle_init = trace_init_profile;
 			ctx->instance->flags |= BUFFER_FL_PROFILE;
 			ctx->events = 1;
@@ -6176,9 +6197,11 @@ static void parse_record_options(int argc,
 			dup2(2, 1);
 			break;
 		case OPT_bycomm:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--by-comm");
 			trace_profile_set_merge_like_comms();
 			break;
 		case OPT_tsoffset:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--ts-offset");
 			ctx->date2ts = strdup(optarg);
 			if (ctx->data_flags & DATA_FL_DATE)
 				die("Can not use both --date and --ts-offset");
@@ -6194,6 +6217,7 @@ static void parse_record_options(int argc,
 			ctx->saved_cmdlines_size = atoi(optarg);
 			break;
 		case OPT_no_filter:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--no-filter");
 			no_filter = true;
 			break;
 		case OPT_debug:
@@ -6207,6 +6231,7 @@ static void parse_record_options(int argc,
 			ctx->filtered = 0;
 			break;
 		case OPT_tsyncinterval:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--tsync-interval");
 			top_instance.tsync.loop_interval = atoi(optarg);
 			guest_sync_set = true;
 			break;
@@ -6298,7 +6323,8 @@ static enum trace_type get_trace_cmd_type(enum trace_cmd cmd)
 		{CMD_extract, TRACE_TYPE_EXTRACT},
 		{CMD_profile, TRACE_TYPE_STREAM},
 		{CMD_start, TRACE_TYPE_START},
-		{CMD_record_agent, TRACE_TYPE_RECORD}
+		{CMD_record_agent, TRACE_TYPE_RECORD},
+		{CMD_set, TRACE_TYPE_SET}
 	};
 
 	for (int i = 0; i < ARRAY_SIZE(trace_type_per_command); i++) {
@@ -6375,8 +6401,10 @@ static void record_trace(int argc, char **argv,
 		ctx->topt = 1;
 
 	update_first_instance(ctx->instance, ctx->topt);
-	check_doing_something();
-	check_function_plugin();
+	if (!IS_CMDSET(ctx)) {
+		check_doing_something();
+		check_function_plugin();
+	}
 
 	if (!ctx->output)
 		ctx->output = DEFAULT_INPUT_FILE;
@@ -6404,7 +6432,8 @@ static void record_trace(int argc, char **argv,
 
 	if (!is_guest(ctx->instance))
 		fset = set_ftrace(!ctx->disable, ctx->total_disable);
-	tracecmd_disable_all_tracing(1);
+	if (!IS_CMDSET(ctx))
+		tracecmd_disable_all_tracing(1);
 
 	for_all_instances(instance)
 		set_clock(instance);
@@ -6456,9 +6485,11 @@ static void record_trace(int argc, char **argv,
 		bool wait_indefinitely = false;
 
 		update_task_filter();
-		tracecmd_enable_tracing();
 
-		if (type & TRACE_TYPE_START)
+		if (!IS_CMDSET(ctx))
+			tracecmd_enable_tracing();
+
+		if (type & (TRACE_TYPE_START | TRACE_TYPE_SET))
 			exit(0);
 
 		/* We don't ptrace ourself */
@@ -6515,6 +6546,15 @@ void trace_start(int argc, char **argv)
 	struct common_record_context ctx;
 
 	parse_record_options(argc, argv, CMD_start, &ctx);
+	record_trace(argc, argv, &ctx);
+	exit(0);
+}
+
+void trace_set(int argc, char **argv)
+{
+	struct common_record_context ctx;
+
+	parse_record_options(argc, argv, CMD_set, &ctx);
 	record_trace(argc, argv, &ctx);
 	exit(0);
 }

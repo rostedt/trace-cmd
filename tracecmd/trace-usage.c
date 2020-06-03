@@ -66,6 +66,42 @@ static struct usage_help usage_help[] = {
 		"                                                         at the beginnig and at the end of the trace\n"
 	},
 	{
+		"set",
+		"set a ftrace configuration parameter",
+		" %s set [-v][-e event [-f filter]][-p plugin][-F][-d][-D] \\\n"
+		"           [-q][-s usecs][-O option ][-l func][-g func][-n func] \\\n"
+		"           [-P pid][-b size][-B buf][-m max][-C clock][command ...]\n"
+		"          -e enable event\n"
+		"          -f filter for previous -e event\n"
+		"          -R trigger for previous -e event\n"
+		"          -p set ftrace plugin\n"
+		"          -P set PIDs to be traced\n"
+		"          -c also trace the children of -F (or -P if kernel supports it)\n"
+		"          -C set the trace clock\n"
+		"          -T do a stacktrace on all events\n"
+		"          -l filter function name\n"
+		"          -g set graph function\n"
+		"          -n do not trace function\n"
+		"          -m max size per CPU in kilobytes\n"
+		"          -M set CPU mask to trace\n"
+		"          -v will negate all -e after it (disable those events)\n"
+		"          -d disable function tracer when running\n"
+		"          -D Full disable of function tracing (for all users)\n"
+		"          -O option to enable (or disable)\n"
+		"          -b change kernel buffersize (in kilobytes per CPU)\n"
+		"          -B create sub buffer and following events will be enabled here\n"
+		"          -i do not fail if an event is not found\n"
+		"          -q print no output to the screen\n"
+		"          --quiet print no output to the screen\n"
+		"          --module filter module name\n"
+		"          --func-stack perform a stack trace for function tracer\n"
+		"             (use with caution)\n"
+		"          --max-graph-depth limit function_graph depth\n"
+		"          --cmdlines-size change kernel saved_cmdlines_size\n"
+		"          --user execute the specified [command ...] as given user\n"
+		"          --fork return immediately if a command is specified\n"
+	},
+	{
 		"start",
 		"start tracing without recording into a file",
 		" %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
