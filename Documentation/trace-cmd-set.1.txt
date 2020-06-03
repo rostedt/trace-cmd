@@ -77,15 +77,20 @@ OPTIONS
     information on triggers.
 
 *-v*::
-    This will cause all events specified after it on the command line to not
-    be traced. This is useful for selecting a subsystem to be traced but to
-    leave out various events. For Example: "-e sched -v -e "\*stat\*"" will
-    enable all events in the sched subsystem except those that have "stat" in
-    their names.
-
+    This will negate options specified after it on the command line. It affects:
+[verse]
+--
+     *-e*: Causes all specified events to not be traced. This is useful for
+           selecting a subsystem to be traced but to leave out various events.
+           For example: "-e sched -v -e "\*stat\*"" will enable all events in
+           the sched subsystem except those that have "stat" in their names.
+     *-B*: Deletes the specified ftrace instance. There must be no
+           configuration options related to this instance in the command line.
+           For example: "-v -B bar -B foo" will delete instance bar and create
+           a new instance foo.
     Note: the *-v* option was taken from the way grep(1) inverts the following
     matches.
-
+--
 *-P* 'pid'::
     This will filter only the specified process IDs. Using *-P* will let you
     trace only events that are caused by the process.

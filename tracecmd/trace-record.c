@@ -5814,6 +5814,27 @@ static inline void cmd_check_die(struct common_record_context *ctx,
 		    "Did you mean 'record'?", param, cmd);
 }
 
+static inline void remove_instances(struct buffer_instance *instances)
+{
+	struct buffer_instance *del;
+
+	while (instances) {
+		del = instances;
+		instances = instances->next;
+		tracefs_instance_destroy(del->tracefs);
+		tracefs_instance_free(del->tracefs);
+		free(del);
+	}
+}
+
+static inline void
+check_instance_die(struct buffer_instance *instance, char *param)
+{
+	if (instance->delete)
+		die("Instance %s is marked for deletion, invalid option %s",
+		    tracefs_instance_get_name(instance->tracefs), param);
+}
+
 static void parse_record_options(int argc,
 				 char **argv,
 				 enum trace_cmd curr_cmd,
@@ -5827,8 +5848,8 @@ static void parse_record_options(int argc,
 	char *pid;
 	char *sav;
 	int name_counter = 0;
-	int neg_event = 0;
-	struct buffer_instance *instance;
+	int negative = 0;
+	struct buffer_instance *instance, *del_list = NULL;
 	bool guest_sync_set = false;
 	int do_children = 0;
 	int fpids_count = 0;
@@ -5899,6 +5920,7 @@ static void parse_record_options(int argc,
 			}
 			break;
 		case 'e':
+			check_instance_die(ctx->instance, "-e");
 			ctx->events = 1;
 			event = malloc(sizeof(*event));
 			if (!event)
@@ -5906,7 +5928,7 @@ static void parse_record_options(int argc,
 			memset(event, 0, sizeof(*event));
 			event->event = optarg;
 			add_event(ctx->instance, event);
-			event->neg = neg_event;
+			event->neg = negative;
 			event->filter = NULL;
 			last_event = event;
 
@@ -5972,6 +5994,7 @@ static void parse_record_options(int argc,
 			ctx->global = 1;
 			break;
 		case 'P':
+			check_instance_die(ctx->instance, "-P");
 			test_set_event_pid(ctx->instance);
 			pids = strdup(optarg);
 			if (!pids)
@@ -5987,6 +6010,7 @@ static void parse_record_options(int argc,
 			free(pids);
 			break;
 		case 'c':
+			check_instance_die(ctx->instance, "-c");
 			test_set_event_pid(ctx->instance);
 			do_children = 1;
 			if (!ctx->instance->have_event_fork) {
@@ -6003,13 +6027,14 @@ static void parse_record_options(int argc,
 				save_option(ctx->instance, "function-fork");
 			break;
 		case 'C':
+			check_instance_die(ctx->instance, "-C");
 			ctx->instance->clock = optarg;
 			ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
 			if (is_top_instance(ctx->instance))
 				guest_sync_set = true;
 			break;
 		case 'v':
-			neg_event = 1;
+			negative = 1;
 			break;
 		case 'l':
 			add_func(&ctx->instance->filter_funcs,
@@ -6017,15 +6042,18 @@ static void parse_record_options(int argc,
 			ctx->filtered = 1;
 			break;
 		case 'n':
+			check_instance_die(ctx->instance, "-n");
 			add_func(&ctx->instance->notrace_funcs,
 				 ctx->instance->filter_mod, optarg);
 			ctx->filtered = 1;
 			break;
 		case 'g':
+			check_instance_die(ctx->instance, "-g");
 			add_func(&graph_funcs, ctx->instance->filter_mod, optarg);
 			ctx->filtered = 1;
 			break;
 		case 'p':
+			check_instance_die(ctx->instance, "-p");
 			if (ctx->instance->plugin)
 				die("only one plugin allowed");
 			for (plugin = optarg; isspace(*plugin); plugin++)
@@ -6075,14 +6103,17 @@ static void parse_record_options(int argc,
 			}
 			break;
 		case 'O':
+			check_instance_die(ctx->instance, "-O");
 			option = optarg;
 			save_option(ctx->instance, option);
 			break;
 		case 'T':
+			check_instance_die(ctx->instance, "-T");
 			save_option(ctx->instance, "stacktrace");
 			break;
 		case 'H':
 			cmd_check_die(ctx, CMD_set, *(argv+1), "-H");
+			check_instance_die(ctx->instance, "-H");
 			add_hook(ctx->instance, optarg);
 			ctx->events = 1;
 			break;
@@ -6127,6 +6158,7 @@ static void parse_record_options(int argc,
 			max_kb = atoi(optarg);
 			break;
 		case 'M':
+			check_instance_die(ctx->instance, "-M");
 			ctx->instance->cpumask = alloc_mask_from_hex(ctx->instance, optarg);
 			break;
 		case 't':
@@ -6137,13 +6169,20 @@ static void parse_record_options(int argc,
 				use_tcp = 1;
 			break;
 		case 'b':
+			check_instance_die(ctx->instance, "-b");
 			ctx->instance->buffer_size = atoi(optarg);
 			break;
 		case 'B':
 			ctx->instance = create_instance(optarg);
 			if (!ctx->instance)
 				die("Failed to create instance");
-			add_instance(ctx->instance, local_cpu_count);
+			ctx->instance->delete = negative;
+			negative = 0;
+			if (ctx->instance->delete) {
+				ctx->instance->next = del_list;
+				del_list = ctx->instance;
+			} else
+				add_instance(ctx->instance, local_cpu_count);
 			if (IS_PROFILE(ctx))
 				ctx->instance->flags |= BUFFER_FL_PROFILE;
 			break;
@@ -6162,6 +6201,7 @@ static void parse_record_options(int argc,
 		case OPT_procmap:
 			cmd_check_die(ctx, CMD_start, *(argv+1), "--proc-map");
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--proc-map");
+			check_instance_die(ctx->instance, "--proc-map");
 			ctx->instance->get_procmap = 1;
 			break;
 		case OPT_date:
@@ -6184,6 +6224,7 @@ static void parse_record_options(int argc,
 			break;
 		case OPT_profile:
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--profile");
+			check_instance_die(ctx->instance, "--profile");
 			handle_init = trace_init_profile;
 			ctx->instance->flags |= BUFFER_FL_PROFILE;
 			ctx->events = 1;
@@ -6208,6 +6249,7 @@ static void parse_record_options(int argc,
 			ctx->data_flags |= DATA_FL_OFFSET;
 			break;
 		case OPT_max_graph_depth:
+			check_instance_die(ctx->instance, "--max-graph-depth");
 			free(ctx->instance->max_graph_depth);
 			ctx->instance->max_graph_depth = strdup(optarg);
 			if (!ctx->instance->max_graph_depth)
@@ -6224,6 +6266,7 @@ static void parse_record_options(int argc,
 			tracecmd_set_debug(true);
 			break;
 		case OPT_module:
+			check_instance_die(ctx->instance, "--module");
 			if (ctx->instance->filter_mod)
 				add_func(&ctx->instance->filter_funcs,
 					 ctx->instance->filter_mod, "*");
@@ -6248,6 +6291,8 @@ static void parse_record_options(int argc,
 			usage(argv);
 		}
 	}
+
+	remove_instances(del_list);
 
 	/* If --date is specified, prepend it to all guest VM flags */
 	if (ctx->date) {

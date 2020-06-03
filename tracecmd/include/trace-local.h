@@ -205,6 +205,7 @@ struct buffer_instance {
 	char			*output_file;
 	struct event_list	*events;
 	struct event_list	**event_next;
+	bool			delete;
 
 	struct event_list	*sched_switch_event;
 	struct event_list	*sched_wakeup_event;
