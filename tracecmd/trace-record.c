@@ -653,6 +653,7 @@ static void delete_thread_data(void)
 	}
 }
 
+#ifdef VSOCK
 static void tell_guests_to_stop(void)
 {
 	struct buffer_instance *instance;
@@ -676,6 +677,11 @@ static void tell_guests_to_stop(void)
 		}
 	}
 }
+#else
+static inline void tell_guests_to_stop(void)
+{
+}
+#endif
 
 static void stop_threads(enum trace_type type)
 {
@@ -3837,6 +3843,7 @@ static int open_guest_fifos(const char *guest, int **fds)
 	return i;
 }
 
+#ifdef VSOCK
 static void connect_to_agent(struct buffer_instance *instance)
 {
 	struct tracecmd_msg_handle *msg_handle;
@@ -3914,6 +3921,12 @@ static void connect_to_agent(struct buffer_instance *instance)
 	/* the msg_handle now points to the guest fd */
 	instance->msg_handle = msg_handle;
 }
+#else
+static inline void connect_to_agent(struct buffer_instance *instance)
+{
+}
+#endif
+
 
 static void setup_guest(struct buffer_instance *instance)
 {

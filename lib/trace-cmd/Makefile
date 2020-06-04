@@ -16,7 +16,9 @@ OBJS += trace-util.o
 OBJS += trace-filter-hash.o
 OBJS += trace-msg.o
 OBJS += trace-plugin.o
+ifeq ($(VSOCK_DEFINED), 1)
 OBJS += trace-timesync.o
+endif
 
 # Additional util objects
 OBJS += trace-blk-hack.o
