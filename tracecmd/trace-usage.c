@@ -71,6 +71,8 @@ static struct usage_help usage_help[] = {
 		" %s start [-e event][-p plugin][-d][-O option ][-P pid]\n"
 		"          Uses same options as record.\n"
 		"          It only enables the tracing and exits\n"
+		"\n"
+		"        --fork: If a command is specified, then return right after it forks\n"
 	},
 	{
 		"extract",

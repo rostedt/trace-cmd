@@ -86,6 +86,8 @@ static char *host;
 
 static bool quiet;
 
+static bool fork_process;
+
 /* Max size to let a per cpu file get */
 static int max_kb;
 
@@ -1604,7 +1606,7 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 		/* child */
 		update_task_filter();
 		tracecmd_enable_tracing();
-		if (type != TRACE_TYPE_START)
+		if (!fork_process)
 			enable_ptrace();
 		/*
 		 * If we are using stderr for stdout, switch
@@ -1626,13 +1628,15 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 			die("Failed to exec %s", argv[0]);
 		}
 	}
-	if (type & TRACE_TYPE_START)
+	if (fork_process)
 		exit(0);
 	if (do_ptrace) {
 		ptrace_attach(NULL, pid);
 		ptrace_wait(type);
 	} else
 		trace_waitpid(type, pid, &status, 0);
+	if (type & TRACE_TYPE_START)
+		exit(0);
 }
 
 static void
@@ -5535,6 +5539,7 @@ void init_top_instance(void)
 }
 
 enum {
+	OPT_fork		= 241,
 	OPT_tsyncinterval	= 242,
 	OPT_user		= 243,
 	OPT_procmap		= 244,
@@ -5851,6 +5856,7 @@ static void parse_record_options(int argc,
 			{"user", required_argument, NULL, OPT_user},
 			{"module", required_argument, NULL, OPT_module},
 			{"tsync-interval", required_argument, NULL, OPT_tsyncinterval},
+			{"fork", no_argument, NULL, OPT_fork},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -6204,6 +6210,11 @@ static void parse_record_options(int argc,
 			top_instance.tsync.loop_interval = atoi(optarg);
 			guest_sync_set = true;
 			break;
+		case OPT_fork:
+			if (!IS_START(ctx))
+				die("--fork option used for 'start' command only");
+			fork_process = true;
+			break;
 		case OPT_quiet:
 		case 'q':
 			quiet = true;
@@ -6265,9 +6276,6 @@ static void parse_record_options(int argc,
 			top_instance.get_procmap = 0;
 		}
 	}
-
-	if (do_ptrace && IS_START(ctx))
-		die("ptrace not supported with command start");
 
 	for_all_instances(instance) {
 		if (instance->get_procmap && !instance->nr_filter_pids) {
