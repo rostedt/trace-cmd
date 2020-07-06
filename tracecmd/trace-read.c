@@ -141,13 +141,38 @@ static void print_event_name(struct trace_seq *s, struct tep_event *event)
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 }
 
+enum time_fmt {
+	TIME_FMT_LAT		= 1,
+	TIME_FMT_NORMAL		= 2,
+};
+
+static const char *time_format(struct tracecmd_input *handle, enum time_fmt tf)
+{
+	struct tep_handle *tep = tracecmd_get_pevent(handle);
+
+	switch (tf) {
+	case TIME_FMT_LAT:
+		if (latency_format)
+			return "%8.8s-%-5d %3d";
+		return "%16s-%-5d [%03d]";
+	default:
+		if (tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS) {
+			if (tep_test_flag(tep, TEP_NSEC_OUTPUT))
+				return " %9.1d:";
+			else
+				return " %6.1000d:";
+		} else
+			return "%12d:";
+	}
+}
+
 static void print_event(struct trace_seq *s, struct tracecmd_input *handle,
 			struct tep_record *record)
 {
 	struct tep_handle *tep = tracecmd_get_pevent(handle);
 	struct tep_event *event;
-	const char *lfmt = latency_format ? "%8.8s-%-5d %3d" : "%16s-%-5d [%03d]";
-	const char *tfmt = tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS ? " %6.1000d:" : "%12d:";
+	const char *lfmt = time_format(handle, TIME_FMT_LAT);
+	const char *tfmt = time_format(handle, TIME_FMT_NORMAL);
 
 	event = tep_find_event_by_record(tep, record);
 	tep_print_event(tep, s, record, lfmt, TEP_PRINT_COMM,
@@ -781,7 +806,7 @@ static void finish_wakeup(void)
 void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
-	const char *tfmt = tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS ? " %6.1000d:" : "%12d:";
+	const char *tfmt = time_format(handle, TIME_FMT_NORMAL);
 	struct tep_handle *pevent;
 	struct tep_event *event;
 	struct trace_seq s;
