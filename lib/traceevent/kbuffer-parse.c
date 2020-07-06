@@ -35,6 +35,7 @@ enum {
  * @next		- offset from @data to the start of next event
  * @size		- The size of data on @data
  * @start		- The offset from @subbuffer where @data lives
+ * @first		- The offset from @subbuffer where the first non time stamp event lives
  *
  * @read_4		- Function to read 4 raw bytes (may swap)
  * @read_8		- Function to read 8 raw bytes (may swap)
@@ -51,6 +52,7 @@ struct kbuffer {
 	unsigned int		next;
 	unsigned int		size;
 	unsigned int		start;
+	unsigned int		first;
 
 	unsigned int (*read_4)(void *ptr);
 	unsigned long long (*read_8)(void *ptr);
@@ -546,6 +548,9 @@ int kbuffer_load_subbuffer(struct kbuffer *kbuf, void *subbuffer)
 
 	next_event(kbuf);
 
+	/* save the first record from the page */
+	kbuf->first = kbuf->curr;
+
 	return 0;
 }
 
@@ -755,7 +760,7 @@ void kbuffer_set_old_format(struct kbuffer *kbuf)
  */
 int kbuffer_start_of_data(struct kbuffer *kbuf)
 {
-	return kbuf->start;
+	return kbuf->first + kbuf->start;
 }
 
 /**
