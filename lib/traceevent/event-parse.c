@@ -3649,6 +3649,50 @@ tep_find_event_by_name(struct tep_handle *tep,
 	return event;
 }
 
+static unsigned long long test_for_symbol(struct tep_handle *tep,
+					  struct tep_print_arg *arg)
+{
+	unsigned long long val = 0;
+	struct func_list *item = tep->funclist;
+	char *func;
+	int i;
+
+	if (isdigit(arg->atom.atom[0]))
+		return 0;
+
+	/* Linear search but only happens once (see after the loop) */
+	for (i = 0; i < (int)tep->func_count; i++) {
+		unsigned long long addr;
+		const char *name;
+
+		if (tep->func_map) {
+			addr = tep->func_map[i].addr;
+			name = tep->func_map[i].func;
+		} else if (item) {
+			addr = item->addr;
+			name = item->func;
+			item = item->next;
+		} else
+			break;
+
+		if (strcmp(arg->atom.atom, name) == 0) {
+			val = addr;
+			break;
+		}
+	}
+
+	/*
+	 * This modifies the arg to hardcode the value
+	 * and will not loop again.
+	 */
+	func = realloc(arg->atom.atom, 32);
+	if (func) {
+		snprintf(func, 32, "%lld", val);
+		arg->atom.atom = func;
+	}
+	return val;
+}
+
 static unsigned long long
 eval_num_arg(void *data, int size, struct tep_event *event, struct tep_print_arg *arg)
 {
@@ -3665,7 +3709,10 @@ eval_num_arg(void *data, int size, struct tep_event *event, struct tep_print_arg
 		/* ?? */
 		return 0;
 	case TEP_PRINT_ATOM:
-		return strtoull(arg->atom.atom, NULL, 0);
+		val = strtoull(arg->atom.atom, NULL, 0);
+		if (!val)
+			val = test_for_symbol(tep, arg);
+		return val;
 	case TEP_PRINT_FIELD:
 		if (!arg->field.field) {
 			arg->field.field = tep_find_any_field(event, arg->field.name);
