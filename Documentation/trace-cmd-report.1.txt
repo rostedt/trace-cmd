@@ -27,7 +27,9 @@ OPTIONS
     versa.
 
 *-f*::
-    This outputs the list of functions that have been recorded in the file.
+    This outputs the list of all functions that have been mapped in the trace.dat file.
+    Note, this list may contain functions that may not appear in the trace, as
+    it is the list of mappings to translate function addresses into function names.
 
 *-P*::
     This outputs the list of "trace_printk()" data. The raw trace data points

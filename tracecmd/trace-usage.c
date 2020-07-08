@@ -191,7 +191,7 @@ static struct usage_help usage_help[] = {
 		"           [-G]\n"
 		"          -i input file [default trace.dat]\n"
 		"          -e show file endianess\n"
-		"          -f show function list\n"
+		"          -f show function mapping list\n"
 		"          -P show printk list\n"
 		"          -E show event files stored\n"
 		"          -F filter to filter output on\n"
