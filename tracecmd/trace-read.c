@@ -101,6 +101,7 @@ static int no_softirqs;
 static int tsdiff;
 
 static int latency_format;
+static bool raw_format;
 static const char *format_type = TEP_PRINT_INFO;
 
 static struct tep_format_field *wakeup_task;
@@ -807,6 +808,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 {
 	tracecmd_show_data_func func = tracecmd_get_show_data_func(handle);
 	const char *tfmt = time_format(handle, TIME_FMT_NORMAL);
+	const char *cfmt = latency_format ? "%8.8s-%-5d %3d" : "%16s-%-5d [%03d]";
 	struct tep_handle *pevent;
 	struct tep_event *event;
 	struct trace_seq s;
@@ -847,17 +849,20 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		}
 	}
 
-	if (latency_format)
-		tep_print_event(pevent, &s, record, "%8.8s-%-5d %3d%s",
-				TEP_PRINT_COMM,
-				TEP_PRINT_PID,
-				TEP_PRINT_CPU,
-				TEP_PRINT_LATENCY);
-	else
-		tep_print_event(pevent, &s, record, "%16s-%-5d [%03d]",
-				TEP_PRINT_COMM,
-				TEP_PRINT_PID,
-				TEP_PRINT_CPU);
+	tep_print_event(pevent, &s, record, cfmt,
+			TEP_PRINT_COMM,
+			TEP_PRINT_PID,
+			TEP_PRINT_CPU);
+
+	if (latency_format) {
+		if (raw_format)
+			trace_seq_printf(&s, "-0x%x",
+					 tep_data_flags(pevent, record));
+		else
+			tep_print_event(pevent, &s, record, "%s",
+					TEP_PRINT_LATENCY);
+	}
+
 	tep_print_event(pevent, &s, record, tfmt, TEP_PRINT_TIME);
 
 	if (tsdiff) {
@@ -1506,7 +1511,6 @@ void trace_report (int argc, char **argv)
 	int nanosec = 0;
 	int no_date = 0;
 	int global = 0;
-	int raw = 0;
 	int neg = 0;
 	int ret = 0;
 	int check_event_parsing = 0;
@@ -1618,7 +1622,7 @@ void trace_report (int argc, char **argv)
 			global = 1;
 			break;
 		case 'R':
-			raw = 1;
+			raw_format = true;
 			break;
 		case 'r':
 			*raw_ptr = malloc(sizeof(struct event_str));
@@ -1769,7 +1773,7 @@ void trace_report (int argc, char **argv)
 		if (nanosec)
 			tep_set_flag(pevent, TEP_NSEC_OUTPUT);
 
-		if (raw)
+		if (raw_format)
 			format_type = TEP_PRINT_INFO_RAW;
 
 		if (test_filters_mode)
