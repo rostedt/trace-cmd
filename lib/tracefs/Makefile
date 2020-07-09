@@ -22,7 +22,7 @@ $(bdir):
 $(OBJS): | $(bdir)
 $(DEPS): | $(bdir)
 
-LIBS = -L$(obj)/lib/trace-cmd -ltracecmd
+LIBS = -L$(obj)/lib/traceevent -ltraceevent
 
 $(bdir)/libtracefs.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
