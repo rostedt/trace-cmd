@@ -242,6 +242,15 @@ OPTIONS
 
      Example:  -O fgraph:tailprint
 
+*--cpu* <cpu list>::
+    List of CPUs, separated by "," or ":", used for filtering the events.
+    A range of CPUs can be specified using "cpuX-cpuY" notation, where all CPUs
+    in the range between cpuX and cpuY will be included in the list. The order
+    of CPUs in the list must be from lower to greater.
+
+    Example:  "--cpu 0,3" - show events from CPUs 0 and 3
+              "--cpu 2-4" - show events from CPUs 2, 3 and 4
+
 *--stat*::
     If the trace.dat file recorded the final stats (outputed at the end of record)
     the *--stat* option can be used to retrieve them.

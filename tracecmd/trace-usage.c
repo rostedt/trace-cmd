@@ -209,6 +209,8 @@ static struct usage_help usage_help[] = {
 		"          -w show wakeup latencies\n"
 		"          -l show latency format (default with latency tracers)\n"
 		"          -O plugin option -O [plugin:]var[=val]\n"
+		"          --cpu <cpu1,cpu2,...> - filter events according to the given cpu list.\n"
+		"                                  A range of CPUs can be specified using 'cpuX-cpuY' notation.\n"
 		"          --check-events return whether all event formats can be parsed\n"
 		"          --stat - show the buffer stats that were reported at the end of the record.\n"
 		"          --uname - show uname of the record, if it was saved\n"
