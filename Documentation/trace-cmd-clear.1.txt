@@ -1,0 +1,40 @@
+TRACE-CMD-CLEAR(1)
+=================
+
+NAME
+----
+trace-cmd-clear - clear the Ftrace buffer.
+
+SYNOPSIS
+--------
+*trace-cmd clear*
+
+DESCRIPTION
+-----------
+The *trace-cmd(1) clear* clears the content of the Ftrace ring buffer.
+
+SEE ALSO
+--------
+trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
+trace-cmd-extract(1), trace-cmd-reset(1), trace-cmd-split(1),
+trace-cmd-list(1), trace-cmd-listen(1)
+
+AUTHOR
+------
+[verse]
+--
+*Steven Rostedt* <rostedt@goodmis.org>, author of *trace-cmd*.
+*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+--
+REPORTING BUGS
+--------------
+Report bugs to  <linux-trace-devel@vger.kernel.org>
+
+LICENSE
+-------
+trace-cmd is Free Software licensed under the terms of the
+GNU Public License (GPL).
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git
