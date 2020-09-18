@@ -917,12 +917,6 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	if (read_ftrace_printk(handle))
 		goto out_free;
 
-	/*
-	 * Save the command lines;
-	 */
-	if (save_tracing_file_data(handle, "saved_cmdlines") < 0)
-		goto out_free;
-
 	return handle;
 
  out_free:
@@ -1215,6 +1209,11 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	if (!handle)
 		return NULL;
 
+	/*
+	 * Save the command lines;
+	 */
+	if (save_tracing_file_data(handle, "saved_cmdlines") < 0)
+		goto out_free;
 
 	if (tracecmd_write_cpus(handle, cpus) < 0)
 		goto out_free;
@@ -1350,6 +1349,13 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 			     int cpus, char * const *cpu_data_files)
 {
 	int ret;
+
+	/*
+	 * Save the command lines;
+	 */
+	ret = save_tracing_file_data(handle, "saved_cmdlines");
+	if (ret)
+		return ret;
 
 	ret = tracecmd_write_cpus(handle, cpus);
 	if (ret)
