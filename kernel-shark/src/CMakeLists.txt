@@ -7,9 +7,9 @@ add_library(kshark SHARED libkshark.c
                           libkshark-configio.c
                           libkshark-collection.c)
 
-target_link_libraries(kshark ${TRACEEVENT_LIBRARY}
-                             ${TRACECMD_LIBRARY}
+target_link_libraries(kshark ${TRACECMD_LIBRARY}
                              ${TRACEFS_LIBRARY}
+                             ${TRACEEVENT_LIBRARY}
                              ${JSONC_LIBRARY}
                              ${CMAKE_DL_LIBS})
 
@@ -67,11 +67,8 @@ if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
     target_link_libraries(kshark-gui kshark-plot
                                      Qt5::Widgets
-                                     Qt5::Network
-                                     ${TRACEEVENT_LIBRARY}
-                                     ${TRACECMD_LIBRARY}
-                                     ${TRACEFS_LIBRARY}
-                                     ${CMAKE_DL_LIBS})
+                                     Qt5::Network)
+
 
     set_target_properties(kshark-gui PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
 
