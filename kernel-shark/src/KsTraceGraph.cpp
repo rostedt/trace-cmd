@@ -279,14 +279,25 @@ void KsTraceGraph::_stopUpdating()
 	_keyPressed = false;
 }
 
+QString KsTraceGraph::_t2str(uint64_t sec, uint64_t usec) {
+	QString usecStr;
+	QTextStream ts(&usecStr);
+
+	ts.setFieldAlignment(QTextStream::AlignRight);
+	ts.setFieldWidth(6);
+	ts.setPadChar('0');
+
+	ts << usec;
+
+	return QString::number(sec) + "." + usecStr;
+}
+
 void KsTraceGraph::_resetPointer(uint64_t ts, int cpu, int pid)
 {
 	uint64_t sec, usec;
-	QString pointer;
 
 	kshark_convert_nano(ts, &sec, &usec);
-	pointer.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
-	_labelP2.setText(pointer);
+	_labelP2.setText(_t2str(sec, usec));
 
 	if (pid > 0 && cpu >= 0) {
 		struct kshark_context *kshark_ctx(NULL);
@@ -316,13 +327,12 @@ void KsTraceGraph::_setPointerInfo(size_t i)
 	QString lat(kshark_get_latency_easy(e));
 	QString info(kshark_get_info_easy(e));
 	QString comm(kshark_get_task_easy(e));
-	QString pointer, elidedText;
 	int labelWidth, width;
+	QString elidedText;
 	uint64_t sec, usec;
 
 	kshark_convert_nano(e->ts, &sec, &usec);
-	pointer.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
-	_labelP2.setText(pointer);
+	_labelP2.setText(_t2str(sec, usec));
 
 	comm.append("-");
 	comm.append(QString("%1").arg(kshark_get_pid_easy(e)));
@@ -445,7 +455,7 @@ void KsTraceGraph::addCPUPlot(int cpu)
 		return;
 
 	_glWindow._cpuList.append(cpu);
-	qSort(_glWindow._cpuList);
+	std::sort(_glWindow._cpuList.begin(), _glWindow._cpuList.end());
 	_selfUpdate();
 }
 
@@ -456,7 +466,7 @@ void KsTraceGraph::addTaskPlot(int pid)
 		return;
 
 	_glWindow._taskList.append(pid);
-	qSort(_glWindow._taskList);
+	std::sort(_glWindow._taskList.begin(), _glWindow._taskList.end());
 	_selfUpdate();
 }
 
@@ -606,21 +616,17 @@ void KsTraceGraph::_updateGraphLegends()
 void KsTraceGraph::_updateTimeLegends()
 {
 	uint64_t sec, usec, tsMid;
-	QString tMin, tMid, tMax;
 
 	kshark_convert_nano(_glWindow.model()->histo()->min, &sec, &usec);
-	tMin.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
-	_labelXMin.setText(tMin);
+	_labelXMin.setText(_t2str(sec, usec));
 
 	tsMid = (_glWindow.model()->histo()->min +
 		 _glWindow.model()->histo()->max) / 2;
 	kshark_convert_nano(tsMid, &sec, &usec);
-	tMid.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
-	_labelXMid.setText(tMid);
+	_labelXMid.setText(_t2str(sec, usec));
 
 	kshark_convert_nano(_glWindow.model()->histo()->max, &sec, &usec);
-	tMax.sprintf("%" PRIu64 ".%06" PRIu64 "", sec, usec);
-	_labelXMax.setText(tMax);
+	_labelXMax.setText(_t2str(sec, usec));
 }
 
 /**

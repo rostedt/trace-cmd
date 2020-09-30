@@ -25,10 +25,10 @@
 #include "KsPlotTools.hpp"
 
 /** Macro providing the height of the screen in pixels. */
-#define SCREEN_HEIGHT  QApplication::desktop()->screenGeometry().height()
+#define SCREEN_HEIGHT  QGuiApplication::screens()[0]->geometry().height()
 
 /** Macro providing the width of the screen in pixels. */
-#define SCREEN_WIDTH   QApplication::desktop()->screenGeometry().width()
+#define SCREEN_WIDTH   QGuiApplication::screens()[0]->geometry().width()
 
 //! @cond Doxygen_Suppress
 
@@ -45,7 +45,7 @@ static auto stringWidth = [](QString s)
 	QFont font;
 	QFontMetrics fm(font);
 
-	return fm.width(s);
+	return fm.horizontalAdvance(s);
 };
 
 //! @endcond

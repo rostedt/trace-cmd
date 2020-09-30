@@ -48,7 +48,7 @@ QVector<int> getPidList()
 
 	free(tempPids);
 
-	qSort(pids);
+	std::sort(pids.begin(), pids.end());
 
 	return pids;
 }
@@ -90,7 +90,7 @@ QVector<int> getFilterIds(tracecmd_filter_id *filter)
 	for (int i = 0; i < n; ++i)
 		v.append(cpuFilter[i]);
 
-	qSort(v);
+	std::sort(v.begin(), v.end());
 
 	free(cpuFilter);
 	return v;

@@ -108,6 +108,8 @@ private:
 
 	void _markerReDraw();
 
+	QString _t2str(uint64_t sec, uint64_t usec);
+
 	enum class GraphActions {
 		ZoomIn,
 		ZoomOut,

@@ -219,7 +219,7 @@ QStringList KsCaptureControl::_getPlugins()
 	}
 
 	free (all_plugins);
-	qSort(pluginList);
+	std::sort(pluginList.begin(), pluginList.end());
 
 	return pluginList;
 }
