@@ -6622,6 +6622,9 @@ void trace_extract(int argc, char **argv)
 
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
+		instance->output_file = strdup(ctx.output);
+		if (!instance->output_file)
+			die("Failed to allocate output file name for instance");
 
 		if (!ctx.manual && instance->flags & BUFFER_FL_PROFILE)
 			enable_profile(ctx.instance);
