@@ -8,12 +8,16 @@
 
 #include <linux/blktrace_api.h>
 
-#include "trace-cmd.h"
+#include "event-parse.h"
 
 #define MINORBITS	20
 #define MINORMASK	((1U << MINORBITS) - 1)
 #define MAJOR(dev)	((unsigned int) ((dev) >> MINORBITS))
 #define MINOR(dev)	((unsigned int) ((dev) & MINORMASK))
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
+#endif
 
 struct blk_data {
 	unsigned long long	sector;
@@ -129,7 +133,7 @@ static unsigned int be32_to_cpu(unsigned int val)
 {
 	unsigned int swap;
 
-	if (tracecmd_host_bigendian())
+	if (tep_is_bigendian())
 		return val;
 
 	swap = ((val & 0xffULL) << 24) |
@@ -144,7 +148,7 @@ static unsigned long long be64_to_cpu(unsigned long long val)
 {
 	unsigned long long swap;
 
-	if (tracecmd_host_bigendian())
+	if (tep_is_bigendian())
 		return val;
 
 	swap = ((val & 0xffULL) << 56) |

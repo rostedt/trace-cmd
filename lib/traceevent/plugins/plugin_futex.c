@@ -10,7 +10,11 @@
 #include <string.h>
 #include <linux/futex.h>
 
-#include "trace-cmd.h"
+#include "event-parse.h"
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
+#endif
 
 struct futex_args {
 	unsigned long long	uaddr;

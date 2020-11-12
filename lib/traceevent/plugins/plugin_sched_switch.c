@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "trace-cmd.h"
+#include "event-parse.h"
 #include "trace-seq.h"
 
 static void write_state(struct trace_seq *s, int val)

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "trace-cmd.h"
+#include "event-parse.h"
 #include "trace-seq.h"
 
 static int call_site_handler(struct trace_seq *s, struct tep_record *record,
