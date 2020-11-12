@@ -8,7 +8,7 @@
 #include <string.h>
 #include <sys/param.h>
 
-#include "trace-cmd.h"
+#include "trace-cmd-private.h"
 
 struct tep_plugin_option trace_ftrace_options[] = {
 	{

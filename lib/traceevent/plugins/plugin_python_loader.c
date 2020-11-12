@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <stdio.h>
-#include "trace-cmd.h"
+#include "event-parse.h"
+#include "trace-cmd-private.h"
 
 #ifndef PYTHON_DIR
 #define PYTHON_DIR "."

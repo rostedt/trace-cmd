@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <pthread.h>
 
-#include "trace-cmd.h"
+#include "trace-cmd-private.h"
 #include "tracefs.h"
 #include "event-utils.h"
 #include "trace-tsync-local.h"

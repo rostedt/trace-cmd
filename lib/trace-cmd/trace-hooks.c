@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include "trace-cmd.h"
+#include "trace-cmd-private.h"
 #include "event-utils.h"
 
 struct hook_list *tracecmd_create_event_hook(const char *arg)

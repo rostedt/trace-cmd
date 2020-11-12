@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <dirent.h>	/* for DIR */
 
-#include "trace-cmd.h"
+#include "trace-cmd-private.h"
 #include "event-utils.h"
 
 #define TRACE_AGENT_DEFAULT_PORT	823

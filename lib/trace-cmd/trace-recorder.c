@@ -13,7 +13,7 @@
 #include <errno.h>
 
 #include "tracefs.h"
-#include "trace-cmd.h"
+#include "trace-cmd-private.h"
 #include "event-utils.h"
 
 /* F_GETPIPE_SZ was introduced in 2.6.35, older systems don't have it */

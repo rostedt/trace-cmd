@@ -21,7 +21,7 @@
 #include <sys/sysinfo.h>
 #include <time.h>
 
-#include "trace-cmd.h"
+#include "trace-cmd-private.h"
 #include "event-utils.h"
 
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"

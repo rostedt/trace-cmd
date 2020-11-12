@@ -6,6 +6,8 @@
 #ifndef _TRACE_CMD_LOCAL_H
 #define _TRACE_CMD_LOCAL_H
 
+#include "trace-cmd-private.h"
+
 /* Can be overridden */
 void warning(const char *fmt, ...);
 

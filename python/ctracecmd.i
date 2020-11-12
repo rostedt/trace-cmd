@@ -15,6 +15,7 @@
 
 %{
 #include "trace-cmd.h"
+#include "event-parse.h"
 #include "event-utils.h"
 #include <Python.h>
 %}
