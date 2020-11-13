@@ -4456,6 +4456,8 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
 				goto process_again;
 			case '.':
 				goto process_again;
+			case '#':
+				goto process_again;
 			case 'z':
 			case 'Z':
 				ls = 1;
