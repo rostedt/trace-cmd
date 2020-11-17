@@ -351,27 +351,37 @@ static void test_set_event_pid(struct buffer_instance *instance)
 }
 
 /**
- * create_instance - allocate a new buffer instance
+ * allocate_instance - allocate a new buffer instance,
+ *			it must exist in the ftrace system
  * @name: The name of the instance (instance will point to this)
  *
- * Returns a newly allocated instance. Note that @name will not be
- * copied, and the instance buffer will point to the string itself.
+ * Returns a newly allocated instance. In case of an error or if the
+ * instance does not exist in the ftrace system, NULL is returned.
  */
-struct buffer_instance *create_instance(const char *name)
+struct buffer_instance *allocate_instance(const char *name)
 {
 	struct buffer_instance *instance;
 
-	instance = malloc(sizeof(*instance));
+	instance = calloc(1, sizeof(*instance));
 	if (!instance)
 		return NULL;
-	memset(instance, 0, sizeof(*instance));
-	instance->tracefs = tracefs_instance_alloc(name);
-	if (!instance->tracefs) {
-		free(instance);
-		return NULL;
+	if (name)
+		instance->name = strdup(name);
+	if (tracefs_instance_exists(name)) {
+		instance->tracefs = tracefs_instance_create(name);
+		if (!instance->tracefs)
+			goto error;
 	}
 
 	return instance;
+
+error:
+	if (instance) {
+		free(instance->name);
+		tracefs_instance_free(instance->tracefs);
+		free(instance);
+	}
+	return NULL;
 }
 
 static int __add_all_instances(const char *tracing_dir)
@@ -418,7 +428,7 @@ static int __add_all_instances(const char *tracing_dir)
 		}
 		free(instance_path);
 
-		instance = create_instance(name);
+		instance = allocate_instance(name);
 		if (!instance)
 			die("Failed to create instance");
 		add_instance(instance, local_cpu_count);
@@ -5034,9 +5044,11 @@ static void make_instances(void)
 	for_each_instance(instance) {
 		if (is_guest(instance))
 			continue;
-		if (tracefs_instance_create(instance->tracefs) > 0) {
+		if (instance->name && !instance->tracefs) {
+			instance->tracefs = tracefs_instance_create(instance->name);
 			/* Don't delete instances that already exist */
-			instance->flags |= BUFFER_FL_KEEP;
+			if (instance->tracefs && !tracefs_instance_is_new(instance->tracefs))
+				instance->flags |= BUFFER_FL_KEEP;
 		}
 	}
 }
@@ -5055,25 +5067,6 @@ void tracecmd_remove_instances(void)
 		}
 		tracefs_instance_destroy(instance->tracefs);
 	}
-}
-
-/**
- * tracecmd_create_top_instance - create a top named instance
- * @name: name of the instance to use.
- *
- * This is a library function for tools that want to do their tracing inside of
- * an instance.  All it does is create an instance and set it as a top instance,
- * you don't want to call this more than once, and you want to call
- * tracecmd_remove_instances to undo your work.
- */
-void tracecmd_create_top_instance(char *name)
-{
-	struct buffer_instance *instance;
-
-	instance = create_instance(name);
-	add_instance(instance, local_cpu_count);
-	update_first_instance(instance, 0);
-	make_instances();
 }
 
 static void check_plugin(const char *plugin)
@@ -5533,7 +5526,7 @@ void update_first_instance(struct buffer_instance *instance, int topt)
 void init_top_instance(void)
 {
 	if (!top_instance.tracefs)
-		top_instance.tracefs = tracefs_instance_alloc(NULL);
+		top_instance.tracefs = tracefs_instance_create(NULL);
 	top_instance.cpu_count = tracecmd_count_cpus();
 	top_instance.flags = BUFFER_FL_KEEP;
 	top_instance.trace_id = tracecmd_generate_traceid();
@@ -5580,7 +5573,7 @@ void trace_stop(int argc, char **argv)
 			usage(argv);
 			break;
 		case 'B':
-			instance = create_instance(optarg);
+			instance = allocate_instance(optarg);
 			if (!instance)
 				die("Failed to create instance");
 			add_instance(instance, local_cpu_count);
@@ -5620,7 +5613,7 @@ void trace_restart(int argc, char **argv)
 			usage(argv);
 			break;
 		case 'B':
-			instance = create_instance(optarg);
+			instance = allocate_instance(optarg);
 			if (!instance)
 				die("Failed to create instance");
 			add_instance(instance, local_cpu_count);
@@ -5678,7 +5671,7 @@ void trace_reset(int argc, char **argv)
 		}
 		case 'B':
 			last_specified_all = 0;
-			instance = create_instance(optarg);
+			instance = allocate_instance(optarg);
 			if (!instance)
 				die("Failed to create instance");
 			add_instance(instance, local_cpu_count);
@@ -5821,6 +5814,7 @@ static inline void remove_instances(struct buffer_instance *instances)
 	while (instances) {
 		del = instances;
 		instances = instances->next;
+		free(del->name);
 		tracefs_instance_destroy(del->tracefs);
 		tracefs_instance_free(del->tracefs);
 		free(del);
@@ -5978,7 +5972,7 @@ static void parse_record_options(int argc,
 					die("Failed to allocate guest name");
 			}
 
-			ctx->instance = create_instance(name);
+			ctx->instance = allocate_instance(name);
 			ctx->instance->flags |= BUFFER_FL_GUEST;
 			ctx->instance->cid = cid;
 			ctx->instance->port = port;
@@ -6173,7 +6167,7 @@ static void parse_record_options(int argc,
 			ctx->instance->buffer_size = atoi(optarg);
 			break;
 		case 'B':
-			ctx->instance = create_instance(optarg);
+			ctx->instance = allocate_instance(optarg);
 			if (!ctx->instance)
 				die("Failed to create instance");
 			ctx->instance->delete = negative;

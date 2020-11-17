@@ -240,11 +240,10 @@ clock_synch_create_instance(const char *clock, unsigned int cid)
 
 	snprintf(inst_name, 256, "clock_synch-%d", cid);
 
-	instance = tracefs_instance_alloc(inst_name);
+	instance = tracefs_instance_create(inst_name);
 	if (!instance)
 		return NULL;
 
-	tracefs_instance_create(instance);
 	tracefs_instance_file_write(instance, "trace", "\0");
 	if (clock)
 		tracefs_instance_file_write(instance, "trace_clock", clock);

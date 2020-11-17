@@ -179,6 +179,7 @@ static void test_instance_file_read(struct tracefs_instance *inst, char *fname)
 static void test_instance_file(void)
 {
 	struct tracefs_instance *instance = NULL;
+	struct tracefs_instance *second = NULL;
 	const char *name = get_rand_str();
 	const char *inst_name = NULL;
 	const char *tdir;
@@ -198,17 +199,19 @@ static void test_instance_file(void)
 	CU_TEST(stat(inst_dir, &st) != 0);
 
 	CU_TEST(tracefs_instance_exists(name) == false);
-	instance = tracefs_instance_alloc(name);
+	instance = tracefs_instance_create(name);
 	CU_TEST(instance != NULL);
-	CU_TEST(stat(inst_dir, &st) != 0);
-	inst_name = tracefs_instance_get_name(instance);
-	CU_TEST(inst_name != NULL);
-	CU_TEST(strcmp(inst_name, name) == 0);
-
-	CU_TEST(tracefs_instance_create(instance) == 0);
+	CU_TEST(tracefs_instance_is_new(instance));
+	second = tracefs_instance_create(name);
+	CU_TEST(second != NULL);
+	CU_TEST(!tracefs_instance_is_new(second));
+	tracefs_instance_free(second);
 	CU_TEST(tracefs_instance_exists(name) == true);
 	CU_TEST(stat(inst_dir, &st) == 0);
 	CU_TEST(S_ISDIR(st.st_mode));
+	inst_name = tracefs_instance_get_name(instance);
+	CU_TEST(inst_name != NULL);
+	CU_TEST(strcmp(inst_name, name) == 0);
 
 	fname = tracefs_instance_get_dir(NULL);
 	CU_TEST(fname != NULL);
@@ -474,12 +477,8 @@ static int test_suite_init(void)
 	test_tep = tracefs_local_events_system(NULL, systems);
 	if (test_tep == NULL)
 		return 1;
-
-	test_instance = tracefs_instance_alloc(TEST_INSTANCE_NAME);
-	if (test_instance == NULL)
-		return 1;
-
-	if (tracefs_instance_create(test_instance) < 0)
+	test_instance = tracefs_instance_create(TEST_INSTANCE_NAME);
+	if (!test_instance)
 		return 1;
 
 	return 0;

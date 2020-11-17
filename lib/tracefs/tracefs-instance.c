@@ -17,17 +17,19 @@
 #include "tracefs.h"
 #include "tracefs-local.h"
 
+#define FLAG_INSTANCE_NEWLY_CREATED	(1 << 0)
 struct tracefs_instance {
-	char *name;
+	char	*name;
+	int	flags;
 };
 
 /**
- * tracefs_instance_alloc - allocate a new ftrace instance
+ * instance_alloc - allocate a new ftrace instance
  * @name: The name of the instance (instance will point to this)
  *
  * Returns a newly allocated instance, or NULL in case of an error.
  */
-struct tracefs_instance *tracefs_instance_alloc(const char *name)
+static struct tracefs_instance *instance_alloc(const char *name)
 {
 	struct tracefs_instance *instance;
 
@@ -45,7 +47,7 @@ struct tracefs_instance *tracefs_instance_alloc(const char *name)
 
 /**
  * tracefs_instance_free - Free an instance, previously allocated by
-			   tracefs_instance_alloc()
+			   tracefs_instance_create()
  * @instance: Pointer to the instance to be freed
  *
  */
@@ -77,29 +79,57 @@ out:
 }
 
 /**
- * tracefs_instance_create - Create a new ftrace instance
- * @instance: Pointer to the instance to be created
+ * tracefs_instance_is_new - Check if the instance is newly created by the library
+ * @instance: Pointer to an ftrace instance
  *
- * Returns 1 if the instance already exist, 0 if the instance
- * is created successful or -1 in case of an error
+ * Returns true, if the ftrace instance is newly created by the library or
+ * false otherwise.
  */
-int tracefs_instance_create(struct tracefs_instance *instance)
+bool tracefs_instance_is_new(struct tracefs_instance *instance)
 {
+	if (instance && (instance->flags & FLAG_INSTANCE_NEWLY_CREATED))
+		return true;
+	return false;
+}
+
+/**
+ * tracefs_instance_create - Create a new ftrace instance
+ * @name: Name of the instance to be created
+ *
+ * Allocates and initializes a new instance structure. If the instance does not
+ * exist in the system, create it.
+ * Returns a pointer to a newly allocated instance, or NULL in case of an error.
+ * The returned instance must be freed by tracefs_instance_free().
+ */
+struct tracefs_instance *tracefs_instance_create(const char *name)
+{
+	struct tracefs_instance *inst = NULL;
 	struct stat st;
 	mode_t mode;
 	char *path;
 	int ret;
 
-	path = tracefs_instance_get_dir(instance);
+	inst = instance_alloc(name);
+	if (!inst)
+		return NULL;
+
+	path = tracefs_instance_get_dir(inst);
 	ret = stat(path, &st);
 	if (ret < 0) {
+		/* Cannot create the top instance, if it does not exist! */
+		if (!name)
+			goto error;
 		mode = get_trace_file_permissions("instances");
-		ret = mkdir(path, mode);
-	} else {
-		ret = 1;
+		if (mkdir(path, mode))
+			goto error;
+		inst->flags |= FLAG_INSTANCE_NEWLY_CREATED;
 	}
 	tracefs_put_tracing_file(path);
-	return ret;
+	return inst;
+
+error:
+	tracefs_instance_free(inst);
+	return NULL;
 }
 
 /**

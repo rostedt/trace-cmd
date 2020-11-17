@@ -199,6 +199,7 @@ struct filter_pids {
 
 struct buffer_instance {
 	struct buffer_instance	*next;
+	char			*name;
 	struct tracefs_instance	*tracefs;
 	unsigned long long	trace_id;
 	char			*cpumask;
@@ -277,7 +278,7 @@ extern struct buffer_instance *first_instance;
 #define is_agent(instance)	((instance)->flags & BUFFER_FL_AGENT)
 #define is_guest(instance)	((instance)->flags & BUFFER_FL_GUEST)
 
-struct buffer_instance *create_instance(const char *name);
+struct buffer_instance *allocate_instance(const char *name);
 void add_instance(struct buffer_instance *instance, int cpu_count);
 void update_first_instance(struct buffer_instance *instance, int topt);
 
@@ -286,7 +287,6 @@ void show_instance_file(struct buffer_instance *instance, const char *name);
 int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu);
 
 /* moved from trace-cmd.h */
-void tracecmd_create_top_instance(char *name);
 void tracecmd_remove_instances(void);
 int tracecmd_add_event(const char *event_str, int stack);
 void tracecmd_enable_events(void);

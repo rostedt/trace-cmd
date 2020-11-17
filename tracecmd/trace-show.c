@@ -64,7 +64,7 @@ void trace_show(int argc, char **argv)
 			if (buffer)
 				die("Can only show one buffer at a time");
 			buffer = optarg;
-			instance = create_instance(optarg);
+			instance = allocate_instance(optarg);
 			if (!instance)
 				die("Failed to create instance");
 			break;

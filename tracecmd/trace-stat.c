@@ -926,7 +926,7 @@ void trace_stat (int argc, char **argv)
 			usage(argv);
 			break;
 		case 'B':
-			instance = create_instance(optarg);
+			instance = allocate_instance(optarg);
 			if (!instance)
 				die("Failed to create instance");
 			add_instance(instance, tracecmd_count_cpus());
