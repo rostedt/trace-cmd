@@ -481,11 +481,7 @@ next_event:
 			failure = ret;
 	}
 
-	if (events) {
-		for (i = 0; events[i]; i++)
-			free(events[i]);
-		free(events);
-	}
+	tracefs_list_free(events);
 	return failure;
 }
 
@@ -564,11 +560,7 @@ static int fill_local_events_system(const char *tracing_dir,
 	/* always succeed because parsing failures are not critical */
 	ret = 0;
 out:
-	if (systems) {
-		for (i = 0; systems[i]; i++)
-			free(systems[i]);
-		free(systems);
-	}
+	tracefs_list_free(systems);
 	return ret;
 }
 
