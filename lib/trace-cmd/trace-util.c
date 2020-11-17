@@ -63,7 +63,7 @@ void tracecmd_parse_cmdlines(struct tep_handle *pevent,
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {
-		sscanf(line, "%d %ms", &pid, &comm);
+		sscanf(line, "%d %m[^\n]s", &pid, &comm);
 		tep_register_comm(pevent, comm, pid);
 		free(comm);
 		line = strtok_r(NULL, "\n", &next);
