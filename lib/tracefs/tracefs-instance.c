@@ -57,6 +57,25 @@ void tracefs_instance_free(struct tracefs_instance *instance)
 	free(instance);
 }
 
+static mode_t get_trace_file_permissions(char *name)
+{
+	mode_t rmode = 0;
+	struct stat st;
+	char *path;
+	int ret;
+
+	path = tracefs_get_tracing_file(name);
+	if (!path)
+		return 0;
+	ret = stat(path, &st);
+	if (ret)
+		goto out;
+	rmode = st.st_mode & ACCESSPERMS;
+out:
+	tracefs_put_tracing_file(path);
+	return rmode;
+}
+
 /**
  * tracefs_instance_create - Create a new ftrace instance
  * @instance: Pointer to the instance to be created
@@ -67,15 +86,18 @@ void tracefs_instance_free(struct tracefs_instance *instance)
 int tracefs_instance_create(struct tracefs_instance *instance)
 {
 	struct stat st;
+	mode_t mode;
 	char *path;
 	int ret;
 
 	path = tracefs_instance_get_dir(instance);
 	ret = stat(path, &st);
-	if (ret < 0)
-		ret = mkdir(path, 0777);
-	else
+	if (ret < 0) {
+		mode = get_trace_file_permissions("instances");
+		ret = mkdir(path, mode);
+	} else {
 		ret = 1;
+	}
 	tracefs_put_tracing_file(path);
 	return ret;
 }
