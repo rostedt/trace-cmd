@@ -57,4 +57,6 @@ struct tep_handle *tracefs_local_events_system(const char *tracing_dir,
 int tracefs_fill_local_events(const char *tracing_dir,
 			       struct tep_handle *tep, int *parsing_failures);
 
+char *tracefs_get_clock(struct tracefs_instance *instance);
+
 #endif /* _TRACE_FS_H */
