@@ -257,13 +257,33 @@ static bool check_file_exists(struct tracefs_instance *instance,
 	int ret;
 
 	path = tracefs_instance_get_dir(instance);
-	snprintf(file, PATH_MAX, "%s/%s", path, name);
+	if (name)
+		snprintf(file, PATH_MAX, "%s/%s", path, name);
+	else
+		snprintf(file, PATH_MAX, "%s", path);
 	tracefs_put_tracing_file(path);
 	ret = stat(file, &st);
 	if (ret < 0)
 		return false;
 
 	return !dir == !S_ISDIR(st.st_mode);
+}
+
+/**
+ * tracefs_instance_exists - Check an instance with given name exists
+ * @name: name of the instance
+ *
+ * Returns true if the instance exists, false otherwise
+ *
+ */
+bool tracefs_instance_exists(const char *name)
+{
+	char file[PATH_MAX];
+
+	if (!name)
+		return false;
+	snprintf(file, PATH_MAX, "instances/%s", name);
+	return check_file_exists(NULL, file, true);
 }
 
 /**

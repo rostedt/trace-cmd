@@ -197,6 +197,7 @@ static void test_instance_file(void)
 	CU_TEST(asprintf(&inst_dir, "%s/instances/%s", tdir, name) > 0);
 	CU_TEST(stat(inst_dir, &st) != 0);
 
+	CU_TEST(tracefs_instance_exists(name) == false);
 	instance = tracefs_instance_alloc(name);
 	CU_TEST(instance != NULL);
 	CU_TEST(stat(inst_dir, &st) != 0);
@@ -205,6 +206,7 @@ static void test_instance_file(void)
 	CU_TEST(strcmp(inst_name, name) == 0);
 
 	CU_TEST(tracefs_instance_create(instance) == 0);
+	CU_TEST(tracefs_instance_exists(name) == true);
 	CU_TEST(stat(inst_dir, &st) == 0);
 	CU_TEST(S_ISDIR(st.st_mode));
 
