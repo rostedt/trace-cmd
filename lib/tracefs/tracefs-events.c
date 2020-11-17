@@ -210,7 +210,7 @@ static char **add_list_string(char **list, const char *name, int len)
 	return list;
 }
 
-char *trace_append_file(const char *dir, const char *name)
+__hidden char *trace_append_file(const char *dir, const char *name)
 {
 	char *file;
 	int ret;

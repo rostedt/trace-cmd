@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "tracefs.h"
+#include "tracefs-local.h"
 
 #define TRACEFS_PATH "/sys/kernel/tracing"
 #define DEBUGFS_PATH "/sys/kernel/debug"
@@ -188,7 +189,7 @@ void tracefs_put_tracing_file(char *name)
 	free(name);
 }
 
-int str_read_file(const char *file, char **buffer)
+__hidden int str_read_file(const char *file, char **buffer)
 {
 	char stbuf[BUFSIZ];
 	char *buf = NULL;
