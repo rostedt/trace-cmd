@@ -24,7 +24,7 @@ struct tracefs_instance *tracefs_instance_alloc(const char *name);
 void tracefs_instance_free(struct tracefs_instance *instance);
 int tracefs_instance_create(struct tracefs_instance *instance);
 int tracefs_instance_destroy(struct tracefs_instance *instance);
-char *tracefs_instance_get_name(struct tracefs_instance *instance);
+const char *tracefs_instance_get_name(struct tracefs_instance *instance);
 char *
 tracefs_instance_get_file(struct tracefs_instance *instance, const char *file);
 char *tracefs_instance_get_dir(struct tracefs_instance *instance);

@@ -169,7 +169,7 @@ char *tracefs_instance_get_dir(struct tracefs_instance *instance)
  * Returns the name of the given @instance.
  * The returned string must *not* be freed.
  */
-char *tracefs_instance_get_name(struct tracefs_instance *instance)
+const char *tracefs_instance_get_name(struct tracefs_instance *instance)
 {
 	if (instance)
 		return instance->name;

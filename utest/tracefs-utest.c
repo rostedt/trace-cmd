@@ -180,7 +180,7 @@ static void test_instance_file(void)
 {
 	struct tracefs_instance *instance = NULL;
 	const char *name = get_rand_str();
-	char *inst_name = NULL;
+	const char *inst_name = NULL;
 	const char *tdir;
 	char *inst_file;
 	char *inst_dir;

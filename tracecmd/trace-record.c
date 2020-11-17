@@ -3861,7 +3861,7 @@ static void connect_to_agent(struct buffer_instance *instance)
 	unsigned int *ports;
 	int i, *fds = NULL;
 	bool use_fifos = false;
-	char *name;
+	const char *name;
 
 	name = tracefs_instance_get_name(instance->tracefs);
 	if (!no_fifos) {
