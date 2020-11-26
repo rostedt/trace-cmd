@@ -7,11 +7,22 @@ trace-cmd-clear - clear the Ftrace buffer.
 
 SYNOPSIS
 --------
-*trace-cmd clear*
+*trace-cmd clear* ['OPTIONS']
 
 DESCRIPTION
 -----------
 The *trace-cmd(1) clear* clears the content of the Ftrace ring buffer.
+
+OPTIONS
+-------
+*-B* 'buffer-name'::
+    If the kernel supports multiple buffers, this will clear only the given
+    buffer. It does not affect any other buffers. This may be used multiple
+    times to specify different buffers. The top level buffer will not be
+    clearded if this option is given.
+
+*-a*::
+    Clear all existing buffers, including the top level one.
 
 SEE ALSO
 --------

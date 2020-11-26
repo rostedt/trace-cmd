@@ -845,21 +845,6 @@ static void clear_trace_instances(void)
 		__clear_trace(instance);
 }
 
-static void clear_trace(void)
-{
-	FILE *fp;
-	char *path;
-
-	/* reset the trace */
-	path = tracefs_get_tracing_file("trace");
-	fp = fopen(path, "w");
-	if (!fp)
-		die("writing to '%s'", path);
-	tracefs_put_tracing_file(path);
-	fwrite("0", 1, 1, fp);
-	fclose(fp);
-}
-
 static void reset_max_latency(struct buffer_instance *instance)
 {
 	tracefs_instance_file_write(instance->tracefs,
@@ -6698,15 +6683,6 @@ void trace_profile(int argc, char **argv)
 
 	record_trace(argc, argv, &ctx);
 	do_trace_profile();
-	exit(0);
-}
-
-void trace_clear(int argc, char **argv)
-{
-	if (argc > 2)
-		usage(argv);
-	else
-		clear_trace();
 	exit(0);
 }
 

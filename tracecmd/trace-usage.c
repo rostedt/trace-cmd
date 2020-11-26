@@ -180,7 +180,9 @@ static struct usage_help usage_help[] = {
 	{
 		"clear",
 		"clear the trace buffers",
-		" %s clear\n"
+		" %s clear [-B buf][-a]\n"
+		"          -B clear the given buffer (may specify multiple -B)\n"
+		"          -a clear all existing buffers, including the top level one\n"
 	},
 	{
 		"report",
