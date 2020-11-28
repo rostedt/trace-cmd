@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 xhost +si:localuser:root &>/dev/null
 
-pkexec kshark-record -o ${PWD}/trace.dat
+pkexec kshark-record -o "${PWD}/trace.dat"

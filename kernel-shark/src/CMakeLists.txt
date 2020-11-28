@@ -1,107 +1,137 @@
-message("\n src ...")
+message(STATUS "Building src ...")
 
-message(STATUS "libkshark")
-add_library(kshark SHARED libkshark.c
-                          libkshark-model.c
-                          libkshark-plugin.c
-                          libkshark-configio.c
-                          libkshark-collection.c)
+configure_file(
+  deff.h.in
+  KsCmakeDef.hpp
+)
 
-target_link_libraries(kshark ${TRACECMD_LIBRARY}
-                             ${TRACEFS_LIBRARY}
-                             ${TRACEEVENT_LIBRARY}
-                             ${JSONC_LIBRARY}
-                             ${CMAKE_DL_LIBS})
+message(STATUS "Building libkshark")
+add_library(
+  kshark
+  SHARED
+  libkshark.c
+  libkshark-model.c
+  libkshark-plugin.c
+  libkshark-configio.c
+  libkshark-collection.c
+)
 
-set_target_properties(kshark  PROPERTIES SUFFIX	".so.${KS_VERSION_STRING}")
+target_link_libraries(
+  kshark
+  ${TRACECMD_LIBRARY}
+  ${TRACEFS_LIBRARY}
+  ${TRACEEVENT_LIBRARY}
+  ${JSONC_LIBRARY}
+  ${CMAKE_DL_LIBS}
+)
 
-install(TARGETS kshark LIBRARY DESTINATION ${_LIBDIR}/${KS_APP_NAME})
+set_target_properties(
+  kshark
+  PROPERTIES
+  SUFFIX
+  ".so.${PROJECT_VERSION}"
+)
 
-if (OPENGL_FOUND AND GLUT_FOUND)
+install(
+  TARGETS kshark
+  LIBRARY
+  DESTINATION
+  ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/
+)
 
-    message(STATUS "libkshark-plot")
-    add_library(kshark-plot  SHARED  libkshark-plot.c
-                                     KsPlotTools.cpp)
+if(OPENGL_FOUND AND GLUT_FOUND)
+  message(STATUS "Build libkshark-plot")
+  add_library(
+    kshark-plot
+    SHARED
+    libkshark-plot.c
+    KsPlotTools.cpp
+  )
+  target_link_libraries(
+    kshark-plot
+    kshark
+    ${GLUT_LIBRARY}
+    ${OPENGL_LIBRARIES}
+  )
+  set_target_properties(
+    kshark-plot
+    PROPERTIES
+    SUFFIX
+    ".so.${PROJECT_VERSION}"
+  )
+  install(
+    TARGETS kshark-plot
+    LIBRARY
+    DESTINATION
+  ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}
+)
+endif(OPENGL_FOUND AND GLUT_FOUND)
 
-    target_link_libraries(kshark-plot  kshark
-                                       ${GLUT_LIBRARY}
-                                       ${OPENGL_LIBRARIES})
+if(Qt5Widgets_FOUND AND Qt5Network_FOUND)
+  message(STATUS "Build libkshark-gui")
+  set(
+    GUILIB_HEADERS
+    KsUtils.hpp
+    KsModels.hpp
+    KsGLWidget.hpp
+    KsSearchFSM.hpp
+    KsDualMarker.hpp
+    KsWidgetsLib.hpp
+    KsTraceGraph.hpp
+    KsTraceViewer.hpp
+    KsMainWindow.hpp
+    KsCaptureDialog.hpp
+    KsQuickContextMenu.hpp
+    KsAdvFilteringDialog.hpp
+  )
+  QT5_WRAP_CPP(GUILIB_HEADERS_MOC ${GUILIB_HEADERS})
 
-    set_target_properties(kshark-plot PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
+  add_library(
+    kshark-gui
+    SHARED
+    ${GUILIB_HEADERS_MOC}
+    KsUtils.cpp
+    KsModels.cpp
+    KsSession.cpp
+    KsGLWidget.cpp
+    KsSearchFSM.cpp
+    KsDualMarker.cpp
+    KsWidgetsLib.cpp
+    KsTraceGraph.cpp
+    KsTraceViewer.cpp
+    KsMainWindow.cpp
+    KsCaptureDialog.cpp
+    KsQuickContextMenu.cpp
+    KsAdvFilteringDialog.cpp
+  )
 
-    install(TARGETS kshark-plot LIBRARY DESTINATION ${_LIBDIR}/${KS_APP_NAME})
+  target_link_libraries(
+    kshark-gui
+    kshark-plot
+    Qt5::Widgets
+    Qt5::Network
+  )
 
-endif (OPENGL_FOUND AND GLUT_FOUND)
+  set_target_properties(
+    kshark-gui
+    PROPERTIES
+    SUFFIX
+    ".so.${PROJECT_VERSION}"
+  )
 
-if (Qt5Widgets_FOUND AND Qt5Network_FOUND)
+  message(STATUS "Building ${PROJECT_NAME}")
+  add_executable(${PROJECT_NAME} kernelshark.cpp)
+  target_link_libraries(${PROJECT_NAME} kshark-gui)
 
-    message(STATUS "libkshark-gui")
-    set (ks-guiLib_hdr  KsUtils.hpp
-                        KsModels.hpp
-                        KsGLWidget.hpp
-                        KsSearchFSM.hpp
-                        KsDualMarker.hpp
-                        KsWidgetsLib.hpp
-                        KsTraceGraph.hpp
-                        KsTraceViewer.hpp
-                        KsMainWindow.hpp
-                        KsCaptureDialog.hpp
-                        KsQuickContextMenu.hpp
-                        KsAdvFilteringDialog.hpp)
+  message(STATUS "Building kshark-record")
+  add_executable(kshark-record kshark-record.cpp)
+  target_link_libraries(kshark-record kshark-gui)
 
-    QT5_WRAP_CPP(ks-guiLib_hdr_moc ${ks-guiLib_hdr})
-
-    add_library(kshark-gui  SHARED  ${ks-guiLib_hdr_moc}    KsUtils.cpp
-                                                            KsModels.cpp
-                                                            KsSession.cpp
-                                                            KsGLWidget.cpp
-                                                            KsSearchFSM.cpp
-                                                            KsDualMarker.cpp
-                                                            KsWidgetsLib.cpp
-                                                            KsTraceGraph.cpp
-                                                            KsTraceViewer.cpp
-                                                            KsMainWindow.cpp
-                                                            KsCaptureDialog.cpp
-                                                            KsQuickContextMenu.cpp
-                                                            KsAdvFilteringDialog.cpp)
-
-    target_link_libraries(kshark-gui kshark-plot
-                                     Qt5::Widgets
-                                     Qt5::Network)
-
-
-    set_target_properties(kshark-gui PROPERTIES  SUFFIX ".so.${KS_VERSION_STRING}")
-
-    message(STATUS ${KS_APP_NAME})
-    add_executable(${KS_APP_NAME}          kernelshark.cpp)
-    target_link_libraries(${KS_APP_NAME}   kshark-gui)
-
-    message(STATUS "kshark-record")
-    add_executable(kshark-record        kshark-record.cpp)
-    target_link_libraries(kshark-record kshark-gui)
-
-    install(TARGETS ${KS_APP_NAME} kshark-record kshark-gui
-            RUNTIME DESTINATION ${_INSTALL_PREFIX}/bin/
-            LIBRARY DESTINATION ${_LIBDIR}/${KS_APP_NAME}/)
-
-    install(FILES "${KS_DIR}/${KS_APP_NAME}.desktop"
-            DESTINATION ${_INSTALL_PREFIX}/share/applications/)
-
-    install(FILES "${KS_DIR}/icons/${KS_ICON}"
-                  "${KS_DIR}/icons/${KS_ICON_FIN}"
-            DESTINATION ${_INSTALL_PREFIX}/share/icons/${KS_APP_NAME})
-
-    install(FILES "${KS_DIR}/org.freedesktop.kshark-record.policy"
-            DESTINATION /usr/share/polkit-1/actions/)
-
-    install(PROGRAMS "${KS_DIR}/bin/kshark-su-record"
-            DESTINATION ${_INSTALL_PREFIX}/bin/)
-
-endif (Qt5Widgets_FOUND AND Qt5Network_FOUND)
+  install(
+    TARGETS ${PROJECT_NAME} kshark-record kshark-gui
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/
+  )
+endif(Qt5Widgets_FOUND AND Qt5Network_FOUND)
 
 add_subdirectory(plugins)
-
-find_program(DO_AS_ROOT pkexec)
-
-configure_file( ${KS_DIR}/build/deff.h.cmake
-                ${KS_DIR}/src/KsCmakeDef.hpp)

@@ -300,7 +300,7 @@ CMAKE_COMMAND = /usr/bin/cmake
 BUILD_TYPE ?= RelWithDebInfo
 
 $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
-	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -D_INSTALL_PREFIX=$(prefix) -D_LIBDIR=$(libdir) ..
+	$(Q) mkdir -p $(kshark-dir)/build && cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(prefix) -DCMAKE_INSTALL_LIBDIR=$(libdir) ..
 
 gui: force
 	$(MAKE) $(CMD_TARGETS)
@@ -452,8 +452,7 @@ clean:
 	$(MAKE) -C $(src)/utest clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
-	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
-	cd $(kshark-dir)/build; ./cmake_clean.sh
+	rm -rf $(kshark-dir)/build
 
 
 ##### PYTHON STUFF #####
