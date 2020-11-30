@@ -104,13 +104,16 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 
 	pthread_attr_init(&attrib);
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
-	if (!get_first_cpu(&pin_mask, &mask_size))
-		pthread_attr_setaffinity_np(&attrib, mask_size, pin_mask);
 
 	ret = pthread_create(&instance->tsync_thread, &attrib,
 			     tsync_host_thread, &instance->tsync);
-	if (!ret)
+
+	if (!ret) {
+		if (!get_first_cpu(&pin_mask, &mask_size))
+			pthread_setaffinity_np(instance->tsync_thread, mask_size, pin_mask);
 		instance->tsync_thread_running = true;
+	}
+
 	if (pin_mask)
 		CPU_FREE(pin_mask);
 	pthread_attr_destroy(&attrib);
@@ -243,10 +246,13 @@ unsigned int tracecmd_guest_tsync(char *tsync_protos,
 	pthread_attr_init(&attrib);
 	tsync->sync_proto = proto;
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
-	if (!get_first_cpu(&pin_mask, &mask_size))
-		pthread_attr_setaffinity_np(&attrib, mask_size, pin_mask);
 
 	ret = pthread_create(thr_id, &attrib, tsync_agent_thread, tsync);
+
+	if (!ret) {
+		if (!get_first_cpu(&pin_mask, &mask_size))
+			pthread_setaffinity_np(*thr_id, mask_size, pin_mask);
+	}
 
 	if (pin_mask)
 		CPU_FREE(pin_mask);

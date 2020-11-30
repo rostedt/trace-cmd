@@ -6,6 +6,7 @@
 #ifndef _TRACE_CMD_LOCAL_H
 #define _TRACE_CMD_LOCAL_H
 
+#include <byteswap.h>
 #include "trace-cmd-private.h"
 
 /* Can be overridden */

@@ -8,6 +8,7 @@
 
 #include <sys/types.h>
 #include <dirent.h>	/* for DIR */
+#include <limits.h>
 
 #include "trace-cmd-private.h"
 #include "event-utils.h"
