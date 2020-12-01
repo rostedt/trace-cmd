@@ -945,10 +945,7 @@ void KsMainWindow::_record()
 		QString message;
 
 		message = "Record is currently not supported.";
-		message += " Install \"pkexec\" and then do:<br>";
-		message += " cd build <br> sudo ./cmake_uninstall.sh <br>";
-		message += " ./cmake_clean.sh <br> cmake .. <br> make <br>";
-		message += " sudo make install";
+		message += " Install \"pkexec\", rebuild and install kernelshark.";
 
 		_error(message, "recordCantStart", false, false);
 		return;
