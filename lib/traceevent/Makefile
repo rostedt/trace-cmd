@@ -6,6 +6,8 @@ bdir:=$(obj)/lib/traceevent
 
 DEFAULT_TARGET = $(bdir)/libtraceevent.a
 
+CFLAGS += -I$(bdir)/include
+
 OBJS =
 OBJS += event-parse.o
 OBJS += event-plugin.o

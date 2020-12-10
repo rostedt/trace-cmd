@@ -6,6 +6,8 @@ bdir:=$(obj)/lib/tracefs
 
 DEFAULT_TARGET = $(bdir)/libtracefs.a
 
+CFLAGS += -I$(bdir)/include
+
 OBJS =
 OBJS += tracefs-utils.o
 OBJS += tracefs-instance.o

@@ -191,6 +191,8 @@ export prefix bindir src obj kshark-dir
 
 LIBS = -ldl
 
+
+LIBTRACEEVENT=libtraceevent
 LIBTRACEEVENT_DIR = $(obj)/lib/traceevent
 LIBTRACEEVENT_STATIC = $(LIBTRACEEVENT_DIR)/libtraceevent.a
 LIBTRACEEVENT_SHARED = $(LIBTRACEEVENT_DIR)/libtraceevent.so
@@ -199,35 +201,48 @@ LIBTRACECMD_DIR = $(obj)/lib/trace-cmd
 LIBTRACECMD_STATIC = $(LIBTRACECMD_DIR)/libtracecmd.a
 LIBTRACECMD_SHARED = $(LIBTRACECMD_DIR)/libtracecmd.so
 
+LIBTRACEFS=libtracefs
 LIBTRACEFS_DIR = $(obj)/lib/tracefs
 LIBTRACEFS_STATIC = $(LIBTRACEFS_DIR)/libtracefs.a
 LIBTRACEFS_SHARED = $(LIBTRACEFS_DIR)/libtracefs.so
 
-TRACE_LIBS = -L$(LIBTRACECMD_DIR) -ltracecmd		\
-	     -L$(LIBTRACEEVENT_DIR) -ltraceevent	\
-	     -L$(LIBTRACEFS_DIR) -ltracefs
+ifeq ($(shell sh -c "pkg-config --cflags $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y"), y)
+LIBTRACEEVENT_CFLAGS = $(shell sh -c "pkg-config --cflags $(LIBTRACEEVENT)")
+LIBTRACEEVENT_LDLAGS = $(shell sh -c "pkg-config --libs $(LIBTRACEEVENT)")
+else
+LIBTRACEEVENT_CFLAGS = -I$(src)/include/traceevent -I$(src)/lib/traceevent/include
+LIBTRACEEVENT_LDLAGS = -L$(LIBTRACEEVENT_DIR) -ltraceevent
+LIBTRACEEVENT_STATIC_BUILD = $(LIBTRACEEVENT_STATIC)
+endif
+
+ifeq ($(shell sh -c "pkg-config --cflags $(LIBTRACEFS) > /dev/null 2>&1 && echo y"), y)
+LIBTRACEFS_CFLAGS = $(shell sh -c "pkg-config --cflags $(LIBTRACEFS)")
+LIBTRACEFS_LDLAGS = $(shell sh -c "pkg-config --libs $(LIBTRACEFS)")
+else
+LIBTRACEFS_CFLAGS = -I$(src)/include/tracefs
+LIBTRACEFS_LDLAGS = -L$(LIBTRACEFS_DIR) -ltracefs
+LIBTRACEFS_STATIC_BUILD = $(LIBTRACEFS_STATIC)
+endif
+
+
+TRACE_LIBS = -L$(LIBTRACECMD_DIR) -ltracecmd	\
+	     $(LIBTRACEEVENT_LDLAGS) $(LIBTRACEFS_LDLAGS)
 
 export LIBS TRACE_LIBS
 export LIBTRACEEVENT_DIR LIBTRACECMD_DIR LIBTRACEFS_DIR
 export LIBTRACECMD_STATIC LIBTRACECMD_SHARED
-export LIBTRACEEVENT_STATIC LIBTRACEEVENT_SHARED
-export LIBTRACEFS_STATIC LIBTRACEFS_SHARED
-
 export Q SILENT VERBOSE EXT
 
 # Include the utils
 include scripts/utils.mk
 
 INCLUDES = -I$(src)/include -I$(src)/../../include
-INCLUDES += -I$(src)/include/traceevent
 INCLUDES += -I$(src)/include/trace-cmd
-INCLUDES += -I$(src)/include/tracefs
-INCLUDES += -I$(src)/lib/traceevent/include
 INCLUDES += -I$(src)/lib/trace-cmd/include
 INCLUDES += -I$(src)/lib/trace-cmd/include/private
-INCLUDES += -I$(src)/lib/tracefs/include
 INCLUDES += -I$(src)/tracecmd/include
-INCLUDES += -I$(obj)/tracecmd/include
+INCLUDES += $(LIBTRACEEVENT_CFLAGS)
+INCLUDES += $(LIBTRACEFS_CFLAGS)
 
 include $(src)/features.mk
 
@@ -288,6 +303,7 @@ CMD_TARGETS = trace-cmd $(BUILD_PYTHON)
 #    Default we just build trace-cmd
 #
 #    If you want kernelshark, then do:  make gui
+#    If you want all libraries, then do: make libs
 ###
 
 all: all_cmd plugins show_gui_make
@@ -309,7 +325,7 @@ gui: force
 	@echo "gui build complete"
 	@echo "  kernelshark located at $(kshark-dir)/bin"
 
-trace-cmd: force $(LIBTRACEEVENT_STATIC) $(LIBTRACECMD_STATIC) $(LIBTRACEFS_STATIC) \
+trace-cmd: force $(LIBTRACEEVENT_STATIC_BUILD) $(LIBTRACECMD_STATIC) $(LIBTRACEFS_STATIC_BUILD) \
 	force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 

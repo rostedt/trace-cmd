@@ -11,6 +11,8 @@ TARGETS = $(bdir)/trace-cmd $(TC_VERSION)
 BUILDGUI := 0
 include $(src)/scripts/utils.mk
 
+CFLAGS += -I$(bdir)/include
+
 TRACE_CMD_OBJS =
 TRACE_CMD_OBJS += trace-cmd.o
 TRACE_CMD_OBJS += trace-record.o
@@ -47,7 +49,7 @@ all_objs := $(sort $(ALL_OBJS))
 all_deps := $(all_objs:$(bdir)/%.o=$(bdir)/.%.d)
 
 CONFIG_INCLUDES =
-CONFIG_LIBS	= -lrt -lpthread
+CONFIG_LIBS	= -lrt -lpthread $(TRACE_LIBS)
 CONFIG_FLAGS	=
 
 all: $(TARGETS)
@@ -67,7 +69,7 @@ $(all_objs): | $(bdir)
 $(bdir)/trace-cmd: $(ALL_OBJS)
 	$(Q)$(do_app_build)
 
-$(bdir)/trace-cmd: $(LIBTRACECMD_STATIC) $(LIBTRACEEVENT_STATIC) $(LIBTRACEFS_STATIC)
+$(bdir)/trace-cmd: $(LIBTRACECMD_STATIC)
 
 $(bdir)/%.o: %.c
 	$(Q)$(call do_compile)
