@@ -6,6 +6,7 @@
 #ifndef _TRACE_FS_H
 #define _TRACE_FS_H
 
+#include <sched.h>
 #include "traceevent/event-parse.h"
 
 char *tracefs_get_tracing_file(const char *name);
@@ -44,6 +45,7 @@ char **tracefs_event_systems(const char *tracing_dir);
 char **tracefs_system_events(const char *tracing_dir, const char *system);
 int tracefs_iterate_raw_events(struct tep_handle *tep,
 				struct tracefs_instance *instance,
+				cpu_set_t *cpus, int cpu_size,
 				int (*callback)(struct tep_event *,
 						struct tep_record *,
 						int, void *),

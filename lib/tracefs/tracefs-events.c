@@ -116,6 +116,9 @@ get_events_in_page(struct tep_handle *tep, void *page,
  *				per CPU trace buffers
  * @tep: a handle to the trace event parser context
  * @instance: ftrace instance, can be NULL for the top instance
+ * @cpus: Iterate only through the buffers of CPUs, set in the mask.
+ *	  If NULL, iterate through all CPUs.
+ * @cpu_size: size of @cpus set
  * @callback: A user function, called for each record from the file
  * @callback_context: A custom context, passed to the user callback function
  *
@@ -126,6 +129,7 @@ get_events_in_page(struct tep_handle *tep, void *page,
  */
 int tracefs_iterate_raw_events(struct tep_handle *tep,
 				struct tracefs_instance *instance,
+				cpu_set_t *cpus, int cpu_size,
 				int (*callback)(struct tep_event *,
 						struct tep_record *,
 						int, void *),
@@ -166,6 +170,8 @@ int tracefs_iterate_raw_events(struct tep_handle *tep,
 		if (strlen(name) < 4 || strncmp(name, "cpu", 3) != 0)
 			continue;
 		cpu = atoi(name + 3);
+		if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpus))
+			continue;
 		sprintf(file, "%s/%s", path, name);
 		ret = stat(file, &st);
 		if (ret < 0 || !S_ISDIR(st.st_mode))

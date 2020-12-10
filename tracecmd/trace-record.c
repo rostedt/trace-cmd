@@ -4585,7 +4585,7 @@ static unsigned long long find_time_stamp(struct tep_handle *tep)
 {
 	unsigned long long ts = 0;
 
-	if (!tracefs_iterate_raw_events(tep, NULL, find_ts, &ts))
+	if (!tracefs_iterate_raw_events(tep, NULL, NULL, 0, find_ts, &ts))
 		return ts;
 
 	return 0;
