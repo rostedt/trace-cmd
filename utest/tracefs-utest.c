@@ -18,25 +18,34 @@
 
 #define TRACEFS_SUITE		"trasefs library"
 #define TEST_INSTANCE_NAME	"cunit_test_iter"
-#define TEST_ARRAY_SIZE		50
+#define TEST_ARRAY_SIZE		500
 
 static struct tracefs_instance *test_instance;
 static struct tep_handle *test_tep;
-static int test_array[TEST_ARRAY_SIZE];
+struct test_sample {
+	int cpu;
+	int value;
+};
+static struct test_sample test_array[TEST_ARRAY_SIZE];
 static int test_found;
 
 static int test_callback(struct tep_event *event, struct tep_record *record,
 			  int cpu, void *context)
 {
 	struct tep_format_field *field;
-	int val, i;
+	struct test_sample *sample;
+	int *cpu_test = (int *)context;
+	int i;
 
+	if (cpu_test && *cpu_test >= 0 && *cpu_test != cpu)
+		return 0;
 	field = tep_find_field(event, "buf");
 	if (field) {
-		val = *((int *)(record->data + field->offset));
+		sample = ((struct test_sample *)(record->data + field->offset));
 		for (i = 0; i < TEST_ARRAY_SIZE; i++) {
-			if (test_array[i] == val) {
-				test_array[i] = 0;
+			if (test_array[i].value == sample->value &&
+			    test_array[i].cpu == cpu) {
+				test_array[i].value = 0;
 				test_found++;
 				break;
 			}
@@ -48,43 +57,85 @@ static int test_callback(struct tep_event *event, struct tep_record *record,
 
 static void test_iter_write(void)
 {
+	int cpus = sysconf(_SC_NPROCESSORS_CONF);
+	cpu_set_t *cpuset, *cpusave;
+	int cpu_size;
 	char *path;
 	int i, fd;
 	int ret;
+	cpuset = CPU_ALLOC(cpus);
+	cpusave = CPU_ALLOC(cpus);
+	cpu_size = CPU_ALLOC_SIZE(cpus);
+	CPU_ZERO_S(cpu_size, cpuset);
+
+	sched_getaffinity(0, cpu_size, cpusave);
 
 	path = tracefs_instance_get_file(test_instance, "trace_marker");
 	CU_TEST(path != NULL);
 	fd = open(path, O_WRONLY);
+	tracefs_put_tracing_file(path);
 	CU_TEST(fd >= 0);
 
 	for (i = 0; i < TEST_ARRAY_SIZE; i++) {
-		test_array[i] = random();
-		ret = write(fd, test_array + i, sizeof(int));
-		CU_TEST(ret == sizeof(int));
+		test_array[i].cpu = rand() % cpus;
+		test_array[i].value = random();
+		if (!test_array[i].value)
+			test_array[i].value++;
+		CU_TEST(test_array[i].cpu < cpus);
+		CPU_ZERO_S(cpu_size, cpuset);
+		CPU_SET(test_array[i].cpu, cpuset);
+		sched_setaffinity(0, cpu_size, cpuset);
+		ret = write(fd, test_array + i, sizeof(struct test_sample));
+		CU_TEST(ret == sizeof(struct test_sample));
 	}
 
-	tracefs_put_tracing_file(path);
+	sched_setaffinity(0, cpu_size, cpusave);
 	close(fd);
 }
 
 
-static void test_iter_raw_events(void)
+static void iter_raw_events_on_cpu(int cpu)
 {
+	int check = 0;
 	int ret;
-
-	ret = tracefs_iterate_raw_events(NULL, test_instance, test_callback, NULL);
-	CU_TEST(ret < 0);
-	ret = tracefs_iterate_raw_events(test_tep, NULL, test_callback, NULL);
-	CU_TEST(ret == 0);
-	ret = tracefs_iterate_raw_events(test_tep, test_instance, NULL, NULL);
-	CU_TEST(ret < 0);
+	int i;
 
 	test_found = 0;
 	test_iter_write();
-	ret = tracefs_iterate_raw_events(test_tep, test_instance,
-					 test_callback, NULL);
+	ret = tracefs_iterate_raw_events(test_tep, test_instance, NULL, 0,
+					 test_callback, &cpu);
 	CU_TEST(ret == 0);
-	CU_TEST(test_found == TEST_ARRAY_SIZE);
+	if (cpu < 0) {
+		CU_TEST(test_found == TEST_ARRAY_SIZE);
+	} else {
+		for (i = 0; i < TEST_ARRAY_SIZE; i++) {
+			if (test_array[i].cpu == cpu) {
+				check++;
+				CU_TEST(test_array[i].value == 0)
+			} else {
+				CU_TEST(test_array[i].value != 0)
+			}
+		}
+		CU_TEST(test_found == check);
+	}
+}
+
+static void test_iter_raw_events(void)
+{
+	int cpus = sysconf(_SC_NPROCESSORS_CONF);
+	int ret;
+	int i;
+
+	ret = tracefs_iterate_raw_events(NULL, test_instance, NULL, 0, test_callback, NULL);
+	CU_TEST(ret < 0);
+	ret = tracefs_iterate_raw_events(test_tep, NULL, NULL, 0, test_callback, NULL);
+	CU_TEST(ret == 0);
+	ret = tracefs_iterate_raw_events(test_tep, test_instance, NULL, 0, NULL, NULL);
+	CU_TEST(ret < 0);
+
+	iter_raw_events_on_cpu(-1);
+	for (i = 0; i < cpus; i++)
+		iter_raw_events_on_cpu(i);
 }
 
 #define RAND_STR_SIZE 20
