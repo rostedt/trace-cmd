@@ -99,6 +99,7 @@ static int no_irqs;
 static int no_softirqs;
 
 static int tsdiff;
+static int tscheck;
 
 static int latency_format;
 static bool raw_format;
@@ -1192,6 +1193,7 @@ enum output_type {
 static void read_data_info(struct list_head *handle_list, enum output_type otype,
 			   int global)
 {
+	unsigned long long *last_timestamp;
 	struct handle_list *handles;
 	struct handle_list *last_handle;
 	struct tep_record *record;
@@ -1215,6 +1217,10 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		handles->cpus = cpus;
 		print_handle_file(handles);
 		printf("cpus=%d\n", cpus);
+
+		last_timestamp = calloc(cpus, sizeof(*last_timestamp));
+		if (!last_timestamp)
+			die("allocating timestamps");
 
 		/* Latency trace is just all ASCII */
 		if (ret > 0) {
@@ -1286,6 +1292,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 
 		list_for_each_entry(handles, handle_list, list) {
 			record = get_next_record(handles);
+			if (!record)
+				continue;
 			if (!last_record ||
 			    (record && record->ts < last_record->ts)) {
 				last_record = record;
@@ -1293,11 +1301,25 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			}
 		}
 		if (last_record) {
+			int cpu = last_record->cpu;
+			if (cpu >= cpus)
+				die("cpu %d creater than %d\n", cpu, cpus);
+			if (tscheck &&
+			    last_timestamp[cpu] > last_record->ts) {
+				errno = 0;
+				warning("WARNING: Record on cpu %d went backwards: %lld to %lld delta: -%lld\n",
+					cpu, last_timestamp[cpu],
+					last_record->ts,
+					last_timestamp[cpu] - last_record->ts);
+			}
+			last_timestamp[cpu] = last_record->ts;
 			print_handle_file(last_handle);
 			trace_show_data(last_handle->handle, last_record);
 			free_handle_record(last_handle);
 		}
 	} while (last_record);
+
+	free(last_timestamp);
 
 	if (profile)
 		do_trace_profile();
@@ -1463,7 +1485,8 @@ static void add_hook(const char *arg)
 }
 
 enum {
-	OPT_version	= 238,
+	OPT_version	= 237,
+	OPT_tscheck	= 238,
 	OPT_tsdiff	= 239,
 	OPT_ts2secs	= 240,
 	OPT_tsoffset	= 241,
@@ -1550,6 +1573,7 @@ void trace_report (int argc, char **argv)
 			{"ts-offset", required_argument, NULL, OPT_tsoffset},
 			{"ts2secs", required_argument, NULL, OPT_ts2secs},
 			{"ts-diff", no_argument, NULL, OPT_tsdiff},
+			{"ts-check", no_argument, NULL, OPT_tscheck},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1718,6 +1742,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_tsdiff:
 			tsdiff = 1;
+			break;
+		case OPT_tscheck:
+			tscheck = 1;
 			break;
 		default:
 			usage(argv);

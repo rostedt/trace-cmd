@@ -229,6 +229,7 @@ static struct usage_help usage_help[] = {
 		"                     Affects the previous data file, unless there was no\n"
 		"                     previous data file, in which case it becomes default\n"
 		"          --ts-diff Show the delta timestamp between events.\n"
+		"          --ts-check Check to make sure no time stamp on any CPU goes backwards.\n"
 	},
 	{
 		"stream",

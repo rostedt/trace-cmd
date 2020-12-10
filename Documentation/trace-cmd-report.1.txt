@@ -305,6 +305,10 @@ OPTIONS
      Show the time differences between events. The difference will appear in
      parenthesis just after the timestamp.
 
+*--ts-check*::
+     Make sure no timestamp goes backwards, and if it does, print out a warning
+     message of the fact.
+
 EXAMPLES
 --------
 
