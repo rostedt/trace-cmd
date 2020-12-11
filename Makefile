@@ -61,6 +61,8 @@ libdir ?= $(prefix)/lib
 libdir_SQ = '$(subst ','\'',$(libdir))'
 includedir = $(prefix)/include
 includedir_SQ = '$(subst ','\'',$(includedir))'
+pkgconfig_dir ?= $(word 1,$(shell $(PKG_CONFIG) 		\
+			--variable pc_path pkg-config | tr ":" " "))
 
 ifeq ($(prefix),/usr/local)
 etcdir ?= /etc
@@ -195,6 +197,17 @@ srctree		:= $(if $(BUILD_SRC),$(BUILD_SRC),$(CURDIR))
 objtree		:= $(BUILD_OUTPUT)
 src		:= $(srctree)
 obj		:= $(objtree)
+
+PKG_CONFIG_SOURCE_FILE = libtracecmd.pc
+PKG_CONFIG_FILE := $(addprefix $(BUILD_OUTPUT)/,$(PKG_CONFIG_SOURCE_FILE))
+
+define do_make_pkgconfig_file
+	cp -f $(srctree)/${PKG_CONFIG_SOURCE_FILE}.template ${PKG_CONFIG_FILE};	\
+	sed -i "s|INSTALL_PREFIX|${1}|g" ${PKG_CONFIG_FILE}; 		\
+	sed -i "s|LIB_VERSION|${LIBTRACECMD_VERSION}|g" ${PKG_CONFIG_FILE}; \
+	sed -i "s|LIB_DIR|$(libdir)|g" ${PKG_CONFIG_FILE}; \
+	sed -i "s|HEADER_DIR|$(includedir)/trace-cmd|g" ${PKG_CONFIG_FILE};
+endef
 
 kshark-dir	= $(src)/kernel-shark
 
@@ -331,6 +344,9 @@ CMAKE_COMMAND = /usr/bin/cmake
 # Build with "BUILD_TYPE=Release" to remove cmake debug info
 BUILD_TYPE ?= RelWithDebInfo
 
+$(PKG_CONFIG_FILE) : ${PKG_CONFIG_SOURCE_FILE}.template
+	$(Q) $(call do_make_pkgconfig_file,$(prefix))
+
 $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
 	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -D_INSTALL_PREFIX=$(prefix) -D_LIBDIR=$(libdir) ..
 
@@ -435,7 +451,7 @@ install_python: force
 install_bash_completion: force
 	$(Q)$(call do_install_data,$(src)/tracecmd/trace-cmd.bash,$(BASH_COMPLETE_DIR))
 
-install_cmd: all_cmd install_plugins install_python install_bash_completion
+install_cmd: all_cmd install_plugins install_python install_bash_completion install_pkgconfig
 	$(Q)$(call do_install,$(obj)/tracecmd/trace-cmd,$(bindir_SQ))
 
 install: install_cmd
@@ -477,9 +493,13 @@ install_doc:
 install_doc_gui:
 	$(MAKE) -C $(kshark-dir)/Documentation install
 
+install_pkgconfig: $(PKG_CONFIG_FILE)
+	$(Q)$(call , $(PKG_CONFIG_FILE)) \
+		$(call do_install_pkgconfig_file,$(prefix))
+
 clean:
 	$(RM) *.o *~ *.a *.so .*.d
-	$(RM) tags TAGS cscope*
+	$(RM) tags TAGS cscope* $(PKG_CONFIG_SOURCE_FILE)
 	$(MAKE) -C $(src)/lib/traceevent clean
 	$(MAKE) -C $(src)/lib/trace-cmd clean
 	$(MAKE) -C $(src)/lib/tracefs clean
