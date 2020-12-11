@@ -32,9 +32,6 @@ $(DEPS): | $(bdir)
 $(bdir)/libtraceevent.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
-$(bdir)/libtraceevent.so: $(OBJS)
-	$(Q)$(call do_compile_shared_library)
-
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 
@@ -50,6 +47,6 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) -f $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d
+	$(RM) -f $(bdir)/*.a $(bdir)/*.o $(bdir)/.*.d
 
 .PHONY: clean

@@ -29,9 +29,6 @@ LIBS = -L$(obj)/lib/traceevent -ltraceevent
 $(bdir)/libtracefs.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
-$(bdir)/libtracefs.so: $(OBJS)
-	$(Q)$(call do_compile_shared_library)
-
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 
@@ -47,6 +44,6 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d
+	$(RM) $(bdir)/*.a $(bdir)/*.o $(bdir)/.*.d
 
 .PHONY: clean
