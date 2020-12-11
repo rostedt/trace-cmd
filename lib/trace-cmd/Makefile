@@ -4,7 +4,7 @@ include $(src)/scripts/utils.mk
 
 bdir:=$(obj)/lib/trace-cmd
 
-DEFAULT_TARGET = $(bdir)/libtracecmd.a
+DEFAULT_TARGET = $(LIBTRACECMD_STATIC)
 
 OBJS =
 OBJS += trace-hash.o
@@ -35,7 +35,7 @@ $(bdir):
 $(OBJS): | $(bdir)
 $(DEPS): | $(bdir)
 
-$(bdir)/libtracecmd.a: $(OBJS)
+$(LIBTRACECMD_STATIC): $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
 LIBS = -L$(obj)/lib/traceevent -ltraceevent
