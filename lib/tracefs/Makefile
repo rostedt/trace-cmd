@@ -26,9 +26,22 @@ $(DEPS): | $(bdir)
 
 LIBS = -L$(obj)/lib/traceevent -ltraceevent
 
+.PHONY: warning
+warning:
+	@echo "********************************************"
+	@echo "** NOTICE: libtracefs not found on system"
+	@echo "**"
+	@echo "** Building obsolete local version of libtracefs"
+	@echo "** Consider installing the latest libtracefs"
+	@echo "**"
+	@echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/ "
+	@echo "**"
+	@echo "********************************************"
+
 $(bdir)/libtracefs.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
+libtracefs: $(bdir)/libtracefs.a warning
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 

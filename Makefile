@@ -369,7 +369,7 @@ trace-cmd: force $(LIBTRACEEVENT_STATIC_BUILD) $(LIBTRACECMD_STATIC) $(LIBTRACEF
 
 $(LIBTRACEEVENT_STATIC): force $(obj)/lib/traceevent/plugins/trace_python_dir \
 			 $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
-	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
+	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent
 
 $(LIBTRACECMD_STATIC): force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
@@ -378,7 +378,7 @@ $(LIBTRACECMD_SHARED): force $(LIBTRACEEVENT_SHARED_BUILD)
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.so
 
 $(LIBTRACEFS_STATIC): force
-	$(Q)$(MAKE) -C $(src)/lib/tracefs $@
+	$(Q)$(MAKE) -C $(src)/lib/tracefs libtracefs
 
 libtraceevent.a: $(LIBTRACEEVENT_STATIC)
 libtracecmd.a: $(LIBTRACECMD_STATIC)

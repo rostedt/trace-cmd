@@ -29,8 +29,22 @@ $(bdir):
 $(OBJS): | $(bdir)
 $(DEPS): | $(bdir)
 
+.PHONY: warning
+warning:
+	@echo "********************************************"
+	@echo "** NOTICE: libtraceevent not found on system"
+	@echo "**"
+	@echo "** Building obsolete local version of libtraceevent"
+	@echo "** Consider installing the latest libtraceevent"
+	@echo "**"
+	@echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/ "
+	@echo "**"
+	@echo "********************************************"
+
 $(bdir)/libtraceevent.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
+
+libtraceevent: $(bdir)/libtraceevent.a warning
 
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
