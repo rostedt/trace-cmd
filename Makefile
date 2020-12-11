@@ -80,7 +80,7 @@ endif
 etcdir_SQ = '$(subst ','\'',$(etcdir))'
 
 export man_dir man_dir_SQ html_install html_install_SQ INSTALL
-export img_install img_install_SQ
+export img_install img_install_SQ libdir_SQ includedir_SQ
 export DESTDIR DESTDIR_SQ
 
 ifeq ($(prefix),$(HOME))
@@ -481,8 +481,7 @@ install_tracefs: $(LIBTRACEFS_STATIC_BUILD)
 	$(Q)$(call do_install,$(src)/include/tracefs/tracefs.h,$(includedir_SQ)/tracefs)
 
 install_libs: libs $(INSTALL_TRACEEVENT) $(INSTALL_TRACEFS)
-	$(Q)$(call do_install,$(LIBTRACECMD_SHARED),$(libdir_SQ))
-	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ)/trace-cmd)
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/ $@
 
 doc:
 	$(MAKE) -C $(src)/Documentation all

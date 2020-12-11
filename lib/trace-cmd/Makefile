@@ -59,6 +59,10 @@ $(DEPS): $(bdir)/.%.d: %.c
 
 $(OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
+install_libs:
+	$(Q)$(call do_install,$(LIBTRACECMD_SHARED),$(libdir_SQ))
+	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ)/trace-cmd)
+
 dep_includes := $(wildcard $(DEPS))
 
 ifneq ($(dep_includes),)
