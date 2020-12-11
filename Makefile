@@ -10,6 +10,16 @@ export TC_PATCHLEVEL
 export TC_EXTRAVERSION
 export TRACECMD_VERSION
 
+LIBTC_VERSION = 0
+LIBTC_PATCHLEVEL = 0
+LIBTC_EXTRAVERSION = 1
+LIBTRACECMD_VERSION = $(LIBTC_VERSION).$(LIBTC_PATCHLEVEL).$(LIBTC_EXTRAVERSION)
+
+export LIBTC_VERSION
+export LIBTC_PATCHLEVEL
+export LIBTC_EXTRAVERSION
+export LIBTRACECMD_VERSION
+
 MAKEFLAGS += --no-print-directory
 
 # Makefiles suck: This macro sets a default value of $(2) for the
@@ -200,7 +210,7 @@ LIBTRACEEVENT_SHARED = $(LIBTRACEEVENT_DIR)/libtraceevent.so
 
 LIBTRACECMD_DIR = $(obj)/lib/trace-cmd
 LIBTRACECMD_STATIC = $(LIBTRACECMD_DIR)/libtracecmd.a
-LIBTRACECMD_SHARED = $(LIBTRACECMD_DIR)/libtracecmd.so
+LIBTRACECMD_SHARED = $(LIBTRACECMD_DIR)/libtracecmd.so.$(LIBTRACECMD_VERSION)
 
 LIBTRACEFS=libtracefs
 LIBTRACEFS_DIR = $(obj)/lib/tracefs
@@ -347,7 +357,7 @@ $(LIBTRACECMD_STATIC): force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
 
 $(LIBTRACECMD_SHARED): force $(LIBTRACEEVENT_SHARED_BUILD)
-	$(Q)$(MAKE) -C $(src)/lib/trace-cmd $@
+	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.so
 
 $(LIBTRACEFS_STATIC): force
 	$(Q)$(MAKE) -C $(src)/lib/tracefs $@

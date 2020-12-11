@@ -40,7 +40,19 @@ $(LIBTRACECMD_STATIC): $(OBJS)
 
 LIBS = -L$(obj)/lib/traceevent -ltraceevent
 
-$(bdir)/libtracecmd.so: $(OBJS)
+LIBTRACECMD_SHARED_VERSION = $(shell echo $(LIBTRACECMD_SHARED) | sed -e 's/\(\.so\.[0-9]*\).*/\1/')
+
+LIBTRACECMD_SHARED_SO = $(shell echo $(LIBTRACECMD_SHARED) | sed -e 's/\(\.so\).*/\1/')
+
+$(LIBTRACECMD_SHARED_VERSION): $(LIBTRACECMD_SHARED)
+	@ln -sf $(<F) $@
+
+$(LIBTRACECMD_SHARED_SO): $(LIBTRACECMD_SHARED_VERSION)
+	@ln -sf $(<F) $@
+
+libtracecmd.so: force $(LIBTRACECMD_SHARED_SO)
+
+$(LIBTRACECMD_SHARED): $(OBJS)
 	$(Q)$(call do_compile_shared_library)
 
 $(bdir)/%.o: %.c
@@ -58,6 +70,9 @@ ifneq ($(dep_includes),)
 endif
 
 clean:
-	$(RM) $(bdir)/*.a $(bdir)/*.so $(bdir)/*.o $(bdir)/.*.d
+	$(RM) $(bdir)/*.a $(bdir)/*.so $(bdir)/*.so.* $(bdir)/*.o $(bdir)/.*.d
 
 .PHONY: clean
+
+PHONY += force
+force:
