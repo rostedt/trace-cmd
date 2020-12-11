@@ -135,16 +135,6 @@ define do_install_data
 	$(INSTALL) -m 644 $1 '$(DESTDIR_SQ)$2'
 endef
 
-define do_install_ld
-	if [ -d '$(DESTDIR_SQ)$2' ]; then				\
-		$(print_install)					\
-		if ! grep -q $3 $(DESTDIR_SQ)$2/$1 2>/dev/null; then	\
-			echo '$3' >> $(DESTDIR_SQ)$2/$1;		\
-			ldconfig;					\
-		fi							\
-	fi
-endef
-
 define do_install_pkgconfig_file
 	if [ -n "${pkgconfig_dir}" ]; then 					\
 		$(call do_install,$(PKG_CONFIG_FILE),$(pkgconfig_dir),644); 	\
