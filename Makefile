@@ -248,7 +248,6 @@ else
 LIBTRACEEVENT_CFLAGS = -I$(src)/include/traceevent -I$(src)/lib/traceevent/include
 LIBTRACEEVENT_LDLAGS = -L$(LIBTRACEEVENT_DIR) -ltraceevent
 LIBTRACEEVENT_STATIC_BUILD = $(LIBTRACEEVENT_STATIC)
-INSTALL_TRACEEVENT = install_traceevent
 endif
 
 export LIBTRACEEVENT_CFLAGS LIBTRACEEVENT_LDLAGS
@@ -260,7 +259,6 @@ else
 LIBTRACEFS_CFLAGS = -I$(src)/include/tracefs
 LIBTRACEFS_LDLAGS = -L$(LIBTRACEFS_DIR) -ltracefs
 LIBTRACEFS_STATIC_BUILD = $(LIBTRACEFS_STATIC)
-INSTALL_TRACEFS = install_tracefs
 endif
 
 export LIBTRACEFS_CFLAGS LIBTRACEFS_LDLAGS
@@ -471,16 +469,7 @@ install: install_cmd
 install_gui: install_cmd gui
 	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build install
 
-install_traceevent: $(LIBTRACEEVENT_STATIC_BUILD)
-	$(Q)$(call do_install,$(LIBTRACEEVENT_SHARED),$(libdir_SQ)/traceevent)
-	$(Q)$(call do_install,$(src)/include/traceevent/event-parse.h,$(includedir_SQ)/traceevent)
-	$(Q)$(call do_install,$(src)/include/traceevent/trace-seq.h,$(includedir_SQ)/traceevent)
-
-install_tracefs: $(LIBTRACEFS_STATIC_BUILD)
-	$(Q)$(call do_install,$(LIBTRACEFS_SHARED),$(libdir_SQ)/tracefs)
-	$(Q)$(call do_install,$(src)/include/tracefs/tracefs.h,$(includedir_SQ)/tracefs)
-
-install_libs: libs $(INSTALL_TRACEEVENT) $(INSTALL_TRACEFS)
+install_libs: libs
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/ $@
 
 doc:
