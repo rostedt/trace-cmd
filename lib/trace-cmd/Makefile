@@ -61,6 +61,8 @@ $(OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
 install_libs:
 	$(Q)$(call do_install,$(LIBTRACECMD_SHARED),$(libdir_SQ))
+	cp -fpR $(LIBTRACECMD_SHARED_VERSION) $(DESTDIR)$(libdir_SQ)
+	cp -fpR $(LIBTRACECMD_SHARED_SO) $(DESTDIR)$(libdir_SQ)
 	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ)/trace-cmd)
 
 dep_includes := $(wildcard $(DEPS))
