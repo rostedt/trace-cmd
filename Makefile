@@ -26,6 +26,7 @@ endef
 # Allow setting CC and AR, or setting CROSS_COMPILE as a prefix.
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
+$(call allow-override,PKG_CONFIG,pkg-config)
 
 EXT = -std=gnu99
 INSTALL = install
@@ -133,7 +134,7 @@ PYTHON_VERS ?= python
 PYTHON_PKGCONFIG_VERS ?= $(PYTHON_VERS)
 
 # Can build python?
-ifeq ($(shell sh -c "pkg-config --cflags $(PYTHON_PKGCONFIG_VERS) > /dev/null 2>&1 && echo y"), y)
+ifeq ($(shell sh -c "$(PKG_CONFIG) --cflags $(PYTHON_PKGCONFIG_VERS) > /dev/null 2>&1 && echo y"), y)
 	BUILD_PYTHON := $(PYTHON)
 	BUILD_PYTHON_WORKS := 1
 else
@@ -206,9 +207,9 @@ LIBTRACEFS_DIR = $(obj)/lib/tracefs
 LIBTRACEFS_STATIC = $(LIBTRACEFS_DIR)/libtracefs.a
 LIBTRACEFS_SHARED = $(LIBTRACEFS_DIR)/libtracefs.so
 
-ifeq ($(shell sh -c "pkg-config --cflags $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y"), y)
-LIBTRACEEVENT_CFLAGS = $(shell sh -c "pkg-config --cflags $(LIBTRACEEVENT)")
-LIBTRACEEVENT_LDLAGS = $(shell sh -c "pkg-config --libs $(LIBTRACEEVENT)")
+ifeq ($(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y"), y)
+LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)")
+LIBTRACEEVENT_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEEVENT)")
 else
 LIBTRACEEVENT_CFLAGS = -I$(src)/include/traceevent -I$(src)/lib/traceevent/include
 LIBTRACEEVENT_LDLAGS = -L$(LIBTRACEEVENT_DIR) -ltraceevent
@@ -218,9 +219,9 @@ endif
 
 export LIBTRACEEVENT_CFLAGS LIBTRACEEVENT_LDLAGS
 
-ifeq ($(shell sh -c "pkg-config --cflags $(LIBTRACEFS) > /dev/null 2>&1 && echo y"), y)
-LIBTRACEFS_CFLAGS = $(shell sh -c "pkg-config --cflags $(LIBTRACEFS)")
-LIBTRACEFS_LDLAGS = $(shell sh -c "pkg-config --libs $(LIBTRACEFS)")
+ifeq ($(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS) > /dev/null 2>&1 && echo y"), y)
+LIBTRACEFS_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS)")
+LIBTRACEFS_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEFS)")
 else
 LIBTRACEFS_CFLAGS = -I$(src)/include/tracefs
 LIBTRACEFS_LDLAGS = -L$(LIBTRACEFS_DIR) -ltracefs
@@ -494,10 +495,10 @@ report_nopythondev: force
 	$(Q)echo
 
 ifndef NO_PYTHON
-PYTHON_INCLUDES = `pkg-config --cflags $(PYTHON_PKGCONFIG_VERS)`
-PYTHON_LDFLAGS = `pkg-config --libs $(PYTHON_PKGCONFIG_VERS)` \
+PYTHON_INCLUDES = `$(PKG_CONFIG) --cflags $(PYTHON_PKGCONFIG_VERS)`
+PYTHON_LDFLAGS = `$(PKG_CONFIG) --libs $(PYTHON_PKGCONFIG_VERS)` \
 		$(shell $(PYTHON_VERS)-config --ldflags)
-PYGTK_CFLAGS = `pkg-config --cflags pygtk-2.0`
+PYGTK_CFLAGS = `$(PKG_CONFIG) --cflags pygtk-2.0`
 else
 PYTHON_INCLUDES =
 PYTHON_LDFLAGS =
