@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 #ifndef __TRACE_CMD_BUG
 #define __TRACE_CMD_BUG
 

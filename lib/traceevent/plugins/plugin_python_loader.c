@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1
 #include <Python.h>
 #include <stdio.h>
 #include "event-parse.h"

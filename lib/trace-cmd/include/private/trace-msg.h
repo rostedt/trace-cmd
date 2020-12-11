@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 #ifndef _TRACE_MSG_H_
 #define _TRACE_MSG_H_
 

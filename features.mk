@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 # taken from perf which was based on Linux Kbuild
 # try-cc

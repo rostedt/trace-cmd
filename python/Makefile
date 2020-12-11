@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 include $(src)/scripts/utils.mk
 
 ifdef BUILD_PYTHON_WORKS

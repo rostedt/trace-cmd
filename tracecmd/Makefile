@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 VERSION := $(TC_VERSION)
 PATCHLEVEL := $(TC_PATCHLEVEL)
