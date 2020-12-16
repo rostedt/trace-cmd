@@ -50,6 +50,8 @@ $(bdir)/libtraceevent.a: $(OBJS)
 
 libtraceevent: $(bdir)/libtraceevent.a warning
 
+libtraceevent_nowarn: $(bdir)/libtraceevent.a
+
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 

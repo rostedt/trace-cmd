@@ -354,19 +354,14 @@ $(PKG_CONFIG_FILE) : ${PKG_CONFIG_SOURCE_FILE}.template $(BUILD_PREFIX)
 $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
 	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -D_INSTALL_PREFIX=$(prefix) -D_LIBDIR=$(libdir) ..
 
-gui: force
-	$(MAKE) $(CMD_TARGETS)
-	$(MAKE) $(kshark-dir)/build/Makefile
-	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
-	@echo "gui build complete"
-	@echo "  kernelshark located at $(kshark-dir)/bin"
-
 trace-cmd: force $(LIBTRACEEVENT_STATIC_BUILD) $(LIBTRACECMD_STATIC) $(LIBTRACEFS_STATIC_BUILD) \
 	force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 
-$(LIBTRACEEVENT_STATIC): force $(obj)/lib/traceevent/plugins/trace_python_dir \
+LIBTRACEEVENT_DEPENDS = $(obj)/lib/traceevent/plugins/trace_python_dir \
 			 $(obj)/lib/traceevent/plugins/traceevent_plugin_dir
+
+$(LIBTRACEEVENT_STATIC): force $(LIBTRACEEVENT_DEPENDS)
 	$(Q)$(MAKE) -C $(src)/lib/traceevent libtraceevent
 
 $(LIBTRACECMD_STATIC): force
@@ -384,6 +379,19 @@ libtracecmd.so: $(LIBTRACECMD_SHARED)
 libtracefs.a: $(LIBTRACEFS_STATIC)
 
 libs: $(LIBTRACECMD_SHARED) $(LIBTRACEEVENT_STATIC_BUILD) $(LIBTRACEFS_STATIC_BUILD) $(PKG_CONFIG_FILE)
+
+libtraceevent_nowarn: $(LIBTRACEEVENT_DEPENDS)
+	$(Q)$(MAKE) -C $(src)/lib/traceevent $@
+
+libtracefs_nowarn: force
+	$(Q)$(MAKE) -C $(src)/lib/tracefs $@
+
+
+gui: force $(CMD_TARGETS) libtraceevent_nowarn libtracefs_nowarn
+	$(MAKE) $(kshark-dir)/build/Makefile
+	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
+	@echo "gui build complete"
+	@echo "  kernelshark located at $(kshark-dir)/bin"
 
 test: force $(LIBTRACEEVENT_STATIC_BUILD) $(LIBTRACEFS_STATIC_BUILD) $(LIBTRACECMD_STATIC)
 ifneq ($(CUNIT_INSTALLED),1)
