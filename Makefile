@@ -207,6 +207,8 @@ obj		:= $(objtree)
 PKG_CONFIG_SOURCE_FILE = libtracecmd.pc
 PKG_CONFIG_FILE := $(addprefix $(BUILD_OUTPUT)/,$(PKG_CONFIG_SOURCE_FILE))
 
+export pkgconfig_dir PKG_CONFIG_FILE
+
 kshark-dir	= $(src)/kernel-shark
 
 export prefix bindir src obj kshark-dir
@@ -439,7 +441,7 @@ install_python: force
 install_bash_completion: force
 	$(Q)$(call do_install_data,$(src)/tracecmd/trace-cmd.bash,$(BASH_COMPLETE_DIR))
 
-install_cmd: all_cmd install_plugins install_python install_bash_completion install_pkgconfig
+install_cmd: all_cmd install_plugins install_python install_bash_completion
 	$(Q)$(call do_install,$(obj)/tracecmd/trace-cmd,$(bindir_SQ))
 
 install: install_cmd
@@ -467,10 +469,6 @@ install_doc:
 	$(MAKE) -C $(src)/Documentation install
 install_doc_gui:
 	$(MAKE) -C $(kshark-dir)/Documentation install
-
-install_pkgconfig: $(PKG_CONFIG_FILE)
-	$(Q)$(call , $(PKG_CONFIG_FILE)) \
-		$(call do_install_pkgconfig_file,$(prefix))
 
 clean:
 	$(RM) *.o *~ *.a *.so .*.d

@@ -84,7 +84,10 @@ define install_ld_config
 endef
 endif # DESTDIR = ""
 
-install_libs:
+install_pkgconfig: $(PKG_CONFIG_FILE)
+	$(Q)$(call do_install_pkgconfig_file,$(prefix))
+
+install_libs: install_pkgconfig
 	$(Q)$(call do_install,$(LIBTRACECMD_SHARED),$(libdir_SQ))
 	$(Q)$(call print_install,$(LIBTRACECMD_SHARED_VERSION),$(DESTDIR)$(libdir_SQ))
 	$(Q)cp -fpR $(LIBTRACECMD_SHARED_VERSION) $(DESTDIR)$(libdir_SQ)
