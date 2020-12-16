@@ -56,7 +56,7 @@ do_compile =							\
 
 do_app_build =						\
 	($(print_app_build)				\
-	$(CC) $^ -rdynamic -o $@ $(LDFLAGS) $(CONFIG_LIBS) $(LIBS))
+	$(CC) $^ -rdynamic -Wl,-rpath=$(libdir) -o $@ $(LDFLAGS) $(CONFIG_LIBS) $(LIBS))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
