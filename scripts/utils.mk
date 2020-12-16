@@ -121,6 +121,16 @@ define update_dir
 	fi);
 endef
 
+define build_prefix
+	(echo $1 > $@.tmp;	\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then				\
+		rm -f $@.tmp;						\
+	else								\
+		$(print_update)						\
+		mv -f $@.tmp $@;					\
+	fi);
+endef
+
 define do_install
 	$(print_install)				\
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\

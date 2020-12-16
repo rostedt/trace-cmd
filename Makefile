@@ -343,7 +343,12 @@ CMAKE_COMMAND = /usr/bin/cmake
 # Build with "BUILD_TYPE=Release" to remove cmake debug info
 BUILD_TYPE ?= RelWithDebInfo
 
-$(PKG_CONFIG_FILE) : ${PKG_CONFIG_SOURCE_FILE}.template
+BUILD_PREFIX := $(BUILD_OUTPUT)/build_prefix
+
+$(BUILD_PREFIX): force
+	$(Q)$(call build_prefix,$(prefix))
+
+$(PKG_CONFIG_FILE) : ${PKG_CONFIG_SOURCE_FILE}.template $(BUILD_PREFIX)
 	$(Q) $(call do_make_pkgconfig_file,$(prefix))
 
 $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt

@@ -24,3 +24,4 @@ traceevent_plugin_dir
 trace_python_dir
 tracecmd_plugin_dir
 libtracecmd.pc
+build_prefix
