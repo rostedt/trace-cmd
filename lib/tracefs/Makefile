@@ -47,6 +47,9 @@ $(bdir)/libtracefs.a: $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
 libtracefs: $(bdir)/libtracefs.a warning
+
+libtracefs_nowarn: $(bdir)/libtracefs.a
+
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
 
