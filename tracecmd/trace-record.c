@@ -1312,8 +1312,13 @@ out:
 	free(pidfds);
 	return ret;
 }
-#ifndef NO_PTRACE
 
+static void add_event_pid(struct buffer_instance *instance, const char *buf)
+{
+	tracefs_instance_file_write(instance->tracefs, "set_event_pid", buf);
+}
+
+#ifndef NO_PTRACE
 /**
  * append_pid_filter - add a new pid to an existing filter
  * @curr_filter: the filter to append to. If NULL, then allocate one
@@ -1368,11 +1373,6 @@ static void update_sched_events(struct buffer_instance *instance, int pid)
 
 static int open_instance_fd(struct buffer_instance *instance,
 			    const char *file, int flags);
-
-static void add_event_pid(struct buffer_instance *instance, const char *buf)
-{
-	tracefs_instance_file_write(instance->tracefs, "set_event_pid", buf);
-}
 
 static void add_new_filter_child_pid(int pid, int child)
 {
