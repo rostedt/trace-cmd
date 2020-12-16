@@ -6,6 +6,7 @@
 #ifndef _TRACE_CMD_PRIVATE_H
 #define _TRACE_CMD_PRIVATE_H
 
+#include <fcntl.h> /* for iovec */
 #include <sys/types.h>
 #include "traceevent/event-parse.h"
 #include "trace-cmd/trace-cmd.h"
