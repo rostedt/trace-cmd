@@ -26,7 +26,7 @@ extern "C" {
 
 // trace-cmd
 #include "trace-cmd/trace-cmd.h"
-#include "trace-cmd/trace-filter-hash.h"
+#include "private/trace-filter-hash.h"
 #include "traceevent/event-parse.h"
 #include "tracefs/tracefs.h"
 
