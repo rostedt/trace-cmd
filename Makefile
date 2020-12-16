@@ -114,7 +114,6 @@ HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 #' emacs highlighting gets confused by the above escaped quote.
 
 BASH_COMPLETE_DIR ?= $(etcdir)/bash_completion.d
-LD_SO_CONF_DIR ?= $(etcdir)/ld.so.conf.d
 
 export PLUGIN_DIR_TRACEEVENT
 export PLUGIN_DIR_TRACECMD
