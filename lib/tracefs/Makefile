@@ -6,7 +6,12 @@ bdir:=$(obj)/lib/tracefs
 
 DEFAULT_TARGET = $(bdir)/libtracefs.a
 
+LIBTRACEEVENT_CFLAGS = -I$(src)/include/traceevent -I$(src)/lib/traceevent/include
+LIBTRACEFS_CFLAGS = -I$(src)/include/tracefs -I$(src)/lib/tracefs/include
+
 CFLAGS += -I$(bdir)/include
+
+CFLAGS := $(LIBTRACEEVENT_CFLAGS) $(LIBTRACEFS_CFLAGS) $(CFLAGS)
 
 OBJS =
 OBJS += tracefs-utils.o
