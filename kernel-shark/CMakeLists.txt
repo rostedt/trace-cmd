@@ -81,6 +81,7 @@ include_directories(${KS_DIR}/src/
                     ${KS_DIR}/build/src/
                     ${JSONC_INCLUDE_DIR}
                     ${TRACECMD_INCLUDE_DIR}
+                    ${TRACECMD_PRIVATE_INCLUDE_DIR}
                     ${TRACEFS_INCLUDE_DIR})
 
 message("")
