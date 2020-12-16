@@ -484,6 +484,36 @@ clean:
 	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
 	cd $(kshark-dir)/build; ./cmake_clean.sh
 
+define build_uninstall_script
+	$(Q)mkdir $(BUILD_OUTPUT)/tmp_build
+	$(Q)$(MAKE) -C $(src) DESTDIR=$(BUILD_OUTPUT)/tmp_build O=$(BUILD_OUTPUT) $1 > /dev/null
+	$(Q)find $(BUILD_OUTPUT)/tmp_build ! -type d -printf "%P\n" > $(BUILD_OUTPUT)/build_$2
+	$(Q)$(RM) -rf $(BUILD_OUTPUT)/tmp_build
+endef
+
+build_uninstall:
+	$(call build_uninstall_script,install,uninstall)
+
+$(BUILD_OUTPUT)/build_uninstall: build_uninstall
+
+build_libs_uninstall:
+	$(call build_uninstall_script,install_libs,libs_uninstall)
+
+$(BUILD_OUTPUT)/build_libs_uninstall: build_libs_uninstall
+
+define uninstall_file
+	if [ -f $(DESTDIR)/$1 -o -h $(DESTDIR)/$1 ]; then \
+		$(call print_uninstall,$(DESTDIR)/$1)$(RM) $(DESTDIR)/$1; \
+	fi;
+endef
+
+uninstall: $(BUILD_OUTPUT)/build_uninstall
+	@$(foreach file,$(shell cat $(BUILD_OUTPUT)/build_uninstall),$(call uninstall_file,$(file)))
+	$(Q)$(RM) $<
+
+uninstall_libs: $(BUILD_OUTPUT)/build_libs_uninstall
+	@$(foreach file,$(shell cat $(BUILD_OUTPUT)/build_libs_uninstall),$(call uninstall_file,$(file)))
+	$(Q)$(RM) $<
 
 ##### PYTHON STUFF #####
 

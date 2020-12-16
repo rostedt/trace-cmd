@@ -30,6 +30,7 @@ ifeq ($(findstring 1,$(SILENT)$(VERBOSE)),1)
   print_plugin_obj_compile =
   print_plugin_build =
   print_install =
+  print_uninstall =
   print_update =
 else
   print_compile =		echo '  $(GUI)COMPILE            '$(GOBJ);
@@ -41,6 +42,7 @@ else
   print_static_lib_build =	echo '  $(GUI)BUILD STATIC LIB   '$(GOBJ);
   print_install =		echo '  $(GUI)INSTALL     '$(GSPACE)$1'	to	$(DESTDIR_SQ)$2';
   print_update =		echo '  $(GUI)UPDATE             '$(GOBJ);
+  print_uninstall =		echo '  $(GUI)UNINSTALLING $(DESTDIR_SQ)$1';
 endif
 
 do_fpic_compile =					\
