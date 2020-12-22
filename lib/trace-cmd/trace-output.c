@@ -240,9 +240,12 @@ static tsize_t copy_file(struct tracecmd_output *handle,
  */
 static const char *find_tracing_dir(struct tracecmd_output *handle)
 {
-	if (!handle->tracing_dir)
-		handle->tracing_dir = tracefs_find_tracing_dir();
+	if (!handle->tracing_dir) {
+		const char *dir = tracefs_tracing_dir();
 
+		if (dir)
+			handle->tracing_dir = strdup(dir);
+	}
 	return handle->tracing_dir;
 }
 

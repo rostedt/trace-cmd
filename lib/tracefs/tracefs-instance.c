@@ -210,7 +210,7 @@ char *tracefs_instance_get_dir(struct tracefs_instance *instance)
 		path = tracefs_get_tracing_file(buf);
 		free(buf);
 	} else
-		path = tracefs_find_tracing_dir();
+		path = trace_find_tracing_dir();
 
 	return path;
 }

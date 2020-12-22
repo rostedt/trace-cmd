@@ -450,13 +450,11 @@ static int __add_all_instances(const char *tracing_dir)
  */
 void add_all_instances(void)
 {
-	char *tracing_dir = tracefs_find_tracing_dir();
+	const char *tracing_dir = tracefs_tracing_dir();
 	if (!tracing_dir)
-		die("malloc");
+		die("can't get the tracing directory");
 
 	__add_all_instances(tracing_dir);
-
-	tracefs_put_tracing_file(tracing_dir);
 }
 
 /**
@@ -3539,10 +3537,17 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 		}
 		if (fd < 0)
 			die("Failed connecting to client");
-		if (tracefs_instance_get_name(instance->tracefs) && !is_agent(instance))
+		if (tracefs_instance_get_name(instance->tracefs) && !is_agent(instance)) {
 			path = tracefs_instance_get_dir(instance->tracefs);
-		else
-			path = tracefs_find_tracing_dir();
+		} else {
+			const char *dir = tracefs_tracing_dir();
+
+			if (dir)
+				path = strdup(path);
+		}
+		if (!path)
+			die("can't get the tracing directory");
+
 		recorder = tracecmd_create_buffer_recorder_fd(fd, cpu, flags, path);
 		tracefs_put_tracing_file(path);
 	} else {

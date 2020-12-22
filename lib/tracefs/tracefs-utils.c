@@ -60,12 +60,12 @@ static int mount_debugfs(void)
 }
 
 /**
- * tracefs_find_tracing_dir - Find tracing directory
+ * trace_find_tracing_dir - Find tracing directory
  *
  * Returns string containing the full path to the system's tracing directory.
  * The string must be freed by free()
  */
-char *tracefs_find_tracing_dir(void)
+char *trace_find_tracing_dir(void)
 {
 	char *debug_str = NULL;
 	char fspath[PATH_MAX+1];
@@ -143,7 +143,7 @@ const char *tracefs_tracing_dir(void)
 	if (tracing_dir)
 		return tracing_dir;
 
-	tracing_dir = tracefs_find_tracing_dir();
+	tracing_dir = trace_find_tracing_dir();
 	return tracing_dir;
 }
 
@@ -166,7 +166,7 @@ char *tracefs_get_tracing_file(const char *name)
 		return NULL;
 
 	if (!tracing) {
-		tracing = tracefs_find_tracing_dir();
+		tracing = trace_find_tracing_dir();
 		if (!tracing)
 			return NULL;
 	}

@@ -162,20 +162,11 @@ static void test_trace_file(void)
 	const char *tdir;
 	struct stat st;
 	char *file;
-	char *dir;
-
-	dir = tracefs_find_tracing_dir();
-	CU_TEST(dir != NULL);
-	CU_TEST(stat(dir, &st) == 0);
-	CU_TEST(S_ISDIR(st.st_mode));
 
 	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 	CU_TEST(stat(tdir, &st) == 0);
 	CU_TEST(S_ISDIR(st.st_mode));
-
-	CU_TEST(strcmp(dir, tdir) == 0);
-	free(dir);
 
 	file = tracefs_get_tracing_file(NULL);
 	CU_TEST(file == NULL);
