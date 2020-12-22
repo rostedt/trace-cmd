@@ -508,7 +508,7 @@ static void do_trace_mem(struct tracecmd_input *handle)
 			missed_events = 1;
 
 		process_record(pevent, record);
-		free_record(record);
+		tracecmd_free_record(record);
 	}
 
 	sort_list();

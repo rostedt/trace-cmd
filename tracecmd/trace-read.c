@@ -209,7 +209,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_destroy(&s);
 	printf("\n");
 
-	free_record(record);
+	tracecmd_free_record(record);
 }
 
 static void test_save(struct tep_record *record, int cpu)
@@ -253,7 +253,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_destroy(&s);
 	printf("\n");
 
-	free_record(record);
+	tracecmd_free_record(record);
 }
 
 static void test_save(struct tep_record *record, int cpu)
@@ -291,7 +291,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_destroy(&s);
 	printf("\n");
 
-	free_record(record);
+	tracecmd_free_record(record);
 
 	record = tracecmd_read_cpu_last(handle, cpu);
 	if (!record) {
@@ -307,7 +307,7 @@ static void show_test(struct tracecmd_input *handle)
 	trace_seq_destroy(&s);
 	printf("\n");
 
-	free_record(record);
+	tracecmd_free_record(record);
 }
 static void test_save(struct tep_record *record, int cpu)
 {
@@ -1122,7 +1122,7 @@ static struct tep_record *get_next_record(struct handle_list *handles)
 				    test_stacktrace(handles, record, 0))
 					found = 1;
 				else
-					free_record(record);
+					tracecmd_free_record(record);
 				break;
 			case FILTER_NONE:
 			case FILTER_MATCH:
@@ -1135,7 +1135,7 @@ static struct tep_record *get_next_record(struct handle_list *handles)
 				}
 				/* fall through */
 			default:
-				free_record(record);
+				tracecmd_free_record(record);
 			}
 		}
 	} while (record && !found);
@@ -1155,7 +1155,7 @@ static void free_handle_record(struct handle_list *handles)
 	if (!handles->record)
 		return;
 
-	free_record(handles->record);
+	tracecmd_free_record(handles->record);
 	handles->record = NULL;
 }
 

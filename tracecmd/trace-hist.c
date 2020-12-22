@@ -985,7 +985,7 @@ static void do_trace_hist(struct tracecmd_input *handle)
 				flush_stack();
 
 			process_record(pevent, record);
-			free_record(record);
+			tracecmd_free_record(record);
 		}
 	}
 

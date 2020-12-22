@@ -24,7 +24,7 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu);
 struct tep_record *
 tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *cpu);
-void free_record(struct tep_record *record);
+void tracecmd_free_record(struct tep_record *record);
 
 struct tep_handle *tracecmd_get_pevent(struct tracecmd_input *handle);
 unsigned long long tracecmd_get_traceid(struct tracecmd_input *handle);

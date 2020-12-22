@@ -115,7 +115,7 @@ int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval 
 	}
 	if (last_pid) {
 		trace_show_data(last_pid->instance->handle, last_pid->record);
-		free_record(last_pid->record);
+		tracecmd_free_record(last_pid->record);
 		last_pid->record = NULL;
 		return 1;
 	}

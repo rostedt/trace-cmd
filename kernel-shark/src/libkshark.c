@@ -678,7 +678,7 @@ static void free_rec_list(struct rec_list **rec_list, int n_cpus,
 			temp_rec = rec_list[cpu];
 			rec_list[cpu] = temp_rec->next;
 			if (type == REC_RECORD)
-				free_record(temp_rec->rec);
+				tracecmd_free_record(temp_rec->rec);
 			free(temp_rec);
 		}
 	}
@@ -778,14 +778,14 @@ static ssize_t get_records(struct kshark_context *kshark_ctx,
 				if (!kshark_show_task(kshark_ctx, entry->pid)) {
 					entry->visible &= ~kshark_ctx->filter_mask;
 				}
-				free_record(rec);
+				tracecmd_free_record(rec);
 				break;
 			} /* REC_ENTRY */
 			}
 
 			task = kshark_add_task(kshark_ctx, pid);
 			if (!task) {
-				free_record(rec);
+				tracecmd_free_record(rec);
 				goto fail;
 			}
 
@@ -906,7 +906,7 @@ ssize_t kshark_load_data_entries(struct kshark_context *kshark_ctx,
  *	  to all fields of the record.
  *
  * @param kshark_ctx: Input location for the session context pointer.
- * @param data_rows: Output location for the trace data. Use free_record()
+ * @param data_rows: Output location for the trace data. Use tracecmd_free_record()
  *	 	     to free the elements of the outputted array.
  *
  * @returns The size of the outputted data in the case of success, or a
@@ -1171,7 +1171,7 @@ int kshark_get_pid_easy(struct kshark_entry *entry)
 		data = tracecmd_read_at(kshark_ctx->handle, entry->offset,
 					NULL);
 		pid = tep_data_pid(kshark_ctx->pevent, data);
-		free_record(data);
+		tracecmd_free_record(data);
 
 		pthread_mutex_unlock(&kshark_ctx->input_mutex);
 	}
@@ -1238,7 +1238,7 @@ const char *kshark_get_latency_easy(struct kshark_entry *entry)
 
 	data = tracecmd_read_at(kshark_ctx->handle, entry->offset, NULL);
 	lat = kshark_get_latency(kshark_ctx->pevent, data);
-	free_record(data);
+	tracecmd_free_record(data);
 
 	pthread_mutex_unlock(&kshark_ctx->input_mutex);
 
@@ -1283,7 +1283,7 @@ int kshark_get_event_id_easy(struct kshark_entry *entry)
 		data = tracecmd_read_at(kshark_ctx->handle, entry->offset,
 					NULL);
 		event_id = tep_data_type(kshark_ctx->pevent, data);
-		free_record(data);
+		tracecmd_free_record(data);
 
 		pthread_mutex_unlock(&kshark_ctx->input_mutex);
 	}
@@ -1382,7 +1382,7 @@ const char *kshark_get_info_easy(struct kshark_entry *entry)
 	if (event)
 		info = kshark_get_info(kshark_ctx->pevent, data, event);
 
-	free_record(data);
+	tracecmd_free_record(data);
 
 	pthread_mutex_unlock(&kshark_ctx->input_mutex);
 
@@ -1496,7 +1496,7 @@ char* kshark_dump_entry(const struct kshark_entry *entry)
 			free(temp_str);
 		}
 
-		free_record(data);
+		tracecmd_free_record(data);
 		if (size < 1)
 			entry_str = NULL;
 	} else {

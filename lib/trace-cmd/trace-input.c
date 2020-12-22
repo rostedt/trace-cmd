@@ -1072,7 +1072,7 @@ static void __free_record(struct tep_record *record)
 	free(record);
 }
 
-void free_record(struct tep_record *record)
+void tracecmd_free_record(struct tep_record *record)
 {
 	if (!record)
 		return;
@@ -1116,7 +1116,7 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 	handle->cpu_data[cpu].next = NULL;
 
 	record->locked = 0;
-	free_record(record);
+	tracecmd_free_record(record);
 }
 
 static inline unsigned long long
@@ -1503,7 +1503,7 @@ tracecmd_read_cpu_last(struct tracecmd_input *handle, int cpu)
 	offset = page_offset;
 
 	do {
-		free_record(record);
+		tracecmd_free_record(record);
 		record = tracecmd_read_data(handle, cpu);
 		if (record)
 			offset = record->offset;
@@ -1988,7 +1988,7 @@ tracecmd_peek_next_data(struct tracecmd_input *handle, int *rec_cpu)
  * Note, this is not that fast of an algorithm, since it needs
  * to build the timestamp for the record.
  *
- * The record returned must be freed with free_record().
+ * The record returned must be freed with tracecmd_free_record().
  */
 struct tep_record *
 tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record)
@@ -2028,9 +2028,9 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record)
 		if (record->offset == offset)
 			break;
 		index = record->offset - page_offset;
-		free_record(record);
+		tracecmd_free_record(record);
 	}
-	free_record(record);
+	tracecmd_free_record(record);
 
 	if (index)
 		/* we found our record */
@@ -2054,14 +2054,14 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record)
 		do {
 			if (record) {
 				index = record->offset - page_offset;
-				free_record(record);
+				tracecmd_free_record(record);
 			}
 			record = tracecmd_read_data(handle, cpu);
 			/* Should not happen */
 			if (!record)
 				return NULL;
 		} while (record->offset != offset);
-		free_record(record);
+		tracecmd_free_record(record);
 
 		if (index)
 			/* we found our record */

@@ -292,7 +292,7 @@ fgraph_ent_handler(struct trace_seq *s, struct tep_record *record,
 		 * returns the return of the function
 		 */
 		print_graph_entry_leaf(s, event, record, rec, finfo);
-		free_record(rec);
+		tracecmd_free_record(rec);
 	} else
 		print_graph_nested(s, event, record);
 

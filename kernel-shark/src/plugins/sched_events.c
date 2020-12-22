@@ -160,7 +160,7 @@ static int find_wakeup_pid(struct kshark_context *kshark_ctx, struct kshark_entr
 
 	record = tracecmd_read_at(kshark_ctx->handle, e->offset, NULL);
 	ret = tep_read_number_field(pid_field, record->data, &val);
-	free_record(record);
+	tracecmd_free_record(record);
 
 	if (ret)
 		return -1;
@@ -252,7 +252,7 @@ bool plugin_switch_match_rec_pid(struct kshark_context *kshark_ctx,
 		if (ret == 0 && !(val & 0x7f))
 			switch_pid = tep_data_pid(plugin_ctx->pevent, record);
 
-		free_record(record);
+		tracecmd_free_record(record);
 	}
 
 	if (switch_pid >= 0 && switch_pid == pid)

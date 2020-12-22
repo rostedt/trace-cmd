@@ -214,7 +214,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 	if (start) {
 		set_cpu_time(handle, percpu, start, cpu, cpus);
 		while (record && record->ts < start) {
-			free_record(record);
+			tracecmd_free_record(record);
 			record = read_record(handle, percpu, &cpu);
 		}
 	} else if (record)
@@ -249,7 +249,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 		cpu_data[cpu].offset = record->offset;
 
 		if (write_record(handle, record, &cpu_data[cpu], type)) {
-			free_record(record);
+			tracecmd_free_record(record);
 			record = read_record(handle, percpu, &cpu);
 
 			/* if we hit the end of the cpu, clear the offset */
@@ -268,7 +268,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 				if (record &&
 				    record->ts >
 				    (start + (unsigned long long)count_limit * 1000000000ULL)) {
-					free_record(record);
+					tracecmd_free_record(record);
 					record = NULL;
 				}
 				break;
@@ -276,7 +276,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 				if (record &&
 				    record->ts >
 				    (start + (unsigned long long)count_limit * 1000000ULL)) {
-					free_record(record);
+					tracecmd_free_record(record);
 					record = NULL;
 				}
 				break;
@@ -284,13 +284,13 @@ static int parse_cpu(struct tracecmd_input *handle,
 				if (record &&
 				    record->ts >
 				    (start + (unsigned long long)count_limit * 1000ULL)) {
-					free_record(record);
+					tracecmd_free_record(record);
 					record = NULL;
 				}
 				break;
 			case SPLIT_EVENTS:
 				if (++count >= count_limit) {
-					free_record(record);
+					tracecmd_free_record(record);
 					record = NULL;
 				}
 				break;
@@ -301,7 +301,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 	}
 
 	if (record)
-		free_record(record);
+		tracecmd_free_record(record);
 
 	if (percpu) {
 		if (cpu_data[cpu].page) {
@@ -393,7 +393,7 @@ static double parse_file(struct tracecmd_input *handle,
 			record = tracecmd_read_at(handle, cpu_data[cpu].offset, NULL);
 			if (record && (!current || record->ts > current))
 				current = record->ts + 1;
-			free_record(record);
+			tracecmd_free_record(record);
 		}
 		unlink(cpu_data[cpu].file);
 		free(cpu_data[cpu].file);
