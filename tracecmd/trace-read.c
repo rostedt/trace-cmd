@@ -150,7 +150,7 @@ enum time_fmt {
 
 static const char *time_format(struct tracecmd_input *handle, enum time_fmt tf)
 {
-	struct tep_handle *tep = tracecmd_get_pevent(handle);
+	struct tep_handle *tep = tracecmd_get_tep(handle);
 
 	switch (tf) {
 	case TIME_FMT_LAT:
@@ -171,7 +171,7 @@ static const char *time_format(struct tracecmd_input *handle, enum time_fmt tf)
 static void print_event(struct trace_seq *s, struct tracecmd_input *handle,
 			struct tep_record *record)
 {
-	struct tep_handle *tep = tracecmd_get_pevent(handle);
+	struct tep_handle *tep = tracecmd_get_tep(handle);
 	struct tep_event *event;
 	const char *lfmt = time_format(handle, TIME_FMT_LAT);
 	const char *tfmt = time_format(handle, TIME_FMT_NORMAL);
@@ -481,7 +481,7 @@ static void convert_comm_filter(struct tracecmd_input *handle)
 	if (!comm_list)
 		return;
 
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	/* Seach for comm names and get their pids */
 	for (list = comm_list; list; list = list->next) {
@@ -545,7 +545,7 @@ static void process_filters(struct handle_list *handles)
 	int filters = 0;
 	int ret;
 
-	pevent = tracecmd_get_pevent(handles->handle);
+	pevent = tracecmd_get_tep(handles->handle);
 
 	make_pid_filter(handles->handle);
 
@@ -592,7 +592,7 @@ static void init_wakeup(struct tracecmd_input *handle)
 	if (!show_wakeup)
 		return;
 
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	trace_hash_init(&wakeup_hash, WAKEUP_HASH_SIZE);
 
@@ -829,7 +829,7 @@ void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)
 		return;
 	}
 
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 	event = tep_find_event_by_record(pevent, record);
 	use_trace_clock = tracecmd_get_use_trace_clock(handle);
 
@@ -1028,7 +1028,7 @@ test_stacktrace(struct handle_list *handles, struct tep_record *record,
 				die("Failed to allocate for %d cpus", info->nr_cpus);
 			memset(info->cpus, 0, sizeof(*info->cpus));
 
-			pevent = tracecmd_get_pevent(h->handle);
+			pevent = tracecmd_get_tep(h->handle);
 			event = tep_find_event_by_name(pevent, "ftrace",
 						       "kernel_stack");
 			if (event)
@@ -1044,7 +1044,7 @@ test_stacktrace(struct handle_list *handles, struct tep_record *record,
 	}
 
 	handle = handles->handle;
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	for (info = infos; info; info = info->next)
 		if (info->handles == handles)
@@ -1087,7 +1087,7 @@ static struct tep_record *get_next_record(struct handle_list *handles)
 	if (handles->done)
 		return NULL;
 
-	pevent = tracecmd_get_pevent(handles->handle);
+	pevent = tracecmd_get_tep(handles->handle);
 
 	do {
 		if (filter_cpus) {
@@ -1247,7 +1247,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		}
 
 		/* Find the kernel_stacktrace if available */
-		pevent = tracecmd_get_pevent(handles->handle);
+		pevent = tracecmd_get_tep(handles->handle);
 		event = tep_find_event_by_name(pevent, "ftrace", "kernel_stack");
 		if (event)
 			stacktrace_id = event->id;
@@ -1795,7 +1795,7 @@ void trace_report (int argc, char **argv)
 		else if (ts2secs)
 			tracecmd_set_ts2secs(handle, ts2secs);
 
-		pevent = tracecmd_get_pevent(handle);
+		pevent = tracecmd_get_tep(handle);
 
 		if (nanosec)
 			tep_set_flag(pevent, TEP_NSEC_OUTPUT);

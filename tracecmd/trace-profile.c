@@ -1267,7 +1267,7 @@ static int handle_sched_wakeup_event(struct handle_data *h,
 void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 			int global)
 {
-	struct tep_handle *pevent = tracecmd_get_pevent(handle);
+	struct tep_handle *pevent = tracecmd_get_tep(handle);
 	struct tep_format_field **fields;
 	struct handle_data *h;
 	struct event_data *event_data;

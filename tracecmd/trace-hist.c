@@ -933,7 +933,7 @@ static void print_chains(struct tep_handle *pevent)
 
 static void do_trace_hist(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent = tracecmd_get_pevent(handle);
+	struct tep_handle *pevent = tracecmd_get_tep(handle);
 	struct tep_record *record;
 	struct tep_event *event;
 	int cpus;

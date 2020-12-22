@@ -39,7 +39,7 @@ int tracecmd_blk_hack(struct tracecmd_input *handle)
 	int l;
 	int r;
 
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	/*
 	 * Unfortunately, the TRACE_BLK has changed a bit.

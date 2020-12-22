@@ -87,7 +87,7 @@ static int write_record(struct tracecmd_input *handle,
 
 	page = cpu_data->page;
 
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	ptr = page + cpu_data->index;
 
@@ -191,7 +191,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 
 	long_size = tracecmd_long_size(handle);
 	page_size = tracecmd_page_size(handle);
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	/* Force new creation of first page */
 	if (percpu) {

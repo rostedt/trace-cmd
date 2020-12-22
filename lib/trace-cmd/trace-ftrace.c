@@ -370,7 +370,7 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 
 	finfo->handle = handle;
 
-	pevent = tracecmd_get_pevent(handle);
+	pevent = tracecmd_get_tep(handle);
 
 	tep_register_event_handler(pevent, -1, "ftrace", "function",
 				      function_handler, NULL);

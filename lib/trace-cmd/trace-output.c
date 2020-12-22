@@ -877,9 +877,9 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 
 	/* get endian and page size */
 	if (ihandle) {
-		pevent = tracecmd_get_pevent(ihandle);
+		pevent = tracecmd_get_tep(ihandle);
 		/* Use the pevent of the ihandle for later writes */
-		handle->pevent = tracecmd_get_pevent(ihandle);
+		handle->pevent = tracecmd_get_tep(ihandle);
 		tep_ref(pevent);
 		if (tep_is_file_bigendian(pevent))
 			buf[0] = 1;
@@ -1433,9 +1433,9 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 	handle->fd = fd;
 
 	/* get endian and page size */
-	pevent = tracecmd_get_pevent(ihandle);
+	pevent = tracecmd_get_tep(ihandle);
 	/* Use the pevent of the ihandle for later writes */
-	handle->pevent = tracecmd_get_pevent(ihandle);
+	handle->pevent = tracecmd_get_tep(ihandle);
 	tep_ref(pevent);
 	handle->page_size = tracecmd_page_size(ihandle);
 	list_head_init(&handle->options);

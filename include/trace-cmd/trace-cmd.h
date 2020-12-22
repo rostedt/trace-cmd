@@ -26,7 +26,7 @@ tracecmd_read_at(struct tracecmd_input *handle, unsigned long long offset,
 		 int *cpu);
 void tracecmd_free_record(struct tep_record *record);
 
-struct tep_handle *tracecmd_get_pevent(struct tracecmd_input *handle);
+struct tep_handle *tracecmd_get_tep(struct tracecmd_input *handle);
 unsigned long long tracecmd_get_traceid(struct tracecmd_input *handle);
 int tracecmd_get_guest_cpumap(struct tracecmd_input *handle,
 			      unsigned long long trace_id,

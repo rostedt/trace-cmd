@@ -3776,10 +3776,10 @@ int tracecmd_cpus(struct tracecmd_input *handle)
 }
 
 /**
- * tracecmd_get_pevent - return the pevent handle
+ * tracecmd_get_tep - return the tep handle
  * @handle: input handle for the trace.dat file
  */
-struct tep_handle *tracecmd_get_pevent(struct tracecmd_input *handle)
+struct tep_handle *tracecmd_get_tep(struct tracecmd_input *handle)
 {
 	return handle->pevent;
 }

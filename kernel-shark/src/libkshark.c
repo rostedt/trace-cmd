@@ -155,7 +155,7 @@ bool kshark_open(struct kshark_context *kshark_ctx, const char *file)
 	}
 
 	kshark_ctx->handle = handle;
-	kshark_ctx->pevent = tracecmd_get_pevent(handle);
+	kshark_ctx->pevent = tracecmd_get_tep(handle);
 
 	kshark_ctx->advanced_event_filter =
 		tep_filter_alloc(kshark_ctx->pevent);
