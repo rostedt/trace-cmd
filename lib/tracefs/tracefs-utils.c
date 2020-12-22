@@ -131,12 +131,12 @@ char *tracefs_find_tracing_dir(void)
 }
 
 /**
- * tracefs_get_tracing_dir - Get tracing directory
+ * tracefs_tracing_dir - Get tracing directory
  *
  * Returns string containing the full path to the system's tracing directory.
  * The returned string must *not* be freed.
  */
-const char *tracefs_get_tracing_dir(void)
+const char *tracefs_tracing_dir(void)
 {
 	static const char *tracing_dir;
 
@@ -182,7 +182,7 @@ char *tracefs_get_tracing_file(const char *name)
  * tracefs_put_tracing_file - Free tracing file or directory name
  *
  * Frees tracing file or directory, returned by
- * tracefs_get_tracing_file() or tracefs_get_tracing_dir() APIs
+ * tracefs_get_tracing_file() API
  */
 void tracefs_put_tracing_file(char *name)
 {

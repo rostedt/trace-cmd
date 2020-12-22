@@ -29,7 +29,7 @@ void trace_check_events(int argc, char **argv)
 			break;
 		}
 	}
-	tracing = tracefs_get_tracing_dir();
+	tracing = tracefs_tracing_dir();
 
 	if (!tracing) {
 		printf("Can not find or mount tracing directory!\n"

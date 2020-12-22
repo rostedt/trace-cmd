@@ -169,7 +169,7 @@ static void test_trace_file(void)
 	CU_TEST(stat(dir, &st) == 0);
 	CU_TEST(S_ISDIR(st.st_mode));
 
-	tdir  = tracefs_get_tracing_dir();
+	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 	CU_TEST(stat(tdir, &st) == 0);
 	CU_TEST(S_ISDIR(st.st_mode));
@@ -192,7 +192,7 @@ static void test_trace_file(void)
 
 static void test_instance_file_read(struct tracefs_instance *inst, char *fname)
 {
-	const char *tdir  = tracefs_get_tracing_dir();
+	const char *tdir  = tracefs_tracing_dir();
 	char buf[BUFSIZ];
 	char *fpath;
 	char *file;
@@ -244,7 +244,7 @@ static void test_instance_file(void)
 	int size;
 	int ret;
 
-	tdir  = tracefs_get_tracing_dir();
+	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 	CU_TEST(asprintf(&inst_dir, "%s/instances/%s", tdir, name) > 0);
 	CU_TEST(stat(inst_dir, &st) != 0);
@@ -369,7 +369,7 @@ static void test_system_event(void)
 	char **events;
 	char *sdir = NULL;
 
-	tdir  = tracefs_get_tracing_dir();
+	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 
 	systems = tracefs_event_systems(tdir);
@@ -402,7 +402,7 @@ static void test_tracers(void)
 	char *tracer;
 	int i;
 
-	tdir  = tracefs_get_tracing_dir();
+	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 
 	tracers = tracefs_tracers(tdir);
@@ -433,7 +433,7 @@ static void test_check_events(struct tep_handle *tep, char *system, bool exist)
 	DIR *dir;
 	int fd;
 
-	tdir  = tracefs_get_tracing_dir();
+	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 
 	asprintf(&edir, "%s/events/%s", tdir, system);
@@ -470,7 +470,7 @@ static void test_local_events(void)
 	char *lsystems[3];
 	int i;
 
-	tdir  = tracefs_get_tracing_dir();
+	tdir  = tracefs_tracing_dir();
 	CU_TEST(tdir != NULL);
 
 	tep = tracefs_local_events(tdir);
