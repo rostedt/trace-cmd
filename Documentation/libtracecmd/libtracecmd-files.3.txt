@@ -1,0 +1,92 @@
+libtracecmd(3)
+=============
+
+NAME
+----
+tracecmd_open_head, tracecmd_close - Open and close a trace file.
+
+SYNOPSIS
+--------
+[verse]
+--
+*#include <trace-cmd.h>*
+
+struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_);
+void *tracecmd_close*(struct tracecmd_input pass:[*]_handle_);
+--
+
+DESCRIPTION
+-----------
+This set of APIs can be used to open and close a trace file recorded by
+_trace-cmd(1)_ and containing tracing information from ftrace, the official
+Linux kernel tracer. The opened file is represented by a _tracecmd_input_
+structure, all other library APIs that work with the file require a pointer
+to the structure.
+
+The _tracecmd_open_head()_ function opens a given trace _file_, parses the
+headers from the file, allocates and initializes _tracecmd_input_ structure
+representing the file.
+
+The _tracecmd_close()_ function frees a _handle_, pointer to tracecmd_input
+structure, previously allocated with _tracecmd_open_head()_.
+
+RETURN VALUE
+------------
+The _tracecmd_open_head()_ function returns a pointer to tracecmd_input
+structure or NULL in case of an error. The returned structure must be free
+with _tracecmd_close()_.
+
+EXAMPLE
+-------
+[source,c]
+--
+#include <trace-cmd.h>
+...
+struct tracecmd_input *handle = tracecmd_open_head("trace.dat");
+	if (!handle) {
+		/* Failed to open trace.dat file */
+	}
+...
+	tracecmd_close(handle);
+
+--
+FILES
+-----
+[verse]
+--
+*trace-cmd.h*
+	Header file to include in order to have access to the library APIs.
+*-ltracecmd*
+	Linker switch to add when building a program that uses the library.
+--
+
+SEE ALSO
+--------
+_libtracefs(3)_,
+_libtraceevent(3)_,
+_trace-cmd(1)_
+_trace-cmd.dat(5)_
+
+AUTHOR
+------
+[verse]
+--
+*Steven Rostedt* <rostedt@goodmis.org>
+*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>
+--
+REPORTING BUGS
+--------------
+Report bugs to  <linux-trace-devel@vger.kernel.org>
+
+LICENSE
+-------
+libtracecmd is Free Software licensed under the GNU LGPL 2.1
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
+
+COPYING
+-------
+Copyright \(C) 2020 VMware, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).
