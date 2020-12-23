@@ -56,7 +56,7 @@ Written by Steven Rostedt, <rostedt@goodmis.org>
 
 RESOURCES
 ---------
-git://git.kernel.org/pub/scm/linux/kernel/git/rostedt/trace-cmd.git
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
 
 COPYING
 -------

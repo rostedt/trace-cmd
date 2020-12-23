@@ -48,4 +48,4 @@ GNU Public License (GPL).
 
 RESOURCES
 ---------
-https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
