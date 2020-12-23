@@ -243,10 +243,14 @@ endif
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
 LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)")
 LIBTRACEEVENT_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEEVENT)")
+TRACEEVENT_PLUGINS =
+TRACEEVENT_PLUGINS_INSTALL =
 else
 LIBTRACEEVENT_CFLAGS = -I$(src)/include/traceevent -I$(src)/lib/traceevent/include
 LIBTRACEEVENT_LDLAGS = -L$(LIBTRACEEVENT_DIR) -ltraceevent
 LIBTRACEEVENT_STATIC_BUILD = $(LIBTRACEEVENT_STATIC)
+TRACEEVENT_PLUGINS = plugins_traceevent
+TRACEEVENT_PLUGINS_INSTALL = install_plugins_traceevent
 endif
 
 export LIBTRACEEVENT_CFLAGS LIBTRACEEVENT_LDLAGS
@@ -414,7 +418,7 @@ plugins_traceevent: force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir \
 plugins_tracecmd: force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins
 
-plugins: plugins_traceevent plugins_tracecmd
+plugins: $(TRACEEVENT_PLUGINS) plugins_tracecmd
 
 $(obj)/lib/traceevent/plugins/traceevent_plugin_dir: force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
@@ -454,7 +458,7 @@ install_plugins_traceevent: force
 install_plugins_tracecmd: force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins install_plugins
 
-install_plugins: install_plugins_traceevent install_plugins_tracecmd
+install_plugins: $(TRACEEVENT_PLUGINS_INSTALL) install_plugins_tracecmd
 
 install_python: force
 	$(Q)$(MAKE) -C $(src)/python $@
