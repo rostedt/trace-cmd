@@ -93,7 +93,7 @@ install_libs: install_pkgconfig
 	$(Q)cp -fpR $(LIBTRACECMD_SHARED_VERSION) $(DESTDIR)$(libdir_SQ)
 	$(Q)$(call print_install,$(LIBTRACECMD_SHARED_SO),$(DESTDIR)$(libdir_SQ))
 	$(Q)cp -fpR $(LIBTRACECMD_SHARED_SO) $(DESTDIR)$(libdir_SQ)
-	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ)/trace-cmd)
+	$(Q)$(call do_install,$(src)/include/trace-cmd/trace-cmd.h,$(includedir_SQ)/trace-cmd,644)
 	$(Q)$(call install_ld_config)
 
 dep_includes := $(wildcard $(DEPS))
