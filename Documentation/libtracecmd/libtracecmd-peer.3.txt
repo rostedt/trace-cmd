@@ -1,0 +1,149 @@
+libtracecmd(3)
+=============
+
+NAME
+----
+tracecmd_pair_peer, tracecmd_unpair_peer, tracecmd_get_traceid,
+tracecmd_get_guest_cpumap - Manage trace session with multiple trace peers,
+recorded in multiple trace files.
+
+SYNOPSIS
+--------
+[verse]
+--
+*#include <trace-cmd.h>*
+
+int *tracecmd_pair_peer*(struct tracecmd_input pass:[*]_handle_, struct tracecmd_input pass:[*]_peer_);
+void *tracecmd_unpair_peer*(struct tracecmd_input pass:[*]_handle_);
+unsigned long long *tracecmd_get_traceid*(struct tracecmd_input pass:[*]_handle_);
+int *tracecmd_get_guest_cpumap*(struct tracecmd_input pass:[*]_handle_, unsigned long long _trace_id_, const char pass:[*]pass:[*]_name_, int pass:[*]_vcpu_count_, const int pass:[*]pass:[*]_cpu_pid_);
+--
+
+DESCRIPTION
+-----------
+This set of APIs can be used to manage a trace session with multiple trace
+peers, for example, tracing both a host and one or more guest virtual machines.
+The trace data of each peer from the session is recorded in separate trace files.
+Information about peers from the session is stored in the metadata of each
+trace file. These APIs use that information to extract and synchronize
+the trace data.
+
+The _tracecmd_pair_peer()_ function pairs two tracecmd_input handlers,
+associated with two trace files from the same trace session. This API must
+be called before _tracecmd_init_data()(3)_, as the initialisation of
+the trace data depends on that. If there is a tracing peer, the event
+timestamps are recalculated in order to be in the same time space.
+
+The _tracecmd_unpair_peer()_ function unpairs a peer from _handle_
+previously paired with _tracecmd_pair_peer()_.
+
+The _tracecmd_get_traceid()_ function returns the trace ID stored in
+the trace file metadata associated with _handle_. Each peer from a trace
+session has an ID unique for that peer and that trace session only.
+This ID is used to match multiple trace files recorded in a same trace
+session.
+
+The _tracecmd_get_guest_cpumap()_ function gets the mapping of guest
+virtual CPUs (VCPU) to the host process that represents those VCPUs and is
+stored in the metadata of the trace file associated with _handle_. This
+information is gathered during a host-guest trace session and is stored
+in the host trace file. The _trace_id_ parameter is the trace ID of the guest
+in this particular trace session. If a guest with that ID was part of that
+session, its VCPU to host process mapping is in the host trace file and the
+information is returned in _name_, _vcpu_count_ and _cpu_pid_ parameters.
+The _name_ parameter contains the name of the guest, the _vcpu_count_ contains
+the count of VCPUs of that guest and the  _cpu_pid_ array contains the VCPU to
+host process mapping. The array is of size _vcpu_count_ where the index is VCPU
+and the value is the process ID (PID) of the host process, running that VCPU.
+The _name_, _vcpu_count_ and _cpu_pid_ values must *not* be freed.
+
+RETURN VALUE
+------------
+The _tracecmd_pair_peer()_ function returns 1, if a peer is already
+paired, -1 in case of an error or 0 if it successfully paired the peers.
+
+The _tracecmd_get_traceid()_ function returns a 64 bit trace ID.
+
+The _tracecmd_get_guest_cpumap()_ function returns -1 in case of
+an error or 0 otherwise. If 0 is returned, then the _name_, _vcpu_count_
+and _cpu_pid_ parameters contain the requested information.
+
+EXAMPLE
+-------
+[source,c]
+--
+#include <trace-cmd.h>
+...
+struct tracecmd_input *host = tracecmd_open_head("trace.dat");
+	if (!host) {
+		/* Failed to open host trace file */
+	}
+	tracecmd_init_data(host);
+
+struct tracecmd_input *guest = tracecmd_open_head("trace-Guest.dat");
+	if (!guest) {
+		/* Failed to open guest trace file */
+	}
+
+unsigned long long guest_id = tracecmd_get_traceid(guest);
+int *cpu_pid;
+char *name;
+int vcount;
+
+	if (!tracecmd_get_guest_cpumap(host, guest_id, &name, &vcount, &cpu_pid)) {
+		/* The Host and a guest with name was part of the same trace session.
+		 * Got guest VCPU to host PID mapping.
+		 */
+		if (!tracecmd_pair_peer(guest, host)) {
+			/* Successfully paired host to the guest handler */
+			tracecmd_init_data(guest);
+			...
+			tracecmd_unpair_peer(guest);
+		}
+	}
+
+...
+	tracecmd_close(guest);
+	tracecmd_close(handle);
+
+--
+FILES
+-----
+[verse]
+--
+*trace-cmd.h*
+	Header file to include in order to have access to the library APIs.
+*-ltracecmd*
+	Linker switch to add when building a program that uses the library.
+--
+
+SEE ALSO
+--------
+_libtracefs(3)_,
+_libtraceevent(3)_,
+_trace-cmd(1)_
+_trace-cmd.dat(5)_
+
+AUTHOR
+------
+[verse]
+--
+*Steven Rostedt* <rostedt@goodmis.org>
+*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>
+--
+REPORTING BUGS
+--------------
+Report bugs to  <linux-trace-devel@vger.kernel.org>
+
+LICENSE
+-------
+libtracecmd is Free Software licensed under the GNU LGPL 2.1
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
+
+COPYING
+-------
+Copyright \(C) 2020 VMware, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).
