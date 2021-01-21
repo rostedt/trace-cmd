@@ -296,7 +296,7 @@ clock_synch_delete_instance(struct tracefs_instance *inst)
 	tracefs_instance_free(inst);
 }
 
-static int clock_context_init(struct tracecmd_time_sync *tsync, bool server)
+static int clock_context_init(struct tracecmd_time_sync *tsync, bool guest)
 {
 	struct clock_sync_context *clock = NULL;
 	struct tsync_proto *protocol;
@@ -311,8 +311,9 @@ static int clock_context_init(struct tracecmd_time_sync *tsync, bool server)
 	clock = calloc(1, sizeof(struct clock_sync_context));
 	if (!clock)
 		return -1;
+	clock->is_guest = guest;
+	clock->is_server = clock->is_guest;
 
-	clock->is_server = server;
 	if (get_vsocket_params(tsync->msg_handle->fd, &clock->local_cid,
 			       &clock->local_port, &clock->remote_cid,
 			       &clock->remote_port))
