@@ -429,6 +429,8 @@ struct tracecmd_time_sync {
 	char				*clock_str;
 	struct tracecmd_msg_handle	*msg_handle;
 	void				*context;
+	int				guest_pid;
+	int				vcpu_count;
 };
 
 void tracecmd_tsync_init(void);

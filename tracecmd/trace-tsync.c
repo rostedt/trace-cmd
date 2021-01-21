@@ -77,6 +77,7 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 {
 	struct tracecmd_msg_handle *msg_handle = NULL;
 	cpu_set_t *pin_mask = NULL;
+	struct trace_guest *guest;
 	pthread_attr_t attrib;
 	size_t mask_size = 0;
 	int ret;
@@ -84,7 +85,11 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 
 	if (!instance->tsync.proto_name)
 		return -1;
-
+	guest = get_guest_by_cid(instance->cid);
+	if (guest == NULL)
+		return -1;
+	instance->tsync.guest_pid = guest->pid;
+	instance->tsync.vcpu_count = guest->cpu_max;
 	fd = trace_open_vsock(instance->cid, tsync_port);
 	if (fd < 0) {
 		ret = -1;
