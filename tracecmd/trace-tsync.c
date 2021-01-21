@@ -135,7 +135,8 @@ out:
 static void write_guest_time_shift(struct buffer_instance *instance)
 {
 	struct tracecmd_output *handle;
-	struct iovec vector[5];
+	struct iovec vector[6];
+	unsigned int flags;
 	long long *scalings = NULL;
 	long long *offsets = NULL;
 	long long *ts = NULL;
@@ -148,6 +149,9 @@ static void write_guest_time_shift(struct buffer_instance *instance)
 					 &ts, &offsets, &scalings);
 	if (ret < 0 || !count || !ts || !offsets || !scalings)
 		return;
+	ret = tracecmd_tsync_get_proto_flags(&instance->tsync, &flags);
+	if (ret < 0)
+		return;
 
 	file = instance->output_file;
 	fd = open(file, O_RDWR);
@@ -157,14 +161,16 @@ static void write_guest_time_shift(struct buffer_instance *instance)
 	vector[0].iov_len = 8;
 	vector[0].iov_base = &top_instance.trace_id;
 	vector[1].iov_len = 4;
-	vector[1].iov_base = &count;
-	vector[2].iov_len = 8 * count;
-	vector[2].iov_base = ts;
+	vector[1].iov_base = &flags;
+	vector[2].iov_len = 4;
+	vector[2].iov_base = &count;
 	vector[3].iov_len = 8 * count;
-	vector[3].iov_base = offsets;
+	vector[3].iov_base = ts;
 	vector[4].iov_len = 8 * count;
-	vector[4].iov_base = scalings;
-	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 5);
+	vector[4].iov_base = offsets;
+	vector[5].iov_len = 8 * count;
+	vector[5].iov_base = scalings;
+	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 6);
 	tracecmd_append_options(handle);
 	tracecmd_output_close(handle);
 #ifdef TSYNC_DEBUG

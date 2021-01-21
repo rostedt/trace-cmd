@@ -374,6 +374,7 @@ static void dump_option_timeshift(int fd, int size)
 	long long *times = NULL;
 	long long trace_id;
 	unsigned int count;
+	unsigned int flags;
 	int i;
 
 	/*
@@ -390,6 +391,8 @@ static void dump_option_timeshift(int fd, int size)
 	do_print(OPTIONS, "\t\t[Option TimeShift, %d bytes]\n", size);
 	read_file_number(fd, &trace_id, 8);
 	do_print(OPTIONS, "0x%llX [peer's trace id]\n", trace_id);
+	read_file_number(fd, &flags, 4);
+	do_print(OPTIONS, "0x%llX [peer's protocol flags]\n", flags);
 	read_file_number(fd, &count, 4);
 	do_print(OPTIONS, "%lld [samples count]\n", count);
 	times = calloc(count, sizeof(long long));

@@ -433,6 +433,9 @@ struct tracecmd_time_sync {
 	int				vcpu_count;
 };
 
+/* Timestamp synchronization flags */
+#define TRACECMD_TSYNC_FLAG_INTERPOLATE	0x1
+
 void tracecmd_tsync_init(void);
 int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock, int role);
 const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock,
@@ -443,6 +446,8 @@ void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync);
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
 				int *count, long long **ts,
 				long long **offsets, long long **scalings);
+int tracecmd_tsync_get_proto_flags(struct tracecmd_time_sync *tsync,
+				   unsigned int *flags);
 void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
 
 /* --- Plugin handling --- */

@@ -28,6 +28,7 @@ struct tsync_proto {
 	enum tracecmd_time_sync_role roles;
 	int accuracy;
 	int supported_clocks;
+	unsigned int flags;
 
 	int (*clock_sync_init)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_free)(struct tracecmd_time_sync *clock_context);
@@ -53,7 +54,7 @@ static struct tsync_proto *tsync_proto_find(const char *proto_name)
 }
 
 int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int roles,
-				  int supported_clocks,
+				  int supported_clocks, unsigned int flags,
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,
@@ -135,6 +136,31 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
 		*offsets = tsync_context->sync_offsets;
 	if (scalings)
 		*scalings = tsync_context->sync_scalings;
+
+	return 0;
+}
+
+/**
+ * tracecmd_tsync_get_proto_flags - Get protocol flags
+ *
+ * @tsync: Pointer to time sync context
+ * @flags: Returns the protocol flags, a combination of TRACECMD_TSYNC_FLAG_...
+ *
+ * Retuns -1 in case of an error, or 0 otherwise
+ */
+int tracecmd_tsync_get_proto_flags(struct tracecmd_time_sync *tsync,
+				   unsigned int *flags)
+{
+	struct tsync_proto *protocol;
+
+	if (!tsync)
+		return -1;
+	protocol = tsync_proto_find(tsync->proto_name);
+	if (!protocol)
+		return -1;
+
+	if (flags)
+		*flags = protocol->flags;
 
 	return 0;
 }

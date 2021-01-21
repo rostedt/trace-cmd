@@ -93,6 +93,7 @@ struct guest_trace_info {
 
 struct host_trace_info {
 	unsigned long long	peer_trace_id;
+	unsigned int		flags;
 	bool			sync_enable;
 	struct tracecmd_input	*peer_data;
 	int			ts_samples_count;
@@ -1121,15 +1122,25 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 }
 
 static inline unsigned long long
-timestamp_correction_calc(unsigned long long ts, struct ts_offset_sample *min,
+timestamp_correction_calc(unsigned long long ts, unsigned int flags,
+			  struct ts_offset_sample *min,
 			  struct ts_offset_sample *max)
 {
-	long long scaling = (min->scaling + max->scaling) / 2;
-	long long offset = ((long long)ts - min->time) *
-			   (max->offset - min->offset);
-	long long delta = max->time - min->time;
-	long long tscor = min->offset +
-			(offset + delta / 2) / delta;
+	long long scaling;
+	long long tscor;
+
+	if (flags & TRACECMD_TSYNC_FLAG_INTERPOLATE) {
+		long long delta = max->time - min->time;
+		long long offset = ((long long)ts - min->time) *
+				   (max->offset - min->offset);
+
+		scaling = (min->scaling + max->scaling) / 2;
+		tscor = min->offset + (offset + delta / 2) / delta;
+
+	} else {
+		scaling = min->scaling;
+		tscor = min->offset;
+	}
 
 	ts *= scaling;
 	if (tscor < 0)
@@ -1156,16 +1167,17 @@ static unsigned long long timestamp_correct(unsigned long long ts,
 
 	/* We have two samples, nothing to search here */
 	if (host->ts_samples_count == 2)
-		return timestamp_correction_calc(ts, &host->ts_samples[0],
+		return timestamp_correction_calc(ts, host->flags,
+						 &host->ts_samples[0],
 						 &host->ts_samples[1]);
 
 	/* We have more than two samples */
 	if (ts <= host->ts_samples[0].time)
-		return timestamp_correction_calc(ts,
+		return timestamp_correction_calc(ts, host->flags,
 						 &host->ts_samples[0],
 						 &host->ts_samples[1]);
 	else if (ts >= host->ts_samples[host->ts_samples_count-1].time)
-		return timestamp_correction_calc(ts,
+		return timestamp_correction_calc(ts, host->flags,
 						 &host->ts_samples[host->ts_samples_count-2],
 						 &host->ts_samples[host->ts_samples_count-1]);
 	min = 0;
@@ -1181,7 +1193,8 @@ static unsigned long long timestamp_correct(unsigned long long ts,
 		mid = (min + max)/2;
 	}
 
-	return timestamp_correction_calc(ts, &host->ts_samples[mid],
+	return timestamp_correction_calc(ts, host->flags,
+					 &host->ts_samples[mid],
 					 &host->ts_samples[mid+1]);
 }
 
@@ -2535,28 +2548,31 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_TIME_SHIFT:
 			/*
 			 * long long int (8 bytes) trace session ID
+			 * int (4 bytes) protocol flags.
 			 * int (4 bytes) count of timestamp offsets.
 			 * long long array of size [count] of times,
 			 *      when the offsets were calculated.
 			 * long long array of size [count] of timestamp offsets.
 			 * long long array of size [count] of timestamp scaling ratios.*
 			 */
-			if (size < 12 || handle->flags & TRACECMD_FL_IGNORE_DATE)
+			if (size < 16 || handle->flags & TRACECMD_FL_IGNORE_DATE)
 				break;
 			handle->host.peer_trace_id = tep_read_number(handle->pevent,
 								     buf, 8);
+			handle->host.flags = tep_read_number(handle->pevent,
+							     buf + 8, 4);
 			handle->host.ts_samples_count = tep_read_number(handle->pevent,
-									buf + 8, 4);
+									buf + 12, 4);
 			samples_size = (8 * handle->host.ts_samples_count);
-			if (size != (12 + (2 * samples_size))) {
+			if (size != (16 + (2 * samples_size))) {
 				warning("Failed to extract Time Shift information from the file: found size %d, expected is %d",
-					size, 12 + (2 * samples_size));
+					size, 16 + (2 * samples_size));
 				break;
 			}
 			handle->host.ts_samples = malloc(2 * samples_size);
 			if (!handle->host.ts_samples)
 				return -ENOMEM;
-			tsync_offset_load(handle, buf + 12);
+			tsync_offset_load(handle, buf + 16);
 			break;
 		case TRACECMD_OPTION_CPUSTAT:
 			buf[size-1] = '\n';
