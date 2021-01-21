@@ -57,11 +57,11 @@ struct tracecmd_msg_tinit {
 	be32 cpus;
 	be32 page_size;
 	be32 opt_num;
-} __attribute__((packed));
+} __packed;
 
 struct tracecmd_msg_rinit {
 	be32 cpus;
-} __attribute__((packed));
+} __packed;
 
 #define TRACE_REQ_PARAM_SIZE  (2 * sizeof(int))
 enum trace_req_params {
@@ -79,7 +79,7 @@ struct tracecmd_msg_trace_req {
 	be32 flags;
 	be32 argc;
 	u64 trace_id;
-} __attribute__((packed));
+} __packed;
 
 struct tracecmd_msg_trace_resp {
 	be32 flags;
@@ -88,18 +88,18 @@ struct tracecmd_msg_trace_resp {
 	u64 trace_id;
 	char tsync_proto_name[TRACECMD_TSYNC_PNAME_LENGTH];
 	be32 tsync_port;
-} __attribute__((packed));
+} __packed;
 
 struct tracecmd_msg_tsync {
 	char sync_protocol_name[TRACECMD_TSYNC_PNAME_LENGTH];
 	be32 sync_msg_id;
-} __attribute__((packed));
+} __packed;
 
 struct tracecmd_msg_header {
 	be32	size;
 	be32	cmd;
 	be32	cmd_size;
-} __attribute__((packed));
+} __packed;
 
 #define MSG_MAP								\
 	C(CLOSE,	0,	0),					\
@@ -148,7 +148,7 @@ struct tracecmd_msg {
 		struct tracecmd_msg_tsync	tsync;
 	};
 	char					*buf;
-} __attribute__((packed));
+} __packed;
 
 static inline int msg_buf_len(struct tracecmd_msg *msg)
 {
