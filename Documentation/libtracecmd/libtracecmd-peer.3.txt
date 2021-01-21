@@ -74,36 +74,54 @@ EXAMPLE
 --
 #include <trace-cmd.h>
 ...
-struct tracecmd_input *host = tracecmd_open_head("trace.dat");
+struct tracecmd_input *host = tracecmd_open("trace.dat");
 	if (!host) {
 		/* Failed to open host trace file */
 	}
-	tracecmd_init_data(host);
 
-struct tracecmd_input *guest = tracecmd_open_head("trace-Guest.dat");
-	if (!guest) {
-		/* Failed to open guest trace file */
+struct tracecmd_input *guest1 = tracecmd_open_head("trace-Guest1.dat");
+	if (!guest1) {
+		/* Failed to open guest1 trace file */
+	}
+struct tracecmd_input *guest2 = tracecmd_open_head("trace-Guest2.dat");
+	if (!guest2) {
+		/* Failed to open guest2 trace file */
 	}
 
-unsigned long long guest_id = tracecmd_get_traceid(guest);
-int *cpu_pid;
-char *name;
-int vcount;
+unsigned long long guest_id_1 = tracecmd_get_traceid(guest1);
+unsigned long long guest_id_2 = tracecmd_get_traceid(guest2);
+bool g1 = false, g2 = false;
+int *cpu_pid_1, *cpu_pid_2;
+int vcount_1, vcount_2;
+char *name_1, *name_2;
 
-	if (!tracecmd_get_guest_cpumap(host, guest_id, &name, &vcount, &cpu_pid)) {
-		/* The Host and a guest with name was part of the same trace session.
-		 * Got guest VCPU to host PID mapping.
+	if (!tracecmd_get_guest_cpumap(host, guest_id_1, &name_1, &vcount_1, &cpu_pid_1)) {
+		/* The Host and a guest1 with name_1 are part of the same trace session.
+		 * Got guest1 VCPU to host PID mapping.
 		 */
-		if (!tracecmd_pair_peer(guest, host)) {
-			/* Successfully paired host to the guest handler */
-			tracecmd_init_data(guest);
-			...
-			tracecmd_unpair_peer(guest);
+		if (!tracecmd_pair_peer(guest1, host)) {
+			/* Successfully paired guest1 to the host handler */
+			tracecmd_init_data(guest1);
+			g1 = true;
 		}
 	}
-
+	if (!tracecmd_get_guest_cpumap(host, guest_id_2, &name_2, &vcount_2, &cpu_pid_2)) {
+		/* The Host and a guest2 with name_2 are part of the same trace session.
+		 * Got guest2 VCPU to host PID mapping.
+		 */
+		if (!tracecmd_pair_peer(guest2, host)) {
+			/* Successfully paired guest2 to the host handler */
+			tracecmd_init_data(guest2);
+			g2 = true;
+		}
+	}
 ...
-	tracecmd_close(guest);
+	if (g1)
+		tracecmd_unpair_peer(guest1);
+	if (g2)
+		tracecmd_unpair_peer(guest2);
+	tracecmd_close(guest1);
+	tracecmd_close(guest2);
 	tracecmd_close(handle);
 
 --
