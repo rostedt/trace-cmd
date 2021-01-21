@@ -331,6 +331,10 @@ struct tracecmd_msg_handle {
 	bool			done;
 };
 
+struct tracecmd_tsync_protos {
+	char **names;
+};
+
 struct tracecmd_msg_handle *
 tracecmd_msg_handle_alloc(int fd, unsigned long flags);
 
@@ -360,50 +364,44 @@ void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
 int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int argc, char **argv, bool use_fifos,
 				unsigned long long trace_id,
-				char *tsync_protos,
-				int tsync_protos_size);
+				struct tracecmd_tsync_protos *protos);
 int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int *argc, char ***argv, bool *use_fifos,
 				unsigned long long *trace_id,
-				char **tsync_protos,
-				unsigned int *tsync_protos_size);
+				struct tracecmd_tsync_protos **protos);
 
 int tracecmd_msg_send_trace_resp(struct tracecmd_msg_handle *msg_handle,
 				 int nr_cpus, int page_size,
 				 unsigned int *ports, bool use_fifos,
 				 unsigned long long trace_id,
-				 unsigned int tsync_proto,
-				 unsigned int tsync_port);
+				 const char *tsync_proto, unsigned int tsync_port);
 int tracecmd_msg_recv_trace_resp(struct tracecmd_msg_handle *msg_handle,
 				 int *nr_cpus, int *page_size,
 				 unsigned int **ports, bool *use_fifos,
 				 unsigned long long *trace_id,
-				 unsigned int *tsync_proto,
+				 char **tsync_proto,
 				 unsigned int *tsync_port);
 
 int tracecmd_msg_send_time_sync(struct tracecmd_msg_handle *msg_handle,
-				unsigned int sync_protocol,
-				unsigned int sync_msg_id,
+				char *sync_protocol, unsigned int sync_msg_id,
 				unsigned int payload_size, char *payload);
 int tracecmd_msg_recv_time_sync(struct tracecmd_msg_handle *msg_handle,
-				unsigned int *sync_protocol,
+				char *sync_protocol,
 				unsigned int *sync_msg_id,
 				unsigned int *payload_size, char **payload);
 
 /* --- Timestamp synchronization --- */
 
-enum{
-	TRACECMD_TIME_SYNC_PROTO_NONE	= 0,
-};
+#define TRACECMD_TSYNC_PNAME_LENGTH	16
+#define TRACECMD_TSYNC_PROTO_NONE	"none"
+
 enum{
 	TRACECMD_TIME_SYNC_CMD_PROBE	= 1,
 	TRACECMD_TIME_SYNC_CMD_STOP	= 2,
 };
 
-#define TRACECMD_TIME_SYNC_PROTO_PTP_WEIGHT	10
-
 struct tracecmd_time_sync {
-	unsigned int			sync_proto;
+	const char			*proto_name;
 	int				loop_interval;
 	pthread_mutex_t			lock;
 	pthread_cond_t			cond;
@@ -413,9 +411,9 @@ struct tracecmd_time_sync {
 };
 
 void tracecmd_tsync_init(void);
-int tracecmd_tsync_proto_getall(char **proto_mask, int *words);
-unsigned int tracecmd_tsync_proto_select(char *proto_mask, int words);
-bool tsync_proto_is_supported(unsigned int proto_id);
+int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos);
+const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos);
+bool tsync_proto_is_supported(const char *proto_name);
 void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync);
 void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync);
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,

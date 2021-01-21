@@ -142,12 +142,11 @@ static char *get_clock(int argc, char **argv)
 
 static void agent_handle(int sd, int nr_cpus, int page_size)
 {
+	struct tracecmd_tsync_protos *tsync_protos = NULL;
 	struct tracecmd_msg_handle *msg_handle;
-	unsigned int tsync_protos_size = 0;
-	unsigned int tsync_proto = 0;
+	const char *tsync_proto = NULL;
 	unsigned long long trace_id;
 	unsigned int tsync_port = 0;
-	char *tsync_protos = NULL;
 	unsigned int *ports;
 	pthread_t sync_thr;
 	char **argv = NULL;
@@ -167,7 +166,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 
 	ret = tracecmd_msg_recv_trace_req(msg_handle, &argc, &argv,
 					  &use_fifos, &trace_id,
-					  &tsync_protos, &tsync_protos_size);
+					  &tsync_protos);
 	if (ret < 0)
 		die("Failed to receive trace request");
 
@@ -176,9 +175,8 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 
 	if (!use_fifos)
 		make_vsocks(nr_cpus, fds, ports);
-	if (tsync_protos) {
+	if (tsync_protos && tsync_protos->names) {
 		tsync_proto = tracecmd_guest_tsync(tsync_protos,
-						   tsync_protos_size,
 						   get_clock(argc, argv),
 						   &tsync_port, &sync_thr);
 		if (!tsync_proto)
@@ -197,7 +195,10 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 	if (tsync_proto)
 		pthread_join(sync_thr, NULL);
 
-	free(tsync_protos);
+	if (tsync_protos) {
+		free(tsync_protos->names);
+		free(tsync_protos);
+	}
 	free(argv[0]);
 	free(argv);
 	free(ports);

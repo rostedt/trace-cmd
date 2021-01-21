@@ -24,8 +24,8 @@
 
 struct tsync_proto {
 	struct tsync_proto *next;
-	unsigned int proto_id;
-	int	weight;
+	char proto_name[TRACECMD_TSYNC_PNAME_LENGTH];
+	int accuracy;
 
 	int (*clock_sync_init)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_free)(struct tracecmd_time_sync *clock_context);
@@ -35,32 +35,35 @@ struct tsync_proto {
 
 static struct tsync_proto *tsync_proto_list;
 
-static struct tsync_proto *tsync_proto_find(unsigned int proto_id)
+static struct tsync_proto *tsync_proto_find(const char *proto_name)
 {
 	struct tsync_proto *proto;
 
-	for (proto = tsync_proto_list; proto; proto = proto->next)
-		if (proto->proto_id == proto_id)
+	if (!proto_name)
+		return NULL;
+	for (proto = tsync_proto_list; proto; proto = proto->next) {
+		if (strlen(proto->proto_name) == strlen(proto_name) &&
+		     !strncmp(proto->proto_name, proto_name, TRACECMD_TSYNC_PNAME_LENGTH))
 			return proto;
-
+	}
 	return NULL;
 }
 
-int tracecmd_tsync_proto_register(unsigned int proto_id, int weight,
-				int (*init)(struct tracecmd_time_sync *),
-				int (*free)(struct tracecmd_time_sync *),
-				int (*calc)(struct tracecmd_time_sync *,
-					    long long *, long long *))
+int tracecmd_tsync_proto_register(const char *proto_name, int accuracy,
+				  int (*init)(struct tracecmd_time_sync *),
+				  int (*free)(struct tracecmd_time_sync *),
+				  int (*calc)(struct tracecmd_time_sync *,
+					      long long *, long long *))
 {
-	struct tsync_proto *proto;
+	struct tsync_proto *proto = NULL;
 
-	if (tsync_proto_find(proto_id))
+	if (tsync_proto_find(proto_name))
 		return -1;
 	proto = calloc(1, sizeof(struct tsync_proto));
 	if (!proto)
 		return -1;
-	proto->proto_id = proto_id;
-	proto->weight = weight;
+	strncpy(proto->proto_name, proto_name, TRACECMD_TSYNC_PNAME_LENGTH);
+	proto->accuracy = accuracy;
 	proto->clock_sync_init = init;
 	proto->clock_sync_free = free;
 	proto->clock_sync_calc = calc;
@@ -70,12 +73,16 @@ int tracecmd_tsync_proto_register(unsigned int proto_id, int weight,
 	return 0;
 }
 
-int tracecmd_tsync_proto_unregister(unsigned int proto_id)
+int tracecmd_tsync_proto_unregister(char *proto_name)
 {
 	struct tsync_proto **last = &tsync_proto_list;
 
+	if (!proto_name)
+		return -1;
+
 	for (; *last; last = &(*last)->next) {
-		if ((*last)->proto_id == proto_id) {
+		if (strlen((*last)->proto_name) == strlen(proto_name) &&
+		    !strncmp((*last)->proto_name, proto_name, TRACECMD_TSYNC_PNAME_LENGTH)) {
 			struct tsync_proto *proto = *last;
 
 			*last = proto->next;
@@ -87,9 +94,9 @@ int tracecmd_tsync_proto_unregister(unsigned int proto_id)
 	return -1;
 }
 
-bool tsync_proto_is_supported(unsigned int proto_id)
+bool tsync_proto_is_supported(const char *proto_name)
 {
-	if (tsync_proto_find(proto_id))
+	if (tsync_proto_find(proto_name))
 		return true;
 	return false;
 }
@@ -129,81 +136,79 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
  * tracecmd_tsync_proto_select - Select time sync protocol, to be used for
  *		timestamp synchronization with a peer
  *
- * @proto_mask: bitmask array of time sync protocols, supported by the peer
- * @length: size of the @protos array
+ * @protos: list of tsync protocol names
  *
- * Retuns Id of a time sync protocol, that can be used with the peer, or 0
- *	  in case there is no match with supported protocols
+ * Retuns pointer to a protocol name, that can be used with the peer, or NULL
+ *	  in case there is no match with supported protocols.
+ *	  The returned string MUST NOT be freed by the caller
  */
-unsigned int tracecmd_tsync_proto_select(char *proto_mask, int length)
+const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos)
 {
 	struct tsync_proto *selected = NULL;
 	struct tsync_proto *proto;
-	int word;
-	int id;
+	char **pname;
 
-	for (word = 0; word < length; word++) {
+	if (!protos)
+		return NULL;
+
+	pname = protos->names;
+	while (*pname) {
 		for (proto = tsync_proto_list; proto; proto = proto->next) {
-			if (proto->proto_id < word * PROTO_MASK_SIZE)
+			if (strncmp(proto->proto_name, *pname, TRACECMD_TSYNC_PNAME_LENGTH))
 				continue;
-
-			id = proto->proto_id - word * PROTO_MASK_SIZE;
-			if (id >= PROTO_MASK_BITS)
-				continue;
-
-			if ((1 << id) & proto_mask[word]) {
-				if (selected) {
-					if (selected->weight < proto->weight)
-						selected = proto;
-				} else
+			if (selected) {
+				if (selected->accuracy > proto->accuracy)
 					selected = proto;
-			}
+			} else
+				selected = proto;
 		}
+		pname++;
 	}
 
 	if (selected)
-		return selected->proto_id;
+		return selected->proto_name;
 
-	return 0;
+	return NULL;
 }
 
 /**
  * tracecmd_tsync_proto_getall - Returns bitmask of all supported
  *				 time sync protocols
- * @proto_mask: return, allocated bitmask array of time sync protocols,
+ * @protos: return, allocated list of time sync protocol names,
  *	       supported by the peer. Must be freed by free()
- * @words: return, allocated size of the @protobits array
  *
- * If completed successfully 0 is returned and allocated array in @proto_mask of
- * size @words. In case of an error, -1 is returned.
- * @proto_mask must be freed with free()
+ * If completed successfully 0 is returned and allocated list of strings in @protos.
+ * The last list entry is NULL. In case of an error, -1 is returned.
+ * @protos must be freed with free()
  */
-int tracecmd_tsync_proto_getall(char **proto_mask, int *words)
+int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos)
 {
+	struct tracecmd_tsync_protos *plist = NULL;
 	struct tsync_proto *proto;
-	int proto_max = 0;
-	int count = 0;
-	char *protos;
+	int count = 1;
+	int i;
 
 	for (proto = tsync_proto_list; proto; proto = proto->next)
-		if (proto->proto_id > proto_max)
-			proto_max = proto->proto_id;
-
-	count = proto_max / PROTO_MASK_SIZE + 1;
-	protos = calloc(count, sizeof(char));
-	if (!protos)
+		count++;
+	plist = calloc(1, sizeof(struct tracecmd_tsync_protos));
+	if (!plist)
+		goto error;
+	plist->names = calloc(count, sizeof(char *));
+	if (!plist->names)
 		return -1;
 
-	for (proto = tsync_proto_list; proto; proto = proto->next) {
-		if ((proto->proto_id / PROTO_MASK_SIZE) >= count)
-			continue;
-		protos[proto->proto_id / PROTO_MASK_SIZE] |=
-				(1 << (proto->proto_id % PROTO_MASK_SIZE));
-	}
+	for (i = 0, proto = tsync_proto_list; proto && i < (count - 1); proto = proto->next)
+		plist->names[i++] = proto->proto_name;
 
-	*proto_mask = protos;
-	*words = count;
+	*protos = plist;
 	return 0;
+
+error:
+	if (plist) {
+		free(plist->names);
+		free(plist);
+	}
+	return -1;
 }
 
 static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *lport,
@@ -267,7 +272,7 @@ static int clock_context_init(struct tracecmd_time_sync *tsync, bool server)
 	if (tsync->context)
 		return 0;
 
-	protocol = tsync_proto_find(tsync->sync_proto);
+	protocol = tsync_proto_find(tsync->proto_name);
 	if (!protocol)
 		return -1;
 
@@ -313,7 +318,7 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 		return;
 	tsync_context = (struct clock_sync_context *)tsync->context;
 
-	proto = tsync_proto_find(tsync->sync_proto);
+	proto = tsync_proto_find(tsync->proto_name);
 	if (proto && proto->clock_sync_free)
 		proto->clock_sync_free(tsync);
 
@@ -355,12 +360,12 @@ int tracecmd_tsync_send(struct tracecmd_time_sync *tsync,
  */
 void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync)
 {
+	char protocol[TRACECMD_TSYNC_PNAME_LENGTH];
 	struct tsync_proto *proto;
-	unsigned int protocol;
 	unsigned int command;
 	int ret;
 
-	proto = tsync_proto_find(tsync->sync_proto);
+	proto = tsync_proto_find(tsync->proto_name);
 	if (!proto || !proto->clock_sync_calc)
 		return;
 
@@ -370,11 +375,10 @@ void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync)
 
 	while (true) {
 		ret = tracecmd_msg_recv_time_sync(tsync->msg_handle,
-						  &protocol, &command,
+						  protocol, &command,
 						  NULL, NULL);
 
-		if (ret ||
-		    protocol != TRACECMD_TIME_SYNC_PROTO_NONE ||
+		if (ret || strncmp(protocol, TRACECMD_TSYNC_PROTO_NONE, TRACECMD_TSYNC_PNAME_LENGTH) ||
 		    command != TRACECMD_TIME_SYNC_CMD_PROBE)
 			break;
 		ret = tracecmd_tsync_send(tsync, proto);
@@ -455,7 +459,7 @@ void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync)
 	bool end = false;
 	int ret;
 
-	proto = tsync_proto_find(tsync->sync_proto);
+	proto = tsync_proto_find(tsync->proto_name);
 	if (!proto || !proto->clock_sync_calc)
 		return;
 
@@ -470,7 +474,7 @@ void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync)
 	while (true) {
 		pthread_mutex_lock(&tsync->lock);
 		ret = tracecmd_msg_send_time_sync(tsync->msg_handle,
-						  TRACECMD_TIME_SYNC_PROTO_NONE,
+						  TRACECMD_TSYNC_PROTO_NONE,
 						  TRACECMD_TIME_SYNC_CMD_PROBE,
 						  0, NULL);
 		ret = tsync_get_sample(tsync, proto, ts_array_size);
@@ -492,7 +496,7 @@ void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync)
 	};
 
 	tracecmd_msg_send_time_sync(tsync->msg_handle,
-				    TRACECMD_TIME_SYNC_PROTO_NONE,
+				    TRACECMD_TSYNC_PROTO_NONE,
 				    TRACECMD_TIME_SYNC_CMD_STOP,
 				    0, NULL);
 }

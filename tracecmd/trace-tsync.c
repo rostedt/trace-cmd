@@ -82,7 +82,7 @@ int tracecmd_host_tsync(struct buffer_instance *instance,
 	int ret;
 	int fd;
 
-	if (!instance->tsync.sync_proto)
+	if (!instance->tsync.proto_name)
 		return -1;
 
 	fd = trace_open_vsock(instance->cid, tsync_port);
@@ -210,22 +210,22 @@ out:
 	pthread_exit(0);
 }
 
-unsigned int tracecmd_guest_tsync(char *tsync_protos,
-				  unsigned int tsync_protos_size, char *clock,
-				  unsigned int *tsync_port, pthread_t *thr_id)
+const char *tracecmd_guest_tsync(struct tracecmd_tsync_protos *tsync_protos,
+				 char *clock, unsigned int *tsync_port,
+				 pthread_t *thr_id)
 {
 	struct tracecmd_time_sync *tsync = NULL;
 	cpu_set_t *pin_mask = NULL;
 	pthread_attr_t attrib;
 	size_t mask_size = 0;
-	unsigned int proto;
+	const char *proto;
 	int ret;
 	int fd;
 
 	fd = -1;
-	proto = tracecmd_tsync_proto_select(tsync_protos, tsync_protos_size);
+	proto = tracecmd_tsync_proto_select(tsync_protos);
 	if (!proto)
-		return 0;
+		return NULL;
 #ifdef VSOCK
 	fd = trace_make_vsock(VMADDR_PORT_ANY);
 	if (fd < 0)
@@ -235,7 +235,7 @@ unsigned int tracecmd_guest_tsync(char *tsync_protos,
 	if (ret < 0)
 		goto error;
 #else
-	return 0;
+	return NULL;
 #endif
 
 	tsync = calloc(1, sizeof(struct tracecmd_time_sync));
@@ -244,7 +244,7 @@ unsigned int tracecmd_guest_tsync(char *tsync_protos,
 		tsync->clock_str = strdup(clock);
 
 	pthread_attr_init(&attrib);
-	tsync->sync_proto = proto;
+	tsync->proto_name = proto;
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
 
 	ret = pthread_create(thr_id, &attrib, tsync_agent_thread, tsync);
@@ -272,5 +272,5 @@ error:
 	}
 	if (fd > 0)
 		close(fd);
-	return 0;
+	return NULL;
 }

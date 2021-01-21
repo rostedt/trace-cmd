@@ -299,9 +299,9 @@ void tracecmd_stat_cpu(struct trace_seq *s, int cpu);
 int tracecmd_host_tsync(struct buffer_instance *instance,
 			 unsigned int tsync_port);
 void tracecmd_host_tsync_complete(struct buffer_instance *instance);
-unsigned int tracecmd_guest_tsync(char *tsync_protos,
-				  unsigned int tsync_protos_size, char *clock,
-				  unsigned int *tsync_port, pthread_t *thr_id);
+const char *tracecmd_guest_tsync(struct tracecmd_tsync_protos *tsync_protos,
+				 char *clock, unsigned int *tsync_port,
+				 pthread_t *thr_id);
 
 int trace_make_vsock(unsigned int port);
 int trace_get_vsock_port(int sd, unsigned int *port);

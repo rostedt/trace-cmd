@@ -3852,12 +3852,11 @@ static int open_guest_fifos(const char *guest, int **fds)
 #ifdef VSOCK
 static void connect_to_agent(struct buffer_instance *instance)
 {
-	struct tracecmd_msg_handle *msg_handle;
+	struct tracecmd_tsync_protos *protos = NULL;
 	int sd, ret, nr_fifos, nr_cpus, page_size;
-	unsigned int tsync_protos_reply = 0;
+	struct tracecmd_msg_handle *msg_handle;
+	char *tsync_protos_reply = NULL;
 	unsigned int tsync_port = 0;
-	char *protos = NULL;
-	int protos_count = 0;
 	unsigned int *ports;
 	int i, *fds = NULL;
 	bool use_fifos = false;
@@ -3879,31 +3878,35 @@ static void connect_to_agent(struct buffer_instance *instance)
 		die("Failed to allocate message handle");
 
 	if (instance->tsync.loop_interval >= 0)
-		tracecmd_tsync_proto_getall(&protos, &protos_count);
+		tracecmd_tsync_proto_getall(&protos);
 
 	ret = tracecmd_msg_send_trace_req(msg_handle, instance->argc,
 					  instance->argv, use_fifos,
-					  top_instance.trace_id,
-					  protos, protos_count);
+					  top_instance.trace_id, protos);
 	if (ret < 0)
 		die("Failed to send trace request");
 
-	free(protos);
-
+	if (protos) {
+		free(protos->names);
+		free(protos);
+	}
 	ret = tracecmd_msg_recv_trace_resp(msg_handle, &nr_cpus, &page_size,
 					   &ports, &use_fifos,
 					   &instance->trace_id,
 					   &tsync_protos_reply, &tsync_port);
 	if (ret < 0)
 		die("Failed to receive trace response %d", ret);
-
-	if (protos_count && tsync_protos_reply) {
+	if (tsync_protos_reply && tsync_protos_reply[0]) {
 		if (tsync_proto_is_supported(tsync_protos_reply)) {
-			instance->tsync.sync_proto = tsync_protos_reply;
+			instance->tsync.proto_name = strdup(tsync_protos_reply);
+			printf("Negotiated %s time sync protocol with guest %s\n",
+				instance->tsync.proto_name,
+				tracefs_instance_get_name(instance->tracefs));
 			tracecmd_host_tsync(instance, tsync_port);
 		} else
 			warning("Failed to negotiate timestamps synchronization with the guest");
 	}
+	free(tsync_protos_reply);
 
 	if (use_fifos) {
 		if (nr_cpus != nr_fifos) {
