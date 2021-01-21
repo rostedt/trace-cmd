@@ -390,6 +390,22 @@ int tracecmd_msg_recv_time_sync(struct tracecmd_msg_handle *msg_handle,
 				unsigned int *sync_msg_id,
 				unsigned int *payload_size, char **payload);
 
+enum tracecmd_clocks {
+	TRACECMD_CLOCK_UNKNOWN	= 0,
+	TRACECMD_CLOCK_LOCAL	= 1,
+	TRACECMD_CLOCK_GLOBAL	= 1 << 1,
+	TRACECMD_CLOCK_COUNTER	= 1 << 2,
+	TRACECMD_CLOCK_UPTIME	= 1 << 3,
+	TRACECMD_CLOCK_PERF	= 1 << 4,
+	TRACECMD_CLOCK_MONO	= 1 << 5,
+	TRACECMD_CLOCK_MONO_RAW	= 1 << 6,
+	TRACECMD_CLOCK_BOOT	= 1 << 7,
+	TRACECMD_CLOCK_X86_TSC	= 1 << 8
+};
+
+enum tracecmd_clocks tracecmd_clock_str2id(const char *clock);
+const char *tracecmd_clock_id2str(enum tracecmd_clocks clock);
+
 /* --- Timestamp synchronization --- */
 
 #define TRACECMD_TSYNC_PNAME_LENGTH	16
