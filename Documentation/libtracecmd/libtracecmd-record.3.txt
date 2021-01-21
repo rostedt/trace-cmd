@@ -3,9 +3,8 @@ libtracecmd(3)
 
 NAME
 ----
-tracecmd_init_data, tracecmd_read_cpu_first, tracecmd_read_data,
-tracecmd_read_at, tracecmd_free_record, tracecmd_get_tep
-- Read recorded events from a trace file.
+tracecmd_read_cpu_first, tracecmd_read_data, tracecmd_read_at,
+tracecmd_free_record, tracecmd_get_tep - Read recorded events from a trace file.
 
 SYNOPSIS
 --------
@@ -13,7 +12,6 @@ SYNOPSIS
 --
 *#include <trace-cmd.h>*
 
-int *tracecmd_init_data*(struct tracecmd_input pass:[*]_handle_);
 struct tep_record pass:[*]*tracecmd_read_cpu_first*(struct tracecmd_input pass:[*]_handle_, int _cpu_);
 struct tep_record pass:[*]*tracecmd_read_data*(struct tracecmd_input pass:[*]_handle_, int _cpu_);
 struct tep_record pass:[*]*tracecmd_read_at*(struct tracecmd_input pass:[*]_handle_, unsigned long long _offset_, int pass:[*]_cpu_);
@@ -24,11 +22,7 @@ struct tep_handle pass:[*]*tracecmd_get_tep*(struct tracecmd_input pass:[*]_hand
 DESCRIPTION
 -----------
 This set of APIs can be used to read tracing data from a trace file opened
-with _tracecmd_open_head()(3)_
-
-The _tracecmd_init_data()_ function initializes the _handle_ for reading
-trace data from the file associated with it. This API must be called before
-any of the _tracecmd_read__ APIs.
+with _tracecmd_open()(3)_, _tracecmd_open_fd()(3)_ or _tracecmd_open_head()(3)_.
 
 The _tracecmd_read_cpu_first()_ function reads the first trace record
 for a given _cpu_ from a trace file associated with _handle_. The returned
@@ -54,9 +48,6 @@ _handle_.
 
 RETURN VALUE
 ------------
-The _tracecmd_init_data()_ function returns -1 in case of an error or
-0 otherwise.
-
 The _tracecmd_read_cpu_first()_, _tracecmd_read_data()_ and
 _tracecmd_read_at()_ functions return a pointer to struct tep_record or
 NULL in case of an error.The returned record must be freed with
@@ -72,7 +63,7 @@ EXAMPLE
 --
 #include <trace-cmd.h>
 ...
-struct tracecmd_input *handle = tracecmd_open_head("trace.dat");
+struct tracecmd_input *handle = tracecmd_open("trace.dat");
 	if (!handle) {
 		/* Failed to open trace.dat file */
 	}
@@ -80,11 +71,6 @@ struct tracecmd_input *handle = tracecmd_open_head("trace.dat");
 unsigned long long offset = 0;
 struct tep_record *rec;
 int cpu = 0;
-
-	if (tracecmd_init_data(handle) < 0) {
-		/* Failed to initialize hadle for reading the trace data */
-	}
-
 	rec = tracecmd_read_cpu_first(handle, cpu);
 	while (rec) {
 		...
