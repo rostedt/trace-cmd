@@ -27,6 +27,7 @@ struct clock_sync_context {
 };
 
 int tracecmd_tsync_proto_register(const char *proto_name, int accuracy,
+				  int supported_clocks,
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,

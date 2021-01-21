@@ -3675,8 +3675,11 @@ static void connect_to_agent(struct buffer_instance *instance)
 	if (!msg_handle)
 		die("Failed to allocate message handle");
 
+	if (!instance->clock)
+		instance->clock = tracefs_get_clock(NULL);
+
 	if (instance->tsync.loop_interval >= 0)
-		tracecmd_tsync_proto_getall(&protos);
+		tracecmd_tsync_proto_getall(&protos, instance->clock);
 
 	ret = tracecmd_msg_send_trace_req(msg_handle, instance->argc,
 					  instance->argv, use_fifos,
@@ -6098,6 +6101,11 @@ static void parse_record_options(int argc,
 						 (char *)top_instance.clock,
 						 true);
 					add_argv(instance, "-C", true);
+					if (!instance->clock) {
+						instance->clock = strdup((char *)top_instance.clock);
+						if (!instance->clock)
+							die("Could not allocate instance clock");
+					}
 				}
 			}
 			instance->tsync.loop_interval = top_instance.tsync.loop_interval;

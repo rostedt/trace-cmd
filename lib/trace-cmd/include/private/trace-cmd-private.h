@@ -427,8 +427,8 @@ struct tracecmd_time_sync {
 };
 
 void tracecmd_tsync_init(void);
-int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos);
-const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos);
+int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock);
+const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock);
 bool tsync_proto_is_supported(const char *proto_name);
 void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync);
 void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync);

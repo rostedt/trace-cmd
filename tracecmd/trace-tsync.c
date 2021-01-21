@@ -223,7 +223,7 @@ const char *tracecmd_guest_tsync(struct tracecmd_tsync_protos *tsync_protos,
 	int fd;
 
 	fd = -1;
-	proto = tracecmd_tsync_proto_select(tsync_protos);
+	proto = tracecmd_tsync_proto_select(tsync_protos, clock);
 	if (!proto)
 		return NULL;
 #ifdef VSOCK
