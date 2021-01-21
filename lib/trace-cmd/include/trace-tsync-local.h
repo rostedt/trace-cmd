@@ -15,10 +15,15 @@ struct clock_sync_context {
 	struct tracefs_instance		*instance;	/* ftrace buffer, used for time sync events */
 
 	/* Arrays with calculated time offsets at given time */
-	int				sync_size;	/* Allocated size of sync_ts and sync_offsets */
-	int				sync_count;	/* Number of elements in sync_ts and sync_offsets */
+	int				sync_size;	/* Allocated size of sync_ts,
+							 * sync_offsets and sync_scalings
+							 */
+	int				sync_count;	/* Number of elements in sync_ts,
+							 * sync_offsets and sync_scalings
+							 */
 	long long			*sync_ts;
 	long long			*sync_offsets;
+	long long			*sync_scalings;
 
 	/* Identifiers of local and remote time sync peers: cid and port */
 	unsigned int			local_cid;
@@ -32,7 +37,7 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,
-					      long long *, long long *));
+					      long long *, long long *, long long *));
 int tracecmd_tsync_proto_unregister(char *proto_name);
 
 int ptp_clock_sync_register(void);

@@ -80,6 +80,7 @@ struct input_buffer_instance {
 struct ts_offset_sample {
 	long long	time;
 	long long	offset;
+	long long	scaling;
 };
 
 struct guest_trace_info {
@@ -1123,12 +1124,14 @@ static inline unsigned long long
 timestamp_correction_calc(unsigned long long ts, struct ts_offset_sample *min,
 			  struct ts_offset_sample *max)
 {
+	long long scaling = (min->scaling + max->scaling) / 2;
 	long long offset = ((long long)ts - min->time) *
 			   (max->offset - min->offset);
 	long long delta = max->time - min->time;
 	long long tscor = min->offset +
 			(offset + delta / 2) / delta;
 
+	ts *= scaling;
 	if (tscor < 0)
 		return ts - llabs(tscor);
 
@@ -2181,7 +2184,9 @@ static void tsync_offset_load(struct tracecmd_input *handle, char *buf)
 		host->ts_samples[i].time = tep_read_number(handle->pevent,
 							   buf8 + i, 8);
 		host->ts_samples[i].offset = tep_read_number(handle->pevent,
-						buf8 + host->ts_samples_count+i, 8);
+						buf8 + host->ts_samples_count + i, 8);
+		host->ts_samples[i].scaling = tep_read_number(handle->pevent,
+						buf8 + (2 * host->ts_samples_count) + i, 8);
 	}
 	qsort(host->ts_samples, host->ts_samples_count,
 	      sizeof(struct ts_offset_sample), tsync_offset_cmp);
@@ -2534,6 +2539,7 @@ static int handle_options(struct tracecmd_input *handle)
 			 * long long array of size [count] of times,
 			 *      when the offsets were calculated.
 			 * long long array of size [count] of timestamp offsets.
+			 * long long array of size [count] of timestamp scaling ratios.*
 			 */
 			if (size < 12 || handle->flags & TRACECMD_FL_IGNORE_DATE)
 				break;

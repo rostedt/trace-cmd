@@ -369,6 +369,7 @@ static void dump_option_xlong(int fd, int size, char *desc)
 
 static void dump_option_timeshift(int fd, int size)
 {
+	long long *scalings = NULL;
 	long long *offsets = NULL;
 	long long *times = NULL;
 	long long trace_id;
@@ -397,19 +398,25 @@ static void dump_option_timeshift(int fd, int size)
 	offsets = calloc(count, sizeof(long long));
 	if (!offsets)
 		goto out;
+	scalings = calloc(count, sizeof(long long));
+	if (!scalings)
+		goto out;
 
 	for (i = 0; i < count; i++)
 		read_file_number(fd, times + i, 8);
 	for (i = 0; i < count; i++)
 		read_file_number(fd, offsets + i, 8);
+	for (i = 0; i < count; i++)
+		read_file_number(fd, scalings + i, 8);
 
 	for (i = 0; i < count; i++)
-		do_print(OPTIONS, "\t%lld %lld [offset @ time]\n",
-			 offsets[i], times[i]);
+		do_print(OPTIONS, "\t%lld * %lld %lld [offset * scaling @ time]\n",
+			 offsets[i], scalings[1], times[i]);
 
 out:
 	free(times);
 	free(offsets);
+	free(scalings);
 }
 
 void dump_option_guest(int fd, int size)

@@ -32,7 +32,8 @@ struct tsync_proto {
 	int (*clock_sync_init)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_free)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_calc)(struct tracecmd_time_sync *clock_context,
-			       long long *offset, long long *timestamp);
+			       long long *offset, long long *scaling,
+			       long long *timestamp);
 };
 
 static struct tsync_proto *tsync_proto_list;
@@ -56,7 +57,7 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,
-					      long long *, long long *))
+					      long long *, long long *, long long *))
 {
 	struct tsync_proto *proto = NULL;
 
@@ -113,12 +114,13 @@ bool tsync_proto_is_supported(const char *proto_name)
  * @count: Returns the number of calculated time offsets
  * @ts: Array of size @count containing timestamps of callculated offsets
  * @offsets: array of size @count, containing offsets for each timestamp
+ * @scalings: array of size @count, containing scaling ratios for each timestamp
  *
  * Retuns -1 in case of an error, or 0 otherwise
  */
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
-				int *count,
-				long long **ts, long long **offsets)
+				int *count, long long **ts,
+				long long **offsets, long long **scalings)
 {
 	struct clock_sync_context *tsync_context;
 
@@ -131,6 +133,9 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
 		*ts = tsync_context->sync_ts;
 	if (offsets)
 		*offsets = tsync_context->sync_offsets;
+	if (scalings)
+		*scalings = tsync_context->sync_scalings;
+
 	return 0;
 }
 
@@ -360,8 +365,10 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 
 	free(tsync_context->sync_ts);
 	free(tsync_context->sync_offsets);
+	free(tsync_context->sync_scalings);
 	tsync_context->sync_ts = NULL;
 	tsync_context->sync_offsets = NULL;
+	tsync_context->sync_scalings = NULL;
 	tsync_context->sync_count = 0;
 	tsync_context->sync_size = 0;
 	pthread_mutex_destroy(&tsync->lock);
@@ -373,10 +380,11 @@ int tracecmd_tsync_send(struct tracecmd_time_sync *tsync,
 				  struct tsync_proto *proto)
 {
 	long long timestamp = 0;
+	long long scaling = 0;
 	long long offset = 0;
 	int ret;
 
-	ret = proto->clock_sync_calc(tsync, &offset, &timestamp);
+	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp);
 
 	return ret;
 }
@@ -424,18 +432,20 @@ static int tsync_get_sample(struct tracecmd_time_sync *tsync,
 			    struct tsync_proto *proto, int array_step)
 {
 	struct clock_sync_context *clock;
+	long long *sync_scalings = NULL;
 	long long *sync_offsets = NULL;
 	long long *sync_ts = NULL;
 	long long timestamp = 0;
+	long long scaling = 0;
 	long long offset = 0;
 	int ret;
 
-	ret = proto->clock_sync_calc(tsync, &offset, &timestamp);
+	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp);
 	if (ret) {
 		warning("Failed to synchronize timestamps with guest");
 		return -1;
 	}
-	if (!offset || !timestamp)
+	if (!offset || !timestamp || !scaling)
 		return 0;
 	clock = tsync->context;
 	if (clock->sync_count >= clock->sync_size) {
@@ -443,18 +453,24 @@ static int tsync_get_sample(struct tracecmd_time_sync *tsync,
 				  (clock->sync_size + array_step) * sizeof(long long));
 		sync_offsets = realloc(clock->sync_offsets,
 				       (clock->sync_size + array_step) * sizeof(long long));
-		if (!sync_ts || !sync_offsets) {
+		sync_scalings = realloc(clock->sync_scalings,
+				       (clock->sync_size + array_step) * sizeof(long long));
+
+		if (!sync_ts || !sync_offsets || !sync_scalings) {
 			free(sync_ts);
 			free(sync_offsets);
+			free(sync_scalings);
 			return -1;
 		}
 		clock->sync_size += array_step;
 		clock->sync_ts = sync_ts;
 		clock->sync_offsets = sync_offsets;
+		clock->sync_scalings = sync_scalings;
 	}
 
 	clock->sync_ts[clock->sync_count] = timestamp;
 	clock->sync_offsets[clock->sync_count] = offset;
+	clock->sync_scalings[clock->sync_count] = scaling;
 	clock->sync_count++;
 
 	return 0;

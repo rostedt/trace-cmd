@@ -135,16 +135,18 @@ out:
 static void write_guest_time_shift(struct buffer_instance *instance)
 {
 	struct tracecmd_output *handle;
-	struct iovec vector[4];
-	long long *offsets;
-	long long *ts;
+	struct iovec vector[5];
+	long long *scalings = NULL;
+	long long *offsets = NULL;
+	long long *ts = NULL;
 	const char *file;
 	int count;
 	int ret;
 	int fd;
 
-	ret = tracecmd_tsync_get_offsets(&instance->tsync, &count, &ts, &offsets);
-	if (ret < 0 || !count || !ts || !offsets)
+	ret = tracecmd_tsync_get_offsets(&instance->tsync, &count,
+					 &ts, &offsets, &scalings);
+	if (ret < 0 || !count || !ts || !offsets || !scalings)
 		return;
 
 	file = instance->output_file;
@@ -160,7 +162,9 @@ static void write_guest_time_shift(struct buffer_instance *instance)
 	vector[2].iov_base = ts;
 	vector[3].iov_len = 8 * count;
 	vector[3].iov_base = offsets;
-	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 4);
+	vector[4].iov_len = 8 * count;
+	vector[4].iov_base = scalings;
+	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 5);
 	tracecmd_append_options(handle);
 	tracecmd_output_close(handle);
 #ifdef TSYNC_DEBUG
