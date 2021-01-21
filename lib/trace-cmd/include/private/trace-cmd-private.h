@@ -416,6 +416,11 @@ enum{
 	TRACECMD_TIME_SYNC_CMD_STOP	= 2,
 };
 
+enum tracecmd_time_sync_role {
+	TRACECMD_TIME_SYNC_ROLE_HOST	= (1 << 0),
+	TRACECMD_TIME_SYNC_ROLE_GUEST	= (1 << 1),
+};
+
 struct tracecmd_time_sync {
 	const char			*proto_name;
 	int				loop_interval;
@@ -427,8 +432,9 @@ struct tracecmd_time_sync {
 };
 
 void tracecmd_tsync_init(void);
-int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock);
-const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock);
+int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock, int role);
+const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock,
+					enum tracecmd_time_sync_role role);
 bool tsync_proto_is_supported(const char *proto_name);
 void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync);
 void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync);

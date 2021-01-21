@@ -3679,7 +3679,8 @@ static void connect_to_agent(struct buffer_instance *instance)
 		instance->clock = tracefs_get_clock(NULL);
 
 	if (instance->tsync.loop_interval >= 0)
-		tracecmd_tsync_proto_getall(&protos, instance->clock);
+		tracecmd_tsync_proto_getall(&protos, instance->clock,
+					    TRACECMD_TIME_SYNC_ROLE_HOST);
 
 	ret = tracecmd_msg_send_trace_req(msg_handle, instance->argc,
 					  instance->argv, use_fifos,

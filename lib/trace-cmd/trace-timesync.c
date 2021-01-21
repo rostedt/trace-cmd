@@ -25,6 +25,7 @@
 struct tsync_proto {
 	struct tsync_proto *next;
 	char proto_name[TRACECMD_TSYNC_PNAME_LENGTH];
+	enum tracecmd_time_sync_role roles;
 	int accuracy;
 	int supported_clocks;
 
@@ -50,7 +51,7 @@ static struct tsync_proto *tsync_proto_find(const char *proto_name)
 	return NULL;
 }
 
-int tracecmd_tsync_proto_register(const char *proto_name, int accuracy,
+int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int roles,
 				  int supported_clocks,
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
@@ -66,6 +67,7 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy,
 		return -1;
 	strncpy(proto->proto_name, proto_name, TRACECMD_TSYNC_PNAME_LENGTH);
 	proto->accuracy = accuracy;
+	proto->roles = roles;
 	proto->supported_clocks = supported_clocks;
 	proto->clock_sync_init = init;
 	proto->clock_sync_free = free;
@@ -141,12 +143,14 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
  *
  * @protos: list of tsync protocol names
  * @clock : trace clock
+ * @role : local time sync role
  *
  * Retuns pointer to a protocol name, that can be used with the peer, or NULL
  *	  in case there is no match with supported protocols.
  *	  The returned string MUST NOT be freed by the caller
  */
-const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock)
+const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock,
+				  enum tracecmd_time_sync_role role)
 {
 	struct tsync_proto *selected = NULL;
 	struct tsync_proto *proto;
@@ -160,6 +164,8 @@ const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, ch
 	pname = protos->names;
 	while (*pname) {
 		for (proto = tsync_proto_list; proto; proto = proto->next) {
+			if (!(proto->roles & role))
+				continue;
 			if (proto->supported_clocks && clock_id &&
 			    !(proto->supported_clocks & clock_id))
 				continue;
@@ -186,12 +192,13 @@ const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, ch
  * @protos: return, allocated list of time sync protocol names,
  *	       supported by the peer. Must be freed by free()
  * @clock: selected trace clock
+ * @role: supported protocol role
  *
  * If completed successfully 0 is returned and allocated list of strings in @protos.
  * The last list entry is NULL. In case of an error, -1 is returned.
  * @protos must be freed with free()
  */
-int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock)
+int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock, int role)
 {
 	struct tracecmd_tsync_protos *plist = NULL;
 	struct tsync_proto *proto;
@@ -202,6 +209,8 @@ int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const cha
 	if (clock)
 		clock_id =  tracecmd_clock_str2id(clock);
 	for (proto = tsync_proto_list; proto; proto = proto->next) {
+		if (!(proto->roles & role))
+			continue;
 		if (proto->supported_clocks && clock_id &&
 		    !(proto->supported_clocks & clock_id))
 			continue;
@@ -215,11 +224,14 @@ int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const cha
 		return -1;
 
 	for (i = 0, proto = tsync_proto_list; proto && i < (count - 1); proto = proto->next) {
+		if (!(proto->roles & role))
+			continue;
 		if (proto->supported_clocks && clock_id &&
 		    !(proto->supported_clocks & clock_id))
 			continue;
 		plist->names[i++] = proto->proto_name;
 	}
+
 	*protos = plist;
 	return 0;
 
