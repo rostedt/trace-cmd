@@ -8,6 +8,7 @@
 
 #include <sys/types.h>
 #include <dirent.h>	/* for DIR */
+#include <ctype.h>	/* for isdigit() */
 #include <limits.h>
 
 #include "trace-cmd-private.h"
@@ -285,6 +286,17 @@ void update_first_instance(struct buffer_instance *instance, int topt);
 
 void show_instance_file(struct buffer_instance *instance, const char *name);
 
+struct trace_guest {
+	char *name;
+	int cid;
+	int pid;
+	int cpu_max;
+	int *cpu_pid;
+};
+struct trace_guest *get_guest_by_cid(unsigned int guest_cid);
+struct trace_guest *get_guest_by_name(char *name);
+void read_qemu_guests(void);
+int get_guest_pid(unsigned int guest_cid);
 int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu);
 
 /* moved from trace-cmd.h */
@@ -314,5 +326,13 @@ void __noreturn die(const char *fmt, ...); /* Can be overriden */
 void *malloc_or_die(unsigned int size); /* Can be overridden */
 void __noreturn __die(const char *fmt, ...);
 void __noreturn _vdie(const char *fmt, va_list ap);
+
+static inline bool is_digits(const char *s)
+{
+	for (; *s; s++)
+		if (!isdigit(*s))
+			return false;
+	return true;
+}
 
 #endif /* __TRACE_LOCAL_H */
