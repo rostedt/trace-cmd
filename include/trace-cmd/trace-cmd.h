@@ -12,6 +12,8 @@
 struct tracecmd_input;
 
 struct tracecmd_input *tracecmd_open_head(const char *file);
+struct tracecmd_input *tracecmd_open(const char *file);
+struct tracecmd_input *tracecmd_open_fd(int fd);
 void tracecmd_close(struct tracecmd_input *handle);
 int tracecmd_pair_peer(struct tracecmd_input *handle,
 		       struct tracecmd_input *peer);
