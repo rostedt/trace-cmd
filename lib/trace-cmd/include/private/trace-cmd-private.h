@@ -143,7 +143,6 @@ typedef void (*tracecmd_handle_init_func)(struct tracecmd_input *handle,
 
 struct tracecmd_input *tracecmd_alloc(const char *file);
 struct tracecmd_input *tracecmd_alloc_fd(int fd);
-void tracecmd_unpair_peer(struct tracecmd_input *handle);
 void tracecmd_ref(struct tracecmd_input *handle);
 int tracecmd_read_headers(struct tracecmd_input *handle);
 int tracecmd_get_parsing_failures(struct tracecmd_input *handle);
