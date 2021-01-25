@@ -266,7 +266,8 @@ void KsGLWidget::wheelEvent(QWheelEvent * event)
 {
 	int zoomFocus;
 
-	if (isEmpty())
+	if (QApplication::keyboardModifiers() != Qt::ControlModifier ||
+	    isEmpty())
 		return;
 
 	if (_mState->activeMarker()._isSet &&

@@ -28,7 +28,10 @@ public:
 	 * Reimplemented handler for mouse wheel events. All mouse wheel
 	 * events will be ignored.
 	 */
-	void wheelEvent(QWheelEvent *evt) {evt->ignore();}
+	void wheelEvent(QWheelEvent *evt) {
+		if (QApplication::keyboardModifiers() != Qt::ControlModifier)
+			QScrollArea::wheelEvent(evt);
+	}
 };
 
 /**
