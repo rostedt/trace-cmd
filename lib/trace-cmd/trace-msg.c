@@ -1248,6 +1248,9 @@ static int make_trace_resp(struct tracecmd_msg *msg, int page_size, int nr_cpus,
 {
 	int data_size;
 
+	if (!tsync_proto)
+		tsync_proto = "";
+
 	data_size = write_uints(NULL, 0, ports, nr_cpus);
 	msg->buf = malloc(data_size);
 	if (!msg->buf)
