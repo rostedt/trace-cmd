@@ -3658,11 +3658,9 @@ static void connect_to_agent(struct buffer_instance *instance)
 	unsigned int *ports;
 	int i, *fds = NULL;
 	bool use_fifos = false;
-	const char *name;
 
-	name = tracefs_instance_get_name(instance->tracefs);
 	if (!no_fifos) {
-		nr_fifos = open_guest_fifos(name, &fds);
+		nr_fifos = open_guest_fifos(instance->name, &fds);
 		use_fifos = nr_fifos > 0;
 	}
 
@@ -3703,7 +3701,7 @@ static void connect_to_agent(struct buffer_instance *instance)
 			instance->tsync.proto_name = strdup(tsync_protos_reply);
 			printf("Negotiated %s time sync protocol with guest %s\n",
 				instance->tsync.proto_name,
-				tracefs_instance_get_name(instance->tracefs));
+				instance->name);
 			tracecmd_host_tsync(instance, tsync_port);
 		} else
 			warning("Failed to negotiate timestamps synchronization with the guest");
@@ -3714,7 +3712,7 @@ static void connect_to_agent(struct buffer_instance *instance)
 		if (nr_cpus != nr_fifos) {
 			warning("number of FIFOs (%d) for guest %s differs "
 				"from number of virtual CPUs (%d)",
-				nr_fifos, name, nr_cpus);
+				nr_fifos, instance->name, nr_cpus);
 			nr_cpus = nr_cpus < nr_fifos ? nr_cpus : nr_fifos;
 		}
 		free(ports);
@@ -3747,8 +3745,7 @@ static void setup_guest(struct buffer_instance *instance)
 	int fd;
 
 	/* Create a place to store the guest meta data */
-	file = trace_get_guest_file(output_file,
-				    tracefs_instance_get_name(instance->tracefs));
+	file = trace_get_guest_file(output_file, instance->name);
 	if (!file)
 		die("Failed to allocate memory");
 
@@ -5771,6 +5768,7 @@ static void parse_record_options(int argc,
 			ctx->instance->flags |= BUFFER_FL_GUEST;
 			ctx->instance->cid = cid;
 			ctx->instance->port = port;
+			ctx->instance->name = name;
 			add_instance(ctx->instance, 0);
 			break;
 		}
