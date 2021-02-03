@@ -981,7 +981,7 @@ static int get_trace_req_protos(char *buf, int length,
 	}
 
 	plist = calloc(1, sizeof(struct tracecmd_tsync_protos));
-	if (plist)
+	if (!plist)
 		goto error;
 	plist->names = calloc(count + 1, sizeof(char *));
 	if (!plist->names)
