@@ -17,6 +17,7 @@ void trace_check_events(int argc, char **argv)
 	int parsing_failures = 0;
 	struct tep_handle *pevent = NULL;
 	struct tep_plugin_list *list = NULL;
+	int open_flags = 0;
 
 	while ((c = getopt(argc-1, argv+1, "+hN")) >= 0) {
 		switch (c) {
@@ -25,7 +26,7 @@ void trace_check_events(int argc, char **argv)
 			usage(argv);
 			break;
 		case 'N':
-			tracecmd_disable_plugins = 1;
+			open_flags |= TRACECMD_FL_LOAD_NO_PLUGINS;
 			break;
 		}
 	}
@@ -44,7 +45,7 @@ void trace_check_events(int argc, char **argv)
 	if (!pevent)
 		exit(EINVAL);
 
-	list = trace_load_plugins(pevent);
+	list = trace_load_plugins(pevent, open_flags);
 	ret = tracefs_fill_local_events(tracing, pevent, &parsing_failures);
 	if (ret || parsing_failures)
 		ret = EINVAL;

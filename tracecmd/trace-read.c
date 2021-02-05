@@ -1332,13 +1332,13 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	}
 }
 
-struct tracecmd_input *read_trace_header(const char *file)
+struct tracecmd_input *read_trace_header(const char *file, int flags)
 {
 	input_fd = open(file, O_RDONLY);
 	if (input_fd < 0)
 		die("opening '%s'\n", file);
 
-	return tracecmd_alloc_fd(input_fd);
+	return tracecmd_alloc_fd(input_fd, flags);
 }
 
 static void sig_end(int sig)
@@ -1522,6 +1522,7 @@ void trace_report (int argc, char **argv)
 	long long tsoffset = 0;
 	unsigned long long ts2secs = 0;
 	unsigned long long ts2sc;
+	int open_flags = 0;
 	int show_stat = 0;
 	int show_funcs = 0;
 	int show_endian = 0;
@@ -1620,10 +1621,10 @@ void trace_report (int argc, char **argv)
 			show_printk = 1;
 			break;
 		case 'L':
-			tracecmd_disable_sys_plugins = 1;
+			open_flags |= TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS;
 			break;
 		case 'N':
-			tracecmd_disable_plugins = 1;
+			open_flags |= TRACECMD_FL_LOAD_NO_PLUGINS;
 			break;
 		case 'n':
 			*nohandler_ptr = malloc(sizeof(struct event_str));
@@ -1768,7 +1769,7 @@ void trace_report (int argc, char **argv)
 		die("Wakeup tracing can only be done on a single input file");
 
 	list_for_each_entry(inputs, &input_files, list) {
-		handle = read_trace_header(inputs->file);
+		handle = read_trace_header(inputs->file, open_flags);
 		if (!handle)
 			die("error reading header for %s", inputs->file);
 

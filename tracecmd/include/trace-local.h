@@ -46,7 +46,7 @@ struct pid_record_data {
 
 void show_file(const char *name);
 
-struct tracecmd_input *read_trace_header(const char *file);
+struct tracecmd_input *read_trace_header(const char *file, int flags);
 int read_trace_files(void);
 
 void trace_record(int argc, char **argv);

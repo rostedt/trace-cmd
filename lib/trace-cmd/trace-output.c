@@ -1417,7 +1417,7 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 		return NULL;
 
 	/* get a input handle from this */
-	ihandle = tracecmd_alloc_fd(fd2);
+	ihandle = tracecmd_alloc_fd(fd2, 0);
 	if (!ihandle)
 		return NULL;
 

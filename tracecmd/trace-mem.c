@@ -550,7 +550,7 @@ void trace_mem(int argc, char **argv)
 	if (!input_file)
 		input_file = DEFAULT_INPUT_FILE;
 
-	handle = tracecmd_alloc(input_file);
+	handle = tracecmd_alloc(input_file, 0);
 	if (!handle)
 		die("can't open %s\n", input_file);
 

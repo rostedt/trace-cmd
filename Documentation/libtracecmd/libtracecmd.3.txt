@@ -12,7 +12,7 @@ SYNOPSIS
 *#include <trace-cmd.h>*
 
 Open and close trace file:
-	struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_);
+	struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_, int _flags_);
 	void *tracecmd_close*(struct tracecmd_input pass:[*]_handle_);
 
 Read tracing records from a trace file:

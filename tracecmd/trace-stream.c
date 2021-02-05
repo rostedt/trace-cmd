@@ -53,7 +53,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 
 	lseek(ofd, 0, SEEK_SET);
 
-	trace_input = tracecmd_alloc_fd(ofd);
+	trace_input = tracecmd_alloc_fd(ofd, 0);
 	if (!trace_input) {
 		close(ofd);
 		goto fail;

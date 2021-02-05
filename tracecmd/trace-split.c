@@ -506,7 +506,7 @@ void trace_split (int argc, char **argv)
 	if (!input_file)
 		input_file = default_input_file;
 
-	handle = tracecmd_open(input_file);
+	handle = tracecmd_open(input_file, 0);
 	if (!handle)
 		die("error reading %s", input_file);
 

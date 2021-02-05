@@ -141,7 +141,7 @@ bool kshark_open(struct kshark_context *kshark_ctx, const char *file)
 
 	kshark_free_task_list(kshark_ctx);
 
-	handle = tracecmd_open_head(file);
+	handle = tracecmd_open_head(file, 0);
 	if (!handle)
 		return false;
 

@@ -2,6 +2,6 @@
 
 int main()
 {
-	tracecmd_open_head("trace.dat");
+	tracecmd_open_head("trace.dat", 0);
 	return 0;
 }

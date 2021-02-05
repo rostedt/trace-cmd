@@ -116,7 +116,7 @@ void trace_restore (int argc, char **argv)
 	if (input) {
 		struct tracecmd_input *ihandle;
 
-		ihandle = tracecmd_alloc(input);
+		ihandle = tracecmd_alloc(input, 0);
 		if (!ihandle)
 			die("error reading file %s", input);
 		/* make sure headers are ok */

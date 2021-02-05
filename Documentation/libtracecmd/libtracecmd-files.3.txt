@@ -12,9 +12,9 @@ SYNOPSIS
 --
 *#include <trace-cmd.h>*
 
-struct tracecmd_input pass:[*]*tracecmd_open*(const char pass:[*]_file_);
-struct tracecmd_input pass:[*]*tracecmd_open_fd*(int _fd_);
-struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_);
+struct tracecmd_input pass:[*]*tracecmd_open*(const char pass:[*]_file_, int _flags_);
+struct tracecmd_input pass:[*]*tracecmd_open_fd*(int _fd_, int _flags_);
+struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_, int _flags_);
 int *tracecmd_init_data*(struct tracecmd_input pass:[*]_handle_);
 void *tracecmd_close*(struct tracecmd_input pass:[*]_handle_);
 --
@@ -25,7 +25,13 @@ This set of APIs can be used to open and close a trace file recorded by
 _trace-cmd(1)_ and containing tracing information from ftrace, the official
 Linux kernel tracer. The opened file is represented by a _tracecmd_input_
 structure, all other library APIs that work with the file require a pointer
-to the structure.
+to the structure. The APIs for opening a trace file have a _flag_ input
+parameter, which controls how the file will be opened and parsed. The _flag_
+is a combination of these options:
+
+ TRACECMD_FL_LOAD_NO_PLUGINS - Do not load any plugins
+ TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS - Do not load system wide plugins, load only "local only"
+					plugins from user's home directory.
 
 The _tracecmd_open()_ function opens a given trace _file_, parses the
 metadata headers from the file, allocates and initializes а _tracecmd_input_

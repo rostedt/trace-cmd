@@ -11,9 +11,14 @@
 
 struct tracecmd_input;
 
-struct tracecmd_input *tracecmd_open_head(const char *file);
-struct tracecmd_input *tracecmd_open(const char *file);
-struct tracecmd_input *tracecmd_open_fd(int fd);
+enum tracecmd_open_flags {
+	TRACECMD_FL_LOAD_NO_PLUGINS		= 1 << 0, /* Do not load plugins */
+	TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS	= 1 << 1, /* Do not load system plugins */
+};
+struct tracecmd_input *tracecmd_open_head(const char *file, int flags);
+struct tracecmd_input *tracecmd_open(const char *file, int flags);
+struct tracecmd_input *tracecmd_open_fd(int fd, int flags);
+
 void tracecmd_close(struct tracecmd_input *handle);
 int tracecmd_pair_peer(struct tracecmd_input *handle,
 		       struct tracecmd_input *peer);

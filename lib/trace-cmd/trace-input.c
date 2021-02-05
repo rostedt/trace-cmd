@@ -3076,6 +3076,7 @@ struct hook_list *tracecmd_hooks(struct tracecmd_input *handle)
 /**
  * tracecmd_alloc_fd - create a tracecmd_input handle from a file descriptor
  * @fd: the file descriptor for the trace.dat file
+ * @flags: bitmask of enum tracecmd_open_flags
  *
  * Allocate a tracecmd_input handle from a file descriptor and open the
  * file. This tests if the file is of trace-cmd format and allocates
@@ -3087,7 +3088,7 @@ struct hook_list *tracecmd_hooks(struct tracecmd_input *handle)
  * Unless you know what you are doing with this, you want to use
  * tracecmd_open_fd() instead.
  */
-struct tracecmd_input *tracecmd_alloc_fd(int fd)
+struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 {
 	struct tracecmd_input *handle;
 	char test[] = TRACECMD_MAGIC;
@@ -3128,9 +3129,11 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 		goto failed_read;
 
 	/* register default ftrace functions first */
-	tracecmd_ftrace_overrides(handle, &handle->finfo);
+	if (!(flags & TRACECMD_FL_LOAD_NO_PLUGINS) &&
+	    !(flags & TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS))
+		tracecmd_ftrace_overrides(handle, &handle->finfo);
 
-	handle->plugin_list = trace_load_plugins(handle->pevent);
+	handle->plugin_list = trace_load_plugins(handle->pevent, flags);
 
 	tep_set_file_bigendian(handle->pevent, buf[0]);
 	tep_set_local_bigendian(handle->pevent, tracecmd_host_bigendian());
@@ -3161,6 +3164,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
 /**
  * tracecmd_alloc_fd - create a tracecmd_input handle from a file name
  * @file: the file name of the file that is of tracecmd data type.
+ * @flags: bitmask of enum tracecmd_open_flags
  *
  * Allocate a tracecmd_input handle from a given file name and open the
  * file. This tests if the file is of trace-cmd format and allocates
@@ -3172,7 +3176,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd)
  * Unless you know what you are doing with this, you want to use
  * tracecmd_open() instead.
  */
-struct tracecmd_input *tracecmd_alloc(const char *file)
+struct tracecmd_input *tracecmd_alloc(const char *file, int flags)
 {
 	int fd;
 
@@ -3180,19 +3184,20 @@ struct tracecmd_input *tracecmd_alloc(const char *file)
 	if (fd < 0)
 		return NULL;
 
-	return tracecmd_alloc_fd(fd);
+	return tracecmd_alloc_fd(fd, flags);
 }
 
 /**
  * tracecmd_open_fd - create a tracecmd_handle from the trace.dat file descriptor
  * @fd: the file descriptor for the trace.dat file
+ * @flags: bitmask of enum tracecmd_open_flags
  */
-struct tracecmd_input *tracecmd_open_fd(int fd)
+struct tracecmd_input *tracecmd_open_fd(int fd, int flags)
 {
 	struct tracecmd_input *handle;
 	int ret;
 
-	handle = tracecmd_alloc_fd(fd);
+	handle = tracecmd_alloc_fd(fd, flags);
 	if (!handle)
 		return NULL;
 
@@ -3212,8 +3217,9 @@ fail:
 /**
  * tracecmd_open - create a tracecmd_handle from a given file
  * @file: the file name of the file that is of tracecmd data type.
+ * @flags: bitmask of enum tracecmd_open_flags
  */
-struct tracecmd_input *tracecmd_open(const char *file)
+struct tracecmd_input *tracecmd_open(const char *file, int flags)
 {
 	int fd;
 
@@ -3221,15 +3227,16 @@ struct tracecmd_input *tracecmd_open(const char *file)
 	if (fd < 0)
 		return NULL;
 
-	return tracecmd_open_fd(fd);
+	return tracecmd_open_fd(fd, flags);
 }
 
 /**
  * tracecmd_open_head - create a tracecmd_handle from a given file, read
  *			and parse only the trace headers from the file
  * @file: the file name of the file that is of tracecmd data type.
+ * @flags: bitmask of enum tracecmd_open_flags
  */
-struct tracecmd_input *tracecmd_open_head(const char *file)
+struct tracecmd_input *tracecmd_open_head(const char *file, int flags)
 {
 	struct tracecmd_input *handle;
 	int fd;
@@ -3238,7 +3245,7 @@ struct tracecmd_input *tracecmd_open_head(const char *file)
 	if (fd < 0)
 		return NULL;
 
-	handle = tracecmd_alloc_fd(fd);
+	handle = tracecmd_alloc_fd(fd, flags);
 	if (!handle)
 		return NULL;
 

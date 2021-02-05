@@ -25,7 +25,7 @@
 void tracecmd_parse_cmdlines(struct tep_handle *pevent, char *file, int size);
 void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigned int size);
 void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
-struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep);
+struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep, int flags);
 
 int *tracecmd_add_id(int *list, int id, int len);
 
@@ -45,9 +45,6 @@ struct tracecmd_recorder;
 struct hook_list;
 
 /* --- tracecmd plugins --- */
-
-extern int tracecmd_disable_sys_plugins;
-extern int tracecmd_disable_plugins;
 
 enum tracecmd_context {
 	TRACECMD_INPUT,
@@ -141,8 +138,8 @@ typedef void (*tracecmd_show_data_func)(struct tracecmd_input *handle,
 typedef void (*tracecmd_handle_init_func)(struct tracecmd_input *handle,
 					  struct hook_list *hook, int global);
 
-struct tracecmd_input *tracecmd_alloc(const char *file);
-struct tracecmd_input *tracecmd_alloc_fd(int fd);
+struct tracecmd_input *tracecmd_alloc(const char *file, int flags);
+struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags);
 void tracecmd_ref(struct tracecmd_input *handle);
 int tracecmd_read_headers(struct tracecmd_input *handle);
 int tracecmd_get_parsing_failures(struct tracecmd_input *handle);

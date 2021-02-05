@@ -27,8 +27,6 @@
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
 
-int tracecmd_disable_sys_plugins;
-int tracecmd_disable_plugins;
 static bool debug;
 
 static FILE *logfp;
@@ -335,14 +333,14 @@ static char *get_source_plugins_dir(void)
 }
 
 struct tep_plugin_list*
-trace_load_plugins(struct tep_handle *tep)
+trace_load_plugins(struct tep_handle *tep, int flags)
 {
 	struct tep_plugin_list *list;
 	char *path;
 
-	if (tracecmd_disable_plugins)
+	if (flags & TRACECMD_FL_LOAD_NO_PLUGINS)
 		tep_set_flag(tep, TEP_DISABLE_PLUGINS);
-	if (tracecmd_disable_sys_plugins)
+	if (flags & TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS)
 		tep_set_flag(tep, TEP_DISABLE_SYS_PLUGINS);
 
 	path = get_source_plugins_dir();

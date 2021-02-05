@@ -357,7 +357,7 @@ static void show_plugin_options(void)
 
 	trace_seq_init(&s);
 
-	list = trace_load_plugins(pevent);
+	list = trace_load_plugins(pevent, 0);
 	tep_plugin_print_options(&s);
 	trace_seq_do_printf(&s);
 	tep_unload_plugins(list, pevent);
@@ -383,7 +383,7 @@ static void show_plugins(void)
 
 	trace_seq_init(&s);
 
-	list = trace_load_plugins(pevent);
+	list = trace_load_plugins(pevent, 0);
 	tep_print_plugins(&s, "  ", "\n", list);
 
 	trace_seq_do_printf(&s);
