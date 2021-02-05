@@ -12,6 +12,8 @@ SYNOPSIS
 *#include <trace-cmd.h>*
 
 Open and close trace file:
+	struct tracecmd_input pass:[*]*tracecmd_open*(const char pass:[*]_file_, int _flags_);
+	struct tracecmd_input pass:[*]*tracecmd_open_fd*(int _fd_, int _flags_);
 	struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_, int _flags_);
 	void *tracecmd_close*(struct tracecmd_input pass:[*]_handle_);
 
