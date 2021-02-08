@@ -30,7 +30,6 @@
 
 typedef __u32 u32;
 typedef __be32 be32;
-typedef __s64 s64;
 
 static inline void dprint(const char *fmt, ...)
 {
