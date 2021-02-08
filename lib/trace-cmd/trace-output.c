@@ -797,8 +797,8 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	return -1;
 }
 
-static int save_tracing_file_data(struct tracecmd_output *handle,
-						const char *filename)
+int save_tracing_file_data(struct tracecmd_output *handle,
+			   const char *filename)
 {
 	unsigned long long endian8;
 	char *file = NULL;
