@@ -3341,7 +3341,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 			const char *dir = tracefs_tracing_dir();
 
 			if (dir)
-				path = strdup(path);
+				path = strdup(dir);
 		}
 		if (!path)
 			die("can't get the tracing directory");
