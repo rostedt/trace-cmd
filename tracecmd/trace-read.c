@@ -52,6 +52,7 @@ struct handle_list {
 	struct tep_record	*record;
 	struct filter		*event_filters;
 	struct filter		*event_filter_out;
+	unsigned long long	*last_timestamp;
 };
 static struct list_head handle_list;
 
@@ -1193,17 +1194,16 @@ enum output_type {
 static void read_data_info(struct list_head *handle_list, enum output_type otype,
 			   int global)
 {
-	unsigned long long *last_timestamp;
 	struct handle_list *handles;
 	struct handle_list *last_handle;
 	struct tep_record *record;
 	struct tep_record *last_record;
 	struct tep_handle *pevent;
 	struct tep_event *event;
-	int cpus;
 	int ret;
 
 	list_for_each_entry(handles, handle_list, list) {
+		int cpus;
 
 		/* Don't process instances that we added here */
 		if (tracecmd_is_buffer_instance(handles->handle))
@@ -1218,8 +1218,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		print_handle_file(handles);
 		printf("cpus=%d\n", cpus);
 
-		last_timestamp = calloc(cpus, sizeof(*last_timestamp));
-		if (!last_timestamp)
+		handles->last_timestamp = calloc(cpus, sizeof(*handles->last_timestamp));
+		if (!handles->last_timestamp)
 			die("allocating timestamps");
 
 		/* Latency trace is just all ASCII */
@@ -1302,24 +1302,22 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		}
 		if (last_record) {
 			int cpu = last_record->cpu;
-			if (cpu >= cpus)
-				die("cpu %d creater than %d\n", cpu, cpus);
+			if (cpu >= last_handle->cpus)
+				die("cpu %d creater than %d\n", cpu, last_handle->cpus);
 			if (tscheck &&
-			    last_timestamp[cpu] > last_record->ts) {
+			    last_handle->last_timestamp[cpu] > last_record->ts) {
 				errno = 0;
 				warning("WARNING: Record on cpu %d went backwards: %lld to %lld delta: -%lld\n",
-					cpu, last_timestamp[cpu],
+					cpu, last_handle->last_timestamp[cpu],
 					last_record->ts,
-					last_timestamp[cpu] - last_record->ts);
+					last_handle->last_timestamp[cpu] - last_record->ts);
 			}
-			last_timestamp[cpu] = last_record->ts;
+			last_handle->last_timestamp[cpu] = last_record->ts;
 			print_handle_file(last_handle);
 			trace_show_data(last_handle->handle, last_record);
 			free_handle_record(last_handle);
 		}
 	} while (last_record);
-
-	free(last_timestamp);
 
 	if (profile)
 		do_trace_profile();
@@ -1327,6 +1325,7 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	list_for_each_entry(handles, handle_list, list) {
 		free_filters(handles->event_filters);
 		free_filters(handles->event_filter_out);
+		free(handles->last_timestamp);
 
 		show_test(handles->handle);
 	}
