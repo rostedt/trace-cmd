@@ -255,6 +255,8 @@ const char *tracecmd_guest_tsync(struct tracecmd_tsync_protos *tsync_protos,
 #endif
 
 	tsync = calloc(1, sizeof(struct tracecmd_time_sync));
+	if (!tsync)
+		goto error;
 	tsync->msg_handle = tracecmd_msg_handle_alloc(fd, 0);
 	if (clock)
 		tsync->clock_str = strdup(clock);
