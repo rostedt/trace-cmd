@@ -327,7 +327,8 @@ clock_synch_delete_instance(struct tracefs_instance *inst)
 	tracefs_instance_free(inst);
 }
 
-static int clock_context_init(struct tracecmd_time_sync *tsync, bool guest)
+static int clock_context_init(struct tracecmd_time_sync *tsync,
+			      struct tsync_proto **proto, bool guest)
 {
 	struct clock_sync_context *clock = NULL;
 	struct tsync_proto *protocol;
@@ -336,7 +337,7 @@ static int clock_context_init(struct tracecmd_time_sync *tsync, bool guest)
 		return 0;
 
 	protocol = tsync_proto_find(tsync->proto_name);
-	if (!protocol)
+	if (!protocol || !protocol->clock_sync_calc)
 		return -1;
 
 	clock = calloc(1, sizeof(struct clock_sync_context));
@@ -358,6 +359,8 @@ static int clock_context_init(struct tracecmd_time_sync *tsync, bool guest)
 	tsync->context = clock;
 	if (protocol->clock_sync_init && protocol->clock_sync_init(tsync) < 0)
 		goto error;
+
+	*proto = protocol;
 
 	return 0;
 error:
@@ -432,11 +435,7 @@ void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync)
 	unsigned int command;
 	int ret;
 
-	proto = tsync_proto_find(tsync->proto_name);
-	if (!proto || !proto->clock_sync_calc)
-		return;
-
-	clock_context_init(tsync, true);
+	clock_context_init(tsync, &proto, true);
 	if (!tsync->context)
 		return;
 
@@ -534,11 +533,7 @@ void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync)
 	bool end = false;
 	int ret;
 
-	proto = tsync_proto_find(tsync->proto_name);
-	if (!proto || !proto->clock_sync_calc)
-		return;
-
-	clock_context_init(tsync, false);
+	clock_context_init(tsync, &proto, false);
 	if (!tsync->context)
 		return;
 
