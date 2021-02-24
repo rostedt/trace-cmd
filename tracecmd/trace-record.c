@@ -6363,9 +6363,6 @@ static void record_trace(int argc, char **argv,
 
 	record_stats();
 
-	if (!keep)
-		tracecmd_disable_all_tracing(0);
-
 	if (!latency)
 		wait_threads();
 
@@ -6374,6 +6371,9 @@ static void record_trace(int argc, char **argv,
 		delete_thread_data();
 	} else
 		print_stats();
+
+	if (!keep)
+		tracecmd_disable_all_tracing(0);
 
 	destroy_stats();
 	finalize_record_trace(ctx);
