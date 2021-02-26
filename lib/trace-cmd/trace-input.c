@@ -782,6 +782,7 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	ret = read_header_files(handle);
 	if (ret < 0)
 		return -1;
+	tep_set_long_size(handle->pevent, handle->long_size);
 
 	ret = read_ftrace_files(handle, NULL);
 	if (ret < 0)
@@ -807,8 +808,6 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 
 	if (read_options_type(handle) < 0)
 		return -1;
-
-	tep_set_long_size(handle->pevent, handle->long_size);
 
 	return 0;
 }
