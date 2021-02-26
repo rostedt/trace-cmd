@@ -531,20 +531,22 @@ static int *create_all_readers(const char *node, const char *port,
 	return NULL;
 }
 
-static void
+static int
 collect_metadata_from_client(struct tracecmd_msg_handle *msg_handle,
 			     int ofd)
 {
 	char buf[BUFSIZ];
 	int n, s, t;
 	int ifd = msg_handle->fd;
+	int ret = 0;
 
 	do {
 		n = read(ifd, buf, BUFSIZ);
 		if (n < 0) {
 			if (errno == EINTR)
 				continue;
-			pdie("reading client");
+			ret = -errno;
+			break;
 		}
 		t = n;
 		s = 0;
@@ -553,12 +555,16 @@ collect_metadata_from_client(struct tracecmd_msg_handle *msg_handle,
 			if (s < 0) {
 				if (errno == EINTR)
 					break;
-				pdie("writing to file");
+				ret = -errno;
+				goto out;
 			}
 			t -= s;
 			s = n - t;
 		} while (t);
 	} while (n > 0 && !tracecmd_msg_done(msg_handle));
+
+out:
+	return ret;
 }
 
 static void stop_all_readers(int cpus, int *pid_array)
@@ -597,8 +603,12 @@ static int put_together_file(int cpus, int ofd, const char *node,
 	}
 
 	if (write_options) {
-		tracecmd_write_cpus(handle, cpus);
-		tracecmd_write_options(handle);
+		ret = tracecmd_write_cpus(handle, cpus);
+		if (ret)
+			goto out;
+		ret = tracecmd_write_options(handle);
+		if (ret)
+			goto out;
 	}
 	ret = tracecmd_write_cpu_data(handle, cpus, temp_files);
 
@@ -635,10 +645,9 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 
 	/* Now we are ready to start reading data from the client */
 	if (msg_handle->version == V3_PROTOCOL)
-		tracecmd_msg_collect_data(msg_handle, ofd);
+		ret = tracecmd_msg_collect_data(msg_handle, ofd);
 	else
-		collect_metadata_from_client(msg_handle, ofd);
-
+		ret = collect_metadata_from_client(msg_handle, ofd);
 	stop_msg_handle = NULL;
 
 	/* wait a little to let our readers finish reading */
@@ -652,8 +661,9 @@ static int process_client(struct tracecmd_msg_handle *msg_handle,
 	/* wait a little to have the readers clean up */
 	sleep(1);
 
-	ret = put_together_file(cpus, ofd, node, port,
-				msg_handle->version < V3_PROTOCOL);
+	if (!ret)
+		ret = put_together_file(cpus, ofd, node, port,
+					msg_handle->version < V3_PROTOCOL);
 
 	destroy_all_readers(cpus, pid_array, node, port);
 

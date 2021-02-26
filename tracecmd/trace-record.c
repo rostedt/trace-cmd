@@ -3590,22 +3590,36 @@ static void add_options(struct tracecmd_output *handle, struct common_record_con
 static struct tracecmd_msg_handle *
 setup_connection(struct buffer_instance *instance, struct common_record_context *ctx)
 {
-	struct tracecmd_msg_handle *msg_handle;
-	struct tracecmd_output *network_handle;
+	struct tracecmd_msg_handle *msg_handle = NULL;
+	struct tracecmd_output *network_handle = NULL;
+	int ret;
 
 	msg_handle = setup_network(instance);
 
 	/* Now create the handle through this socket */
 	if (msg_handle->version == V3_PROTOCOL) {
 		network_handle = tracecmd_create_init_fd_msg(msg_handle, listed_events);
+		if (!network_handle)
+			goto error;
 		tracecmd_set_quiet(network_handle, quiet);
 		add_options(network_handle, ctx);
-		tracecmd_write_cpus(network_handle, instance->cpu_count);
-		tracecmd_write_options(network_handle);
-		tracecmd_msg_finish_sending_data(msg_handle);
+		ret = tracecmd_write_cmdlines(network_handle);
+		if (ret)
+			goto error;
+		ret = tracecmd_write_cpus(network_handle, instance->cpu_count);
+		if (ret)
+			goto error;
+		ret = tracecmd_write_options(network_handle);
+		if (ret)
+			goto error;
+		ret = tracecmd_msg_finish_sending_data(msg_handle);
+		if (ret)
+			goto error;
 	} else {
 		network_handle = tracecmd_create_init_fd_glob(msg_handle->fd,
 							      listed_events);
+		if (!network_handle)
+			goto error;
 		tracecmd_set_quiet(network_handle, quiet);
 	}
 
@@ -3613,6 +3627,13 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 
 	/* OK, we are all set, let'r rip! */
 	return msg_handle;
+
+error:
+	if (msg_handle)
+		tracecmd_msg_handle_close(msg_handle);
+	if (network_handle)
+		tracecmd_output_close(network_handle);
+	return NULL;
 }
 
 static void finish_network(struct tracecmd_msg_handle *msg_handle)
