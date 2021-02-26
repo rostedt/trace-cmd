@@ -102,6 +102,7 @@ struct host_trace_info {
 
 struct tracecmd_input {
 	struct tep_handle	*pevent;
+	unsigned long		file_state;
 	struct tep_plugin_list	*plugin_list;
 	struct tracecmd_input	*parent;
 	unsigned long		flags;
@@ -159,6 +160,11 @@ void tracecmd_clear_flag(struct tracecmd_input *handle, int flag)
 unsigned long tracecmd_get_flags(struct tracecmd_input *handle)
 {
 	return handle->flags;
+}
+
+unsigned long tracecmd_get_file_state(struct tracecmd_input *handle)
+{
+	return handle->file_state;
 }
 
 #if DEBUG_RECORD
@@ -782,29 +788,36 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	ret = read_header_files(handle);
 	if (ret < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_HEADERS;
 	tep_set_long_size(handle->pevent, handle->long_size);
 
 	ret = read_ftrace_files(handle, NULL);
 	if (ret < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
 
 	ret = read_event_files(handle, NULL);
 	if (ret < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
 
 	ret = read_proc_kallsyms(handle);
 	if (ret < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_KALLSYMS;
 
 	ret = read_ftrace_printk(handle);
 	if (ret < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_PRINTK;
 
 	if (read_and_parse_cmdlines(handle) < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_CMD_LINES;
 
 	if (read_cpus(handle) < 0)
 		return -1;
+	handle->file_state = TRACECMD_FILE_CPU_COUNT;
 
 	if (read_options_type(handle) < 0)
 		return -1;
@@ -2656,6 +2669,7 @@ static int read_options_type(struct tracecmd_input *handle)
 	if (strncmp(buf, "options", 7) == 0) {
 		if (handle_options(handle) < 0)
 			return -1;
+		handle->file_state = TRACECMD_FILE_OPTIONS;
 		if (do_read_check(handle, buf, 10))
 			return -1;
 	}
@@ -2664,9 +2678,9 @@ static int read_options_type(struct tracecmd_input *handle)
 	 * Check if this is a latency report or flyrecord.
 	 */
 	if (strncmp(buf, "latency", 7) == 0)
-		handle->flags |= TRACECMD_FL_LATENCY;
+		handle->file_state = TRACECMD_FILE_CPU_LATENCY;
 	else if (strncmp(buf, "flyrecord", 9) == 0)
-		handle->flags |= TRACECMD_FL_FLYRECORD;
+		handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
 	else
 		return -1;
 
@@ -2687,11 +2701,11 @@ static int read_cpu_data(struct tracecmd_input *handle)
 	/*
 	 * Check if this is a latency report or not.
 	 */
-	if (handle->flags & TRACECMD_FL_LATENCY)
+	if (handle->file_state == TRACECMD_FILE_CPU_LATENCY)
 		return 1;
 
 	/* We expect this to be flyrecord */
-	if (!(handle->flags & TRACECMD_FL_FLYRECORD))
+	if (handle->file_state != TRACECMD_FILE_CPU_FLYRECORD)
 		return -1;
 
 	cpus = handle->cpus;
@@ -3151,6 +3165,8 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 
 	handle->header_files_start =
 		lseek64(handle->fd, handle->header_files_start, SEEK_SET);
+
+	handle->file_state = TRACECMD_FILE_INIT;
 
 	return handle;
 

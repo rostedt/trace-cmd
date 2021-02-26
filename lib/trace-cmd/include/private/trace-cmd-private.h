@@ -95,6 +95,20 @@ static inline int tracecmd_host_bigendian(void)
 
 /* --- Opening and Reading the trace.dat file --- */
 
+enum  {
+	TRACECMD_FILE_INIT,
+	TRACECMD_FILE_HEADERS,
+	TRACECMD_FILE_FTRACE_EVENTS,
+	TRACECMD_FILE_ALL_EVENTS,
+	TRACECMD_FILE_KALLSYMS,
+	TRACECMD_FILE_PRINTK,
+	TRACECMD_FILE_CMD_LINES,
+	TRACECMD_FILE_CPU_COUNT,
+	TRACECMD_FILE_OPTIONS,
+	TRACECMD_FILE_CPU_LATENCY,
+	TRACECMD_FILE_CPU_FLYRECORD,
+};
+
 enum {
 	TRACECMD_OPTION_DONE,
 	TRACECMD_OPTION_DATE,
@@ -115,9 +129,7 @@ enum {
 enum {
 	TRACECMD_FL_IGNORE_DATE		= (1 << 0),
 	TRACECMD_FL_BUFFER_INSTANCE	= (1 << 1),
-	TRACECMD_FL_LATENCY		= (1 << 2),
-	TRACECMD_FL_IN_USECS		= (1 << 3),
-	TRACECMD_FL_FLYRECORD		= (1 << 4),
+	TRACECMD_FL_IN_USECS		= (1 << 2),
 };
 
 struct tracecmd_ftrace {
@@ -150,6 +162,7 @@ int tracecmd_copy_headers(struct tracecmd_input *handle, int fd);
 void tracecmd_set_flag(struct tracecmd_input *handle, int flag);
 void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
 unsigned long tracecmd_get_flags(struct tracecmd_input *handle);
+unsigned long tracecmd_get_file_state(struct tracecmd_input *handle);
 unsigned long long tracecmd_get_tsync_peer(struct tracecmd_input *handle);
 int tracecmd_enable_tsync(struct tracecmd_input *handle, bool enable);
 

@@ -54,10 +54,10 @@ struct tracecmd_output {
 	int			cpus;
 	struct tep_handle	*pevent;
 	char			*tracing_dir;
-	int			options_written;
 	int			nr_options;
 	bool			quiet;
-	struct list_head 	options;
+	unsigned long		file_state;
+	struct list_head	options;
 	struct tracecmd_msg_handle *msg_handle;
 };
 
@@ -836,6 +836,33 @@ out_free:
 	return ret;
 }
 
+static int check_out_state(struct tracecmd_output *handle, int new_state)
+{
+	if (!handle)
+		return -1;
+
+	switch (new_state) {
+	case TRACECMD_FILE_HEADERS:
+	case TRACECMD_FILE_FTRACE_EVENTS:
+	case TRACECMD_FILE_ALL_EVENTS:
+	case TRACECMD_FILE_KALLSYMS:
+	case TRACECMD_FILE_PRINTK:
+	case TRACECMD_FILE_CMD_LINES:
+	case TRACECMD_FILE_CPU_COUNT:
+	case TRACECMD_FILE_OPTIONS:
+		if (handle->file_state == (new_state - 1))
+			return 0;
+		break;
+	case TRACECMD_FILE_CPU_LATENCY:
+	case TRACECMD_FILE_CPU_FLYRECORD:
+		if (handle->file_state == TRACECMD_FILE_OPTIONS)
+			return 0;
+		break;
+	}
+
+	return -1;
+}
+
 static struct tracecmd_output *
 create_file_fd(int fd, struct tracecmd_input *ihandle,
 	       const char *tracing_dir,
@@ -905,20 +932,30 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	endian4 = convert_endian_4(handle, handle->page_size);
 	if (do_write_check(handle, &endian4, 4))
 		goto out_free;
+	handle->file_state = TRACECMD_FILE_INIT;
 
 	if (ihandle)
 		return handle;
 
 	if (read_header_files(handle))
 		goto out_free;
+	handle->file_state = TRACECMD_FILE_HEADERS;
+
 	if (read_ftrace_files(handle))
 		goto out_free;
+	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
+
 	if (read_event_files(handle, list))
 		goto out_free;
+	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
+
 	if (read_proc_kallsyms(handle, kallsyms))
 		goto out_free;
+	handle->file_state = TRACECMD_FILE_KALLSYMS;
+
 	if (read_ftrace_printk(handle))
 		goto out_free;
+	handle->file_state = TRACECMD_FILE_PRINTK;
 
 	return handle;
 
@@ -973,10 +1010,10 @@ tracecmd_add_option_v(struct tracecmd_output *handle,
 	int i, size = 0;
 
 	/*
-	 * We can only add options before they were written.
+	 * We can only add options before tracing data were written.
 	 * This may change in the future.
 	 */
-	if (handle->options_written)
+	if (handle->file_state > TRACECMD_FILE_OPTIONS)
 		return NULL;
 
 	for (i = 0; i < count; i++)
@@ -1038,8 +1075,20 @@ tracecmd_add_option(struct tracecmd_output *handle,
 
 int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus)
 {
+	int ret;
+
+	ret = check_out_state(handle, TRACECMD_FILE_CPU_COUNT);
+	if (ret < 0) {
+		warning("Cannot write CPU count into the file, unexpected state 0x%X",
+			handle->file_state);
+		return ret;
+	}
 	cpus = convert_endian_4(handle, cpus);
-	return do_write_check(handle, &cpus, 4);
+	ret = do_write_check(handle, &cpus, 4);
+	if (ret < 0)
+		return ret;
+	handle->file_state = TRACECMD_FILE_CPU_COUNT;
+	return 0;
 }
 
 int tracecmd_write_options(struct tracecmd_output *handle)
@@ -1048,10 +1097,17 @@ int tracecmd_write_options(struct tracecmd_output *handle)
 	unsigned short option;
 	unsigned short endian2;
 	unsigned int endian4;
+	int ret;
 
 	/* If already written, ignore */
-	if (handle->options_written)
+	if (handle->file_state == TRACECMD_FILE_OPTIONS)
 		return 0;
+	ret = check_out_state(handle, TRACECMD_FILE_OPTIONS);
+	if (ret < 0) {
+		warning("Cannot write options into the file, unexpected state 0x%X",
+			handle->file_state);
+		return ret;
+	}
 
 	if (do_write_check(handle, "options  ", 10))
 		return -1;
@@ -1078,7 +1134,7 @@ int tracecmd_write_options(struct tracecmd_output *handle)
 	if (do_write_check(handle, &option, 2))
 		return -1;
 
-	handle->options_written = 1;
+	handle->file_state = TRACECMD_FILE_OPTIONS;
 
 	return 0;
 }
@@ -1092,9 +1148,12 @@ int tracecmd_append_options(struct tracecmd_output *handle)
 	off_t offset;
 	int r;
 
-	/* If already written, ignore */
-	if (handle->options_written)
-		return 0;
+	/*
+	 * We can append only if options are already written and tracing data
+	 * is not yet written
+	 */
+	if (handle->file_state != TRACECMD_FILE_OPTIONS)
+		return -1;
 
 	if (lseek64(handle->fd, 0, SEEK_END) == (off_t)-1)
 		return -1;
@@ -1128,8 +1187,6 @@ int tracecmd_append_options(struct tracecmd_output *handle)
 	if (do_write_check(handle, &option, 2))
 		return -1;
 
-	handle->options_written = 1;
-
 	return 0;
 }
 
@@ -1145,7 +1202,7 @@ int tracecmd_update_option(struct tracecmd_output *handle,
 		return -1;
 	}
 
-	if (!handle->options_written) {
+	if (handle->file_state < TRACECMD_FILE_OPTIONS) {
 		/* Hasn't been written yet. Just update current pointer */
 		option->size = size;
 		memcpy(option->data, data, size);
@@ -1205,13 +1262,26 @@ tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name,
 
 int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 {
-	return save_tracing_file_data(handle, "saved_cmdlines");
+	int ret;
+
+	ret = check_out_state(handle, TRACECMD_FILE_CMD_LINES);
+	if (ret < 0) {
+		warning("Cannot write command lines into the file, unexpected state 0x%X",
+			handle->file_state);
+		return ret;
+	}
+	ret = save_tracing_file_data(handle, "saved_cmdlines");
+	if (ret < 0)
+		return ret;
+	handle->file_state = TRACECMD_FILE_CMD_LINES;
+	return 0;
 }
 
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus)
 {
 	struct tracecmd_output *handle;
 	char *path;
+	int ret;
 
 	handle = create_file(output_file, NULL, NULL, NULL, &all_event_list);
 	if (!handle)
@@ -1229,6 +1299,13 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	if (tracecmd_write_options(handle) < 0)
 		goto out_free;
 
+	ret = check_out_state(handle, TRACECMD_FILE_CPU_LATENCY);
+	if (ret < 0) {
+		warning("Cannot write latency data into the file, unexpected state 0x%X",
+			handle->file_state);
+		goto out_free;
+	}
+
 	if (do_write_check(handle, "latency  ", 10))
 		goto out_free;
 
@@ -1239,6 +1316,8 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	copy_file(handle, path);
 
 	put_tracing_file(path);
+
+	handle->file_state = TRACECMD_FILE_CPU_LATENCY;
 
 	return handle;
 
@@ -1259,6 +1338,13 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	struct stat st;
 	int ret;
 	int i;
+
+	ret = check_out_state(handle, TRACECMD_FILE_CPU_FLYRECORD);
+	if (ret < 0) {
+		warning("Cannot write trace data into the file, unexpected state 0x%X",
+			handle->file_state);
+		goto out_free;
+	}
 
 	if (do_write_check(handle, "flyrecord", 10))
 		goto out_free;
@@ -1345,6 +1431,8 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	free(offsets);
 	free(sizes);
 
+	handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
+
 	return 0;
 
  out_free:
@@ -1409,7 +1497,6 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 {
 	struct tracecmd_output *handle = NULL;
 	struct tracecmd_input *ihandle;
-	struct tep_handle *pevent;
 	int fd2;
 
 	/* Move the file descriptor to the beginning */
@@ -1425,6 +1512,7 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 	ihandle = tracecmd_alloc_fd(fd2, TRACECMD_FL_LOAD_NO_PLUGINS);
 	if (!ihandle)
 		return NULL;
+	tracecmd_read_headers(ihandle);
 
 	/* move the file descriptor to the end */
 	if (lseek(fd, 0, SEEK_END) == (off_t)-1)
@@ -1437,11 +1525,11 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 
 	handle->fd = fd;
 
-	/* get endian and page size */
-	pevent = tracecmd_get_tep(ihandle);
-	/* Use the pevent of the ihandle for later writes */
+	/* get tep, state, endian and page size */
+	handle->file_state = tracecmd_get_file_state(ihandle);
+	/* Use the tep of the ihandle for later writes */
 	handle->pevent = tracecmd_get_tep(ihandle);
-	tep_ref(pevent);
+	tep_ref(handle->pevent);
 	handle->page_size = tracecmd_page_size(ihandle);
 	list_head_init(&handle->options);
 

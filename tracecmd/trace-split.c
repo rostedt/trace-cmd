@@ -510,7 +510,7 @@ void trace_split (int argc, char **argv)
 	if (!handle)
 		die("error reading %s", input_file);
 
-	if (tracecmd_get_flags(handle) & TRACECMD_FL_LATENCY)
+	if (tracecmd_get_file_state(handle) == TRACECMD_FILE_CPU_LATENCY)
 		die("trace-cmd split does not work with latency traces\n");
 
 	page_size = tracecmd_page_size(handle);
