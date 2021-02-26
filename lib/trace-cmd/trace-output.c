@@ -797,8 +797,8 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	return -1;
 }
 
-int save_tracing_file_data(struct tracecmd_output *handle,
-			   const char *filename)
+static int save_tracing_file_data(struct tracecmd_output *handle,
+				  const char *filename)
 {
 	unsigned long long endian8;
 	char *file = NULL;
@@ -1203,6 +1203,11 @@ tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name,
 	return option;
 }
 
+int tracecmd_write_cmdlines(struct tracecmd_output *handle)
+{
+	return save_tracing_file_data(handle, "saved_cmdlines");
+}
+
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus)
 {
 	struct tracecmd_output *handle;
@@ -1215,7 +1220,7 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	/*
 	 * Save the command lines;
 	 */
-	if (save_tracing_file_data(handle, "saved_cmdlines") < 0)
+	if (tracecmd_write_cmdlines(handle) < 0)
 		goto out_free;
 
 	if (tracecmd_write_cpus(handle, cpus) < 0)
@@ -1356,7 +1361,7 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 	/*
 	 * Save the command lines;
 	 */
-	ret = save_tracing_file_data(handle, "saved_cmdlines");
+	ret = tracecmd_write_cmdlines(handle);
 	if (ret)
 		return ret;
 
