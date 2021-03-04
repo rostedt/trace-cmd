@@ -1223,6 +1223,9 @@ static unsigned long long timestamp_correct(unsigned long long ts,
 	struct host_trace_info	*host = &handle->host;
 	int min, mid, max;
 
+	if (handle->flags & TRACECMD_FL_IGNORE_DATE)
+		return ts;
+
 	if (handle->ts_offset)
 		return ts + handle->ts_offset;
 
@@ -2641,6 +2644,7 @@ static int handle_options(struct tracecmd_input *handle)
 			if (!handle->host.ts_samples)
 				return -ENOMEM;
 			tsync_offset_load(handle, buf + 16);
+			tracecmd_enable_tsync(handle, true);
 			break;
 		case TRACECMD_OPTION_CPUSTAT:
 			buf[size-1] = '\n';
