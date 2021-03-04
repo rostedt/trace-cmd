@@ -3,8 +3,7 @@ libtracecmd(3)
 
 NAME
 ----
-tracecmd_pair_peer, tracecmd_unpair_peer, tracecmd_get_traceid,
-tracecmd_get_guest_cpumap - Manage trace session with multiple trace peers,
+tracecmd_get_traceid, tracecmd_get_guest_cpumap - Manage trace session with multiple trace peers,
 recorded in multiple trace files.
 
 SYNOPSIS
@@ -13,8 +12,6 @@ SYNOPSIS
 --
 *#include <trace-cmd.h>*
 
-int *tracecmd_pair_peer*(struct tracecmd_input pass:[*]_handle_, struct tracecmd_input pass:[*]_peer_);
-void *tracecmd_unpair_peer*(struct tracecmd_input pass:[*]_handle_);
 unsigned long long *tracecmd_get_traceid*(struct tracecmd_input pass:[*]_handle_);
 int *tracecmd_get_guest_cpumap*(struct tracecmd_input pass:[*]_handle_, unsigned long long _trace_id_, const char pass:[*]pass:[*]_name_, int pass:[*]_vcpu_count_, const int pass:[*]pass:[*]_cpu_pid_);
 --
@@ -27,15 +24,6 @@ The trace data of each peer from the session is recorded in separate trace files
 Information about peers from the session is stored in the metadata of each
 trace file. These APIs use that information to extract and synchronize
 the trace data.
-
-The _tracecmd_pair_peer()_ function pairs two tracecmd_input handlers,
-associated with two trace files from the same trace session. This API must
-be called before _tracecmd_init_data()(3)_, as the initialisation of
-the trace data depends on that. If there is a tracing peer, the event
-timestamps are recalculated in order to be in the same time space.
-
-The _tracecmd_unpair_peer()_ function unpairs a peer from _handle_
-previously paired with _tracecmd_pair_peer()_.
 
 The _tracecmd_get_traceid()_ function returns the trace ID stored in
 the trace file metadata associated with _handle_. Each peer from a trace
@@ -59,9 +47,6 @@ The _name_, _vcpu_count_ and _cpu_pid_ values must *not* be freed.
 
 RETURN VALUE
 ------------
-The _tracecmd_pair_peer()_ function returns 1, if a peer is already
-paired, -1 in case of an error or 0 if it successfully paired the peers.
-
 The _tracecmd_get_traceid()_ function returns a 64 bit trace ID.
 
 The _tracecmd_get_guest_cpumap()_ function returns -1 in case of
@@ -90,7 +75,6 @@ struct tracecmd_input *guest2 = tracecmd_open_head("trace-Guest2.dat");
 
 unsigned long long guest_id_1 = tracecmd_get_traceid(guest1);
 unsigned long long guest_id_2 = tracecmd_get_traceid(guest2);
-bool g1 = false, g2 = false;
 int *cpu_pid_1, *cpu_pid_2;
 int vcount_1, vcount_2;
 char *name_1, *name_2;
@@ -99,27 +83,13 @@ char *name_1, *name_2;
 		/* The Host and a guest1 with name_1 are part of the same trace session.
 		 * Got guest1 VCPU to host PID mapping.
 		 */
-		if (!tracecmd_pair_peer(guest1, host)) {
-			/* Successfully paired guest1 to the host handler */
-			tracecmd_init_data(guest1);
-			g1 = true;
-		}
 	}
 	if (!tracecmd_get_guest_cpumap(host, guest_id_2, &name_2, &vcount_2, &cpu_pid_2)) {
 		/* The Host and a guest2 with name_2 are part of the same trace session.
 		 * Got guest2 VCPU to host PID mapping.
 		 */
-		if (!tracecmd_pair_peer(guest2, host)) {
-			/* Successfully paired guest2 to the host handler */
-			tracecmd_init_data(guest2);
-			g2 = true;
-		}
 	}
 ...
-	if (g1)
-		tracecmd_unpair_peer(guest1);
-	if (g2)
-		tracecmd_unpair_peer(guest2);
 	tracecmd_close(guest1);
 	tracecmd_close(guest2);
 	tracecmd_close(handle);

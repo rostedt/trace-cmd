@@ -20,9 +20,6 @@ struct tracecmd_input *tracecmd_open(const char *file, int flags);
 struct tracecmd_input *tracecmd_open_fd(int fd, int flags);
 
 void tracecmd_close(struct tracecmd_input *handle);
-int tracecmd_pair_peer(struct tracecmd_input *handle,
-		       struct tracecmd_input *peer);
-void tracecmd_unpair_peer(struct tracecmd_input *handle);
 
 int tracecmd_init_data(struct tracecmd_input *handle);
 struct tep_record *
