@@ -297,6 +297,33 @@ int tracecmd_ftrace_enable(int set)
 	return ret;
 }
 
+static int check_out_state(struct tracecmd_output *handle, int new_state)
+{
+	if (!handle)
+		return -1;
+
+	switch (new_state) {
+	case TRACECMD_FILE_HEADERS:
+	case TRACECMD_FILE_FTRACE_EVENTS:
+	case TRACECMD_FILE_ALL_EVENTS:
+	case TRACECMD_FILE_KALLSYMS:
+	case TRACECMD_FILE_PRINTK:
+	case TRACECMD_FILE_CMD_LINES:
+	case TRACECMD_FILE_CPU_COUNT:
+	case TRACECMD_FILE_OPTIONS:
+		if (handle->file_state == (new_state - 1))
+			return 0;
+		break;
+	case TRACECMD_FILE_CPU_LATENCY:
+	case TRACECMD_FILE_CPU_FLYRECORD:
+		if (handle->file_state == TRACECMD_FILE_OPTIONS)
+			return 0;
+		break;
+	}
+
+	return -1;
+}
+
 static int read_header_files(struct tracecmd_output *handle)
 {
 	tsize_t size, check_size, endian8;
@@ -304,6 +331,12 @@ static int read_header_files(struct tracecmd_output *handle)
 	char *path;
 	int fd;
 	int ret;
+
+	if (check_out_state(handle, TRACECMD_FILE_HEADERS) < 0) {
+		warning("Cannot read header files, unexpected state 0x%X",
+			handle->file_state);
+		return -1;
+	}
 
 	path = get_tracing_file(handle, "events/header_page");
 	if (!path)
@@ -373,6 +406,9 @@ static int read_header_files(struct tracecmd_output *handle)
 		return -1;
 	}
 	put_tracing_file(path);
+
+	handle->file_state = TRACECMD_FILE_HEADERS;
+
 	return 0;
 
  out_close:
@@ -609,11 +645,19 @@ static int read_ftrace_files(struct tracecmd_output *handle)
 	struct tracecmd_event_list list = { .glob = "ftrace/*" };
 	int ret;
 
+	if (check_out_state(handle, TRACECMD_FILE_FTRACE_EVENTS) < 0) {
+		warning("Cannot read ftrace files, unexpected state 0x%X",
+			handle->file_state);
+		return -1;
+	}
+
 	create_event_list_item(handle, &systems, &list);
 
 	ret = copy_event_system(handle, systems);
 
 	free_list_events(systems);
+
+	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
 
 	return ret;
 }
@@ -642,6 +686,11 @@ static int read_event_files(struct tracecmd_output *handle,
 	int endian4;
 	int ret;
 
+	if (check_out_state(handle, TRACECMD_FILE_ALL_EVENTS) < 0) {
+		warning("Cannot read event files, unexpected state 0x%X",
+			handle->file_state);
+		return -1;
+	}
 	/*
 	 * If any of the list is the special keyword "all" then
 	 * just do all files.
@@ -674,6 +723,7 @@ static int read_event_files(struct tracecmd_output *handle,
 		ret = copy_event_system(handle, slist);
 	}
 
+	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
  out_free:
 	free_list_events(systems);
 
@@ -728,6 +778,12 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 	struct stat st;
 	int ret;
 
+	if (check_out_state(handle, TRACECMD_FILE_KALLSYMS) < 0) {
+		warning("Cannot read kallsyms, unexpected state 0x%X",
+			handle->file_state);
+		return -1;
+	}
+
 	if (kallsyms)
 		path = kallsyms;
 
@@ -755,6 +811,8 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 	}
 	set_proc_kptr_restrict(1);
 
+	handle->file_state = TRACECMD_FILE_KALLSYMS;
+
 	return 0;
 }
 
@@ -764,6 +822,12 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	struct stat st;
 	char *path;
 	int ret;
+
+	if (check_out_state(handle, TRACECMD_FILE_PRINTK) < 0) {
+		warning("Cannot read printk, unexpected state 0x%X",
+			handle->file_state);
+		return -1;
+	}
 
 	path = get_tracing_file(handle, "printk_formats");
 	if (!path)
@@ -790,6 +854,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	}
 
  out:
+	handle->file_state = TRACECMD_FILE_PRINTK;
 	put_tracing_file(path);
 	return 0;
  fail:
@@ -834,33 +899,6 @@ static int save_tracing_file_data(struct tracecmd_output *handle,
 out_free:
 	put_tracing_file(file);
 	return ret;
-}
-
-static int check_out_state(struct tracecmd_output *handle, int new_state)
-{
-	if (!handle)
-		return -1;
-
-	switch (new_state) {
-	case TRACECMD_FILE_HEADERS:
-	case TRACECMD_FILE_FTRACE_EVENTS:
-	case TRACECMD_FILE_ALL_EVENTS:
-	case TRACECMD_FILE_KALLSYMS:
-	case TRACECMD_FILE_PRINTK:
-	case TRACECMD_FILE_CMD_LINES:
-	case TRACECMD_FILE_CPU_COUNT:
-	case TRACECMD_FILE_OPTIONS:
-		if (handle->file_state == (new_state - 1))
-			return 0;
-		break;
-	case TRACECMD_FILE_CPU_LATENCY:
-	case TRACECMD_FILE_CPU_FLYRECORD:
-		if (handle->file_state == TRACECMD_FILE_OPTIONS)
-			return 0;
-		break;
-	}
-
-	return -1;
 }
 
 static struct tracecmd_output *
@@ -939,23 +977,18 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 
 	if (read_header_files(handle))
 		goto out_free;
-	handle->file_state = TRACECMD_FILE_HEADERS;
 
 	if (read_ftrace_files(handle))
 		goto out_free;
-	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
 
 	if (read_event_files(handle, list))
 		goto out_free;
-	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
 
 	if (read_proc_kallsyms(handle, kallsyms))
 		goto out_free;
-	handle->file_state = TRACECMD_FILE_KALLSYMS;
 
 	if (read_ftrace_printk(handle))
 		goto out_free;
-	handle->file_state = TRACECMD_FILE_PRINTK;
 
 	return handle;
 
