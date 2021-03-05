@@ -395,6 +395,8 @@ static int read_header_files(struct tracecmd_input *handle)
 	handle->ftrace_files_start =
 		lseek64(handle->fd, 0, SEEK_CUR);
 
+	handle->file_state = TRACECMD_FILE_HEADERS;
+
 	return 0;
 
  failed_read:
@@ -596,6 +598,8 @@ static int read_ftrace_files(struct tracecmd_input *handle, const char *regex)
 		regfree(ereg);
 	}
 
+	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
+
 	return 0;
 }
 
@@ -678,6 +682,8 @@ static int read_event_files(struct tracecmd_input *handle, const char *regex)
 		regfree(ereg);
 	}
 
+	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
+
 	return 0;
 
  failed:
@@ -713,6 +719,9 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 	tracecmd_parse_proc_kallsyms(pevent, buf, size);
 
 	free(buf);
+
+	handle->file_state = TRACECMD_FILE_KALLSYMS;
+
 	return 0;
 }
 
@@ -739,6 +748,8 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 	tracecmd_parse_ftrace_printk(handle->pevent, buf, size);
 
 	free(buf);
+
+	handle->file_state = TRACECMD_FILE_PRINTK;
 
 	return 0;
 }
@@ -788,32 +799,27 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 	ret = read_header_files(handle);
 	if (ret < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_HEADERS;
+
 	tep_set_long_size(handle->pevent, handle->long_size);
 
 	ret = read_ftrace_files(handle, NULL);
 	if (ret < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
 
 	ret = read_event_files(handle, NULL);
 	if (ret < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
 
 	ret = read_proc_kallsyms(handle);
 	if (ret < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_KALLSYMS;
 
 	ret = read_ftrace_printk(handle);
 	if (ret < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_PRINTK;
 
 	if (read_and_parse_cmdlines(handle) < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_CMD_LINES;
 
 	if (read_cpus(handle) < 0)
 		return -1;
@@ -2829,6 +2835,9 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 	cmdlines[size] = 0;
 	tracecmd_parse_cmdlines(pevent, cmdlines, size);
 	free(cmdlines);
+
+	handle->file_state = TRACECMD_FILE_CMD_LINES;
+
 	return 0;
 }
 
