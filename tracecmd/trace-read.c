@@ -1205,6 +1205,12 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	list_for_each_entry(handles, handle_list, list) {
 		int cpus;
 
+		cpus = tracecmd_cpus(handles->handle);
+		handles->cpus = cpus;
+		handles->last_timestamp = calloc(cpus, sizeof(*handles->last_timestamp));
+		if (!handles->last_timestamp)
+			die("allocating timestamps");
+
 		/* Don't process instances that we added here */
 		if (tracecmd_is_buffer_instance(handles->handle))
 			continue;
@@ -1213,14 +1219,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		if (ret < 0)
 			die("failed to init data");
 
-		cpus = tracecmd_cpus(handles->handle);
-		handles->cpus = cpus;
 		print_handle_file(handles);
 		printf("cpus=%d\n", cpus);
-
-		handles->last_timestamp = calloc(cpus, sizeof(*handles->last_timestamp));
-		if (!handles->last_timestamp)
-			die("allocating timestamps");
 
 		/* Latency trace is just all ASCII */
 		if (ret > 0) {
