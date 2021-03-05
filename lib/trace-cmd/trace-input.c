@@ -162,7 +162,7 @@ unsigned long tracecmd_get_flags(struct tracecmd_input *handle)
 	return handle->flags;
 }
 
-unsigned long tracecmd_get_file_state(struct tracecmd_input *handle)
+enum tracecmd_file_states tracecmd_get_file_state(struct tracecmd_input *handle)
 {
 	return handle->file_state;
 }
