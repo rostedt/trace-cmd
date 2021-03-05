@@ -3472,6 +3472,10 @@ static int copy_header_files(struct tracecmd_input *handle, int fd)
 {
 	unsigned long long size;
 
+	/* The input handle has to have at least read the headers */
+	if (handle->file_state < TRACECMD_FILE_HEADERS)
+		return -1;
+
 	lseek64(handle->fd, handle->header_files_start, SEEK_SET);
 
 	/* "header_page"  */
@@ -3503,6 +3507,10 @@ static int copy_ftrace_files(struct tracecmd_input *handle, int fd)
 	unsigned int count;
 	unsigned int i;
 
+	/* The input handle has to have at least read the ftrace events */
+	if (handle->file_state < TRACECMD_FILE_FTRACE_EVENTS)
+		return -1;
+
 	if (read_copy_size4(handle, fd, &count) < 0)
 		return -1;
 
@@ -3525,6 +3533,10 @@ static int copy_event_files(struct tracecmd_input *handle, int fd)
 	unsigned int systems;
 	unsigned int count;
 	unsigned int i,x;
+
+	/* The input handle has to have at least read all its events */
+	if (handle->file_state < TRACECMD_FILE_ALL_EVENTS)
+		return -1;
 
 	if (read_copy_size4(handle, fd, &systems) < 0)
 		return -1;
@@ -3558,6 +3570,10 @@ static int copy_proc_kallsyms(struct tracecmd_input *handle, int fd)
 {
 	unsigned int size;
 
+	/* The input handle has to have at least has kallsyms */
+	if (handle->file_state < TRACECMD_FILE_KALLSYMS)
+		return -1;
+
 	if (read_copy_size4(handle, fd, &size) < 0)
 		return -1;
 	if (!size)
@@ -3573,6 +3589,10 @@ static int copy_ftrace_printk(struct tracecmd_input *handle, int fd)
 {
 	unsigned int size;
 
+	/* The input handle has to have at least has printk stored */
+	if (handle->file_state < TRACECMD_FILE_PRINTK)
+		return -1;
+
 	if (read_copy_size4(handle, fd, &size) < 0)
 		return -1;
 	if (!size)
@@ -3587,6 +3607,10 @@ static int copy_ftrace_printk(struct tracecmd_input *handle, int fd)
 static int copy_command_lines(struct tracecmd_input *handle, int fd)
 {
 	unsigned long long size;
+
+	/* The input handle has to have at least read the cmdlines */
+	if (handle->file_state < TRACECMD_FILE_CMD_LINES)
+		return -1;
 
 	if (read_copy_size8(handle, fd, &size) < 0)
 		return -1;
