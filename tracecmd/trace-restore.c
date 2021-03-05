@@ -94,6 +94,8 @@ void trace_restore (int argc, char **argv)
 							    kallsyms);
 		if (!handle)
 			die("Unabled to create output file %s", output);
+		if (tracecmd_write_cmdlines(handle) < 0)
+			die("Failed to write command lines");
 		tracecmd_output_close(handle);
 		exit(0);
 	}
