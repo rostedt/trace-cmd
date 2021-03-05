@@ -1655,8 +1655,10 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 	if (!handle)
 		return NULL;
 
-	if (tracecmd_copy_headers(ihandle, handle->fd) < 0)
+	if (tracecmd_copy_headers(ihandle, handle->fd, 0, 0) < 0)
 		goto out_free;
+
+	handle->file_state = tracecmd_get_file_state(ihandle);
 
 	/* The file is all ready to have cpu data attached */
 	return handle;

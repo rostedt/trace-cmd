@@ -3528,13 +3528,8 @@ static int copy_header_files(struct tracecmd_input *handle, int fd)
 {
 	unsigned long long size;
 
-	if (handle->file_state < TRACECMD_FILE_HEADERS)
+	if (handle->file_state != TRACECMD_FILE_HEADERS - 1)
 		return -1;
-
-	lseek64(handle->fd, handle->header_files_start, SEEK_SET);
-
-	/* Now that the file handle has moved, change its state */
-	handle->file_state = TRACECMD_FILE_HEADERS;
 
 	/* "header_page"  */
 	if (read_copy_data(handle, 12, fd) < 0)
@@ -3555,6 +3550,8 @@ static int copy_header_files(struct tracecmd_input *handle, int fd)
 
 	if (read_copy_data(handle, size, fd) < 0)
 		return -1;
+
+	handle->file_state = TRACECMD_FILE_HEADERS;
 
 	return 0;
 }
@@ -3686,35 +3683,101 @@ static int copy_command_lines(struct tracecmd_input *handle, int fd)
 	return 0;
 }
 
-int tracecmd_copy_headers(struct tracecmd_input *handle, int fd)
+/**
+ * tracecmd_copy_headers - Copy headers from a tracecmd_input handle to a file descriptor
+ * @handle: input handle for the trace.dat file to copy from.
+ * @fd: The file descriptor to copy to.
+ * @start_state: The file state to start copying from (zero for the beginnig)
+ * @end_state: The file state to stop at (zero for up to cmdlines)
+ *
+ * This is used to copy trace header data of a trace.dat file to a
+ * file descriptor. Using @start_state and @end_state it may be used
+ * multiple times against the input handle.
+ *
+ * NOTE: The input handle is also modified, and ends at the end
+ *       state as well.
+ */
+int tracecmd_copy_headers(struct tracecmd_input *handle, int fd,
+			  enum tracecmd_file_states start_state,
+			  enum tracecmd_file_states end_state)
 {
 	int ret;
 
-	/* Make sure that the input handle is up to cmd lines */
-	if (handle->file_state < TRACECMD_FILE_CMD_LINES)
+	if (!start_state)
+		start_state = TRACECMD_FILE_HEADERS;
+	if (!end_state)
+		end_state = TRACECMD_FILE_CMD_LINES;
+
+	if (start_state > end_state)
 		return -1;
 
-	ret = copy_header_files(handle, fd);
+	if (end_state < TRACECMD_FILE_HEADERS)
+		return 0;
+
+	if (handle->file_state >= start_state) {
+		/* Set the handle to just before the start state */
+		lseek64(handle->fd, handle->header_files_start, SEEK_SET);
+		/* Now that the file handle has moved, change its state */
+		handle->file_state = TRACECMD_FILE_INIT;
+	}
+
+	/* Try to bring the input up to the start state - 1 */
+	ret = tracecmd_read_headers(handle, start_state - 1);
 	if (ret < 0)
 		goto out;
 
-	ret = copy_ftrace_files(handle, fd);
-	if (ret < 0)
-		goto out;
+	switch (start_state) {
+	case TRACECMD_FILE_HEADERS:
+		ret = copy_header_files(handle, fd);
+		if (ret < 0)
+			goto out;
 
-	ret = copy_event_files(handle, fd);
-	if (ret < 0)
-		goto out;
+		/* fallthrough */
+	case TRACECMD_FILE_FTRACE_EVENTS:
+		/* handle's state is now updating with the copies */
+		if (end_state <= handle->file_state)
+			return 0;
 
-	ret = copy_proc_kallsyms(handle, fd);
-	if (ret < 0)
-		goto out;
+		ret = copy_ftrace_files(handle, fd);
+		if (ret < 0)
+			goto out;
 
-	ret = copy_ftrace_printk(handle, fd);
-	if (ret < 0)
-		goto out;
+		/* fallthrough */
+	case TRACECMD_FILE_ALL_EVENTS:
+		if (end_state <= handle->file_state)
+			return 0;
 
-	ret = copy_command_lines(handle, fd);
+		ret = copy_event_files(handle, fd);
+		if (ret < 0)
+			goto out;
+
+		/* fallthrough */
+	case TRACECMD_FILE_KALLSYMS:
+		if (end_state <= handle->file_state)
+			return 0;
+
+		ret = copy_proc_kallsyms(handle, fd);
+		if (ret < 0)
+			goto out;
+
+		/* fallthrough */
+	case TRACECMD_FILE_PRINTK:
+		if (end_state <= handle->file_state)
+			return 0;
+
+		ret = copy_ftrace_printk(handle, fd);
+		if (ret < 0)
+			goto out;
+
+		/* fallthrough */
+	case TRACECMD_FILE_CMD_LINES:
+		if (end_state <= handle->file_state)
+			return 0;
+
+		ret = copy_command_lines(handle, fd);
+	default:
+		break;
+	}
 
  out:
 	return ret < 0 ? -1 : 0;
