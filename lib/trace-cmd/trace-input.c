@@ -349,6 +349,9 @@ static int read_header_files(struct tracecmd_input *handle)
 	char *header;
 	char buf[BUFSIZ];
 
+	if (handle->file_state >= TRACECMD_FILE_HEADERS)
+		return 0;
+
 	if (do_read_check(handle, buf, 12))
 		return -1;
 
@@ -552,6 +555,9 @@ static int read_ftrace_files(struct tracecmd_input *handle, const char *regex)
 	int unique;
 	int ret;
 
+	if (handle->file_state >= TRACECMD_FILE_FTRACE_EVENTS)
+		return 0;
+
 	if (regex) {
 		sreg = &spreg;
 		ereg = &epreg;
@@ -619,6 +625,9 @@ static int read_event_files(struct tracecmd_input *handle, const char *regex)
 	int sys_printed;
 	int unique;
 	int ret;
+
+	if (handle->file_state >= TRACECMD_FILE_ALL_EVENTS)
+		return 0;
 
 	if (regex) {
 		sreg = &spreg;
@@ -702,6 +711,9 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 	unsigned int size;
 	char *buf;
 
+	if (handle->file_state >= TRACECMD_FILE_KALLSYMS)
+		return 0;
+
 	if (read4(handle, &size) < 0)
 		return -1;
 	if (!size)
@@ -729,6 +741,9 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 {
 	unsigned int size;
 	char *buf;
+
+	if (handle->file_state >= TRACECMD_FILE_PRINTK)
+		return 0;
 
 	if (read4(handle, &size) < 0)
 		return -1;
@@ -773,11 +788,15 @@ static int read_cpus(struct tracecmd_input *handle)
 {
 	unsigned int cpus;
 
+	if (handle->file_state >= TRACECMD_FILE_CPU_COUNT)
+		return 0;
+
 	if (read4(handle, &cpus) < 0)
 		return -1;
 
 	handle->cpus = cpus;
 	tep_set_cpus(handle->pevent, handle->cpus);
+	handle->file_state = TRACECMD_FILE_CPU_COUNT;
 
 	return 0;
 }
@@ -785,14 +804,25 @@ static int read_cpus(struct tracecmd_input *handle)
 /**
  * tracecmd_read_headers - read the header information from trace.dat
  * @handle: input handle for the trace.dat file
+ * @state: The state to read up to or zero to read up to options.
  *
  * This reads the trace.dat file for various information. Like the
  * format of the ring buffer, event formats, ftrace formats, kallsyms
- * and printk.
+ * and printk. This may be called multiple times with different @state
+ * values, to read partial data at a time. It will always continue
+ * where it left off.
  */
-int tracecmd_read_headers(struct tracecmd_input *handle)
+int tracecmd_read_headers(struct tracecmd_input *handle,
+			  enum tracecmd_file_states state)
 {
 	int ret;
+
+	/* Set to read all if state is zero */
+	if (!state)
+		state = TRACECMD_FILE_OPTIONS;
+
+	if (state <= handle->file_state)
+		return 0;
 
 	handle->parsing_failures = 0;
 
@@ -802,28 +832,48 @@ int tracecmd_read_headers(struct tracecmd_input *handle)
 
 	tep_set_long_size(handle->pevent, handle->long_size);
 
+	if (state <= handle->file_state)
+		return 0;
+
 	ret = read_ftrace_files(handle, NULL);
 	if (ret < 0)
 		return -1;
+
+	if (state <= handle->file_state)
+		return 0;
 
 	ret = read_event_files(handle, NULL);
 	if (ret < 0)
 		return -1;
 
+	if (state <= handle->file_state)
+		return 0;
+
 	ret = read_proc_kallsyms(handle);
 	if (ret < 0)
 		return -1;
+
+	if (state <= handle->file_state)
+		return 0;
 
 	ret = read_ftrace_printk(handle);
 	if (ret < 0)
 		return -1;
 
+	if (state <= handle->file_state)
+		return 0;
+
 	if (read_and_parse_cmdlines(handle) < 0)
 		return -1;
 
+	if (state <= handle->file_state)
+		return 0;
+
 	if (read_cpus(handle) < 0)
 		return -1;
-	handle->file_state = TRACECMD_FILE_CPU_COUNT;
+
+	if (state <= handle->file_state)
+		return 0;
 
 	if (read_options_type(handle) < 0)
 		return -1;
@@ -2668,6 +2718,9 @@ static int read_options_type(struct tracecmd_input *handle)
 {
 	char buf[10];
 
+	if (handle->file_state >= TRACECMD_FILE_CPU_LATENCY)
+		return 0;
+
 	if (do_read_check(handle, buf, 10))
 		return -1;
 
@@ -2829,6 +2882,9 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 	struct tep_handle *pevent = handle->pevent;
 	unsigned long long size;
 	char *cmdlines;
+
+	if (handle->file_state >= TRACECMD_FILE_CMD_LINES)
+		return 0;
 
 	if (read_data_and_size(handle, &cmdlines, &size) < 0)
 		return -1;
@@ -3225,7 +3281,7 @@ struct tracecmd_input *tracecmd_open_fd(int fd, int flags)
 	if (!handle)
 		return NULL;
 
-	if (tracecmd_read_headers(handle) < 0)
+	if (tracecmd_read_headers(handle, 0) < 0)
 		goto fail;
 
 	if ((ret = tracecmd_init_data(handle)) < 0)
@@ -3273,7 +3329,7 @@ struct tracecmd_input *tracecmd_open_head(const char *file, int flags)
 	if (!handle)
 		return NULL;
 
-	if (tracecmd_read_headers(handle) < 0)
+	if (tracecmd_read_headers(handle, 0) < 0)
 		goto fail;
 
 	return handle;
@@ -3799,6 +3855,11 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 		goto error;
 	}
 
+	/*
+	 * read_options_type() is called right after the CPU count so update
+	 * file state accordingly.
+	 */
+	new_handle->file_state = TRACECMD_FILE_CPU_COUNT;
 	ret = read_options_type(new_handle);
 	if (!ret)
 		ret = read_cpu_data(new_handle);

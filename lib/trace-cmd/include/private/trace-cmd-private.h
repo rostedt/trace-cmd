@@ -95,8 +95,8 @@ static inline int tracecmd_host_bigendian(void)
 
 /* --- Opening and Reading the trace.dat file --- */
 
-enum  {
-	TRACECMD_FILE_INIT,
+enum tracecmd_file_states {
+	TRACECMD_FILE_INIT = 1,
 	TRACECMD_FILE_HEADERS,
 	TRACECMD_FILE_FTRACE_EVENTS,
 	TRACECMD_FILE_ALL_EVENTS,
@@ -153,7 +153,8 @@ typedef void (*tracecmd_handle_init_func)(struct tracecmd_input *handle,
 struct tracecmd_input *tracecmd_alloc(const char *file, int flags);
 struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags);
 void tracecmd_ref(struct tracecmd_input *handle);
-int tracecmd_read_headers(struct tracecmd_input *handle);
+int tracecmd_read_headers(struct tracecmd_input *handle,
+			  enum tracecmd_file_states state);
 int tracecmd_get_parsing_failures(struct tracecmd_input *handle);
 int tracecmd_long_size(struct tracecmd_input *handle);
 int tracecmd_page_size(struct tracecmd_input *handle);

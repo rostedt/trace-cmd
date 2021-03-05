@@ -1826,7 +1826,7 @@ void trace_report (int argc, char **argv)
 			return;
 		}
 
-		ret = tracecmd_read_headers(handle);
+		ret = tracecmd_read_headers(handle, 0);
 		if (check_event_parsing) {
 			if (ret || tracecmd_get_parsing_failures(handle))
 				exit(EINVAL);

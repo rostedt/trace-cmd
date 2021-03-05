@@ -122,7 +122,7 @@ void trace_restore (int argc, char **argv)
 		if (!ihandle)
 			die("error reading file %s", input);
 		/* make sure headers are ok */
-		if (tracecmd_read_headers(ihandle) < 0)
+		if (tracecmd_read_headers(ihandle, TRACECMD_FILE_CMD_LINES) < 0)
 			die("error reading file %s headers", input);
 
 		handle = tracecmd_copy(ihandle, output);

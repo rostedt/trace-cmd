@@ -554,7 +554,7 @@ void trace_mem(int argc, char **argv)
 	if (!handle)
 		die("can't open %s\n", input_file);
 
-	ret = tracecmd_read_headers(handle);
+	ret = tracecmd_read_headers(handle, 0);
 	if (ret)
 		return;
 

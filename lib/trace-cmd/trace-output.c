@@ -1540,7 +1540,7 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 	ihandle = tracecmd_alloc_fd(fd2, TRACECMD_FL_LOAD_NO_PLUGINS);
 	if (!ihandle)
 		return NULL;
-	tracecmd_read_headers(ihandle);
+	tracecmd_read_headers(ihandle, 0);
 
 	/* move the file descriptor to the end */
 	if (lseek(fd, 0, SEEK_END) == (off_t)-1)
