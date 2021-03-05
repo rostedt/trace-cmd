@@ -3528,11 +3528,13 @@ static int copy_header_files(struct tracecmd_input *handle, int fd)
 {
 	unsigned long long size;
 
-	/* The input handle has to have at least read the headers */
 	if (handle->file_state < TRACECMD_FILE_HEADERS)
 		return -1;
 
 	lseek64(handle->fd, handle->header_files_start, SEEK_SET);
+
+	/* Now that the file handle has moved, change its state */
+	handle->file_state = TRACECMD_FILE_HEADERS;
 
 	/* "header_page"  */
 	if (read_copy_data(handle, 12, fd) < 0)
@@ -3563,8 +3565,7 @@ static int copy_ftrace_files(struct tracecmd_input *handle, int fd)
 	unsigned int count;
 	unsigned int i;
 
-	/* The input handle has to have at least read the ftrace events */
-	if (handle->file_state < TRACECMD_FILE_FTRACE_EVENTS)
+	if (handle->file_state != TRACECMD_FILE_FTRACE_EVENTS - 1)
 		return -1;
 
 	if (read_copy_size4(handle, fd, &count) < 0)
@@ -3579,6 +3580,8 @@ static int copy_ftrace_files(struct tracecmd_input *handle, int fd)
 			return -1;
 	}
 
+	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
+
 	return 0;
 }
 
@@ -3590,8 +3593,7 @@ static int copy_event_files(struct tracecmd_input *handle, int fd)
 	unsigned int count;
 	unsigned int i,x;
 
-	/* The input handle has to have at least read all its events */
-	if (handle->file_state < TRACECMD_FILE_ALL_EVENTS)
+	if (handle->file_state != TRACECMD_FILE_ALL_EVENTS - 1)
 		return -1;
 
 	if (read_copy_size4(handle, fd, &systems) < 0)
@@ -3619,6 +3621,8 @@ static int copy_event_files(struct tracecmd_input *handle, int fd)
 		}
 	}
 
+	handle->file_state = TRACECMD_FILE_ALL_EVENTS;
+
 	return 0;
 }
 
@@ -3626,8 +3630,7 @@ static int copy_proc_kallsyms(struct tracecmd_input *handle, int fd)
 {
 	unsigned int size;
 
-	/* The input handle has to have at least has kallsyms */
-	if (handle->file_state < TRACECMD_FILE_KALLSYMS)
+	if (handle->file_state != TRACECMD_FILE_KALLSYMS - 1)
 		return -1;
 
 	if (read_copy_size4(handle, fd, &size) < 0)
@@ -3637,6 +3640,8 @@ static int copy_proc_kallsyms(struct tracecmd_input *handle, int fd)
 
 	if (read_copy_data(handle, size, fd) < 0)
 		return -1;
+
+	handle->file_state = TRACECMD_FILE_KALLSYMS;
 
 	return 0;
 }
@@ -3645,8 +3650,7 @@ static int copy_ftrace_printk(struct tracecmd_input *handle, int fd)
 {
 	unsigned int size;
 
-	/* The input handle has to have at least has printk stored */
-	if (handle->file_state < TRACECMD_FILE_PRINTK)
+	if (handle->file_state != TRACECMD_FILE_PRINTK - 1)
 		return -1;
 
 	if (read_copy_size4(handle, fd, &size) < 0)
@@ -3657,6 +3661,8 @@ static int copy_ftrace_printk(struct tracecmd_input *handle, int fd)
 	if (read_copy_data(handle, size, fd) < 0)
 		return -1;
 
+	handle->file_state = TRACECMD_FILE_PRINTK;
+
 	return 0;
 }
 
@@ -3664,8 +3670,7 @@ static int copy_command_lines(struct tracecmd_input *handle, int fd)
 {
 	unsigned long long size;
 
-	/* The input handle has to have at least read the cmdlines */
-	if (handle->file_state < TRACECMD_FILE_CMD_LINES)
+	if (handle->file_state != TRACECMD_FILE_CMD_LINES - 1)
 		return -1;
 
 	if (read_copy_size8(handle, fd, &size) < 0)
@@ -3676,6 +3681,8 @@ static int copy_command_lines(struct tracecmd_input *handle, int fd)
 	if (read_copy_data(handle, size, fd) < 0)
 		return -1;
 
+	handle->file_state = TRACECMD_FILE_CMD_LINES;
+
 	return 0;
 }
 
@@ -3683,31 +3690,34 @@ int tracecmd_copy_headers(struct tracecmd_input *handle, int fd)
 {
 	int ret;
 
+	/* Make sure that the input handle is up to cmd lines */
+	if (handle->file_state < TRACECMD_FILE_CMD_LINES)
+		return -1;
+
 	ret = copy_header_files(handle, fd);
 	if (ret < 0)
-		return -1;
+		goto out;
 
 	ret = copy_ftrace_files(handle, fd);
 	if (ret < 0)
-		return -1;
+		goto out;
 
 	ret = copy_event_files(handle, fd);
 	if (ret < 0)
-		return -1;
+		goto out;
 
 	ret = copy_proc_kallsyms(handle, fd);
 	if (ret < 0)
-		return -1;
+		goto out;
 
 	ret = copy_ftrace_printk(handle, fd);
 	if (ret < 0)
-		return -1;
+		goto out;
 
 	ret = copy_command_lines(handle, fd);
-	if (ret < 0)
-		return -1;
 
-	return 0;
+ out:
+	return ret < 0 ? -1 : 0;
 }
 
 /**
