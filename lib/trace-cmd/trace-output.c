@@ -1448,13 +1448,6 @@ int tracecmd_append_cpu_data(struct tracecmd_output *handle,
 {
 	int ret;
 
-	/*
-	 * Save the command lines;
-	 */
-	ret = tracecmd_write_cmdlines(handle);
-	if (ret)
-		return ret;
-
 	ret = tracecmd_write_cpus(handle, cpus);
 	if (ret)
 		return ret;
@@ -1554,6 +1547,9 @@ tracecmd_create_file_glob(const char *output_file,
 
 	handle = create_file(output_file, NULL, NULL, NULL, list);
 	if (!handle)
+		return NULL;
+
+	if (tracecmd_write_cmdlines(handle))
 		return NULL;
 
 	if (tracecmd_append_cpu_data(handle, cpus, cpu_data_files) < 0) {

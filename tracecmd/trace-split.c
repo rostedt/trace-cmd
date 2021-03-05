@@ -384,6 +384,10 @@ static double parse_file(struct tracecmd_input *handle,
 	for (cpu = 0; cpu < cpus; cpu ++)
 		cpu_list[cpu] = cpu_data[cpu].file;
 
+	/* TODO: Fix me, this is suppose to come from handle */
+	if (tracecmd_write_cmdlines(ohandle))
+		die("Writing cmdlines");
+
 	tracecmd_append_cpu_data(ohandle, cpus, cpu_list);
 
 	current = end;
