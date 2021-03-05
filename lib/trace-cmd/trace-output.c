@@ -1339,7 +1339,9 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	int ret;
 	int i;
 
-	ret = check_out_state(handle, TRACECMD_FILE_CPU_FLYRECORD);
+	/* This can be called multiple times (when recording instances) */
+	ret = handle->file_state == TRACECMD_FILE_CPU_FLYRECORD ? 0 :
+		check_out_state(handle, TRACECMD_FILE_CPU_FLYRECORD);
 	if (ret < 0) {
 		warning("Cannot write trace data into the file, unexpected state 0x%X",
 			handle->file_state);
