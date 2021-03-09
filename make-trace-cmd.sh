@@ -28,4 +28,12 @@ if [ -z "$PREFIX" ]; then
 	PREFIX="/usr"
 fi
 
-PKG_CONFIG="pkg-config --with-path $INSTALL_PATH/usr/lib64/pkgconfig --define-variable=prefix=$INSTALL_PATH/$PREFIX" CFLAGS="-g -Wall -I$INSTALL_PATH/$PREFIX/include" make DESTDIR=$INSTALL_PATH  $O_PATH prefix=$PREFIX $@
+PKG_PATH=`pkg-config --variable pc_path pkg-config | tr ":" " " | cut -d' ' -f1`
+
+WITH_PATH=""
+# If pkg-config supports --with-path, use that as well
+if pkg-config --with-path=/tmp --variable pc_path pkg-config &> /dev/null ; then
+	WITH_PATH="--with-path=$INSTALL_PATH$PKG_PATH"
+fi
+
+PKG_CONFIG_PATH="$INSTALL_PATH/$PKG_PATH" PKG_CONFIG="pkg-config $WITH_PATH --define-variable=prefix=$INSTALL_PATH/$PREFIX" CFLAGS="-g -Wall -I$INSTALL_PATH/$PREFIX/include" make DESTDIR=$INSTALL_PATH  $O_PATH prefix=$PREFIX $@
