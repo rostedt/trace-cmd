@@ -1004,7 +1004,7 @@ static void *allocate_page_map(struct tracecmd_input *handle,
 	page_map->map = mmap(NULL, map_size, PROT_READ, MAP_PRIVATE,
 			 handle->fd, map_offset);
 
-	if (page->map == MAP_FAILED) {
+	if (page_map->map == MAP_FAILED) {
 		/* Try a smaller map */
 		map_size >>= 1;
 		if (map_size < handle->page_size) {
