@@ -534,6 +534,7 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 	tsync_context->sync_size = 0;
 	pthread_mutex_destroy(&tsync->lock);
 	pthread_cond_destroy(&tsync->cond);
+	pthread_barrier_destroy(&tsync->first_sync);
 	free(tsync->clock_str);
 	free(tsync->proto_name);
 	free(tsync);
@@ -645,12 +646,15 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 	int ts_array_size = CLOCK_TS_ARRAY;
 	struct tsync_proto *proto;
 	struct timespec timeout;
+	bool first = true;
 	bool end = false;
 	int ret;
 
 	clock_context_init(tsync, &proto, false);
-	if (!tsync->context)
+	if (!tsync->context) {
+		pthread_barrier_wait(&tsync->first_sync);
 		return -1;
+	}
 
 	if (tsync->loop_interval > 0 &&
 	    tsync->loop_interval < (CLOCK_TS_ARRAY * 1000))
@@ -663,6 +667,10 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 						  TRACECMD_TIME_SYNC_CMD_PROBE,
 						  0, NULL);
 		ret = tsync_get_sample(tsync, proto, ts_array_size);
+		if (first) {
+			first = false;
+			pthread_barrier_wait(&tsync->first_sync);
+		}
 		if (ret || end)
 			break;
 		if (tsync->loop_interval > 0) {
@@ -754,6 +762,7 @@ tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
 		tsync->clock_str = strdup(clock);
 	pthread_mutex_init(&tsync->lock, NULL);
 	pthread_cond_init(&tsync->cond, NULL);
+	pthread_barrier_init(&tsync->first_sync, NULL, 2);
 	pthread_attr_init(&attrib);
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
 
@@ -764,6 +773,7 @@ tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
 
 	if (!get_first_cpu(&pin_mask, &mask_size))
 		pthread_setaffinity_np(tsync->thread, mask_size, pin_mask);
+	pthread_barrier_wait(&tsync->first_sync);
 
 	if (pin_mask)
 		CPU_FREE(pin_mask);
