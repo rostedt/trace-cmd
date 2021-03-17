@@ -421,6 +421,7 @@ const char *tracecmd_clock_id2str(enum tracecmd_clocks clock);
 
 /* --- Timestamp synchronization --- */
 
+struct tracecmd_time_sync;
 #define TRACECMD_TSYNC_PNAME_LENGTH	16
 #define TRACECMD_TSYNC_PROTO_NONE	"none"
 
@@ -434,34 +435,30 @@ enum tracecmd_time_sync_role {
 	TRACECMD_TIME_SYNC_ROLE_GUEST	= (1 << 1),
 };
 
-struct tracecmd_time_sync {
-	const char			*proto_name;
-	int				loop_interval;
-	pthread_mutex_t			lock;
-	pthread_cond_t			cond;
-	char				*clock_str;
-	struct tracecmd_msg_handle	*msg_handle;
-	void				*context;
-	int				guest_pid;
-	int				vcpu_count;
-};
-
 /* Timestamp synchronization flags */
 #define TRACECMD_TSYNC_FLAG_INTERPOLATE	0x1
 
 void tracecmd_tsync_init(void);
 int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock, int role);
-const char *tracecmd_tsync_proto_select(struct tracecmd_tsync_protos *protos, char *clock,
-					enum tracecmd_time_sync_role role);
 bool tsync_proto_is_supported(const char *proto_name);
-void tracecmd_tsync_with_host(struct tracecmd_time_sync *tsync);
-void tracecmd_tsync_with_guest(struct tracecmd_time_sync *tsync);
+struct tracecmd_time_sync *
+tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
+			 const char *clock);
+int tracecmd_tsync_with_host_stop(struct tracecmd_time_sync *tsync);
+struct tracecmd_time_sync *
+tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
+			  unsigned int cid, unsigned int port, int guest_pid,
+			  int guest_cpus, const char *proto_name, const char *clock);
+int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync);
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
 				int *count, long long **ts,
 				long long **offsets, long long **scalings);
-int tracecmd_tsync_get_proto_flags(struct tracecmd_time_sync *tsync,
-				   unsigned int *flags);
+int tracecmd_tsync_get_session_params(struct tracecmd_time_sync *tsync,
+				      char **selected_proto,
+				      unsigned int *tsync_port);
 void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
+int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
+				    struct tracecmd_time_sync *tsync);
 
 /* --- Plugin handling --- */
 extern struct tep_plugin_option trace_ftrace_options[];

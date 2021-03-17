@@ -262,9 +262,8 @@ struct buffer_instance {
 	int			*fds;
 	bool			use_fifos;
 
-	pthread_t		tsync_thread;
-	bool			tsync_thread_running;
-	struct tracecmd_time_sync tsync;
+	int			tsync_loop_interval;
+	struct tracecmd_time_sync *tsync;
 };
 
 void init_top_instance(void);

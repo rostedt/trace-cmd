@@ -8,6 +8,22 @@
 
 #include <stdbool.h>
 
+struct tracecmd_time_sync {
+	pthread_t			thread;
+	bool				thread_running;
+	unsigned long long		trace_id;
+	char				*proto_name;
+	int				loop_interval;
+	pthread_mutex_t			lock;
+	pthread_cond_t			cond;
+	pthread_barrier_t		first_sync;
+	char				*clock_str;
+	struct tracecmd_msg_handle	*msg_handle;
+	void				*context;
+	int				guest_pid;
+	int				vcpu_count;
+};
+
 struct clock_sync_context {
 	void				*proto_data;	/* time sync protocol specific data */
 	bool				is_server;	/* server side time sync role */

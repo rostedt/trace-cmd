@@ -665,7 +665,28 @@ static void delete_thread_data(void)
 	}
 }
 
-#ifdef VSOCK
+static void host_tsync_complete(struct buffer_instance *instance)
+{
+	struct tracecmd_output *handle = NULL;
+	int fd = -1;
+	int ret;
+
+	ret = tracecmd_tsync_with_guest_stop(instance->tsync);
+	if (!ret) {
+		fd = open(instance->output_file, O_RDWR);
+		if (fd < 0)
+			die("error opening %s", instance->output_file);
+		handle = tracecmd_get_output_handle_fd(fd);
+		if (!handle)
+			die("cannot create output handle");
+		tracecmd_write_guest_time_shift(handle, instance->tsync);
+		tracecmd_output_close(handle);
+	}
+
+	tracecmd_tsync_free(instance->tsync);
+	instance->tsync = NULL;
+}
+
 static void tell_guests_to_stop(void)
 {
 	struct buffer_instance *instance;
@@ -678,7 +699,7 @@ static void tell_guests_to_stop(void)
 
 	for_all_instances(instance) {
 		if (is_guest(instance))
-			tracecmd_host_tsync_complete(instance);
+			host_tsync_complete(instance);
 	}
 
 	/* Wait for guests to acknowledge */
@@ -689,11 +710,6 @@ static void tell_guests_to_stop(void)
 		}
 	}
 }
-#else
-static inline void tell_guests_to_stop(void)
-{
-}
-#endif
 
 static void stop_threads(enum trace_type type)
 {
@@ -3668,7 +3684,28 @@ static int open_guest_fifos(const char *guest, int **fds)
 	return i;
 }
 
-#ifdef VSOCK
+static int host_tsync(struct buffer_instance *instance,
+		      unsigned int tsync_port, char *proto)
+{
+	struct trace_guest *guest;
+
+	if (!proto)
+		return -1;
+	guest = get_guest_by_cid(instance->cid);
+	if (guest == NULL)
+		return -1;
+
+	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
+						    instance->tsync_loop_interval,
+						    instance->cid, tsync_port,
+						    guest->pid, guest->cpu_max,
+						    proto, top_instance.clock);
+	if (!instance->tsync)
+		return -1;
+
+	return 0;
+}
+
 static void connect_to_agent(struct buffer_instance *instance)
 {
 	struct tracecmd_tsync_protos *protos = NULL;
@@ -3697,7 +3734,7 @@ static void connect_to_agent(struct buffer_instance *instance)
 	if (!instance->clock)
 		instance->clock = tracefs_get_clock(NULL);
 
-	if (instance->tsync.loop_interval >= 0)
+	if (instance->tsync_loop_interval >= 0)
 		tracecmd_tsync_proto_getall(&protos, instance->clock,
 					    TRACECMD_TIME_SYNC_ROLE_HOST);
 
@@ -3719,11 +3756,10 @@ static void connect_to_agent(struct buffer_instance *instance)
 		die("Failed to receive trace response %d", ret);
 	if (tsync_protos_reply && tsync_protos_reply[0]) {
 		if (tsync_proto_is_supported(tsync_protos_reply)) {
-			instance->tsync.proto_name = strdup(tsync_protos_reply);
 			printf("Negotiated %s time sync protocol with guest %s\n",
-				instance->tsync.proto_name,
+				tsync_protos_reply,
 				instance->name);
-			tracecmd_host_tsync(instance, tsync_port);
+			host_tsync(instance, tsync_port, tsync_protos_reply);
 		} else
 			warning("Failed to negotiate timestamps synchronization with the guest");
 	}
@@ -3751,12 +3787,6 @@ static void connect_to_agent(struct buffer_instance *instance)
 	/* the msg_handle now points to the guest fd */
 	instance->msg_handle = msg_handle;
 }
-#else
-static inline void connect_to_agent(struct buffer_instance *instance)
-{
-}
-#endif
-
 
 static void setup_guest(struct buffer_instance *instance)
 {
@@ -6087,7 +6117,7 @@ static void parse_record_options(int argc,
 			break;
 		case OPT_tsyncinterval:
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--tsync-interval");
-			top_instance.tsync.loop_interval = atoi(optarg);
+			top_instance.tsync_loop_interval = atoi(optarg);
 			guest_sync_set = true;
 			break;
 		case OPT_fork:
@@ -6132,7 +6162,7 @@ static void parse_record_options(int argc,
 					}
 				}
 			}
-			instance->tsync.loop_interval = top_instance.tsync.loop_interval;
+			instance->tsync_loop_interval = top_instance.tsync_loop_interval;
 		}
 	}
 

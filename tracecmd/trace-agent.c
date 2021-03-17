@@ -143,12 +143,12 @@ static char *get_clock(int argc, char **argv)
 static void agent_handle(int sd, int nr_cpus, int page_size)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
+	struct tracecmd_time_sync *tsync = NULL;
 	struct tracecmd_msg_handle *msg_handle;
-	const char *tsync_proto = NULL;
+	char *tsync_proto = NULL;
 	unsigned long long trace_id;
 	unsigned int tsync_port = 0;
 	unsigned int *ports;
-	pthread_t sync_thr;
 	char **argv = NULL;
 	int argc = 0;
 	bool use_fifos;
@@ -176,10 +176,11 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 	if (!use_fifos)
 		make_vsocks(nr_cpus, fds, ports);
 	if (tsync_protos && tsync_protos->names) {
-		tsync_proto = tracecmd_guest_tsync(tsync_protos,
-						   get_clock(argc, argv),
-						   &tsync_port, &sync_thr);
-		if (!tsync_proto)
+		tsync = tracecmd_tsync_with_host(tsync_protos,
+						 get_clock(argc, argv));
+		if (tsync)
+			tracecmd_tsync_get_session_params(tsync, &tsync_proto, &tsync_port);
+		else
 			warning("Failed to negotiate timestamps synchronization with the host");
 	}
 	trace_id = tracecmd_generate_traceid();
@@ -192,8 +193,10 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 	trace_record_agent(msg_handle, nr_cpus, fds, argc, argv,
 			   use_fifos, trace_id);
 
-	if (tsync_proto)
-		pthread_join(sync_thr, NULL);
+	if (tsync) {
+		tracecmd_tsync_with_host_stop(tsync);
+		tracecmd_tsync_free(tsync);
+	}
 
 	if (tsync_protos) {
 		free(tsync_protos->names);
