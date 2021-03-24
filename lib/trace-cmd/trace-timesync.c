@@ -381,7 +381,7 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 	struct clock_sync_context *tsync_context;
 	struct tsync_proto *proto;
 
-	if (!tsync->context)
+	if (!tsync || !tsync->context)
 		return;
 	tsync_context = (struct clock_sync_context *)tsync->context;
 
