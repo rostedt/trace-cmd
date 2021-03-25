@@ -99,6 +99,12 @@ struct host_trace_info {
 	struct ts_offset_sample	*ts_samples;
 };
 
+struct tsc2nsec {
+	int	mult;
+	int	shift;
+	unsigned long long offset;
+};
+
 struct tracecmd_input {
 	struct tep_handle	*pevent;
 	unsigned long		file_state;
@@ -118,6 +124,8 @@ struct tracecmd_input {
 	bool			use_pipe;
 	struct cpu_data 	*cpu_data;
 	long long		ts_offset;
+	struct tsc2nsec		tsc_calc;
+
 	struct host_trace_info	host;
 	double			ts2secs;
 	char *			cpustats;
@@ -2673,6 +2681,16 @@ static int handle_options(struct tracecmd_input *handle)
 			break;
 		case TRACECMD_OPTION_GUEST:
 			trace_guest_load(handle, buf, size);
+			break;
+		case TRACECMD_OPTION_TSC2NSEC:
+			if (size < 16)
+				break;
+			handle->tsc_calc.mult = tep_read_number(handle->pevent,
+								buf, 4);
+			handle->tsc_calc.shift = tep_read_number(handle->pevent,
+								 buf + 4, 4);
+			handle->tsc_calc.offset = tep_read_number(handle->pevent,
+								  buf + 8, 8);
 			break;
 		default:
 			warning("unknown option %d", option);
