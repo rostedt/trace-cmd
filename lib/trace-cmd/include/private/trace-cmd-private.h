@@ -512,5 +512,22 @@ void *tracecmd_record_page(struct tracecmd_input *handle,
 			   struct tep_record *record);
 void *tracecmd_record_offset(struct tracecmd_input *handle,
 			     struct tep_record *record);
+#ifdef PERF
+
+#include <linux/perf_event.h>
+
+/* trace-cmd Perf */
+struct trace_perf {
+	int fd;
+	int cpu;
+	int pid;
+	int pages;
+	struct perf_event_attr pe;
+	struct perf_event_mmap_page *mmap;
+};
+int trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pid);
+int trace_perf_open(struct trace_perf *perf);
+void trace_perf_close(struct trace_perf *perf);
+#endif
 
 #endif /* _TRACE_CMD_PRIVATE_H */

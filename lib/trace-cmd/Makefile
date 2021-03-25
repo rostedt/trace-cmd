@@ -17,6 +17,9 @@ OBJS += trace-util.o
 OBJS += trace-filter-hash.o
 OBJS += trace-msg.o
 OBJS += trace-plugin.o
+ifeq ($(PERF_DEFINED), 1)
+OBJS += trace-perf.o
+endif
 OBJS += trace-timesync.o
 
 # Additional util objects
