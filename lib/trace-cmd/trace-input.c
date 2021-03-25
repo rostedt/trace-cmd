@@ -2932,6 +2932,10 @@ static void extract_trace_clock(struct tracecmd_input *handle, char *line)
 	if (!clock)
 		return;
 
+	/* Clear usecs if raw timestamps are requested */
+	if (handle->flags & TRACECMD_FL_RAW_TS)
+		handle->flags &= ~TRACECMD_FL_IN_USECS;
+
 	/* Clear usecs if not one of the specified clocks */
 	if (strcmp(clock, "local") && strcmp(clock, "global") &&
 	    strcmp(clock, "uptime") && strcmp(clock, "perf") &&

@@ -1484,6 +1484,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_raw_ts	= 236,
 	OPT_version	= 237,
 	OPT_tscheck	= 238,
 	OPT_tsdiff	= 239,
@@ -1533,6 +1534,7 @@ void trace_report (int argc, char **argv)
 	int print_events = 0;
 	int nanosec = 0;
 	int no_date = 0;
+	int raw_ts = 0;
 	int global = 0;
 	int neg = 0;
 	int ret = 0;
@@ -1574,6 +1576,7 @@ void trace_report (int argc, char **argv)
 			{"ts2secs", required_argument, NULL, OPT_ts2secs},
 			{"ts-diff", no_argument, NULL, OPT_tsdiff},
 			{"ts-check", no_argument, NULL, OPT_tscheck},
+			{"raw-ts", no_argument, NULL, OPT_raw_ts},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1746,6 +1749,9 @@ void trace_report (int argc, char **argv)
 		case OPT_tscheck:
 			tscheck = 1;
 			break;
+		case OPT_raw_ts:
+			raw_ts = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -1777,7 +1783,8 @@ void trace_report (int argc, char **argv)
 
 		if (no_date)
 			tracecmd_set_flag(handle, TRACECMD_FL_IGNORE_DATE);
-
+		if (raw_ts)
+			tracecmd_set_flag(handle, TRACECMD_FL_RAW_TS);
 		page_size = tracecmd_page_size(handle);
 
 		if (show_page_size) {
