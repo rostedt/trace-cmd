@@ -1276,6 +1276,17 @@ static unsigned long long timestamp_correct(unsigned long long ts,
 					 &host->ts_samples[mid+1]);
 }
 
+static unsigned long long timestamp_calc(unsigned long long ts,
+					 struct tracecmd_input *handle)
+{
+	ts = timestamp_correct(ts, handle);
+
+	if (handle->ts2secs)
+		ts *= handle->ts2secs;
+
+	return ts;
+}
+
 /*
  * Page is mapped, now read in the page header info.
  */
@@ -1297,10 +1308,8 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 		    kbuffer_subbuffer_size(kbuf));
 		return -1;
 	}
-	handle->cpu_data[cpu].timestamp = timestamp_correct(kbuffer_timestamp(kbuf), handle);
-
-	if (handle->ts2secs)
-		handle->cpu_data[cpu].timestamp *= handle->ts2secs;
+	handle->cpu_data[cpu].timestamp = timestamp_calc(kbuffer_timestamp(kbuf),
+							 handle);
 
 	return 0;
 }
@@ -1930,10 +1939,7 @@ read_again:
 		goto read_again;
 	}
 
-	handle->cpu_data[cpu].timestamp = timestamp_correct(ts, handle);
-
-	if (handle->ts2secs)
-		handle->cpu_data[cpu].timestamp *= handle->ts2secs;
+	handle->cpu_data[cpu].timestamp = timestamp_calc(ts, handle);
 
 	index = kbuffer_curr_offset(kbuf);
 
