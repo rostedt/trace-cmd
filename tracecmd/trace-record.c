@@ -198,8 +198,10 @@ struct common_record_context {
 	const char *output;
 	char *date2ts;
 	char *user;
+	const char *clock;
 	struct tsc_nsec tsc2nsec;
 	int data_flags;
+	int tsync_loop_interval;
 
 	int record_all;
 	int total_disable;
@@ -3712,7 +3714,8 @@ static int open_guest_fifos(const char *guest, int **fds)
 	return i;
 }
 
-static int host_tsync(struct buffer_instance *instance,
+static int host_tsync(struct common_record_context *ctx,
+		      struct buffer_instance *instance,
 		      unsigned int tsync_port, char *proto)
 {
 	struct trace_guest *guest;
@@ -3727,14 +3730,15 @@ static int host_tsync(struct buffer_instance *instance,
 						    instance->tsync_loop_interval,
 						    instance->cid, tsync_port,
 						    guest->pid, guest->cpu_max,
-						    proto, top_instance.clock);
+						    proto, ctx->clock);
 	if (!instance->tsync)
 		return -1;
 
 	return 0;
 }
 
-static void connect_to_agent(struct buffer_instance *instance)
+static void connect_to_agent(struct common_record_context *ctx,
+			     struct buffer_instance *instance)
 {
 	struct tracecmd_tsync_protos *protos = NULL;
 	int sd, ret, nr_fifos, nr_cpus, page_size;
@@ -3787,7 +3791,7 @@ static void connect_to_agent(struct buffer_instance *instance)
 			printf("Negotiated %s time sync protocol with guest %s\n",
 				tsync_protos_reply,
 				instance->name);
-			host_tsync(instance, tsync_port, tsync_protos_reply);
+			host_tsync(ctx, instance, tsync_port, tsync_protos_reply);
 		} else
 			warning("Failed to negotiate timestamps synchronization with the guest");
 	}
@@ -3866,7 +3870,7 @@ void start_threads(enum trace_type type, struct common_record_context *ctx)
 	for_all_instances(instance) {
 		/* Start the connection now to find out how many CPUs we need */
 		if (is_guest(instance))
-			connect_to_agent(instance);
+			connect_to_agent(ctx, instance);
 		total_cpu_count += instance->cpu_count;
 	}
 
@@ -4132,6 +4136,7 @@ enum {
 	DATA_FL_NONE		= 0,
 	DATA_FL_DATE		= 1,
 	DATA_FL_OFFSET		= 2,
+	DATA_FL_GUEST		= 4,
 };
 
 static void add_options(struct tracecmd_output *handle, struct common_record_context *ctx)
@@ -5816,7 +5821,6 @@ static void parse_record_options(int argc,
 	int name_counter = 0;
 	int negative = 0;
 	struct buffer_instance *instance, *del_list = NULL;
-	bool guest_sync_set = false;
 	int do_children = 0;
 	int fpids_count = 0;
 
@@ -5951,6 +5955,7 @@ static void parse_record_options(int argc,
 			ctx->instance->port = port;
 			ctx->instance->name = name;
 			add_instance(ctx->instance, 0);
+			ctx->data_flags |= DATA_FL_GUEST;
 			break;
 		}
 		case 'F':
@@ -6012,8 +6017,8 @@ static void parse_record_options(int argc,
 			if (!ctx->instance->clock)
 				die("Failed allocation");
 			ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
-			if (is_top_instance(ctx->instance))
-				guest_sync_set = true;
+			if (!ctx->clock && !is_guest(ctx->instance))
+				ctx->clock = ctx->instance->clock;
 			break;
 		case 'v':
 			negative = 1;
@@ -6257,8 +6262,7 @@ static void parse_record_options(int argc,
 			break;
 		case OPT_tsyncinterval:
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--tsync-interval");
-			top_instance.tsync_loop_interval = atoi(optarg);
-			guest_sync_set = true;
+			ctx->tsync_loop_interval = atoi(optarg);
 			break;
 		case OPT_fork:
 			if (!IS_START(ctx))
@@ -6290,26 +6294,6 @@ static void parse_record_options(int argc,
 		for_all_instances(instance) {
 			if (is_guest(instance))
 				add_argv(instance, "--date", true);
-		}
-	}
-	if (guest_sync_set) {
-	/* If -C is specified, prepend clock to all guest VM flags */
-		for_all_instances(instance) {
-			if (top_instance.clock) {
-				if (is_guest(instance) &&
-				    !(instance->flags & BUFFER_FL_HAS_CLOCK)) {
-					add_argv(instance,
-						 (char *)top_instance.clock,
-						 true);
-					add_argv(instance, "-C", true);
-					if (!instance->clock) {
-						instance->clock = strdup((char *)top_instance.clock);
-						if (!instance->clock)
-							die("Could not allocate instance clock");
-					}
-				}
-			}
-			instance->tsync_loop_interval = top_instance.tsync_loop_interval;
 		}
 	}
 
@@ -6478,6 +6462,56 @@ static void get_tsc_offset(struct common_record_context *ctx)
 	ctx->tsc2nsec.offset = get_clock_now(NULL);
 }
 
+static void set_tsync_params(struct common_record_context *ctx)
+{
+	const char *clock = ctx->clock;
+	struct buffer_instance *instance;
+	int shift, mult;
+	bool force_tsc = false;
+
+	/*
+	 * If no clock is configured &&
+	 * KVM time sync protocol is available &&
+	 * tsc-x86 clock is supported &&
+	 * TSC to nsec multiplier and shift are available:
+	 * force using the x86-tsc clock for this host-guest tracing session
+	 * and store TSC to nsec multiplier and shift.
+	 */
+	if (!clock && tsync_proto_is_supported("kvm") &&
+	    clock_is_supported(NULL, TSC_CLOCK) &&
+	    !get_tsc_nsec(&shift, &mult) && mult) {
+		clock = TSC_CLOCK;
+		ctx->tsc2nsec.mult = mult;
+		ctx->tsc2nsec.shift = shift;
+		ctx->tsc2nsec.offset = get_clock_now(TSC_CLOCK);
+		force_tsc = true;
+	}
+
+	if (!clock && !ctx->tsync_loop_interval)
+		return;
+	for_all_instances(instance) {
+		if (clock && !(instance->flags & BUFFER_FL_HAS_CLOCK)) {
+			/* use the same clock in all tracing peers */
+			if (is_guest(instance)) {
+				if (!instance->clock) {
+					instance->clock = strdup(clock);
+					if (!instance->clock)
+						die("Can not allocate instance clock");
+				}
+				add_argv(instance, (char *)instance->clock, true);
+				add_argv(instance, "-C", true);
+				if (ctx->tsc2nsec.mult)
+					instance->flags |= BUFFER_FL_TSC2NSEC;
+			} else if (force_tsc && !instance->clock) {
+				instance->clock = strdup(clock);
+				if (!instance->clock)
+					die("Can not allocate instance clock");
+			}
+		}
+		instance->tsync_loop_interval = ctx->tsync_loop_interval;
+	}
+}
+
 /*
  * This function contains common code for the following commands:
  * record, start, stream, profile.
@@ -6506,6 +6540,9 @@ static void record_trace(int argc, char **argv,
 
 	if (!ctx->output)
 		ctx->output = DEFAULT_INPUT_FILE;
+
+	if (ctx->data_flags & DATA_FL_GUEST)
+		set_tsync_params(ctx);
 
 	make_instances();
 
