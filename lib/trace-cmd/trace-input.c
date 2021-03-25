@@ -1241,20 +1241,11 @@ timestamp_correction_calc(unsigned long long ts, unsigned int flags,
 	return ts + tscor;
 }
 
-static unsigned long long timestamp_correct(unsigned long long ts,
-					    struct tracecmd_input *handle)
+static unsigned long long timestamp_host_sync(unsigned long long ts,
+					      struct tracecmd_input *handle)
 {
 	struct host_trace_info	*host = &handle->host;
 	int min, mid, max;
-
-	if (handle->flags & TRACECMD_FL_IGNORE_DATE)
-		return ts;
-
-	if (handle->ts_offset)
-		return ts + handle->ts_offset;
-
-	if (!host->sync_enable)
-		return ts;
 
 	/* We have one sample, nothing to calc here */
 	if (host->ts_samples_count == 1)
@@ -1296,14 +1287,22 @@ static unsigned long long timestamp_correct(unsigned long long ts,
 static unsigned long long timestamp_calc(unsigned long long ts,
 					 struct tracecmd_input *handle)
 {
-	ts = timestamp_correct(ts, handle);
+	/* Guest trace file, sync with host timestamps */
+	if (handle->host.sync_enable)
+		ts = timestamp_host_sync(ts, handle);
 
-	if (handle->ts2secs)
+	if (handle->ts2secs) {
+		/* user specified clock frequency */
 		ts *= handle->ts2secs;
-	else if (handle->tsc_calc.mult) {
+	} else if (handle->tsc_calc.mult) {
+		/* auto calculated TSC clock frequency */
 		ts -= handle->tsc_calc.offset;
 		ts = mul_u64_u32_shr(ts, handle->tsc_calc.mult, handle->tsc_calc.shift);
 	}
+
+	/* User specified time offset with --ts-offset or --date options */
+	if (handle->ts_offset)
+		ts += handle->ts_offset;
 
 	return ts;
 }
