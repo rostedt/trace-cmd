@@ -1196,6 +1196,23 @@ static void free_next(struct tracecmd_input *handle, int cpu)
 	tracecmd_free_record(record);
 }
 
+/* This functions was taken from the Linux kernel */
+static unsigned long long mul_u64_u32_shr(unsigned long long a,
+					  unsigned long long mul, unsigned int shift)
+{
+	unsigned int ah, al;
+	unsigned long long ret;
+
+	al = a;
+	ah = a >> 32;
+
+	ret = (al * mul) >> shift;
+	if (ah)
+		ret += (ah * mul) << (32 - shift);
+
+	return ret;
+}
+
 static inline unsigned long long
 timestamp_correction_calc(unsigned long long ts, unsigned int flags,
 			  struct ts_offset_sample *min,
@@ -1283,6 +1300,10 @@ static unsigned long long timestamp_calc(unsigned long long ts,
 
 	if (handle->ts2secs)
 		ts *= handle->ts2secs;
+	else if (handle->tsc_calc.mult) {
+		ts -= handle->tsc_calc.offset;
+		ts = mul_u64_u32_shr(ts, handle->tsc_calc.mult, handle->tsc_calc.shift);
+	}
 
 	return ts;
 }
