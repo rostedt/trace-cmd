@@ -1287,6 +1287,10 @@ static unsigned long long timestamp_host_sync(unsigned long long ts,
 static unsigned long long timestamp_calc(unsigned long long ts,
 					 struct tracecmd_input *handle)
 {
+	/* do not modify raw timestamps */
+	if (handle->flags & TRACECMD_FL_RAW_TS)
+		return ts;
+
 	/* Guest trace file, sync with host timestamps */
 	if (handle->host.sync_enable)
 		ts = timestamp_host_sync(ts, handle);
@@ -2601,7 +2605,8 @@ static int handle_options(struct tracecmd_input *handle)
 			 * gtod. It is stored as ASCII with '0x'
 			 * appended.
 			 */
-			if (handle->flags & TRACECMD_FL_IGNORE_DATE)
+			if (handle->flags &
+			    (TRACECMD_FL_IGNORE_DATE | TRACECMD_FL_RAW_TS))
 				break;
 			offset = strtoll(buf, NULL, 0);
 			/* Convert from micro to nano */
@@ -2707,7 +2712,7 @@ static int handle_options(struct tracecmd_input *handle)
 			trace_guest_load(handle, buf, size);
 			break;
 		case TRACECMD_OPTION_TSC2NSEC:
-			if (size < 16)
+			if (size < 16 || (handle->flags & TRACECMD_FL_RAW_TS))
 				break;
 			handle->tsc_calc.mult = tep_read_number(handle->pevent,
 								buf, 4);
