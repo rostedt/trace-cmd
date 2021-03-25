@@ -5687,6 +5687,34 @@ check_instance_die(struct buffer_instance *instance, char *param)
 		    tracefs_instance_get_name(instance->tracefs), param);
 }
 
+static bool clock_is_supported(struct tracefs_instance *instance, const char *clock)
+{
+	char *all_clocks = NULL;
+	char *ret = NULL;
+
+	all_clocks  = tracefs_instance_file_read(instance, "trace_clock", NULL);
+	if (!all_clocks)
+		return false;
+
+	ret = strstr(all_clocks, clock);
+	if (ret && (ret == all_clocks || ret[-1] == ' ' || ret[-1] == '[')) {
+		switch (ret[strlen(clock)]) {
+		case ' ':
+		case '\0':
+		case ']':
+		case '\n':
+			break;
+		default:
+			ret = NULL;
+		}
+	} else {
+		ret = NULL;
+	}
+	free(all_clocks);
+
+	return ret != NULL;
+}
+
 static void parse_record_options(int argc,
 				 char **argv,
 				 enum trace_cmd curr_cmd,
@@ -5882,6 +5910,8 @@ static void parse_record_options(int argc,
 		case 'C':
 			check_instance_die(ctx->instance, "-C");
 			ctx->instance->clock = optarg;
+			if (!clock_is_supported(NULL, ctx->instance->clock))
+				die("Clock %s is not supported", ctx->instance->clock);
 			ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
 			if (is_top_instance(ctx->instance))
 				guest_sync_set = true;
