@@ -4159,6 +4159,7 @@ enum {
 static void add_options(struct tracecmd_output *handle, struct common_record_context *ctx)
 {
 	int type = 0;
+	char *clocks;
 
 	if (ctx->date2ts) {
 		if (ctx->data_flags & DATA_FL_DATE)
@@ -4170,12 +4171,15 @@ static void add_options(struct tracecmd_output *handle, struct common_record_con
 	if (type)
 		tracecmd_add_option(handle, type, strlen(ctx->date2ts)+1, ctx->date2ts);
 
-	tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK, 0, NULL);
+	clocks = get_trace_clock(false);
+	tracecmd_add_option(handle, TRACECMD_OPTION_TRACECLOCK,
+			    clocks ? strlen(clocks)+1 : 0, clocks);
 	add_option_hooks(handle);
 	add_uname(handle);
 	add_version(handle);
 	if (!no_top_instance())
 		add_trace_id(handle, &top_instance);
+	free(clocks);
 }
 
 static void write_guest_file(struct buffer_instance *instance)
