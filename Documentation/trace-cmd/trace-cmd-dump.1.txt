@@ -46,6 +46,8 @@ OPTIONS
     Print all options, stored in the file.
 *--flyrecord*::
     Print the offset and the size of tracing data per each CPU.
+*--clock*::
+    Print the trace clock, used for timestamp of the tracing events, stored in the file.
 *--all*::
     Print all meta data from the file.
 *--help*::

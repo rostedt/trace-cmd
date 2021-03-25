@@ -24,6 +24,7 @@
 
 static struct tep_handle *tep;
 static unsigned int trace_cpus;
+static int has_clock;
 
 enum dump_items {
 	SUMMARY		= (1 << 0),
@@ -37,6 +38,7 @@ enum dump_items {
 	CMDLINES	= (1 << 8),
 	OPTIONS		= (1 << 9),
 	FLYRECORD	= (1 << 10),
+	CLOCK		= (1 << 11),
 };
 
 enum dump_items verbosity;
@@ -496,7 +498,7 @@ static void dump_options(int fd)
 			die("cannot read the option size");
 
 		count++;
-		if (!DUMP_CHECK(OPTIONS)) {
+		if (!DUMP_CHECK(OPTIONS) && !DUMP_CHECK(CLOCK) && !DUMP_CHECK(SUMMARY)) {
 			lseek64(fd, size, SEEK_CUR);
 			continue;
 		}
@@ -512,6 +514,7 @@ static void dump_options(int fd)
 			break;
 		case TRACECMD_OPTION_TRACECLOCK:
 			dump_option_string(fd, size, "TRACECLOCK");
+			has_clock = 1;
 			break;
 		case TRACECMD_OPTION_UNAME:
 			dump_option_string(fd, size, "UNAME");
@@ -556,6 +559,29 @@ static void dump_latency(int fd)
 	do_print(SUMMARY, "\t[Latency tracing data]\n");
 }
 
+static void dump_clock(int fd)
+{
+	long long size;
+	char *clock;
+
+	do_print((SUMMARY | CLOCK), "\t[Tracing clock]\n");
+	if (!has_clock) {
+		do_print((SUMMARY | CLOCK), "\t\t No tracing clock saved in the file\n");
+		return;
+	}
+	if (read_file_number(fd, &size, 8))
+		die("cannot read clock size");
+	clock = calloc(1, size);
+	if (!clock)
+		die("cannot allocate clock %d bytes", size);
+
+	if (read_file_bytes(fd, clock, size))
+		die("cannot read clock %d bytes", size);
+	clock[size] = 0;
+	do_print((SUMMARY | CLOCK), "\t\t%s\n", clock);
+	free(clock);
+}
+
 static void dump_flyrecord(int fd)
 {
 	long long cpu_offset;
@@ -572,6 +598,7 @@ static void dump_flyrecord(int fd)
 		do_print(FLYRECORD, "\t\t %lld %lld\t[offset, size of cpu %d]\n",
 			 cpu_offset, cpu_size, i);
 	}
+	dump_clock(fd);
 }
 
 static void dump_therest(int fd)
@@ -626,6 +653,7 @@ static void dump_file(const char *file)
 }
 
 enum {
+	OPT_clock	= 243,
 	OPT_all		= 244,
 	OPT_summary	= 245,
 	OPT_flyrecord	= 246,
@@ -666,6 +694,7 @@ void trace_dump(int argc, char **argv)
 			{"cmd-lines", no_argument, NULL, OPT_cmd_lines},
 			{"options", no_argument, NULL, OPT_options},
 			{"flyrecord", no_argument, NULL, OPT_flyrecord},
+			{"clock", no_argument, NULL, OPT_clock},
 			{"validate", no_argument, NULL, 'v'},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
@@ -720,6 +749,9 @@ void trace_dump(int argc, char **argv)
 			break;
 		case OPT_head_page:
 			verbosity |= HEAD_PAGE;
+			break;
+		case OPT_clock:
+			verbosity |= CLOCK;
 			break;
 		default:
 			usage(argv);

@@ -377,6 +377,7 @@ static struct usage_help usage_help[] = {
 		"          --cmd-lines print information mapping a PID to a process name\n"
 		"          --options print options\n"
 		"          --flyrecord information of offset and count of recorded events per CPU\n"
+		"          --clock trace clock, saved in the file\n"
 		"          -h, --help show usage information\n"
 	},
 	{
