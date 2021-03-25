@@ -1932,10 +1932,8 @@ read_again:
 
 	handle->cpu_data[cpu].timestamp = timestamp_correct(ts, handle);
 
-	if (handle->ts2secs) {
+	if (handle->ts2secs)
 		handle->cpu_data[cpu].timestamp *= handle->ts2secs;
-		ts *= handle->ts2secs;
-	}
 
 	index = kbuffer_curr_offset(kbuf);
 
