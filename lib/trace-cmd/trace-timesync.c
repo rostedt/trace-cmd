@@ -834,7 +834,6 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 	vector[5].iov_len = 8 * count;
 	vector[5].iov_base = scalings;
 	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 6);
-	tracecmd_append_options(handle);
 #ifdef TSYNC_DEBUG
 	if (count > 1)
 		printf("Got %d timestamp synch samples in %lld ns trace\n\r",

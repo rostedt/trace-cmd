@@ -703,6 +703,7 @@ static void host_tsync_complete(struct common_record_context *ctx,
 			add_tsc2nsec(handle, &ctx->tsc2nsec);
 
 		tracecmd_write_guest_time_shift(handle, instance->tsync);
+		tracecmd_append_options(handle);
 		tracecmd_output_close(handle);
 	}
 
