@@ -172,6 +172,7 @@ enum buffer_instance_flags {
 	BUFFER_FL_GUEST		= 1 << 2,
 	BUFFER_FL_AGENT		= 1 << 3,
 	BUFFER_FL_HAS_CLOCK	= 1 << 4,
+	BUFFER_FL_TSC2NSEC	= 1 << 5,
 };
 
 struct func_list {
@@ -197,6 +198,12 @@ struct filter_pids {
 	struct filter_pids *next;
 	int pid;
 	int exclude;
+};
+
+struct tsc_nsec {
+	int mult;
+	int shift;
+	unsigned long long offset;
 };
 
 struct buffer_instance {

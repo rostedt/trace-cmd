@@ -57,6 +57,8 @@
 #define MAX_LATENCY	"tracing_max_latency"
 #define STAMP		"stamp"
 #define FUNC_STACK_TRACE "func_stack_trace"
+#define TSC_CLOCK	"x86-tsc"
+#define TSCNSEC_CLOCK	"tsc2nsec"
 
 enum trace_type {
 	TRACE_TYPE_RECORD	= 1,
@@ -197,6 +199,7 @@ struct common_record_context {
 	const char *output;
 	char *date2ts;
 	char *user;
+	struct tsc_nsec tsc2nsec;
 	int data_flags;
 
 	int record_all;
@@ -4447,11 +4450,12 @@ static int find_ts(struct tep_event *event, struct tep_record *record,
 	return 0;
 }
 
-static unsigned long long find_time_stamp(struct tep_handle *tep)
+static unsigned long long find_time_stamp(struct tep_handle *tep,
+					  struct tracefs_instance *instance)
 {
 	unsigned long long ts = 0;
 
-	if (!tracefs_iterate_raw_events(tep, NULL, NULL, 0, find_ts, &ts))
+	if (!tracefs_iterate_raw_events(tep, instance, NULL, 0, find_ts, &ts))
 		return ts;
 
 	return 0;
@@ -4531,7 +4535,7 @@ static char *get_date_to_ts(void)
 		clock_gettime(CLOCK_REALTIME, &end);
 
 		tracecmd_disable_tracing();
-		ts = find_time_stamp(tep);
+		ts = find_time_stamp(tep, NULL);
 		if (!ts)
 			continue;
 
@@ -5392,6 +5396,7 @@ void init_top_instance(void)
 }
 
 enum {
+	OPT_tsc2nsec		= 240,
 	OPT_fork		= 241,
 	OPT_tsyncinterval	= 242,
 	OPT_user		= 243,
@@ -5715,6 +5720,61 @@ static bool clock_is_supported(struct tracefs_instance *instance, const char *cl
 	return ret != NULL;
 }
 
+#ifdef PERF
+static int get_tsc_nsec(int *shift, int *mult)
+{
+	static int cpu_shift, cpu_mult;
+	static int supported;
+	int cpus = tracecmd_count_cpus();
+	struct trace_perf perf;
+	int i;
+
+	if (supported)
+		goto out;
+
+	supported = -1;
+	if (trace_perf_init(&perf, 1, 0, getpid()))
+		return -1;
+	if (trace_perf_open(&perf))
+		return -1;
+	cpu_shift = perf.mmap->time_shift;
+	cpu_mult = perf.mmap->time_mult;
+	for (i = 1; i < cpus; i++) {
+		trace_perf_close(&perf);
+		if (trace_perf_init(&perf, 1, i, getpid()))
+			break;
+		if (trace_perf_open(&perf))
+			break;
+		if (perf.mmap->time_shift != cpu_shift ||
+		    perf.mmap->time_mult != cpu_mult) {
+			warning("Found different TSC multiplier and shift for CPU %d: %d;%d instead of %d;%d",
+				i, perf.mmap->time_mult, perf.mmap->time_shift, cpu_mult, cpu_shift);
+			break;
+		}
+	}
+	trace_perf_close(&perf);
+	if (i < cpus)
+		return -1;
+
+	supported = 1;
+out:
+	if (supported < 0)
+		return -1;
+
+	if (shift)
+		*shift = cpu_shift;
+	if (mult)
+		*mult = cpu_mult;
+
+	return 0;
+}
+#else
+static int get_tsc_nsec(int *shift, int *mult)
+{
+	return -1;
+}
+#endif
+
 static void parse_record_options(int argc,
 				 char **argv,
 				 enum trace_cmd curr_cmd,
@@ -5764,6 +5824,7 @@ static void parse_record_options(int argc,
 			{"module", required_argument, NULL, OPT_module},
 			{"tsync-interval", required_argument, NULL, OPT_tsyncinterval},
 			{"fork", no_argument, NULL, OPT_fork},
+			{"tsc2nsec", no_argument, NULL, OPT_tsc2nsec},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -5909,9 +5970,21 @@ static void parse_record_options(int argc,
 			break;
 		case 'C':
 			check_instance_die(ctx->instance, "-C");
-			ctx->instance->clock = optarg;
+			if (strcmp(optarg, TSCNSEC_CLOCK) == 0) {
+				ret = get_tsc_nsec(&ctx->tsc2nsec.shift,
+						   &ctx->tsc2nsec.mult);
+				if (ret)
+					die("TSC to nanosecond is not supported");
+				ctx->instance->flags |= BUFFER_FL_TSC2NSEC;
+				ctx->instance->clock = TSC_CLOCK;
+			} else {
+				ctx->instance->clock = optarg;
+			}
 			if (!clock_is_supported(NULL, ctx->instance->clock))
 				die("Clock %s is not supported", ctx->instance->clock);
+			ctx->instance->clock = strdup(ctx->instance->clock);
+			if (!ctx->instance->clock)
+				die("Failed allocation");
 			ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
 			if (is_top_instance(ctx->instance))
 				guest_sync_set = true;
@@ -6166,6 +6239,13 @@ static void parse_record_options(int argc,
 				die("--fork option used for 'start' command only");
 			fork_process = true;
 			break;
+		case OPT_tsc2nsec:
+			ret = get_tsc_nsec(&ctx->tsc2nsec.shift,
+					   &ctx->tsc2nsec.mult);
+			if (ret)
+				die("TSC to nanosecond is not supported");
+			ctx->instance->flags |= BUFFER_FL_TSC2NSEC;
+			break;
 		case OPT_quiet:
 		case 'q':
 			quiet = true;
@@ -6314,6 +6394,65 @@ static bool has_local_instances(void)
 }
 
 /*
+ * Get the current clock value
+ */
+#define CLOCK_INST_NAME	"_clock_instance_"
+static unsigned long long get_clock_now(const char *clock)
+{
+	struct tracefs_instance *ts_instance = NULL;
+	unsigned long long ts = 0;
+	struct tep_handle *tep;
+	int tfd;
+	int ret;
+
+	/* Set up a tep to read the raw format */
+	tep = get_ftrace_tep();
+	if (!tep)
+		return 0;
+	ts_instance = tracefs_instance_create(CLOCK_INST_NAME);
+	if (!ts_instance)
+		goto out;
+	if (clock) {
+		ret = tracefs_instance_file_write(ts_instance, "trace_clock", clock);
+		if (ret < strlen(clock))
+			goto out;
+	}
+	tfd = tracefs_instance_file_open(ts_instance, "trace_marker", O_WRONLY);
+	if (tfd < 0)
+		goto out;
+	tracefs_trace_on(ts_instance);
+	ret = write(tfd, STAMP, 5);
+	tracefs_trace_off(ts_instance);
+	ts = find_time_stamp(tep, ts_instance);
+	close(tfd);
+
+out:
+	if (ts_instance) {
+		if (tracefs_instance_is_new(ts_instance))
+			tracefs_instance_destroy(ts_instance);
+		tracefs_instance_free(ts_instance);
+	}
+	tep_free(tep);
+
+	return ts;
+}
+
+static void get_tsc_offset(struct common_record_context *ctx)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance) {
+		if (is_guest(instance) || !instance->clock)
+			continue;
+
+		ctx->tsc2nsec.offset = get_clock_now(instance->clock);
+		return;
+	}
+
+	ctx->tsc2nsec.offset = get_clock_now(NULL);
+}
+
+/*
  * This function contains common code for the following commands:
  * record, start, stream, profile.
  */
@@ -6370,6 +6509,9 @@ static void record_trace(int argc, char **argv,
 
 	for_all_instances(instance)
 		set_clock(instance);
+
+	if (ctx->tsc2nsec.mult)
+		get_tsc_offset(ctx);
 
 	/* Record records the date first */
 	if (ctx->date &&
