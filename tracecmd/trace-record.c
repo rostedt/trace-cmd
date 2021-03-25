@@ -668,7 +668,24 @@ static void delete_thread_data(void)
 	}
 }
 
-static void host_tsync_complete(struct buffer_instance *instance)
+static void
+add_tsc2nsec(struct tracecmd_output *handle, struct tsc_nsec *tsc2nsec)
+{
+	/* multiplier, shift, offset */
+	struct iovec vector[3];
+
+	vector[0].iov_len = 4;
+	vector[0].iov_base = &tsc2nsec->mult;
+	vector[1].iov_len = 4;
+	vector[1].iov_base = &tsc2nsec->shift;
+	vector[2].iov_len = 8;
+	vector[2].iov_base = &tsc2nsec->offset;
+
+	tracecmd_add_option_v(handle, TRACECMD_OPTION_TSC2NSEC, vector, 3);
+}
+
+static void host_tsync_complete(struct common_record_context *ctx,
+				struct buffer_instance *instance)
 {
 	struct tracecmd_output *handle = NULL;
 	int fd = -1;
@@ -682,6 +699,10 @@ static void host_tsync_complete(struct buffer_instance *instance)
 		handle = tracecmd_get_output_handle_fd(fd);
 		if (!handle)
 			die("cannot create output handle");
+
+		if (ctx->tsc2nsec.mult)
+			add_tsc2nsec(handle, &ctx->tsc2nsec);
+
 		tracecmd_write_guest_time_shift(handle, instance->tsync);
 		tracecmd_output_close(handle);
 	}
@@ -690,7 +711,7 @@ static void host_tsync_complete(struct buffer_instance *instance)
 	instance->tsync = NULL;
 }
 
-static void tell_guests_to_stop(void)
+static void tell_guests_to_stop(struct common_record_context *ctx)
 {
 	struct buffer_instance *instance;
 
@@ -702,7 +723,7 @@ static void tell_guests_to_stop(void)
 
 	for_all_instances(instance) {
 		if (is_guest(instance))
-			host_tsync_complete(instance);
+			host_tsync_complete(ctx, instance);
 	}
 
 	/* Wait for guests to acknowledge */
@@ -4273,6 +4294,9 @@ static void record_data(struct common_record_context *ctx)
 				add_guest_info(handle, instance);
 		}
 
+		if (ctx->tsc2nsec.mult)
+			add_tsc2nsec(handle, &ctx->tsc2nsec);
+
 		if (tracecmd_write_cmdlines(handle))
 			die("Writing cmdlines");
 
@@ -6593,7 +6617,7 @@ static void record_trace(int argc, char **argv,
 			trace_or_sleep(type, pwait);
 	}
 
-	tell_guests_to_stop();
+	tell_guests_to_stop(ctx);
 	tracecmd_disable_tracing();
 	if (!latency)
 		stop_threads(type);
