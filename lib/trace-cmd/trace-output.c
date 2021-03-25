@@ -59,6 +59,7 @@ struct tracecmd_output {
 	unsigned long		file_state;
 	struct list_head	options;
 	struct tracecmd_msg_handle *msg_handle;
+	char			*trace_clock;
 };
 
 struct list_event {
@@ -118,6 +119,12 @@ void tracecmd_set_quiet(struct tracecmd_output *handle, bool set_quiet)
 		handle->quiet = set_quiet;
 }
 
+void tracecmd_set_out_clock(struct tracecmd_output *handle, char *clock)
+{
+	if (handle && clock)
+		handle->trace_clock = strdup(clock);
+}
+
 /**
  * tracecmd_get_quiet - Get if to print output to the screen
  * Returns non zero, if no output to the screen should be printed
@@ -150,7 +157,7 @@ void tracecmd_output_free(struct tracecmd_output *handle)
 		free(option->data);
 		free(option);
 	}
-
+	free(handle->trace_clock);
 	free(handle);
 }
 
@@ -1359,6 +1366,46 @@ out_free:
 	return NULL;
 }
 
+static int save_clock(struct tracecmd_output *handle, char *clock)
+{
+	unsigned long long endian8;
+	char *str = NULL;
+	int ret;
+
+	ret = asprintf(&str, "[%s]", clock);
+	if (ret < 0)
+		return -1;
+
+	endian8 = convert_endian_8(handle, strlen(str));
+	ret = do_write_check(handle, &endian8, 8);
+	if (ret)
+		goto out;
+	ret = do_write_check(handle, str, strlen(str));
+
+out:
+	free(str);
+	return ret;
+}
+
+static char *get_clock(struct tracecmd_output *handle)
+{
+	struct tracefs_instance *inst;
+
+	if (handle->trace_clock)
+		return handle->trace_clock;
+
+	/*
+	 * If no clock is set on this handle, get the trace clock of
+	 * the top instance in the handle's tracing dir
+	 */
+	inst = tracefs_instance_alloc(handle->tracing_dir, NULL);
+	if (!inst)
+		return NULL;
+	handle->trace_clock = tracefs_get_clock(inst);
+	tracefs_instance_free(inst);
+	return handle->trace_clock;
+}
+
 int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 			    int cpus, char * const *cpu_data_files)
 {
@@ -1366,6 +1413,7 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	unsigned long long *sizes = NULL;
 	off64_t offset;
 	unsigned long long endian8;
+	char *clock = NULL;
 	off64_t check_size;
 	char *file;
 	struct stat st;
@@ -1403,18 +1451,14 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	 * we need to find the size of it before we define the final
 	 * offsets.
 	 */
-	file = get_tracing_file(handle, "trace_clock");
-	if (!file)
+	clock = get_clock(handle);
+	if (!clock)
 		goto out_free;
-
 	/* Save room for storing the size */
 	offset += 8;
-
-	ret = stat(file, &st);
-	if (ret >= 0)
-		offset += get_size(file);
-
-	put_tracing_file(file);
+	offset += strlen(clock);
+	/* 2 bytes for [] around the clock */
+	offset += 2;
 
 	/* Page align offset */
 	offset = (offset + (handle->page_size - 1)) & ~(handle->page_size - 1);
@@ -1439,7 +1483,7 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 			goto out_free;
 	}
 
-	if (save_tracing_file_data(handle, "trace_clock") < 0)
+	if (save_clock(handle, clock))
 		goto out_free;
 
 	for (i = 0; i < cpus; i++) {
