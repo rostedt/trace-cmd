@@ -4463,52 +4463,59 @@ static char *read_top_file(char *file, int *psize)
 	return tracefs_instance_file_read(top_instance.tracefs, file, psize);
 }
 
+static struct tep_handle *get_ftrace_tep(void)
+{
+	const char *systems[] = {"ftrace", NULL};
+	struct tep_handle *tep;
+	char *buf;
+	int size;
+	int ret;
+
+	tep = tracefs_local_events_system(NULL, systems);
+	if (!tep)
+		return NULL;
+	tep_set_file_bigendian(tep, tracecmd_host_bigendian());
+	buf = read_top_file("events/header_page", &size);
+	if (!buf)
+		goto error;
+	ret = tep_parse_header_page(tep, buf, size, sizeof(unsigned long));
+	free(buf);
+	if (ret < 0)
+		goto error;
+
+	return tep;
+
+error:
+	tep_free(tep);
+	return NULL;
+}
+
 /*
  * Try to write the date into the ftrace buffer and then
  * read it back, mapping the timestamp to the date.
  */
 static char *get_date_to_ts(void)
 {
-	const char *systems[] = {"ftrace", NULL};
+	struct tep_handle *tep;
 	unsigned long long min = -1ULL;
 	unsigned long long diff;
 	unsigned long long stamp;
 	unsigned long long min_stamp;
 	unsigned long long min_ts;
 	unsigned long long ts;
-	struct tep_handle *tep;
 	struct timespec start;
 	struct timespec end;
 	char *date2ts = NULL;
-	char *path;
-	char *buf;
-	int size;
 	int tfd;
-	int ret;
 	int i;
 
 	/* Set up a tep to read the raw format */
-	tep = tracefs_local_events_system(NULL, systems);
+	tep = get_ftrace_tep();
 	if (!tep) {
 		warning("failed to alloc tep, --date ignored");
 		return NULL;
 	}
-
-	tep_set_file_bigendian(tep, tracecmd_host_bigendian());
-
-	buf = read_top_file("events/header_page", &size);
-	if (!buf)
-		goto out_pevent;
-	ret = tep_parse_header_page(tep, buf, size, sizeof(unsigned long));
-	free(buf);
-	if (ret < 0) {
-		warning("Can't parse header page, --date ignored");
-		goto out_pevent;
-	}
-
-	path = tracefs_get_tracing_file("trace_marker");
-	tfd = open(path, O_WRONLY);
-	tracefs_put_tracing_file(path);
+	tfd = tracefs_instance_file_open(NULL, "trace_marker", O_WRONLY);
 	if (tfd < 0) {
 		warning("Can not open 'trace_marker', --date ignored");
 		goto out_pevent;
