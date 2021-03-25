@@ -1653,16 +1653,17 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 static void
 set_plugin_instance(struct buffer_instance *instance, const char *name)
 {
-	FILE *fp;
 	char *path;
 	char zero = '0';
+	int ret;
+	int fd;
 
 	if (is_guest(instance))
 		return;
 
 	path = tracefs_instance_get_file(instance->tracefs, "current_tracer");
-	fp = fopen(path, "w");
-	if (!fp) {
+	fd = open(path, O_WRONLY);
+	if (fd < 0) {
 		/*
 		 * Legacy kernels do not have current_tracer file, and they
 		 * always use nop. So, it doesn't need to try to change the
@@ -1672,12 +1673,15 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 			tracefs_put_tracing_file(path);
 			return;
 		}
-		die("writing to '%s'", path);
+		die("Opening '%s'", path);
 	}
-	tracefs_put_tracing_file(path);
+	ret = write(fd, name, strlen(name));
+	close(fd);
 
-	fwrite(name, 1, strlen(name), fp);
-	fclose(fp);
+	if (ret < 0)
+		die("writing to '%s'", path);
+
+	tracefs_put_tracing_file(path);
 
 	if (strncmp(name, "function", 8) != 0)
 		return;
@@ -1685,12 +1689,12 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 	/* Make sure func_stack_trace option is disabled */
 	/* First try instance file, then top level */
 	path = tracefs_instance_get_file(instance->tracefs, "options/func_stack_trace");
-	fp = fopen(path, "w");
-	if (!fp) {
+	fd = open(path, O_WRONLY);
+	if (fd < 0) {
 		tracefs_put_tracing_file(path);
 		path = tracefs_get_tracing_file("options/func_stack_trace");
-		fp = fopen(path, "w");
-		if (!fp) {
+		fd = open(path, O_WRONLY);
+		if (fd < 0) {
 			tracefs_put_tracing_file(path);
 			return;
 		}
@@ -1701,8 +1705,8 @@ set_plugin_instance(struct buffer_instance *instance, const char *name)
 	 */
 	add_reset_file(path, "0", RESET_HIGH_PRIO);
 	tracefs_put_tracing_file(path);
-	fwrite(&zero, 1, 1, fp);
-	fclose(fp);
+	write(fd, &zero, 1);
+	close(fd);
 }
 
 static void set_plugin(const char *name)
