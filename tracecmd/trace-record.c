@@ -58,7 +58,6 @@
 #define STAMP		"stamp"
 #define FUNC_STACK_TRACE "func_stack_trace"
 #define TSC_CLOCK	"x86-tsc"
-#define TSCNSEC_CLOCK	"tsc2nsec"
 
 enum trace_type {
 	TRACE_TYPE_RECORD	= 1,
@@ -4172,7 +4171,8 @@ static void write_guest_file(struct buffer_instance *instance)
 	handle = tracecmd_get_output_handle_fd(fd);
 	if (!handle)
 		die("error writing to %s", file);
-
+	if (instance->flags & BUFFER_FL_TSC2NSEC)
+		tracecmd_set_out_clock(handle, TSCNSEC_CLOCK);
 	temp_files = malloc(sizeof(*temp_files) * cpu_count);
 	if (!temp_files)
 		die("failed to allocate temp_files for %d cpus",
@@ -4294,9 +4294,10 @@ static void record_data(struct common_record_context *ctx)
 				add_guest_info(handle, instance);
 		}
 
-		if (ctx->tsc2nsec.mult)
+		if (ctx->tsc2nsec.mult) {
 			add_tsc2nsec(handle, &ctx->tsc2nsec);
-
+			tracecmd_set_out_clock(handle, TSCNSEC_CLOCK);
+		}
 		if (tracecmd_write_cmdlines(handle))
 			die("Writing cmdlines");
 
