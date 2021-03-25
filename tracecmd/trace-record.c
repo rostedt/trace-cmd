@@ -4132,6 +4132,23 @@ static void print_stat(struct buffer_instance *instance)
 		trace_seq_do_printf(&instance->s_print[cpu]);
 }
 
+static char *get_trace_clock(bool selected)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance) {
+		if (is_guest(instance))
+			continue;
+		break;
+	}
+
+	if (selected)
+		return tracefs_get_clock(instance ? instance->tracefs : NULL);
+	else
+		return tracefs_instance_file_read(instance ? instance->tracefs : NULL,
+						  "trace_clock", NULL);
+}
+
 enum {
 	DATA_FL_NONE		= 0,
 	DATA_FL_DATE		= 1,
@@ -6464,11 +6481,12 @@ static void get_tsc_offset(struct common_record_context *ctx)
 
 static void set_tsync_params(struct common_record_context *ctx)
 {
-	const char *clock = ctx->clock;
 	struct buffer_instance *instance;
 	int shift, mult;
 	bool force_tsc = false;
+	char *clock = NULL;
 
+	if (!ctx->clock) {
 	/*
 	 * If no clock is configured &&
 	 * KVM time sync protocol is available &&
@@ -6477,18 +6495,27 @@ static void set_tsync_params(struct common_record_context *ctx)
 	 * force using the x86-tsc clock for this host-guest tracing session
 	 * and store TSC to nsec multiplier and shift.
 	 */
-	if (!clock && tsync_proto_is_supported("kvm") &&
-	    clock_is_supported(NULL, TSC_CLOCK) &&
-	    !get_tsc_nsec(&shift, &mult) && mult) {
-		clock = TSC_CLOCK;
-		ctx->tsc2nsec.mult = mult;
-		ctx->tsc2nsec.shift = shift;
-		ctx->tsc2nsec.offset = get_clock_now(TSC_CLOCK);
-		force_tsc = true;
+		if (tsync_proto_is_supported("kvm") &&
+		    clock_is_supported(NULL, TSC_CLOCK) &&
+		    !get_tsc_nsec(&shift, &mult) && mult) {
+			clock = strdup(TSC_CLOCK);
+			if (!clock)
+				die("Cannot not allocate clock");
+			ctx->tsc2nsec.mult = mult;
+			ctx->tsc2nsec.shift = shift;
+			ctx->tsc2nsec.offset = get_clock_now(TSC_CLOCK);
+			force_tsc = true;
+		} else { /* Use the current clock of the first host instance */
+			clock = get_trace_clock(true);
+		}
+	} else {
+		clock = strdup(ctx->clock);
+		if (!clock)
+			die("Cannot not allocate clock");
 	}
 
 	if (!clock && !ctx->tsync_loop_interval)
-		return;
+		goto out;
 	for_all_instances(instance) {
 		if (clock && !(instance->flags & BUFFER_FL_HAS_CLOCK)) {
 			/* use the same clock in all tracing peers */
@@ -6510,6 +6537,8 @@ static void set_tsync_params(struct common_record_context *ctx)
 		}
 		instance->tsync_loop_interval = ctx->tsync_loop_interval;
 	}
+out:
+	free(clock);
 }
 
 /*
