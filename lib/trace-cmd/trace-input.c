@@ -2618,7 +2618,7 @@ static int handle_options(struct tracecmd_input *handle)
 			 * Similar to date option, but just adds an
 			 * offset to the timestamp.
 			 */
-			if (handle->flags & TRACECMD_FL_IGNORE_DATE)
+			if (handle->flags & TRACECMD_FL_RAW_TS)
 				break;
 			offset = strtoll(buf, NULL, 0);
 			handle->ts_offset += offset;
@@ -2633,7 +2633,7 @@ static int handle_options(struct tracecmd_input *handle)
 			 * long long array of size [count] of timestamp offsets.
 			 * long long array of size [count] of timestamp scaling ratios.*
 			 */
-			if (size < 16 || handle->flags & TRACECMD_FL_IGNORE_DATE)
+			if (size < 16 || (handle->flags & TRACECMD_FL_RAW_TS))
 				break;
 			handle->host.peer_trace_id = tep_read_number(handle->pevent,
 								     buf, 8);
