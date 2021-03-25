@@ -2666,7 +2666,7 @@ static int handle_options(struct tracecmd_input *handle)
 				trace_pid_map_load(handle, buf);
 			break;
 		case TRACECMD_OPTION_TRACEID:
-			if (size != 8)
+			if (size < 8)
 				break;
 			handle->trace_id = tep_read_number(handle->pevent,
 							   buf, 8);
