@@ -225,19 +225,10 @@ export LIBTRACECMD_STATIC LIBTRACECMD_SHARED
 export LIBTRACECMD_SHARED_VERSION LIBTRACECMD_SHARED_SO
 
 LIBTRACEEVENT=libtraceevent
-
 LIBTRACEFS=libtracefs
-LIBTRACEFS_DIR = $(obj)/lib/tracefs
-LIBTRACEFS_STATIC = $(LIBTRACEFS_DIR)/libtracefs.a
 
 TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
-
-# In the special case (debugging), that the local versions of the
-# libraries need to be built, adding "LOCAL_LIBS=1" to the make
-# command line will skip the check if they are installed.
-ifneq ("$(origin LOCAL_LIBS)", "command line")
 TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS) > /dev/null 2>&1 && echo y")
-endif
 
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
 LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)")
@@ -262,9 +253,17 @@ ifeq ("$(TEST_LIBTRACEFS)", "y")
 LIBTRACEFS_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS)")
 LIBTRACEFS_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEFS)")
 else
-LIBTRACEFS_CFLAGS = -I$(src)/include/tracefs
-LIBTRACEFS_LDLAGS = -L$(LIBTRACEFS_DIR) -ltracefs
-LIBTRACEFS_STATIC_BUILD = $(LIBTRACEFS_STATIC)
+.PHONY: warning
+warning:
+	@echo "********************************************"
+	@echo "** NOTICE: libtracefs not found on system"
+	@echo "**"
+	@echo "** Consider installing the latest libtracefs from your"
+	@echo "** distribution, or from source:"
+	@echo "**"
+	@echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/ "
+	@echo "**"
+	@echo "********************************************"
 endif
 
 export LIBTRACEFS_CFLAGS LIBTRACEFS_LDLAGS
@@ -273,7 +272,7 @@ TRACE_LIBS = -L$(LIBTRACECMD_DIR) -ltracecmd	\
 	     $(LIBTRACEEVENT_LDLAGS) $(LIBTRACEFS_LDLAGS)
 
 export LIBS TRACE_LIBS
-export LIBTRACECMD_DIR LIBTRACEFS_DIR
+export LIBTRACECMD_DIR
 export Q SILENT VERBOSE EXT
 
 # Include the utils
@@ -369,7 +368,7 @@ $(PKG_CONFIG_FILE) : ${PKG_CONFIG_SOURCE_FILE}.template $(BUILD_PREFIX)
 $(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
 	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -D_INSTALL_PREFIX=$(prefix) -D_LIBDIR=$(libdir) ..
 
-trace-cmd: force $(LIBTRACECMD_STATIC) $(LIBTRACEFS_STATIC_BUILD) \
+trace-cmd: force $(LIBTRACECMD_STATIC) \
 	force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/tracecmd $(obj)/tracecmd/$@
 
@@ -379,26 +378,18 @@ $(LIBTRACECMD_STATIC): force
 $(LIBTRACECMD_SHARED): force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd libtracecmd.so
 
-$(LIBTRACEFS_STATIC): force
-	$(Q)$(MAKE) -C $(src)/lib/tracefs libtracefs
-
 libtracecmd.a: $(LIBTRACECMD_STATIC)
 libtracecmd.so: $(LIBTRACECMD_SHARED)
-libtracefs.a: $(LIBTRACEFS_STATIC)
 
-libs: $(LIBTRACECMD_SHARED) $(LIBTRACEFS_STATIC_BUILD) $(PKG_CONFIG_FILE)
+libs: $(LIBTRACECMD_SHARED) $(PKG_CONFIG_FILE)
 
-libtracefs_nowarn: force
-	$(Q)$(MAKE) -C $(src)/lib/tracefs $@
-
-
-gui: force $(CMD_TARGETS) libtracefs_nowarn
+gui: force $(CMD_TARGETS)
 	$(MAKE) $(kshark-dir)/build/Makefile
 	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
 	@echo "gui build complete"
 	@echo "  kernelshark located at $(kshark-dir)/bin"
 
-test: force $(LIBTRACEFS_STATIC_BUILD) $(LIBTRACECMD_STATIC)
+test: force $(LIBTRACECMD_STATIC)
 ifneq ($(CUNIT_INSTALLED),1)
 	$(error CUnit framework not installed, cannot build unit tests))
 endif
@@ -492,7 +483,6 @@ clean:
 	$(RM) *.o *~ *.a *.so .*.d
 	$(RM) tags TAGS cscope* $(PKG_CONFIG_SOURCE_FILE)
 	$(MAKE) -C $(src)/lib/trace-cmd clean
-	$(MAKE) -C $(src)/lib/tracefs clean
 	$(MAKE) -C $(src)/lib/trace-cmd/plugins clean
 	$(MAKE) -C $(src)/utest clean
 	$(MAKE) -C $(src)/python clean
