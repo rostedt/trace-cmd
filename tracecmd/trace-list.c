@@ -264,7 +264,21 @@ static void show_options(void)
 
 static void show_clocks(void)
 {
-	show_file("trace_clock");
+	char *clocks;
+	int size;
+
+	clocks = tracefs_instance_file_read(NULL, "trace_clock", &size);
+	if (!clocks)
+		die("getting clocks");
+	if (clocks[size - 1] == '\n')
+		clocks[size - 1] = 0;
+
+	if (trace_tsc2nsec_is_supported())
+		printf("%s %s\n", clocks, TSCNSEC_CLOCK);
+	else
+		printf("%s\n", clocks);
+
+	free(clocks);
 }
 
 
