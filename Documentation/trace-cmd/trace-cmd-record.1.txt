@@ -349,6 +349,11 @@ OPTIONS
         at the beginning and at the end of the trace.
         Timestamps synchronization with guests works only if there is support for VSOCK.\n"
 
+*--tsc2nsec*::
+    Convert the current clock to nanoseconds, using tsc multiplier and shift from the Linux
+        kernel's perf interface. This option does not change the trace clock, just assumes that
+        the tsc multiplier and shift are applicable for the selected clock. You may use the
+        "-C tsc2nsec" clock, if not sure what clock to select.
 *--stderr*::
     Have output go to stderr instead of stdout, but the output of the command
     executed will not be changed. This is useful if you want to monitor the
