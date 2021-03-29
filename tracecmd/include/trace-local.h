@@ -341,4 +341,6 @@ static inline bool is_digits(const char *s)
 	return true;
 }
 
+bool trace_tsc2nsec_is_supported(void);
+
 #endif /* __TRACE_LOCAL_H */

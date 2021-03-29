@@ -5827,6 +5827,11 @@ static int get_tsc_nsec(int *shift, int *mult)
 }
 #endif
 
+bool trace_tsc2nsec_is_supported(void)
+{
+	return get_tsc_nsec(NULL, NULL) == 0;
+}
+
 static void parse_record_options(int argc,
 				 char **argv,
 				 enum trace_cmd curr_cmd,
