@@ -309,6 +309,9 @@ OPTIONS
      Make sure no timestamp goes backwards, and if it does, print out a warning
      message of the fact.
 
+*--raw-ts*::
+     Display raw timestamps, without any corrections.
+
 EXAMPLES
 --------
 

@@ -233,6 +233,7 @@ static struct usage_help usage_help[] = {
 		"                     previous data file, in which case it becomes default\n"
 		"          --ts-diff Show the delta timestamp between events.\n"
 		"          --ts-check Check to make sure no time stamp on any CPU goes backwards.\n"
+		"          --raw-ts Display raw timestamps, without any corrections.\n"
 	},
 	{
 		"stream",
