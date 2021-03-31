@@ -513,25 +513,28 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 	struct clock_sync_context *tsync_context;
 	struct tsync_proto *proto;
 
-	if (!tsync || !tsync->context)
+	if (!tsync)
 		return;
+
 	tsync_context = (struct clock_sync_context *)tsync->context;
 
 	proto = tsync_proto_find(tsync->proto_name);
 	if (proto && proto->clock_sync_free)
 		proto->clock_sync_free(tsync);
 
-	clock_synch_delete_instance(tsync_context->instance);
-	tsync_context->instance = NULL;
+	if (tsync_context) {
+		clock_synch_delete_instance(tsync_context->instance);
+		tsync_context->instance = NULL;
 
-	free(tsync_context->sync_ts);
-	free(tsync_context->sync_offsets);
-	free(tsync_context->sync_scalings);
-	tsync_context->sync_ts = NULL;
-	tsync_context->sync_offsets = NULL;
-	tsync_context->sync_scalings = NULL;
-	tsync_context->sync_count = 0;
-	tsync_context->sync_size = 0;
+		free(tsync_context->sync_ts);
+		free(tsync_context->sync_offsets);
+		free(tsync_context->sync_scalings);
+		tsync_context->sync_ts = NULL;
+		tsync_context->sync_offsets = NULL;
+		tsync_context->sync_scalings = NULL;
+		tsync_context->sync_count = 0;
+		tsync_context->sync_size = 0;
+	}
 	pthread_mutex_destroy(&tsync->lock);
 	pthread_cond_destroy(&tsync->cond);
 	pthread_barrier_destroy(&tsync->first_sync);
