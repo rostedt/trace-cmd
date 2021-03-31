@@ -535,6 +535,10 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 		tsync_context->sync_count = 0;
 		tsync_context->sync_size = 0;
 	}
+
+	if (tsync->msg_handle)
+		tracecmd_msg_handle_close(tsync->msg_handle);
+
 	pthread_mutex_destroy(&tsync->lock);
 	pthread_cond_destroy(&tsync->cond);
 	pthread_barrier_destroy(&tsync->first_sync);
@@ -703,9 +707,6 @@ static void *tsync_host_thread(void *data)
 	struct tracecmd_time_sync *tsync = data;
 
 	tsync_with_guest(tsync);
-	tracecmd_msg_handle_close(tsync->msg_handle);
-	tsync->msg_handle = NULL;
-
 	pthread_exit(0);
 }
 
@@ -868,6 +869,7 @@ int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync)
 static void *tsync_agent_thread(void *data)
 {
 	struct tracecmd_time_sync *tsync = data;
+	long ret = 0;
 	int sd;
 
 	while (true) {
@@ -875,6 +877,7 @@ static void *tsync_agent_thread(void *data)
 		if (sd < 0) {
 			if (errno == EINTR)
 				continue;
+			ret = -1;
 			goto out;
 		}
 		break;
@@ -885,12 +888,7 @@ static void *tsync_agent_thread(void *data)
 	tsync_with_host(tsync);
 
 out:
-	tracecmd_msg_handle_close(tsync->msg_handle);
-	tracecmd_tsync_free(tsync);
-	free(tsync);
-	close(sd);
-
-	pthread_exit(0);
+	pthread_exit((void *)ret);
 }
 
 /**
