@@ -21,6 +21,9 @@ ifeq ($(PERF_DEFINED), 1)
 OBJS += trace-perf.o
 endif
 OBJS += trace-timesync.o
+ifeq ($(VSOCK_DEFINED), 1)
+OBJS += trace-timesync-ptp.o
+endif
 
 # Additional util objects
 OBJS += trace-blk-hack.o

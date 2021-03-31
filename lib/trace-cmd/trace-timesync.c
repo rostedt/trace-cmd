@@ -64,7 +64,9 @@ static struct tsync_proto *tsync_proto_find(const char *proto_name)
  */
 void tracecmd_tsync_init(void)
 {
-
+#ifdef VSOCK
+	ptp_clock_sync_register();
+#endif
 }
 
 int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int roles,
