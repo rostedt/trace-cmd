@@ -697,9 +697,8 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 
 static void *tsync_host_thread(void *data)
 {
-	struct tracecmd_time_sync *tsync = NULL;
+	struct tracecmd_time_sync *tsync = data;
 
-	tsync = (struct tracecmd_time_sync *)data;
 	tsync_with_guest(tsync);
 	tracecmd_msg_handle_close(tsync->msg_handle);
 	tsync->msg_handle = NULL;
@@ -865,10 +864,8 @@ int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync)
 
 static void *tsync_agent_thread(void *data)
 {
-	struct tracecmd_time_sync *tsync = NULL;
+	struct tracecmd_time_sync *tsync = data;
 	int sd;
-
-	tsync = (struct tracecmd_time_sync *)data;
 
 	while (true) {
 		sd = accept(tsync->msg_handle->fd, NULL, NULL);
