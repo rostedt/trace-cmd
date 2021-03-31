@@ -5808,7 +5808,8 @@ static int get_tsc_nsec(int *shift, int *mult)
 	if (i < cpus)
 		return -1;
 
-	supported = 1;
+	if (cpu_shift || cpu_mult)
+		supported = 1;
 out:
 	if (supported < 0)
 		return -1;
