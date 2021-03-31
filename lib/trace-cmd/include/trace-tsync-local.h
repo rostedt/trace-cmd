@@ -65,5 +65,6 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 int tracecmd_tsync_proto_unregister(char *proto_name);
 
 int ptp_clock_sync_register(void);
+int kvm_clock_sync_register(void);
 
 #endif /* _TRACE_TSYNC_LOCAL_H */

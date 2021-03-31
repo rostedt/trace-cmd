@@ -66,6 +66,7 @@ void tracecmd_tsync_init(void)
 {
 #ifdef VSOCK
 	ptp_clock_sync_register();
+	kvm_clock_sync_register();
 #endif
 }
 
