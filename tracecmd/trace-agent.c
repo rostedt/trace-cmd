@@ -250,6 +250,7 @@ static void agent_serve(unsigned int port)
 	sd = trace_make_vsock(port);
 	if (sd < 0)
 		die("Failed to open vsocket");
+	tracecmd_tsync_init();
 
 	if (!get_local_cid(&cid))
 		printf("listening on @%u:%u\n", cid, port);
