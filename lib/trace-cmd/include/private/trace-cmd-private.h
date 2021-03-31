@@ -458,7 +458,7 @@ tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
 			  unsigned int cid, unsigned int port, int guest_pid,
 			  int guest_cpus, const char *proto_name, const char *clock);
 int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync);
-int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
+int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
 				int *count, long long **ts,
 				long long **offsets, long long **scalings);
 int tracecmd_tsync_get_session_params(struct tracecmd_time_sync *tsync,

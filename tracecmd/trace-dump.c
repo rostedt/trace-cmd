@@ -377,7 +377,8 @@ static void dump_option_timeshift(int fd, int size)
 	long long trace_id;
 	unsigned int count;
 	unsigned int flags;
-	int i;
+	unsigned int cpus;
+	int i, j;
 
 	/*
 	 * long long int (8 bytes) trace session ID
@@ -395,29 +396,34 @@ static void dump_option_timeshift(int fd, int size)
 	do_print(OPTIONS, "0x%llX [peer's trace id]\n", trace_id);
 	read_file_number(fd, &flags, 4);
 	do_print(OPTIONS, "0x%llX [peer's protocol flags]\n", flags);
-	read_file_number(fd, &count, 4);
-	do_print(OPTIONS, "%lld [samples count]\n", count);
-	times = calloc(count, sizeof(long long));
-	if (!times)
-		goto out;
-	offsets = calloc(count, sizeof(long long));
-	if (!offsets)
-		goto out;
-	scalings = calloc(count, sizeof(long long));
-	if (!scalings)
-		goto out;
+	read_file_number(fd, &cpus, 4);
+	do_print(OPTIONS, "0x%llX [peer's CPU count]\n", cpus);
+	for (j = 0; j < cpus; j++) {
+		read_file_number(fd, &count, 4);
+		do_print(OPTIONS, "%lld [samples count for CPU %d]\n", count, j);
+		times = calloc(count, sizeof(long long));
+		offsets = calloc(count, sizeof(long long));
+		scalings = calloc(count, sizeof(long long));
+		if (!times || !offsets || !scalings)
+			goto out;
+		for (i = 0; i < count; i++)
+			read_file_number(fd, times + i, 8);
+		for (i = 0; i < count; i++)
+			read_file_number(fd, offsets + i, 8);
+		for (i = 0; i < count; i++)
+			read_file_number(fd, scalings + i, 8);
 
-	for (i = 0; i < count; i++)
-		read_file_number(fd, times + i, 8);
-	for (i = 0; i < count; i++)
-		read_file_number(fd, offsets + i, 8);
-	for (i = 0; i < count; i++)
-		read_file_number(fd, scalings + i, 8);
+		for (i = 0; i < count; i++)
+			do_print(OPTIONS, "\t%lld %lld %llu [offset * scaling @ time]\n",
+				 offsets[i], scalings[1], times[i]);
+		free(times);
+		free(offsets);
+		free(scalings);
+		times = NULL;
+		offsets = NULL;
+		scalings = NULL;
 
-	for (i = 0; i < count; i++)
-		do_print(OPTIONS, "\t%lld * %lld %llu [offset * scaling @ time]\n",
-			 offsets[i], scalings[1], times[i]);
-
+	}
 out:
 	free(times);
 	free(offsets);

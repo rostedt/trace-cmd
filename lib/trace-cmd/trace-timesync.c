@@ -36,8 +36,12 @@ struct tsync_proto {
 	int (*clock_sync_free)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_calc)(struct tracecmd_time_sync *clock_context,
 			       long long *offset, long long *scaling,
-			       long long *timestamp);
+			       long long *timestamp, unsigned int cpu);
 };
+
+struct tsync_probe_request_msg {
+	unsigned short	cpu;
+} __packed;
 
 static struct tsync_proto *tsync_proto_list;
 
@@ -68,7 +72,8 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,
-					      long long *, long long *, long long *))
+					      long long *, long long *,
+					      long long *, unsigned int))
 {
 	struct tsync_proto *proto = NULL;
 
@@ -80,6 +85,7 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 	strncpy(proto->proto_name, proto_name, TRACECMD_TSYNC_PNAME_LENGTH);
 	proto->accuracy = accuracy;
 	proto->roles = roles;
+	proto->flags = flags;
 	proto->supported_clocks = supported_clocks;
 	proto->clock_sync_init = init;
 	proto->clock_sync_free = free;
@@ -122,6 +128,7 @@ bool __hidden tsync_proto_is_supported(const char *proto_name)
  * tracecmd_tsync_get_offsets - Return the calculated time offsets
  *
  * @tsync: Pointer to time sync context
+ * @cpu: CPU for which to get the calculated offsets
  * @count: Returns the number of calculated time offsets
  * @ts: Array of size @count containing timestamps of callculated offsets
  * @offsets: array of size @count, containing offsets for each timestamp
@@ -129,23 +136,25 @@ bool __hidden tsync_proto_is_supported(const char *proto_name)
  *
  * Retuns -1 in case of an error, or 0 otherwise
  */
-int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync,
-				int *count, long long **ts,
-				long long **offsets, long long **scalings)
+int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
+			       int *count, long long **ts,
+			       long long **offsets, long long **scalings)
 {
 	struct clock_sync_context *tsync_context;
 
 	if (!tsync || !tsync->context)
 		return -1;
 	tsync_context = (struct clock_sync_context *)tsync->context;
+	if (cpu >= tsync_context->cpu_count || !tsync_context->offsets)
+		return -1;
 	if (count)
-		*count = tsync_context->sync_count;
+		*count = tsync_context->offsets[cpu].sync_count;
 	if (ts)
-		*ts = tsync_context->sync_ts;
+		*ts = tsync_context->offsets[cpu].sync_ts;
 	if (offsets)
-		*offsets = tsync_context->sync_offsets;
+		*offsets = tsync_context->offsets[cpu].sync_offsets;
 	if (scalings)
-		*scalings = tsync_context->sync_scalings;
+		*scalings = tsync_context->offsets[cpu].sync_scalings;
 
 	return 0;
 }
@@ -496,6 +505,13 @@ static int clock_context_init(struct tracecmd_time_sync *tsync,
 	if (!clock->instance)
 		goto error;
 
+	clock->cpu_count = tsync->vcpu_count;
+	if (clock->cpu_count) {
+		clock->offsets = calloc(clock->cpu_count, sizeof(struct clock_sync_offsets));
+		if (!clock->offsets)
+			goto error;
+	}
+
 	tsync->context = clock;
 	if (protocol->clock_sync_init && protocol->clock_sync_init(tsync) < 0)
 		goto error;
@@ -505,6 +521,9 @@ static int clock_context_init(struct tracecmd_time_sync *tsync,
 	return 0;
 error:
 	tsync->context = NULL;
+	if (clock->instance)
+		clock_synch_delete_instance(clock->instance);
+	free(clock->offsets);
 	free(clock);
 	return -1;
 }
@@ -520,6 +539,7 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 {
 	struct clock_sync_context *tsync_context;
 	struct tsync_proto *proto;
+	int i;
 
 	if (!tsync)
 		return;
@@ -530,18 +550,25 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 	if (proto && proto->clock_sync_free)
 		proto->clock_sync_free(tsync);
 
+
 	if (tsync_context) {
 		clock_synch_delete_instance(tsync_context->instance);
 		tsync_context->instance = NULL;
 
-		free(tsync_context->sync_ts);
-		free(tsync_context->sync_offsets);
-		free(tsync_context->sync_scalings);
-		tsync_context->sync_ts = NULL;
-		tsync_context->sync_offsets = NULL;
-		tsync_context->sync_scalings = NULL;
-		tsync_context->sync_count = 0;
-		tsync_context->sync_size = 0;
+		if (tsync_context->cpu_count && tsync_context->offsets) {
+			for (i = 0; i < tsync_context->cpu_count; i++) {
+				free(tsync_context->offsets[i].sync_ts);
+				free(tsync_context->offsets[i].sync_offsets);
+				free(tsync_context->offsets[i].sync_scalings);
+				tsync_context->offsets[i].sync_ts = NULL;
+				tsync_context->offsets[i].sync_offsets = NULL;
+				tsync_context->offsets[i].sync_scalings = NULL;
+				tsync_context->offsets[i].sync_count = 0;
+				tsync_context->offsets[i].sync_size = 0;
+			}
+			free(tsync_context->offsets);
+			tsync_context->offsets = NULL;
+		}
 	}
 
 	if (tsync->msg_handle)
@@ -555,15 +582,69 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 	free(tsync);
 }
 
-static int tsync_send(struct tracecmd_time_sync *tsync,
-		      struct tsync_proto *proto)
+static cpu_set_t *pin_to_cpu(int cpu)
 {
+	static size_t size;
+	static int cpus;
+	cpu_set_t *mask = NULL;
+	cpu_set_t *old = NULL;
+
+	if (!cpus) {
+		cpus = tracecmd_count_cpus();
+		size = CPU_ALLOC_SIZE(cpus);
+	}
+	if (cpu >= cpus)
+		goto error;
+
+	mask = CPU_ALLOC(cpus);
+	if (!mask)
+		goto error;
+	old = CPU_ALLOC(cpus);
+	if (!old)
+		goto error;
+
+	CPU_ZERO_S(size, mask);
+	CPU_SET_S(cpu, size, mask);
+	if (pthread_getaffinity_np(pthread_self(), size, old))
+		goto error;
+	if (pthread_setaffinity_np(pthread_self(), size, mask))
+		goto error;
+
+	CPU_FREE(mask);
+	return old;
+
+error:
+	if (mask)
+		CPU_FREE(mask);
+	if (old)
+		CPU_FREE(old);
+	return NULL;
+}
+
+static void restore_pin_to_cpu(cpu_set_t *mask)
+{
+	static size_t size;
+
+	if (!size)
+		size = CPU_ALLOC_SIZE(tracecmd_count_cpus());
+
+	pthread_setaffinity_np(pthread_self(), size, mask);
+	CPU_FREE(mask);
+}
+
+static int tsync_send(struct tracecmd_time_sync *tsync,
+		      struct tsync_proto *proto, unsigned int cpu)
+{
+	cpu_set_t *old_set = NULL;
 	long long timestamp = 0;
 	long long scaling = 0;
 	long long offset = 0;
 	int ret;
 
-	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp);
+	old_set = pin_to_cpu(cpu);
+	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp, cpu);
+	if (old_set)
+		restore_pin_to_cpu(old_set);
 
 	return ret;
 }
@@ -571,55 +652,48 @@ static int tsync_send(struct tracecmd_time_sync *tsync,
 static void tsync_with_host(struct tracecmd_time_sync *tsync)
 {
 	char protocol[TRACECMD_TSYNC_PNAME_LENGTH];
+	struct tsync_probe_request_msg probe;
 	struct tsync_proto *proto;
 	unsigned int command;
+	unsigned int size;
+	char *msg;
 	int ret;
 
 	clock_context_init(tsync, &proto, true);
 	if (!tsync->context)
 		return;
 
+	msg = (char *)&probe;
+	size = sizeof(probe);
 	while (true) {
+		memset(&probe, 0, size);
 		ret = tracecmd_msg_recv_time_sync(tsync->msg_handle,
 						  protocol, &command,
-						  NULL, NULL);
+						  &size, &msg);
 
 		if (ret || strncmp(protocol, TRACECMD_TSYNC_PROTO_NONE, TRACECMD_TSYNC_PNAME_LENGTH) ||
 		    command != TRACECMD_TIME_SYNC_CMD_PROBE)
 			break;
-		ret = tsync_send(tsync, proto);
+		ret = tsync_send(tsync, proto, probe.cpu);
 		if (ret)
 			break;
 	}
 }
 
-static int tsync_get_sample(struct tracecmd_time_sync *tsync,
-			    struct tsync_proto *proto, int array_step)
+static int record_sync_sample(struct clock_sync_offsets *offsets, int array_step,
+			      long long offset, long long scaling, long long ts)
 {
-	struct clock_sync_context *clock;
 	long long *sync_scalings = NULL;
 	long long *sync_offsets = NULL;
 	long long *sync_ts = NULL;
-	long long timestamp = 0;
-	long long scaling = 0;
-	long long offset = 0;
-	int ret;
 
-	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp);
-	if (ret) {
-		warning("Failed to synchronize timestamps with guest");
-		return -1;
-	}
-	if (!offset || !timestamp || !scaling)
-		return 0;
-	clock = tsync->context;
-	if (clock->sync_count >= clock->sync_size) {
-		sync_ts = realloc(clock->sync_ts,
-				  (clock->sync_size + array_step) * sizeof(long long));
-		sync_offsets = realloc(clock->sync_offsets,
-				       (clock->sync_size + array_step) * sizeof(long long));
-		sync_scalings = realloc(clock->sync_scalings,
-				       (clock->sync_size + array_step) * sizeof(long long));
+	if (offsets->sync_count >= offsets->sync_size) {
+		sync_ts = realloc(offsets->sync_ts,
+				  (offsets->sync_size + array_step) * sizeof(long long));
+		sync_offsets = realloc(offsets->sync_offsets,
+				       (offsets->sync_size + array_step) * sizeof(long long));
+		sync_scalings = realloc(offsets->sync_scalings,
+				       (offsets->sync_size + array_step) * sizeof(long long));
 
 		if (!sync_ts || !sync_offsets || !sync_scalings) {
 			free(sync_ts);
@@ -627,18 +701,41 @@ static int tsync_get_sample(struct tracecmd_time_sync *tsync,
 			free(sync_scalings);
 			return -1;
 		}
-		clock->sync_size += array_step;
-		clock->sync_ts = sync_ts;
-		clock->sync_offsets = sync_offsets;
-		clock->sync_scalings = sync_scalings;
+		offsets->sync_size += array_step;
+		offsets->sync_ts = sync_ts;
+		offsets->sync_offsets = sync_offsets;
+		offsets->sync_scalings = sync_scalings;
 	}
 
-	clock->sync_ts[clock->sync_count] = timestamp;
-	clock->sync_offsets[clock->sync_count] = offset;
-	clock->sync_scalings[clock->sync_count] = scaling;
-	clock->sync_count++;
+	offsets->sync_ts[offsets->sync_count] = ts;
+	offsets->sync_offsets[offsets->sync_count] = offset;
+	offsets->sync_scalings[offsets->sync_count] = scaling;
+	offsets->sync_count++;
 
 	return 0;
+}
+
+static int tsync_get_sample(struct tracecmd_time_sync *tsync, unsigned int cpu,
+			    struct tsync_proto *proto, int array_step)
+{
+	struct clock_sync_context *clock;
+	long long timestamp = 0;
+	long long scaling = 0;
+	long long offset = 0;
+	int ret;
+
+	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp, cpu);
+	if (ret) {
+		warning("Failed to synchronize timestamps with guest");
+		return -1;
+	}
+	if (!offset || !timestamp || !scaling)
+		return 0;
+	clock = tsync->context;
+	if (!clock || cpu >= clock->cpu_count || !clock->offsets)
+		return -1;
+	return record_sync_sample(&clock->offsets[cpu], array_step,
+				  offset, scaling, timestamp);
 }
 
 #define TIMER_SEC_NANO 1000000000LL
@@ -658,12 +755,14 @@ static inline void get_ts_loop_delay(struct timespec *timeout, int delay_ms)
 #define CLOCK_TS_ARRAY 5
 static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 {
+	struct tsync_probe_request_msg probe;
 	int ts_array_size = CLOCK_TS_ARRAY;
 	struct tsync_proto *proto;
 	struct timespec timeout;
 	bool first = true;
 	bool end = false;
 	int ret;
+	int i;
 
 	clock_context_init(tsync, &proto, false);
 	if (!tsync->context) {
@@ -677,16 +776,21 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 
 	while (true) {
 		pthread_mutex_lock(&tsync->lock);
-		ret = tracecmd_msg_send_time_sync(tsync->msg_handle,
-						  TRACECMD_TSYNC_PROTO_NONE,
-						  TRACECMD_TIME_SYNC_CMD_PROBE,
-						  0, NULL);
-		ret = tsync_get_sample(tsync, proto, ts_array_size);
+		for (i = 0; i < tsync->vcpu_count; i++) {
+			probe.cpu = i;
+			ret = tracecmd_msg_send_time_sync(tsync->msg_handle,
+							  TRACECMD_TSYNC_PROTO_NONE,
+							  TRACECMD_TIME_SYNC_CMD_PROBE,
+							  sizeof(probe), (char *)&probe);
+			ret = tsync_get_sample(tsync, i, proto, ts_array_size);
+			if (ret)
+				break;
+		}
 		if (first) {
 			first = false;
 			pthread_barrier_wait(&tsync->first_sync);
 		}
-		if (ret || end)
+		if (end || i < tsync->vcpu_count)
 			break;
 		if (tsync->loop_interval > 0) {
 			get_ts_loop_delay(&timeout, tsync->loop_interval);
@@ -816,41 +920,63 @@ error:
 int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 				    struct tracecmd_time_sync *tsync)
 {
-	struct iovec vector[6];
+	struct iovec *vector = NULL;
 	unsigned int flags;
 	long long *scalings = NULL;
 	long long *offsets = NULL;
 	long long *ts = NULL;
+	int vcount;
 	int count;
-	int ret;
+	int i, j;
+	int ret = -1;
 
-	ret = tracecmd_tsync_get_offsets(tsync, &count,
-					 &ts, &offsets, &scalings);
-	if (ret < 0 || !count || !ts || !offsets || !scalings)
+	if (!tsync->vcpu_count)
+		return -1;
+	vcount = 3 + (4 * tsync->vcpu_count);
+	vector = calloc(vcount, sizeof(struct iovec));
+	if (!vector)
 		return -1;
 	ret = tsync_get_proto_flags(tsync, &flags);
 	if (ret < 0)
-		return -1;
+		goto out;
 
-	vector[0].iov_len = 8;
-	vector[0].iov_base =  &(tsync->trace_id);
-	vector[1].iov_len = 4;
-	vector[1].iov_base = &flags;
-	vector[2].iov_len = 4;
-	vector[2].iov_base = &count;
-	vector[3].iov_len = 8 * count;
-	vector[3].iov_base = ts;
-	vector[4].iov_len = 8 * count;
-	vector[4].iov_base = offsets;
-	vector[5].iov_len = 8 * count;
-	vector[5].iov_base = scalings;
-	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, 6);
+	j = 0;
+	vector[j].iov_len = 8;
+	vector[j++].iov_base = &tsync->trace_id;
+	vector[j].iov_len = 4;
+	vector[j++].iov_base = &flags;
+	vector[j].iov_len = 4;
+	vector[j++].iov_base = &tsync->vcpu_count;
+	for (i = 0; i < tsync->vcpu_count; i++) {
+		if (j >= vcount)
+			break;
+		ret = tracecmd_tsync_get_offsets(tsync, i, &count,
+						 &ts, &offsets, &scalings);
+		if (ret < 0 || !count || !ts || !offsets || !scalings)
+			break;
+		vector[j].iov_len = 4;
+		vector[j++].iov_base = &count;
+		vector[j].iov_len = 8 * count;
+		vector[j++].iov_base = ts;
+		vector[j].iov_len = 8 * count;
+		vector[j++].iov_base = offsets;
+		vector[j].iov_len = 8 * count;
+		vector[j++].iov_base = scalings;
+	}
+	if (i < tsync->vcpu_count) {
+		ret = -1;
+		goto out;
+	}
+	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, vcount);
 #ifdef TSYNC_DEBUG
 	if (count > 1)
 		printf("Got %d timestamp synch samples in %lld ns trace\n\r",
 			count, ts[count - 1] - ts[0]);
 #endif
-	return 0;
+	ret = 0;
+out:
+	free(vector);
+	return ret;
 }
 
 /**
