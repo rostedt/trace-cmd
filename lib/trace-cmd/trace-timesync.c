@@ -103,7 +103,7 @@ int tracecmd_tsync_proto_unregister(char *proto_name)
 	return -1;
 }
 
-bool tsync_proto_is_supported(const char *proto_name)
+bool __hidden tsync_proto_is_supported(const char *proto_name)
 {
 	if (tsync_proto_find(proto_name))
 		return true;
@@ -364,7 +364,7 @@ static int vsock_make(void)
 	return sd;
 }
 
-int vsock_get_port(int sd, unsigned int *port)
+int __hidden vsock_get_port(int sd, unsigned int *port)
 {
 	struct sockaddr_vm addr;
 	socklen_t addr_len = sizeof(addr);

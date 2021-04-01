@@ -9,9 +9,10 @@
 #include <stdarg.h>
 #include <errno.h>
 
+#include "trace-cmd-private.h"
 #include "trace-hash.h"
 
-int trace_hash_init(struct trace_hash *hash, int buckets)
+int __hidden trace_hash_init(struct trace_hash *hash, int buckets)
 {
 	memset(hash, 0, sizeof(*hash));
 
@@ -27,12 +28,12 @@ int trace_hash_init(struct trace_hash *hash, int buckets)
 	return 0;
 }
 
-void trace_hash_free(struct trace_hash *hash)
+void __hidden trace_hash_free(struct trace_hash *hash)
 {
 	free(hash->buckets);
 }
 
-int trace_hash_empty(struct trace_hash *hash)
+int __hidden trace_hash_empty(struct trace_hash *hash)
 {
 	struct trace_hash_item **bucket;
 
@@ -42,7 +43,7 @@ int trace_hash_empty(struct trace_hash *hash)
 	return 1;
 }
 
-int trace_hash_add(struct trace_hash *hash, struct trace_hash_item *item)
+int __hidden trace_hash_add(struct trace_hash *hash, struct trace_hash_item *item)
 {
 	struct trace_hash_item *next;
 	int bucket = hash->power ? item->key & hash->power :
@@ -62,7 +63,7 @@ int trace_hash_add(struct trace_hash *hash, struct trace_hash_item *item)
 	return 1;
 }
 
-struct trace_hash_item *
+ __hidden struct trace_hash_item *
 trace_hash_find(struct trace_hash *hash, unsigned long long key,
 		trace_hash_func match, void *data)
 {

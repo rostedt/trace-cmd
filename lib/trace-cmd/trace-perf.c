@@ -44,7 +44,7 @@ static void default_perf_init_pe(struct perf_event_attr *pe)
  * Returns 0 on success, or -1 in case of an error.
  *
  */
-int trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pid)
+int __hidden trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pid)
 {
 	if (!perf)
 		return -1;
@@ -66,7 +66,7 @@ int trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pid)
  *	  with trace_perf_open()
  *
  */
-void trace_perf_close(struct trace_perf *perf)
+void __hidden trace_perf_close(struct trace_perf *perf)
 {
 	if (perf->fd >= 0)
 		close(perf->fd);
@@ -85,7 +85,7 @@ void trace_perf_close(struct trace_perf *perf)
  * Returns 0 on success, or -1 in case of an error. In case of success, the
  * session must be closed with trace_perf_close()
  */
-int trace_perf_open(struct trace_perf *perf)
+int __hidden trace_perf_open(struct trace_perf *perf)
 {
 	perf->fd = syscall(__NR_perf_event_open, &perf->pe, perf->pid, perf->cpu, -1, 0);
 	if (perf->fd < 0)

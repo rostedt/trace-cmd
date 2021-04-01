@@ -12,8 +12,6 @@
 /* Can be overridden */
 void warning(const char *fmt, ...);
 
-#define __packed __attribute__((packed))
-
 /* trace.dat file format version */
 #define FILE_VERSION 6
 

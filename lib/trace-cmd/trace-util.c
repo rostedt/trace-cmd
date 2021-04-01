@@ -277,7 +277,7 @@ static void add_plugin_file(struct tep_handle *pevent, const char *path,
  *
  * Use trace_util_free_plugin_files() to free the result.
  */
-char **trace_util_find_plugin_files(const char *suffix)
+__hidden char **trace_util_find_plugin_files(const char *suffix)
 {
 	struct add_plugin_data pdata;
 
@@ -297,7 +297,7 @@ char **trace_util_find_plugin_files(const char *suffix)
  *
  * Frees the contents that were allocated by trace_util_find_plugin_files().
  */
-void trace_util_free_plugin_files(char **files)
+void __hidden trace_util_free_plugin_files(char **files)
 {
 	int i;
 
@@ -332,7 +332,7 @@ static char *get_source_plugins_dir(void)
 	return strdup(path);
 }
 
-struct tep_plugin_list*
+__hidden struct tep_plugin_list *
 trace_load_plugins(struct tep_handle *tep, int flags)
 {
 	struct tep_plugin_list *list;

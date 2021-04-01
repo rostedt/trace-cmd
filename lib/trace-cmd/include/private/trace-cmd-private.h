@@ -11,6 +11,9 @@
 #include "traceevent/event-parse.h"
 #include "trace-cmd/trace-cmd.h"
 
+#define __packed __attribute__((packed))
+#define __hidden __attribute__((visibility ("hidden")))
+
 #define TRACECMD_MAGIC { 23, 8, 68 }
 
 #define ARRAY_SIZE(_a) (sizeof(_a) / sizeof((_a)[0]))
