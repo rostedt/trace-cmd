@@ -11,6 +11,7 @@
 
 /* Can be overridden */
 void warning(const char *fmt, ...);
+void tracecmd_lib_fatal(const char *fmt, ...);
 
 /* trace.dat file format version */
 #define FILE_VERSION 6

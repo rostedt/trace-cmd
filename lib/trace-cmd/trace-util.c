@@ -353,48 +353,35 @@ trace_load_plugins(struct tep_handle *tep, int flags)
 	return list;
 }
 
-void __noreturn __vdie(const char *fmt, va_list ap)
+static int __vlib_warning(const char *fmt, va_list ap)
 {
 	int ret = errno;
 
 	if (errno)
-		perror("trace-cmd");
-	else
-		ret = -1;
+		perror("libtracecmd");
 
 	fprintf(stderr, "  ");
 	vfprintf(stderr, fmt, ap);
 
 	fprintf(stderr, "\n");
-	exit(ret);
+
+	return ret;
 }
 
-void __noreturn __die(const char *fmt, ...)
+void __weak tracecmd_lib_fatal(const char *fmt, ...)
 {
+	int ret;
 	va_list ap;
 
 	va_start(ap, fmt);
-	__vdie(fmt, ap);
+	ret = __vlib_warning(fmt, ap);
 	va_end(ap);
-}
 
-void __weak __noreturn die(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	__vdie(fmt, ap);
-	va_end(ap);
-}
-
-void __weak *malloc_or_die(unsigned int size)
-{
-	void *data;
-
-	data = malloc(size);
-	if (!data)
-		die("malloc");
-	return data;
+	if (debug) {
+		if (!ret)
+			ret = -1;
+		exit(ret);
+	}
 }
 
 #define LOG_BUF_SIZE 1024
@@ -546,8 +533,10 @@ int tracecmd_count_cpus(void)
 	pbuf = buf;
 
 	fp = fopen("/proc/cpuinfo", "r");
-	if (!fp)
-		die("Can not read cpuinfo");
+	if (!fp) {
+		tracecmd_lib_fatal("Can not read cpuinfo");
+		return 0;
+	}
 
 	while ((r = getline(&pbuf, pn, fp)) >= 0) {
 		char *p;

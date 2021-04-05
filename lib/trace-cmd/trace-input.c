@@ -16,6 +16,7 @@
 #include <linux/time64.h>
 
 #include "trace-write-local.h"
+#include "trace-cmd-local.h"
 #include "trace-local.h"
 #include "kbuffer.h"
 #include "list.h"
@@ -1102,8 +1103,10 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	struct page **pages;
 	int index;
 
-	if (!page->ref_count)
-		die("Page ref count is zero!\n");
+	if (!page->ref_count) {
+		tracecmd_lib_fatal("Page ref count is zero!\n");
+		return;
+	}
 
 	page->ref_count--;
 	if (page->ref_count)
@@ -1161,16 +1164,20 @@ void tracecmd_free_record(struct tep_record *record)
 	if (!record)
 		return;
 
-	if (!record->ref_count)
-		die("record ref count is zero!");
+	if (!record->ref_count) {
+		tracecmd_lib_fatal("record ref count is zero!");
+		return;
+	}
 
 	record->ref_count--;
 
 	if (record->ref_count)
 		return;
 
-	if (record->locked)
-		die("freeing record when it is locked!");
+	if (record->locked) {
+		tracecmd_lib_fatal("freeing record when it is locked!");
+		return;
+	}
 
 	record->data = NULL;
 
@@ -1370,7 +1377,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 
 	if (offset & (handle->page_size - 1)) {
 		errno = -EINVAL;
-		die("bad page offset %llx", offset);
+		tracecmd_lib_fatal("bad page offset %llx", offset);
 		return -1;
 	}
 
@@ -1378,7 +1385,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	    offset > handle->cpu_data[cpu].file_offset +
 	    handle->cpu_data[cpu].file_size) {
 		errno = -EINVAL;
-		die("bad page offset %llx", offset);
+		tracecmd_lib_fatal("bad page offset %llx", offset);
 		return -1;
 	}
 
@@ -1943,8 +1950,10 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 	if (handle->cpu_data[cpu].next) {
 
 		record = handle->cpu_data[cpu].next;
-		if (!record->data)
-			die("Something freed the record");
+		if (!record->data) {
+			tracecmd_lib_fatal("Something freed the record");
+			return NULL;
+		}
 
 		if (handle->cpu_data[cpu].timestamp == record->ts)
 			return record;
