@@ -20,6 +20,9 @@ export LIBTC_PATCHLEVEL
 export LIBTC_EXTRAVERSION
 export LIBTRACECMD_VERSION
 
+LIBTRACEEVENT_MIN_VERSION = 1.1
+LIBTRACEFS_MIN_VERSION = 1.0
+
 MAKEFLAGS += --no-print-directory
 
 # Makefiles suck: This macro sets a default value of $(2) for the
@@ -227,8 +230,8 @@ export LIBTRACECMD_SHARED_VERSION LIBTRACECMD_SHARED_SO
 LIBTRACEEVENT=libtraceevent
 LIBTRACEFS=libtracefs
 
-TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
-TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS) > /dev/null 2>&1 && echo y")
+TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
+TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEFS_MIN_VERSION) $(LIBTRACEFS) > /dev/null 2>&1 && echo y")
 
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
 LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)")
@@ -237,7 +240,7 @@ else
 .PHONY: warning
 warning:
 	@echo "********************************************"
-	@echo "** NOTICE: libtraceevent not found on system"
+	@echo "** NOTICE: libtraceevent version $(LIBTRACEEVENT_MIN_VERSION) or higher not found on system"
 	@echo "**"
 	@echo "** Consider installing the latest libtraceevent from your"
 	@echo "** distribution, or from source:"
@@ -256,7 +259,7 @@ else
 .PHONY: warning
 warning:
 	@echo "********************************************"
-	@echo "** NOTICE: libtracefs not found on system"
+	@echo "** NOTICE: libtracefs version $(LIBTRACEFS_MIN_VERSION) or higher not found on system"
 	@echo "**"
 	@echo "** Consider installing the latest libtracefs from your"
 	@echo "** distribution, or from source:"
