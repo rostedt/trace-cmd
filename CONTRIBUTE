@@ -1,0 +1,103 @@
+If you like to become part of the community and submit patches, here's how
+to do so for trace-cmd.
+
+If you only want to report a bug, or suggest an enhancement, you may do
+so at:
+
+  https://bugzilla.kernel.org/buglist.cgi?component=Trace-cmd%2FKernelshark
+
+All development is done via a mailing list:
+
+   http://vger.kernel.org/vger-lists.html#linux-trace-devel
+
+Patches should be sent to linux-trace-devel@vger.kernel.org
+
+Start by cloning the official repository:
+
+  git clone git://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git
+
+Make your changes. When you are satisfied with them, commit them into git.
+Here's some helpful hints for your git commits.
+
+1) When making changes, please follow the coding style defined by the file
+   called CODING_STYLE in this directory.
+
+2) Every commit should only do one thing.
+   That is, if your work requires some cleaning up of code, do that
+   clean up as a separate commit and not with your functional changes.
+   Find ways to take "steps" in modifying code. If you can break up
+   your changes in a series of steps, do so.
+
+3) The commit log should start with a title. Like the below
+
+      trace-cmd: Add CONTRIBUTE file
+
+   Even though this repo is for trace-cmd, start the topic with
+   "trace-cmd:" because the commits will end up as patches to a mailing
+   list that handles other tracing repos, differentiating them with the subject
+   is useful. You can be more specific as well. If the change only affects the
+   "record" command, you may start the title with "trace-cmd record:".
+
+4) The body of the commit (with a blank line from the title), should be self
+   contained, and explain why you are making the change. The title should hold
+   the "what" is changing, but the body contains the rationale for the change.
+   It should be a stand alone, and not state things like "See the next patch",
+   because when it is in git history, there's no knowing what the next patch
+   is.  You can make statements like "This is needed for a <future-feature>
+   that will come later". Where "<future-feature>" is something that you are
+   working on and the current commit is one of the steps required to get there.
+
+5) Add your Developer Certificate of Origin (DCO) at the bottom of the commit
+   log. That is "Signed-off-by: Full Name <email>" where your full name is your
+   real name (no pseudonyms). Optionally, if you are making the change on
+   behalf of your company, you may also add your company name, if you are not
+   using your company's email. "Signed-off-by: Full Name (Company) <email>".
+   Please note, the DCO is your statement that you have the legal right to
+   make these changes for the project you are submitting to.
+
+You can use the Linux kernel "checkpatch.pl" script to help verify the formatting
+of your patch:
+
+  https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/scripts/checkpatch.pl
+
+Please note that checkpatch.pl is a guide and not a hard rule. If it reports a
+fix that makes the code harder to read, that fix can probably be ignored.
+
+  git format-patch --stdout HEAD~1..HEAD | ./checkpatch.pl
+
+Finally, you can use the git "send-email" functionality:
+
+  git send-email --from='<your-email> --to='linux-trace-devel@vger.kernel.org' HEAD~1..HEAD
+
+If you are sending one patch, if you are adding more than one patch, also include
+a cover letter:
+
+  git send-email --cover-letter --annotate --from='<your-email> --to='linux-trace-devel@vger.kernel.org' <first-commit>~1..HEAD
+
+If you receive feedback on your patches, and plan on sending another version,
+please use the '-v' option to mark your patches that they are a new version.
+For example, if you add "-v2" to the above commands, instead of having:
+"[PATCH]" in the subject, it will have "[PATCH v2]", letting the reviewers know
+that this is a new version. If you send another version, use "-v3" and so on.
+
+For more information about git send-email:
+
+  https://git-scm.com/docs/git-send-email
+
+To keep track of the status of patches that have been submitted, check out:
+
+  https://patchwork.kernel.org/project/linux-trace-devel/list/
+
+If you would like to apply patches from the mailing list, you can use
+the "b4" utility.
+
+ $ pip install b4
+
+Then from the mailing list archive, find a message id from a patch or patch
+series. For example, to get the patch from:
+
+  https://lore.kernel.org/linux-trace-devel/20210205173713.132051-1-tz.stoyanov@gmail.com/
+
+ $ b4 am -o - 20210205173713.132051-1-tz.stoyanov@gmail.com > /tmp/p.mbox
+ $ git am /tmp/p.mbox
+
