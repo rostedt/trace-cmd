@@ -829,13 +829,14 @@ static int set_ftrace_proc(int set)
 	return ret;
 }
 
-static int set_ftrace(int set, int use_proc)
+static int set_ftrace(struct buffer_instance *instance, int set, int use_proc)
 {
 	char *path;
 	int ret;
 
-	/* First check if the function-trace option exists */
-	path = tracefs_get_tracing_file("options/function-trace");
+	path = tracefs_instance_get_file(instance->tracefs, "options/function-trace");
+	if (!path)
+		return -1;
 	ret = set_ftrace_enable(path, set);
 	tracefs_put_tracing_file(path);
 
@@ -843,7 +844,7 @@ static int set_ftrace(int set, int use_proc)
 	if (ret < 0 || set || use_proc)
 		ret = set_ftrace_proc(set);
 
-	return 0;
+	return ret;
 }
 
 static int write_file(const char *file, const char *str)
@@ -6601,7 +6602,7 @@ static void record_trace(int argc, char **argv,
 	page_size = getpagesize();
 
 	if (!is_guest(ctx->instance))
-		fset = set_ftrace(!ctx->disable, ctx->total_disable);
+		fset = set_ftrace(ctx->instance, !ctx->disable, ctx->total_disable);
 	if (!IS_CMDSET(ctx))
 		tracecmd_disable_all_tracing(1);
 
