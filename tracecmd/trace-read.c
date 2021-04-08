@@ -1413,12 +1413,13 @@ static void add_functions(struct tep_handle *pevent, const char *file)
 	if (ret < 0)
 		die("Can't stat file %s", file);
 
-	buf = malloc(st.st_size);
+	buf = malloc(st.st_size + 1);
 	if (!buf)
 		die("Failed to allocate for function buffer");
 	read_file_fd(fd, buf, st.st_size);
+	buf[st.st_size] = '\0';
 	close(fd);
-	tracecmd_parse_proc_kallsyms(pevent, buf, st.st_size);
+	tep_parse_kallsyms(pevent, buf);
 	free(buf);
 }
 

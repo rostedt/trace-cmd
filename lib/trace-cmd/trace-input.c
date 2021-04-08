@@ -743,7 +743,7 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 	}
 	buf[size] = 0;
 
-	tracecmd_parse_proc_kallsyms(pevent, buf, size);
+	tep_parse_kallsyms(pevent, buf);
 
 	free(buf);
 
@@ -775,7 +775,7 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 
 	buf[size] = 0;
 
-	tracecmd_parse_ftrace_printk(handle->pevent, buf, size);
+	tep_parse_printk_formats(handle->pevent, buf);
 
 	free(buf);
 
@@ -2969,7 +2969,7 @@ static int read_and_parse_cmdlines(struct tracecmd_input *handle)
 	if (read_data_and_size(handle, &cmdlines, &size) < 0)
 		return -1;
 	cmdlines[size] = 0;
-	tracecmd_parse_cmdlines(pevent, cmdlines, size);
+	tep_parse_saved_cmdlines(pevent, cmdlines);
 	free(cmdlines);
 
 	handle->file_state = TRACECMD_FILE_CMD_LINES;

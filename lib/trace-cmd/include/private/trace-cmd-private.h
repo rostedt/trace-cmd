@@ -27,9 +27,6 @@
 
 #define TSCNSEC_CLOCK	"tsc2nsec"
 
-void tracecmd_parse_cmdlines(struct tep_handle *pevent, char *file, int size);
-void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigned int size);
-void tracecmd_parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
 struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep, int flags);
 
 int *tracecmd_add_id(int *list, int id, int len);
