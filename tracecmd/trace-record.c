@@ -4351,6 +4351,58 @@ static void record_data(struct common_record_context *ctx)
 	tracecmd_output_close(handle);
 }
 
+enum filter_type {
+	FUNC_FILTER,
+	FUNC_NOTRACE,
+};
+
+static int write_func_filter(enum filter_type type, struct buffer_instance *instance,
+			     struct func_list **list)
+{
+	struct func_list *item;
+	const char *file;
+	int ret = -1;
+	int (*filter_function)(struct tracefs_instance *instance, const char *filter,
+			       const char *module, unsigned int flags);
+
+	if (!*list)
+		return 0;
+
+	switch (type) {
+	case FUNC_FILTER:
+		filter_function = tracefs_function_filter;
+		file = "set_ftrace_filter";
+		break;
+	case FUNC_NOTRACE:
+		filter_function = tracefs_function_notrace;
+		file = "set_ftrace_notrace";
+		break;
+	}
+
+	ret = filter_function(instance->tracefs, NULL, NULL,
+			      TRACEFS_FL_RESET | TRACEFS_FL_CONTINUE);
+	if (ret < 0)
+		return ret;
+
+	while (*list) {
+		item = *list;
+		*list = item->next;
+		ret = filter_function(instance->tracefs, item->func, item->mod,
+				      TRACEFS_FL_CONTINUE);
+		if (ret < 0)
+			goto failed;
+		free(item);
+	}
+	ret = filter_function(instance->tracefs, NULL, NULL, 0);
+	return ret;
+ failed:
+	die("Failed to write %s to %s.\n"
+	    "Perhaps this function is not available for tracing.\n"
+	    "run 'trace-cmd list -f %s' to see if it is.",
+	    item->func, file, item->func);
+	return ret;
+}
+
 static int write_func_file(struct buffer_instance *instance,
 			    const char *file, struct func_list **list)
 {
@@ -4439,7 +4491,7 @@ static void set_funcs(struct buffer_instance *instance)
 	if (is_guest(instance))
 		return;
 
-	ret = write_func_file(instance, "set_ftrace_filter", &instance->filter_funcs);
+	ret = write_func_filter(FUNC_FILTER, instance, &instance->filter_funcs);
 	if (ret < 0)
 		die("set_ftrace_filter does not exist. Can not filter functions");
 
@@ -4455,13 +4507,13 @@ static void set_funcs(struct buffer_instance *instance)
 				set_notrace = 1;
 		}
 		if (!set_notrace) {
-			ret = write_func_file(instance, "set_ftrace_notrace",
+			ret = write_func_filter(FUNC_NOTRACE, instance,
 					      &instance->notrace_funcs);
 			if (ret < 0)
 				die("set_ftrace_notrace does not exist. Can not filter functions");
 		}
 	} else
-		write_func_file(instance, "set_ftrace_notrace", &instance->notrace_funcs);
+		write_func_filter(FUNC_NOTRACE, instance, &instance->notrace_funcs);
 
 	/* make sure we are filtering functions */
 	if (func_stack && is_top_instance(instance)) {

@@ -134,10 +134,11 @@ OPTIONS
 *-l* 'function-name'::
     This will limit the 'function' and 'function_graph' tracers to only trace
     the given function name. More than one *-l* may be specified on the
-    command line to trace more than one function. The limited use of glob
-    expressions are also allowed. These are 'match\*' to only filter functions
-    that start with 'match'. '\*match' to only filter functions that end with
-    'match'. '\*match\*' to only filter on functions that contain 'match'.
+    command line to trace more than one function. This supports both full
+    regex(3) parsing, or basic glob parsing. If the filter has only alphanumeric,
+    '_', '*', '?' and '.' characters, then it will be parsed as a basic glob.
+    to force it to be a regex, prefix the filter with '^' or append it with '$'
+    and it will then be parsed as a regex.
 
 *-g* 'function-name'::
     This option is for the function_graph plugin. It will graph the given
