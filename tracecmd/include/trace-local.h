@@ -27,6 +27,8 @@ typedef unsigned long long u64;
 
 struct buffer_instance;
 
+void warning(const char *fmt, ...);
+
 /* for local shared information with trace-cmd executable */
 
 void usage(char **argv);

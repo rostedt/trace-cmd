@@ -20,9 +20,10 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <time.h>
+#include <traceevent/event-utils.h>
 
 #include "trace-cmd-private.h"
-#include "event-utils.h"
+#include "trace-cmd-local.h"
 
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
@@ -182,7 +183,7 @@ void tracecmd_parse_ftrace_printk(struct tep_handle *pevent,
 	while (line) {
 		addr_str = strtok_r(line, ":", &fmt);
 		if (!addr_str) {
-			warning("printk format with empty entry");
+			tracecmd_warning("printk format with empty entry");
 			break;
 		}
 		addr = strtoull(addr_str, NULL, 16);
@@ -353,19 +354,13 @@ trace_load_plugins(struct tep_handle *tep, int flags)
 	return list;
 }
 
-static int __vlib_warning(const char *fmt, va_list ap)
+void __weak tracecmd_warning(const char *fmt, ...)
 {
-	int ret = errno;
+	va_list ap;
 
-	if (errno)
-		perror("libtracecmd");
-
-	fprintf(stderr, "  ");
-	vfprintf(stderr, fmt, ap);
-
-	fprintf(stderr, "\n");
-
-	return ret;
+	va_start(ap, fmt);
+	tep_vwarning("libtracecmd", fmt, ap);
+	va_end(ap);
 }
 
 void __weak tracecmd_fatal(const char *fmt, ...)
@@ -374,7 +369,7 @@ void __weak tracecmd_fatal(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	ret = __vlib_warning(fmt, ap);
+	ret = tep_vwarning("libtracecmd", fmt, ap);
 	va_end(ap);
 
 	if (debug) {
@@ -524,7 +519,7 @@ int tracecmd_count_cpus(void)
 
 	if (!once) {
 		once++;
-		warning("sysconf could not determine number of CPUS");
+		tracecmd_warning("sysconf could not determine number of CPUS");
 	}
 
 	/* Do the hack to figure out # of CPUS */

@@ -20,6 +20,7 @@
 #include <pthread.h>
 
 #include "trace-cmd-private.h"
+#include "trace-cmd-local.h"
 #include "tracefs.h"
 #include "event-utils.h"
 #include "trace-tsync-local.h"
@@ -729,7 +730,7 @@ static int tsync_get_sample(struct tracecmd_time_sync *tsync, unsigned int cpu,
 
 	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp, cpu);
 	if (ret) {
-		warning("Failed to synchronize timestamps with guest");
+		tracecmd_warning("Failed to synchronize timestamps with guest");
 		return -1;
 	}
 	if (!offset || !timestamp || !scaling)

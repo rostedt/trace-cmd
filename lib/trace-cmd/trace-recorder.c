@@ -14,6 +14,7 @@
 
 #include "tracefs.h"
 #include "trace-cmd-private.h"
+#include "trace-cmd-local.h"
 #include "event-utils.h"
 
 /* F_GETPIPE_SZ was introduced in 2.6.35, older systems don't have it */
@@ -393,7 +394,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 		if (errno == EAGAIN || errno == EINTR || errno == ENOTCONN)
 			return 0;
 
-		warning("recorder error in splice input");
+		tracecmd_warning("recorder error in splice input");
 		return -1;
 	} else if (read == 0)
 		return 0;
@@ -403,7 +404,7 @@ static long splice_data(struct tracecmd_recorder *recorder)
 		     read, recorder->fd_flags);
 	if (ret < 0) {
 		if (errno != EAGAIN && errno != EINTR) {
-			warning("recorder error in splice output");
+			tracecmd_warning("recorder error in splice output");
 			return -1;
 		}
 		return total_read;
@@ -451,7 +452,7 @@ static long direct_splice_data(struct tracecmd_recorder *recorder)
 		if (errno == EAGAIN || errno == EINTR || errno == ENOTCONN)
 			return 0;
 
-		warning("recorder error in splice input");
+		tracecmd_warning("recorder error in splice input");
 		return -1;
 	}
 
@@ -473,7 +474,7 @@ static long read_data(struct tracecmd_recorder *recorder)
 		if (errno == EAGAIN || errno == EINTR || errno == ENOTCONN)
 			return 0;
 
-		warning("recorder error in read input");
+		tracecmd_warning("recorder error in read input");
 		return -1;
 	}
 

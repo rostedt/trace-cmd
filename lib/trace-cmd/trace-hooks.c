@@ -9,6 +9,7 @@
 #include <ctype.h>
 
 #include "trace-cmd-private.h"
+#include "trace-cmd-local.h"
 #include "event-utils.h"
 
 struct hook_list *tracecmd_create_event_hook(const char *arg)
@@ -132,7 +133,7 @@ struct hook_list *tracecmd_create_event_hook(const char *arg)
 				hook->stack = 1;
 				break;
 			default:
-				warning("unknown flag %c\n", flags[i]);
+				tracecmd_warning("unknown flag %c\n", flags[i]);
 			}
 		}
 	}
@@ -149,7 +150,7 @@ struct hook_list *tracecmd_create_event_hook(const char *arg)
 	return hook;
 
 invalid_tok:
-	warning("Invalid hook format '%s'", arg);
+	tracecmd_warning("Invalid hook format '%s'", arg);
 	return NULL;
 }
 

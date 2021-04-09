@@ -197,7 +197,7 @@ static unsigned long get_size(const char *file)
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		warning("Can't read '%s'", file);
+		tracecmd_warning("Can't read '%s'", file);
 		return 0; /* Caller will fail with zero */
 	}
 	size = get_size_fd(fd);
@@ -232,7 +232,7 @@ static tsize_t copy_file(struct tracecmd_output *handle,
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		warning("Can't read '%s'", file);
+		tracecmd_warning("Can't read '%s'", file);
 		return 0;
 	}
 	size = copy_file_fd(handle, fd);
@@ -293,7 +293,7 @@ int tracecmd_ftrace_enable(int set)
 
 	fd = open(path, O_WRONLY);
 	if (fd < 0) {
-		warning("Can't %s ftrace", set ? "enable" : "disable");
+		tracecmd_warning("Can't %s ftrace", set ? "enable" : "disable");
 		return EIO;
 	}
 
@@ -340,8 +340,8 @@ static int read_header_files(struct tracecmd_output *handle)
 	int ret;
 
 	if (check_out_state(handle, TRACECMD_FILE_HEADERS) < 0) {
-		warning("Cannot read header files, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot read header files, unexpected state 0x%X",
+				 handle->file_state);
 		return -1;
 	}
 
@@ -367,7 +367,7 @@ static int read_header_files(struct tracecmd_output *handle)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		warning("can't read '%s'", path);
+		tracecmd_warning("can't read '%s'", path);
 		return -1;
 	}
 
@@ -382,8 +382,7 @@ static int read_header_files(struct tracecmd_output *handle)
 	check_size = copy_file_fd(handle, fd);
 	close(fd);
 	if (size != check_size) {
-		warning("wrong size for '%s' size=%lld read=%lld",
-			path, size, check_size);
+		tracecmd_warning("wrong size for '%s' size=%lld read=%lld", path, size, check_size);
 		errno = EINVAL;
 		return -1;
 	}
@@ -395,7 +394,7 @@ static int read_header_files(struct tracecmd_output *handle)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		warning("can't read '%s'", path);
+		tracecmd_warning("can't read '%s'", path);
 		return -1;
 	}
 
@@ -409,7 +408,7 @@ static int read_header_files(struct tracecmd_output *handle)
 	check_size = copy_file_fd(handle, fd);
 	close(fd);
 	if (size != check_size) {
-		warning("wrong size for '%s'", path);
+		tracecmd_warning("wrong size for '%s'", path);
 		return -1;
 	}
 	put_tracing_file(path);
@@ -453,7 +452,7 @@ static int copy_event_system(struct tracecmd_output *handle,
 				return -1;
 			check_size = copy_file(handle, format);
 			if (size != check_size) {
-				warning("error in size of file '%s'", format);
+				tracecmd_warning("error in size of file '%s'", format);
 				return -1;
 			}
 		}
@@ -509,7 +508,7 @@ static void add_list_event_system(struct list_event_system **systems,
 	}
 	return;
  err_mem:
-	warning("Insufficient memory");
+	 tracecmd_warning("Insufficient memory");
 }
 
 static void free_list_events(struct list_event_system *list)
@@ -643,7 +642,7 @@ create_event_list_item(struct tracecmd_output *handle,
 	free(str);
 	return;
  err_mem:
-	warning("Insufficient memory");
+	 tracecmd_warning("Insufficient memory");
 }
 
 static int read_ftrace_files(struct tracecmd_output *handle)
@@ -653,8 +652,8 @@ static int read_ftrace_files(struct tracecmd_output *handle)
 	int ret;
 
 	if (check_out_state(handle, TRACECMD_FILE_FTRACE_EVENTS) < 0) {
-		warning("Cannot read ftrace files, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot read ftrace files, unexpected state 0x%X",
+				 handle->file_state);
 		return -1;
 	}
 
@@ -694,8 +693,8 @@ static int read_event_files(struct tracecmd_output *handle,
 	int ret;
 
 	if (check_out_state(handle, TRACECMD_FILE_ALL_EVENTS) < 0) {
-		warning("Cannot read event files, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot read event files, unexpected state 0x%X",
+				 handle->file_state);
 		return -1;
 	}
 	/*
@@ -774,7 +773,7 @@ err:
 	if (fd > 0)
 		close(fd);
 	if (ret)
-		warning("can't set kptr_restrict");
+		tracecmd_warning("can't set kptr_restrict");
 }
 
 static int read_proc_kallsyms(struct tracecmd_output *handle,
@@ -786,8 +785,8 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 	int ret;
 
 	if (check_out_state(handle, TRACECMD_FILE_KALLSYMS) < 0) {
-		warning("Cannot read kallsyms, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot read kallsyms, unexpected state 0x%X",
+				 handle->file_state);
 		return -1;
 	}
 
@@ -812,7 +811,7 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
 		errno = EINVAL;
-		warning("error in size of file '%s'", path);
+		tracecmd_warning("error in size of file '%s'", path);
 		set_proc_kptr_restrict(1);
 		return -1;
 	}
@@ -831,8 +830,8 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	int ret;
 
 	if (check_out_state(handle, TRACECMD_FILE_PRINTK) < 0) {
-		warning("Cannot read printk, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot read printk, unexpected state 0x%X",
+				 handle->file_state);
 		return -1;
 	}
 
@@ -856,7 +855,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle)
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
 		errno = EINVAL;
-		warning("error in size of file '%s'", path);
+		tracecmd_warning("error in size of file '%s'", path);
 		goto fail;
 	}
 
@@ -892,7 +891,7 @@ static int save_tracing_file_data(struct tracecmd_output *handle,
 		check_size = copy_file(handle, file);
 		if (size != check_size) {
 			errno = EINVAL;
-			warning("error in size of file '%s'", file);
+			tracecmd_warning("error in size of file '%s'", file);
 			goto out_free;
 		}
 	} else {
@@ -1062,14 +1061,14 @@ tracecmd_add_option_v(struct tracecmd_output *handle,
 	if (size) {
 		data = malloc(size);
 		if (!data) {
-			warning("Insufficient memory");
+			tracecmd_warning("Insufficient memory");
 			return NULL;
 		}
 	}
 
 	option = malloc(sizeof(*option));
 	if (!option) {
-		warning("Could not allocate space for option");
+		tracecmd_warning("Could not allocate space for option");
 		free(data);
 		return NULL;
 	}
@@ -1119,8 +1118,8 @@ int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus)
 
 	ret = check_out_state(handle, TRACECMD_FILE_CPU_COUNT);
 	if (ret < 0) {
-		warning("Cannot write CPU count into the file, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot write CPU count into the file, unexpected state 0x%X",
+				 handle->file_state);
 		return ret;
 	}
 	cpus = convert_endian_4(handle, cpus);
@@ -1144,8 +1143,8 @@ int tracecmd_write_options(struct tracecmd_output *handle)
 		return 0;
 	ret = check_out_state(handle, TRACECMD_FILE_OPTIONS);
 	if (ret < 0) {
-		warning("Cannot write options into the file, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot write options into the file, unexpected state 0x%X",
+				 handle->file_state);
 		return ret;
 	}
 
@@ -1238,7 +1237,7 @@ int tracecmd_update_option(struct tracecmd_output *handle,
 	stsize_t ret;
 
 	if (size > option->size) {
-		warning("Can't update option with more data than allocated");
+		tracecmd_warning("Can't update option with more data than allocated");
 		return -1;
 	}
 
@@ -1254,7 +1253,7 @@ int tracecmd_update_option(struct tracecmd_output *handle,
 
 	ret = lseek64(handle->fd, option->offset, SEEK_SET);
 	if (ret == (off64_t)-1) {
-		warning("could not seek to %lld\n", option->offset);
+		tracecmd_warning("could not seek to %lld\n", option->offset);
 		return -1;
 	}
 
@@ -1263,7 +1262,7 @@ int tracecmd_update_option(struct tracecmd_output *handle,
 
 	ret = lseek64(handle->fd, offset, SEEK_SET);
 	if (ret == (off64_t)-1) {
-		warning("could not seek to %lld\n", offset);
+		tracecmd_warning("could not seek to %lld\n", offset);
 		return -1;
 	}
 
@@ -1280,7 +1279,7 @@ tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name,
 
 	buf = malloc(size);
 	if (!buf) {
-		warning("Failed to malloc buffer");
+		tracecmd_warning("Failed to malloc buffer");
 		return NULL;
 	}
 	*(tsize_t *)buf = 0;
@@ -1306,8 +1305,8 @@ int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 
 	ret = check_out_state(handle, TRACECMD_FILE_CMD_LINES);
 	if (ret < 0) {
-		warning("Cannot write command lines into the file, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot write command lines into the file, unexpected state 0x%X",
+				 handle->file_state);
 		return ret;
 	}
 	ret = save_tracing_file_data(handle, "saved_cmdlines");
@@ -1341,8 +1340,8 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 
 	ret = check_out_state(handle, TRACECMD_FILE_CPU_LATENCY);
 	if (ret < 0) {
-		warning("Cannot write latency data into the file, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot write latency data into the file, unexpected state 0x%X",
+				 handle->file_state);
 		goto out_free;
 	}
 
@@ -1424,8 +1423,8 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	ret = handle->file_state == TRACECMD_FILE_CPU_FLYRECORD ? 0 :
 		check_out_state(handle, TRACECMD_FILE_CPU_FLYRECORD);
 	if (ret < 0) {
-		warning("Cannot write trace data into the file, unexpected state 0x%X",
-			handle->file_state);
+		tracecmd_warning("Cannot write trace data into the file, unexpected state 0x%X",
+				 handle->file_state);
 		goto out_free;
 	}
 
@@ -1467,7 +1466,7 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 		file = cpu_data_files[i];
 		ret = stat(file, &st);
 		if (ret < 0) {
-			warning("can not stat '%s'", file);
+			tracecmd_warning("can not stat '%s'", file);
 			goto out_free;
 		}
 		offsets[i] = offset;
@@ -1492,14 +1491,14 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 				i, (unsigned long long) offsets[i]);
 		offset = lseek64(handle->fd, offsets[i], SEEK_SET);
 		if (offset == (off64_t)-1) {
-			warning("could not seek to %lld\n", offsets[i]);
+			tracecmd_warning("could not seek to %lld\n", offsets[i]);
 			goto out_free;
 		}
 		check_size = copy_file(handle, cpu_data_files[i]);
 		if (check_size != sizes[i]) {
 			errno = EINVAL;
-			warning("did not match size of %lld to %lld",
-			    check_size, sizes[i]);
+			tracecmd_warning("did not match size of %lld to %lld",
+					 check_size, sizes[i]);
 			goto out_free;
 		}
 		if (!tracecmd_get_quiet(handle))
@@ -1548,7 +1547,7 @@ int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
 	/* Go to the option data, where will write the offest */
 	ret = lseek64(handle->fd, option->offset, SEEK_SET);
 	if (ret == (off64_t)-1) {
-		warning("could not seek to %lld\n", option->offset);
+		tracecmd_warning("could not seek to %lld\n", option->offset);
 		return -1;
 	}
 
@@ -1558,7 +1557,7 @@ int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
 	/* Go back to end of file */
 	ret = lseek64(handle->fd, offset, SEEK_SET);
 	if (ret == (off64_t)-1) {
-		warning("could not seek to %lld\n", offset);
+		tracecmd_warning("could not seek to %lld\n", offset);
 		return -1;
 	}
 

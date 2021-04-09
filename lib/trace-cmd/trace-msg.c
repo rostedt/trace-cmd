@@ -408,8 +408,7 @@ void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle)
 
 static void error_operation(struct tracecmd_msg *msg)
 {
-	warning("Message: cmd=%d size=%d\n",
-		ntohl(msg->hdr.cmd), ntohl(msg->hdr.size));
+	tracecmd_warning("Message: cmd=%d size=%d\n", ntohl(msg->hdr.cmd), ntohl(msg->hdr.size));
 }
 
 /*
@@ -439,7 +438,7 @@ static int tracecmd_msg_wait_for_msg(int fd, struct tracecmd_msg *msg)
 	ret = tracecmd_msg_recv_wait(fd, msg);
 	if (ret < 0) {
 		if (ret == -ETIMEDOUT)
-			warning("Connection timed out\n");
+			tracecmd_warning("Connection timed out\n");
 		return ret;
 	}
 
@@ -590,7 +589,7 @@ int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle)
 	ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 	if (ret < 0) {
 		if (ret == -ETIMEDOUT)
-			warning("Connection timed out\n");
+			tracecmd_warning("Connection timed out\n");
 		return ret;
 	}
 
@@ -754,9 +753,9 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 		ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 		if (ret < 0) {
 			if (ret == -ETIMEDOUT)
-				warning("Connection timed out\n");
+				tracecmd_warning("Connection timed out\n");
 			else
-				warning("reading client");
+				tracecmd_warning("reading client");
 			return ret;
 		}
 
@@ -779,7 +778,7 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 			if (s < 0) {
 				if (errno == EINTR)
 					continue;
-				warning("writing to file");
+				tracecmd_warning("writing to file");
 				ret = -errno;
 				goto error;
 			}

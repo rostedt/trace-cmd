@@ -10,7 +10,7 @@
 #include "trace-cmd-private.h"
 
 /* Can be overridden */
-void warning(const char *fmt, ...);
+void tracecmd_warning(const char *fmt, ...);
 void tracecmd_fatal(const char *fmt, ...);
 
 /* trace.dat file format version */

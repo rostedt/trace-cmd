@@ -430,7 +430,7 @@ static int regex_event_buf(const char *file, int size, regex_t *epreg)
 
 	buf = malloc(size + 1);
 	if (!buf) {
-		warning("Insufficient memory");
+		tracecmd_warning("Insufficient memory");
 		return 0;
 	}
 
@@ -440,7 +440,7 @@ static int regex_event_buf(const char *file, int size, regex_t *epreg)
 	/* get the name from the first line */
 	line = strtok(buf, "\n");
 	if (!line) {
-		warning("No newline found in '%s'", buf);
+		tracecmd_warning("No newline found in '%s'", buf);
 		return 0;
 	}
 	/* skip name if it is there */
@@ -543,13 +543,13 @@ static int make_preg_files(const char *regex, regex_t *system,
 
 	ret = regcomp(system, sstr, REG_ICASE|REG_NOSUB);
 	if (ret) {
-		warning("Bad regular expression '%s'", sstr);
+		tracecmd_warning("Bad regular expression '%s'", sstr);
 		goto out;
 	}
 
 	ret = regcomp(event, estr, REG_ICASE|REG_NOSUB);
 	if (ret) {
-		warning("Bad regular expression '%s'", estr);
+		tracecmd_warning("Bad regular expression '%s'", estr);
 		goto out;
 	}
 
@@ -1340,14 +1340,13 @@ static int update_page_info(struct tracecmd_input *handle, int cpu)
 
 	/* FIXME: handle header page */
 	if (tep_get_header_timestamp_size(pevent) != 8) {
-		warning("expected a long long type for timestamp");
+		tracecmd_warning("expected a long long type for timestamp");
 		return -1;
 	}
 
 	kbuffer_load_subbuffer(kbuf, ptr);
 	if (kbuffer_subbuffer_size(kbuf) > handle->page_size) {
-		warning("bad page read, with size of %d",
-		    kbuffer_subbuffer_size(kbuf));
+		tracecmd_warning("bad page read, with size of %d", kbuffer_subbuffer_size(kbuf));
 		return -1;
 	}
 	handle->cpu_data[cpu].timestamp = timestamp_calc(kbuffer_timestamp(kbuf),
@@ -2782,7 +2781,7 @@ static int handle_options(struct tracecmd_input *handle)
 								  buf + 8, 8);
 			break;
 		default:
-			warning("unknown option %d", option);
+			tracecmd_warning("unknown option %d", option);
 			break;
 		}
 
@@ -2925,7 +2924,7 @@ static int read_cpu_data(struct tracecmd_input *handle)
 		read8(handle, &ignore); /* size */
 		if (ignore != 0) {
 			if (!once) {
-				warning("ignored CPU data not zero size");
+				tracecmd_warning("ignored CPU data not zero size");
 				once++;
 			}
 		}
@@ -3057,7 +3056,7 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 		 */
 		if (read_and_parse_trace_clock(handle, pevent) < 0) {
 			char clock[] = "[local]";
-			warning("File has trace_clock bug, using local clock");
+			tracecmd_warning("File has trace_clock bug, using local clock");
 			tracecmd_parse_trace_clock(handle, clock, 8);
 		}
 	}
@@ -3455,7 +3454,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 		return;
 
 	if (handle->ref <= 0) {
-		warning("tracecmd: bad ref count on handle\n");
+		tracecmd_warning("tracecmd: bad ref count on handle\n");
 		return;
 	}
 
@@ -3472,10 +3471,10 @@ void tracecmd_close(struct tracecmd_input *handle)
 				free_page_map(handle->cpu_data[cpu].page_map);
 
 			if (handle->cpu_data[cpu].page_cnt)
-				warning("%d pages still allocated on cpu %d%s",
-					handle->cpu_data[cpu].page_cnt,
-					cpu, show_records(handle->cpu_data[cpu].pages,
-							  handle->cpu_data[cpu].nr_pages));
+				tracecmd_warning("%d pages still allocated on cpu %d%s",
+						 handle->cpu_data[cpu].page_cnt, cpu,
+						 show_records(handle->cpu_data[cpu].pages,
+							      handle->cpu_data[cpu].nr_pages));
 			free(handle->cpu_data[cpu].pages);
 		}
 	}
@@ -3953,8 +3952,8 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 
 	ret = lseek64(handle->fd, buffer->offset, SEEK_SET);
 	if (ret < 0) {
-		warning("could not seek to buffer %s offset %ld\n",
-			buffer->name, buffer->offset);
+		tracecmd_warning("could not seek to buffer %s offset %ld\n",
+				  buffer->name, buffer->offset);
 		goto error;
 	}
 
@@ -3967,13 +3966,13 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 	if (!ret)
 		ret = read_cpu_data(new_handle);
 	if (ret < 0) {
-		warning("failed to read sub buffer %s\n", buffer->name);
+		tracecmd_warning("failed to read sub buffer %s\n", buffer->name);
 		goto error;
 	}
 
 	ret = lseek64(handle->fd, offset, SEEK_SET);
 	if (ret < 0) {
-		warning("could not seek to back to offset %ld\n", offset);
+		tracecmd_warning("could not seek to back to offset %ld\n", offset);
 		goto error;
 	}
 
