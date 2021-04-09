@@ -9,7 +9,7 @@ PYTHON_PY_LIBS := tracecmd.install
 endif
 
 ctracecmd.so: ctracecmd.i $(LIBTRACECMD_STATIC)
-	swig -Wall -python -noproxy -I$(src)/include/traceevent -I$(src)/include/trace-cmd ctracecmd.i
+	swig -Wall -python -noproxy -I$(src)/include/traceevent -I$(src)/include/trace-cmd $(LIBTRACEEVENT_CFLAGS) ctracecmd.i
 	$(CC) -fpic -c $(CPPFLAGS) $(CFLAGS) $(PYTHON_INCLUDES)  ctracecmd_wrap.c
 	$(CC) --shared $(LIBTRACECMD_STATIC) $(LDFLAGS) ctracecmd_wrap.o -o ctracecmd.so $(TRACE_LIBS)
 

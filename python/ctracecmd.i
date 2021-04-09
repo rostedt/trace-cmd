@@ -257,5 +257,5 @@ static int python_callback(struct trace_seq *s,
 #define __thread
 
 %include "trace-cmd.h"
-%include "trace-seq.h"
-%include "event-parse.h"
+%include <trace-seq.h>
+%include <event-parse.h>
