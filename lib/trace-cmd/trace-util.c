@@ -368,7 +368,7 @@ static int __vlib_warning(const char *fmt, va_list ap)
 	return ret;
 }
 
-void __weak tracecmd_lib_fatal(const char *fmt, ...)
+void __weak tracecmd_fatal(const char *fmt, ...)
 {
 	int ret;
 	va_list ap;
@@ -534,7 +534,7 @@ int tracecmd_count_cpus(void)
 
 	fp = fopen("/proc/cpuinfo", "r");
 	if (!fp) {
-		tracecmd_lib_fatal("Can not read cpuinfo");
+		tracecmd_fatal("Can not read cpuinfo");
 		return 0;
 	}
 

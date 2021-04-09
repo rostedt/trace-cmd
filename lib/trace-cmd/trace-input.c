@@ -1104,7 +1104,7 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	int index;
 
 	if (!page->ref_count) {
-		tracecmd_lib_fatal("Page ref count is zero!\n");
+		tracecmd_fatal("Page ref count is zero!\n");
 		return;
 	}
 
@@ -1165,7 +1165,7 @@ void tracecmd_free_record(struct tep_record *record)
 		return;
 
 	if (!record->ref_count) {
-		tracecmd_lib_fatal("record ref count is zero!");
+		tracecmd_fatal("record ref count is zero!");
 		return;
 	}
 
@@ -1175,7 +1175,7 @@ void tracecmd_free_record(struct tep_record *record)
 		return;
 
 	if (record->locked) {
-		tracecmd_lib_fatal("freeing record when it is locked!");
+		tracecmd_fatal("freeing record when it is locked!");
 		return;
 	}
 
@@ -1377,7 +1377,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 
 	if (offset & (handle->page_size - 1)) {
 		errno = -EINVAL;
-		tracecmd_lib_fatal("bad page offset %llx", offset);
+		tracecmd_fatal("bad page offset %llx", offset);
 		return -1;
 	}
 
@@ -1385,7 +1385,7 @@ static int get_page(struct tracecmd_input *handle, int cpu,
 	    offset > handle->cpu_data[cpu].file_offset +
 	    handle->cpu_data[cpu].file_size) {
 		errno = -EINVAL;
-		tracecmd_lib_fatal("bad page offset %llx", offset);
+		tracecmd_fatal("bad page offset %llx", offset);
 		return -1;
 	}
 
@@ -1951,7 +1951,7 @@ tracecmd_peek_data(struct tracecmd_input *handle, int cpu)
 
 		record = handle->cpu_data[cpu].next;
 		if (!record->data) {
-			tracecmd_lib_fatal("Something freed the record");
+			tracecmd_fatal("Something freed the record");
 			return NULL;
 		}
 
