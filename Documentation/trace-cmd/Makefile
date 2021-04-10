@@ -3,42 +3,130 @@
 # Include the utils
 include $(src)/scripts/utils.mk
 
-bdir:=$(doc_dir)/trace-cmd
+# This Makefile and manpage XSL files were taken from libtracefs
+# and modified for libtracecmd
 
-$(bdir)/%.xsl: $(bdir)/%.txt
-	$(Q)mkdir -p $(bdir)
-	$(Q)$(do_asciidoc_build)
+MAN1_TXT= \
+	$(wildcard trace-cmd*.1.txt)
 
+MAN5_TXT= \
+	$(wildcard trace-cmd*.5.txt)
 
-$(bdir)/%.1: $(bdir)/%.1.xsl
-	@$(call manpage.xsl)
-	$(Q)$(do_xsltproc_build)
+MAN_TXT = $(MAN1_TXT) $(MAN5_TXT)
+_MAN_XML=$(patsubst %.txt,%.xml,$(MAN_TXT))
+_MAN_HTML=$(patsubst %.txt,%.html,$(MAN_TXT))
+_DOC_MAN1=$(patsubst %.1.txt,%.1,$(MAN1_TXT))
+_DOC_MAN5=$(patsubst %.5.txt,%.5,$(MAN5_TXT))
 
-$(bdir)/%.5: $(bdir)/%.5.xsl
-	@$(call manpage.xsl)
-	$(Q)$(do_xsltproc_build)
-	$(Q)$(call remove_synopsis, $@)
+MAN_XML=$(addprefix $(OUTPUT),$(_MAN_XML))
+MAN_HTML=$(addprefix $(OUTPUT),$(_MAN_HTML))
+DOC_MAN1=$(addprefix $(OUTPUT),$(_DOC_MAN1))
+DOC_MAN5=$(addprefix $(OUTPUT),$(_DOC_MAN5))
 
- TEXT1 = $(wildcard $(bdir)/*.1.txt)
- MAN1 = $(patsubst $(bdir)/%.1.txt,$(bdir)/%.1, ${TEXT1})
- TEXT5 = $(wildcard $(bdir)/*.5.txt)
- MAN5 = $(patsubst $(bdir)/%.5.txt,$(bdir)/%.5, ${TEXT5})
+# Make the path relative to DESTDIR, not prefix
+ifndef DESTDIR
+prefix?=$(HOME)
+endif
+bindir?=$(prefix)/bin
+htmldir?=$(prefix)/share/doc/trace-cmd
+pdfdir?=$(prefix)/share/doc/trace-cmd
+mandir?=$(prefix)/share/man
+man1dir=$(mandir)/man1
+man5dir=$(mandir)/man5
 
-all: $(MAN1) $(MAN5)
+ifdef USE_ASCIIDOCTOR
+ASCIIDOC_EXTRA += -a mansource="libtracecmd" -a manmanual="libtracecmd Manual"
+endif
 
-MAN1_INSTALL = $(MAN1:%.1=%.1.install)
-MAN5_INSTALL = $(MAN5:%.5=%.5.install)
+all: check-man-tools html man
 
-$(MAN1_INSTALL): %.1.install : %.1 force
-	$(Q)$(call do_install_docs,$<,$(man_dir_SQ)/man1)
-$(MAN5_INSTALL): %.5.install : %.5 force
-	$(Q)$(call do_install_docs,$<,$(man_dir_SQ)/man5)
+man: man1 man5
+man1: $(DOC_MAN1)
+man5: $(DOC_MAN5)
 
-install: $(MAN1_INSTALL) $(MAN5_INSTALL)
+html: $(MAN_HTML)
+
+$(MAN_HTML) $(DOC_MAN1) $(DOC_MAN5): $(ASCIIDOC_CONF)
+
+install: check-man-tools install-man install-html
+
+check-man-tools:
+ifdef missing_tools
+	$(error "You need to install $(missing_tools) for man pages")
+endif
+
+install-%.1: $(OUTPUT)%.1
+	$(Q)$(call do_install_docs,$<,$(man1dir),644);
+
+install-%.5: $(OUTPUT)%.5
+	$(Q)$(call do_install_docs,$<,$(man5dir),644);
+
+do-install-man: man $(addprefix install-,$(wildcard $(OUTPUT)*.1)) \
+	$(addprefix install-,$(wildcard $(OUTPUT)*.5))
+
+install-man: man
+	$(Q)$(MAKE) -C . do-install-man
+
+install-%.txt: $(OUTPUT)%.html
+	$(Q)$(call do_install_docs,$<,$(htmldir),644);
+
+do-install-html: html $(addprefix install-,$(wildcard *.txt))
+
+install-html: html do-install-html
+
+uninstall: uninstall-man uninstall-html
+
+uninstall-man:
+	$(Q)$(RM) $(addprefix $(DESTDIR)$(man1dir)/,$(DOC_MAN1))
+	$(Q)$(RM) $(addprefix $(DESTDIR)$(man5dir)/,$(DOC_MAN5))
+
+uninstall-html:
+	$(Q)$(RM) $(addprefix $(DESTDIR)$(htmldir)/,$(MAN_HTML))
+
+ifdef missing_tools
+  DO_INSTALL_MAN = $(warning Please install $(missing_tools) to have the man pages installed)
+else
+  DO_INSTALL_MAN = do-install-man
+endif
+
+CLEAN_FILES =					\
+	$(MAN_XML) $(addsuffix +,$(MAN_XML))	\
+	$(MAN_HTML) $(addsuffix +,$(MAN_HTML))	\
+	$(DOC_MAN1) $(DOC_MAN5) *.1 *.5
 
 clean:
-	$(Q)(cd $(bdir); \
-		$(RM) *.xml *.xsl *.1 *.5)
+	$(Q) $(RM) $(CLEAN_FILES)
 
-.PHONE: force
-force:
+ifdef USE_ASCIIDOCTOR
+$(OUTPUT)%.1 : $(OUTPUT)%.1.txt
+	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
+	$(ASCIIDOC) -b manpage -d manpage \
+		$(ASCIIDOC_EXTRA) -atracecmd_version=$(TRACECMD_VERSION) -o $@+ $< && \
+	mv $@+ $@
+
+$(OUTPUT)%.5 : $(OUTPUT)%.5.txt
+	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
+	$(ASCIIDOC) -b manpage -d manpage \
+		$(ASCIIDOC_EXTRA) -atracecmd_version=$(TRACECMD_VERSION) -o $@+ $< && \
+	mv $@+ $@
+endif
+
+$(OUTPUT)%.1 : $(OUTPUT)%.1.xml
+	$(QUIET_XMLTO)$(RM) $@ && \
+	$(XMLTO) -o $(OUTPUT). -m $(MANPAGE_XSL) $(XMLTO_EXTRA) man $<; \
+
+$(OUTPUT)%.5 : $(OUTPUT)%.5.xml
+	$(QUIET_XMLTO)$(RM) $@ && \
+	$(XMLTO) -o $(OUTPUT). -m $(MANPAGE_XSL) $(XMLTO_EXTRA) man $<; \
+
+$(OUTPUT)%.xml : %.txt
+	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
+	$(ASCIIDOC) -b docbook -d manpage \
+		$(ASCIIDOC_EXTRA) -atracecmd_version=$(TRACECMD_VERSION) -o $@+ $< && \
+	mv $@+ $@
+
+$(MAN_HTML): $(OUTPUT)%.html : %.txt
+	$(QUIET_ASCIIDOC)$(RM) $@+ $@ && \
+	$(ASCIIDOC) -b $(ASCIIDOC_HTML) -d manpage \
+		$(ASCIIDOC_EXTRA) -atracecmd_version=$(TRACECMD_VERSION) -o $@+ $< && \
+	mv $@+ $@
