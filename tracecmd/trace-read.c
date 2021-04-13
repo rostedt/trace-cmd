@@ -26,6 +26,14 @@
 #include "kbuffer.h"
 #include "list.h"
 
+/*
+ * tep_func_repeat_format is defined as a weak variable in the
+ * libtraceevent library function plugin, to allow applications
+ * to override the format of the timestamp it prints for the
+ * last function that repeated.
+ */
+const char *tep_func_repeat_format;
+
 static struct filter_str {
 	struct filter_str	*next;
 	char			*filter;
@@ -1874,6 +1882,18 @@ void trace_report (int argc, char **argv)
 	}
 
 	otype = OUTPUT_NORMAL;
+
+	if (tracecmd_get_flags(handle) & TRACECMD_FL_RAW_TS) {
+		tep_func_repeat_format = "%d";
+	} else if (tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS) {
+		if (tep_test_flag(tracecmd_get_tep(handle), TEP_NSEC_OUTPUT))
+			tep_func_repeat_format = "%9.1d";
+		else
+			tep_func_repeat_format = "%6.1000d";
+	} else {
+		tep_func_repeat_format = "%12d";
+	}
+
 
 	if (show_stat)
 		otype = OUTPUT_STAT_ONLY;
