@@ -399,12 +399,56 @@ static void show_tracers(void)
 	show_file("available_tracers");
 }
 
-
 static void show_options(void)
 {
+	struct dirent *dent;
+	struct stat st;
+	char *path;
+	DIR *dir;
+
+	path = tracefs_get_tracing_file("options");
+	if (!path)
+		goto show_file;
+	if (stat(path, &st) < 0)
+		goto show_file;
+
+	if ((st.st_mode & S_IFMT) != S_IFDIR)
+		goto show_file;
+
+	dir = opendir(path);
+	if (!dir)
+		die("Can not read instance directory");
+
+	while ((dent = readdir(dir))) {
+		const char *name = dent->d_name;
+		long long val;
+		char *file;
+		int ret;
+
+		if (strcmp(name, ".") == 0 ||
+		    strcmp(name, "..") == 0)
+			continue;
+
+		ret = asprintf(&file, "options/%s", name);
+		if (ret < 0)
+			die("Failed to allocate file name");
+		ret = tracefs_instance_file_read_number(NULL, file, &val);
+		if (!ret) {
+			if (val)
+				printf("%s\n", name);
+			else
+				printf("no%s\n", name);
+		}
+		free(file);
+	}
+	closedir(dir);
+	tracefs_put_tracing_file(path);
+	return;
+
+ show_file:
+	tracefs_put_tracing_file(path);
 	show_file("trace_options");
 }
-
 
 static void show_clocks(void)
 {
