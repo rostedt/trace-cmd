@@ -7,7 +7,7 @@ trace-cmd-stat - show the status of the tracing (ftrace) system
 
 SYNOPSIS
 --------
-*trace-cmd stat*
+*trace-cmd stat* ['OPTIONS']
 
 DESCRIPTION
 -----------
@@ -44,6 +44,16 @@ system. The status that it shows is:
 *Uprobes:* Shows any uprobes that are defined for tracing.
 
 *Error log:* Dump the content of ftrace error_log file.
+
+OPTIONS
+-------
+*-B* 'buffer-name'::
+    Display the status of a given buffer instance. May be specified more than once
+    to display the status of multiple instances.
+
+*-t*::
+    If *-B* is also specified, show the status of the top level tracing directory
+    as well as the instance(s).
 
 SEE ALSO
 --------

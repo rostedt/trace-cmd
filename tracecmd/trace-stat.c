@@ -875,7 +875,7 @@ void trace_stat (int argc, char **argv)
 	init_top_instance();
 
 	for (;;) {
-		c = getopt(argc-1, argv+1, "tB:");
+		c = getopt(argc-1, argv+1, "htB:");
 		if (c == -1)
 			break;
 		switch (c) {
