@@ -835,7 +835,7 @@ static void report_traceon(struct buffer_instance *instance)
 	free(str);
 }
 
-static void stat_instance(struct buffer_instance *instance)
+static void stat_instance(struct buffer_instance *instance, bool opt)
 {
 	if (instance != &top_instance) {
 		if (instance != first_instance)
@@ -859,6 +859,10 @@ static void stat_instance(struct buffer_instance *instance)
 	report_file(instance, "set_event_pid", "", "Filtered event PIDs:\n");
 	report_file(instance, "set_ftrace_pid", "no pid",
 		    "Filtered function tracer PIDs:\n");
+	if (opt) {
+		printf("\nOptions:\n");
+		show_options("   ", instance);
+	}
 	report_traceon(instance);
 	report_file(instance, "error_log", "", "Error log:\n");
 	if (instance == &top_instance)
@@ -868,6 +872,7 @@ static void stat_instance(struct buffer_instance *instance)
 void trace_stat (int argc, char **argv)
 {
 	struct buffer_instance *instance = &top_instance;
+	bool opt = false;
 	int topt = 0;
 	int status;
 	int c;
@@ -875,7 +880,7 @@ void trace_stat (int argc, char **argv)
 	init_top_instance();
 
 	for (;;) {
-		c = getopt(argc-1, argv+1, "htB:");
+		c = getopt(argc-1, argv+1, "htoB:");
 		if (c == -1)
 			break;
 		switch (c) {
@@ -896,6 +901,9 @@ void trace_stat (int argc, char **argv)
 			topt = 1;
 			instance = &top_instance;
 			break;
+		case 'o':
+			opt = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -904,7 +912,7 @@ void trace_stat (int argc, char **argv)
 	update_first_instance(instance, topt);
 
 	for_all_instances(instance) {
-		stat_instance(instance);
+		stat_instance(instance, opt);
 	}
 
 	if (tracecmd_stack_tracer_status(&status) >= 0) {

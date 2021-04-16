@@ -399,14 +399,18 @@ static void show_tracers(void)
 	show_file("available_tracers");
 }
 
-static void show_options(void)
+void show_options(const char *prefix, struct buffer_instance *buffer)
 {
+	struct tracefs_instance *instance = buffer ? buffer->tracefs : NULL;
 	struct dirent *dent;
 	struct stat st;
 	char *path;
 	DIR *dir;
 
-	path = tracefs_get_tracing_file("options");
+	if (!prefix)
+		prefix = "";
+
+	path = tracefs_instance_get_file(instance, "options");
 	if (!path)
 		goto show_file;
 	if (stat(path, &st) < 0)
@@ -432,12 +436,12 @@ static void show_options(void)
 		ret = asprintf(&file, "options/%s", name);
 		if (ret < 0)
 			die("Failed to allocate file name");
-		ret = tracefs_instance_file_read_number(NULL, file, &val);
+		ret = tracefs_instance_file_read_number(instance, file, &val);
 		if (!ret) {
 			if (val)
-				printf("%s\n", name);
+				printf("%s%s\n", prefix, name);
 			else
-				printf("no%s\n", name);
+				printf("%sno%s\n", prefix, name);
 		}
 		free(file);
 	}
@@ -719,7 +723,7 @@ void trace_list(int argc, char **argv)
 		show_tracers();
 
 	if (options)
-		show_options();
+		show_options(NULL, NULL);
 
 	if (plug)
 		show_plugins();
@@ -747,7 +751,7 @@ void trace_list(int argc, char **argv)
 		printf("\ntracers:\n");
 		show_tracers();
 		printf("\noptions:\n");
-		show_options();
+		show_options(NULL, NULL);
 		show_compression();
 	}
 

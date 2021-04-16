@@ -55,6 +55,10 @@ OPTIONS
     If *-B* is also specified, show the status of the top level tracing directory
     as well as the instance(s).
 
+*-o*::
+    Display the all the options along with their values. If they start with "no", then
+    the option is disabled.
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

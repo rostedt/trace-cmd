@@ -283,9 +283,10 @@ static struct usage_help usage_help[] = {
 	{
 		"stat",
 		"show the status of the running tracing (ftrace) system",
-		" %s stat [-B buf][-t]"
+		" %s stat [-B buf][-t][-o]"
 		"          -B show the status of a instance buffer\n"
 		"          -t show the top level status along with buffer specified by -B\n"
+		"          -o list tracing options\n"
 	},
 	{
 		"split",
