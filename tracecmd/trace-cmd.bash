@@ -9,6 +9,17 @@ show_instances()
    return 0
 }
 
+show_virt()
+{
+    local cur="$1"
+    if ! which virsh &>/dev/null; then
+	return 1
+    fi
+    local virt=`virsh list | awk '/^ *[0-9]/ { print $2 }'`
+    COMPREPLY=( $(compgen -W "${virt}" -- "${cur}") )
+    return 0
+}
+
 show_options()
 {
    local cur="$1"
@@ -158,6 +169,11 @@ __trace_cmd_record_complete()
 	    ;;
 	-O)
 	    show_options "$cur"
+	    ;;
+	-A)
+	    if ! show_virt "$cur"; then
+		cmd_options record "$cur"
+	    fi
 	    ;;
         *)
 	    # stream start and profile do not show all options
