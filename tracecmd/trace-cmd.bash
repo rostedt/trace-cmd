@@ -225,7 +225,8 @@ __trace_cmd_dump_complete()
 __show_command_options()
 {
     local command="$1"
-    local cur="$2"
+    local prev="$2"
+    local cur="$3"
     local cmds=( $(trace-cmd --help 2>/dev/null | \
 		    grep " - " | sed 's/^ *//; s/ -.*//') )
 
@@ -233,7 +234,15 @@ __show_command_options()
 	if [ $cmd == "$command" ]; then
 	    local opts=$(trace-cmd $cmd -h 2>/dev/null|grep "^ *-" | \
 				 sed -e 's/ *\(-[^ ]*\).*/\1/')
-	    COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
+	    if [ "$prev" == "-B" ]; then
+		for opt in ${opts[@]}; do
+		    if [ "$opt" == "-B" ]; then
+			show_instances "$cur"
+			return 0
+		    fi
+		done
+	    fi
+	    COMPREPLY=( $(compgen -W "${opts}" -- "$cur"))
 	    return 0
 	fi
     done
@@ -290,7 +299,7 @@ _trace_cmd_complete()
 	    return 0
 	    ;;
         *)
-	    __show_command_options "$w" "${cur}"
+	    __show_command_options "$w" "${prev}" "${cur}"
             ;;
     esac
 }
