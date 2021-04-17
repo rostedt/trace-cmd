@@ -142,10 +142,16 @@ __trace_cmd_record_complete()
 
     case "$prev" in
         -e)
-            local events=$(trace-cmd list -e)
+	    local list=$(trace-cmd list -e "$cur")
             local prefix=${cur%%:*}
+	    if [ -z "$cur" -o  "$cur" != "$prefix" ]; then
+		COMPREPLY=( $(compgen -W "all ${list}" -- "${cur}") )
+	    else
+		local events=$(for e in $list; do echo ${e/*:/}; done | sort -u)
+	        local systems=$(for s in $list; do echo ${s/:*/:}; done | sort -u)
 
-            COMPREPLY=( $(compgen -W "${events}" -- "${cur}") )
+		COMPREPLY=( $(compgen -W "all ${events} ${systems}" -- "${cur}") )
+	    fi
 
             # This is still to handle the "*:*" special case
             if [[ -n "$prefix" ]]; then
