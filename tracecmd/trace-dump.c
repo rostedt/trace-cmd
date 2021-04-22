@@ -150,13 +150,13 @@ static void dump_initial_format(int fd)
 
 	/* check initial bytes */
 	if (read_file_bytes(fd, buf, sizeof(magic)))
-		die("cannot read %d bytes magic", sizeof(magic));
+		die("cannot read %ld bytes magic", sizeof(magic));
 	if (memcmp(buf, magic, sizeof(magic)) != 0)
 		die("wrong file magic");
 
 	/* check initial tracing string */
 	if (read_file_bytes(fd, buf, strlen(TRACING_STR)))
-		die("cannot read %d bytes tracing string", strlen(TRACING_STR));
+		die("cannot read %ld bytes tracing string", strlen(TRACING_STR));
 	buf[strlen(TRACING_STR)] = 0;
 	if (strncmp(buf, TRACING_STR, strlen(TRACING_STR)) != 0)
 		die("wrong tracing string: %s", buf);
@@ -194,7 +194,7 @@ static void dump_header_page(int fd)
 
 	/* check header string */
 	if (read_file_bytes(fd, buf, strlen(HEAD_PAGE_STR) + 1))
-		die("cannot read %d bytes header string", strlen(HEAD_PAGE_STR));
+		die("cannot read %ld bytes header string", strlen(HEAD_PAGE_STR));
 	if (strncmp(buf, HEAD_PAGE_STR, strlen(HEAD_PAGE_STR)) != 0)
 		die("wrong header string: %s", buf);
 
@@ -215,7 +215,7 @@ static void dump_header_event(int fd)
 
 	/* check header string */
 	if (read_file_bytes(fd, buf, strlen(HEAD_PAGE_EVENT) + 1))
-		die("cannot read %d bytes header string", strlen(HEAD_PAGE_EVENT));
+		die("cannot read %ld bytes header string", strlen(HEAD_PAGE_EVENT));
 	if (strncmp(buf, HEAD_PAGE_EVENT, strlen(HEAD_PAGE_EVENT)) != 0)
 		die("wrong header string: %s", buf);
 
@@ -263,7 +263,7 @@ static void dump_events_format(int fd)
 	while (systems) {
 
 		if (read_file_string(fd, buf, DUMP_SIZE))
-			die("cannot read the name of the $dth system", systems);
+			die("cannot read the name of the %dth system", systems);
 		if (read_file_number(fd, &events, 4))
 			die("cannot read the count of the events in system %s",
 			     buf);
@@ -598,10 +598,10 @@ static void dump_clock(int fd)
 		die("cannot read clock size");
 	clock = calloc(1, size);
 	if (!clock)
-		die("cannot allocate clock %d bytes", size);
+		die("cannot allocate clock %lld bytes", size);
 
 	if (read_file_bytes(fd, clock, size))
-		die("cannot read clock %d bytes", size);
+		die("cannot read clock %lld bytes", size);
 	clock[size] = 0;
 	do_print((SUMMARY | CLOCK), "\t\t%s\n", clock);
 	free(clock);

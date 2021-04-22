@@ -3838,7 +3838,7 @@ static void setup_guest(struct buffer_instance *instance)
 
 	fd = open(file, O_CREAT|O_WRONLY|O_TRUNC, 0644);
 	if (fd < 0)
-		die("Failed to open", file);
+		die("Failed to open %s", file);
 
 	/* Start reading tracing metadata */
 	if (tracecmd_msg_read_data(msg_handle, fd))
