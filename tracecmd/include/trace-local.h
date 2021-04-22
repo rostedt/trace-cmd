@@ -27,6 +27,9 @@ typedef unsigned long long u64;
 
 struct buffer_instance;
 
+#define __printf(a, b) __attribute__((format(printf,a,b)))
+
+__printf(1,2)
 void warning(const char *fmt, ...);
 
 /* for local shared information with trace-cmd executable */
@@ -330,8 +333,10 @@ int trace_open_vsock(unsigned int cid, unsigned int port);
 char *trace_get_guest_file(const char *file, const char *guest);
 
 /* No longer in event-utils.h */
+__printf(1,2)
 void __noreturn die(const char *fmt, ...); /* Can be overriden */
 void *malloc_or_die(unsigned int size); /* Can be overridden */
+__printf(1,2)
 void __noreturn __die(const char *fmt, ...);
 void __noreturn _vdie(const char *fmt, va_list ap);
 
