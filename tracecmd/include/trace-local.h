@@ -304,8 +304,8 @@ struct trace_guest {
 	int cpu_max;
 	int *cpu_pid;
 };
-struct trace_guest *get_guest_by_cid(unsigned int guest_cid);
-struct trace_guest *get_guest_by_name(char *name);
+struct trace_guest *trace_get_guest(unsigned int cid, const char *name);
+bool trace_have_guests_pid(void);
 void read_qemu_guests(void);
 int get_guest_pid(unsigned int guest_cid);
 int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu);

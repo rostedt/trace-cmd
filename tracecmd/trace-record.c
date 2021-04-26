@@ -3251,10 +3251,7 @@ static char *parse_guest_name(char *gname, int *cid, int *port)
 		*cid = atoi(gname);
 
 	read_qemu_guests();
-	if (*cid > 0)
-		guest = get_guest_by_cid(*cid);
-	else
-		guest = get_guest_by_name(gname);
+	guest = trace_get_guest(*cid, gname);
 	if (guest) {
 		*cid = guest->cid;
 		return guest->name;
@@ -3723,14 +3720,14 @@ static int host_tsync(struct common_record_context *ctx,
 
 	if (!proto)
 		return -1;
-	guest = get_guest_by_cid(instance->cid);
+	guest = trace_get_guest(instance->cid, NULL);
 	if (guest == NULL)
 		return -1;
 
 	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
 						    instance->tsync_loop_interval,
 						    instance->cid, tsync_port,
-						    guest->pid, guest->cpu_max,
+						    guest->pid, instance->cpu_count,
 						    proto, ctx->clock);
 	if (!instance->tsync)
 		return -1;
@@ -3792,6 +3789,7 @@ static void connect_to_agent(struct common_record_context *ctx,
 			printf("Negotiated %s time sync protocol with guest %s\n",
 				tsync_protos_reply,
 				instance->name);
+			instance->cpu_count = nr_cpus;
 			host_tsync(ctx, instance, tsync_port, tsync_protos_reply);
 		} else
 			warning("Failed to negotiate timestamps synchronization with the guest");
@@ -3975,21 +3973,19 @@ static void append_buffer(struct tracecmd_output *handle,
 static void
 add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance)
 {
-	struct trace_guest *guest = get_guest_by_cid(instance->cid);
+	struct trace_guest *guest = trace_get_guest(instance->cid, NULL);
 	char *buf, *p;
 	int size;
+	int pid;
 	int i;
 
 	if (!guest)
 		return;
-	for (i = 0; i < guest->cpu_max; i++)
-		if (!guest->cpu_pid[i])
-			break;
 
 	size = strlen(guest->name) + 1;
-	size +=  sizeof(long long);	/* trace_id */
-	size +=  sizeof(int);		/* cpu count */
-	size += i * 2 * sizeof(int);	/* cpu,pid pair */
+	size += sizeof(long long);	/* trace_id */
+	size += sizeof(int);		/* cpu count */
+	size += instance->cpu_count * 2 * sizeof(int);	/* cpu,pid pair */
 
 	buf = calloc(1, size);
 	if (!buf)
@@ -4001,14 +3997,16 @@ add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance)
 	memcpy(p, &instance->trace_id, sizeof(long long));
 	p += sizeof(long long);
 
-	memcpy(p, &i, sizeof(int));
+	memcpy(p, &instance->cpu_count, sizeof(int));
 	p += sizeof(int);
-	for (i = 0; i < guest->cpu_max; i++) {
-		if (!guest->cpu_pid[i])
-			break;
+	for (i = 0; i < instance->cpu_count; i++) {
+		if (i < guest->cpu_max)
+			pid = guest->cpu_pid[i];
+		else
+			pid = -1;
 		memcpy(p, &i, sizeof(int));
 		p += sizeof(int);
-		memcpy(p, &guest->cpu_pid[i], sizeof(int));
+		memcpy(p, &pid, sizeof(int));
 		p += sizeof(int);
 	}
 
@@ -6587,12 +6585,14 @@ static void set_tsync_params(struct common_record_context *ctx)
 	/*
 	 * If no clock is configured &&
 	 * KVM time sync protocol is available &&
+	 * there is information of each guest PID process &&
 	 * tsc-x86 clock is supported &&
 	 * TSC to nsec multiplier and shift are available:
 	 * force using the x86-tsc clock for this host-guest tracing session
 	 * and store TSC to nsec multiplier and shift.
 	 */
 		if (tsync_proto_is_supported("kvm") &&
+		    trace_have_guests_pid() &&
 		    clock_is_supported(NULL, TSC_CLOCK) &&
 		    !get_tsc_nsec(&shift, &mult) && mult) {
 			clock = strdup(TSC_CLOCK);

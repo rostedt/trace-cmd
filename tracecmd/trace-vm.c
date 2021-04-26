@@ -35,7 +35,7 @@ static int set_vcpu_pid_mapping(struct trace_guest *guest, int cpu, int pid)
 	return 0;
 }
 
-struct trace_guest *get_guest_by_cid(unsigned int guest_cid)
+static struct trace_guest *get_guest_by_cid(unsigned int guest_cid)
 {
 	int i;
 
@@ -48,7 +48,7 @@ struct trace_guest *get_guest_by_cid(unsigned int guest_cid)
 	return NULL;
 }
 
-struct trace_guest *get_guest_by_name(char *name)
+static struct trace_guest *get_guest_by_name(const char *name)
 {
 	int i;
 
@@ -59,6 +59,50 @@ struct trace_guest *get_guest_by_name(char *name)
 		if (strcmp(name, guests[i].name) == 0)
 			return guests + i;
 	return NULL;
+}
+
+bool trace_have_guests_pid(void)
+{
+	for (int i = 0; i < guests_len; i++) {
+		if (guests[i].pid < 0)
+			return false;
+	}
+
+	return true;
+}
+
+static struct trace_guest *add_guest(unsigned int cid, const char *name)
+{
+	guests = realloc(guests, (guests_len + 1) * sizeof(*guests));
+	if (!guests)
+		die("allocating new guest");
+	memset(&guests[guests_len], 0, sizeof(struct trace_guest));
+	guests[guests_len].name = strdup(name);
+	if (!guests[guests_len].name)
+		die("allocating guest name");
+	guests[guests_len].cid = cid;
+	guests[guests_len].pid = -1;
+	guests_len++;
+
+	return &guests[guests_len - 1];
+}
+
+struct trace_guest *trace_get_guest(unsigned int cid, const char *name)
+{
+	struct trace_guest *guest = NULL;
+
+	if (name) {
+		guest = get_guest_by_name(name);
+		if (guest)
+			return guest;
+	}
+
+	if (cid > 0) {
+		guest = get_guest_by_cid(cid);
+		if (!guest && name)
+			guest = add_guest(cid, name);
+	}
+	return guest;
 }
 
 static char *get_qemu_guest_name(char *arg)
