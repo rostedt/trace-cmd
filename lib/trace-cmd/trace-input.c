@@ -2290,6 +2290,18 @@ void tracecmd_set_ts_offset(struct tracecmd_input *handle,
 	handle->ts_offset = offset;
 }
 
+/**
+ * tracecmd_add_ts_offset - Add value to the offset which will be applied to the timestamps of all
+ *			    events from given trace file
+ * @handle: input handle to the trace.dat file
+ * @offset: value, that will be added to the offset
+ */
+void tracecmd_add_ts_offset(struct tracecmd_input *handle,
+			    long long offset)
+{
+	handle->ts_offset += offset;
+}
+
 void tracecmd_set_ts2secs(struct tracecmd_input *handle,
 			 unsigned long long hz)
 {
