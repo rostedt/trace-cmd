@@ -69,6 +69,7 @@ static struct usage_help usage_help[] = {
 		"               If 0 is specified, no loop is performed - timestamps offset is calculated only twice,"
 		"                                                         at the beginnig and at the end of the trace\n"
 		"          --poll don't block while reading from the trace buffer\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"set",
@@ -105,6 +106,7 @@ static struct usage_help usage_help[] = {
 		"          --cmdlines-size change kernel saved_cmdlines_size\n"
 		"          --user execute the specified [command ...] as given user\n"
 		"          --fork return immediately if a command is specified\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"start",
@@ -114,6 +116,7 @@ static struct usage_help usage_help[] = {
 		"          It only enables the tracing and exits\n"
 		"\n"
 		"        --fork: If a command is specified, then return right after it forks\n"
+		"        --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"extract",
@@ -124,6 +127,7 @@ static struct usage_help usage_help[] = {
 		"          -B : extract a given buffer (more than one may be specified)\n"
 		"          -a : extract all buffers (except top one)\n"
 		"          -t : extract the top level buffer (useful with -B and -a)\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"stop",
@@ -243,6 +247,7 @@ static struct usage_help usage_help[] = {
 		"Start tracing and read the output directly",
 		" %s stream [-e event][-p plugin][-d][-O option ][-P pid]\n"
 		"          Uses same options as record but does not write to files or the network.\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"profile",
@@ -251,6 +256,7 @@ static struct usage_help usage_help[] = {
 		"    [-H [start_system:]start_event,start_match[,pid]/[end_system:]end_event,end_match[,flags]\n\n"
 		"          Uses same options as record --profile.\n"
 		"          -H Allows users to hook two events together for timings\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"hist",
