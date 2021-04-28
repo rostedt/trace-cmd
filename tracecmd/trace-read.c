@@ -1506,6 +1506,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_verbose	= 234,
 	OPT_align_ts	= 235,
 	OPT_raw_ts	= 236,
 	OPT_version	= 237,
@@ -1602,6 +1603,7 @@ void trace_report (int argc, char **argv)
 			{"ts-check", no_argument, NULL, OPT_tscheck},
 			{"raw-ts", no_argument, NULL, OPT_raw_ts},
 			{"align-ts", no_argument, NULL, OPT_align_ts},
+			{"verbose", required_argument, NULL, OPT_verbose},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1781,6 +1783,10 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_align_ts:
 			align_ts = 1;
+			break;
+		case OPT_verbose:
+			if (trace_set_verbose(optarg) < 0)
+				die("invalid verbose level %s", optarg);
 			break;
 		default:
 			usage(argv);
