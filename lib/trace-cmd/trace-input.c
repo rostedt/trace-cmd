@@ -61,6 +61,7 @@ struct cpu_data {
 	unsigned long long	offset;
 	unsigned long long	size;
 	unsigned long long	timestamp;
+	unsigned long long	first_ts;
 	struct list_head	page_maps;
 	struct page_map		*page_map;
 	struct page		**pages;
@@ -2272,6 +2273,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 
 	if (update_page_info(handle, cpu))
 		goto fail;
+	cpu_data->first_ts = cpu_data->timestamp;
 
 	return 0;
  fail:
@@ -4060,6 +4062,27 @@ void tracecmd_set_show_data_func(struct tracecmd_input *handle,
 unsigned long long tracecmd_get_traceid(struct tracecmd_input *handle)
 {
 	return handle->trace_id;
+}
+
+/**
+ * tracecmd_get_first_ts - get the timestamp of the first recorded event
+ * @handle: input handle for the trace.dat file
+ *
+ * Returns the timestamp of the first recorded event
+ */
+unsigned long long tracecmd_get_first_ts(struct tracecmd_input *handle)
+{
+	unsigned long long ts = 0;
+	bool first = true;
+	int i;
+
+	for (i = 0; i < handle->cpus; i++) {
+		if (first || ts > handle->cpu_data[i].first_ts)
+			ts = handle->cpu_data[i].first_ts;
+		first = false;
+	}
+
+	return ts;
 }
 
 /**
