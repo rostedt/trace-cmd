@@ -1200,14 +1200,16 @@ enum output_type {
 };
 
 static void read_data_info(struct list_head *handle_list, enum output_type otype,
-			   int global)
+			   int global, int align_ts)
 {
+	unsigned long long ts, first_ts;
 	struct handle_list *handles;
 	struct handle_list *last_handle;
 	struct tep_record *record;
 	struct tep_record *last_record;
 	struct tep_handle *pevent;
 	struct tep_event *event;
+	int first = 1;
 	int ret;
 
 	list_for_each_entry(handles, handle_list, list) {
@@ -1226,7 +1228,12 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		ret = tracecmd_init_data(handles->handle);
 		if (ret < 0)
 			die("failed to init data");
-
+		if (align_ts) {
+			ts = tracecmd_get_first_ts(handles->handle);
+			if (first || first_ts > ts)
+				first_ts = ts;
+			first = 0;
+		}
 		print_handle_file(handles);
 		printf("cpus=%d\n", cpus);
 
@@ -1293,6 +1300,12 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 
 	if (otype != OUTPUT_NORMAL)
 		return;
+
+	if (align_ts) {
+		list_for_each_entry(handles, handle_list, list) {
+			tracecmd_add_ts_offset(handles->handle, -first_ts);
+		}
+	}
 
 	do {
 		last_handle = NULL;
@@ -1493,6 +1506,7 @@ static void add_hook(const char *arg)
 }
 
 enum {
+	OPT_align_ts	= 235,
 	OPT_raw_ts	= 236,
 	OPT_version	= 237,
 	OPT_tscheck	= 238,
@@ -1544,6 +1558,7 @@ void trace_report (int argc, char **argv)
 	int nanosec = 0;
 	int no_date = 0;
 	int raw_ts = 0;
+	int align_ts = 0;
 	int global = 0;
 	int neg = 0;
 	int ret = 0;
@@ -1586,6 +1601,7 @@ void trace_report (int argc, char **argv)
 			{"ts-diff", no_argument, NULL, OPT_tsdiff},
 			{"ts-check", no_argument, NULL, OPT_tscheck},
 			{"raw-ts", no_argument, NULL, OPT_raw_ts},
+			{"align-ts", no_argument, NULL, OPT_align_ts},
 			{"help", no_argument, NULL, '?'},
 			{NULL, 0, NULL, 0}
 		};
@@ -1761,6 +1777,9 @@ void trace_report (int argc, char **argv)
 		case OPT_raw_ts:
 			raw_ts = 1;
 			break;
+		case OPT_align_ts:
+			align_ts = 1;
+			break;
 		default:
 			usage(argv);
 		}
@@ -1903,7 +1922,7 @@ void trace_report (int argc, char **argv)
 	/* and version overrides uname! */
 	if (show_version)
 		otype = OUTPUT_VERSION_ONLY;
-	read_data_info(&handle_list, otype, global);
+	read_data_info(&handle_list, otype, global, align_ts);
 
 	list_for_each_entry(handles, &handle_list, list) {
 		tracecmd_close(handles->handle);

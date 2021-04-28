@@ -234,6 +234,7 @@ static struct usage_help usage_help[] = {
 		"          --ts-diff Show the delta timestamp between events.\n"
 		"          --ts-check Check to make sure no time stamp on any CPU goes backwards.\n"
 		"          --raw-ts Display raw timestamps, without any corrections.\n"
+		"          --align-ts Display timestamps aligned to the first event.\n"
 	},
 	{
 		"stream",
