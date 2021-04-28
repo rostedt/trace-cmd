@@ -281,6 +281,7 @@ busy:
 }
 
 enum {
+	OPT_verbose	= 254,
 	DO_DEBUG	= 255
 };
 
@@ -301,6 +302,7 @@ void trace_agent(int argc, char **argv)
 			{"port", required_argument, NULL, 'p'},
 			{"help", no_argument, NULL, '?'},
 			{"debug", no_argument, NULL, DO_DEBUG},
+			{"verbose", required_argument, NULL, OPT_verbose},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -320,6 +322,10 @@ void trace_agent(int argc, char **argv)
 			break;
 		case DO_DEBUG:
 			tracecmd_set_debug(true);
+			break;
+		case OPT_verbose:
+			if (trace_set_verbose(optarg) < 0)
+				die("invalid verbose level %s", optarg);
 			break;
 		default:
 			usage(argv);

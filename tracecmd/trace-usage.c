@@ -305,6 +305,7 @@ static struct usage_help usage_help[] = {
 		"          Creates a vsocket to listen for clients.\n"
 		"          -p port number to listen on.\n"
 		"          -D run in daemon mode.\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"setup-guest",
