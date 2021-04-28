@@ -716,7 +716,7 @@ static void report_clock(struct buffer_instance *instance)
 	clock = tracefs_get_clock(tracefs);
 
 	/* Default clock is "local", only show others */
-	if (clock && !strcmp(clock, "local") == 0)
+	if (clock && strcmp(clock, "local") != 0)
 		printf("\nClock: %s\n", clock);
 
 	free(clock);
