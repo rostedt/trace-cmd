@@ -302,6 +302,7 @@ static struct usage_help usage_help[] = {
 		"          -o file name to use for clients.\n"
 		"          -d directory to store client files.\n"
 		"          -l logfile to write messages to.\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 #ifdef VSOCK
 	{

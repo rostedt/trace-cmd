@@ -916,6 +916,7 @@ static void start_daemon(void)
 }
 
 enum {
+	OPT_verbose	= 254,
 	OPT_debug	= 255,
 };
 
@@ -938,6 +939,7 @@ void trace_listen(int argc, char **argv)
 			{"port", required_argument, NULL, 'p'},
 			{"help", no_argument, NULL, '?'},
 			{"debug", no_argument, NULL, OPT_debug},
+			{"verbose", required_argument, NULL, OPT_verbose},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -966,6 +968,10 @@ void trace_listen(int argc, char **argv)
 			break;
 		case OPT_debug:
 			tracecmd_set_debug(true);
+			break;
+		case OPT_verbose:
+			if (trace_set_verbose(optarg) < 0)
+				die("invalid verbose level %s", optarg);
 			break;
 		default:
 			usage(argv);
