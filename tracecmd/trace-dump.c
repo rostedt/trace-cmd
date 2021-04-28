@@ -685,6 +685,7 @@ static void dump_file(const char *file)
 }
 
 enum {
+	OPT_verbose	= 242,
 	OPT_clock	= 243,
 	OPT_all		= 244,
 	OPT_summary	= 245,
@@ -729,6 +730,7 @@ void trace_dump(int argc, char **argv)
 			{"clock", no_argument, NULL, OPT_clock},
 			{"validate", no_argument, NULL, 'v'},
 			{"help", no_argument, NULL, '?'},
+			{"verbose", required_argument, NULL, OPT_verbose},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -784,6 +786,10 @@ void trace_dump(int argc, char **argv)
 			break;
 		case OPT_clock:
 			verbosity |= CLOCK;
+			break;
+		case OPT_verbose:
+			if (trace_set_verbose(optarg) < 0)
+				die("invalid verbose level %s", optarg);
 			break;
 		default:
 			usage(argv);

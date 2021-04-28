@@ -396,6 +396,7 @@ static struct usage_help usage_help[] = {
 		"          --flyrecord information of offset and count of recorded events per CPU\n"
 		"          --clock trace clock, saved in the file\n"
 		"          -h, --help show usage information\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		NULL, NULL, NULL
