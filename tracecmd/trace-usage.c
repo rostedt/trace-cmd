@@ -366,6 +366,7 @@ static struct usage_help usage_help[] = {
 		"parse trace event formats",
 		" %s check-events [-N]\n"
 		"          -N do not load any plugins\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"dump",

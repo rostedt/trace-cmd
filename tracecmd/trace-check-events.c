@@ -10,6 +10,10 @@
 #include "tracefs.h"
 #include "trace-local.h"
 
+enum {
+	OPT_verbose	= 255,
+};
+
 void trace_check_events(int argc, char **argv)
 {
 	const char *tracing;
@@ -18,8 +22,14 @@ void trace_check_events(int argc, char **argv)
 	struct tep_handle *pevent = NULL;
 	struct tep_plugin_list *list = NULL;
 	int open_flags = 0;
+	int option_index = 0;
+	static struct option long_options[] = {
+		{"verbose", required_argument, NULL, OPT_verbose},
+		{NULL, 0, NULL, 0}
+	};
 
-	while ((c = getopt(argc-1, argv+1, "+hN")) >= 0) {
+
+	while ((c = getopt_long(argc-1, argv+1, "+hN", long_options, &option_index)) >= 0) {
 		switch (c) {
 		case 'h':
 		default:
@@ -27,6 +37,10 @@ void trace_check_events(int argc, char **argv)
 			break;
 		case 'N':
 			open_flags |= TRACECMD_FL_LOAD_NO_PLUGINS;
+			break;
+		case OPT_verbose:
+			if (trace_set_verbose(optarg) < 0)
+				die("invalid verbose level %s", optarg);
 			break;
 		}
 	}
