@@ -6515,65 +6515,6 @@ static bool has_local_instances(void)
 	return false;
 }
 
-/*
- * Get the current clock value
- */
-#define CLOCK_INST_NAME	"_clock_instance_"
-static unsigned long long get_clock_now(const char *clock)
-{
-	struct tracefs_instance *ts_instance = NULL;
-	unsigned long long ts = 0;
-	struct tep_handle *tep;
-	int tfd;
-	int ret;
-
-	/* Set up a tep to read the raw format */
-	tep = get_ftrace_tep();
-	if (!tep)
-		return 0;
-	ts_instance = tracefs_instance_create(CLOCK_INST_NAME);
-	if (!ts_instance)
-		goto out;
-	if (clock) {
-		ret = tracefs_instance_file_write(ts_instance, "trace_clock", clock);
-		if (ret < strlen(clock))
-			goto out;
-	}
-	tfd = tracefs_instance_file_open(ts_instance, "trace_marker", O_WRONLY);
-	if (tfd < 0)
-		goto out;
-	tracefs_trace_on(ts_instance);
-	ret = write(tfd, STAMP, 5);
-	tracefs_trace_off(ts_instance);
-	ts = find_time_stamp(tep, ts_instance);
-	close(tfd);
-
-out:
-	if (ts_instance) {
-		if (tracefs_instance_is_new(ts_instance))
-			tracefs_instance_destroy(ts_instance);
-		tracefs_instance_free(ts_instance);
-	}
-	tep_free(tep);
-
-	return ts;
-}
-
-static void get_tsc_offset(struct common_record_context *ctx)
-{
-	struct buffer_instance *instance;
-
-	for_all_instances(instance) {
-		if (is_guest(instance) || !instance->clock)
-			continue;
-
-		ctx->tsc2nsec.offset = get_clock_now(instance->clock);
-		return;
-	}
-
-	ctx->tsc2nsec.offset = get_clock_now(NULL);
-}
-
 static void set_tsync_params(struct common_record_context *ctx)
 {
 	struct buffer_instance *instance;
@@ -6600,7 +6541,6 @@ static void set_tsync_params(struct common_record_context *ctx)
 				die("Cannot not allocate clock");
 			ctx->tsc2nsec.mult = mult;
 			ctx->tsc2nsec.shift = shift;
-			ctx->tsc2nsec.offset = get_clock_now(TSC_CLOCK);
 			force_tsc = true;
 		} else { /* Use the current clock of the first host instance */
 			clock = get_trace_clock(true);
@@ -6695,8 +6635,6 @@ static void record_trace(int argc, char **argv,
 	for_all_instances(instance)
 		set_clock(instance);
 
-	if (ctx->tsc2nsec.mult)
-		get_tsc_offset(ctx);
 
 	/* Record records the date first */
 	if (ctx->date &&

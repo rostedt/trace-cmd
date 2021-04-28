@@ -1318,7 +1318,6 @@ static unsigned long long timestamp_calc(unsigned long long ts, int cpu,
 		ts *= handle->ts2secs;
 	} else if (handle->tsc_calc.mult) {
 		/* auto calculated TSC clock frequency */
-		ts -= handle->tsc_calc.offset;
 		ts = mul_u64_u32_shr(ts, handle->tsc_calc.mult, handle->tsc_calc.shift);
 	}
 
