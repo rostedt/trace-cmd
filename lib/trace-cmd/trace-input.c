@@ -1322,8 +1322,7 @@ static unsigned long long timestamp_calc(unsigned long long ts, int cpu,
 	}
 
 	/* User specified time offset with --ts-offset or --date options */
-	if (handle->ts_offset)
-		ts += handle->ts_offset;
+	ts += handle->ts_offset;
 
 	return ts;
 }
