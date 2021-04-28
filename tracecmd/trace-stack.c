@@ -140,6 +140,7 @@ static void read_trace(void)
 }
 
 enum {
+	OPT_verbose	= 252,
 	OPT_reset	= 253,
 	OPT_stop	= 254,
 	OPT_start	= 255,
@@ -163,6 +164,7 @@ void trace_stack (int argc, char **argv)
 			{"stop", no_argument, NULL, OPT_stop},
 			{"reset", no_argument, NULL, OPT_reset},
 			{"help", no_argument, NULL, '?'},
+			{"verbose", required_argument, NULL, OPT_verbose},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -183,6 +185,10 @@ void trace_stack (int argc, char **argv)
 			break;
 		case OPT_reset:
 			trace_type = STACK_RESET;
+			break;
+		case OPT_verbose:
+			if (trace_set_verbose(optarg) < 0)
+				die("invalid verbose level %s", optarg);
 			break;
 		default:
 			usage(argv);

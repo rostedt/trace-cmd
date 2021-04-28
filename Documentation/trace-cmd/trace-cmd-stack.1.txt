@@ -24,6 +24,10 @@ stack found since the start was enabled.
 
 Use *--reset* to reset the stack counter to zero.
 
+User *--verbose* 'level' to set the log level. Supported log levels are "none", "critical", "error",
+"warning", "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting
+the log level to specific value enables all logs from that and all previous levels.
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

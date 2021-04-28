@@ -367,6 +367,7 @@ static struct usage_help usage_help[] = {
 		"          --start  enable the stack tracer\n"
 		"          --stop   disable the stack tracer\n"
 		"          --reset  reset the maximum stack found\n"
+		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
 		"check-events",
