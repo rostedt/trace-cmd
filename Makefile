@@ -94,7 +94,7 @@ plugin_tracecmd_dir = $(libdir)/trace-cmd/plugins
 python_dir ?= $(libdir)/traceevent/python
 var_dir = $(HOME)/.trace-cmd/
 else
-plugin_traceevent_dir = $(libdir)/traceevent/plugins
+plugin_traceevent_dir = $(libdir)/trace-cmd/plugins
 python_dir ?= $(libdir)/trace-cmd/python
 PLUGIN_DIR_TRACEEVENT = -DPLUGIN_TRACEEVENT_DIR="$(plugin_traceevent_dir)"
 PLUGIN_DIR_TRACECMD = -DPLUGIN_TRACECMD_DIR="$(plugin_tracecmd_dir)"
