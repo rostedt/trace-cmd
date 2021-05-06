@@ -106,6 +106,123 @@ static void process_file_re(process_file_func func,
 	regfree(&reg);
 }
 
+static void show_event(process_file_func func, const char *system,
+		       const char *event, int flags)
+{
+	char *buf;
+	int ret;
+
+	ret = asprintf(&buf, "%s:%s", system, event);
+	if (ret < 0)
+		die("Can not allocate event");
+	func(buf, strlen(buf), flags);
+	free(buf);
+}
+
+static void show_system(process_file_func func, const char *system, int flags)
+{
+	char **events;
+	int e;
+
+	events = tracefs_system_events(NULL, system);
+	if (!events) /* die? */
+		return;
+
+	for (e = 0; events[e]; e++)
+		show_event(func, system, events[e], flags);
+}
+
+static void show_event_systems(process_file_func func, char **systems, int flags)
+{
+	int s;
+
+	for (s = 0; systems[s]; s++)
+		show_system(func, systems[s], flags);
+}
+
+
+static void process_events(process_file_func func, const char *re, int flags)
+{
+	regex_t system_reg;
+	regex_t event_reg;
+	char *str;
+	size_t l = strlen(re);
+	bool just_systems = true;
+	char **systems;
+	char **events;
+	char *system;
+	char *event;
+	int s, e;
+
+	systems = tracefs_event_systems(NULL);
+	if (!systems)
+		return process_file_re(func, "available_events", re, flags);
+
+	if (!re || l == 0) {
+		show_event_systems(func, systems, flags);
+		return;
+	}
+
+	str = strdup(re);
+	if (!str)
+		die("Can not allocate momory for regex");
+
+	system = strtok(str, ":");
+	event = strtok(NULL, "");
+
+	if (regcomp(&system_reg, system, REG_ICASE|REG_NOSUB))
+		die("invalid regex '%s'", system);
+
+	if (event) {
+		if (regcomp(&event_reg, event, REG_ICASE|REG_NOSUB))
+			die("invalid regex '%s'", event);
+	} else {
+		/*
+		 * If the regex ends with ":", then event would be null,
+		 * but we do not want to match events.
+		 */
+		if (re[l-1] != ':')
+			just_systems = false;
+	}
+	free(str);
+
+	for (s = 0; systems[s]; s++) {
+
+		if (regexec(&system_reg, systems[s], 0, NULL, 0) == 0) {
+			if (!event) {
+				show_system(func, systems[s], flags);
+				continue;
+			}
+			events = tracefs_system_events(NULL, systems[s]);
+			if (!events) /* die? */
+				continue;
+			for (e = 0; events[e]; e++) {
+				if (regexec(&event_reg, events[e], 0, NULL, 0) == 0)
+					show_event(func, systems[s], events[e], flags);
+			}
+			tracefs_list_free(events);
+			continue;
+		}
+		if (just_systems)
+			continue;
+
+		events = tracefs_system_events(NULL, systems[s]);
+		if (!events) /* die? */
+			continue;
+
+		for (e = 0; events[e]; e++) {
+			if (regexec(&system_reg, events[e], 0, NULL, 0) == 0)
+				show_event(func, systems[s], events[e], flags);
+		}
+		tracefs_list_free(events);
+	}
+	tracefs_list_free(systems);
+
+	regfree(&system_reg);
+	if (event)
+		regfree(&event_reg);
+}
+
 static int show_file_write(char *buf, int len, int flags)
 {
 	return fwrite(buf, 1, len, stdout);
@@ -214,24 +331,34 @@ static int event_format_write(char *fbuf, int len, int flags)
 	return 0;
 }
 
+static int event_name(char *buf, int len, int flags)
+{
+	printf("%s\n", buf);
+
+	return 0;
+}
 
 static void show_event_filter_re(const char *re)
 {
-	process_file_re(event_filter_write, "available_events", re, 0);
+	process_events(event_filter_write, re, 0);
 }
 
 
 static void show_event_trigger_re(const char *re)
 {
-	process_file_re(event_trigger_write, "available_events", re, 0);
+	process_events(event_trigger_write, re, 0);
 }
 
 
 static void show_event_format_re(const char *re, int flags)
 {
-	process_file_re(event_format_write, "available_events", re, flags);
+	process_events(event_format_write, re, flags);
 }
 
+static void show_event_names_re(const char *re)
+{
+	process_events(event_name, re, 0);
+}
 
 static void show_events(const char *eventre, int flags)
 {
@@ -248,7 +375,7 @@ static void show_events(const char *eventre, int flags)
 		else if (flags & SHOW_EVENT_TRIGGER)
 			show_event_trigger_re(eventre);
 		else
-			show_file_re("available_events", eventre);
+			show_event_names_re(eventre);
 	} else
 		show_file("available_events");
 }
