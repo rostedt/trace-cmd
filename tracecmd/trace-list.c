@@ -158,6 +158,7 @@ static void match_system_events(process_file_func func, const char *system,
 
 static void process_events(process_file_func func, const char *re, int flags)
 {
+	const char *ftrace = "ftrace";
 	regex_t system_reg;
 	regex_t event_reg;
 	char *str;
@@ -199,6 +200,19 @@ static void process_events(process_file_func func, const char *re, int flags)
 			just_systems = false;
 	}
 	free(str);
+
+	/*
+	 * See if this matches the special ftrace system, as ftrace is not included
+	 * in the systems list, but can get events from tracefs_system_events().
+	 */
+	if (regexec(&system_reg, ftrace, 0, NULL, 0) == 0) {
+		if (!event)
+			show_system(func, ftrace, flags);
+		else
+			match_system_events(func, ftrace, &event_reg, flags);
+	} else if (!just_systems) {
+		match_system_events(func, ftrace, &system_reg, flags);
+	}
 
 	for (s = 0; systems[s]; s++) {
 
