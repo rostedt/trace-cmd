@@ -4356,10 +4356,28 @@ enum filter_type {
 	FUNC_NOTRACE,
 };
 
+static int filter_command(struct tracefs_instance *instance, const char *cmd)
+{
+	char *path;
+	int ret;
+	int fd;
+
+	path = tracefs_instance_get_file(instance, "set_ftrace_filter");
+	if (!path)
+		return -1;
+	fd = open(path, O_WRONLY);
+	tracefs_put_tracing_file(path);
+	if (fd < 0)
+		return -1;
+	ret = write(fd, cmd, strlen(cmd));
+	close(fd);
+	return ret;
+}
+
 static int write_func_filter(enum filter_type type, struct buffer_instance *instance,
 			     struct func_list **list)
 {
-	struct func_list *item;
+	struct func_list *item, *cmds = NULL;
 	const char *file;
 	int ret = -1;
 	int (*filter_function)(struct tracefs_instance *instance, const char *filter,
@@ -4387,6 +4405,12 @@ static int write_func_filter(enum filter_type type, struct buffer_instance *inst
 	while (*list) {
 		item = *list;
 		*list = item->next;
+		/* Do commands separately at the end */
+		if (type == FUNC_FILTER && strstr(item->func, ":")) {
+			item->next = cmds;
+			cmds = item;
+			continue;
+		}
 		ret = filter_function(instance->tracefs, item->func, item->mod,
 				      TRACEFS_FL_CONTINUE);
 		if (ret < 0)
@@ -4394,6 +4418,16 @@ static int write_func_filter(enum filter_type type, struct buffer_instance *inst
 		free(item);
 	}
 	ret = filter_function(instance->tracefs, NULL, NULL, 0);
+
+	/* Now add any commands */
+	while (cmds) {
+		item = cmds;
+		cmds = item->next;
+		ret = filter_command(instance->tracefs, item->func);
+		if (ret < 0)
+			goto failed;
+		free(item);
+	}
 	return ret;
  failed:
 	die("Failed to write %s to %s.\n"
