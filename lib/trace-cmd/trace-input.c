@@ -4089,6 +4089,9 @@ unsigned long long tracecmd_get_first_ts(struct tracecmd_input *handle)
 	int i;
 
 	for (i = 0; i < handle->cpus; i++) {
+		/* Ignore empty buffers */
+		if (!handle->cpu_data[i].size)
+			continue;
 		if (first || ts > handle->cpu_data[i].first_ts)
 			ts = handle->cpu_data[i].first_ts;
 		first = false;
