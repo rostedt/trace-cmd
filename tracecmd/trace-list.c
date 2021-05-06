@@ -140,6 +140,21 @@ static void show_event_systems(process_file_func func, char **systems, int flags
 		show_system(func, systems[s], flags);
 }
 
+static void match_system_events(process_file_func func, const char *system,
+				regex_t *reg, int flags)
+{
+	char **events;
+	int e;
+
+	events = tracefs_system_events(NULL, system);
+	if (!events) /* die? */
+		return;
+	for (e = 0; events[e]; e++) {
+		if (regexec(reg, events[e], 0, NULL, 0) == 0)
+			show_event(func, system, events[e], flags);
+	}
+	tracefs_list_free(events);
+}
 
 static void process_events(process_file_func func, const char *re, int flags)
 {
@@ -149,10 +164,9 @@ static void process_events(process_file_func func, const char *re, int flags)
 	size_t l = strlen(re);
 	bool just_systems = true;
 	char **systems;
-	char **events;
 	char *system;
 	char *event;
-	int s, e;
+	int s;
 
 	systems = tracefs_event_systems(NULL);
 	if (!systems)
@@ -193,28 +207,13 @@ static void process_events(process_file_func func, const char *re, int flags)
 				show_system(func, systems[s], flags);
 				continue;
 			}
-			events = tracefs_system_events(NULL, systems[s]);
-			if (!events) /* die? */
-				continue;
-			for (e = 0; events[e]; e++) {
-				if (regexec(&event_reg, events[e], 0, NULL, 0) == 0)
-					show_event(func, systems[s], events[e], flags);
-			}
-			tracefs_list_free(events);
+			match_system_events(func, systems[s], &event_reg, flags);
 			continue;
 		}
 		if (just_systems)
 			continue;
 
-		events = tracefs_system_events(NULL, systems[s]);
-		if (!events) /* die? */
-			continue;
-
-		for (e = 0; events[e]; e++) {
-			if (regexec(&system_reg, events[e], 0, NULL, 0) == 0)
-				show_event(func, systems[s], events[e], flags);
-		}
-		tracefs_list_free(events);
+		match_system_events(func, systems[s], &system_reg, flags);
 	}
 	tracefs_list_free(systems);
 
