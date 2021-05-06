@@ -319,6 +319,7 @@ static struct usage_help usage_help[] = {
 		" %s list [-e [regex]][-t][-o][-f [regex]]\n"
 		"          -e list available events\n"
 		"            -F show event format\n"
+		"            --full show the print fmt with -F\n"
 		"            -R show event triggers\n"
 		"            -l show event filters\n"
 		"          -t list available tracers\n"

@@ -44,6 +44,7 @@ enum {
 	SHOW_EVENT_FORMAT		= 1 << 0,
 	SHOW_EVENT_FILTER		= 1 << 1,
 	SHOW_EVENT_TRIGGER		= 1 << 2,
+	SHOW_EVENT_FULL			= 1 << 3,
 };
 
 
@@ -56,10 +57,10 @@ void show_file(const char *name)
 	tracefs_put_tracing_file(path);
 }
 
-typedef int (*process_file_func)(char *buf, int len);
+typedef int (*process_file_func)(char *buf, int len, int flags);
 
 static void process_file_re(process_file_func func,
-			    const char *name, const char *re)
+			    const char *name, const char *re, int flags)
 {
 	regex_t reg;
 	char *path;
@@ -97,7 +98,7 @@ static void process_file_re(process_file_func func,
 	do {
 		n = getline(&buf, &l, fp);
 		if (n > 0 && regexec(&reg, buf, 0, NULL, 0) == 0)
-			func(buf, n);
+			func(buf, n, flags);
 	} while (n > 0);
 	free(buf);
 	fclose(fp);
@@ -105,14 +106,14 @@ static void process_file_re(process_file_func func,
 	regfree(&reg);
 }
 
-static int show_file_write(char *buf, int len)
+static int show_file_write(char *buf, int len, int flags)
 {
 	return fwrite(buf, 1, len, stdout);
 }
 
 static void show_file_re(const char *name, const char *re)
 {
-	process_file_re(show_file_write, name, re);
+	process_file_re(show_file_write, name, re, 0);
 }
 
 static char *get_event_file(const char *type, char *buf, int len)
@@ -144,7 +145,7 @@ static char *get_event_file(const char *type, char *buf, int len)
 	return file;
 }
 
-static int event_filter_write(char *buf, int len)
+static int event_filter_write(char *buf, int len, int flags)
 {
 	char *file;
 
@@ -161,7 +162,7 @@ static int event_filter_write(char *buf, int len)
 	return 0;
 }
 
-static int event_trigger_write(char *buf, int len)
+static int event_trigger_write(char *buf, int len, int flags)
 {
 	char *file;
 
@@ -178,13 +179,16 @@ static int event_trigger_write(char *buf, int len)
 	return 0;
 }
 
-static int event_format_write(char *fbuf, int len)
+static int event_format_write(char *fbuf, int len, int flags)
 {
 	char *file = get_event_file("format", fbuf, len);
 	char *buf = NULL;
 	size_t l;
 	FILE *fp;
+	bool full;
 	int n;
+
+	full = flags & SHOW_EVENT_FULL;
 
 	/* The get_event_file() crops system in fbuf */
 	printf("system: %s\n", fbuf);
@@ -198,7 +202,7 @@ static int event_format_write(char *fbuf, int len)
 	do {
 		n = getline(&buf, &l, fp);
 		if (n > 0) {
-			if (strncmp(buf, "print fmt", 9) == 0)
+			if (!full && strncmp(buf, "print fmt", 9) == 0)
 				break;
 			fwrite(buf, 1, n, stdout);
 		}
@@ -213,19 +217,19 @@ static int event_format_write(char *fbuf, int len)
 
 static void show_event_filter_re(const char *re)
 {
-	process_file_re(event_filter_write, "available_events", re);
+	process_file_re(event_filter_write, "available_events", re, 0);
 }
 
 
 static void show_event_trigger_re(const char *re)
 {
-	process_file_re(event_trigger_write, "available_events", re);
+	process_file_re(event_trigger_write, "available_events", re, 0);
 }
 
 
-static void show_event_format_re(const char *re)
+static void show_event_format_re(const char *re, int flags)
 {
-	process_file_re(event_format_write, "available_events", re);
+	process_file_re(event_format_write, "available_events", re, flags);
 }
 
 
@@ -236,7 +240,7 @@ static void show_events(const char *eventre, int flags)
 
 	if (eventre) {
 		if (flags & SHOW_EVENT_FORMAT)
-			show_event_format_re(eventre);
+			show_event_format_re(eventre, flags);
 
 		else if (flags & SHOW_EVENT_FILTER)
 			show_event_filter_re(eventre);
@@ -405,7 +409,6 @@ static void show_plugins(void)
 	tep_free(pevent);
 }
 
-
 void trace_list(int argc, char **argv)
 {
 	int events = 0;
@@ -486,6 +489,10 @@ void trace_list(int argc, char **argv)
 			case '-':
 				if (strcmp(argv[i], "--debug") == 0) {
 					tracecmd_set_debug(true);
+					break;
+				}
+				if (strcmp(argv[i], "--full") == 0) {
+					flags |= SHOW_EVENT_FULL;
 					break;
 				}
 				fprintf(stderr, "list: invalid option -- '%s'\n",

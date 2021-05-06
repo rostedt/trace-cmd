@@ -26,7 +26,10 @@ OPTIONS
     trace-cmd list -e '^sys.*'
 
 *-F*::
-    Used with *-e* 'regex' to show those events formats.
+    Used with *-e* 'regex' to show the fields of the event.
+
+*--full*::
+    Used with *-F* which will show the "print fmt" of the event along with the fields.
 
 *-l*::
     Used with *-e* 'regex' to show those events filters.
