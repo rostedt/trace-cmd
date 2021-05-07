@@ -2766,8 +2766,9 @@ void tracecmd_enable_events(void)
 	enable_events(first_instance);
 }
 
-static void set_clock(struct buffer_instance *instance)
+static void set_clock(struct common_record_context *ctx, struct buffer_instance *instance)
 {
+	const char *clock;
 	char *path;
 	char *content;
 	char *str;
@@ -2775,7 +2776,12 @@ static void set_clock(struct buffer_instance *instance)
 	if (is_guest(instance))
 		return;
 
-	if (!instance->clock)
+	if (instance->clock)
+		clock = instance->clock;
+	else
+		clock = ctx->clock;
+
+	if (!clock)
 		return;
 
 	/* The current clock is in brackets, reset it when we are done */
@@ -2798,7 +2804,7 @@ static void set_clock(struct buffer_instance *instance)
 	tracefs_put_tracing_file(path);
 
 	tracefs_instance_file_write(instance->tracefs,
-				    "trace_clock", instance->clock);
+				    "trace_clock", clock);
 }
 
 static void set_max_graph_depth(struct buffer_instance *instance, char *max_graph_depth)
@@ -6633,7 +6639,7 @@ static void record_trace(int argc, char **argv,
 		tracecmd_disable_all_tracing(1);
 
 	for_all_instances(instance)
-		set_clock(instance);
+		set_clock(ctx, instance);
 
 
 	/* Record records the date first */
