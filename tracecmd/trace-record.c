@@ -2941,6 +2941,21 @@ static void test_event(struct event_list *event, const char *path,
 	*save = event;
 }
 
+static void print_event(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!show_status)
+		return;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+
+	printf("\n");
+}
+
+
 static int expand_event_files(struct buffer_instance *instance,
 			      const char *file, struct event_list *old_event)
 {
@@ -2973,7 +2988,7 @@ static int expand_event_files(struct buffer_instance *instance,
 		path = globbuf.gl_pathv[i];
 
 		event = create_event(instance, path, old_event);
-		pr_stat("%s\n", path);
+		print_event("%s\n", path);
 
 		len = strlen(path);
 

@@ -3292,7 +3292,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 	version = read_string(handle);
 	if (!version)
 		goto failed_read;
-	pr_stat("version = %s\n", version);
+	tracecmd_info("version = %s\n", version);
 	free(version);
 
 	if (do_read_check(handle, buf, 1))

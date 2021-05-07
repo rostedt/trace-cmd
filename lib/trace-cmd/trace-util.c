@@ -364,6 +364,16 @@ void __weak tracecmd_warning(const char *fmt, ...)
 	va_end(ap);
 }
 
+void tracecmd_info(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	tep_vprint("libtracecmd", TEP_LOG_INFO, false, fmt, ap);
+	va_end(ap);
+}
+
+
 void __weak tracecmd_fatal(const char *fmt, ...)
 {
 	int ret;

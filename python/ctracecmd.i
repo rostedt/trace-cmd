@@ -44,17 +44,6 @@ static void py_supress_trace_output(void)
 	skip_output = 1;
 }
 
-void pr_stat(const char *fmt, ...)
-{
-        va_list ap;
-
-	if (skip_output)
-		return;
-	va_start(ap, fmt);
-	__vpr_stat(fmt, ap);
-	va_end(ap);
-}
-
 void warning(const char *fmt, ...)
 {
 	va_list ap;
