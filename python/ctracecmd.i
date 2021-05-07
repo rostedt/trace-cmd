@@ -63,7 +63,7 @@ void warning(const char *fmt, ...)
 		return;
 
 	va_start(ap, fmt);
-	tep_vwarning("tracecmd", fmt, ap);
+	tep_vprint("tracecmd", TEP_LOG_WARNING, true, fmt, ap);
 	va_end(ap);
 }
 

@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <time.h>
+#include <traceevent/event-parse.h>
 #include <traceevent/event-utils.h>
 
 #include "trace-cmd-private.h"
@@ -359,7 +360,7 @@ void __weak tracecmd_warning(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	tep_vwarning("libtracecmd", fmt, ap);
+	tep_vprint("libtracecmd", TEP_LOG_WARNING, true, fmt, ap);
 	va_end(ap);
 }
 
@@ -369,7 +370,7 @@ void __weak tracecmd_fatal(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	ret = tep_vwarning("libtracecmd", fmt, ap);
+	ret = tep_vprint("libtracecmd", TEP_LOG_CRITICAL, true, fmt, ap);
 	va_end(ap);
 
 	if (debug) {
