@@ -312,6 +312,9 @@ OPTIONS
 *--raw-ts*::
      Display raw timestamps, without any corrections.
 
+*--align-ts*::
+     Display timestamps aligned to the first event.
+
 EXAMPLES
 --------
 
