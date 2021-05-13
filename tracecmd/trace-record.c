@@ -4377,20 +4377,7 @@ enum filter_type {
 
 static int filter_command(struct tracefs_instance *instance, const char *cmd)
 {
-	char *path;
-	int ret;
-	int fd;
-
-	path = tracefs_instance_get_file(instance, "set_ftrace_filter");
-	if (!path)
-		return -1;
-	fd = open(path, O_WRONLY);
-	tracefs_put_tracing_file(path);
-	if (fd < 0)
-		return -1;
-	ret = write(fd, cmd, strlen(cmd));
-	close(fd);
-	return ret;
+	return tracefs_instance_file_append(instance, "set_ftrace_filter", cmd);
 }
 
 static int write_func_filter(enum filter_type type, struct buffer_instance *instance,
