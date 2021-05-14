@@ -298,11 +298,13 @@ void update_first_instance(struct buffer_instance *instance, int topt);
 void show_instance_file(struct buffer_instance *instance, const char *name);
 
 struct trace_guest {
+	struct tracefs_instance *instance;
 	char *name;
 	int cid;
 	int pid;
 	int cpu_max;
 	int *cpu_pid;
+	int *task_pids;
 };
 struct trace_guest *trace_get_guest(unsigned int cid, const char *name);
 bool trace_have_guests_pid(void);

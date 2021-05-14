@@ -3251,6 +3251,38 @@ static int do_accept(int sd)
 	return -1;
 }
 
+/* Find all the tasks associated with the guest pid */
+static void find_tasks(struct trace_guest *guest)
+{
+	struct dirent *dent;
+	char *path;
+	DIR *dir;
+	int ret;
+	int tasks = 0;
+
+	ret = asprintf(&path, "/proc/%d/task", guest->pid);
+	if (ret < 0)
+		return;
+
+	dir = opendir(path);
+	free(path);
+	if (!dir)
+		return;
+
+	while ((dent = readdir(dir))) {
+		int *pids;
+		if (!(dent->d_type == DT_DIR && is_digits(dent->d_name)))
+			continue;
+		pids = realloc(guest->task_pids, sizeof(int) * (tasks + 2));
+		if (!pids)
+			break;
+		pids[tasks++] = strtol(dent->d_name, NULL, 0);
+		pids[tasks] = -1;
+		guest->task_pids = pids;
+	}
+	closedir(dir);
+}
+
 static char *parse_guest_name(char *gname, int *cid, int *port)
 {
 	struct trace_guest *guest;
@@ -3271,10 +3303,15 @@ static char *parse_guest_name(char *gname, int *cid, int *port)
 	} else if (is_digits(gname))
 		*cid = atoi(gname);
 
-	read_qemu_guests();
+	if (*cid < 0)
+		read_qemu_guests();
+
 	guest = trace_get_guest(*cid, gname);
 	if (guest) {
 		*cid = guest->cid;
+		/* Mapping not found, search for them */
+		if (!guest->cpu_pid)
+			find_tasks(guest);
 		return guest->name;
 	}
 
@@ -3733,6 +3770,162 @@ static int open_guest_fifos(const char *guest, int **fds)
 	return i;
 }
 
+struct trace_mapping {
+	struct tep_event		*kvm_entry;
+	struct tep_format_field		*vcpu_id;
+	struct tep_format_field		*common_pid;
+	int				*pids;
+	int				*map;
+	int				max_cpus;
+};
+
+static void start_mapping_vcpus(struct trace_guest *guest)
+{
+	char *pids = NULL;
+	char *t;
+	int len = 0;
+	int s;
+	int i;
+
+	if (!guest->task_pids)
+		return;
+
+	guest->instance = tracefs_instance_create("map_guest_pids");
+	if (!guest->instance)
+		return;
+
+	for (i = 0; guest->task_pids[i] >= 0; i++) {
+		s = snprintf(NULL, 0, "%d ", guest->task_pids[i]);
+		t = realloc(pids, len + s + 1);
+		if (!t) {
+			free(pids);
+			pids = NULL;
+			break;
+		}
+		pids = t;
+		sprintf(pids + len, "%d ", guest->task_pids[i]);
+		len += s;
+	}
+	if (pids) {
+		tracefs_instance_file_write(guest->instance, "set_event_pid", pids);
+		free(pids);
+	}
+	tracefs_instance_file_write(guest->instance, "events/kvm/kvm_entry/enable", "1");
+}
+
+static int map_vcpus(struct tep_event *event, struct tep_record *record,
+		     int cpu, void *context)
+{
+	struct trace_mapping *tmap = context;
+	unsigned long long val;
+	int type;
+	int pid;
+	int ret;
+	int i;
+
+	/* Do we have junk in the buffer? */
+	type = tep_data_type(event->tep, record);
+	if (type != tmap->kvm_entry->id)
+		return 0;
+
+	ret = tep_read_number_field(tmap->common_pid, record->data, &val);
+	if (ret < 0)
+		return 0;
+	pid = (int)val;
+
+	for (i = 0; tmap->pids[i] >= 0; i++) {
+		if (pid == tmap->pids[i])
+			break;
+	}
+	/* Is this thread one we care about ? */
+	if (tmap->pids[i] < 0)
+		return 0;
+
+	ret = tep_read_number_field(tmap->vcpu_id, record->data, &val);
+	if (ret < 0)
+		return 0;
+
+	cpu = (int)val;
+
+	/* Sanity check, warn? */
+	if (cpu >= tmap->max_cpus)
+		return 0;
+
+	/* Already have this one? Should we check if it is the same? */
+	if (tmap->map[cpu] >= 0)
+		return 0;
+
+	tmap->map[cpu] = pid;
+
+	/* Did we get them all */
+	for (i = 0; i < tmap->max_cpus; i++) {
+		if (tmap->map[i] < 0)
+			break;
+	}
+
+	return i == tmap->max_cpus;
+}
+
+static void stop_mapping_vcpus(struct buffer_instance *instance,
+			       struct trace_guest *guest)
+{
+	struct trace_mapping tmap = { };
+	struct tep_handle *tep;
+	const char *systems[] = { "kvm", NULL };
+	int i;
+
+	if (!guest->instance)
+		return;
+
+	tmap.pids = guest->task_pids;
+	tmap.max_cpus = instance->cpu_count;
+
+	tmap.map = malloc(sizeof(*tmap.map) * tmap.max_cpus);
+	if (!tmap.map)
+		return;
+
+	for (i = 0; i < tmap.max_cpus; i++)
+		tmap.map[i] = -1;
+
+	tracefs_instance_file_write(guest->instance, "events/kvm/kvm_entry/enable", "0");
+
+	tep = tracefs_local_events_system(NULL, systems);
+	if (!tep)
+		goto out;
+
+	tmap.kvm_entry = tep_find_event_by_name(tep, "kvm", "kvm_entry");
+	if (!tmap.kvm_entry)
+		goto out_free;
+
+	tmap.vcpu_id = tep_find_field(tmap.kvm_entry, "vcpu_id");
+	if (!tmap.vcpu_id)
+		goto out_free;
+
+	tmap.common_pid = tep_find_any_field(tmap.kvm_entry, "common_pid");
+	if (!tmap.common_pid)
+		goto out_free;
+
+	tracefs_iterate_raw_events(tep, guest->instance, NULL, 0, map_vcpus, &tmap);
+
+	for (i = 0; i < tmap.max_cpus; i++) {
+		if (tmap.map[i] < 0)
+			break;
+	}
+	/* We found all the mapped CPUs */
+	if (i == tmap.max_cpus) {
+		guest->cpu_pid = tmap.map;
+		guest->cpu_max = tmap.max_cpus;
+		tmap.map = NULL;
+	}
+
+ out_free:
+	tep_free(tep);
+ out:
+	free(tmap.map);
+	tracefs_instance_destroy(guest->instance);
+	tracefs_instance_free(guest->instance);
+}
+
 static int host_tsync(struct common_record_context *ctx,
 		      struct buffer_instance *instance,
 		      unsigned int tsync_port, char *proto)
@@ -3745,11 +3938,15 @@ static int host_tsync(struct common_record_context *ctx,
 	if (guest == NULL)
 		return -1;
 
+	start_mapping_vcpus(guest);
+
 	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
 						    instance->tsync_loop_interval,
 						    instance->cid, tsync_port,
 						    guest->pid, instance->cpu_count,
 						    proto, ctx->clock);
+	stop_mapping_vcpus(instance, guest);
+
 	if (!instance->tsync)
 		return -1;
 
