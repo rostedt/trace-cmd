@@ -59,7 +59,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 		goto fail;
 	}
 
-	if (tracecmd_read_headers(trace_input, 0) < 0)
+	if (tracecmd_read_headers(trace_input, TRACECMD_FILE_PRINTK) < 0)
 		goto fail_free_input;
 
 	if (handle_init)
