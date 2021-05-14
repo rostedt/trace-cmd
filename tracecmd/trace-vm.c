@@ -10,31 +10,13 @@
 #include <dirent.h>
 #include <limits.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "trace-local.h"
 #include "trace-msg.h"
 
 static struct trace_guest *guests;
 static size_t guests_len;
-
-static int set_vcpu_pid_mapping(struct trace_guest *guest, int cpu, int pid)
-{
-	int *cpu_pid;
-	int i;
-
-	if (cpu >= guest->cpu_max) {
-		cpu_pid = realloc(guest->cpu_pid, (cpu + 1) * sizeof(int));
-		if (!cpu_pid)
-			return -1;
-		/* Handle sparse CPU numbers */
-		for (i = guest->cpu_max; i < cpu; i++)
-			cpu_pid[i] = -1;
-		guest->cpu_max = cpu + 1;
-		guest->cpu_pid = cpu_pid;
-	}
-	guest->cpu_pid[cpu] = pid;
-	return 0;
-}
 
 static struct trace_guest *get_guest_by_cid(unsigned int guest_cid)
 {
@@ -330,140 +312,63 @@ struct trace_guest *trace_get_guest(unsigned int cid, const char *name)
 	return guest;
 }
 
-static char *get_qemu_guest_name(char *arg)
+#define VM_CID_CMD	"virsh dumpxml"
+#define VM_CID_LINE	"<cid auto="
+#define VM_CID_ID	"address='"
+static void read_guest_cid(char *name)
 {
-	char *tok, *end = arg;
-
-	while ((tok = strsep(&end, ","))) {
-		if (strncmp(tok, "guest=", 6) == 0)
-			return tok + 6;
-	}
-
-	return arg;
-}
-
-static int read_qemu_guests_pids(char *guest_task, struct trace_guest *guest)
-{
-	struct dirent *entry;
-	char path[PATH_MAX];
-	char *buf = NULL;
-	size_t n = 0;
-	int ret = 0;
-	long vcpu;
-	long pid;
-	DIR *dir;
+	struct trace_guest *guest;
+	char *cmd = NULL;
+	char line[512];
+	char *cid;
+	unsigned int cid_id = 0;
 	FILE *f;
 
-	snprintf(path, sizeof(path), "/proc/%s/task", guest_task);
-	dir = opendir(path);
-	if (!dir)
-		return -1;
-
-	while (!ret && (entry = readdir(dir))) {
-		if (!(entry->d_type == DT_DIR && is_digits(entry->d_name)))
-			continue;
-
-		snprintf(path, sizeof(path), "/proc/%s/task/%s/comm",
-			 guest_task, entry->d_name);
-		f = fopen(path, "r");
-		if (!f)
-			continue;
-
-		if (getline(&buf, &n, f) >= 0 &&
-		    strncmp(buf, "CPU ", 4) == 0) {
-			vcpu = strtol(buf + 4, NULL, 10);
-			pid = strtol(entry->d_name, NULL, 10);
-			if (vcpu < INT_MAX && pid < INT_MAX &&
-			    vcpu >= 0 && pid >= 0) {
-				if (set_vcpu_pid_mapping(guest, vcpu, pid))
-					ret = -1;
-			}
-		}
-
-		fclose(f);
-	}
-	free(buf);
-	return ret;
-}
-
-void read_qemu_guests(void)
-{
-	static bool initialized;
-	struct dirent *entry;
-	char path[PATH_MAX];
-	DIR *dir;
-
-	if (initialized)
+	asprintf(&cmd, "%s %s", VM_CID_CMD, name);
+	f = popen(cmd, "r");
+	free(cmd);
+	if (f == NULL)
 		return;
 
-	initialized = true;
-	dir = opendir("/proc");
-	if (!dir)
-		die("Can not open /proc");
-
-	while ((entry = readdir(dir))) {
-		bool is_qemu = false, last_was_name = false;
-		struct trace_guest guest = {};
-		char *p, *arg = NULL;
-		size_t arg_size = 0;
-		FILE *f;
-
-		if (!(entry->d_type == DT_DIR && is_digits(entry->d_name)))
+	while (fgets(line, sizeof(line), f) != NULL) {
+		if (!strstr(line, VM_CID_LINE))
 			continue;
-
-		guest.pid = atoi(entry->d_name);
-		snprintf(path, sizeof(path), "/proc/%s/cmdline", entry->d_name);
-		f = fopen(path, "r");
-		if (!f)
+		cid = strstr(line, VM_CID_ID);
+		if (!cid)
 			continue;
-
-		while (getdelim(&arg, &arg_size, 0, f) != -1) {
-			if (!is_qemu && strstr(arg, "qemu-system-")) {
-				is_qemu = true;
-				continue;
-			}
-
-			if (!is_qemu)
-				continue;
-
-			if (strcmp(arg, "-name") == 0) {
-				last_was_name = true;
-				continue;
-			}
-
-			if (last_was_name) {
-				guest.name = strdup(get_qemu_guest_name(arg));
-				if (!guest.name)
-					die("allocating guest name");
-				last_was_name = false;
-				continue;
-			}
-
-			p = strstr(arg, "guest-cid=");
-			if (p) {
-				guest.cid = atoi(p + 10);
-				continue;
-			}
-		}
-
-		if (!is_qemu)
-			goto next;
-
-		if (read_qemu_guests_pids(entry->d_name, &guest))
-			warning("Failed to retrieve VPCU - PID mapping for guest %s",
-					guest.name ? guest.name : "Unknown");
-
-		guests = realloc(guests, (guests_len + 1) * sizeof(*guests));
-		if (!guests)
-			die("Can not allocate guest buffer");
-		guests[guests_len++] = guest;
-
-next:
-		free(arg);
-		fclose(f);
+		cid_id = strtol(cid + strlen(VM_CID_ID), NULL, 10);
+		if ((cid_id == LONG_MIN || cid_id == LONG_MAX) && errno == ERANGE)
+			continue;
+		guest = add_guest(cid_id, name);
+		if (guest)
+			find_pid_by_cid(guest);
+		break;
 	}
 
-	closedir(dir);
+	/* close */
+	pclose(f);
+}
+
+#define VM_NAME_CMD	"virsh list --name"
+void read_qemu_guests(void)
+{
+	char name[256];
+	FILE *f;
+
+	f = popen(VM_NAME_CMD, "r");
+	if (f == NULL)
+		return;
+
+	while (fgets(name, sizeof(name), f) != NULL) {
+		if (name[0] == '\n')
+			continue;
+		if (name[strlen(name) - 1] == '\n')
+			name[strlen(name) - 1] = '\0';
+		read_guest_cid(name);
+	}
+
+	/* close */
+	pclose(f);
 }
 
 int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu)
