@@ -45,6 +45,46 @@ void *malloc_or_die(unsigned int size)
 	return data;
 }
 
+static struct trace_log_severity {
+	int		id;
+	const char	*name;
+} log_severity[] = {
+	{ .id = TEP_LOG_NONE, .name = "none" },
+	{ .id = TEP_LOG_CRITICAL, .name = "crit" },
+	{ .id = TEP_LOG_ERROR, .name = "err" },
+	{ .id = TEP_LOG_WARNING, .name = "warn" },
+	{ .id = TEP_LOG_INFO, .name = "info" },
+	{ .id = TEP_LOG_DEBUG, .name = "debug" },
+	{ .id = TEP_LOG_ALL, .name = "all" },
+};
+
+int trace_set_verbose(char *level)
+{
+	int id;
+
+	if (!level)
+		return -1;
+
+	if (isdigit(level[0])) {
+		id = atoi(level);
+		if (id >= TEP_LOG_NONE && id <= TEP_LOG_ALL) {
+			tracecmd_set_loglevel(id);
+			return 0;
+		}
+	} else {
+		int size = ARRAY_SIZE(log_severity);
+		int i;
+
+		for (i = 0; i < size; i++) {
+			if (!strncmp(level, log_severity[i].name, strlen(log_severity[i].name))) {
+				tracecmd_set_loglevel(log_severity[i].id);
+				return 0;
+			}
+		}
+	}
+
+	return -1;
+}
 
 /**
  * struct command

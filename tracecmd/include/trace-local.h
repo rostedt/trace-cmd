@@ -39,6 +39,8 @@ void usage(char **argv);
 extern int silence_warnings;
 extern int show_status;
 
+int trace_set_verbose(char *level);
+
 struct pid_record_data {
 	int			pid;
 	int			brass[2];
