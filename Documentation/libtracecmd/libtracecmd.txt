@@ -33,6 +33,9 @@ Read tracing instances from a trace file:
 Get traceing peer information from a trace file:
 	unsigned long long *tracecmd_get_traceid*(struct tracecmd_input pass:[*]_handle_);
 	int *tracecmd_get_guest_cpumap*(struct tracecmd_input pass:[*]_handle_, unsigned long long _trace_id_, const char pass:[*]pass:[*]_name_, int pass:[*]_vcpu_count_, const int pass:[*]pass:[*]_cpu_pid_);
+
+Control library logs:
+	int *tracecmd_set_loglevel*(enum tep_loglevel _level_);
 --
 
 DESCRIPTION
