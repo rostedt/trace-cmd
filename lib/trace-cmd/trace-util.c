@@ -390,8 +390,7 @@ void __weak tracecmd_info(const char *fmt, ...)
 	va_end(ap);
 }
 
-
-void __weak tracecmd_fatal(const char *fmt, ...)
+void __weak tracecmd_critical(const char *fmt, ...)
 {
 	int ret;
 	va_list ap;
@@ -560,7 +559,7 @@ int tracecmd_count_cpus(void)
 
 	fp = fopen("/proc/cpuinfo", "r");
 	if (!fp) {
-		tracecmd_fatal("Can not read cpuinfo");
+		tracecmd_critical("Can not read cpuinfo");
 		return 0;
 	}
 
