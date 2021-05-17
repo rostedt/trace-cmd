@@ -1703,9 +1703,11 @@ void trace_report (int argc, char **argv)
 			break;
 		case 'V':
 			show_status = 1;
+			tracecmd_set_loglevel(TEP_LOG_INFO);
 			break;
 		case 'q':
 			silence_warnings = 1;
+			tracecmd_set_loglevel(TEP_LOG_NONE);
 			break;
 		case OPT_cpu:
 			parse_cpulist(optarg);
