@@ -30,7 +30,7 @@
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
 
 static bool debug;
-
+static int log_level = TEP_LOG_CRITICAL;
 static FILE *logfp;
 
 const static struct {
@@ -355,18 +355,35 @@ trace_load_plugins(struct tep_handle *tep, int flags)
 	return list;
 }
 
+/**
+ * tracecmd_set_loglevel - set log level of the library
+ * @level: desired level of the library messages
+ */
+void tracecmd_set_loglevel(enum tep_loglevel level)
+{
+	log_level = level;
+	tracefs_set_loglevel(level);
+	tep_set_loglevel(level);
+}
+
 void __weak tracecmd_warning(const char *fmt, ...)
 {
 	va_list ap;
+
+	if (log_level < TEP_LOG_WARNING)
+		return;
 
 	va_start(ap, fmt);
 	tep_vprint("libtracecmd", TEP_LOG_WARNING, true, fmt, ap);
 	va_end(ap);
 }
 
-void tracecmd_info(const char *fmt, ...)
+void __weak tracecmd_info(const char *fmt, ...)
 {
 	va_list ap;
+
+	if (log_level < TEP_LOG_INFO)
+		return;
 
 	va_start(ap, fmt);
 	tep_vprint("libtracecmd", TEP_LOG_INFO, false, fmt, ap);
@@ -378,6 +395,9 @@ void __weak tracecmd_fatal(const char *fmt, ...)
 {
 	int ret;
 	va_list ap;
+
+	if (log_level < TEP_LOG_CRITICAL)
+		return;
 
 	va_start(ap, fmt);
 	ret = tep_vprint("libtracecmd", TEP_LOG_CRITICAL, true, fmt, ap);

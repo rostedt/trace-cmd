@@ -43,4 +43,6 @@ int tracecmd_buffer_instances(struct tracecmd_input *handle);
 const char *tracecmd_buffer_instance_name(struct tracecmd_input *handle, int indx);
 struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx);
 
+void tracecmd_set_loglevel(enum tep_loglevel level);
+
 #endif /* _TRACE_CMD_H */
