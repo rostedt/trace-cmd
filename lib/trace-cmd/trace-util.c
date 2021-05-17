@@ -93,6 +93,11 @@ const char *tracecmd_clock_id2str(enum tracecmd_clocks clock)
 void tracecmd_set_debug(bool set_debug)
 {
 	debug = set_debug;
+
+	if (set_debug)
+		tracecmd_set_loglevel(TEP_LOG_DEBUG);
+	else
+		tracecmd_set_loglevel(TEP_LOG_CRITICAL);
 }
 
 /**
