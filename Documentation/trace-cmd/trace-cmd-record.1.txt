@@ -360,6 +360,13 @@ OPTIONS
     executed will not be changed. This is useful if you want to monitor the
     output of the command being executed, but not see the output from trace-cmd.
 
+*--poll*::
+    Waiting for data to be available on the trace ring-buffers may trigger
+    IPIs. This might generate unacceptable trace noise when tracing low latency
+    or real time systems. The poll option forces trace-cmd to use O_NONBLOCK.
+    Traces are extracted by busy waiting, which will hog the CPUs, so only use
+    when really needed.
+
 EXAMPLES
 --------
 

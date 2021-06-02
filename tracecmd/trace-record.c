@@ -3333,7 +3333,7 @@ create_recorder_instance_pipe(struct buffer_instance *instance,
 			      int cpu, int *brass)
 {
 	struct tracecmd_recorder *recorder;
-	unsigned flags = recorder_flags | TRACECMD_RECORD_BLOCK;
+	unsigned flags = recorder_flags | TRACECMD_RECORD_BLOCK_SPLICE;
 	char *path;
 
 	path = tracefs_instance_get_dir(instance->tracefs);
@@ -5757,6 +5757,7 @@ enum {
 	OPT_module		= 256,
 	OPT_nofifos		= 257,
 	OPT_cmdlines_size	= 258,
+	OPT_poll		= 259,
 };
 
 void trace_stop(int argc, char **argv)
@@ -6172,6 +6173,7 @@ static void parse_record_options(int argc,
 			{"tsync-interval", required_argument, NULL, OPT_tsyncinterval},
 			{"fork", no_argument, NULL, OPT_fork},
 			{"tsc2nsec", no_argument, NULL, OPT_tsc2nsec},
+			{"poll", no_argument, NULL, OPT_poll},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -6592,6 +6594,10 @@ static void parse_record_options(int argc,
 			if (ret)
 				die("TSC to nanosecond is not supported");
 			ctx->instance->flags |= BUFFER_FL_TSC2NSEC;
+			break;
+		case OPT_poll:
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--poll");
+			recorder_flags |= TRACECMD_RECORD_POLL;
 			break;
 		case OPT_quiet:
 		case 'q':

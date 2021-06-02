@@ -319,8 +319,9 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd);
 enum {
 	TRACECMD_RECORD_NOSPLICE	= (1 << 0),	/* Use read instead of splice */
 	TRACECMD_RECORD_SNAPSHOT	= (1 << 1),	/* Extract from snapshot */
-	TRACECMD_RECORD_BLOCK		= (1 << 2),	/* Block on splice write */
+	TRACECMD_RECORD_BLOCK_SPLICE	= (1 << 2),	/* Block on splice write */
 	TRACECMD_RECORD_NOBRASS		= (1 << 3),	/* Splice directly without a brass pipe */
+	TRACECMD_RECORD_POLL		= (1 << 4),	/* Use O_NONBLOCK, poll trace buffers */
 };
 
 void tracecmd_free_recorder(struct tracecmd_recorder *recorder);
