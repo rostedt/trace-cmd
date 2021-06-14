@@ -1229,46 +1229,6 @@ int tracecmd_append_options(struct tracecmd_output *handle)
 	return 0;
 }
 
-int tracecmd_update_option(struct tracecmd_output *handle,
-			   struct tracecmd_option *option, int size,
-			   const void *data)
-{
-	tsize_t offset;
-	stsize_t ret;
-
-	if (size > option->size) {
-		tracecmd_warning("Can't update option with more data than allocated");
-		return -1;
-	}
-
-	if (handle->file_state < TRACECMD_FILE_OPTIONS) {
-		/* Hasn't been written yet. Just update current pointer */
-		option->size = size;
-		memcpy(option->data, data, size);
-		return 0;
-	}
-
-	/* Save current offset */
-	offset = lseek64(handle->fd, 0, SEEK_CUR);
-
-	ret = lseek64(handle->fd, option->offset, SEEK_SET);
-	if (ret == (off64_t)-1) {
-		tracecmd_warning("could not seek to %lld\n", option->offset);
-		return -1;
-	}
-
-	if (do_write_check(handle, data, size))
-		return -1;
-
-	ret = lseek64(handle->fd, offset, SEEK_SET);
-	if (ret == (off64_t)-1) {
-		tracecmd_warning("could not seek to %lld\n", offset);
-		return -1;
-	}
-
-	return 0;
-}
-
 struct tracecmd_option *
 tracecmd_add_buffer_option(struct tracecmd_output *handle, const char *name,
 			   int cpus)
