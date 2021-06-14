@@ -4047,6 +4047,15 @@ struct tep_handle *tracecmd_get_tep(struct tracecmd_input *handle)
 }
 
 /**
+ * tracecmd_get_in_file_version - return the trace.dat file version
+ * @handle: input handle for the trace.dat file
+ */
+unsigned long tracecmd_get_in_file_version(struct tracecmd_input *handle)
+{
+	return handle->file_version;
+}
+
+/**
  * tracecmd_get_use_trace_clock - return use_trace_clock
  * @handle: input handle for the trace.dat file
  */
