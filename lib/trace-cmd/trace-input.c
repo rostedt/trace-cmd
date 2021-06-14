@@ -154,6 +154,7 @@ struct tracecmd_input {
 	size_t			header_files_start;
 	size_t			ftrace_files_start;
 	size_t			event_files_start;
+	size_t			options_start;
 	size_t			total_file_size;
 
 	/* For custom profilers. */
@@ -2656,6 +2657,7 @@ static int handle_options(struct tracecmd_input *handle)
 
 	/* By default, use usecs, unless told otherwise */
 	handle->flags |= TRACECMD_FL_IN_USECS;
+	handle->options_start = lseek64(handle->fd, 0, SEEK_CUR);
 
 	for (;;) {
 		if (do_read_check(handle, &option, 2))
@@ -4062,6 +4064,15 @@ unsigned long tracecmd_get_in_file_version(struct tracecmd_input *handle)
 bool tracecmd_get_use_trace_clock(struct tracecmd_input *handle)
 {
 	return handle->use_trace_clock;
+}
+
+/**
+ * tracecmd_get_options_offset - get offset of the options sections in the file
+ * @handle: input handle for the trace.dat file
+ */
+size_t tracecmd_get_options_offset(struct tracecmd_input *handle)
+{
+	return handle->options_start;
 }
 
 /**
