@@ -938,6 +938,8 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 		return NULL;
 	memset(handle, 0, sizeof(*handle));
 
+	list_head_init(&handle->options);
+
 	handle->fd = fd;
 	if (tracing_dir) {
 		handle->tracing_dir = strdup(tracing_dir);
@@ -949,8 +951,6 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 
 	if (select_file_version(handle, ihandle))
 		goto out_free;
-
-	list_head_init(&handle->options);
 
 	buf[0] = 23;
 	buf[1] = 8;
