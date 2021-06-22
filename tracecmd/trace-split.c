@@ -385,7 +385,8 @@ static double parse_file(struct tracecmd_input *handle,
 		cpu_list[cpu] = cpu_data[cpu].file;
 
 	tracecmd_set_out_clock(ohandle, tracecmd_get_trace_clock(handle));
-	tracecmd_append_cpu_data(ohandle, cpus, cpu_list);
+	if (tracecmd_append_cpu_data(ohandle, cpus, cpu_list) < 0)
+		die("Failed to append tracing data\n");
 
 	current = end;
 	for (cpu = 0; cpu < cpus; cpu++) {
