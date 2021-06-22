@@ -87,7 +87,8 @@ tracecmd_plugin_context_output(struct trace_plugin_context *trace_context);
 
 void tracecmd_set_quiet(struct tracecmd_output *handle, bool set_quiet);
 bool tracecmd_get_quiet(struct tracecmd_output *handle);
-void tracecmd_set_out_clock(struct tracecmd_output *handle, char *clock);
+void tracecmd_set_out_clock(struct tracecmd_output *handle, const char *clock);
+const char *tracecmd_get_trace_clock(struct tracecmd_input *handle);
 
 static inline int tracecmd_host_bigendian(void)
 {

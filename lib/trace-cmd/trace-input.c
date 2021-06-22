@@ -4076,6 +4076,19 @@ size_t tracecmd_get_options_offset(struct tracecmd_input *handle)
 }
 
 /**
+ * tracecmd_get_trace_clock - return the saved trace clock
+ * @handle: input handle for the trace.dat file
+ *
+ * Returns a string of the clock that was saved in the trace.dat file.
+ * The string should not be freed, as it points to the internal
+ * structure data.
+ */
+const char *tracecmd_get_trace_clock(struct tracecmd_input *handle)
+{
+	return handle->trace_clock;
+}
+
+/**
  * tracecmd_get_show_data_func - return the show data func
  * @handle: input handle for the trace.dat file
  */
