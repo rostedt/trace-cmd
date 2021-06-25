@@ -68,7 +68,9 @@ int trace_set_verbose(char *level)
 
 	if (isdigit(level[0])) {
 		id = atoi(level);
-		if (id >= TEP_LOG_NONE && id <= TEP_LOG_ALL) {
+		if (id >= TEP_LOG_NONE) {
+			if (id > TEP_LOG_ALL)
+				id = TEP_LOG_ALL;
 			tracecmd_set_loglevel(id);
 			return 0;
 		}
