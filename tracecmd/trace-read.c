@@ -1608,7 +1608,7 @@ void trace_report (int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hSIi:H:feGpRr:tPNn:LlEwF:VvTqO:",
+		c = getopt_long (argc-1, argv+1, "+hSIi:H:feGpRr:tPNn:LlEwF:V::vTqO:",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -1703,10 +1703,6 @@ void trace_report (int argc, char **argv)
 				die("Only 1 -v can be used");
 			neg = 1;
 			break;
-		case 'V':
-			show_status = 1;
-			tracecmd_set_loglevel(TEP_LOG_INFO);
-			break;
 		case 'q':
 			silence_warnings = 1;
 			tracecmd_set_loglevel(TEP_LOG_NONE);
@@ -1784,7 +1780,9 @@ void trace_report (int argc, char **argv)
 		case OPT_align_ts:
 			align_ts = 1;
 			break;
+		case 'V':
 		case OPT_verbose:
+			show_status = 1;
 			if (trace_set_verbose(optarg) < 0)
 				die("invalid verbose level %s", optarg);
 			break;

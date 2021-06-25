@@ -164,7 +164,7 @@ OPTIONS
     *-T* is ignored if *-F* is not specified.
 
 *-V*::
-    Show the plugins that are loaded.
+    Show verbose messages (see *--verbose* but only for the numbers)
 
 *-L*::
     This will not load system wide plugins. It loads "local only". That is
@@ -316,7 +316,7 @@ OPTIONS
      Display timestamps aligned to the first event.
 
 *--verbose*[='level']::
-     Set the log level. Supported log levels are "none", "critical", "error", "warning",
+     Set the log level. Supported log levels are "none", "crit", "err", "warn",
      "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting the log
      level to specific value enables all logs from that and all previous levels.
      The level will default to "info" if one is not specified.

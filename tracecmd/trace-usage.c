@@ -196,7 +196,7 @@ static struct usage_help usage_help[] = {
 		"report",
 		"read out the trace stored in a trace.dat file",
 		" %s report [-i file] [--cpu cpu] [-e][-f][-l][-P][-L][-N][-R][-E]\\\n"
-		"           [-r events][-n events][-F filter][-v][-V][-T][-O option]\n"
+		"           [-r events][-n events][-F filter][-v][-V[1-6]][-T][-O option]\n"
 		"           [-H [start_system:]start_event,start_match[,pid]/[end_system:]end_event,end_match[,flags]\n"
 		"           [-G]\n"
 		"          -i input file [default trace.dat]\n"
@@ -212,7 +212,8 @@ static struct usage_help usage_help[] = {
 		"          -r raw format the events that match the option\n"
 		"          -v will negate all -F after it (Not show matches)\n"
 		"          -T print out the filter strings created and exit\n"
-		"          -V verbose (shows plugins being loaded)\n"
+		"          -V[level] verbose (shows plugins being loaded)\n"
+		"              With optional level (see --verbose numbers)\n"
 		"          -L load only local (~/.trace-cmd/plugins) plugins\n"
 		"          -N do not load any plugins\n"
 		"          -n ignore plugin handlers for events that match the option\n"
@@ -240,7 +241,14 @@ static struct usage_help usage_help[] = {
 		"          --ts-check Check to make sure no time stamp on any CPU goes backwards.\n"
 		"          --raw-ts Display raw timestamps, without any corrections.\n"
 		"          --align-ts Display timestamps aligned to the first event.\n"
-		"          --verbose 'level' Set the desired log level\n"
+		"          --verbose[=level] Set the desired log level\n"
+		"                0 or none  - no error messages\n"
+		"                1 or crit  - only critical messages\n"
+		"                2 or err   - 'crit' and error messages\n"
+		"                3 or warn  - 'err' and warning messages\n"
+		"                4 or info  - 'warn' and informational messages\n"
+		"                5 or debug - 'info' and debugging messages\n"
+		"                6 or all   - same as debug\n"
 	},
 	{
 		"stream",
