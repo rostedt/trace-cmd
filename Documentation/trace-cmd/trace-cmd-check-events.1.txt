@@ -24,14 +24,15 @@ OPTIONS
 -------
 *-N* - Don't load plugins
 
-*--verbose* 'level'::
+*--verbose*[='level']::
      Set the log level. Supported log levels are "none", "critical", "error", "warning",
      "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting the log
      level to specific value enables all logs from that and all previous levels.
+     The level will default to "info" if one is not specified.
 
      Example: enable all critical, error and warning logs
 
-      trace-cmd check-events --verbose warning
+      trace-cmd check-events --verbose=warning
 
 SEE ALSO
 --------

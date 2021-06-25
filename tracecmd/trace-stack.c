@@ -164,7 +164,7 @@ void trace_stack (int argc, char **argv)
 			{"stop", no_argument, NULL, OPT_stop},
 			{"reset", no_argument, NULL, OPT_reset},
 			{"help", no_argument, NULL, '?'},
-			{"verbose", required_argument, NULL, OPT_verbose},
+			{"verbose", optional_argument, NULL, OPT_verbose},
 			{NULL, 0, NULL, 0}
 		};
 

@@ -24,7 +24,7 @@ void trace_check_events(int argc, char **argv)
 	int open_flags = 0;
 	int option_index = 0;
 	static struct option long_options[] = {
-		{"verbose", required_argument, NULL, OPT_verbose},
+		{"verbose", optional_argument, NULL, OPT_verbose},
 		{NULL, 0, NULL, 0}
 	};
 

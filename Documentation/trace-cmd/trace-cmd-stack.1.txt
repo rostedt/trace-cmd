@@ -24,9 +24,10 @@ stack found since the start was enabled.
 
 Use *--reset* to reset the stack counter to zero.
 
-User *--verbose* 'level' to set the log level. Supported log levels are "none", "critical", "error",
+User *--verbose*[='level'] to set the log level. Supported log levels are "none", "critical", "error",
 "warning", "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting
-the log level to specific value enables all logs from that and all previous levels.
+the log level to specific value enables all logs from that and all previous levels. The level will
+default to "info" if one is not specified.
 
 SEE ALSO
 --------

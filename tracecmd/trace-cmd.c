@@ -62,8 +62,9 @@ int trace_set_verbose(char *level)
 {
 	int id;
 
+	/* Default level is info */
 	if (!level)
-		return -1;
+		level = "info";
 
 	if (isdigit(level[0])) {
 		id = atoi(level);
