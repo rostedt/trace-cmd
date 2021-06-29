@@ -106,7 +106,7 @@ static int write_record(struct tracecmd_input *handle,
 		return 0;
 	}
 
-	if (record->size && (record->size < 28 * 4))
+	if (record->size && (record->size <= 28 * 4))
 		len = record->size / 4;
 
 	time = (unsigned)diff;
