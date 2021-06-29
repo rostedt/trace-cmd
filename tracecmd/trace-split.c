@@ -118,6 +118,9 @@ static int write_record(struct tracecmd_input *handle,
 
 	if (!len) {
 		len = record->size + 4;
+		if ((len + 4) > record->record_size)
+			die("Bad calculation of record len (expect:%d actual:%d)",
+			    record->record_size, len + 4);
 		*(unsigned *)ptr = tep_read_number(pevent, &len, 4);
 		ptr += 4;
 		index += 4;
