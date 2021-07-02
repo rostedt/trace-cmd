@@ -6,8 +6,8 @@
 #ifndef _TRACE_CMD_H
 #define _TRACE_CMD_H
 
-#include "traceevent/event-parse.h"
-#include "tracefs/tracefs.h"
+#include "event-parse.h"
+#include "tracefs.h"
 
 struct tracecmd_input;
 

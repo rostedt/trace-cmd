@@ -13,7 +13,7 @@
 #include <string.h>
 #include <sys/uio.h>
 
-#include "traceevent/trace-seq.h"
+#include "trace-seq.h"
 
 #ifndef __maybe_unused
 #define __maybe_unused __attribute__((unused))

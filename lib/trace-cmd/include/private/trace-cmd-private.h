@@ -8,7 +8,7 @@
 
 #include <fcntl.h> /* for iovec */
 #include <sys/types.h>
-#include "traceevent/event-parse.h"
+#include "event-parse.h"
 #include "trace-cmd/trace-cmd.h"
 
 #define TRACECMD_MAGIC { 23, 8, 68 }
