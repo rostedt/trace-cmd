@@ -355,11 +355,10 @@ CMD_TARGETS = trace-cmd $(BUILD_PYTHON)
 ###
 #    Default we just build trace-cmd
 #
-#    If you want kernelshark, then do:  make gui
 #    If you want all libraries, then do: make libs
 ###
 
-all: all_cmd plugins show_gui_make
+all: all_cmd plugins show_other_make
 
 all_cmd: $(CMD_TARGETS)
 
@@ -420,11 +419,11 @@ endef
 $(VERSION_FILE): force
 	$(Q)$(call update_version.h)
 
-gui: force $(CMD_TARGETS)
-	$(MAKE) $(kshark-dir)/build/Makefile
-	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build
-	@echo "gui build complete"
-	@echo "  kernelshark located at $(kshark-dir)/bin"
+gui: force
+	@echo "***************************"
+	@echo "  KernelShark has moved!"
+	@echo "  Please use its new home at https://git.kernel.org/pub/scm/utils/trace-cmd/kernel-shark.git/"
+	@echo "***************************"
 
 test: force $(LIBTRACECMD_STATIC)
 ifneq ($(CUNIT_INSTALLED),1)
@@ -450,12 +449,11 @@ $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir: force
 $(obj)/lib/traceevent/plugins/trace_python_dir: force
 	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
 
-show_gui_make:
-	@echo "Note: to build the gui, type \"make gui\""
-	@echo "      to build man pages, type \"make doc\""
+show_other_make:
+	@echo "Note: to build man pages, type \"make doc\""
 	@echo "      to build unit tests, type \"make test\""
 
-PHONY += show_gui_make
+PHONY += show_other_make
 
 define find_tag_files
 	find . -name '\.pc' -prune -o -name '*\.[ch]' -print -o -name '*\.[ch]pp' \
@@ -491,30 +489,23 @@ install_cmd: all_cmd install_plugins install_python install_bash_completion
 	$(Q)$(call do_install,$(obj)/tracecmd/trace-cmd,$(bindir_SQ))
 
 install: install_cmd
-	@echo "Note: to install the gui, type \"make install_gui\""
-	@echo "      to install man pages, type \"make install_doc\""
+	@echo "Note: to install man pages, type \"make install_doc\""
 
-install_gui: install_cmd gui
-	$(Q)$(MAKE) $(S) -C $(kshark-dir)/build install
+install_gui: force
+	@echo "Nothing to do here."
+	@echo " Have you tried https://git.kernel.org/pub/scm/utils/trace-cmd/kernel-shark.git/"
 
 install_libs: libs
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/ $@
 
 doc:
 	$(MAKE) -C $(src)/Documentation all
-doc_gui:
-	$(MAKE) -C $(kshark-dir)/Documentation all
-
 
 doc_clean:
 	$(MAKE) -C $(src)/Documentation clean
-doc_gui_clean:
-	$(MAKE) -C $(kshark-dir)/Documentation clean
 
 install_doc:
 	$(MAKE) -C $(src)/Documentation install
-install_doc_gui:
-	$(MAKE) -C $(kshark-dir)/Documentation install
 
 clean:
 	$(RM) *.o *~ *.a *.so .*.d
