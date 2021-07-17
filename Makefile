@@ -241,7 +241,11 @@ TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS) > /dev/nul
 endif
 
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
-LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)")
+TRACEEVENT_V13 = $(shell sh -c "$(PKG_CONFIG) --atleast-version 1.3 $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
+ifeq ("$(TRACEEVENT_V13)", "y")
+   TEP_WARNING=-Dwarning=tep_warning
+endif
+LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)") $(TEP_WARNING)
 LIBTRACEEVENT_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEEVENT)")
 TRACEEVENT_PLUGINS =
 TRACEEVENT_PLUGINS_INSTALL =
