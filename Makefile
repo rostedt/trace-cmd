@@ -240,10 +240,13 @@ TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT) > /d
 TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEFS) > /dev/null 2>&1 && echo y")
 endif
 
+# My get overwritten if libtraceveent is 1.3 or greater.
+TEP_WARNING = -Dpr_info=pr_stat
+
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
 TRACEEVENT_V13 = $(shell sh -c "$(PKG_CONFIG) --atleast-version 1.3 $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
 ifeq ("$(TRACEEVENT_V13)", "y")
-   TEP_WARNING=-Dwarning=tep_warning
+   TEP_WARNING = -Dwarning=tep_warning -Dpr_info=tep_info
 endif
 LIBTRACEEVENT_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)") $(TEP_WARNING)
 LIBTRACEEVENT_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEEVENT)")

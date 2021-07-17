@@ -498,7 +498,7 @@ load_plugin(struct tep_handle *tep, const char *path,
 	list->name = plugin;
 	*plugin_list = list;
 
-	pr_stat("registering plugin: %s", plugin);
+	pr_info("registering plugin: %s", plugin);
 	func(tep);
 	return;
 

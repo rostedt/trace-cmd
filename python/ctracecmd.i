@@ -44,14 +44,14 @@ static void py_supress_trace_output(void)
 	skip_output = 1;
 }
 
-void pr_stat(const char *fmt, ...)
+void pr_info(const char *fmt, ...)
 {
         va_list ap;
 
 	if (skip_output)
 		return;
 	va_start(ap, fmt);
-	__vpr_stat(fmt, ap);
+	__vpr_info(fmt, ap);
 	va_end(ap);
 }
 
@@ -249,7 +249,7 @@ static int python_callback(struct trace_seq *s,
 
 
 %ignore trace_seq_vprintf;
-%ignore vpr_stat;
+%ignore vpr_info;
 
 /* SWIG can't grok these, define them to nothing */
 #define __trace

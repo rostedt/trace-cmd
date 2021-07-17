@@ -35,7 +35,7 @@ void warning(const char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
-void pr_stat(const char *fmt, ...)
+void pr_info(const char *fmt, ...)
 {
 	va_list ap;
 

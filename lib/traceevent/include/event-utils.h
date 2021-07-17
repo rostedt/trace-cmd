@@ -10,7 +10,7 @@
 
 /* Can be overridden */
 void warning(const char *fmt, ...);
-void pr_stat(const char *fmt, ...);
+void pr_info(const char *fmt, ...);
 void vpr_stat(const char *fmt, va_list ap);
 
 /* Always available */

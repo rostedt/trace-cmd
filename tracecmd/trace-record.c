@@ -2940,7 +2940,7 @@ static int expand_event_files(struct buffer_instance *instance,
 		path = globbuf.gl_pathv[i];
 
 		event = create_event(instance, path, old_event);
-		pr_stat("%s\n", path);
+		pr_info("%s\n", path);
 
 		len = strlen(path);
 
