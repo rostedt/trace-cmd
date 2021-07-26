@@ -70,9 +70,7 @@ bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 man_dir = $(prefix)/share/man
 man_dir_SQ = '$(subst ','\'',$(man_dir))'
-html_install = $(prefix)/share/kernelshark/html
 html_install_SQ = '$(subst ','\'',$(html_install))'
-img_install = $(prefix)/share/kernelshark/html/images
 img_install_SQ = '$(subst ','\'',$(img_install))'
 libdir = $(prefix)/$(libdir_relative)
 libdir_SQ = '$(subst ','\'',$(libdir))'
@@ -207,9 +205,7 @@ PKG_CONFIG_FILE := $(addprefix $(BUILD_OUTPUT)/,$(PKG_CONFIG_SOURCE_FILE))
 
 export pkgconfig_dir PKG_CONFIG_FILE
 
-kshark-dir	= $(src)/kernel-shark
-
-export prefix bindir src obj kshark-dir
+export prefix bindir src obj
 
 LIBS = -ldl
 
@@ -355,11 +351,6 @@ all: all_cmd plugins show_other_make
 
 all_cmd: $(CMD_TARGETS)
 
-CMAKE_COMMAND = /usr/bin/cmake
-
-# Build with "BUILD_TYPE=Release" to remove cmake debug info
-BUILD_TYPE ?= RelWithDebInfo
-
 BUILD_PREFIX := $(BUILD_OUTPUT)/build_prefix
 
 $(BUILD_PREFIX): force
@@ -367,9 +358,6 @@ $(BUILD_PREFIX): force
 
 $(PKG_CONFIG_FILE) : ${PKG_CONFIG_SOURCE_FILE}.template $(BUILD_PREFIX) $(VERSION_FILE)
 	$(Q) $(call do_make_pkgconfig_file,$(prefix))
-
-$(kshark-dir)/build/Makefile: $(kshark-dir)/CMakeLists.txt
-	$(Q) cd $(kshark-dir)/build && $(CMAKE_COMMAND) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -D_INSTALL_PREFIX=$(prefix) -D_LIBDIR=$(libdir) ..
 
 trace-cmd: force $(LIBTRACECMD_STATIC) \
 	force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
@@ -496,8 +484,6 @@ clean:
 	$(MAKE) -C $(src)/utest clean
 	$(MAKE) -C $(src)/python clean
 	$(MAKE) -C $(src)/tracecmd clean
-	if [ -f $(kshark-dir)/build/Makefile ]; then $(MAKE) -C $(kshark-dir)/build clean; fi
-	cd $(kshark-dir)/build; ./cmake_clean.sh
 
 define build_uninstall_script
 	$(Q)mkdir $(BUILD_OUTPUT)/tmp_build
