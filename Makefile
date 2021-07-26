@@ -89,17 +89,13 @@ export img_install img_install_SQ libdir libdir_SQ includedir_SQ
 export DESTDIR DESTDIR_SQ
 
 ifeq ($(prefix),$(HOME))
-plugin_traceevent_dir = $(HOME)/.local/lib/traceevent/plugins
 plugin_tracecmd_dir = $(libdir)/trace-cmd/plugins
-python_dir ?= $(libdir)/traceevent/python
+python_dir ?= $(libdir)/trace-cmd/python
 var_dir = $(HOME)/.trace-cmd/
 else
-plugin_traceevent_dir = $(libdir)/trace-cmd/plugins
 python_dir ?= $(libdir)/trace-cmd/python
-PLUGIN_DIR_TRACEEVENT = -DPLUGIN_TRACEEVENT_DIR="$(plugin_traceevent_dir)"
 PLUGIN_DIR_TRACECMD = -DPLUGIN_TRACECMD_DIR="$(plugin_tracecmd_dir)"
 PYTHON_DIR = -DPYTHON_DIR="$(python_dir)"
-PLUGIN_DIR_TRACEEVENT_SQ = '$(subst ','\'',$(PLUGIN_DIR_TRACEEVENT))'
 PLUGIN_DIR_TRACECMD_SQ = '$(subst ','\'',$(PLUGIN_DIR_TRACECMD))'
 PYTHON_DIR_SQ = '$(subst ','\'',$(PYTHON_DIR))'
 var_dir = /var
@@ -108,7 +104,6 @@ endif
 # Shell quotes
 bindir_SQ = $(subst ','\'',$(bindir))
 bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
-plugin_traceevent_dir_SQ = $(subst ','\'',$(plugin_traceevent_dir))
 plugin_tracecmd_dir_SQ = $(subst ','\'',$(plugin_tracecmd_dir))
 python_dir_SQ = $(subst ','\'',$(python_dir))
 
@@ -124,11 +119,9 @@ HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 
 BASH_COMPLETE_DIR ?= $(etcdir)/bash_completion.d
 
-export PLUGIN_DIR_TRACEEVENT
 export PLUGIN_DIR_TRACECMD
 export PYTHON_DIR
 export PYTHON_DIR_SQ
-export plugin_traceevent_dir_SQ
 export plugin_tracecmd_dir_SQ
 export python_dir_SQ
 export var_dir
@@ -346,7 +339,7 @@ endif
 
 # Append required CFLAGS
 override CFLAGS += $(INCLUDES) $(VAR_DIR)
-override CFLAGS += $(PLUGIN_DIR_TRACEEVENT_SQ) $(PLUGIN_DIR_TRACECMD_SQ)
+override CFLAGS += $(PLUGIN_DIR_TRACECMD_SQ)
 override CFLAGS += $(udis86-flags) $(blk-flags)
 override LDFLAGS += $(udis86-ldflags)
 
@@ -431,23 +424,13 @@ ifneq ($(CUNIT_INSTALLED),1)
 endif
 	$(Q)$(MAKE) -C $(src)/utest $@
 
-plugins_traceevent: force $(obj)/lib/traceevent/plugins/traceevent_plugin_dir \
-		   $(obj)/lib/traceevent/plugins/trace_python_dir
-	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins
-
 plugins_tracecmd: force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins
 
 plugins: plugins_tracecmd
 
-$(obj)/lib/traceevent/plugins/traceevent_plugin_dir: force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
-
 $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir: force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins $@
-
-$(obj)/lib/traceevent/plugins/trace_python_dir: force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins $@
 
 show_other_make:
 	@echo "Note: to build man pages, type \"make doc\""
@@ -472,8 +455,6 @@ cscope: force
 	$(RM) cscope*
 	$(call find_tag_files) | cscope -b -q
 
-install_plugins_traceevent: force
-	$(Q)$(MAKE) -C $(src)/lib/traceevent/plugins install_plugins
 install_plugins_tracecmd: force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins install_plugins
 

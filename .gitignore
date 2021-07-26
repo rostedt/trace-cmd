@@ -20,7 +20,6 @@ ctracecmdgui_wrap.c
 tags
 TAGS
 cscope*
-traceevent_plugin_dir
 trace_python_dir
 tracecmd_plugin_dir
 libtracecmd.pc
