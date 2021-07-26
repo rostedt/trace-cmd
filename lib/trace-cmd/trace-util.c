@@ -20,8 +20,8 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <time.h>
-#include <traceevent/event-parse.h>
-#include <traceevent/event-utils.h>
+#include <event-parse.h>
+#include <event-utils.h>
 
 #include "trace-cmd-private.h"
 #include "trace-cmd-local.h"
