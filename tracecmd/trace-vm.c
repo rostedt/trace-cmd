@@ -337,7 +337,7 @@ static void read_guest_cid(char *name)
 		if (!cid)
 			continue;
 		cid_id = strtol(cid + strlen(VM_CID_ID), NULL, 10);
-		if ((cid_id == LONG_MIN || cid_id == LONG_MAX) && errno == ERANGE)
+		if ((cid_id == INT_MIN || cid_id == INT_MAX) && errno == ERANGE)
 			continue;
 		guest = add_guest(cid_id, name);
 		if (guest)
