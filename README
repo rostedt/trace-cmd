@@ -24,6 +24,27 @@ Lesser General Public License 2.1 (See COPYING.LIB).
 
 BUILDING:
 
+In order to install build dependencies on Debian / Ubuntu do the following:
+    sudo apt-get install build-essential git pkg-config -y
+    sudo apt-get install libtracefs-dev libtraceevent-dev -y
+
+In order to install build dependencies on Fedora, as root do the following:
+    dnf install gcc make git pkg-config -y
+    dnf install libtracefs-devel libtraceevent-devel -y
+
+In case your distribution does not have the required libtracefs and
+libtraceevent libraries, build and install them manually:
+
+    git clone https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/
+    cd libtraceevent
+    make
+    sudo make install
+
+    git clone https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/
+    cd libtracefs
+    make
+    sudo make install
+
 To make trace-cmd
     make
 
