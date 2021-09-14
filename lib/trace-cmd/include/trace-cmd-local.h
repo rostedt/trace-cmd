@@ -31,5 +31,7 @@ void tracecmd_info(const char *fmt, ...);
 #endif
 #endif
 
+bool check_file_state(unsigned long file_version, int current_state, int new_state);
+bool check_out_state(struct tracecmd_output *handle, int new_state);
 
 #endif /* _TRACE_CMD_LOCAL_H */
