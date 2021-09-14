@@ -3484,6 +3484,7 @@ void tracecmd_ref(struct tracecmd_input *handle)
 void tracecmd_close(struct tracecmd_input *handle)
 {
 	int cpu;
+	int i;
 
 	if (!handle)
 		return;
@@ -3520,6 +3521,10 @@ void tracecmd_close(struct tracecmd_input *handle)
 	free(handle->trace_clock);
 	free(handle->version);
 	close(handle->fd);
+
+	for (i = 0; i < handle->nr_buffers; i++)
+		free(handle->buffers[i].name);
+	free(handle->buffers);
 
 	tracecmd_free_hooks(handle->hooks);
 	handle->hooks = NULL;
