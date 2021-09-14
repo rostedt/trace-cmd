@@ -336,6 +336,18 @@ static char *read_string(struct tracecmd_input *handle)
 	return NULL;
 }
 
+static int read2(struct tracecmd_input *handle, unsigned short *size)
+{
+	struct tep_handle *pevent = handle->pevent;
+	unsigned short data;
+
+	if (do_read_check(handle, &data, 2))
+		return -1;
+
+	*size = tep_read_number(pevent, &data, 2);
+	return 0;
+}
+
 static int read4(struct tracecmd_input *handle, unsigned int *size)
 {
 	struct tep_handle *pevent = handle->pevent;
@@ -2660,16 +2672,15 @@ static int handle_options(struct tracecmd_input *handle)
 	handle->options_start = lseek64(handle->fd, 0, SEEK_CUR);
 
 	for (;;) {
-		if (do_read_check(handle, &option, 2))
+		if (read2(handle, &option))
 			return -1;
 
 		if (option == TRACECMD_OPTION_DONE)
 			break;
 
 		/* next 4 bytes is the size of the option */
-		if (do_read_check(handle, &size, 4))
+		if (read4(handle, &size))
 			return -1;
-		size = tep_read_number(handle->pevent, &size, 4);
 		buf = malloc(size);
 		if (!buf)
 			return -ENOMEM;
