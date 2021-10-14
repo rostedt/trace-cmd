@@ -163,14 +163,12 @@ static int kvm_open_vcpu_dir(struct kvm_clock_sync *kvm, int cpu, char *dir_str)
 		goto error;
 	while ((entry = readdir(dir))) {
 		if (entry->d_type != DT_DIR) {
-			if (!strncmp(entry->d_name, KVM_DEBUG_OFFSET_FILE,
-				     strlen(KVM_DEBUG_OFFSET_FILE))) {
+			if (!strcmp(entry->d_name, KVM_DEBUG_OFFSET_FILE)) {
 				snprintf(path, sizeof(path), "%s/%s",
 					 dir_str, entry->d_name);
 				kvm->vcpu_offsets[cpu] = strdup(path);
 			}
-			if (!strncmp(entry->d_name, KVM_DEBUG_SCALING_FILE,
-				     strlen(KVM_DEBUG_SCALING_FILE))) {
+			if (!strcmp(entry->d_name, KVM_DEBUG_SCALING_FILE)) {
 				snprintf(path, sizeof(path), "%s/%s",
 					 dir_str, entry->d_name);
 				kvm->vcpu_scalings[cpu] = strdup(path);
