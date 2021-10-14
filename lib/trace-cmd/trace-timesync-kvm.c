@@ -19,6 +19,7 @@
 #define KVM_DEBUG_FS "/sys/kernel/debug/kvm"
 #define KVM_DEBUG_OFFSET_FILE	"tsc-offset"
 #define KVM_DEBUG_SCALING_FILE	"tsc-scaling-ratio"
+#define KVM_DEBUG_FRACTION_FILE	"tsc-scaling-ratio-frac-bits"
 #define KVM_DEBUG_VCPU_DIR	"vcpu"
 
 /* default KVM scaling values, taken from the Linux kernel */
@@ -37,6 +38,7 @@ struct kvm_clock_sync {
 	int vcpu_count;
 	char **vcpu_offsets;
 	char **vcpu_scalings;
+	char **vcpu_frac;
 	int marker_fd;
 	struct tep_handle *tep;
 	int raw_id;
@@ -47,6 +49,7 @@ struct kvm_clock_offset_msg {
 	s64	ts;
 	s64	offset;
 	s64	scaling;
+	s64	frac;
 };
 
 static int read_ll_from_file(char *file, long long *res)
@@ -72,21 +75,27 @@ static int read_ll_from_file(char *file, long long *res)
 
 static bool kvm_scaling_check_vm_cpu(char *vname, char *cpu)
 {
-	long long scaling;
+	long long scaling, frac;
+	bool has_scaling = false;
+	bool has_frac = false;
 	char *path;
 	int ret;
 
 	if (asprintf(&path, "%s/%s/%s", vname, cpu, KVM_DEBUG_SCALING_FILE) < 0)
-		return true;
+		return false;
 	ret = read_ll_from_file(path, &scaling);
 	free(path);
+	if (!ret)
+		has_scaling = true;
 
-	/*
-	 * If there is a scaling, different from the default -
-	 * return false, not supported.
-	 */
-	if (!ret &&
-	    scaling != KVM_SCALING_AMD_DEFAULT && scaling != KVM_SCALING_INTEL_DEFAULT)
+	if (asprintf(&path, "%s/%s/%s", vname, cpu, KVM_DEBUG_FRACTION_FILE) < 0)
+		return false;
+	ret = read_ll_from_file(path, &frac);
+	free(path);
+	if (!ret)
+		has_frac = true;
+
+	if (has_scaling != has_frac)
 		return false;
 
 	return true;
@@ -173,6 +182,11 @@ static int kvm_open_vcpu_dir(struct kvm_clock_sync *kvm, int cpu, char *dir_str)
 					 dir_str, entry->d_name);
 				kvm->vcpu_scalings[cpu] = strdup(path);
 			}
+			if (!strcmp(entry->d_name, KVM_DEBUG_FRACTION_FILE)) {
+				snprintf(path, sizeof(path), "%s/%s",
+					 dir_str, entry->d_name);
+				kvm->vcpu_frac[cpu] = strdup(path);
+			}
 		}
 	}
 	if (!kvm->vcpu_offsets[cpu])
@@ -187,6 +201,8 @@ error:
 	kvm->vcpu_offsets[cpu] = NULL;
 	free(kvm->vcpu_scalings[cpu]);
 	kvm->vcpu_scalings[cpu] = NULL;
+	free(kvm->vcpu_frac[cpu]);
+	kvm->vcpu_frac[cpu] = NULL;
 	return -1;
 }
 
@@ -252,7 +268,8 @@ static int kvm_clock_sync_init_host(struct tracecmd_time_sync *tsync,
 	kvm->vcpu_count = tsync->vcpu_count;
 	kvm->vcpu_offsets = calloc(kvm->vcpu_count, sizeof(char *));
 	kvm->vcpu_scalings = calloc(kvm->vcpu_count, sizeof(char *));
-	if (!kvm->vcpu_offsets || !kvm->vcpu_scalings)
+	kvm->vcpu_frac = calloc(kvm->vcpu_count, sizeof(char *));
+	if (!kvm->vcpu_offsets || !kvm->vcpu_scalings || !kvm->vcpu_frac)
 		goto error;
 	if (kvm_open_debug_files(kvm, tsync->guest_pid) < 0)
 		goto error;
@@ -261,6 +278,7 @@ static int kvm_clock_sync_init_host(struct tracecmd_time_sync *tsync,
 error:
 	free(kvm->vcpu_offsets);
 	free(kvm->vcpu_scalings);
+	free(kvm->vcpu_frac);
 	return -1;
 }
 
@@ -351,6 +369,8 @@ static int kvm_clock_sync_free(struct tracecmd_time_sync *tsync)
 			kvm->vcpu_offsets[i] = NULL;
 			free(kvm->vcpu_scalings[i]);
 			kvm->vcpu_scalings[i] = NULL;
+			free(kvm->vcpu_frac[i]);
+			kvm->vcpu_frac[i] = NULL;
 		}
 		if (kvm->tep)
 			tep_free(kvm->tep);
@@ -362,7 +382,7 @@ static int kvm_clock_sync_free(struct tracecmd_time_sync *tsync)
 }
 
 static int kvm_clock_host(struct tracecmd_time_sync *tsync,
-			  long long *offset, long long *scaling,
+			  long long *offset, long long *scaling, long long *frac,
 			  long long *timestamp, unsigned int cpu)
 {
 	char sync_proto[TRACECMD_TSYNC_PNAME_LENGTH];
@@ -372,6 +392,7 @@ static int kvm_clock_host(struct tracecmd_time_sync *tsync,
 	long long kvm_scaling = 1;
 	unsigned int sync_msg;
 	long long kvm_offset;
+	long long kvm_frac = 0;
 	unsigned int size;
 	char *msg;
 	int ret;
@@ -386,12 +407,16 @@ static int kvm_clock_host(struct tracecmd_time_sync *tsync,
 	ret = read_ll_from_file(kvm->vcpu_offsets[cpu], &kvm_offset);
 	if (ret < 0)
 		return -1;
+
 	if (kvm->vcpu_scalings && kvm->vcpu_scalings[cpu]) {
 		read_ll_from_file(kvm->vcpu_scalings[cpu], &kvm_scaling);
 		if (kvm_scaling == KVM_SCALING_AMD_DEFAULT ||
 		    kvm_scaling == KVM_SCALING_INTEL_DEFAULT)
 			kvm_scaling = 1;
 	}
+
+	if (kvm->vcpu_frac && kvm->vcpu_frac[cpu])
+		ret = read_ll_from_file(kvm->vcpu_frac[cpu], &kvm_frac);
 	msg = (char *)&packet;
 	size = sizeof(packet);
 	ret = tracecmd_msg_recv_time_sync(tsync->msg_handle,
@@ -403,6 +428,7 @@ static int kvm_clock_host(struct tracecmd_time_sync *tsync,
 
 	packet.offset = -kvm_offset;
 	packet.scaling = kvm_scaling;
+	packet.frac = kvm_frac;
 	ret = tracecmd_msg_send_time_sync(tsync->msg_handle, KVM_NAME,
 					  KVM_SYNC_PKT_RESPONSE, sizeof(packet),
 					  (char *)&packet);
@@ -411,6 +437,7 @@ static int kvm_clock_host(struct tracecmd_time_sync *tsync,
 
 	*scaling = packet.scaling;
 	*offset = packet.offset;
+	*frac = kvm_frac;
 	*timestamp = packet.ts;
 
 	return 0;
@@ -442,10 +469,10 @@ static int kvm_marker_find(struct tep_event *event, struct tep_record *record,
 	return 0;
 }
 
-
 static int kvm_clock_guest(struct tracecmd_time_sync *tsync,
 			   long long *offset,
 			   long long *scaling,
+			   long long *frac,
 			   long long *timestamp)
 {
 	char sync_proto[TRACECMD_TSYNC_PNAME_LENGTH];
@@ -486,12 +513,13 @@ static int kvm_clock_guest(struct tracecmd_time_sync *tsync,
 
 	*scaling = packet.scaling;
 	*offset = packet.offset;
+	*frac = packet.frac;
 	*timestamp = packet.ts;
 	return 0;
 }
 
 static int kvm_clock_sync_calc(struct tracecmd_time_sync *tsync,
-			       long long *offset, long long *scaling,
+			       long long *offset, long long *scaling, long long *frac,
 			       long long *timestamp, unsigned int cpu)
 {
 	struct clock_sync_context *clock_context;
@@ -503,9 +531,9 @@ static int kvm_clock_sync_calc(struct tracecmd_time_sync *tsync,
 	clock_context = (struct clock_sync_context *)tsync->context;
 
 	if (clock_context->is_guest)
-		ret = kvm_clock_guest(tsync, offset, scaling, timestamp);
+		ret = kvm_clock_guest(tsync, offset, scaling, frac, timestamp);
 	else
-		ret = kvm_clock_host(tsync, offset, scaling, timestamp, cpu);
+		ret = kvm_clock_host(tsync, offset, scaling, frac, timestamp, cpu);
 	return ret;
 }
 

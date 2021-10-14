@@ -663,7 +663,7 @@ static int ptp_clock_server(struct tracecmd_time_sync *tsync,
 }
 
 static int ptp_clock_sync_calc(struct tracecmd_time_sync *tsync,
-			       long long *offset, long long *scaling,
+			       long long *offset, long long *scaling, long long *frac,
 			       long long *timestamp, unsigned int cpu)
 {
 	struct clock_sync_context *clock_context;
@@ -689,6 +689,8 @@ static int ptp_clock_sync_calc(struct tracecmd_time_sync *tsync,
 
 	if (scaling)
 		*scaling = 1;
+	if (frac)
+		*frac = 0;
 	if (clock_context->is_server)
 		ret = ptp_clock_server(tsync, offset, timestamp);
 	else

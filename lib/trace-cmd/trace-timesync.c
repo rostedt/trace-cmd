@@ -36,7 +36,7 @@ struct tsync_proto {
 	int (*clock_sync_init)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_free)(struct tracecmd_time_sync *clock_context);
 	int (*clock_sync_calc)(struct tracecmd_time_sync *clock_context,
-			       long long *offset, long long *scaling,
+			       long long *offset, long long *scaling, long long *frac,
 			       long long *timestamp, unsigned int cpu);
 };
 
@@ -76,7 +76,7 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,
-					      long long *, long long *,
+					      long long *, long long *, long long *,
 					      long long *, unsigned int))
 {
 	struct tsync_proto *proto = NULL;
@@ -137,12 +137,13 @@ bool __hidden tsync_proto_is_supported(const char *proto_name)
  * @ts: Array of size @count containing timestamps of callculated offsets
  * @offsets: array of size @count, containing offsets for each timestamp
  * @scalings: array of size @count, containing scaling ratios for each timestamp
+ * @frac: array of size @count, containing fraction bits for each timestamp
  *
  * Retuns -1 in case of an error, or 0 otherwise
  */
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
 			       int *count, long long **ts,
-			       long long **offsets, long long **scalings)
+			       long long **offsets, long long **scalings, long long **frac)
 {
 	struct clock_sync_context *tsync_context;
 
@@ -159,6 +160,8 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
 		*offsets = tsync_context->offsets[cpu].sync_offsets;
 	if (scalings)
 		*scalings = tsync_context->offsets[cpu].sync_scalings;
+	if (frac)
+		*frac = tsync_context->offsets[cpu].sync_frac;
 
 	return 0;
 }
@@ -564,9 +567,11 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 				free(tsync_context->offsets[i].sync_ts);
 				free(tsync_context->offsets[i].sync_offsets);
 				free(tsync_context->offsets[i].sync_scalings);
+				free(tsync_context->offsets[i].sync_frac);
 				tsync_context->offsets[i].sync_ts = NULL;
 				tsync_context->offsets[i].sync_offsets = NULL;
 				tsync_context->offsets[i].sync_scalings = NULL;
+				tsync_context->offsets[i].sync_frac = NULL;
 				tsync_context->offsets[i].sync_count = 0;
 				tsync_context->offsets[i].sync_size = 0;
 			}
@@ -643,10 +648,11 @@ static int tsync_send(struct tracecmd_time_sync *tsync,
 	long long timestamp = 0;
 	long long scaling = 0;
 	long long offset = 0;
+	long long frac = 0;
 	int ret;
 
 	old_set = pin_to_cpu(cpu);
-	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp, cpu);
+	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &frac, &timestamp, cpu);
 	if (old_set)
 		restore_pin_to_cpu(old_set);
 
@@ -685,10 +691,11 @@ static void tsync_with_host(struct tracecmd_time_sync *tsync)
 }
 
 static int record_sync_sample(struct clock_sync_offsets *offsets, int array_step,
-			      long long offset, long long scaling, long long ts)
+			      long long offset, long long scaling, long long frac, long long ts)
 {
 	long long *sync_scalings = NULL;
 	long long *sync_offsets = NULL;
+	long long *sync_frac = NULL;
 	long long *sync_ts = NULL;
 
 	if (offsets->sync_count >= offsets->sync_size) {
@@ -698,22 +705,27 @@ static int record_sync_sample(struct clock_sync_offsets *offsets, int array_step
 				       (offsets->sync_size + array_step) * sizeof(long long));
 		sync_scalings = realloc(offsets->sync_scalings,
 				       (offsets->sync_size + array_step) * sizeof(long long));
+		sync_frac = realloc(offsets->sync_frac,
+				    (offsets->sync_size + array_step) * sizeof(long long));
 
-		if (!sync_ts || !sync_offsets || !sync_scalings) {
+		if (!sync_ts || !sync_offsets || !sync_scalings || !sync_frac) {
 			free(sync_ts);
 			free(sync_offsets);
 			free(sync_scalings);
+			free(sync_frac);
 			return -1;
 		}
 		offsets->sync_size += array_step;
 		offsets->sync_ts = sync_ts;
 		offsets->sync_offsets = sync_offsets;
 		offsets->sync_scalings = sync_scalings;
+		offsets->sync_frac = sync_frac;
 	}
 
 	offsets->sync_ts[offsets->sync_count] = ts;
 	offsets->sync_offsets[offsets->sync_count] = offset;
 	offsets->sync_scalings[offsets->sync_count] = scaling;
+	offsets->sync_frac[offsets->sync_count] = frac;
 	offsets->sync_count++;
 
 	return 0;
@@ -726,9 +738,10 @@ static int tsync_get_sample(struct tracecmd_time_sync *tsync, unsigned int cpu,
 	long long timestamp = 0;
 	long long scaling = 0;
 	long long offset = 0;
+	long long frac = 0;
 	int ret;
 
-	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &timestamp, cpu);
+	ret = proto->clock_sync_calc(tsync, &offset, &scaling, &frac, &timestamp, cpu);
 	if (ret) {
 		tracecmd_warning("Failed to synchronize timestamps with guest");
 		return -1;
@@ -739,7 +752,7 @@ static int tsync_get_sample(struct tracecmd_time_sync *tsync, unsigned int cpu,
 	if (!clock || cpu >= clock->cpu_count || !clock->offsets)
 		return -1;
 	return record_sync_sample(&clock->offsets[cpu], array_step,
-				  offset, scaling, timestamp);
+				  offset, scaling, frac, timestamp);
 }
 
 #define TIMER_SEC_NANO 1000000000LL
@@ -928,6 +941,7 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 	unsigned int flags;
 	long long *scalings = NULL;
 	long long *offsets = NULL;
+	long long *frac = NULL;
 	long long *ts = NULL;
 	int vcount;
 	int count;
@@ -936,7 +950,7 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 
 	if (!tsync->vcpu_count)
 		return -1;
-	vcount = 3 + (4 * tsync->vcpu_count);
+	vcount = 3 + (5 * tsync->vcpu_count);
 	vector = calloc(vcount, sizeof(struct iovec));
 	if (!vector)
 		return -1;
@@ -955,7 +969,7 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 		if (j >= vcount)
 			break;
 		ret = tracecmd_tsync_get_offsets(tsync, i, &count,
-						 &ts, &offsets, &scalings);
+						 &ts, &offsets, &scalings, NULL);
 		if (ret < 0 || !count || !ts || !offsets || !scalings)
 			break;
 		vector[j].iov_len = 4;
@@ -971,6 +985,27 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 		ret = -1;
 		goto out;
 	}
+	/*
+	 * Writing fraction bits into the option is implemented in a separate loop for
+	 * backward compatibility. In the trace-cmd 2.9 release, this option has only offset
+	 * and scaling. That legacy code must work with the new extended option.
+	 *
+	 */
+	for (i = 0; i < tsync->vcpu_count; i++) {
+		if (j >= vcount)
+			break;
+		ret = tracecmd_tsync_get_offsets(tsync, i, NULL,
+						 NULL, NULL, NULL, &frac);
+		if (ret < 0)
+			break;
+		vector[j].iov_len = 8 * count;
+		vector[j++].iov_base = frac;
+	}
+	if (i < tsync->vcpu_count) {
+		ret = -1;
+		goto out;
+	}
+
 	tracecmd_add_option_v(handle, TRACECMD_OPTION_TIME_SHIFT, vector, vcount);
 #ifdef TSYNC_DEBUG
 	if (count > 1)

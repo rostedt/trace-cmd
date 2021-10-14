@@ -27,14 +27,15 @@ struct tracecmd_time_sync {
 struct clock_sync_offsets {
 	/* Arrays with calculated time offsets at given time */
 	int				sync_size;	/* Allocated size of sync_ts,
-							 * sync_offsets and sync_scalings
+							 * sync_offsets, sync_scalings and sync_frac
 							 */
 	int				sync_count;	/* Number of elements in sync_ts,
-							 * sync_offsets and sync_scalings
+							 * sync_offsets, sync_scalings and sync_frac
 							 */
 	long long			*sync_ts;
 	long long			*sync_offsets;
 	long long			*sync_scalings;
+	long long			*sync_frac;
 };
 
 struct clock_sync_context {
@@ -60,7 +61,7 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 				  int (*init)(struct tracecmd_time_sync *),
 				  int (*free)(struct tracecmd_time_sync *),
 				  int (*calc)(struct tracecmd_time_sync *,
-					      long long *, long long *,
+					      long long *, long long *, long long*,
 					      long long *, unsigned int));
 int tracecmd_tsync_proto_unregister(char *proto_name);
 
