@@ -376,13 +376,18 @@ static void dump_option_xlong(int fd, int size, char *desc)
 	do_print(OPTIONS, "0x%llX\n", val);
 }
 
+struct time_shift_cpu {
+	unsigned int count;
+	long long *scalings;
+	long long *frac;
+	long long *offsets;
+	unsigned long long *times;
+};
+
 static void dump_option_timeshift(int fd, int size)
 {
-	long long *scalings = NULL;
-	long long *offsets = NULL;
-	unsigned long long *times = NULL;
+	struct time_shift_cpu *cpus_data;
 	long long trace_id;
-	unsigned int count;
 	unsigned int flags;
 	unsigned int cpus;
 	int i, j;
@@ -400,41 +405,80 @@ static void dump_option_timeshift(int fd, int size)
 	}
 	do_print(OPTIONS, "\t\t[Option TimeShift, %d bytes]\n", size);
 	read_file_number(fd, &trace_id, 8);
+	size -= 8;
 	do_print(OPTIONS, "0x%llX [peer's trace id]\n", trace_id);
 	read_file_number(fd, &flags, 4);
+	size -= 4;
 	do_print(OPTIONS, "0x%llX [peer's protocol flags]\n", flags);
 	read_file_number(fd, &cpus, 4);
+	size -= 4;
 	do_print(OPTIONS, "0x%llX [peer's CPU count]\n", cpus);
+	cpus_data = calloc(cpus, sizeof(struct time_shift_cpu));
+	if (!cpus_data)
+		return;
 	for (j = 0; j < cpus; j++) {
-		read_file_number(fd, &count, 4);
-		do_print(OPTIONS, "%lld [samples count for CPU %d]\n", count, j);
-		times = calloc(count, sizeof(long long));
-		offsets = calloc(count, sizeof(long long));
-		scalings = calloc(count, sizeof(long long));
-		if (!times || !offsets || !scalings)
+		if (size < 4)
 			goto out;
-		for (i = 0; i < count; i++)
-			read_file_number(fd, times + i, 8);
-		for (i = 0; i < count; i++)
-			read_file_number(fd, offsets + i, 8);
-		for (i = 0; i < count; i++)
-			read_file_number(fd, scalings + i, 8);
+		read_file_number(fd, &cpus_data[j].count, 4);
+		size -= 4;
+		do_print(OPTIONS, "%lld [samples count for CPU %d]\n", cpus_data[j].count, j);
+		cpus_data[j].times = calloc(cpus_data[j].count, sizeof(long long));
+		cpus_data[j].offsets = calloc(cpus_data[j].count, sizeof(long long));
+		cpus_data[j].scalings = calloc(cpus_data[j].count, sizeof(long long));
+		cpus_data[j].frac = calloc(cpus_data[j].count, sizeof(long long));
+		if (!cpus_data[j].times || !cpus_data[j].offsets ||
+		    !cpus_data[j].scalings || !cpus_data[j].frac)
+			goto out;
+		for (i = 0; i < cpus_data[j].count; i++) {
+			if (size < 8)
+				goto out;
+			read_file_number(fd, cpus_data[j].times + i, 8);
+			size -= 8;
+		}
+		for (i = 0; i < cpus_data[j].count; i++) {
+			if (size < 8)
+				goto out;
+			read_file_number(fd, cpus_data[j].offsets + i, 8);
+			size -= 8;
+		}
+		for (i = 0; i < cpus_data[j].count; i++) {
+			if (size < 8)
+				goto out;
+			read_file_number(fd, cpus_data[j].scalings + i, 8);
+			size -= 8;
+		}
+	}
 
-		for (i = 0; i < count; i++)
-			do_print(OPTIONS, "\t%lld %lld %llu [offset * scaling @ time]\n",
-				 offsets[i], scalings[1], times[i]);
-		free(times);
-		free(offsets);
-		free(scalings);
-		times = NULL;
-		offsets = NULL;
-		scalings = NULL;
+	if (size > 0) {
+		for (j = 0; j < cpus; j++) {
+			if (!cpus_data[j].frac)
+				goto out;
+			for (i = 0; i < cpus_data[j].count; i++) {
+				if (size < 8)
+					goto out;
+				read_file_number(fd, cpus_data[j].frac + i, 8);
+				size -= 8;
+			}
+		}
+	}
+
+	for (j = 0; j < cpus; j++) {
+		for (i = 0; i < cpus_data[j].count; i++)
+			do_print(OPTIONS, "\t%lld %lld %llu %llu[offset * scaling >> fraction @ time]\n",
+				 cpus_data[j].offsets[i], cpus_data[j].scalings[i],
+				 cpus_data[j].frac[i], cpus_data[j].times[i]);
 
 	}
+
 out:
-	free(times);
-	free(offsets);
-	free(scalings);
+	if (j < cpus)
+		do_print(OPTIONS, "Broken time shift option\n");
+	for (j = 0; j < cpus; j++) {
+		free(cpus_data[j].times);
+		free(cpus_data[j].offsets);
+		free(cpus_data[j].scalings);
+	}
+	free(cpus_data);
 }
 
 void dump_option_guest(int fd, int size)
