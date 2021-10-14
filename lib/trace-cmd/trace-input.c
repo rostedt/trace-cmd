@@ -83,6 +83,7 @@ struct ts_offset_sample {
 	long long	time;
 	long long	offset;
 	long long	scaling;
+	long long	fraction;
 };
 
 struct guest_trace_info {
@@ -1245,7 +1246,6 @@ timestamp_correction_calc(unsigned long long ts, unsigned int flags,
 			  struct ts_offset_sample *min,
 			  struct ts_offset_sample *max)
 {
-	long long scaling;
 	long long tscor;
 
 	if (flags & TRACECMD_TSYNC_FLAG_INTERPOLATE) {
@@ -1253,15 +1253,12 @@ timestamp_correction_calc(unsigned long long ts, unsigned int flags,
 		long long offset = ((long long)ts - min->time) *
 				   (max->offset - min->offset);
 
-		scaling = (min->scaling + max->scaling) / 2;
 		tscor = min->offset + (offset + delta / 2) / delta;
-
 	} else {
-		scaling = min->scaling;
 		tscor = min->offset;
 	}
 
-	ts *= scaling;
+	ts = (ts * min->scaling) >> min->fraction;
 	if (tscor < 0)
 		return ts - llabs(tscor);
 
@@ -2347,37 +2344,16 @@ static int tsync_offset_cmp(const void *a, const void *b)
 
 #define safe_read_loop(type)						\
 	do {								\
-		int i;							\
-		for (i = 0; i < ts_offsets->ts_samples_count; i++)	\
-			safe_read(ts_offsets->ts_samples[i].type, 8);	\
+		int ii;							\
+		for (ii = 0; ii < ts_offsets->ts_samples_count; ii++)	\
+			safe_read(ts_offsets->ts_samples[ii].type, 8);	\
 	} while (0)
-
-static int tsync_offset_load(struct tep_handle	*tep,
-			     struct timesync_offsets *ts_offsets, char *buf, int size)
-{
-	int start_size = size;
-	int i, j;
-
-	safe_read_loop(time);
-	safe_read_loop(offset);
-	safe_read_loop(scaling);
-	qsort(ts_offsets->ts_samples, ts_offsets->ts_samples_count,
-	      sizeof(struct ts_offset_sample), tsync_offset_cmp);
-	/* Filter possible samples with equal time */
-	for (i = 0, j = 0; i < ts_offsets->ts_samples_count; i++) {
-		if (i == 0 || ts_offsets->ts_samples[i].time != ts_offsets->ts_samples[i-1].time)
-			ts_offsets->ts_samples[j++] = ts_offsets->ts_samples[i];
-	}
-	ts_offsets->ts_samples_count = j;
-
-	return start_size - size;
-}
 
 static int tsync_cpu_offsets_load(struct tracecmd_input *handle, char *buf, int size)
 {
 	struct tep_handle *tep = handle->pevent;
-	int ret;
-	int i;
+	struct timesync_offsets *ts_offsets;
+	int i, j, k;
 
 	safe_read(handle->host.cpu_count, 4);
 	handle->host.ts_offsets = calloc(handle->host.cpu_count,
@@ -2385,17 +2361,36 @@ static int tsync_cpu_offsets_load(struct tracecmd_input *handle, char *buf, int 
 	if (!handle->host.ts_offsets)
 		return -ENOMEM;
 	for (i = 0; i < handle->host.cpu_count; i++) {
-		safe_read(handle->host.ts_offsets[i].ts_samples_count, 4);
-		handle->host.ts_offsets[i].ts_samples = calloc(handle->host.ts_offsets[i].ts_samples_count,
-							       sizeof(struct ts_offset_sample));
-		if (!handle->host.ts_offsets[i].ts_samples)
+		ts_offsets = &handle->host.ts_offsets[i];
+		safe_read(ts_offsets->ts_samples_count, 4);
+		ts_offsets->ts_samples = calloc(ts_offsets->ts_samples_count,
+						sizeof(struct ts_offset_sample));
+		if (!ts_offsets->ts_samples)
 			return -ENOMEM;
-		ret = tsync_offset_load(tep, &handle->host.ts_offsets[i], buf, size);
-		if (ret <= 0)
-			return -EFAULT;
-		size -= ret;
-		buf += ret;
+		safe_read_loop(time);
+		safe_read_loop(offset);
+		safe_read_loop(scaling);
 	}
+
+	if (size > 0) {
+		for (i = 0; i < handle->host.cpu_count; i++) {
+			ts_offsets = &handle->host.ts_offsets[i];
+			safe_read_loop(fraction);
+		}
+	}
+
+	for (i = 0; i < handle->host.cpu_count; i++) {
+		ts_offsets = &handle->host.ts_offsets[i];
+		qsort(ts_offsets->ts_samples, ts_offsets->ts_samples_count,
+		      sizeof(struct ts_offset_sample), tsync_offset_cmp);
+		/* Filter possible samples with equal time */
+		for (k = 0, j = 0; k < ts_offsets->ts_samples_count; k++) {
+			if (k == 0 || ts_offsets->ts_samples[k].time != ts_offsets->ts_samples[k-1].time)
+				ts_offsets->ts_samples[j++] = ts_offsets->ts_samples[k];
+		}
+		ts_offsets->ts_samples_count = j;
+	}
+
 	return 0;
 }
 
@@ -2722,6 +2717,10 @@ static int handle_options(struct tracecmd_input *handle)
 			 *  long long array of size [count] of timestamp offsets.
 			 *  long long array of size [count] of timestamp scaling ratios.*
 			 * ]
+			 * array of size [CPU count]:
+			 * [
+			 *  long long array of size [count] of timestamp scaling fraction bits.*
+			 * ]*
 			 */
 			if (size < 16 || (handle->flags & TRACECMD_FL_RAW_TS))
 				break;
