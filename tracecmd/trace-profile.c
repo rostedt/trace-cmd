@@ -21,7 +21,7 @@
 
 #ifdef WARN_NO_AUDIT
 # warning "lib audit not found, using raw syscalls "	\
-	"(install libaudit-devel(for fedora) or libaudit-dev(for debian/ubuntu) and try again)"
+	"(install audit-libs-devel(for fedora) or libaudit-dev(for debian/ubuntu) and try again)"
 #endif
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtXZxKWP"
