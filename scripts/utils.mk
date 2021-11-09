@@ -169,6 +169,7 @@ define do_make_pkgconfig_file
 	sed -i "s|INSTALL_PREFIX|${1}|g" ${PKG_CONFIG_FILE}; 		\
 	sed -i "s|LIB_VERSION|${LIBTRACECMD_VERSION}|g" ${PKG_CONFIG_FILE}; \
 	sed -i "s|LIB_DIR|$(libdir)|g" ${PKG_CONFIG_FILE}; \
+	sed -i "s|LIBTRACEFS_MIN_VERSION|$(LIBTRACEFS_MIN_VERSION)|g" ${PKG_CONFIG_FILE}; \
 	sed -i "s|HEADER_DIR|$(includedir)/trace-cmd|g" ${PKG_CONFIG_FILE};
 endef
 

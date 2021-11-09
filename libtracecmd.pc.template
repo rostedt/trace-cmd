@@ -6,5 +6,6 @@ Name: libtracecmd
 URL: https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
 Description: Library for creating and reading trace-cmd data files
 Version: LIB_VERSION
+Requires: libtracefs >= LIBTRACEFS_MIN_VERSION
 Cflags: -I${includedir}
 Libs: -L${libdir} -ltracecmd
