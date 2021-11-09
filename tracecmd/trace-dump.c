@@ -477,6 +477,7 @@ out:
 		free(cpus_data[j].times);
 		free(cpus_data[j].offsets);
 		free(cpus_data[j].scalings);
+		free(cpus_data[j].frac);
 	}
 	free(cpus_data);
 }
