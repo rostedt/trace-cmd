@@ -133,6 +133,7 @@ struct tracecmd_input {
 	bool			read_page;
 	bool			use_pipe;
 	int			file_version;
+	unsigned int		cpustats_size;
 	struct cpu_data 	*cpu_data;
 	long long		ts_offset;
 	struct tsc2nsec		tsc_calc;
@@ -2653,7 +2654,6 @@ static int handle_options(struct tracecmd_input *handle)
 	unsigned short option;
 	unsigned int size;
 	char *cpustats = NULL;
-	unsigned int cpustats_size = 0;
 	struct input_buffer_instance *buffer;
 	struct hook_list *hook;
 	char *buf;
@@ -2735,12 +2735,14 @@ static int handle_options(struct tracecmd_input *handle)
 			break;
 		case TRACECMD_OPTION_CPUSTAT:
 			buf[size-1] = '\n';
-			cpustats = realloc(cpustats, cpustats_size + size + 1);
+			cpustats = realloc(handle->cpustats,
+					   handle->cpustats_size + size + 1);
 			if (!cpustats)
 				return -ENOMEM;
-			memcpy(cpustats + cpustats_size, buf, size);
-			cpustats_size += size;
-			cpustats[cpustats_size] = 0;
+			memcpy(cpustats + handle->cpustats_size, buf, size);
+			handle->cpustats_size += size;
+			cpustats[handle->cpustats_size] = 0;
+			handle->cpustats = cpustats;
 			break;
 		case TRACECMD_OPTION_BUFFER:
 			/* A buffer instance is saved at the end of the file */
@@ -2809,8 +2811,6 @@ static int handle_options(struct tracecmd_input *handle)
 		free(buf);
 
 	}
-
-	handle->cpustats = cpustats;
 
 	return 0;
 }
