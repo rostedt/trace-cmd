@@ -996,6 +996,39 @@ int tracecmd_output_set_kallsyms(struct tracecmd_output *handler, const char *ka
 	return 0;
 }
 
+/**
+ * tracecmd_output_set_from_input - Inherit parameters from an existing trace file
+ * @handle: output handler to a trace file.
+ * @ihandle: input handler to an existing trace file.
+ *
+ * This API copies parameters from input handler @ihandle, associated with an existing trace file,
+ * to the output handler @handle, associated with file that is going to be created.
+ * These parameters are copied:
+ *  - tep handler
+ *  - page size
+ *  - file endian
+ *  - file version
+ *  - file compression protocol
+ * This API must be called before tracecmd_output_write_init().
+ *
+ * Returns 0 on success, or -1 if the output file handler is not allocated or not in expected state.
+ */
+int tracecmd_output_set_from_input(struct tracecmd_output *handler, struct tracecmd_input *ihandle)
+{
+	if (!handler || !ihandle || handler->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	/* get endian, page size, file version and compression */
+	/* Use the pevent of the ihandle for later writes */
+	handler->pevent = tracecmd_get_tep(ihandle);
+	tep_ref(handler->pevent);
+	handler->page_size = tracecmd_page_size(ihandle);
+	handler->file_version = tracecmd_get_in_file_version(ihandle);
+	handler->big_endian = tep_is_file_bigendian(handler->pevent);
+
+	return 0;
+}
+
 static int select_file_version(struct tracecmd_output *handle,
 				struct tracecmd_input *ihandle)
 {
