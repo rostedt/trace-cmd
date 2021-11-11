@@ -918,6 +918,28 @@ struct tracecmd_output *tracecmd_output_allocate(int fd)
 	return handle;
 }
 
+/**
+ * tracecmd_output_set_msg - associated an output file handler with network message handler
+ * @handle: output handler to a trace file.
+ * @msg_handle: network handler, allocated by tracecmd_msg_handle_alloc()
+ *
+ * This API associates an output file handler with a network stream. All subsequent API calls
+ * with this output file handler will send data over the network using the @msg_handle, instead
+ * of writing to a file.
+ * This API must be called after the handler file version is set and before
+ * tracecmd_output_write_init().
+ *
+ * Returns 0 on success, or -1 if the output file handler is not allocated or not in expected state.
+ */
+int tracecmd_output_set_msg(struct tracecmd_output *handler, struct tracecmd_msg_handle *msg_handle)
+{
+	if (!handler || handler->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	handler->msg_handle = msg_handle;
+
+	return 0;
+}
 
 static int select_file_version(struct tracecmd_output *handle,
 				struct tracecmd_input *ihandle)
