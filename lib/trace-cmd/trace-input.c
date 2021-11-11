@@ -741,7 +741,7 @@ static int read_event_files(struct tracecmd_input *handle, const char *regex)
 
 static int read_proc_kallsyms(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent = handle->pevent;
+	struct tep_handle *tep = handle->pevent;
 	unsigned int size;
 	char *buf;
 
@@ -750,8 +750,10 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 
 	if (read4(handle, &size) < 0)
 		return -1;
-	if (!size)
+	if (!size) {
+		handle->file_state = TRACECMD_FILE_KALLSYMS;
 		return 0; /* OK? */
+	}
 
 	buf = malloc(size+1);
 	if (!buf)
@@ -762,7 +764,7 @@ static int read_proc_kallsyms(struct tracecmd_input *handle)
 	}
 	buf[size] = 0;
 
-	tep_parse_kallsyms(pevent, buf);
+	tep_parse_kallsyms(tep, buf);
 
 	free(buf);
 
