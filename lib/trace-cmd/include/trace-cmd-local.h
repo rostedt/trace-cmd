@@ -31,7 +31,26 @@ void tracecmd_info(const char *fmt, ...);
 #endif
 #endif
 
+struct data_file_write {
+	unsigned long long	file_size;
+	unsigned long long	write_size;
+	/* offset in the trace file, where write_size is stored */
+	unsigned long long	file_write_size;
+	unsigned long long	data_offset;
+	/* offset in the trace file, where data_offset is stored */
+	unsigned long long	file_data_offset;
+};
+
 bool check_file_state(unsigned long file_version, int current_state, int new_state);
 bool check_out_state(struct tracecmd_output *handle, int new_state);
+
+struct cpu_data_source {
+	int fd;
+	int size;
+	off64_t offset;
+};
+
+int out_write_cpu_data(struct tracecmd_output *handle, int cpus,
+		       struct cpu_data_source *data, const char *buff_name);
 
 #endif /* _TRACE_CMD_LOCAL_H */

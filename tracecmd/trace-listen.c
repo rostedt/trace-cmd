@@ -610,7 +610,7 @@ static int put_together_file(int cpus, int ofd, const char *node,
 		if (ret)
 			goto out;
 	}
-	ret = tracecmd_write_cpu_data(handle, cpus, temp_files);
+	ret = tracecmd_write_cpu_data(handle, cpus, temp_files, NULL);
 
 out:
 	tracecmd_output_close(handle);
