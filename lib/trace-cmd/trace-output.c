@@ -59,6 +59,7 @@ struct tracecmd_output {
 	unsigned long		file_state;
 	unsigned long		file_version;
 	size_t			options_start;
+	bool			big_endian;
 
 	struct list_head	options;
 	struct tracecmd_msg_handle *msg_handle;
@@ -882,6 +883,41 @@ out_free:
 	put_tracing_file(file);
 	return ret;
 }
+
+/**
+ * tracecmd_output_allocate - allocate new output handler to a trace file
+ * @handle: file descriptor to an empty file, it can be -1 if the handler
+ *	    will not write to a file
+ *
+ * This API only allocates a handler and performs minimal initialization.
+ * No data is written in the file.
+ *
+ * Returns pointer to a newly allocated file descriptor, that can be used
+ * with other library APIs. In case of an error, NULL is returned. The returned
+ * handler must be freed with tracecmd_output_close() or tracecmd_output_free()
+ */
+struct tracecmd_output *tracecmd_output_allocate(int fd)
+{
+	struct tracecmd_output *handle;
+
+	handle = calloc(1, sizeof(*handle));
+	if (!handle)
+		return NULL;
+
+	handle->fd = fd;
+
+	handle->file_version = FILE_VERSION;
+
+	handle->page_size = getpagesize();
+	handle->big_endian = tracecmd_host_bigendian();
+
+	list_head_init(&handle->options);
+
+	handle->file_state = TRACECMD_FILE_ALLOCATED;
+
+	return handle;
+}
+
 
 static int select_file_version(struct tracecmd_output *handle,
 				struct tracecmd_input *ihandle)
