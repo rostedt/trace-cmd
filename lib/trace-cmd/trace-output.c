@@ -54,6 +54,7 @@ struct tracecmd_output {
 	int			cpus;
 	struct tep_handle	*pevent;
 	char			*tracing_dir;
+	char			*kallsyms;
 	int			nr_options;
 	bool			quiet;
 	unsigned long		file_state;
@@ -767,8 +768,8 @@ static int read_proc_kallsyms(struct tracecmd_output *handle,
 		return -1;
 	}
 
-	if (kallsyms)
-		path = kallsyms;
+	if (handle->kallsyms)
+		path = handle->kallsyms;
 
 	ret = stat(path, &st);
 	if (ret < 0) {
@@ -964,6 +965,33 @@ int tracecmd_output_set_trace_dir(struct tracecmd_output *handler, const char *t
 			return -1;
 	} else
 		handler->tracing_dir = NULL;
+
+	return 0;
+}
+
+/**
+ * tracecmd_output_set_kallsyms - Set a custom kernel symbols file, instead of system default
+ * @handle: output handler to a trace file.
+ * @tracing_dir: full path to a file with kernel symbols
+ *
+ * This API associates an output file handler with a custom kernel symbols file, to be used when
+ * creating the trace file instead of the system default kernel symbols file.
+ * This API must be called before tracecmd_output_write_init().
+ *
+ * Returns 0 on success, or -1 if the output file handler is not allocated or not in expected state.
+ */
+int tracecmd_output_set_kallsyms(struct tracecmd_output *handler, const char *kallsyms)
+{
+	if (!handler || handler->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	free(handler->kallsyms);
+	if (kallsyms) {
+		handler->kallsyms = strdup(kallsyms);
+		if (!handler->kallsyms)
+			return -1;
+	} else
+		handler->kallsyms = NULL;
 
 	return 0;
 }
