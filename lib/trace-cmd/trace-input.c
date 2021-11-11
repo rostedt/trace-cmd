@@ -783,8 +783,10 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 
 	if (read4(handle, &size) < 0)
 		return -1;
-	if (!size)
+	if (!size) {
+		handle->file_state = TRACECMD_FILE_PRINTK;
 		return 0; /* OK? */
+	}
 
 	buf = malloc(size + 1);
 	if (!buf)
