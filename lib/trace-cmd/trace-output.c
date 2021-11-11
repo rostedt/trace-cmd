@@ -1029,6 +1029,60 @@ int tracecmd_output_set_from_input(struct tracecmd_output *handler, struct trace
 	return 0;
 }
 
+/**
+ * tracecmd_output_write_init - Write the initial magics in the trace file
+ * @handle: output handler to a trace file.
+ *
+ * This API must be called after all tracecmd_output_set_...() APIs and before writing anything
+ * to the trace file. This initial information is written in the file:
+ *  - initial file magic bytes
+ *  - file version
+ *  - data endian
+ *  - long size
+ *  - page size
+ *  - compression header
+ *
+ * Returns 0 on success, or -1 if the output file handler is not allocated or not in expected state.
+ */
+int tracecmd_output_write_init(struct tracecmd_output *handler)
+{
+	char buf[BUFSIZ];
+	int endian4;
+
+	if (!handler || handler->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	buf[0] = 23;
+	buf[1] = 8;
+	buf[2] = 68;
+	memcpy(buf + 3, "tracing", 7);
+
+	if (do_write_check(handler, buf, 10))
+		return -1;
+
+	sprintf(buf, "%lu", handler->file_version);
+	if (do_write_check(handler, buf, strlen(buf) + 1))
+		return -1;
+
+	if (handler->big_endian)
+		buf[0] = 1;
+	else
+		buf[0] = 0;
+	if (do_write_check(handler, buf, 1))
+		return -1;
+
+	/* save size of long (this may not be what the kernel is) */
+	buf[0] = sizeof(long);
+	if (do_write_check(handler, buf, 1))
+		return -1;
+
+	endian4 = convert_endian_4(handler, handler->page_size);
+	if (do_write_check(handler, &endian4, 4))
+		return -1;
+	handler->file_state = TRACECMD_FILE_INIT;
+	return 0;
+}
+
 static int select_file_version(struct tracecmd_output *handle,
 				struct tracecmd_input *ihandle)
 {
