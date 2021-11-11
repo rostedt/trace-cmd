@@ -31,11 +31,6 @@
 typedef unsigned long long	tsize_t;
 typedef long long		stsize_t;
 
-static struct tracecmd_event_list all_event_list = {
-	.next = NULL,
-	.glob = "all"
-};
-
 struct tracecmd_option {
 	unsigned short	id;
 	int		size;
@@ -1119,139 +1114,6 @@ int tracecmd_output_write_headers(struct tracecmd_output *handler,
 	return 0;
 }
 
-static int select_file_version(struct tracecmd_output *handle,
-				struct tracecmd_input *ihandle)
-{
-	if (ihandle)
-		handle->file_version = tracecmd_get_in_file_version(ihandle);
-	else
-		handle->file_version = FILE_VERSION;
-
-	return 0;
-}
-
-static struct tracecmd_output *
-create_file_fd(int fd, struct tracecmd_input *ihandle,
-	       const char *tracing_dir,
-	       const char *kallsyms,
-	       struct tracecmd_event_list *list,
-	       struct tracecmd_msg_handle *msg_handle)
-{
-	struct tracecmd_output *handle;
-	struct tep_handle *pevent;
-	char buf[BUFSIZ];
-	int endian4;
-
-	handle = malloc(sizeof(*handle));
-	if (!handle)
-		return NULL;
-	memset(handle, 0, sizeof(*handle));
-
-	list_head_init(&handle->options);
-
-	handle->fd = fd;
-	if (tracing_dir) {
-		handle->tracing_dir = strdup(tracing_dir);
-		if (!handle->tracing_dir)
-			goto out_free;
-	}
-
-	handle->msg_handle = msg_handle;
-
-	if (select_file_version(handle, ihandle))
-		goto out_free;
-
-	buf[0] = 23;
-	buf[1] = 8;
-	buf[2] = 68;
-	memcpy(buf + 3, "tracing", 7);
-
-	if (do_write_check(handle, buf, 10))
-		goto out_free;
-
-	sprintf(buf, "%lu", handle->file_version);
-	if (do_write_check(handle, buf, strlen(buf) + 1))
-		goto out_free;
-
-	/* get endian and page size */
-	if (ihandle) {
-		pevent = tracecmd_get_tep(ihandle);
-		/* Use the pevent of the ihandle for later writes */
-		handle->pevent = tracecmd_get_tep(ihandle);
-		tep_ref(pevent);
-		if (tep_is_file_bigendian(pevent))
-			buf[0] = 1;
-		else
-			buf[0] = 0;
-		handle->page_size = tracecmd_page_size(ihandle);
-	} else {
-		if (tracecmd_host_bigendian())
-			buf[0] = 1;
-		else
-			buf[0] = 0;
-		handle->page_size = getpagesize();
-	}
-
-	if (do_write_check(handle, buf, 1))
-		goto out_free;
-
-	/* save size of long (this may not be what the kernel is) */
-	buf[0] = sizeof(long);
-	if (do_write_check(handle, buf, 1))
-		goto out_free;
-
-	endian4 = convert_endian_4(handle, handle->page_size);
-	if (do_write_check(handle, &endian4, 4))
-		goto out_free;
-	handle->file_state = TRACECMD_FILE_INIT;
-
-	if (ihandle)
-		return handle;
-
-	if (read_header_files(handle))
-		goto out_free;
-
-	if (read_ftrace_files(handle))
-		goto out_free;
-
-	if (read_event_files(handle, list))
-		goto out_free;
-
-	if (read_proc_kallsyms(handle))
-		goto out_free;
-
-	if (read_ftrace_printk(handle))
-		goto out_free;
-
-	return handle;
-
- out_free:
-	tracecmd_output_close(handle);
-	return NULL;
-}
-
-static struct tracecmd_output *create_file(const char *output_file,
-					   struct tracecmd_input *ihandle,
-					   const char *tracing_dir,
-					   const char *kallsyms,
-					   struct tracecmd_event_list *list)
-{
-	struct tracecmd_output *handle;
-	int fd;
-
-	fd = open(output_file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (fd < 0)
-		return NULL;
-
-	handle = create_file_fd(fd, ihandle, tracing_dir, kallsyms, list, NULL);
-	if (!handle) {
-		close(fd);
-		unlink(output_file);
-	}
-
-	return handle;
-}
-
 /**
  * tracecmd_add_option_v - add options to the file
  * @handle: the output file handle name
@@ -1825,26 +1687,6 @@ error:
 	return NULL;
 }
 
-struct tracecmd_output *
-tracecmd_create_init_fd_msg(struct tracecmd_msg_handle *msg_handle,
-			    struct tracecmd_event_list *list)
-{
-	return create_file_fd(msg_handle->fd, NULL, NULL, NULL, list, msg_handle);
-}
-
-struct tracecmd_output *
-tracecmd_create_init_fd_glob(int fd, struct tracecmd_event_list *list)
-{
-	return create_file_fd(fd, NULL, NULL, NULL, list, NULL);
-}
-
-struct tracecmd_output *
-tracecmd_create_init_file_glob(const char *output_file,
-			       struct tracecmd_event_list *list)
-{
-	return create_file(output_file, NULL, NULL, NULL, list);
-}
-
 struct tracecmd_output *tracecmd_create_init_file(const char *output_file)
 {
 	struct tracecmd_output *handle;
@@ -1861,13 +1703,6 @@ struct tracecmd_output *tracecmd_create_init_file(const char *output_file)
 	}
 
 	return handle;
-}
-
-struct tracecmd_output *tracecmd_create_init_file_override(const char *output_file,
-							   const char *tracing_dir,
-							   const char *kallsyms)
-{
-	return create_file(output_file, NULL, tracing_dir, kallsyms, &all_event_list);
 }
 
 /**
