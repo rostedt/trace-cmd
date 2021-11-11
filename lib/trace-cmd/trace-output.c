@@ -684,7 +684,7 @@ static int read_event_files(struct tracecmd_output *handle,
 			break;
 	}
 	/* all events are listed, use a global glob */
-	if (list)
+	if (!event_list || list)
 		event_list = &all_events;
 
 	systems = create_event_list(handle, event_list);
@@ -754,8 +754,7 @@ err:
 		tracecmd_warning("can't set kptr_restrict");
 }
 
-static int read_proc_kallsyms(struct tracecmd_output *handle,
-			      const char *kallsyms)
+static int read_proc_kallsyms(struct tracecmd_output *handle)
 {
 	unsigned int size, check_size, endian4;
 	const char *path = "/proc/kallsyms";
@@ -1083,6 +1082,43 @@ int tracecmd_output_write_init(struct tracecmd_output *handler)
 	return 0;
 }
 
+/**
+ * tracecmd_output_write_headers - Write the trace file headers
+ * @handle: output handler to a trace file.
+ * @list: desired events that will be included in the trace file.
+ *	  It can be NULL for all available events
+ *
+ * These headers are written in the file:
+ *  - header files from the tracing directory
+ *  - ftrace events from the tracing directory
+ *  - event file from the tracing directory - all or only the one from @list
+ *  - kernel symbols from the tracing directory
+ *  - kernel printk strings from the tracing directory
+ *
+ * Returns 0 on success, or -1 in case of an error.
+ */
+int tracecmd_output_write_headers(struct tracecmd_output *handler,
+				  struct tracecmd_event_list *list)
+{
+	if (!handler || handler->file_state < TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	/* Write init data, if not written yet */
+	if (handler->file_state < TRACECMD_FILE_INIT && tracecmd_output_write_init(handler))
+		return -1;
+	if (read_header_files(handler))
+		return -1;
+	if (read_ftrace_files(handler))
+		return -1;
+	if (read_event_files(handler, list))
+		return -1;
+	if (read_proc_kallsyms(handler))
+		return -1;
+	if (read_ftrace_printk(handler))
+		return -1;
+	return 0;
+}
+
 static int select_file_version(struct tracecmd_output *handle,
 				struct tracecmd_input *ihandle)
 {
@@ -1181,7 +1217,7 @@ create_file_fd(int fd, struct tracecmd_input *ihandle,
 	if (read_event_files(handle, list))
 		goto out_free;
 
-	if (read_proc_kallsyms(handle, kallsyms))
+	if (read_proc_kallsyms(handle))
 		goto out_free;
 
 	if (read_ftrace_printk(handle))
