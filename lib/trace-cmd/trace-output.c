@@ -941,6 +941,33 @@ int tracecmd_output_set_msg(struct tracecmd_output *handler, struct tracecmd_msg
 	return 0;
 }
 
+/**
+ * tracecmd_output_set_trace_dir - Set a custom tracing dir, instead of system default
+ * @handle: output handler to a trace file.
+ * @tracing_dir: full path to a directory with tracing files
+ *
+ * This API associates an output file handler with a custom tracing directory, to be used when
+ * creating the trace file instead of the system default tracing directory.
+ * This API must be called before tracecmd_output_write_init().
+ *
+ * Returns 0 on success, or -1 if the output file handler is not allocated or not in expected state.
+ */
+int tracecmd_output_set_trace_dir(struct tracecmd_output *handler, const char *tracing_dir)
+{
+	if (!handler || handler->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	free(handler->tracing_dir);
+	if (tracing_dir) {
+		handler->tracing_dir = strdup(tracing_dir);
+		if (!handler->tracing_dir)
+			return -1;
+	} else
+		handler->tracing_dir = NULL;
+
+	return 0;
+}
+
 static int select_file_version(struct tracecmd_output *handle,
 				struct tracecmd_input *ihandle)
 {
