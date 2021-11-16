@@ -152,13 +152,13 @@ static void dump_initial_format(int fd)
 
 	/* check initial bytes */
 	if (read_file_bytes(fd, buf, sizeof(magic)))
-		die("cannot read %ld bytes magic", sizeof(magic));
+		die("cannot read %zu bytes magic", sizeof(magic));
 	if (memcmp(buf, magic, sizeof(magic)) != 0)
 		die("wrong file magic");
 
 	/* check initial tracing string */
 	if (read_file_bytes(fd, buf, strlen(TRACING_STR)))
-		die("cannot read %ld bytes tracing string", strlen(TRACING_STR));
+		die("cannot read %zu bytes tracing string", strlen(TRACING_STR));
 	buf[strlen(TRACING_STR)] = 0;
 	if (strncmp(buf, TRACING_STR, strlen(TRACING_STR)) != 0)
 		die("wrong tracing string: %s", buf);
@@ -201,7 +201,7 @@ static void dump_header_page(int fd)
 
 	/* check header string */
 	if (read_file_bytes(fd, buf, strlen(HEAD_PAGE_STR) + 1))
-		die("cannot read %ld bytes header string", strlen(HEAD_PAGE_STR));
+		die("cannot read %zu bytes header string", strlen(HEAD_PAGE_STR));
 	if (strncmp(buf, HEAD_PAGE_STR, strlen(HEAD_PAGE_STR)) != 0)
 		die("wrong header string: %s", buf);
 
@@ -222,7 +222,7 @@ static void dump_header_event(int fd)
 
 	/* check header string */
 	if (read_file_bytes(fd, buf, strlen(HEAD_PAGE_EVENT) + 1))
-		die("cannot read %ld bytes header string", strlen(HEAD_PAGE_EVENT));
+		die("cannot read %zu bytes header string", strlen(HEAD_PAGE_EVENT));
 	if (strncmp(buf, HEAD_PAGE_EVENT, strlen(HEAD_PAGE_EVENT)) != 0)
 		die("wrong header string: %s", buf);
 
