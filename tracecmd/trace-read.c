@@ -142,12 +142,15 @@ static struct trace_hash wakeup_hash;
 static void print_event_name(struct trace_seq *s, struct tep_event *event)
 {
 	static const char *spaces = "                    "; /* 20 spaces */
+	const char *name;
 	int len;
 
-	trace_seq_printf(s, " %s: ", event->name);
+	name = event ? event->name : "(NULL)";
+
+	trace_seq_printf(s, " %s: ", name);
 
 	/* Space out the event names evenly. */
-	len = strlen(event->name);
+	len = strlen(name);
 	if (len < 20)
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 }
