@@ -270,13 +270,13 @@ struct tracecmd_option;
 struct tracecmd_msg_handle;
 
 struct tracecmd_output *tracecmd_output_allocate(int fd);
-int tracecmd_output_set_msg(struct tracecmd_output *handler,
+int tracecmd_output_set_msg(struct tracecmd_output *handle,
 			    struct tracecmd_msg_handle *msg_handle);
-int tracecmd_output_set_trace_dir(struct tracecmd_output *handler, const char *tracing_dir);
-int tracecmd_output_set_kallsyms(struct tracecmd_output *handler, const char *kallsyms);
-int tracecmd_output_set_from_input(struct tracecmd_output *handler, struct tracecmd_input *ihandle);
-int tracecmd_output_write_init(struct tracecmd_output *handler);
-int tracecmd_output_write_headers(struct tracecmd_output *handler,
+int tracecmd_output_set_trace_dir(struct tracecmd_output *handle, const char *tracing_dir);
+int tracecmd_output_set_kallsyms(struct tracecmd_output *handle, const char *kallsyms);
+int tracecmd_output_set_from_input(struct tracecmd_output *handle, struct tracecmd_input *ihandle);
+int tracecmd_output_write_init(struct tracecmd_output *handle);
+int tracecmd_output_write_headers(struct tracecmd_output *handle,
 				  struct tracecmd_event_list *list);
 
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus);
