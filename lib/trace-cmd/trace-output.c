@@ -1442,17 +1442,11 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 {
 	struct tracecmd_output *handle;
 	char *path;
-	int fd;
 
-	fd = open(output_file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (fd < 0)
+	handle = tracecmd_output_create(output_file);
+	if (!handle)
 		return NULL;
 
-	handle = tracecmd_output_allocate(fd);
-	if (!handle)
-		goto out_free;
-	if (tracecmd_output_write_init(handle))
-		goto out_free;
 	if (tracecmd_output_write_headers(handle, NULL))
 		goto out_free;
 	/*
@@ -1806,6 +1800,34 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 	return NULL;
 }
 
+/**
+ * tracecmd_output_create - Create new output handle to a trace file with given name
+ * @output_file: Name of the trace file that will be created.
+ *
+ * The @output_file parameter can be NULL. In this case the output handle is created
+ * and initialized, but is not associated with a file.
+ *
+ * Returns pointer to created outpuy handle, or NULL in case of an error.
+ */
+struct tracecmd_output *tracecmd_output_create(const char *output_file)
+{
+	struct tracecmd_output *out;
+	int fd = -1;
+
+	if (output_file) {
+		fd = open(output_file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+		if (fd < 0)
+			return NULL;
+	}
+	out = tracecmd_output_allocate(fd);
+	if (!out && fd >= 0) {
+		close(fd);
+		unlink(output_file);
+	}
+
+	return out;
+}
+
 struct tracecmd_output *tracecmd_create_init_fd(int fd)
 {
 	struct tracecmd_output *out;
@@ -1855,15 +1877,11 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 				      const char *file)
 {
 	struct tracecmd_output *handle;
-	int fd;
 
-	fd = open(file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (fd < 0)
+	handle = tracecmd_output_create(file);
+	if (!handle)
 		return NULL;
 
-	handle = tracecmd_output_allocate(fd);
-	if (!handle)
-		goto out_free;
 	if (tracecmd_output_set_from_input(handle, ihandle))
 		goto out_free;
 	tracecmd_output_write_init(handle);

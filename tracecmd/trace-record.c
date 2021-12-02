@@ -3694,7 +3694,7 @@ static struct tracecmd_output *create_net_output(struct common_record_context *c
 {
 	struct tracecmd_output *out;
 
-	out = tracecmd_output_allocate(-1);
+	out = tracecmd_output_create(NULL);
 	if (!out)
 		return NULL;
 	if (tracecmd_output_set_msg(out, msg_handle))
@@ -4458,23 +4458,21 @@ static void write_guest_file(struct buffer_instance *instance)
 static struct tracecmd_output *create_output(struct common_record_context *ctx)
 {
 	struct tracecmd_output *out;
-	int fd;
 
-	fd = open(ctx->output, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (fd < 0)
+	if (!ctx->output)
 		return NULL;
 
-	out = tracecmd_output_allocate(fd);
+	out = tracecmd_output_create(ctx->output);
 	if (!out)
 		goto error;
+
 	if (tracecmd_output_write_headers(out, listed_events))
 		goto error;
+
 	return out;
 error:
 	if (out)
 		tracecmd_output_close(out);
-	else
-		close(fd);
 	unlink(ctx->output);
 	return NULL;
 }

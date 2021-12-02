@@ -26,15 +26,11 @@ static struct tracecmd_output *create_output(const char *file,
 					     const char *tracing_dir, const char *kallsyms)
 {
 	struct tracecmd_output *out;
-	int fd;
 
-	fd = open(file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (fd < 0)
-		return NULL;
-
-	out = tracecmd_output_allocate(fd);
+	out = tracecmd_output_create(file);
 	if (!out)
 		goto error;
+
 	if (tracing_dir && tracecmd_output_set_trace_dir(out, tracing_dir))
 		goto error;
 	if (kallsyms && tracecmd_output_set_kallsyms(out, kallsyms))
@@ -45,8 +41,6 @@ static struct tracecmd_output *create_output(const char *file,
 error:
 	if (out)
 		tracecmd_output_close(out);
-	else
-		close(fd);
 	unlink(file);
 	return NULL;
 }
@@ -155,8 +149,10 @@ void trace_restore (int argc, char **argv)
 
 		handle = tracecmd_copy(ihandle, output);
 		tracecmd_close(ihandle);
-	} else
-		handle = tracecmd_create_init_file(output);
+	} else {
+		handle = tracecmd_output_create(output);
+		tracecmd_output_write_headers(handle, NULL);
+	}
 
 	if (!handle)
 		die("error writing to %s", output);
