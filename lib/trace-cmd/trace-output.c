@@ -941,7 +941,7 @@ struct tracecmd_output *tracecmd_output_allocate(int fd)
  * All subsequent calls to @handle will send data over the network using @msg_handle
  * instead of writing to a file.
  *
- * This mut be called after the handle file version is set and before calling
+ * This must be called after the handle file version is set and before calling
  * tracecmd_output_write_init().
  *
  * Returns 0 on success, or -1 if the output file handle is not allocated or not
