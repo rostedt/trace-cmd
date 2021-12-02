@@ -898,7 +898,7 @@ out_free:
 }
 
 /**
- * tracecmd_output_allocate - allocate new output handle to a trace file
+ * tracecmd_output_create_fd - allocate new output handle to a trace file
  * @fd: File descriptor for the handle to write to.
  *
  * Allocate a tracecmd_output descriptor and perform minimal initialization.
@@ -909,7 +909,7 @@ out_free:
  * a tracecmd data file. In case of an error, NULL is returned. The returned
  * handle must be freed with tracecmd_output_close() or tracecmd_output_free()
  */
-struct tracecmd_output *tracecmd_output_allocate(int fd)
+struct tracecmd_output *tracecmd_output_create_fd(int fd)
 {
 	struct tracecmd_output *handle;
 
@@ -1819,7 +1819,7 @@ struct tracecmd_output *tracecmd_output_create(const char *output_file)
 		if (fd < 0)
 			return NULL;
 	}
-	out = tracecmd_output_allocate(fd);
+	out = tracecmd_output_create_fd(fd);
 	if (!out && fd >= 0) {
 		close(fd);
 		unlink(output_file);
@@ -1832,7 +1832,7 @@ struct tracecmd_output *tracecmd_create_init_fd(int fd)
 {
 	struct tracecmd_output *out;
 
-	out = tracecmd_output_allocate(fd);
+	out = tracecmd_output_create_fd(fd);
 	if (!out)
 		return NULL;
 	if (tracecmd_output_write_init(out))

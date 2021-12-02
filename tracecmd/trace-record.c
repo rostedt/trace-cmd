@@ -3737,7 +3737,7 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 		if (ret)
 			goto error;
 	} else {
-		network_handle = tracecmd_output_allocate(msg_handle->fd);
+		network_handle = tracecmd_output_create_fd(msg_handle->fd);
 		if (!network_handle)
 			goto error;
 		if (tracecmd_output_write_headers(network_handle, listed_events))
