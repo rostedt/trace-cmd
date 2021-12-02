@@ -942,7 +942,7 @@ struct tracecmd_output *tracecmd_output_create_fd(int fd)
  * instead of writing to a file.
  *
  * This must be called after the handle file version is set and before calling
- * tracecmd_output_write_init().
+ * tracecmd_output_write_headers().
  *
  * Returns 0 on success, or -1 if the output file handle is not allocated or not
  * in the expected state.
@@ -966,7 +966,7 @@ int tracecmd_output_set_msg(struct tracecmd_output *handle, struct tracecmd_msg_
  * (@tracing_dir), to be used when creating the trace file instead of using the
  * system default tracig directory.
  *
- * Must be called before tracecmd_output_write_init().
+ * Must be called before tracecmd_output_write_headers().
  *
  * Returns 0 on success, or -1 if the output file handle is not allocated or not
  * in the expected state.
@@ -995,7 +995,7 @@ int tracecmd_output_set_trace_dir(struct tracecmd_output *handle, const char *tr
  * Have the output file handle (@handle) use a custom kernel symbols file instead
  * of the default /proc/kallsyms.
  *
- * Must be called before tracecmd_output_write_init().
+ * Must be called before tracecmd_output_write_headers().
  *
  * Returns 0 on success, or -1 if the output file handle is not allocated or
  * not in the expected state.
@@ -1031,7 +1031,7 @@ int tracecmd_output_set_kallsyms(struct tracecmd_output *handle, const char *kal
  *  - file version
  *  - file compression protocol
  *
- * Must be called before tracecmd_output_write_init().
+ * Must be called before tracecmd_output_write_headers().
  *
  * Returns 0 on success, or -1 if the output file handle is not allocated or
  * not in expected state.
@@ -1053,7 +1053,7 @@ int tracecmd_output_set_from_input(struct tracecmd_output *handle, struct tracec
 }
 
 /**
- * tracecmd_output_write_init - Write the initial data into the trace file
+ * output_write_init - Write the initial data into the trace file
  * @handle: output handle to a trace file.
  *
  * Must be called after tracecmd_output_set_*() functions and before writing
@@ -1070,7 +1070,7 @@ int tracecmd_output_set_from_input(struct tracecmd_output *handle, struct tracec
  * Returns 0 on success, or -1 if the output file handle is not allocated or
  * not in the expected state.
  */
-int tracecmd_output_write_init(struct tracecmd_output *handle)
+static int output_write_init(struct tracecmd_output *handle)
 {
 	char buf[BUFSIZ];
 	int endian4;
@@ -1131,7 +1131,7 @@ int tracecmd_output_write_headers(struct tracecmd_output *handle,
 		return -1;
 
 	/* Write init data, if not written yet */
-	if (handle->file_state < TRACECMD_FILE_INIT && tracecmd_output_write_init(handle))
+	if (handle->file_state < TRACECMD_FILE_INIT && output_write_init(handle))
 		return -1;
 	if (read_header_files(handle))
 		return -1;
@@ -1848,7 +1848,7 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle,
 
 	if (tracecmd_output_set_from_input(handle, ihandle))
 		goto out_free;
-	tracecmd_output_write_init(handle);
+	output_write_init(handle);
 
 	if (tracecmd_copy_headers(ihandle, handle->fd, 0, 0) < 0)
 		goto out_free;
