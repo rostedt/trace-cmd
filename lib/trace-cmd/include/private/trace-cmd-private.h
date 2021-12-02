@@ -281,9 +281,7 @@ int tracecmd_output_write_headers(struct tracecmd_output *handle,
 struct tracecmd_output *tracecmd_output_create(const char *output_file);
 struct tracecmd_output *tracecmd_output_create_fd(int fd);
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus);
-struct tracecmd_output *tracecmd_create_init_fd(int fd);
 
-struct tracecmd_output *tracecmd_create_init_file(const char *output_file);
 struct tracecmd_option *tracecmd_add_option(struct tracecmd_output *handle,
 					    unsigned short id, int size,
 					    const void *data);

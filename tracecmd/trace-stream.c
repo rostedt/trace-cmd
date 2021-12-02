@@ -43,11 +43,12 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 		tfd = fileno(fp);
 
 		ofd = dup(tfd);
-		trace_output = tracecmd_create_init_fd(ofd);
+		trace_output = tracecmd_output_create_fd(ofd);
 		if (!trace_output) {
 			fclose(fp);
 			return NULL;
 		}
+		tracecmd_output_write_headers(trace_output, NULL);
 		tracecmd_output_free(trace_output);
 	}
 

@@ -1828,42 +1828,6 @@ struct tracecmd_output *tracecmd_output_create(const char *output_file)
 	return out;
 }
 
-struct tracecmd_output *tracecmd_create_init_fd(int fd)
-{
-	struct tracecmd_output *out;
-
-	out = tracecmd_output_create_fd(fd);
-	if (!out)
-		return NULL;
-	if (tracecmd_output_write_init(out))
-		goto error;
-	if (tracecmd_output_write_headers(out, NULL))
-		goto error;
-
-	return out;
-error:
-	tracecmd_output_close(out);
-	return NULL;
-}
-
-struct tracecmd_output *tracecmd_create_init_file(const char *output_file)
-{
-	struct tracecmd_output *handle;
-	int fd;
-
-	fd = open(output_file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (fd < 0)
-		return NULL;
-	handle = tracecmd_create_init_fd(fd);
-	if (!handle) {
-		close(fd);
-		unlink(output_file);
-		return NULL;
-	}
-
-	return handle;
-}
-
 /**
  * tracecmd_copy - copy the headers of one trace.dat file for another
  * @ihandle: input handle of the trace.dat file to copy
