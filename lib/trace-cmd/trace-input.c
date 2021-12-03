@@ -4116,6 +4116,69 @@ const char *tracecmd_get_trace_clock(struct tracecmd_input *handle)
 }
 
 /**
+ * tracecmd_get_cpustats - return the saved cpu stats
+ * @handle: input handle for the trace.dat file
+ *
+ * Provides a method to extract the cpu stats saved in @handle.
+ *
+ * Returns a string of the cpu stats that was saved in the trace.dat file.
+ * The string should not be freed, as it points to the internal
+ * structure data.
+ */
+const char *tracecmd_get_cpustats(struct tracecmd_input *handle)
+{
+	return handle->cpustats;
+}
+
+/**
+ * tracecmd_get_uname - return the saved name and kernel information
+ * @handle: input handle for the trace.dat file
+ *
+ * Provides a method to extract the system information saved in @handle.
+ *
+ * Returns a string of the system information that was saved in the
+ * trace.dat file.
+ * The string should not be freed, as it points to the internal
+ * structure data.
+ */
+const char *tracecmd_get_uname(struct tracecmd_input *handle)
+{
+	return handle->uname;
+}
+
+/**
+ * tracecmd_get_version - return the saved version information
+ * @handle: input handle for the trace.dat file
+ *
+ * Provides a method to extract the version string saved in @handle.
+ *
+ * Returns a string of the version that was saved in the trace.dat file.
+ * The string should not be freed, as it points to the internal
+ * structure data.
+ */
+const char *tracecmd_get_version(struct tracecmd_input *handle)
+{
+	return handle->version;
+}
+
+/**
+ * tracecmd_get_cpu_file_size - return the saved cpu file size
+ * @handle: input handle for the trace.dat file
+ * @cpu: cpu index
+ *
+ * Provides a method to extract the cpu file size saved in @handle.
+ *
+ * Returns the cpu file size saved in trace.dat file or (off64_t)-1 for
+ * invalid cpu index.
+ */
+off64_t tracecmd_get_cpu_file_size(struct tracecmd_input *handle, int cpu)
+{
+	if (cpu < 0 || cpu >= handle->cpus)
+		return (off64_t)-1;
+	return handle->cpu_data[cpu].file_size;
+}
+
+/**
  * tracecmd_get_show_data_func - return the show data func
  * @handle: input handle for the trace.dat file
  */
