@@ -415,7 +415,7 @@ static int kvm_clock_host(struct tracecmd_time_sync *tsync,
 			kvm_scaling = 1;
 	}
 
-	if (kvm->vcpu_frac && kvm->vcpu_frac[cpu])
+	if (kvm->vcpu_frac && kvm->vcpu_frac[cpu] && kvm_scaling != 1)
 		ret = read_ll_from_file(kvm->vcpu_frac[cpu], &kvm_frac);
 	msg = (char *)&packet;
 	size = sizeof(packet);
