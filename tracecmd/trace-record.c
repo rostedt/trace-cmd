@@ -5258,40 +5258,17 @@ static void clear_error_log(void)
 		clear_instance_error_log(instance);
 }
 
-static void clear_all_synth_events(void)
+static void clear_all_dynamic_events(void)
 {
-	char sevent[BUFSIZ];
-	char *save = NULL;
-	char *line;
-	char *file;
-	char *buf;
-	int len;
-
-	file = tracefs_instance_get_file(NULL, "synthetic_events");
-	if (!file)
-		return;
-
-	buf = read_file(file);
-	if (!buf)
-		goto out;
-
-	sevent[0] = '!';
-
-	for (line = strtok_r(buf, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
-		len = strlen(line);
-		if (len > BUFSIZ - 2)
-			len = BUFSIZ - 2;
-		strncpy(sevent + 1, line, len);
-		sevent[len + 1] = '\0';
-		write_file(file, sevent);
-	}
-out:
-	free(buf);
-	tracefs_put_tracing_file(file);
-
+	/* Clear event probes first, as they may be attached to other dynamic event */
+	tracefs_dynevent_destroy_all(TRACEFS_DYNEVENT_EPROBE, true);
+	tracefs_dynevent_destroy_all(TRACEFS_DYNEVENT_KPROBE |
+				     TRACEFS_DYNEVENT_KRETPROBE |
+				     TRACEFS_DYNEVENT_UPROBE |
+				     TRACEFS_DYNEVENT_URETPROBE |
+				     TRACEFS_DYNEVENT_SYNTH,
+				     true);
 }
-
-
 
 static void clear_func_filters(void)
 {
@@ -5990,7 +5967,7 @@ void trace_reset(int argc, char **argv)
 	set_buffer_size();
 	clear_filters();
 	clear_triggers();
-	clear_all_synth_events();
+	clear_all_dynamic_events();
 	clear_error_log();
 	/* set clock to "local" */
 	reset_clock();
