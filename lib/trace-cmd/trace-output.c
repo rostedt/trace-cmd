@@ -365,6 +365,82 @@ int tracecmd_ftrace_enable(int set)
 	return ret;
 }
 
+__hidden unsigned long long
+out_write_section_header(struct tracecmd_output *handle, unsigned short header_id,
+			 char *description, int flags, bool option)
+{
+	tsize_t endian8;
+	tsize_t offset;
+	long long size;
+	short endian2;
+	int endian4;
+	int desc;
+
+	if (header_id >= TRACECMD_OPTION_MAX)
+		return -1;
+	if (!HAS_SECTIONS(handle))
+		return 0;
+	offset = do_lseek(handle, 0, SEEK_CUR);
+	if (option) {
+		endian8 = convert_endian_8(handle, offset);
+		if (!tracecmd_add_option(handle, header_id, 8, &endian8))
+			return -1;
+	}
+	/* Section ID */
+	endian2 = convert_endian_2(handle, header_id);
+	if (do_write_check(handle, &endian2, 2))
+		return (off64_t)-1;
+
+	/* Section flags */
+	endian2 = convert_endian_2(handle, flags);
+	if (do_write_check(handle, &endian2, 2))
+		return (off64_t)-1;
+
+	/* Section description */
+	if (description)
+		desc = add_string(handle, description);
+	else
+		desc = -1;
+	endian4 = convert_endian_4(handle, desc);
+	if (do_write_check(handle, &endian4, 4))
+		return (off64_t)-1;
+
+	offset = do_lseek(handle, 0, SEEK_CUR);
+	size = 0;
+	/* Reserve for section size */
+	if (do_write_check(handle, &size, 8))
+		return (off64_t)-1;
+	return offset;
+}
+
+__hidden int out_update_section_header(struct tracecmd_output *handle, tsize_t offset)
+{
+	tsize_t current;
+	tsize_t endian8;
+	tsize_t size;
+
+	if (!HAS_SECTIONS(handle) || offset == 0)
+		return 0;
+
+	current = do_lseek(handle, 0, SEEK_CUR);
+	/* The real size is the difference between the saved offset and
+	 * the current offset - 8 bytes, the reserved space for the section size.
+	 */
+	size = current - offset;
+	if (size < 8)
+		return -1;
+	size -= 8;
+	if (do_lseek(handle, offset, SEEK_SET) == (off64_t)-1)
+		return -1;
+
+	endian8 = convert_endian_8(handle, size);
+	if (do_write_check(handle, &endian8, 8))
+		return -1;
+	if (do_lseek(handle, current, SEEK_SET) == (off64_t)-1)
+		return -1;
+	return 0;
+}
+
 static int save_string_section(struct tracecmd_output *handle)
 {
 	if (!handle->strings || !handle->strings_p)
@@ -389,7 +465,6 @@ static int save_string_section(struct tracecmd_output *handle)
 error:
 	return -1;
 }
-
 
 static int read_header_files(struct tracecmd_output *handle)
 {
