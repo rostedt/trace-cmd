@@ -1998,10 +1998,12 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 				int cpus, struct cpu_data_source *data, const char *buff_name)
 {
 	struct data_file_write *data_files = NULL;
+	enum tracecmd_section_flags flags = 0;
 	tsize_t data_offs, offset;
 	unsigned long long endian8;
 	unsigned long long read_size;
 	char *clock;
+	char *str;
 	int ret;
 	int i;
 
@@ -2018,6 +2020,13 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 
 	data_offs = do_lseek(handle, 0, SEEK_CUR);
 	if (!HAS_SECTIONS(handle) && do_write_check(handle, "flyrecord", 10))
+		goto out_free;
+
+	if (asprintf(&str, "buffer flyrecord %s", buff_name) < 1)
+		goto out_free;
+	offset = out_write_section_header(handle, TRACECMD_OPTION_BUFFER, str, flags, false);
+	free(str);
+	if (offset == (off_t)-1)
 		goto out_free;
 
 	data_files = calloc(cpus, sizeof(*data_files));
@@ -2107,6 +2116,9 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 	free(data_files);
 	if (do_lseek(handle, 0, SEEK_END) == (off64_t)-1)
 		return -1;
+
+	if (out_update_section_header(handle, offset))
+		goto out_free;
 
 	handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
 
