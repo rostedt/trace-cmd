@@ -62,6 +62,12 @@ struct tracecmd_output {
 	bool			quiet;
 	unsigned long		file_state;
 	unsigned long		file_version;
+
+	/* size of meta-data strings, not yet stored in the file */
+	unsigned long		strings_p;
+	/* current virtual offset of meta-data string */
+	unsigned long		strings_offs;
+
 	size_t			options_start;
 	bool			big_endian;
 
@@ -69,6 +75,9 @@ struct tracecmd_output {
 	struct list_head	buffers;
 	struct tracecmd_msg_handle *msg_handle;
 	char			*trace_clock;
+
+	/* meta-data strings, not yet stored in the file */
+	char			*strings;
 };
 
 struct list_event {
@@ -84,6 +93,8 @@ struct list_event_system {
 };
 
 #define HAS_SECTIONS(H) ((H)->file_version >= FILE_VERSION_SECTIONS)
+
+static int save_string_section(struct tracecmd_output *handle);
 
 static stsize_t
 do_write_check(struct tracecmd_output *handle, const void *data, tsize_t size)
@@ -125,6 +136,22 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 		return val;
 
 	return tep_read_number(handle->pevent, &val, 8);
+}
+
+static long add_string(struct tracecmd_output *handle, const char *string)
+{
+	int size = strlen(string) + 1;
+	int pos = handle->strings_p;
+	char *strings;
+
+	strings = realloc(handle->strings, pos + size);
+	if (!strings)
+		return -1;
+	handle->strings = strings;
+	memcpy(handle->strings + pos, string, size);
+	handle->strings_p += size;
+
+	return handle->strings_offs + pos;
 }
 
 /**
@@ -185,6 +212,7 @@ void tracecmd_output_free(struct tracecmd_output *handle)
 		free(option);
 	}
 
+	free(handle->strings);
 	free(handle->trace_clock);
 	free(handle);
 }
@@ -193,6 +221,11 @@ void tracecmd_output_close(struct tracecmd_output *handle)
 {
 	if (!handle)
 		return;
+
+	if (HAS_SECTIONS(handle)) {
+		/* write strings section */
+		save_string_section(handle);
+	}
 
 	if (handle->fd >= 0) {
 		close(handle->fd);
@@ -331,6 +364,32 @@ int tracecmd_ftrace_enable(int set)
 
 	return ret;
 }
+
+static int save_string_section(struct tracecmd_output *handle)
+{
+	if (!handle->strings || !handle->strings_p)
+		return 0;
+
+	if (!check_out_state(handle, TRACECMD_OPTION_STRINGS)) {
+		tracecmd_warning("Cannot write strings, unexpected state 0x%X",
+				 handle->file_state);
+		return -1;
+	}
+
+	if (do_write_check(handle, handle->strings, handle->strings_p))
+		goto error;
+
+	handle->strings_offs += handle->strings_p;
+	free(handle->strings);
+	handle->strings = NULL;
+	handle->strings_p = 0;
+	handle->file_state = TRACECMD_OPTION_STRINGS;
+	return 0;
+
+error:
+	return -1;
+}
+
 
 static int read_header_files(struct tracecmd_output *handle)
 {
@@ -1327,6 +1386,15 @@ int tracecmd_write_options(struct tracecmd_output *handle)
 
 	return 0;
 }
+
+int tracecmd_write_meta_strings(struct tracecmd_output *handle)
+{
+	if (!HAS_SECTIONS(handle))
+		return 0;
+
+	return save_string_section(handle);
+}
+
 
 int tracecmd_append_options(struct tracecmd_output *handle)
 {

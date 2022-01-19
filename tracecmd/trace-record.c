@@ -4093,6 +4093,7 @@ static void setup_agent(struct buffer_instance *instance,
 	tracecmd_write_cmdlines(network_handle);
 	tracecmd_write_cpus(network_handle, instance->cpu_count);
 	tracecmd_write_options(network_handle);
+	tracecmd_write_meta_strings(network_handle);
 	tracecmd_msg_finish_sending_data(instance->msg_handle);
 	instance->network_handle = network_handle;
 }
