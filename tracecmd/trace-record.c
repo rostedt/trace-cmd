@@ -3731,6 +3731,9 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 		ret = tracecmd_write_cpus(network_handle, instance->cpu_count);
 		if (ret)
 			goto error;
+		ret = tracecmd_write_buffer_info(network_handle);
+		if (ret)
+			goto error;
 		ret = tracecmd_write_options(network_handle);
 		if (ret)
 			goto error;
@@ -4092,6 +4095,7 @@ static void setup_agent(struct buffer_instance *instance,
 	add_options(network_handle, ctx);
 	tracecmd_write_cmdlines(network_handle);
 	tracecmd_write_cpus(network_handle, instance->cpu_count);
+	tracecmd_write_buffer_info(network_handle);
 	tracecmd_write_options(network_handle);
 	tracecmd_write_meta_strings(network_handle);
 	tracecmd_msg_finish_sending_data(instance->msg_handle);

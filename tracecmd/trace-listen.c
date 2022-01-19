@@ -606,6 +606,9 @@ static int put_together_file(int cpus, int ofd, const char *node,
 		ret = tracecmd_write_cpus(handle, cpus);
 		if (ret)
 			goto out;
+		ret = tracecmd_write_buffer_info(handle);
+		if (ret)
+			goto out;
 		ret = tracecmd_write_options(handle);
 		if (ret)
 			goto out;
