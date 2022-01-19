@@ -3698,6 +3698,8 @@ static struct tracecmd_output *create_net_output(struct common_record_context *c
 	out = tracecmd_output_create(NULL);
 	if (!out)
 		return NULL;
+	if (ctx->file_version && tracecmd_output_set_version(out, ctx->file_version))
+		goto error;
 	if (tracecmd_output_set_msg(out, msg_handle))
 		goto error;
 	if (tracecmd_output_write_headers(out, listed_events))
@@ -3743,6 +3745,8 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 	} else {
 		network_handle = tracecmd_output_create_fd(msg_handle->fd);
 		if (!network_handle)
+			goto error;
+		if (tracecmd_output_set_version(network_handle, ctx->file_version))
 			goto error;
 		if (tracecmd_output_write_headers(network_handle, listed_events))
 			goto error;
@@ -4471,7 +4475,8 @@ static struct tracecmd_output *create_output(struct common_record_context *ctx)
 	out = tracecmd_output_create(ctx->output);
 	if (!out)
 		goto error;
-
+	if (ctx->file_version && tracecmd_output_set_version(out, ctx->file_version))
+		goto error;
 	if (tracecmd_output_write_headers(out, listed_events))
 		goto error;
 
@@ -5780,6 +5785,7 @@ void init_top_instance(void)
 }
 
 enum {
+	OPT_file_ver		= 238,
 	OPT_verbose		= 239,
 	OPT_tsc2nsec		= 240,
 	OPT_fork		= 241,
@@ -6219,6 +6225,7 @@ static void parse_record_options(int argc,
 			{"tsc2nsec", no_argument, NULL, OPT_tsc2nsec},
 			{"poll", no_argument, NULL, OPT_poll},
 			{"verbose", optional_argument, NULL, OPT_verbose},
+			{"file-version", required_argument, NULL, OPT_file_ver},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -6643,6 +6650,17 @@ static void parse_record_options(int argc,
 		case OPT_poll:
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--poll");
 			recorder_flags |= TRACECMD_RECORD_POLL;
+			break;
+		case OPT_file_ver:
+			if (ctx->curr_cmd != CMD_record && ctx->curr_cmd != CMD_record_agent)
+				die("--file_version has no effect with the command %s\n",
+				    *(argv+1));
+			ctx->file_version = atoi(optarg);
+			if (ctx->file_version < FILE_VERSION_MIN ||
+			    ctx->file_version > FILE_VERSION_MAX)
+				die("Unsupported file version %d, "
+				    "supported versions are from %d to %d",
+				    ctx->file_version, FILE_VERSION_MIN, FILE_VERSION_MAX);
 			break;
 		case OPT_quiet:
 		case 'q':
