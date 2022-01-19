@@ -3214,14 +3214,114 @@ static int read_options_type(struct tracecmd_input *handle)
 	return 0;
 }
 
-static int read_cpu_data(struct tracecmd_input *handle)
+static int init_cpu_data(struct tracecmd_input *handle)
 {
-	struct tep_handle *pevent = handle->pevent;
 	enum kbuffer_long_size long_size;
 	enum kbuffer_endian endian;
-	unsigned long long size;
 	unsigned long long max_size = 0;
 	unsigned long long pages;
+	int cpu;
+
+	/* We expect this to be flyrecord */
+	if (handle->file_state != TRACECMD_FILE_CPU_FLYRECORD)
+		return -1;
+
+	if (force_read)
+		handle->read_page = true;
+
+	if (handle->long_size == 8)
+		long_size = KBUFFER_LSIZE_8;
+	else
+		long_size = KBUFFER_LSIZE_4;
+
+	if (tep_is_file_bigendian(handle->pevent))
+		endian = KBUFFER_ENDIAN_BIG;
+	else
+		endian = KBUFFER_ENDIAN_LITTLE;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		handle->cpu_data[cpu].kbuf = kbuffer_alloc(long_size, endian);
+		if (!handle->cpu_data[cpu].kbuf)
+			goto out_free;
+		if (tep_is_old_format(handle->pevent))
+			kbuffer_set_old_format(handle->cpu_data[cpu].kbuf);
+
+		if (handle->cpu_data[cpu].file_size > max_size)
+			max_size = handle->cpu_data[cpu].file_size;
+	}
+
+	/* Calculate about a meg of pages for buffering */
+	pages = handle->page_size ? max_size / handle->page_size : 0;
+	if (!pages)
+		pages = 1;
+	pages = normalize_size(pages);
+	handle->page_map_size = handle->page_size * pages;
+	if (handle->page_map_size < handle->page_size)
+		handle->page_map_size = handle->page_size;
+
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		if (init_cpu(handle, cpu))
+			goto out_free;
+	}
+
+	return 0;
+
+ out_free:
+	for ( ; cpu >= 0; cpu--) {
+		free_page(handle, cpu);
+		kbuffer_free(handle->cpu_data[cpu].kbuf);
+		handle->cpu_data[cpu].kbuf = NULL;
+	}
+	return -1;
+}
+
+static int init_buffer_cpu_data(struct tracecmd_input *handle, struct input_buffer_instance *buffer)
+{
+	unsigned long long offset;
+	unsigned long long size;
+	unsigned short id, flags;
+	int cpu;
+
+	if (handle->cpu_data)
+		return -1;
+
+	if (lseek64(handle->fd, buffer->offset, SEEK_SET) == (off_t)-1)
+		return -1;
+	if (read_section_header(handle, &id, &flags, NULL, NULL))
+		return -1;
+
+	handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
+	handle->cpus = buffer->cpus;
+	if (handle->max_cpu < handle->cpus)
+		handle->max_cpu = handle->cpus;
+
+	handle->cpu_data = calloc(handle->cpus, sizeof(*handle->cpu_data));
+	if (!handle->cpu_data)
+		return -1;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		handle->cpu_data[cpu].cpu = buffer->cpu_data[cpu].cpu;
+		offset = buffer->cpu_data[cpu].offset;
+		size = buffer->cpu_data[cpu].size;
+		handle->cpu_data[cpu].file_offset = offset;
+		handle->cpu_data[cpu].file_size = size;
+		if (size && (offset + size > handle->total_file_size)) {
+			/* this happens if the file got truncated */
+			printf("File possibly truncated. "
+				"Need at least %llu, but file size is %zu.\n",
+				offset + size, handle->total_file_size);
+			errno = EINVAL;
+			return -1;
+		}
+	}
+
+	return init_cpu_data(handle);
+}
+
+static int read_cpu_data(struct tracecmd_input *handle)
+{
+	unsigned long long size;
 	int cpus;
 	int cpu;
 
@@ -3242,61 +3342,22 @@ static int read_cpu_data(struct tracecmd_input *handle)
 		return -1;
 	memset(handle->cpu_data, 0, sizeof(*handle->cpu_data) * handle->cpus);
 
-	if (force_read)
-		handle->read_page = true;
-
-	if (handle->long_size == 8)
-		long_size = KBUFFER_LSIZE_8;
-	else
-		long_size = KBUFFER_LSIZE_4;
-
-	if (tep_is_file_bigendian(handle->pevent))
-		endian = KBUFFER_ENDIAN_BIG;
-	else
-		endian = KBUFFER_ENDIAN_LITTLE;
-
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		unsigned long long offset;
 
 		handle->cpu_data[cpu].cpu = cpu;
-
-		handle->cpu_data[cpu].kbuf = kbuffer_alloc(long_size, endian);
-		if (!handle->cpu_data[cpu].kbuf)
-			goto out_free;
-		if (tep_is_old_format(pevent))
-			kbuffer_set_old_format(handle->cpu_data[cpu].kbuf);
-
 		read8(handle, &offset);
 		read8(handle, &size);
-
 		handle->cpu_data[cpu].file_offset = offset;
 		handle->cpu_data[cpu].file_size = size;
-		if (size > max_size)
-			max_size = size;
-
 		if (size && (offset + size > handle->total_file_size)) {
 			/* this happens if the file got truncated */
 			printf("File possibly truncated. "
 				"Need at least %llu, but file size is %zu.\n",
 				offset + size, handle->total_file_size);
 			errno = EINVAL;
-			goto out_free;
+			return -1;
 		}
-	}
-
-	/* Calculate about a meg of pages for buffering */
-	pages = handle->page_size ? max_size / handle->page_size : 0;
-	if (!pages)
-		pages = 1;
-	pages = normalize_size(pages);
-	handle->page_map_size = handle->page_size * pages;
-	if (handle->page_map_size < handle->page_size)
-		handle->page_map_size = handle->page_size;
-
-
-	for (cpu = 0; cpu < handle->cpus; cpu++) {
-		if (init_cpu(handle, cpu))
-			goto out_free;
 	}
 
 	/*
@@ -3318,15 +3379,7 @@ static int read_cpu_data(struct tracecmd_input *handle)
 		}
 	}
 
-	return 0;
-
- out_free:
-	for ( ; cpu >= 0; cpu--) {
-		free_page(handle, cpu);
-		kbuffer_free(handle->cpu_data[cpu].kbuf);
-		handle->cpu_data[cpu].kbuf = NULL;
-	}
-	return -1;
+	return init_cpu_data(handle);
 }
 
 static int read_data_and_size(struct tracecmd_input *handle,
@@ -3424,14 +3477,7 @@ static int read_and_parse_trace_clock(struct tracecmd_input *handle,
 	return 0;
 }
 
-/**
- * tracecmd_init_data - prepare reading the data from trace.dat
- * @handle: input handle for the trace.dat file
- *
- * This prepares reading the data from trace.dat. This is called
- * after tracecmd_read_headers() and before tracecmd_read_data().
- */
-int tracecmd_init_data(struct tracecmd_input *handle)
+static int init_data_v6(struct tracecmd_input *handle)
 {
 	struct tep_handle *pevent = handle->pevent;
 	int ret;
@@ -3453,7 +3499,29 @@ int tracecmd_init_data(struct tracecmd_input *handle)
 			tracecmd_parse_trace_clock(handle, clock, 8);
 		}
 	}
+	return ret;
+}
 
+static int init_data(struct tracecmd_input *handle)
+{
+	return init_buffer_cpu_data(handle, &handle->top_buffer);
+}
+
+/**
+ * tracecmd_init_data - prepare reading the data from trace.dat
+ * @handle: input handle for the trace.dat file
+ *
+ * This prepares reading the data from trace.dat. This is called
+ * after tracecmd_read_headers() and before tracecmd_read_data().
+ */
+int tracecmd_init_data(struct tracecmd_input *handle)
+{
+	int ret;
+
+	if (!HAS_SECTIONS(handle))
+		ret = init_data_v6(handle);
+	else
+		ret = init_data(handle);
 	tracecmd_blk_hack(handle);
 
 	return ret;
