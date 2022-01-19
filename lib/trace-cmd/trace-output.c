@@ -1066,6 +1066,25 @@ int tracecmd_output_set_from_input(struct tracecmd_output *handle, struct tracec
 }
 
 /**
+ * tracecmd_output_set_version - Set file version of the output handle
+ * @handle: output handle to a trace file.
+ * @file_version: desired file version
+ *
+ * This API must be called before tracecmd_output_write_headers().
+ *
+ * Returns 0 on success, or -1 if the output file handle is not allocated or not in expected state.
+ */
+int tracecmd_output_set_version(struct tracecmd_output *handle, int file_version)
+{
+	if (!handle || handle->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+	if (file_version < FILE_VERSION_MIN || file_version > FILE_VERSION_MAX)
+		return -1;
+	handle->file_version = file_version;
+	return 0;
+}
+
+/**
  * output_write_init - Write the initial data into the trace file
  * @handle: output handle to a trace file.
  *
@@ -1879,4 +1898,13 @@ out_free:
 __hidden bool check_out_state(struct tracecmd_output *handle, int new_state)
 {
 	return check_file_state(handle->file_version, handle->file_state, new_state);
+}
+
+/**
+ * tracecmd_get_out_file_version - return the trace.dat file version
+ * @handle: output handle for the trace.dat file
+ */
+unsigned long tracecmd_get_out_file_version(struct tracecmd_output *handle)
+{
+	return handle->file_version;
 }
