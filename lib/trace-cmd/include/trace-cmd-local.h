@@ -53,5 +53,6 @@ struct cpu_data_source {
 int out_write_cpu_data(struct tracecmd_output *handle, int cpus,
 		       struct cpu_data_source *data, const char *buff_name);
 off64_t msg_lseek(struct tracecmd_msg_handle *msg_handle, off_t offset, int whence);
+unsigned int get_meta_strings_size(struct tracecmd_input *handle);
 
 #endif /* _TRACE_CMD_LOCAL_H */

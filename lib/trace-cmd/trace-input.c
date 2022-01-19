@@ -147,6 +147,9 @@ struct tracecmd_input {
 	long long		ts_offset;
 	struct tsc2nsec		tsc_calc;
 
+	unsigned int		strings_size;	/* size of the metadata strings */
+	char			*strings;	/* metadata strings */
+
 	struct host_trace_info	host;
 	double			ts2secs;
 	char *			cpustats;
@@ -986,6 +989,14 @@ static int read_headers_v6(struct tracecmd_input *handle, enum tracecmd_file_sta
 
 static int handle_options(struct tracecmd_input *handle);
 
+static const char *get_metadata_string(struct tracecmd_input *handle, int offset)
+{
+	if (!handle || !handle->strings || offset < 0 || handle->strings_size >= offset)
+		return NULL;
+
+	return handle->strings + offset;
+}
+
 static int read_section_header(struct tracecmd_input *handle, unsigned short *id,
 			       unsigned short *flags, unsigned long long *size, const char **description)
 {
@@ -1009,6 +1020,8 @@ static int read_section_header(struct tracecmd_input *handle, unsigned short *id
 		*flags = fl;
 	if (size)
 		*size = sz;
+	if (description)
+		*description = get_metadata_string(handle, desc);
 
 	return 0;
 }
@@ -2841,6 +2854,11 @@ tracecmd_search_task_map(struct tracecmd_input *handle,
 	return lib;
 }
 
+__hidden unsigned int get_meta_strings_size(struct tracecmd_input *handle)
+{
+	return handle->strings_size;
+}
+
 static int handle_options(struct tracecmd_input *handle)
 {
 	long long offset;
@@ -3474,6 +3492,50 @@ struct hook_list *tracecmd_hooks(struct tracecmd_input *handle)
 	return handle->hooks;
 }
 
+static int init_metadata_strings(struct tracecmd_input *handle, int size)
+{
+	char *tmp;
+
+	tmp = realloc(handle->strings, handle->strings_size + size);
+	if (!tmp)
+		return -1;
+
+	handle->strings = tmp;
+	if (do_read_check(handle, handle->strings + handle->strings_size, size))
+		return -1;
+
+	handle->strings_size += size;
+
+	return 0;
+}
+
+static int read_metadata_strings(struct tracecmd_input *handle)
+{
+	unsigned short flags;
+	int found = 0;
+	unsigned short id;
+	unsigned long long size;
+	off64_t offset;
+
+	offset = lseek64(handle->fd, 0, SEEK_CUR);
+	do {
+		if (read_section_header(handle, &id, &flags, &size, NULL))
+			break;
+		if (id == TRACECMD_OPTION_STRINGS) {
+			found++;
+			init_metadata_strings(handle, size);
+		} else {
+			if (lseek64(handle->fd, size, SEEK_CUR) == (off_t)-1)
+				break;
+		}
+	} while (1);
+
+	if (lseek64(handle->fd, offset, SEEK_SET) == (off_t)-1)
+		return -1;
+
+	return found ? 0 : -1;
+}
+
 /**
  * tracecmd_alloc_fd - create a tracecmd_input handle from a file descriptor
  * @fd: the file descriptor for the trace.dat file
@@ -3570,6 +3632,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 			tracecmd_warning("Filed to read the offset of the first option section");
 			goto failed_read;
 		}
+		read_metadata_strings(handle);
 	}
 
 	handle->file_state = TRACECMD_FILE_INIT;
@@ -3742,6 +3805,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	free(handle->cpu_data);
 	free(handle->uname);
 	free(handle->trace_clock);
+	free(handle->strings);
 	free(handle->version);
 	close(handle->fd);
 
@@ -4201,6 +4265,7 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 	new_handle->buffers = NULL;
 	new_handle->version = NULL;
 	new_handle->sections = NULL;
+	new_handle->strings = NULL;
 	new_handle->guest = NULL;
 	new_handle->ref = 1;
 	if (handle->trace_clock) {
