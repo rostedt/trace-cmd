@@ -154,31 +154,53 @@ static inline int msg_buf_len(struct tracecmd_msg *msg)
 	return ntohl(msg->hdr.size) - MSG_HDR_LEN - ntohl(msg->hdr.cmd_size);
 }
 
-static int msg_write(int fd, struct tracecmd_msg *msg)
+static int __msg_write(int fd, struct tracecmd_msg *msg, bool network)
 {
-	int cmd = ntohl(msg->hdr.cmd);
 	int msg_size, data_size;
 	int ret;
+	int cmd;
 
-	if (cmd < 0 || cmd >= MSG_NR_COMMANDS)
-		return -EINVAL;
-
-	dprint("msg send: %d (%s) [%d]\n",
-	       cmd, cmd_to_name(cmd), ntohl(msg->hdr.size));
-
+	if (network) {
+		cmd = ntohl(msg->hdr.cmd);
+		if (cmd < 0 || cmd >= MSG_NR_COMMANDS)
+			return -EINVAL;
+		dprint("msg send: %d (%s) [%d]\n",
+		       cmd, cmd_to_name(cmd), ntohl(msg->hdr.size));
+	}
 	msg_size = MSG_HDR_LEN + ntohl(msg->hdr.cmd_size);
 	data_size = ntohl(msg->hdr.size) - msg_size;
 	if (data_size < 0)
 		return -EINVAL;
 
-	ret = __do_write_check(fd, msg, msg_size);
-	if (ret < 0)
-		return ret;
-
+	if (network) {
+		ret = __do_write_check(fd, msg, msg_size);
+		if (ret < 0)
+			return ret;
+	}
 	if (!data_size)
 		return 0;
 
 	return __do_write_check(fd, msg->buf, data_size);
+}
+
+__hidden off64_t msg_lseek(struct tracecmd_msg_handle *msg_handle, off64_t offset, int whence)
+{
+	/*
+	 * lseek works only if the handle is in cache mode,
+	 * cannot seek on a network socket
+	 */
+	if (!msg_handle->cache || msg_handle->cfd < 0)
+		return (off64_t)-1;
+	return lseek64(msg_handle->cfd, offset, whence);
+}
+
+static int msg_write(struct tracecmd_msg_handle *msg_handle, struct tracecmd_msg *msg)
+{
+	if (msg_handle->cache && msg_handle->cfd >= 0)
+		return __msg_write(msg_handle->cfd, msg, false);
+
+
+	return __msg_write(msg_handle->fd, msg, true);
 }
 
 enum msg_trace_flags {
@@ -274,11 +296,11 @@ static void msg_free(struct tracecmd_msg *msg)
 	memset(msg, 0, sizeof(*msg));
 }
 
-static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
+static int tracecmd_msg_send(struct tracecmd_msg_handle *msg_handle, struct tracecmd_msg *msg)
 {
 	int ret = 0;
 
-	ret = msg_write(fd, msg);
+	ret = msg_write(msg_handle, msg);
 	if (ret < 0)
 		ret = -ECOMM;
 
@@ -287,11 +309,11 @@ static int tracecmd_msg_send(int fd, struct tracecmd_msg *msg)
 	return ret;
 }
 
-static int msg_send_nofree(int fd, struct tracecmd_msg *msg)
+static int msg_send_nofree(struct tracecmd_msg_handle *msg_handle, struct tracecmd_msg *msg)
 {
 	int ret = 0;
 
-	ret = msg_write(fd, msg);
+	ret = msg_write(msg_handle, msg);
 	if (ret < 0)
 		ret = -ECOMM;
 
@@ -454,7 +476,7 @@ static int tracecmd_msg_send_notsupp(struct tracecmd_msg_handle *msg_handle)
 	struct tracecmd_msg msg;
 
 	tracecmd_msg_init(MSG_NOT_SUPP, &msg);
-	return tracecmd_msg_send(msg_handle->fd, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
 }
 
 static int handle_unexpected_msg(struct tracecmd_msg_handle *msg_handle,
@@ -472,7 +494,6 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 				unsigned int **client_ports)
 {
 	struct tracecmd_msg msg;
-	int fd = msg_handle->fd;
 	unsigned int *ports;
 	int i, cpus, ret;
 	char *p, *buf_end;
@@ -485,13 +506,13 @@ int tracecmd_msg_send_init_data(struct tracecmd_msg_handle *msg_handle,
 	if (ret < 0)
 		goto out;
 
-	ret = tracecmd_msg_send(fd, &msg);
+	ret = tracecmd_msg_send(msg_handle, &msg);
 	if (ret < 0)
 		goto out;
 
 	msg_free(&msg);
 
-	ret = tracecmd_msg_wait_for_msg(fd, &msg);
+	ret = tracecmd_msg_wait_for_msg(msg_handle->fd, &msg);
 	if (ret < 0)
 		goto out;
 
@@ -564,12 +585,53 @@ tracecmd_msg_handle_alloc(int fd, unsigned long flags)
 
 	handle->fd = fd;
 	handle->flags = flags;
+	handle->cfd = -1;
+	handle->cache = false;
 	return handle;
+}
+
+int tracecmd_msg_handle_cache(struct tracecmd_msg_handle *msg_handle)
+{
+	if (msg_handle->cfd < 0) {
+		strcpy(msg_handle->cfile, MSG_CACHE_FILE);
+		msg_handle->cfd = mkstemp(msg_handle->cfile);
+		if (msg_handle->cfd < 0)
+			return -1;
+		unlink(msg_handle->cfile);
+	}
+	msg_handle->cache = true;
+	return 0;
+}
+
+static int flush_cache(struct tracecmd_msg_handle *msg_handle)
+{
+	char buf[MSG_MAX_DATA_LEN];
+	int ret;
+
+	if (!msg_handle->cache || msg_handle->cfd < 0)
+		return 0;
+	msg_handle->cache = false;
+	if (lseek64(msg_handle->cfd, 0, SEEK_SET) == (off64_t)-1)
+		return -1;
+	do {
+		ret = read(msg_handle->cfd, buf, MSG_MAX_DATA_LEN);
+		if (ret <= 0)
+			break;
+		ret = tracecmd_msg_data_send(msg_handle, buf, ret);
+		if (ret < 0)
+			break;
+	} while (ret >= 0);
+
+	close(msg_handle->cfd);
+	msg_handle->cfd = -1;
+	return ret;
 }
 
 void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle)
 {
 	close(msg_handle->fd);
+	if (msg_handle->cfd >= 0)
+		close(msg_handle->cfd);
 	free(msg_handle);
 }
 
@@ -666,7 +728,7 @@ int tracecmd_msg_send_port_array(struct tracecmd_msg_handle *msg_handle,
 	if (ret < 0)
 		return ret;
 
-	ret = tracecmd_msg_send(msg_handle->fd, &msg);
+	ret = tracecmd_msg_send(msg_handle, &msg);
 	if (ret < 0)
 		return ret;
 
@@ -678,7 +740,7 @@ int tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle)
 	struct tracecmd_msg msg;
 
 	tracecmd_msg_init(MSG_CLOSE, &msg);
-	return tracecmd_msg_send(msg_handle->fd, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
 }
 
 int tracecmd_msg_send_close_resp_msg(struct tracecmd_msg_handle *msg_handle)
@@ -686,14 +748,13 @@ int tracecmd_msg_send_close_resp_msg(struct tracecmd_msg_handle *msg_handle)
 	struct tracecmd_msg msg;
 
 	tracecmd_msg_init(MSG_CLOSE_RESP, &msg);
-	return tracecmd_msg_send(msg_handle->fd, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
 }
 
 int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 			   const char *buf, int size)
 {
 	struct tracecmd_msg msg;
-	int fd = msg_handle->fd;
 	int n;
 	int ret;
 	int count = 0;
@@ -721,7 +782,7 @@ int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 			memcpy(msg.buf, buf + count, n);
 			n = 0;
 		}
-		ret = msg_write(fd, &msg);
+		ret = msg_write(msg_handle, &msg);
 		if (ret < 0)
 			break;
 	}
@@ -735,8 +796,9 @@ int tracecmd_msg_finish_sending_data(struct tracecmd_msg_handle *msg_handle)
 	struct tracecmd_msg msg;
 	int ret;
 
+	flush_cache(msg_handle);
 	tracecmd_msg_init(MSG_FIN_DATA, &msg);
-	ret = tracecmd_msg_send(msg_handle->fd, &msg);
+	ret = tracecmd_msg_send(msg_handle, &msg);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -752,10 +814,7 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 	while (!tracecmd_msg_done(msg_handle)) {
 		ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
 		if (ret < 0) {
-			if (ret == -ETIMEDOUT)
-				tracecmd_warning("Connection timed out\n");
-			else
-				tracecmd_warning("reading client");
+			tracecmd_warning("reading client %d (%s)", ret, strerror(ret));
 			return ret;
 		}
 
@@ -959,7 +1018,7 @@ int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
 	if (ret < 0)
 		return ret;
 
-	return tracecmd_msg_send(msg_handle->fd, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
 }
 
 static int get_trace_req_protos(char *buf, int length,
@@ -1151,7 +1210,7 @@ int tracecmd_msg_send_time_sync(struct tracecmd_msg_handle *msg_handle,
 	msg.hdr.size = htonl(ntohl(msg.hdr.size) + payload_size);
 
 	msg.buf = payload;
-	return msg_send_nofree(msg_handle->fd, &msg);
+	return msg_send_nofree(msg_handle, &msg);
 }
 
 /**
@@ -1283,7 +1342,7 @@ int tracecmd_msg_send_trace_resp(struct tracecmd_msg_handle *msg_handle,
 	if (ret < 0)
 		return ret;
 
-	return tracecmd_msg_send(msg_handle->fd, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
 }
 
 int tracecmd_msg_recv_trace_resp(struct tracecmd_msg_handle *msg_handle,

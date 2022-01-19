@@ -94,6 +94,14 @@ do_write_check(struct tracecmd_output *handle, const void *data, tsize_t size)
 	return __do_write_check(handle->fd, data, size);
 }
 
+static inline off64_t do_lseek(struct tracecmd_output *handle, off_t offset, int whence)
+{
+	if (handle->msg_handle)
+		return msg_lseek(handle->msg_handle, offset, whence);
+	else
+		return lseek64(handle->fd, offset, whence);
+}
+
 static short convert_endian_2(struct tracecmd_output *handle, short val)
 {
 	if (!handle->pevent)
@@ -955,6 +963,9 @@ int tracecmd_output_set_msg(struct tracecmd_output *handle, struct tracecmd_msg_
 		return -1;
 
 	handle->msg_handle = msg_handle;
+	/* Force messages to be cached in a temp file before sending through the socket */
+	if (handle->msg_handle && HAS_SECTIONS(handle))
+		tracecmd_msg_handle_cache(handle->msg_handle);
 
 	return 0;
 }
@@ -1281,7 +1292,7 @@ int tracecmd_write_options(struct tracecmd_output *handle)
 			return -1;
 
 		/* Save the data location in case it needs to be updated */
-		options->offset = lseek64(handle->fd, 0, SEEK_CUR);
+		options->offset = do_lseek(handle, 0, SEEK_CUR);
 
 		if (do_write_check(handle, options->data,
 				   options->size))
@@ -1314,9 +1325,9 @@ int tracecmd_append_options(struct tracecmd_output *handle)
 	if (handle->file_state != TRACECMD_FILE_OPTIONS)
 		return -1;
 
-	if (lseek64(handle->fd, 0, SEEK_END) == (off_t)-1)
+	if (do_lseek(handle, 0, SEEK_END) == (off_t)-1)
 		return -1;
-	offset = lseek64(handle->fd, -2, SEEK_CUR);
+	offset = do_lseek(handle, -2, SEEK_CUR);
 	if (offset == (off_t)-1)
 		return -1;
 
@@ -1334,7 +1345,7 @@ int tracecmd_append_options(struct tracecmd_output *handle)
 			return -1;
 
 		/* Save the data location in case it needs to be updated */
-		options->offset = lseek64(handle->fd, 0, SEEK_CUR);
+		options->offset = do_lseek(handle, 0, SEEK_CUR);
 
 		if (do_write_check(handle, options->data,
 				   options->size))
@@ -1525,10 +1536,10 @@ static int update_buffer_cpu_offset(struct tracecmd_output *handle,
 		return -1;
 	}
 
-	current = lseek64(handle->fd, 0, SEEK_CUR);
+	current = do_lseek(handle, 0, SEEK_CUR);
 
 	/* Go to the option data, where will write the offest */
-	if (lseek64(handle->fd, b_offset, SEEK_SET) == (off64_t)-1) {
+	if (do_lseek(handle, b_offset, SEEK_SET) == (off64_t)-1) {
 		tracecmd_warning("could not seek to %lld\n", b_offset);
 		return -1;
 	}
@@ -1537,7 +1548,7 @@ static int update_buffer_cpu_offset(struct tracecmd_output *handle,
 		return -1;
 
 	/* Go back to end of file */
-	if (lseek64(handle->fd, current, SEEK_SET) == (off64_t)-1) {
+	if (do_lseek(handle, current, SEEK_SET) == (off64_t)-1) {
 		tracecmd_warning("could not seek to %lld\n", offset);
 		return -1;
 	}
@@ -1586,7 +1597,7 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		goto out_free;
 	}
 
-	data_offs = lseek64(handle->fd, 0, SEEK_CUR);
+	data_offs = do_lseek(handle, 0, SEEK_CUR);
 	if (do_write_check(handle, "flyrecord", 10))
 		goto out_free;
 
@@ -1601,10 +1612,10 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		 * updated them with the correct data later.
 		 */
 		endian8 = 0;
-		data_files[i].file_data_offset = lseek64(handle->fd, 0, SEEK_CUR);
+		data_files[i].file_data_offset = do_lseek(handle, 0, SEEK_CUR);
 		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
-		data_files[i].file_write_size = lseek64(handle->fd, 0, SEEK_CUR);
+		data_files[i].file_write_size = do_lseek(handle, 0, SEEK_CUR);
 		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
 	}
@@ -1615,12 +1626,12 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		goto out_free;
 
 	for (i = 0; i < cpus; i++) {
-		data_files[i].data_offset = lseek64(handle->fd, 0, SEEK_CUR);
+		data_files[i].data_offset = do_lseek(handle, 0, SEEK_CUR);
 		/* Page align offset */
 		data_files[i].data_offset += handle->page_size - 1;
 		data_files[i].data_offset &= ~(handle->page_size - 1);
 
-		ret = lseek64(handle->fd, data_files[i].data_offset, SEEK_SET);
+		ret = do_lseek(handle, data_files[i].data_offset, SEEK_SET);
 		if (ret == (off64_t)-1)
 			goto out_free;
 
@@ -1644,21 +1655,21 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		}
 
 		/* Write the real CPU data offset in the file */
-		if (lseek64(handle->fd, data_files[i].file_data_offset, SEEK_SET) == (off64_t)-1)
+		if (do_lseek(handle, data_files[i].file_data_offset, SEEK_SET) == (off64_t)-1)
 			goto out_free;
 		endian8 = convert_endian_8(handle, data_files[i].data_offset);
 		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
 
 		/* Write the real CPU data size in the file */
-		if (lseek64(handle->fd, data_files[i].file_write_size, SEEK_SET) == (off64_t)-1)
+		if (do_lseek(handle, data_files[i].file_write_size, SEEK_SET) == (off64_t)-1)
 			goto out_free;
 		endian8 = convert_endian_8(handle, data_files[i].write_size);
 		if (do_write_check(handle, &endian8, 8))
 			goto out_free;
 
 		offset = data_files[i].data_offset + data_files[i].write_size;
-		if (lseek64(handle->fd, offset, SEEK_SET) == (off64_t)-1)
+		if (do_lseek(handle, offset, SEEK_SET) == (off64_t)-1)
 			goto out_free;
 
 		if (!tracecmd_get_quiet(handle))
@@ -1667,7 +1678,7 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 	}
 
 	free(data_files);
-	if (lseek64(handle->fd, 0, SEEK_END) == (off64_t)-1)
+	if (do_lseek(handle, 0, SEEK_END) == (off64_t)-1)
 		return -1;
 
 	handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
@@ -1675,7 +1686,7 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 	return 0;
 
  out_free:
-	lseek64(handle->fd, 0, SEEK_END);
+	do_lseek(handle, 0, SEEK_END);
 	free(data_files);
 	return -1;
 }

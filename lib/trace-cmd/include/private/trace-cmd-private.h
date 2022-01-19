@@ -347,12 +347,16 @@ enum tracecmd_msg_flags {
 };
 
 /* for both client and server */
+#define MSG_CACHE_FILE "/tmp/trace_msg_cacheXXXXXX"
 struct tracecmd_msg_handle {
 	int			fd;
 	short			cpu_count;
 	short			version;	/* Current protocol version */
 	unsigned long		flags;
 	bool			done;
+	bool			cache;
+	int			cfd;
+	char			cfile[sizeof(MSG_CACHE_FILE)];
 };
 
 struct tracecmd_tsync_protos {
@@ -361,6 +365,7 @@ struct tracecmd_tsync_protos {
 
 struct tracecmd_msg_handle *
 tracecmd_msg_handle_alloc(int fd, unsigned long flags);
+int tracecmd_msg_handle_cache(struct tracecmd_msg_handle *msg_handle);
 
 /* Closes the socket and frees the handle */
 void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle);
