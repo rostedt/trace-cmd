@@ -9,17 +9,12 @@
 #include <byteswap.h>
 #include "trace-cmd-private.h"
 
+#define FILE_VERSION_DEFAULT		6
+
 /* Can be overridden */
 void tracecmd_warning(const char *fmt, ...);
 void tracecmd_critical(const char *fmt, ...);
 void tracecmd_info(const char *fmt, ...);
-
-/* trace.dat file format version */
-#define FILE_VERSION 6
-
-#define _STR(x)	#x
-#define STR(x)	_STR(x)
-#define FILE_VERSION_STRING STR(FILE_VERSION)
 
 #ifndef htonll
 # if __BYTE_ORDER == __LITTLE_ENDIAN

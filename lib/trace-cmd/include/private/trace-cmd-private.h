@@ -31,6 +31,11 @@ struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep, int flags);
 
 int *tracecmd_add_id(int *list, int id, int len);
 
+#define FILE_VERSION_MIN		6
+#define FILE_VERSION_MAX		7
+
+#define FILE_VERSION_SECTIONS		7
+
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
 	RINGBUF_TYPE_TIME_EXTEND	= 30,
@@ -43,6 +48,7 @@ void tracecmd_set_debug(bool set_debug);
 bool tracecmd_get_debug(void);
 
 bool tracecmd_is_version_supported(unsigned int version);
+int tracecmd_default_file_version(void);
 
 struct tracecmd_output;
 struct tracecmd_recorder;

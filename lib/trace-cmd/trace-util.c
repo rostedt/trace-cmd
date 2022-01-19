@@ -618,9 +618,19 @@ unsigned long long tracecmd_generate_traceid(void)
 	return hash;
 }
 
+/*
+ * tracecmd_default_file_version - Get default trace file version of the library
+ *
+ * Returns the default trace file version
+ */
+int tracecmd_default_file_version(void)
+{
+	return FILE_VERSION_DEFAULT;
+}
+
 bool tracecmd_is_version_supported(unsigned int version)
 {
-	if (version <= FILE_VERSION)
+	if (version >= FILE_VERSION_MIN && version <= FILE_VERSION_MAX)
 		return true;
 	return false;
 }
