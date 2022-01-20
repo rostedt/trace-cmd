@@ -55,7 +55,7 @@ $(LIBTRACECMD_SHARED_SO): $(LIBTRACECMD_SHARED_VERSION)
 libtracecmd.so: force $(LIBTRACECMD_SHARED_SO)
 
 $(LIBTRACECMD_SHARED): $(OBJS)
-	$(Q)$(call do_compile_shared_library)
+	$(Q)$(call do_compile_shared_library,$(notdir $(LIBTRACECMD_SHARED_VERSION)))
 
 $(bdir)/%.o: %.c
 	$(Q)$(call do_fpic_compile)
