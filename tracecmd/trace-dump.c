@@ -29,6 +29,8 @@ static int has_clock;
 static unsigned long file_version;
 static bool	read_compress;
 static struct tracecmd_compression *compress;
+static char *meta_strings;
+static int meta_strings_size;
 
 enum dump_items {
 	SUMMARY		= (1 << 0),
@@ -44,6 +46,7 @@ enum dump_items {
 	FLYRECORD	= (1 << 10),
 	CLOCK		= (1 << 11),
 	SECTIONS	= (1 << 12),
+	STRINGS		= (1 << 13),
 };
 
 struct file_section {
@@ -177,6 +180,14 @@ static int read_file_number(int fd, void *digit, int size)
 	}
 
 	return 0;
+}
+
+static const char *get_metadata_string(int offset)
+{
+	if (!meta_strings || offset < 0 || meta_strings_size <= offset)
+		return NULL;
+
+	return meta_strings + offset;
 }
 
 static void dump_initial_format(int fd)
@@ -432,6 +443,7 @@ static void dump_section_header(int fd, enum dump_items v, unsigned short *flags
 	unsigned long long offset, size;
 	unsigned short fl;
 	unsigned short id;
+	const char *desc;
 	int desc_id;
 
 	offset = lseek64(fd, 0, SEEK_CUR);
@@ -444,11 +456,15 @@ static void dump_section_header(int fd, enum dump_items v, unsigned short *flags
 	if (read_file_number(fd, &desc_id, 4))
 		die("no section description");
 
+	desc = get_metadata_string(desc_id);
+	if (!desc)
+		desc = "Unknown";
+
 	if (read_file_number(fd, &size, 8))
 		die("cannot read section size");
 
-	do_print(v, "\t[Section %d @ %lld, flags 0x%X, %lld bytes]\n",
-		 id, offset, fl, size);
+	do_print(v, "\t[Section %d @ %lld: \"%s\", flags 0x%X, %lld bytes]\n",
+		 id, offset, desc, fl, size);
 
 	if (flags)
 		*flags = fl;
@@ -963,12 +979,81 @@ static void dump_v6_file(int fd)
 	dump_therest(fd);
 }
 
+static int read_metadata_strings(int fd, unsigned long long size)
+{
+	char *str, *strings;
+	int psize;
+	int ret;
+
+	strings = realloc(meta_strings, meta_strings_size + size);
+	if (!strings)
+		return -1;
+	meta_strings = strings;
+
+	ret = read_file_bytes(fd, meta_strings + meta_strings_size, size);
+	if (ret < 0)
+		return -1;
+
+	do_print(STRINGS, "\t[String @ offset]\n");
+	psize = 0;
+	while (psize < size) {
+		str = meta_strings + meta_strings_size + psize;
+		do_print(STRINGS, "\t\t\"%s\" @ %d\n", str, meta_strings_size + psize);
+		psize += strlen(str) + 1;
+	}
+
+	meta_strings_size += size;
+
+	return 0;
+}
+
+static void get_meta_strings(int fd)
+{
+	unsigned long long offset, size;
+	unsigned int csize, rsize;
+	unsigned short fl, id;
+	int desc_id;
+
+	offset = lseek64(fd, 0, SEEK_CUR);
+	do {
+		if (read_file_number(fd, &id, 2))
+			break;
+		if (read_file_number(fd, &fl, 2))
+			die("cannot read section flags");
+		if (read_file_number(fd, &desc_id, 4))
+			die("cannot read section description");
+		if (read_file_number(fd, &size, 8))
+			die("cannot read section size");
+		if (id == TRACECMD_OPTION_STRINGS) {
+			if ((fl & TRACECMD_SEC_FL_COMPRESS)) {
+				read_file_number(fd, &csize, 4);
+				read_file_number(fd, &rsize, 4);
+				lseek64(fd, -8, SEEK_CUR);
+				if (uncompress_block())
+					break;
+			} else {
+				rsize = size;
+			}
+			read_metadata_strings(fd, rsize);
+			uncompress_reset();
+		} else {
+			if (lseek64(fd, size, SEEK_CUR) == (off_t)-1)
+				break;
+		}
+	} while (1);
+
+	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+		die("cannot restore the original file location");
+}
+
 static void dump_v7_file(int fd)
 {
 	long long offset;
 
 	if (read_file_number(fd, &offset, 8))
 		die("cannot read offset of the first option section");
+
+	get_meta_strings(fd);
 
 	if (lseek64(fd, offset, SEEK_SET) == (off64_t)-1)
 		die("cannot goto options offset %lld", offset);
@@ -1014,6 +1099,7 @@ static void dump_file(const char *file)
 }
 
 enum {
+	OPT_strings	= 241,
 	OPT_verbose	= 242,
 	OPT_clock	= 243,
 	OPT_all		= 244,
@@ -1057,6 +1143,7 @@ void trace_dump(int argc, char **argv)
 			{"options", no_argument, NULL, OPT_options},
 			{"flyrecord", no_argument, NULL, OPT_flyrecord},
 			{"clock", no_argument, NULL, OPT_clock},
+			{"strings", no_argument, NULL, OPT_strings},
 			{"validate", no_argument, NULL, 'v'},
 			{"help", no_argument, NULL, '?'},
 			{"verbose", optional_argument, NULL, OPT_verbose},
@@ -1119,6 +1206,9 @@ void trace_dump(int argc, char **argv)
 		case OPT_verbose:
 			if (trace_set_verbose(optarg) < 0)
 				die("invalid verbose level %s", optarg);
+			break;
+		case OPT_strings:
+			verbosity |= STRINGS;
 			break;
 		default:
 			usage(argv);
