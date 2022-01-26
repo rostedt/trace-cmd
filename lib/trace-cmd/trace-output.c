@@ -1310,6 +1310,9 @@ int tracecmd_output_set_kallsyms(struct tracecmd_output *handle, const char *kal
  */
 int tracecmd_output_set_from_input(struct tracecmd_output *handle, struct tracecmd_input *ihandle)
 {
+	const char *cname = NULL;
+	const char *cver = NULL;
+
 	if (!handle || !ihandle || handle->file_state != TRACECMD_FILE_ALLOCATED)
 		return -1;
 
@@ -1320,6 +1323,16 @@ int tracecmd_output_set_from_input(struct tracecmd_output *handle, struct tracec
 	handle->page_size = tracecmd_page_size(ihandle);
 	handle->file_version = tracecmd_get_in_file_version(ihandle);
 	handle->big_endian = tep_is_file_bigendian(handle->pevent);
+
+	if (!tracecmd_get_file_compress_proto(ihandle, &cname, &cver)) {
+		handle->compress = tracecmd_compress_alloc(cname, cver, handle->fd,
+							    handle->pevent, handle->msg_handle);
+		if (!handle->compress)
+			return -1;
+
+		if (handle->file_version < FILE_VERSION_COMPRESSION)
+			handle->file_version = FILE_VERSION_COMPRESSION;
+	}
 
 	return 0;
 }
@@ -2281,6 +2294,8 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 {
 	struct tracecmd_output *handle = NULL;
 	struct tracecmd_input *ihandle;
+	const char *cname = NULL;
+	const char *cver = NULL;
 	int fd2;
 
 	/* Move the file descriptor to the beginning */
@@ -2321,6 +2336,12 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 	list_head_init(&handle->options);
 	list_head_init(&handle->buffers);
 
+	if (!tracecmd_get_file_compress_proto(ihandle, &cname, &cver)) {
+		handle->compress = tracecmd_compress_alloc(cname, cver, handle->fd,
+							   handle->pevent, handle->msg_handle);
+		if (!handle->compress)
+			goto out_free;
+	}
 	tracecmd_close(ihandle);
 
 	return handle;

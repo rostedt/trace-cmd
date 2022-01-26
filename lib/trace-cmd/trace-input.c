@@ -4662,6 +4662,24 @@ unsigned long tracecmd_get_in_file_version(struct tracecmd_input *handle)
 }
 
 /**
+ * tracecmd_get_file_compress_proto - get name and version of compression algorithm
+ * @handle: input handle for the trace.dat file
+ * @name: return, name of the compression algorithm.
+ * @version: return, version of the compression algorithm.
+ *
+ * Get the name and the version of the compression algorithm, used to
+ * compress the file associated with @handle.
+ * Returns 0 on success, or -1 in case of an error. If 0 is returned,
+ * the name and version of the algorithm are stored in @name and @version.
+ * The returned strings must *not* be freed.
+ */
+int tracecmd_get_file_compress_proto(struct tracecmd_input *handle,
+				     const char **name, const char **version)
+{
+	return tracecmd_compress_proto_get_name(handle->compress, name, version);
+}
+
+/**
  * tracecmd_get_use_trace_clock - return use_trace_clock
  * @handle: input handle for the trace.dat file
  */
