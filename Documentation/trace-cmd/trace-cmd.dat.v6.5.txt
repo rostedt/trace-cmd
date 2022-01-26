@@ -1,9 +1,9 @@
-TRACE-CMD.DAT(5)
-================
+TRACE-CMD.DAT.v6(5)
+===================
 
 NAME
 ----
-trace-cmd.dat - trace-cmd file format
+trace-cmd.dat.v6 - trace-cmd version 6 file format
 
 SYNOPSIS
 --------
@@ -30,7 +30,7 @@ INITIAL FORMAT
      "tracing"
 
   The next set of characters contain a null '\0' terminated string
-  that contains the version of the file (for example):
+  that contains the version of the file:
 
      "6\0"
 
@@ -264,4 +264,3 @@ COPYING
 -------
 Copyright \(C) 2010 Red Hat, Inc. Free use of this software is granted under
 the terms of the GNU Public License (GPL).
-
