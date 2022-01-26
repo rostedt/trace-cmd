@@ -35,6 +35,7 @@ int *tracecmd_add_id(int *list, int id, int len);
 #define FILE_VERSION_MAX		7
 
 #define FILE_VERSION_SECTIONS		7
+#define FILE_VERSION_COMPRESSION	7
 
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
@@ -160,6 +161,7 @@ enum {
 	TRACECMD_FL_IN_USECS		= (1 << 2),
 	TRACECMD_FL_RAW_TS		= (1 << 3),
 	TRACECMD_FL_SECTIONED		= (1 << 4),
+	TRACECMD_FL_COMPRESSION		= (1 << 5),
 };
 
 struct tracecmd_ftrace {
@@ -492,6 +494,45 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
 int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 				    struct tracecmd_time_sync *tsync);
 
+/* --- Compression --- */
+struct tracecmd_compress_chunk {
+	unsigned int		size;
+	unsigned int		zsize;
+	off64_t			zoffset;
+	off64_t			offset;
+};
+struct tracecmd_compression;
+struct tracecmd_compression *tracecmd_compress_alloc(const char *name, const char *version,
+						     int fd, struct tep_handle *tep,
+						     struct tracecmd_msg_handle *msg_handle);
+void tracecmd_compress_destroy(struct tracecmd_compression *handle);
+int tracecmd_compress_block(struct tracecmd_compression *handle);
+int tracecmd_uncompress_block(struct tracecmd_compression *handle);
+void tracecmd_compress_reset(struct tracecmd_compression *handle);
+int tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst, int len);
+int tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, int len, off_t offset);
+int tracecmd_compress_buffer_write(struct tracecmd_compression *handle,
+				   const void *data, unsigned long long size);
+off64_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off64_t offset, int whence);
+int tracecmd_compress_proto_get_name(struct tracecmd_compression *compress,
+				     const char **name, const char **version);
+bool tracecmd_compress_is_supported(const char *name, const char *version);
+int tracecmd_compress_protos_get(char ***names, char ***versions);
+int tracecmd_compress_proto_register(const char *name, const char *version, int weight,
+				     int (*compress)(const char *in, unsigned int in_bytes,
+						     char *out, unsigned int *out_bytes),
+				     int (*uncompress)(const char *in, unsigned int in_bytes,
+						       char *out, unsigned int *out_bytes),
+				     unsigned int (*comress_size)(unsigned int bytes),
+				     bool (*is_supported)(const char *name, const char *version));
+int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int chunk_size,
+				unsigned long long *read_size, unsigned long long *write_size);
+int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,
+				unsigned long long *read_size, unsigned long long *write_size);
+int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
+			      struct tracecmd_compress_chunk *chunk, char *data);
+int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
+			      struct tracecmd_compress_chunk **chunks_info);
 /* --- Plugin handling --- */
 extern struct tep_plugin_option trace_ftrace_options[];
 

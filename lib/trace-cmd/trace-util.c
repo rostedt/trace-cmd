@@ -635,6 +635,16 @@ bool tracecmd_is_version_supported(unsigned int version)
 	return false;
 }
 
+static void __attribute__ ((constructor)) tracecmd_lib_init(void)
+{
+	tracecmd_compress_init();
+}
+
+static void __attribute__((destructor)) tracecmd_lib_free(void)
+{
+	tracecmd_compress_free();
+}
+
 __hidden bool check_file_state(unsigned long file_version, int current_state, int new_state)
 {
 	switch (new_state) {

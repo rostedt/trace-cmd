@@ -36,6 +36,9 @@ struct data_file_write {
 	unsigned long long	file_data_offset;
 };
 
+void tracecmd_compress_init(void);
+void tracecmd_compress_free(void);
+
 bool check_file_state(unsigned long file_version, int current_state, int new_state);
 bool check_out_state(struct tracecmd_output *handle, int new_state);
 
