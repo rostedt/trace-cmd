@@ -484,12 +484,17 @@ static struct file_section *section_open(struct tracecmd_input *handle, int id)
 
 	if (lseek64(handle->fd, sec->data_offset, SEEK_SET) == (off64_t)-1)
 		return NULL;
+
+	if ((sec->flags & TRACECMD_SEC_FL_COMPRESS) && in_uncompress_block(handle))
+		return NULL;
+
 	return sec;
 }
 
 static void section_close(struct tracecmd_input *handle, struct file_section *sec)
 {
-	/* To Do */
+	if (sec->flags & TRACECMD_SEC_FL_COMPRESS)
+		in_uncompress_reset(handle);
 }
 
 static int section_add_or_update(struct tracecmd_input *handle, int id, int flags,
@@ -1116,6 +1121,8 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 		return -1;
 
 	section->data_offset = lseek64(handle->fd, 0, SEEK_CUR);
+	if ((section->flags & TRACECMD_SEC_FL_COMPRESS) && in_uncompress_block(handle))
+		return -1;
 
 	switch (section->id) {
 	case TRACECMD_OPTION_HEADER_INFO:
@@ -1140,6 +1147,9 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 		ret = 0;
 		break;
 	}
+
+	if (section->flags & TRACECMD_SEC_FL_COMPRESS)
+		in_uncompress_reset(handle);
 
 	return ret;
 }
@@ -4080,6 +4090,7 @@ static int read_metadata_strings(struct tracecmd_input *handle)
 	unsigned short flags;
 	int found = 0;
 	unsigned short id;
+	unsigned int csize, rsize;
 	unsigned long long size;
 	off64_t offset;
 
@@ -4089,7 +4100,18 @@ static int read_metadata_strings(struct tracecmd_input *handle)
 			break;
 		if (id == TRACECMD_OPTION_STRINGS) {
 			found++;
-			init_metadata_strings(handle, size);
+			if ((flags & TRACECMD_SEC_FL_COMPRESS)) {
+				read4(handle, &csize);
+				read4(handle, &rsize);
+				do_lseek(handle, -8, SEEK_CUR);
+				if (in_uncompress_block(handle))
+					break;
+			} else {
+				rsize = size;
+			}
+			init_metadata_strings(handle, rsize);
+			if (flags & TRACECMD_SEC_FL_COMPRESS)
+				in_uncompress_reset(handle);
 		} else {
 			if (lseek64(handle->fd, size, SEEK_CUR) == (off_t)-1)
 				break;
