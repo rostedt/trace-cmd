@@ -66,7 +66,7 @@ int out_save_options_offset(struct tracecmd_output *handle,
 			    unsigned long long start);
 unsigned long long out_copy_fd_compress(struct tracecmd_output *handle,
 					int fd, unsigned long long max,
-					unsigned long long *write_size);
+					unsigned long long *write_size, int page);
 void in_uncompress_reset(struct tracecmd_input *handle);
 int in_uncompress_block(struct tracecmd_input *handle);
 
@@ -80,7 +80,7 @@ long long do_write_check(struct tracecmd_output *handle, const void *data, long 
 struct tracecmd_option *
 out_add_buffer_option(struct tracecmd_output *handle, const char *name,
 		      unsigned short id, unsigned long long data_offset,
-		      int cpus, struct data_file_write *cpu_data);
+		      int cpus, struct data_file_write *cpu_data, int page_size);
 
 struct cpu_data_source {
 	int fd;

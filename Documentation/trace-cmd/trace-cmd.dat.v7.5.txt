@@ -147,6 +147,7 @@ OPTIONS SECTION
       is saved as name of the top instance.
       <string> a null terminated ASCII string, trace clock used for events timestamps in
       this trace instance.
+      <4 bytes> unsigned integer, size of the trace buffer page.
       <4 bytes> unsigned integer, count of the CPUs with trace data.
       For each CPU of the above count:
          <4 bytes> unsigned integer, ID of the CPU.
