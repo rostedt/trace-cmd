@@ -61,6 +61,8 @@ out_write_section_header(struct tracecmd_output *handle, unsigned short header_i
 			 char *description, int flags, bool option);
 int out_update_section_header(struct tracecmd_output *handle, unsigned long long offset);
 
+long long do_write_check(struct tracecmd_output *handle, const void *data, long long size);
+
 struct cpu_data_source {
 	int fd;
 	int size;
