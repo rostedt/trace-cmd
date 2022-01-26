@@ -227,8 +227,10 @@ void tracecmd_set_quiet(struct tracecmd_output *handle, bool set_quiet)
 
 void tracecmd_set_out_clock(struct tracecmd_output *handle, const char *clock)
 {
-	if (handle && clock)
+	if (handle && clock) {
+		free(handle->trace_clock);
 		handle->trace_clock = strdup(clock);
+	}
 }
 
 /**
