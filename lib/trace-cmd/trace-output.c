@@ -1167,6 +1167,27 @@ out_free:
 	return ret;
 }
 
+static int write_compression_header(struct tracecmd_output *handle)
+{
+	const char *name = NULL;
+	const char *ver = NULL;
+	int ret;
+
+	ret = tracecmd_compress_proto_get_name(handle->compress, &name, &ver);
+	if (ret < 0 || !name || !ver) {
+		name = "none";
+		ver = "";
+	}
+
+	if (do_write_check(handle, name, strlen(name) + 1))
+		return -1;
+
+	if (do_write_check(handle, ver, strlen(ver) + 1))
+		return -1;
+
+	return 0;
+}
+
 /**
  * tracecmd_output_create_fd - allocate new output handle to a trace file
  * @fd: File descriptor for the handle to write to.
@@ -1460,6 +1481,12 @@ static int output_write_init(struct tracecmd_output *handle)
 	endian4 = convert_endian_4(handle, handle->page_size);
 	if (do_write_check(handle, &endian4, 4))
 		return -1;
+
+	if (handle->file_version >= FILE_VERSION_COMPRESSION) {
+		if (write_compression_header(handle))
+			return -1;
+	}
+
 	if (HAS_SECTIONS(handle)) {
 		/* Write 0 as options offset and save its location */
 		offset = 0;
