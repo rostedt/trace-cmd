@@ -274,6 +274,7 @@ void tracecmd_output_free(struct tracecmd_output *handle)
 
 	free(handle->strings);
 	free(handle->trace_clock);
+	tracecmd_compress_destroy(handle->compress);
 	free(handle);
 }
 
@@ -1353,6 +1354,55 @@ int tracecmd_output_set_version(struct tracecmd_output *handle, int file_version
 	if (file_version < FILE_VERSION_MIN || file_version > FILE_VERSION_MAX)
 		return -1;
 	handle->file_version = file_version;
+	if (handle->file_version < FILE_VERSION_COMPRESSION)
+		handle->compress = NULL;
+	return 0;
+}
+
+/**
+ * tracecmd_output_set_compression - Set file compression algorithm of the output handle
+ * @handle: output handle to a trace file.
+ * @compression: name of the desired compression algorithm. Can be one of:
+ *		 - "none" - do not use compression
+ *		 - "all" - use the best available compression algorithm
+ *		 - or specific name of the desired compression algorithm
+ *
+ * This API must be called before tracecmd_output_write_headers().
+ *
+ * Returns 0 on success, or -1 in case of an error:
+ *   - the output file handle is not allocated or not in expected state.
+ *   - the specified compression algorithm is not available
+ */
+int tracecmd_output_set_compression(struct tracecmd_output *handle, const char *compression)
+{
+	if (!handle || handle->file_state != TRACECMD_FILE_ALLOCATED)
+		return -1;
+
+	handle->compress = NULL;
+	if (compression && strcmp(compression, "none")) {
+		if (!strcmp(compression, "any")) {
+			handle->compress = tracecmd_compress_alloc(NULL, NULL, handle->fd,
+								    handle->pevent,
+								    handle->msg_handle);
+			if (!handle->compress)
+				tracecmd_warning("No compression algorithms are supported");
+		} else {
+			handle->compress = tracecmd_compress_alloc(compression, NULL, handle->fd,
+								    handle->pevent,
+								    handle->msg_handle);
+			if (!handle->compress) {
+				tracecmd_warning("Compression algorithm %s is not supported",
+						  compression);
+				return -1;
+			}
+		}
+	}
+	if (handle->compress && handle->file_version < FILE_VERSION_COMPRESSION) {
+		handle->file_version = FILE_VERSION_COMPRESSION;
+		if (handle->msg_handle)
+			tracecmd_msg_handle_cache(handle->msg_handle);
+	}
+
 	return 0;
 }
 
@@ -1963,7 +2013,7 @@ out_add_buffer_option(struct tracecmd_output *handle, const char *name,
 }
 
 struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, int cpus,
-						     int file_version)
+						     int file_version, const char *compression)
 {
 	enum tracecmd_section_flags flags = 0;
 	struct tracecmd_output *handle;
@@ -1976,6 +2026,14 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 
 	if (file_version && tracecmd_output_set_version(handle, file_version))
 		goto out_free;
+
+	if (compression) {
+		if (tracecmd_output_set_compression(handle, compression))
+			goto out_free;
+	} else if (file_version >= FILE_VERSION_COMPRESSION) {
+		tracecmd_output_set_compression(handle, "any");
+	}
+
 	if (tracecmd_output_write_headers(handle, NULL))
 		goto out_free;
 	/*
