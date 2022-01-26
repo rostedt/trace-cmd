@@ -762,7 +762,7 @@ static void dump_option_section(int fd, unsigned int size,
 	do_print(OPTIONS, "\t\t[Option %s, %d bytes] @ %lld\n", desc, size, sec->offset);
 }
 
-static void dump_sections(int fd)
+static void dump_sections(int fd, int count)
 {
 	struct file_section *sec = sections;
 	unsigned short flags;
@@ -800,6 +800,7 @@ static void dump_sections(int fd)
 		uncompress_reset();
 		sec = sec->next;
 	}
+	do_print(SUMMARY|SECTIONS, "\t[%d sections]\n", count);
 }
 
 static int dump_options_read(int fd);
@@ -1086,20 +1087,89 @@ static void get_meta_strings(int fd)
 		die("cannot restore the original file location");
 }
 
+static int walk_v7_sections(int fd)
+{
+	unsigned long long offset, soffset, size;
+	unsigned short fl;
+	unsigned short id;
+	int csize, rsize;
+	int count = 0;
+	int desc_id;
+	const char *desc;
+
+	offset = lseek64(fd, 0, SEEK_CUR);
+	do {
+		soffset = lseek64(fd, 0, SEEK_CUR);
+		if (read_file_number(fd, &id, 2))
+			break;
+
+		if (read_file_number(fd, &fl, 2))
+			die("cannot read section flags");
+
+		if (read_file_number(fd, &desc_id, 4))
+			die("cannot read section description");
+
+		desc = get_metadata_string(desc_id);
+		if (!desc)
+			desc = "Unknown";
+
+		if (read_file_number(fd, &size, 8))
+			die("cannot read section size");
+
+		if (id >= TRACECMD_OPTION_MAX)
+			do_print(SECTIONS, "Unknown section id %d: %s", id, desc);
+
+		count++;
+		if (fl & TRACECMD_SEC_FL_COMPRESS) {
+			if (id == TRACECMD_OPTION_BUFFER ||
+			    id == TRACECMD_OPTION_BUFFER_TEXT) {
+				do_print(SECTIONS,
+					"\t[Section %2d @ %-16lld\t\"%s\", flags 0x%X, "
+					"%lld compressed bytes]\n",
+					 id, soffset, desc, fl, size);
+			} else {
+				if (read_file_number(fd, &csize, 4))
+					die("cannot read section size");
+
+				if (read_file_number(fd, &rsize, 4))
+					die("cannot read section size");
+
+				do_print(SECTIONS, "\t[Section %2d @ %-16lld\t\"%s\", flags 0x%X, "
+					 "%d compressed, %d uncompressed]\n",
+					 id, soffset, desc, fl, csize, rsize);
+				size -= 8;
+			}
+		} else {
+			do_print(SECTIONS, "\t[Section %2d @ %-16lld\t\"%s\", flags 0x%X, %lld bytes]\n",
+				 id, soffset, desc, fl, size);
+		}
+
+		if (lseek64(fd, size, SEEK_CUR) == (off_t)-1)
+			break;
+	} while (1);
+
+	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+		die("cannot restore the original file location");
+
+	return count;
+}
+
 static void dump_v7_file(int fd)
 {
 	long long offset;
+	int sections;
 
 	if (read_file_number(fd, &offset, 8))
 		die("cannot read offset of the first option section");
 
 	get_meta_strings(fd);
+	sections = walk_v7_sections(fd);
 
-	if (lseek64(fd, offset, SEEK_SET) == (off64_t)-1)
+	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
 		die("cannot goto options offset %lld", offset);
 
 	dump_options(fd);
-	dump_sections(fd);
+	dump_sections(fd, sections);
 }
 
 static void free_sections(void)
@@ -1140,6 +1210,7 @@ static void dump_file(const char *file)
 }
 
 enum {
+	OPT_sections	= 240,
 	OPT_strings	= 241,
 	OPT_verbose	= 242,
 	OPT_clock	= 243,
@@ -1185,6 +1256,7 @@ void trace_dump(int argc, char **argv)
 			{"flyrecord", no_argument, NULL, OPT_flyrecord},
 			{"clock", no_argument, NULL, OPT_clock},
 			{"strings", no_argument, NULL, OPT_strings},
+			{"sections", no_argument, NULL, OPT_sections},
 			{"validate", no_argument, NULL, 'v'},
 			{"help", no_argument, NULL, '?'},
 			{"verbose", optional_argument, NULL, OPT_verbose},
@@ -1250,6 +1322,9 @@ void trace_dump(int argc, char **argv)
 			break;
 		case OPT_strings:
 			verbosity |= STRINGS;
+			break;
+		case OPT_sections:
+			verbosity |= SECTIONS;
 			break;
 		default:
 			usage(argv);
