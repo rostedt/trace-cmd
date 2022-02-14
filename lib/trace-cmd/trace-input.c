@@ -1001,7 +1001,8 @@ static int read_cpus(struct tracecmd_input *handle)
 	return 0;
 }
 
-static int read_headers_v6(struct tracecmd_input *handle, enum tracecmd_file_states state)
+static int read_headers_v6(struct tracecmd_input *handle, enum tracecmd_file_states state,
+			   const char *regex)
 {
 	int ret;
 
@@ -1028,7 +1029,7 @@ static int read_headers_v6(struct tracecmd_input *handle, enum tracecmd_file_sta
 	if (state <= handle->file_state)
 		return 0;
 
-	ret = read_event_files(handle, NULL);
+	ret = read_event_files(handle, regex);
 	if (ret < 0)
 		return -1;
 
@@ -1106,7 +1107,8 @@ static int read_section_header(struct tracecmd_input *handle, unsigned short *id
 	return 0;
 }
 
-static int handle_section(struct tracecmd_input *handle, struct file_section *section)
+static int handle_section(struct tracecmd_input *handle, struct file_section *section,
+			  const char *regex)
 {
 	unsigned short id, flags;
 	unsigned long long size;
@@ -1132,7 +1134,7 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 		ret = read_ftrace_files(handle, NULL);
 		break;
 	case TRACECMD_OPTION_EVENT_FORMATS:
-		ret = read_event_files(handle, NULL);
+		ret = read_event_files(handle, regex);
 		break;
 	case TRACECMD_OPTION_KALLSYMS:
 		ret = read_proc_kallsyms(handle);
@@ -1154,7 +1156,7 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 	return ret;
 }
 
-static int read_headers(struct tracecmd_input *handle)
+static int read_headers(struct tracecmd_input *handle, const char *regex)
 {
 	struct file_section *section;
 
@@ -1174,7 +1176,7 @@ static int read_headers(struct tracecmd_input *handle)
 
 	section = handle->sections;
 	while (section) {
-		if (handle_section(handle, section))
+		if (handle_section(handle, section, NULL))
 			return -1;
 		section = section->next;
 	}
@@ -1198,8 +1200,8 @@ int tracecmd_read_headers(struct tracecmd_input *handle,
 			  enum tracecmd_file_states state)
 {
 	if (!HAS_SECTIONS(handle))
-		return read_headers_v6(handle, state);
-	return read_headers(handle);
+		return read_headers_v6(handle, state, NULL);
+	return read_headers(handle, NULL);
 }
 
 static unsigned long long calc_page_offset(struct tracecmd_input *handle,
@@ -3971,26 +3973,13 @@ int tracecmd_make_pipe(struct tracecmd_input *handle, int cpu, int fd, int cpus)
  */
 void tracecmd_print_events(struct tracecmd_input *handle, const char *regex)
 {
-	struct file_section *sec;
-
 	if (!regex)
 		regex = ".*";
 
-	sec = section_open(handle, TRACECMD_OPTION_HEADER_INFO);
-	if (sec) {
-		read_header_files(handle);
-		section_close(handle, sec);
-	}
-	sec = section_open(handle, TRACECMD_OPTION_FTRACE_EVENTS);
-	if (sec) {
-		read_ftrace_files(handle, regex);
-		section_close(handle, sec);
-	}
-	sec = section_open(handle, TRACECMD_OPTION_EVENT_FORMATS);
-	if (sec) {
-		read_event_files(handle, regex);
-		section_close(handle, sec);
-	}
+	if (!HAS_SECTIONS(handle))
+		read_headers_v6(handle, TRACECMD_FILE_ALL_EVENTS, regex);
+
+	read_headers(handle, regex);
 }
 
 /* Show the cpu data stats */
