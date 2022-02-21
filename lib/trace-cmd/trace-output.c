@@ -2452,9 +2452,14 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 			if (do_lseek(handle, offset, SEEK_SET) == (off64_t)-1)
 				goto out_free;
 		}
-		if (!tracecmd_get_quiet(handle))
-			fprintf(stderr, "    %llu bytes in size\n",
+		if (!tracecmd_get_quiet(handle)) {
+			fprintf(stderr, "    %llu bytes in size",
 				(unsigned long long)data_files[i].write_size);
+			if (flags & TRACECMD_SEC_FL_COMPRESS)
+				fprintf(stderr, " (%llu uncompressed)",
+					(unsigned long long)data_files[i].file_size);
+			fprintf(stderr, "\n");
+		}
 	}
 
 	if (HAS_SECTIONS(handle) &&
