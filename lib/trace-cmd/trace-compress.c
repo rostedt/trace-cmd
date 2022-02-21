@@ -390,6 +390,7 @@ void tracecmd_compress_init(void)
 #ifdef HAVE_ZLIB
 	tracecmd_zlib_init();
 #endif
+	tracecmd_zstd_init();
 }
 
 static struct compress_proto *compress_proto_select(void)

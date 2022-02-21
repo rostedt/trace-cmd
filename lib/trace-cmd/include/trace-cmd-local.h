@@ -30,6 +30,15 @@ void tracecmd_info(const char *fmt, ...);
 int tracecmd_zlib_init(void);
 #endif
 
+#ifdef HAVE_ZSTD
+int tracecmd_zstd_init(void);
+#else
+static inline int tracecmd_zstd_init(void)
+{
+	return 0;
+}
+#endif
+
 struct data_file_write {
 	unsigned long long	file_size;
 	unsigned long long	write_size;

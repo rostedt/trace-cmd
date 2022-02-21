@@ -29,6 +29,9 @@ OBJS += trace-compress.o
 ifeq ($(ZLIB_INSTALLED), 1)
 OBJS += trace-compress-zlib.o
 endif
+ifeq ($(ZSTD_INSTALLED), 1)
+OBJS += trace-compress-zstd.o
+endif
 
 # Additional util objects
 OBJS += trace-blk-hack.o
@@ -48,7 +51,7 @@ $(DEPS): | $(bdir)
 $(LIBTRACECMD_STATIC): $(OBJS)
 	$(Q)$(call do_build_static_lib)
 
-LIBS = $(LIBTRACEEVENT_LDLAGS) $(LIBTRACEFS_LDLAGS) -lpthread
+LIBS = $(LIBTRACEEVENT_LDLAGS) $(LIBTRACEFS_LDLAGS) $(LIBZSTD_LDLAGS) -lpthread
 
 ifeq ($(ZLIB_INSTALLED), 1)
 LIBS += -lz

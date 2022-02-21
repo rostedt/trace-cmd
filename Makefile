@@ -307,6 +307,18 @@ CFLAGS += -DHAVE_ZLIB
 $(info    Have zlib compression support)
 endif
 
+TEST_LIBZSTD = $(shell sh -c "$(PKG_CONFIG) --atleast-version 1.4.0 libzstd > /dev/null 2>&1 && echo y")
+
+ifeq ("$(TEST_LIBZSTD)", "y")
+LIBZSTD_CFLAGS = $(shell sh -c "$(PKG_CONFIG) --cflags libzstd")
+LIBZSTD_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs libzstd")
+CFLAGS += -DHAVE_ZSTD
+ZSTD_INSTALLED=1
+$(info    Have ZSTD compression support)
+endif
+
+export LIBZSTD_CFLAGS LIBZSTD_LDLAGS ZSTD_INSTALLED
+
 CUNIT_INSTALLED := $(shell if (printf "$(pound)include <CUnit/Basic.h>\n void main(){CU_initialize_registry();}" | $(CC) -o /dev/null -x c - -lcunit >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
 export CUNIT_INSTALLED
 
