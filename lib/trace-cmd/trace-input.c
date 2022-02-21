@@ -1532,7 +1532,7 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	int index;
 
 	if (!page->ref_count) {
-		tracecmd_critical("Page ref count is zero!\n");
+		tracecmd_critical("Page ref count is zero!");
 		return;
 	}
 
@@ -4168,7 +4168,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 	version = read_string(handle);
 	if (!version)
 		goto failed_read;
-	tracecmd_info("version = %s\n", version);
+	tracecmd_info("version = %s", version);
 	ver = strtol(version, NULL, 10);
 	if (!ver && errno)
 		goto failed_read;
@@ -4396,7 +4396,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 		return;
 
 	if (handle->ref <= 0) {
-		tracecmd_warning("tracecmd: bad ref count on handle\n");
+		tracecmd_warning("tracecmd: bad ref count on handle");
 		return;
 	}
 
@@ -5493,7 +5493,7 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 
 		ret = lseek64(handle->fd, buffer->offset, SEEK_SET);
 		if (ret == (off64_t)-1) {
-			tracecmd_warning("could not seek to buffer %s offset %ld\n",
+			tracecmd_warning("could not seek to buffer %s offset %ld",
 					  buffer->name, buffer->offset);
 			goto error;
 		}
@@ -5507,12 +5507,12 @@ tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx)
 			ret = read_cpu_data(new_handle);
 
 		if (ret < 0) {
-			tracecmd_warning("failed to read sub buffer %s\n", buffer->name);
+			tracecmd_warning("failed to read sub buffer %s", buffer->name);
 			goto error;
 		}
 		ret = lseek64(handle->fd, offset, SEEK_SET);
 		if (ret < 0) {
-			tracecmd_warning("could not seek to back to offset %ld\n", offset);
+			tracecmd_warning("could not seek to back to offset %ld", offset);
 			goto error;
 		}
 	} else {

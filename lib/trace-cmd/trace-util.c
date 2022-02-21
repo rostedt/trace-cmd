@@ -30,7 +30,7 @@
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
 
 static bool debug;
-static int log_level = TEP_LOG_CRITICAL;
+static int log_level = TEP_LOG_INFO;
 static FILE *logfp;
 
 const static struct {

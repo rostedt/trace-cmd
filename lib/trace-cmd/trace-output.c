@@ -2277,7 +2277,7 @@ static int update_buffer_cpu_offset_v6(struct tracecmd_output *handle,
 
 	b_offset = get_buffer_file_offset(handle, name);
 	if (!b_offset) {
-		tracecmd_warning("Cannot find description for buffer %s\n", name);
+		tracecmd_warning("Cannot find description for buffer %s", name);
 		return -1;
 	}
 
@@ -2285,7 +2285,7 @@ static int update_buffer_cpu_offset_v6(struct tracecmd_output *handle,
 
 	/* Go to the option data, where will write the offest */
 	if (do_lseek(handle, b_offset, SEEK_SET) == (off64_t)-1) {
-		tracecmd_warning("could not seek to %lld\n", b_offset);
+		tracecmd_warning("could not seek to %lld", b_offset);
 		return -1;
 	}
 
@@ -2294,7 +2294,7 @@ static int update_buffer_cpu_offset_v6(struct tracecmd_output *handle,
 
 	/* Go back to end of file */
 	if (do_lseek(handle, current, SEEK_SET) == (off64_t)-1) {
-		tracecmd_warning("could not seek to %lld\n", offset);
+		tracecmd_warning("could not seek to %lld", offset);
 		return -1;
 	}
 	return 0;

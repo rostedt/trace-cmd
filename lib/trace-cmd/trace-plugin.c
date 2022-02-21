@@ -108,13 +108,13 @@ load_plugin(struct trace_plugin_context *trace, const char *path,
 
 	ret = asprintf(&plugin, "%s/%s", path, file);
 	if (ret < 0) {
-		tracecmd_warning("could not allocate plugin memory\n");
+		tracecmd_warning("could not allocate plugin memory");
 		return;
 	}
 
 	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
-		tracecmd_warning("could not load plugin '%s'\n%s\n", plugin, dlerror());
+		tracecmd_warning("could not load plugin '%s'\n%s", plugin, dlerror());
 		goto out_free;
 	}
 
@@ -124,14 +124,14 @@ load_plugin(struct trace_plugin_context *trace, const char *path,
 
 	func = dlsym(handle, TRACECMD_PLUGIN_LOADER_NAME);
 	if (!func) {
-		tracecmd_warning("could not find func '%s' in plugin '%s'\n%s\n",
+		tracecmd_warning("could not find func '%s' in plugin '%s'\n%s",
 				 TRACECMD_PLUGIN_LOADER_NAME, plugin, dlerror());
 		goto out_free;
 	}
 
 	list = malloc(sizeof(*list));
 	if (!list) {
-		tracecmd_warning("could not allocate plugin memory\n");
+		tracecmd_warning("could not allocate plugin memory");
 		goto out_free;
 	}
 
@@ -256,7 +256,7 @@ load_plugins_hook(struct trace_plugin_context *trace, const char *suffix,
 
 	ret = asprintf(&path, "%s/%s", home, LOCAL_PLUGIN_DIR);
 	if (ret < 0) {
-		tracecmd_warning("could not allocate plugin memory\n");
+		tracecmd_warning("could not allocate plugin memory");
 		return;
 	}
 

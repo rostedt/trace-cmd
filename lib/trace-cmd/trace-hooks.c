@@ -133,7 +133,7 @@ struct hook_list *tracecmd_create_event_hook(const char *arg)
 				hook->stack = 1;
 				break;
 			default:
-				tracecmd_warning("unknown flag %c\n", flags[i]);
+				tracecmd_warning("unknown flag %c", flags[i]);
 			}
 		}
 	}
