@@ -9,7 +9,7 @@
 #include <byteswap.h>
 #include "trace-cmd-private.h"
 
-#define FILE_VERSION_DEFAULT		6
+#define FILE_VERSION_DEFAULT		7
 
 /* Can be overridden */
 void tracecmd_warning(const char *fmt, ...);
