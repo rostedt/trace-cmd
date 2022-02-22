@@ -630,7 +630,7 @@ int tracecmd_default_file_version(void)
 
 bool tracecmd_is_version_supported(unsigned int version)
 {
-	if (version >= FILE_VERSION_MIN && version <= FILE_VERSION_MAX)
+	if (version <= FILE_VERSION_MAX)
 		return true;
 	return false;
 }
