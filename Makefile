@@ -315,6 +315,10 @@ LIBZSTD_LDLAGS = $(shell sh -c "$(PKG_CONFIG) --libs libzstd")
 CFLAGS += -DHAVE_ZSTD
 ZSTD_INSTALLED=1
 $(info    Have ZSTD compression support)
+else
+$(info	  *************************************************************)
+$(info	  ZSTD package not found, best compression algorithm not in use)
+$(info	  *************************************************************)
 endif
 
 export LIBZSTD_CFLAGS LIBZSTD_LDLAGS ZSTD_INSTALLED
