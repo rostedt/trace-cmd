@@ -4898,7 +4898,7 @@ int tracecmd_copy_headers(struct tracecmd_input *in_handle,
 			  enum tracecmd_file_states start_state,
 			  enum tracecmd_file_states end_state)
 {
-	struct file_section *sec;
+	struct file_section *sec = NULL;
 	int ret;
 
 	if (!start_state)
