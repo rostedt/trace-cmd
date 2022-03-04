@@ -20,7 +20,6 @@ static int zlib_compress(const void *in, int in_bytes, void *out, int out_bytes)
 
 	ret = compress2((unsigned char *)out, &obytes,
 			(unsigned char *)in, (unsigned long)in_bytes, Z_BEST_COMPRESSION);
-	errno = 0;
 	switch (ret) {
 	case Z_OK:
 		return obytes;
@@ -32,6 +31,8 @@ static int zlib_compress(const void *in, int in_bytes, void *out, int out_bytes)
 		break;
 	case Z_STREAM_ERROR:
 		errno = -EINVAL;
+		break;
+	case Z_ERRNO:
 		break;
 	default:
 		errno = -EFAULT;
@@ -48,7 +49,6 @@ static int zlib_decompress(const void *in, int in_bytes, void *out, int out_byte
 
 	ret = uncompress((unsigned char *)out, &obytes,
 			 (unsigned char *)in, (unsigned long)in_bytes);
-	errno = 0;
 	switch (ret) {
 	case Z_OK:
 		return obytes;
@@ -60,6 +60,8 @@ static int zlib_decompress(const void *in, int in_bytes, void *out, int out_byte
 		break;
 	case Z_DATA_ERROR:
 		errno = -EINVAL;
+		break;
+	case Z_ERRNO:
 		break;
 	default:
 		errno = -EFAULT;
