@@ -59,8 +59,18 @@ static bool zstd_is_supported(const char *name, const char *version)
 
 int tracecmd_zstd_init(void)
 {
+	struct tracecmd_compression_proto proto;
 	int ret = 0;
 	size_t r;
+
+	memset(&proto, 0, sizeof(proto));
+	proto.name = __ZSTD_NAME;
+	proto.version = ZSTD_versionString();
+	proto.weight = __ZSTD_WEIGTH;
+	proto.compress = zstd_compress;
+	proto.uncompress = zstd_decompress;
+	proto.is_supported = zstd_is_supported;
+	proto.compress_size = zstd_compress_bound;
 
 	ctx_c = ZSTD_createCCtx();
 	ctx_d = ZSTD_createDCtx();
@@ -71,13 +81,7 @@ int tracecmd_zstd_init(void)
 	if (ZSTD_isError(r))
 		goto err;
 
-	ret = tracecmd_compress_proto_register(__ZSTD_NAME,
-					       ZSTD_versionString(),
-					       __ZSTD_WEIGTH,
-					       zstd_compress,
-					       zstd_decompress,
-					       zstd_compress_bound,
-					       zstd_is_supported);
+	ret = tracecmd_compress_proto_register(&proto);
 	if (!ret)
 		return 0;
 err:

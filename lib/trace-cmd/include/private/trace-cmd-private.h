@@ -514,6 +514,16 @@ struct tracecmd_compress_chunk {
 	off64_t			offset;
 };
 struct tracecmd_compression;
+struct tracecmd_compression_proto {
+	int weight;
+	const char *name;
+	const char *version;
+	int (*compress)(const char *in, unsigned int in_bytes, char *out, unsigned int *out_bytes);
+	int (*uncompress)(const char *in, unsigned int in_bytes, char *out, unsigned int *out_bytes);
+	unsigned int (*compress_size)(unsigned int bytes);
+	bool (*is_supported)(const char *name, const char *version);
+};
+
 struct tracecmd_compression *tracecmd_compress_alloc(const char *name, const char *version,
 						     int fd, struct tep_handle *tep,
 						     struct tracecmd_msg_handle *msg_handle);
@@ -530,13 +540,7 @@ int tracecmd_compress_proto_get_name(struct tracecmd_compression *compress,
 				     const char **name, const char **version);
 bool tracecmd_compress_is_supported(const char *name, const char *version);
 int tracecmd_compress_protos_get(char ***names, char ***versions);
-int tracecmd_compress_proto_register(const char *name, const char *version, int weight,
-				     int (*compress)(const char *in, unsigned int in_bytes,
-						     char *out, unsigned int *out_bytes),
-				     int (*uncompress)(const char *in, unsigned int in_bytes,
-						       char *out, unsigned int *out_bytes),
-				     unsigned int (*comress_size)(unsigned int bytes),
-				     bool (*is_supported)(const char *name, const char *version));
+int tracecmd_compress_proto_register(struct tracecmd_compression_proto *proto);
 int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int chunk_size,
 				unsigned long long *read_size, unsigned long long *write_size);
 int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,

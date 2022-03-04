@@ -522,39 +522,33 @@ int tracecmd_compress_proto_get_name(struct tracecmd_compression *compress,
  * Returns 0 on success, or -1 in case of an error. If algorithm with given name
  * and version is already registered, -1 is returned.
  */
-int tracecmd_compress_proto_register(const char *name, const char *version, int weight,
-				     int (*compress)(const char *in, unsigned int in_bytes,
-						     char *out, unsigned int *out_bytes),
-				     int (*uncompress)(const char *in, unsigned int in_bytes,
-						       char *out, unsigned int *out_bytes),
-				     unsigned int (*compress_size)(unsigned int bytes),
-				     bool (*is_supported)(const char *name, const char *version))
+int tracecmd_compress_proto_register(struct tracecmd_compression_proto *proto)
 {
 	struct compress_proto *new;
 
-	if (!name || !compress || !uncompress)
+	if (!proto || !proto->name || !proto->compress || !proto->uncompress)
 		return -1;
 
-	if (tracecmd_compress_is_supported(name, version))
+	if (tracecmd_compress_is_supported(proto->name, proto->version))
 		return -1;
 
 	new = calloc(1, sizeof(*new));
 	if (!new)
 		return -1;
 
-	new->proto_name = strdup(name);
+	new->proto_name = strdup(proto->name);
 	if (!new->proto_name)
 		goto error;
 
-	new->proto_version = strdup(version);
+	new->proto_version = strdup(proto->version);
 	if (!new->proto_version)
 		goto error;
 
-	new->compress_block = compress;
-	new->uncompress_block = uncompress;
-	new->compress_size = compress_size;
-	new->is_supported = is_supported;
-	new->weight = weight;
+	new->compress_block = proto->compress;
+	new->uncompress_block = proto->uncompress;
+	new->compress_size = proto->compress_size;
+	new->is_supported = proto->is_supported;
+	new->weight = proto->weight;
 	new->next = proto_list;
 	proto_list = new;
 	return 0;

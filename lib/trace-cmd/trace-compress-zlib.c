@@ -103,7 +103,16 @@ static bool zlib_is_supported(const char *name, const char *version)
 
 int tracecmd_zlib_init(void)
 {
-	return tracecmd_compress_proto_register(__ZLIB_NAME, zlibVersion(), __ZLIB_WEIGTH,
-						zlib_compress, zlib_decompress,
-						zlib_compress_bound, zlib_is_supported);
+	struct tracecmd_compression_proto proto;
+
+	memset(&proto, 0, sizeof(proto));
+	proto.name = __ZLIB_NAME;
+	proto.version = zlibVersion();
+	proto.weight = __ZLIB_WEIGTH;
+	proto.compress = zlib_compress;
+	proto.uncompress = zlib_decompress;
+	proto.is_supported = zlib_is_supported;
+	proto.compress_size = zlib_compress_bound;
+
+	return tracecmd_compress_proto_register(&proto);
 }
