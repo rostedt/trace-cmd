@@ -13,19 +13,17 @@
 #define __ZLIB_NAME		"zlib"
 #define __ZLIB_WEIGTH		10
 
-static int zlib_compress(const char *in, unsigned int in_bytes,
-			 char *out, unsigned int *out_bytes)
+static int zlib_compress(const void *in, int in_bytes, void *out, int out_bytes)
 {
-	unsigned long out_size = *out_bytes;
+	unsigned long obytes = out_bytes;
 	int ret;
 
-	ret = compress2((unsigned char *)out, &out_size,
+	ret = compress2((unsigned char *)out, &obytes,
 			(unsigned char *)in, (unsigned long)in_bytes, Z_BEST_COMPRESSION);
-	*out_bytes = out_size;
 	errno = 0;
 	switch (ret) {
 	case Z_OK:
-		return 0;
+		return obytes;
 	case Z_BUF_ERROR:
 		errno = -ENOBUFS;
 		break;
@@ -43,19 +41,17 @@ static int zlib_compress(const char *in, unsigned int in_bytes,
 	return -1;
 }
 
-static int zlib_decompress(const char *in, unsigned int in_bytes,
-			   char *out, unsigned int *out_bytes)
+static int zlib_decompress(const void *in, int in_bytes, void *out, int out_bytes)
 {
-	unsigned long out_size = *out_bytes;
+	unsigned long obytes = out_bytes;
 	int ret;
 
-	ret = uncompress((unsigned char *)out, &out_size,
+	ret = uncompress((unsigned char *)out, &obytes,
 			 (unsigned char *)in, (unsigned long)in_bytes);
-	*out_bytes = out_size;
 	errno = 0;
 	switch (ret) {
 	case Z_OK:
-		return 0;
+		return obytes;
 	case Z_BUF_ERROR:
 		errno = -ENOBUFS;
 		break;

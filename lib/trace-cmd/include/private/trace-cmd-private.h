@@ -518,8 +518,8 @@ struct tracecmd_compression_proto {
 	int weight;
 	const char *name;
 	const char *version;
-	int (*compress)(const char *in, unsigned int in_bytes, char *out, unsigned int *out_bytes);
-	int (*uncompress)(const char *in, unsigned int in_bytes, char *out, unsigned int *out_bytes);
+	int (*compress)(const void *in, int in_bytes, void *out, int out_bytes);
+	int (*uncompress)(const void *in, int in_bytes, void *out, int out_bytes);
 	unsigned int (*compress_size)(unsigned int bytes);
 	bool (*is_supported)(const char *name, const char *version);
 };

@@ -15,31 +15,29 @@
 static ZSTD_CCtx *ctx_c;
 static ZSTD_DCtx *ctx_d;
 
-static int zstd_compress(const char *in, unsigned int in_bytes,
-			 char *out, unsigned int *out_bytes)
+static int zstd_compress(const void *in, int in_bytes, void *out, int out_bytes)
 {
 	size_t ret;
 
-	ret = ZSTD_compress2(ctx_c, out, *out_bytes, in, in_bytes);
+	ret = ZSTD_compress2(ctx_c, out, out_bytes, in, in_bytes);
 	if (ZSTD_isError(ret))
 		return -1;
-	*out_bytes = ret;
-	return 0;
+
+	return ret;
 }
 
-static int zstd_decompress(const char *in, unsigned int in_bytes,
-			   char *out, unsigned int *out_bytes)
+static int zstd_decompress(const void *in, int in_bytes, void *out, int out_bytes)
 {
 	size_t ret;
 
-	ret = ZSTD_decompressDCtx(ctx_d, out, *out_bytes, in, in_bytes);
+	ret = ZSTD_decompressDCtx(ctx_d, out, out_bytes, in, in_bytes);
 	if (ZSTD_isError(ret)) {
 		errno = -EINVAL;
 		return -1;
 	}
-	*out_bytes = ret;
+
 	errno = 0;
-	return 0;
+	return ret;
 }
 
 static unsigned int zstd_compress_bound(unsigned int in_bytes)

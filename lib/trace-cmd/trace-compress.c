@@ -18,10 +18,8 @@ struct compress_proto {
 	char *proto_version;
 	int weight;
 
-	int (*compress_block)(const char *in, unsigned int in_bytes,
-			     char *out, unsigned int *out_bytes);
-	int (*uncompress_block)(const char *in, unsigned int in_bytes,
-				char *out, unsigned int *out_bytes);
+	int (*compress_block)(const void *in, int in_bytes, void *out, int out_bytes);
+	int (*uncompress_block)(const void *in,  int in_bytes, void *out, int out_bytes);
 	unsigned int (*compress_size)(unsigned int bytes);
 	bool (*is_supported)(const char *name, const char *version);
 };
@@ -273,15 +271,13 @@ int tracecmd_uncompress_block(struct tracecmd_compression *handle)
 	if (read_fd(handle->fd, bytes, s_compressed) < 0)
 		goto error;
 
-	s_uncompressed = size;
-	ret = handle->proto->uncompress_block(bytes, s_compressed,
-					      handle->buffer, &s_uncompressed);
-	if (ret)
+	ret = handle->proto->uncompress_block(bytes, s_compressed, handle->buffer, size);
+	if (ret < 0)
 		goto error;
 
 	free(bytes);
 	handle->pointer = 0;
-	handle->capacity_read = s_uncompressed;
+	handle->capacity_read = ret;
 	handle->capacity = size;
 	return 0;
 error:
@@ -318,12 +314,12 @@ int tracecmd_compress_block(struct tracecmd_compression *handle)
 	if (!buf)
 		return -1;
 
-	ret = handle->proto->compress_block(handle->buffer, handle->pointer, buf, &size);
+	ret = handle->proto->compress_block(handle->buffer, handle->pointer, buf, size);
 	if (ret < 0)
 		goto out;
 
 	/* Write compressed data size */
-	endian4 = tep_read_number(handle->tep, &size, 4);
+	endian4 = tep_read_number(handle->tep, &ret, 4);
 	ret = do_write(handle, &endian4, 4);
 	if (ret != 4)
 		goto out;
@@ -710,12 +706,13 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 		rsize += all;
 		size = csize;
 		if (all > 0) {
-			ret = handle->proto->compress_block(buf_from, all, buf_to, &size);
+			ret = handle->proto->compress_block(buf_from, all, buf_to, size);
 			if (ret < 0) {
 				if (errno == EINTR)
 					continue;
 				break;
 			}
+			size = ret;
 			/* Write compressed data size */
 			endian4 = tep_read_number(handle->tep, &size, 4);
 			ret = write_fd(handle->fd, &endian4, 4);
@@ -851,7 +848,6 @@ int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
 			      struct tracecmd_compress_chunk *chunk, char *data)
 {
 	char *bytes_in = NULL;
-	unsigned int size;
 	int ret = -1;
 
 	if (!handle || !handle->proto || !handle->proto->uncompress_block || !chunk || !data)
@@ -867,8 +863,7 @@ int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
 	if (read_fd(handle->fd, bytes_in, chunk->zsize) < 0)
 		goto out;
 
-	size = chunk->size;
-	if (handle->proto->uncompress_block(bytes_in, chunk->zsize, data, &size))
+	if (handle->proto->uncompress_block(bytes_in, chunk->zsize, data, chunk->size) < 0)
 		goto out;
 
 	ret = 0;
@@ -954,12 +949,12 @@ int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,
 
 		rsize += s_compressed;
 		ret = handle->proto->uncompress_block(bytes_in, s_compressed,
-						      bytes_out, &s_uncompressed);
-		if (ret)
+						      bytes_out, s_uncompressed);
+		if (ret < 0)
 			break;
 
-		write_fd(fd, bytes_out, s_uncompressed);
-		wsize += s_uncompressed;
+		write_fd(fd, bytes_out, ret);
+		wsize += ret;
 		chunks--;
 	}
 	free(bytes_in);
