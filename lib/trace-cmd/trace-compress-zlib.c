@@ -13,7 +13,7 @@
 #define __ZLIB_NAME		"zlib"
 #define __ZLIB_WEIGTH		10
 
-static int zlib_compress(const void *in, int in_bytes, void *out, int out_bytes)
+static int zlib_compress(void *ctx, const void *in, int in_bytes, void *out, int out_bytes)
 {
 	unsigned long obytes = out_bytes;
 	int ret;
@@ -42,7 +42,7 @@ static int zlib_compress(const void *in, int in_bytes, void *out, int out_bytes)
 	return -1;
 }
 
-static int zlib_decompress(const void *in, int in_bytes, void *out, int out_bytes)
+static int zlib_decompress(void *ctx, const void *in, int in_bytes, void *out, int out_bytes)
 {
 	unsigned long obytes = out_bytes;
 	int ret;
@@ -71,7 +71,7 @@ static int zlib_decompress(const void *in, int in_bytes, void *out, int out_byte
 	return -1;
 }
 
-static unsigned int zlib_compress_bound(unsigned int in_bytes)
+static unsigned int zlib_compress_bound(void *ctx, unsigned int in_bytes)
 {
 	return compressBound(in_bytes);
 }

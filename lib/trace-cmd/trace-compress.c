@@ -18,10 +18,12 @@ struct compress_proto {
 	char *proto_version;
 	int weight;
 
-	int (*compress_block)(const void *in, int in_bytes, void *out, int out_bytes);
-	int (*uncompress_block)(const void *in,  int in_bytes, void *out, int out_bytes);
-	unsigned int (*compress_size)(unsigned int bytes);
+	int (*compress_block)(void *ctx, const void *in, int in_bytes, void *out, int out_bytes);
+	int (*uncompress_block)(void *ctx, const void *in,  int in_bytes, void *out, int out_bytes);
+	unsigned int (*compress_size)(void *ctx, unsigned int bytes);
 	bool (*is_supported)(const char *name, const char *version);
+	void *(*new_context)(void);
+	void (*free_context)(void *ctx);
 };
 
 static struct compress_proto *proto_list;
@@ -35,6 +37,7 @@ struct tracecmd_compression {
 	struct compress_proto		*proto;
 	struct tep_handle		*tep;
 	struct tracecmd_msg_handle	*msg_handle;
+	void				*context;
 };
 
 static int read_fd(int fd, char *dst, int len)
@@ -271,7 +274,8 @@ int tracecmd_uncompress_block(struct tracecmd_compression *handle)
 	if (read_fd(handle->fd, bytes, s_compressed) < 0)
 		goto error;
 
-	ret = handle->proto->uncompress_block(bytes, s_compressed, handle->buffer, size);
+	ret = handle->proto->uncompress_block(handle->context,
+					      bytes, s_compressed, handle->buffer, size);
 	if (ret < 0)
 		goto error;
 
@@ -308,13 +312,13 @@ int tracecmd_compress_block(struct tracecmd_compression *handle)
 	    !handle->proto->compress_size || !handle->proto->compress_block)
 		return -1;
 
-	size = handle->proto->compress_size(handle->pointer);
+	size = handle->proto->compress_size(handle->context, handle->pointer);
 
 	buf = malloc(size);
 	if (!buf)
 		return -1;
 
-	ret = handle->proto->compress_block(handle->buffer, handle->pointer, buf, size);
+	ret = handle->proto->compress_block(handle->context, handle->buffer, handle->pointer, buf, size);
 	if (ret < 0)
 		goto out;
 
@@ -443,6 +447,9 @@ struct tracecmd_compression *tracecmd_compress_alloc(const char *name, const cha
 	new->tep = tep;
 	new->msg_handle = msg_handle;
 	new->proto = proto;
+	if (proto->new_context)
+		new->context = proto->new_context();
+
 	return new;
 }
 
@@ -452,7 +459,14 @@ struct tracecmd_compression *tracecmd_compress_alloc(const char *name, const cha
  */
 void tracecmd_compress_destroy(struct tracecmd_compression *handle)
 {
+	if (!handle)
+		return;
+
 	tracecmd_compress_reset(handle);
+
+	if (handle->proto && handle->proto->free_context)
+		handle->proto->free_context(handle->context);
+
 	free(handle);
 }
 
@@ -546,6 +560,8 @@ int tracecmd_compress_proto_register(struct tracecmd_compression_proto *proto)
 	new->is_supported = proto->is_supported;
 	new->weight = proto->weight;
 	new->next = proto_list;
+	new->new_context = proto->new_context;
+	new->free_context = proto->free_context;
 	proto_list = new;
 	return 0;
 
@@ -672,7 +688,7 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 
 	if (read_size)
 		rmax = *read_size;
-	csize = handle->proto->compress_size(chunk_size);
+	csize = handle->proto->compress_size(handle->context, chunk_size);
 	buf_from = malloc(chunk_size);
 	if (!buf_from)
 		return -1;
@@ -706,7 +722,8 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 		rsize += all;
 		size = csize;
 		if (all > 0) {
-			ret = handle->proto->compress_block(buf_from, all, buf_to, size);
+			ret = handle->proto->compress_block(handle->context,
+							    buf_from, all, buf_to, size);
 			if (ret < 0) {
 				if (errno == EINTR)
 					continue;
@@ -863,7 +880,8 @@ int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
 	if (read_fd(handle->fd, bytes_in, chunk->zsize) < 0)
 		goto out;
 
-	if (handle->proto->uncompress_block(bytes_in, chunk->zsize, data, chunk->size) < 0)
+	if (handle->proto->uncompress_block(handle->context,
+					    bytes_in, chunk->zsize, data, chunk->size) < 0)
 		goto out;
 
 	ret = 0;
@@ -948,7 +966,7 @@ int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,
 			break;
 
 		rsize += s_compressed;
-		ret = handle->proto->uncompress_block(bytes_in, s_compressed,
+		ret = handle->proto->uncompress_block(handle->context, bytes_in, s_compressed,
 						      bytes_out, s_uncompressed);
 		if (ret < 0)
 			break;
