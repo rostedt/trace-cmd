@@ -12,14 +12,20 @@
 #define __ZSTD_NAME		"zstd"
 #define __ZSTD_WEIGTH		5
 
-static ZSTD_CCtx *ctx_c;
-static ZSTD_DCtx *ctx_d;
+struct zstd_context {
+	ZSTD_CCtx *ctx_c;
+	ZSTD_DCtx *ctx_d;
+};
 
 static int zstd_compress(void *ctx, const void *in, int in_bytes, void *out, int out_bytes)
 {
+	struct zstd_context *context = ctx;
 	size_t ret;
 
-	ret = ZSTD_compress2(ctx_c, out, out_bytes, in, in_bytes);
+	if (!ctx)
+		return -1;
+
+	ret = ZSTD_compress2(context->ctx_c, out, out_bytes, in, in_bytes);
 	if (ZSTD_isError(ret))
 		return -1;
 
@@ -28,9 +34,13 @@ static int zstd_compress(void *ctx, const void *in, int in_bytes, void *out, int
 
 static int zstd_decompress(void *ctx, const void *in, int in_bytes, void *out, int out_bytes)
 {
+	struct zstd_context *context = ctx;
 	size_t ret;
 
-	ret = ZSTD_decompressDCtx(ctx_d, out, out_bytes, in, in_bytes);
+	if (!ctx)
+		return -1;
+
+	ret = ZSTD_decompressDCtx(context->ctx_d, out, out_bytes, in, in_bytes);
 	if (ZSTD_isError(ret)) {
 		errno = -EINVAL;
 		return -1;
@@ -55,11 +65,46 @@ static bool zstd_is_supported(const char *name, const char *version)
 	return true;
 }
 
+static void *new_zstd_context(void)
+{
+	struct zstd_context *context;
+	size_t r;
+
+	context = calloc(1, sizeof(*context));
+	if (!context)
+		return NULL;
+
+	context->ctx_c = ZSTD_createCCtx();
+	context->ctx_d = ZSTD_createDCtx();
+	if (!context->ctx_c || !context->ctx_d)
+		goto err;
+
+	r = ZSTD_CCtx_setParameter(context->ctx_c, ZSTD_c_contentSizeFlag, 0);
+	if (ZSTD_isError(r))
+		goto err;
+
+	return context;
+err:
+	ZSTD_freeCCtx(context->ctx_c);
+	ZSTD_freeDCtx(context->ctx_d);
+	free(context);
+	return NULL;
+}
+static void free_zstd_context(void *ctx)
+{
+	struct zstd_context *context = ctx;
+
+	if (!ctx)
+		return;
+
+	ZSTD_freeCCtx(context->ctx_c);
+	ZSTD_freeDCtx(context->ctx_d);
+	free(context);
+}
+
 int tracecmd_zstd_init(void)
 {
 	struct tracecmd_compression_proto proto;
-	int ret = 0;
-	size_t r;
 
 	memset(&proto, 0, sizeof(proto));
 	proto.name = __ZSTD_NAME;
@@ -69,25 +114,8 @@ int tracecmd_zstd_init(void)
 	proto.uncompress = zstd_decompress;
 	proto.is_supported = zstd_is_supported;
 	proto.compress_size = zstd_compress_bound;
+	proto.new_context = new_zstd_context;
+	proto.free_context = free_zstd_context;
 
-	ctx_c = ZSTD_createCCtx();
-	ctx_d = ZSTD_createDCtx();
-	if (!ctx_c || !ctx_d)
-		goto err;
-
-	r = ZSTD_CCtx_setParameter(ctx_c, ZSTD_c_contentSizeFlag, 0);
-	if (ZSTD_isError(r))
-		goto err;
-
-	ret = tracecmd_compress_proto_register(&proto);
-	if (!ret)
-		return 0;
-err:
-	ZSTD_freeCCtx(ctx_c);
-	ZSTD_freeDCtx(ctx_d);
-	ctx_c = NULL;
-	ctx_d = NULL;
-	if (ret < 0)
-		return ret;
-	return -1;
+	return tracecmd_compress_proto_register(&proto);
 }
