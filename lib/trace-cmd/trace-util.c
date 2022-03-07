@@ -131,6 +131,7 @@ void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
+	int sav_errno;
 	char *func;
 	char *line;
 	char *next = NULL;
@@ -144,13 +145,13 @@ void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 		int n;
 
 		mod = NULL;
+		sav_errno = errno;
 		errno = 0;
 		n = sscanf(line, "%16llx %c %n%*s%n%*1[\t][%n%*s%n",
 			   &addr, &ch, &func_start, &func_end, &mod_start, &mod_end);
-		if (errno) {
-			perror("sscanf");
+		if (errno)
 			return;
-		}
+		errno = sav_errno;
 
 		if (n != 2 || !func_end)
 			return;
@@ -521,7 +522,6 @@ int tracecmd_stack_tracer_status(int *status)
 
 	buf[n] = 0;
 
-	errno = 0;
 	num = strtol(buf, NULL, 10);
 
 	/* Check for various possible errors */

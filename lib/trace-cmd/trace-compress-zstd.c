@@ -46,7 +46,6 @@ static int zstd_decompress(void *ctx, const void *in, int in_bytes, void *out, i
 		return -1;
 	}
 
-	errno = 0;
 	return ret;
 }
 
