@@ -309,6 +309,9 @@ OPTIONS
      Make sure no timestamp goes backwards, and if it does, print out a warning
      message of the fact.
 
+*--nodate*::
+     Ignore converting the timestamps to the date set by *trace-cmd record*(3) --date option.
+
 *--raw-ts*::
      Display raw timestamps, without any corrections.
 

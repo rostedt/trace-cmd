@@ -244,6 +244,7 @@ static struct usage_help usage_help[] = {
 		"                     previous data file, in which case it becomes default\n"
 		"          --ts-diff Show the delta timestamp between events.\n"
 		"          --ts-check Check to make sure no time stamp on any CPU goes backwards.\n"
+		"          --nodate Ignore the --date processing of trace-cmd record.\n"
 		"          --raw-ts Display raw timestamps, without any corrections.\n"
 		"          --align-ts Display timestamps aligned to the first event.\n"
 		"          --verbose[=level] Set the desired log level\n"
