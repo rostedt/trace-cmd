@@ -6,7 +6,7 @@
 #ifndef __LIST_H
 #define __LIST_H
 
-#define offset_of(type, field)		(long)(&((type *)0)->field)
+#define offset_of(type, field)		__builtin_offsetof(type, field)
 #define container_of(p, type, field)	(type *)((long)p - offset_of(type, field))
 
 struct list_head {
