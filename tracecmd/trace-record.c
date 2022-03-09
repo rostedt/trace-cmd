@@ -5262,12 +5262,7 @@ static void clear_all_dynamic_events(void)
 {
 	/* Clear event probes first, as they may be attached to other dynamic event */
 	tracefs_dynevent_destroy_all(TRACEFS_DYNEVENT_EPROBE, true);
-	tracefs_dynevent_destroy_all(TRACEFS_DYNEVENT_KPROBE |
-				     TRACEFS_DYNEVENT_KRETPROBE |
-				     TRACEFS_DYNEVENT_UPROBE |
-				     TRACEFS_DYNEVENT_URETPROBE |
-				     TRACEFS_DYNEVENT_SYNTH,
-				     true);
+	tracefs_dynevent_destroy_all(TRACEFS_DYNEVENT_ALL, true);
 }
 
 static void clear_func_filters(void)
