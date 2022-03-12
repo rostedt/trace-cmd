@@ -2025,9 +2025,15 @@ int tracecmd_refresh_record(struct tracecmd_input *handle,
 struct tep_record *
 tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 {
+	unsigned long long page_offset;
 	int ret;
 
-	ret = get_page(handle, cpu, handle->cpu_data[cpu].file_offset);
+	if (cpu > handle->cpus)
+		return NULL;
+
+	page_offset = calc_page_offset(handle, handle->cpu_data[cpu].file_offset);
+
+	ret = get_page(handle, cpu, page_offset);
 	if (ret < 0)
 		return NULL;
 
