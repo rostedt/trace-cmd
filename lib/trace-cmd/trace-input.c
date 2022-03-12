@@ -3196,7 +3196,9 @@ static int handle_buffer_option(struct tracecmd_input *handle,
 				unsigned short id, char *data, int size)
 {
 	struct input_buffer_instance *buff;
+	struct cpu_file_data *cpu_data;
 	unsigned long long tmp;
+	long long max_cpu = -1;
 	int rsize = 0;
 	char *name;
 	int i;
@@ -3247,24 +3249,52 @@ static int handle_buffer_option(struct tracecmd_input *handle,
 		buff->cpus = tmp;
 		if (!buff->cpus)
 			return 0;
-		buff->cpu_data = calloc(buff->cpus, sizeof(struct cpu_file_data));
-		if (!buff->cpu_data)
+		cpu_data = calloc(buff->cpus, sizeof(*cpu_data));
+		if (!cpu_data)
 			return -1;
 		for (i = 0; i < buff->cpus; i++) {
 			if (save_read_number(handle->pevent, data, &size, &rsize, 4, &tmp))
-				return -1;
-			buff->cpu_data[i].cpu = tmp;
+				goto fail;
+			if ((long long)tmp > max_cpu)
+				max_cpu = tmp;
+			cpu_data[i].cpu = tmp;
 			if (save_read_number(handle->pevent, data,
-					     &size, &rsize, 8, &buff->cpu_data[i].offset))
-				return -1;
+					     &size, &rsize, 8, &cpu_data[i].offset))
+				goto fail;
 			if (save_read_number(handle->pevent, data,
-					     &size, &rsize, 8, &buff->cpu_data[i].size))
-				return -1;
+					     &size, &rsize, 8, &cpu_data[i].size))
+				goto fail;
+		}
+		if (buff->cpus == max_cpu + 1) {
+			/* Check to make sure cpus match the index */
+			for (i = 0; i < buff->cpus; i++) {
+				if (cpu_data[i].cpu != i)
+					goto copy_buffer;
+			}
+			buff->cpu_data = cpu_data;
+		} else {
+ copy_buffer:
+			buff->cpu_data = calloc(max_cpu + 1, sizeof(*cpu_data));
+			if (!buff->cpu_data)
+				goto fail;
+			for (i = 0; i < buff->cpus; i++) {
+				if (buff->cpu_data[cpu_data[i].cpu].size) {
+					tracecmd_warning("More than one buffer defined for CPU %d (buffer %d)\n",
+							 cpu_data[i].cpu, i);
+					goto fail;
+				}
+				buff->cpu_data[cpu_data[i].cpu] = cpu_data[i];
+			}
+			buff->cpus = max_cpu + 1;
+			free(cpu_data);
 		}
 	} else {
 		buff->latency = true;
 	}
 	return 0;
+fail:
+	free(cpu_data);
+	return -1;
 }
 
 static int handle_options(struct tracecmd_input *handle)
