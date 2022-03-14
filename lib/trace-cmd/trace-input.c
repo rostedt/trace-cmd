@@ -2028,7 +2028,7 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 	unsigned long long page_offset;
 	int ret;
 
-	if (cpu > handle->cpus)
+	if (cpu >= handle->cpus)
 		return NULL;
 
 	page_offset = calc_page_offset(handle, handle->cpu_data[cpu].file_offset);
