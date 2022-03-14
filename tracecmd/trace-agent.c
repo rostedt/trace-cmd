@@ -236,7 +236,7 @@ static pid_t do_fork()
 	return fork();
 }
 
-static void agent_serve(unsigned int port)
+static void agent_serve(unsigned int port, bool do_daemon)
 {
 	int sd, cd, nr_cpus;
 	unsigned int cid;
@@ -254,6 +254,9 @@ static void agent_serve(unsigned int port)
 
 	if (!get_local_cid(&cid))
 		printf("listening on @%u:%u\n", cid, port);
+
+	if (do_daemon && daemon(1, 0))
+		die("daemon");
 
 	for (;;) {
 		cd = accept(sd, NULL, NULL);
@@ -335,8 +338,5 @@ void trace_agent(int argc, char **argv)
 	if (optind < argc-1)
 		usage(argv);
 
-	if (do_daemon && daemon(1, 0))
-		die("daemon");
-
-	agent_serve(port);
+	agent_serve(port, do_daemon);
 }
