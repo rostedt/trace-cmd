@@ -2720,7 +2720,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	list_head_init(&cpu_data->compress.cache);
 
 	if (!cpu_data->size) {
-		printf("CPU %d is empty\n", cpu);
+		tracecmd_info("CPU %d is empty", cpu);
 		return 0;
 	}
 
