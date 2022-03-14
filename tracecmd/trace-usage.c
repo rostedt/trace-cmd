@@ -69,6 +69,7 @@ static struct usage_help usage_help[] = {
 		"               If 0 is specified, no loop is performed - timestamps offset is calculated only twice,"
 		"                                                         at the beginnig and at the end of the trace\n"
 		"          --poll don't block while reading from the trace buffer\n"
+		"          --name used with -A to give the agent a specific name\n"
 		"          --file-version set the desired trace file version\n"
 		"          --compression compress the trace output file, one of these strings can be passed:\n"
 		"                            any  - auto select the best available compression algorithm\n"

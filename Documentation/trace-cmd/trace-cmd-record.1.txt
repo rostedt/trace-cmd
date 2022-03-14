@@ -367,6 +367,11 @@ OPTIONS
     Traces are extracted by busy waiting, which will hog the CPUs, so only use
     when really needed.
 
+*--name*::
+    Give a specific name for the current agent being processed. Used after *-A* to
+    give the guest being traced a name. Useful when using the vsocket ID instead of
+    a name of the guest.
+
 *--verbose*[='level']::
      Set the log level. Supported log levels are "none", "critical", "error", "warning",
      "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting the log

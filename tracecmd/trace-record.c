@@ -5805,6 +5805,7 @@ enum {
 	OPT_nofifos		= 257,
 	OPT_cmdlines_size	= 258,
 	OPT_poll		= 259,
+	OPT_name		= 260,
 };
 
 void trace_stop(int argc, char **argv)
@@ -6222,6 +6223,7 @@ static void parse_record_options(int argc,
 			{"fork", no_argument, NULL, OPT_fork},
 			{"tsc2nsec", no_argument, NULL, OPT_tsc2nsec},
 			{"poll", no_argument, NULL, OPT_poll},
+			{"name", required_argument, NULL, OPT_name},
 			{"verbose", optional_argument, NULL, OPT_verbose},
 			{"compression", required_argument, NULL, OPT_compression},
 			{"file-version", required_argument, NULL, OPT_file_ver},
@@ -6240,7 +6242,7 @@ static void parse_record_options(int argc,
 		 * If the current instance is to record a guest, then save
 		 * all the arguments for this instance.
 		 */
-		if (c != 'B' && c != 'A' && is_guest(ctx->instance)) {
+		if (c != 'B' && c != 'A' && c != OPT_name && is_guest(ctx->instance)) {
 			add_arg(ctx->instance, c, opts, long_options, optarg);
 			if (c == 'C')
 				ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
@@ -6301,6 +6303,17 @@ static void parse_record_options(int argc,
 			add_trigger(event, optarg);
 			break;
 
+		case OPT_name:
+			if (!ctx->instance)
+				die("No instance defined for name option\n");
+			if (!is_guest(ctx->instance))
+				die("  --name is only used for -A options\n");
+			free(ctx->instance->name);
+			ctx->instance->name = strdup(optarg);
+			if (!ctx->instance->name)
+				die("Failed to allocate name");
+			break;
+
 		case 'A': {
 			char *name = NULL;
 			int cid = -1, port = -1;
@@ -6316,8 +6329,13 @@ static void parse_record_options(int argc,
 			if (!name || !*name) {
 				ret = asprintf(&name, "unnamed-%d", name_counter++);
 				if (ret < 0)
-					die("Failed to allocate guest name");
+					name = NULL;
+			} else {
+				/* Needs to be allocate */
+				name = strdup(name);
 			}
+			if (!name)
+				die("Failed to allocate guest name");
 
 			ctx->instance = allocate_instance(name);
 			ctx->instance->flags |= BUFFER_FL_GUEST;
