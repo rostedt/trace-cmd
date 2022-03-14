@@ -251,6 +251,9 @@ OPTIONS
     Example:  "--cpu 0,3" - show events from CPUs 0 and 3
               "--cpu 2-4" - show events from CPUs 2, 3 and 4
 
+*--cpus*::
+    List the CPUs that have data in the trace file then exit.
+
 *--stat*::
     If the trace.dat file recorded the final stats (outputed at the end of record)
     the *--stat* option can be used to retrieve them.

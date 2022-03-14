@@ -1542,6 +1542,7 @@ enum {
 	OPT_kallsyms	= 253,
 	OPT_events	= 254,
 	OPT_cpu		= 255,
+	OPT_cpus	= 256,
 };
 
 void trace_report (int argc, char **argv)
@@ -1569,6 +1570,7 @@ void trace_report (int argc, char **argv)
 	int show_uname = 0;
 	int show_version = 0;
 	int show_events = 0;
+	int show_cpus = 0;
 	int print_events = 0;
 	int nanosec = 0;
 	int no_date = 0;
@@ -1595,6 +1597,7 @@ void trace_report (int argc, char **argv)
 		int option_index = 0;
 		static struct option long_options[] = {
 			{"cpu", required_argument, NULL, OPT_cpu},
+			{"cpus", no_argument, NULL, OPT_cpus},
 			{"events", no_argument, NULL, OPT_events},
 			{"event", required_argument, NULL, OPT_event},
 			{"filter-test", no_argument, NULL, 'T'},
@@ -1723,6 +1726,9 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_cpu:
 			parse_cpulist(optarg);
+			break;
+		case OPT_cpus:
+			show_cpus = 1;
 			break;
 		case OPT_events:
 			print_events = 1;
@@ -1916,9 +1922,31 @@ void trace_report (int argc, char **argv)
 			return;
 		}
 
+		if (show_cpus) {
+			int cpus;
+			int ret;
+			int i;
+
+			if (!tracecmd_is_buffer_instance(handle)) {
+				ret = tracecmd_init_data(handle);
+				if (ret < 0)
+					die("failed to init data");
+			}
+			cpus = tracecmd_cpus(handle);
+			printf("List of CPUs in %s with data:\n", inputs->file);
+			for (i = 0; i < cpus; i++) {
+				if (tracecmd_read_cpu_first(handle, i))
+					printf("  %d\n", i);
+			}
+			continue;
+		}
+
 		set_event_flags(pevent, nohandler_events, TEP_EVENT_FL_NOHANDLE);
 		set_event_flags(pevent, raw_events, TEP_EVENT_FL_PRINTRAW);
 	}
+
+	if (show_cpus)
+		return;
 
 	otype = OUTPUT_NORMAL;
 
