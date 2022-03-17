@@ -158,11 +158,12 @@ struct file_section {
 
 struct tracecmd_input {
 	struct tep_handle	*pevent;
-	unsigned long		file_state;
 	struct tep_plugin_list	*plugin_list;
 	struct tracecmd_input	*parent;
-	unsigned long		flags;
+	unsigned long		file_state;
 	unsigned long long	trace_id;
+	unsigned long long	next_offset;
+	unsigned long		flags;
 	int			fd;
 	int			long_size;
 	int			page_size;
@@ -1348,6 +1349,8 @@ static void *read_zpage(struct tracecmd_input *handle, int cpu, off64_t offset)
 	void *map = NULL;
 	int pindex;
 	int size;
+
+	offset -= cpu_data->file_offset;
 
 	/* Look in the cache of already loaded chunks */
 	list_for_each_entry(cache, &cpu_data->compress.cache, list) {
@@ -2665,8 +2668,11 @@ static int init_cpu_zfile(struct tracecmd_input *handle, int cpu)
 	if (lseek64(handle->fd, offset, SEEK_SET) == (off_t)-1)
 		return -1;
 
-	cpu_data->offset = 0;
-	cpu_data->file_offset = 0;
+	cpu_data->file_offset = handle->next_offset;
+	handle->next_offset = (handle->next_offset + size + handle->page_size - 1) &
+		~(handle->page_size - 1);
+	cpu_data->offset = cpu_data->file_offset;
+
 	cpu_data->file_size = size;
 	cpu_data->size = size;
 	return 0;
@@ -2688,12 +2694,15 @@ static int init_cpu_zpage(struct tracecmd_input *handle, int cpu)
 	cpu_data->compress.count = count;
 	cpu_data->compress.last_chunk = 0;
 
-	cpu_data->file_offset = 0;
-	cpu_data->file_size = 0;
+	cpu_data->file_offset = handle->next_offset;
+
 	for (i = 0; i < count; i++)
 		cpu_data->file_size += cpu_data->compress.chunks[i].size;
+
 	cpu_data->offset = cpu_data->file_offset;
 	cpu_data->size = cpu_data->file_size;
+	handle->next_offset = (handle->next_offset + cpu_data->size + handle->page_size - 1) &
+		~(handle->page_size - 1);
 	return 0;
 }
 
@@ -4249,6 +4258,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 
 	read4(handle, &page_size);
 	handle->page_size = page_size;
+	handle->next_offset = page_size;
 
 	offset = lseek64(handle->fd, 0, SEEK_CUR);
 	handle->total_file_size = lseek64(handle->fd, 0, SEEK_END);
