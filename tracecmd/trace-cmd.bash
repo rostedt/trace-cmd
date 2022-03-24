@@ -52,7 +52,7 @@ cmd_options()
 				 sed -e 's/ *\(-[^ ]*\).*/\1/')
     COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
     if [ ${#COMPREPLY[@]} -eq 0 ]; then
-	__show_files "$cur"
+	__show_files "${cur}"
     fi
 }
 
@@ -276,10 +276,12 @@ __show_command_options()
 		done
 	    fi
 	    COMPREPLY=( $(compgen -W "${opts}" -- "$cur"))
-	    return 0
+	    break
 	fi
     done
-    __show_files "$cur"
+    if [ ${#COMPREPLY[@]} -eq 0 ]; then
+	__show_files "${cur}"
+    fi
 }
 
 _trace_cmd_complete()
