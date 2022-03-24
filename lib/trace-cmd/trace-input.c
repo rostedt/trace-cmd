@@ -4430,6 +4430,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 {
 	struct zchunk_cache *cache;
 	struct file_section *del_sec;
+	struct cpu_data *cpu_data;
 	int cpu;
 	int i;
 
@@ -4449,30 +4450,31 @@ void tracecmd_close(struct tracecmd_input *handle)
 		free_next(handle, cpu);
 		free_page(handle, cpu);
 		if (handle->cpu_data) {
-			if (handle->cpu_data[cpu].kbuf) {
-				kbuffer_free(handle->cpu_data[cpu].kbuf);
-				if (handle->cpu_data[cpu].page_map)
-					free_page_map(handle->cpu_data[cpu].page_map);
+			cpu_data = &handle->cpu_data[cpu];
+			if (cpu_data->kbuf) {
+				kbuffer_free(cpu_data->kbuf);
+				if (cpu_data->page_map)
+					free_page_map(cpu_data->page_map);
 
-				if (handle->cpu_data[cpu].page_cnt)
+				if (cpu_data->page_cnt)
 					tracecmd_warning("%d pages still allocated on cpu %d%s",
-							 handle->cpu_data[cpu].page_cnt, cpu,
-							 show_records(handle->cpu_data[cpu].pages,
-								      handle->cpu_data[cpu].nr_pages));
-				free(handle->cpu_data[cpu].pages);
+							 cpu_data->page_cnt, cpu,
+							 show_records(cpu_data->pages,
+								      cpu_data->nr_pages));
+				free(cpu_data->pages);
 			}
-			if (handle->cpu_data[cpu].compress.fd >= 0) {
-				close(handle->cpu_data[cpu].compress.fd);
-				unlink(handle->cpu_data[cpu].compress.file);
+			if (cpu_data->compress.fd >= 0) {
+				close(cpu_data->compress.fd);
+				unlink(cpu_data->compress.file);
 			}
-			while (!list_empty(&handle->cpu_data[cpu].compress.cache)) {
-				cache = container_of(handle->cpu_data[cpu].compress.cache.next,
+			while (!list_empty(&cpu_data->compress.cache)) {
+				cache = container_of(cpu_data->compress.cache.next,
 						     struct zchunk_cache, list);
 				list_del(&cache->list);
 				free(cache->map);
 				free(cache);
 			}
-			free(handle->cpu_data[cpu].compress.chunks);
+			free(cpu_data->compress.chunks);
 		}
 	}
 
