@@ -4431,6 +4431,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	struct zchunk_cache *cache;
 	struct file_section *del_sec;
 	struct cpu_data *cpu_data;
+	struct page_map *page_map, *n;
 	int cpu;
 	int i;
 
@@ -4475,6 +4476,10 @@ void tracecmd_close(struct tracecmd_input *handle)
 				free(cache);
 			}
 			free(cpu_data->compress.chunks);
+			list_for_each_entry_safe(page_map, n, &cpu_data->page_maps, list) {
+				list_del(&page_map->list);
+				free(page_map);
+			}
 		}
 	}
 
