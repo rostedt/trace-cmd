@@ -1442,9 +1442,10 @@ static void *allocate_page_map(struct tracecmd_input *handle,
 		map_size -= map_offset + map_size -
 			(cpu_data->file_offset + cpu_data->file_size);
 
-	if (cpu_data->compress.fd >= 0)
+	if (cpu_data->compress.fd >= 0) {
+		map_offset -= cpu_data->file_offset;
 		fd = cpu_data->compress.fd;
-	else
+	} else
 		fd = handle->fd;
  again:
 	page_map->size = map_size;
