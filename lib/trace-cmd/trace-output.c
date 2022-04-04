@@ -2526,6 +2526,9 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 
 	handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
 
+	if (HAS_SECTIONS(handle))
+		tracecmd_write_options(handle);
+
 	return 0;
 
  out_free:
