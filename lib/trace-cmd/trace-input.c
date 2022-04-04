@@ -2462,6 +2462,9 @@ tracecmd_read_data(struct tracecmd_input *handle, int cpu)
 {
 	struct tep_record *record;
 
+	if (cpu >= handle->cpus)
+		return NULL;
+
 	record = tracecmd_peek_data(handle, cpu);
 	handle->cpu_data[cpu].next = NULL;
 	if (record) {
