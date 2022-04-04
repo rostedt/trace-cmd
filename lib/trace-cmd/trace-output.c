@@ -2139,6 +2139,10 @@ out_add_buffer_option(struct tracecmd_output *handle, const char *name,
 		return NULL;
 
 	clock = get_clock(handle);
+	if (!clock) {
+		tracecmd_warning("Could not find clock, set to 'local'");
+		clock = "local";
+	}
 
 	/*
 	 * Buffer flyrecord option:
