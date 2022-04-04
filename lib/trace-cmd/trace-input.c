@@ -3435,6 +3435,7 @@ static int handle_options(struct tracecmd_input *handle)
 				goto out;
 			break;
 		case TRACECMD_OPTION_TRACECLOCK:
+			tracecmd_parse_trace_clock(handle, buf, size);
 			if (!handle->ts2secs)
 				handle->use_trace_clock = true;
 			break;
