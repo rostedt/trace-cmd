@@ -4278,7 +4278,10 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 		if (!zver)
 			goto failed_read;
 
-		if (strcmp(zname, "none")) {
+		if (strcmp(zname, "none") == 0) {
+			handle->read_zpage = false;
+			handle->flags &= ~TRACECMD_FL_COMPRESSION;
+		} else {
 			handle->compress = tracecmd_compress_alloc(zname, zver,
 								   handle->fd,
 								   handle->pevent, NULL);
