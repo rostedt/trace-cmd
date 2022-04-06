@@ -583,9 +583,13 @@ void tracecmd_tsync_free(struct tracecmd_time_sync *tsync)
 	if (tsync->msg_handle)
 		tracecmd_msg_handle_close(tsync->msg_handle);
 
-	pthread_mutex_destroy(&tsync->lock);
-	pthread_cond_destroy(&tsync->cond);
-	pthread_barrier_destroy(&tsync->first_sync);
+	/* These are only created from the host */
+	if (tsync->guest_pid) {
+		pthread_mutex_destroy(&tsync->lock);
+		pthread_cond_destroy(&tsync->cond);
+		pthread_barrier_destroy(&tsync->first_sync);
+	}
+
 	free(tsync->clock_str);
 	free(tsync->proto_name);
 	free(tsync);
