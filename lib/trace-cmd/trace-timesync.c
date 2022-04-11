@@ -811,8 +811,10 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 			first = false;
 			pthread_barrier_wait(&tsync->first_sync);
 		}
-		if (end || i < tsync->vcpu_count)
+		if (end || i < tsync->vcpu_count) {
+			pthread_mutex_unlock(&tsync->lock);
 			break;
+		}
 		if (tsync->loop_interval > 0) {
 			get_ts_loop_delay(&timeout, tsync->loop_interval);
 			ret = pthread_cond_timedwait(&tsync->cond, &tsync->lock, &timeout);
