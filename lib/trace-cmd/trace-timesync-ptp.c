@@ -35,7 +35,7 @@ typedef __s64 s64;
 #define PTP_SYNC_PKT_END	5
 
 /* print time sync debug messages */
-#define TSYNC_DEBUG
+/* #define TSYNC_DEBUG */
 
 struct ptp_clock_sync {
 	struct tep_handle	*tep;
