@@ -303,7 +303,7 @@ error:
  */
 int tracecmd_compress_block(struct tracecmd_compression *handle)
 {
-	unsigned int size;
+	unsigned int size, real_size;
 	char *buf;
 	int endian4;
 	int ret;
@@ -318,12 +318,14 @@ int tracecmd_compress_block(struct tracecmd_compression *handle)
 	if (!buf)
 		return -1;
 
-	ret = handle->proto->compress_block(handle->context, handle->buffer, handle->pointer, buf, size);
-	if (ret < 0)
+	real_size = handle->proto->compress_block(handle->context, handle->buffer, handle->pointer, buf, size);
+	if (real_size < 0) {
+		ret = real_size;
 		goto out;
+	}
 
 	/* Write compressed data size */
-	endian4 = tep_read_number(handle->tep, &ret, 4);
+	endian4 = tep_read_number(handle->tep, &real_size, 4);
 	ret = do_write(handle, &endian4, 4);
 	if (ret != 4)
 		goto out;
@@ -337,8 +339,8 @@ int tracecmd_compress_block(struct tracecmd_compression *handle)
 	}
 
 	/* Write compressed data */
-	ret = do_write(handle, buf, size);
-	if (ret != size) {
+	ret = do_write(handle, buf, real_size);
+	if (ret != real_size) {
 		ret = -1;
 		goto out;
 	}
