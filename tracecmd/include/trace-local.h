@@ -42,6 +42,11 @@ extern int show_status;
 
 int trace_set_verbose(char *level);
 
+enum port_type {
+	USE_UDP,
+	USE_TCP,
+};
+
 struct pid_record_data {
 	int			pid;
 	int			brass[2];

@@ -138,7 +138,7 @@ static void remove_pid_file(void)
 }
 
 static int process_child(int sfd, const char *host, const char *port,
-			 int cpu, int page_size, int use_tcp)
+			 int cpu, int page_size, enum port_type type)
 {
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
@@ -160,7 +160,7 @@ static int process_child(int sfd, const char *host, const char *port,
 	if (fd < 0)
 		pdie("creating %s", tempfile);
 
-	if (use_tcp) {
+	if (type == USE_TCP) {
 		if (listen(sfd, backlog) < 0)
 			pdie("listen");
 		peer_addr_len = sizeof(peer_addr);
@@ -184,7 +184,7 @@ static int process_child(int sfd, const char *host, const char *port,
 		if (!r)
 			break;
 		/* UDP requires that we get the full size in one go */
-		if (!use_tcp && r < page_size && !once) {
+		if (type == USE_UDP && r < page_size && !once) {
 			once = 1;
 			warning("read %d bytes, expected %d", r, page_size);
 		}
@@ -205,7 +205,7 @@ static int process_child(int sfd, const char *host, const char *port,
 #define START_PORT_SEARCH 1500
 #define MAX_PORT_SEARCH 6000
 
-static int bind_a_port(int start_port, int *sfd, int use_tcp)
+static int bind_a_port(int start_port, int *sfd, enum port_type type)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
@@ -218,7 +218,7 @@ static int bind_a_port(int start_port, int *sfd, int use_tcp)
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = use_tcp ? SOCK_STREAM : SOCK_DGRAM;
+	hints.ai_socktype = type == USE_TCP ? SOCK_STREAM : SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
 
 	s = getaddrinfo(NULL, buf, &hints, &result);
@@ -250,7 +250,7 @@ static int bind_a_port(int start_port, int *sfd, int use_tcp)
 }
 
 static void fork_reader(int sfd, const char *node, const char *port,
-			int *pid, int cpu, int pagesize, int use_tcp)
+			int *pid, int cpu, int pagesize, enum port_type type)
 {
 	int ret;
 
@@ -260,7 +260,7 @@ static void fork_reader(int sfd, const char *node, const char *port,
 		pdie("creating reader");
 
 	if (!*pid) {
-		ret = process_child(sfd, node, port, cpu, pagesize, use_tcp);
+		ret = process_child(sfd, node, port, cpu, pagesize, type);
 		if (ret < 0)
 			pdie("Problem with reader %d", ret);
 	}
@@ -269,7 +269,7 @@ static void fork_reader(int sfd, const char *node, const char *port,
 }
 
 static int open_port(const char *node, const char *port, int *pid,
-		     int cpu, int pagesize, int start_port, int use_tcp)
+		     int cpu, int pagesize, int start_port, enum port_type type)
 {
 	int sfd;
 	int num_port;
@@ -278,11 +278,11 @@ static int open_port(const char *node, const char *port, int *pid,
 	 * bind_a_port() currently does not return an error, but if that
 	 * changes in the future, we have a check for it now.
 	 */
-	num_port = bind_a_port(start_port, &sfd, use_tcp);
+	num_port = bind_a_port(start_port, &sfd, type);
 	if (num_port < 0)
 		return num_port;
 
-	fork_reader(sfd, node, port, pid, cpu, pagesize, use_tcp);
+	fork_reader(sfd, node, port, pid, cpu, pagesize, type);
 
 	return num_port;
 }
@@ -463,7 +463,7 @@ static void destroy_all_readers(int cpus, int *pid_array, const char *node,
 static int *create_all_readers(const char *node, const char *port,
 			       int pagesize, struct tracecmd_msg_handle *msg_handle)
 {
-	int use_tcp = msg_handle->flags & TRACECMD_MSG_FL_USE_TCP;
+	enum port_type port_type = USE_UDP;
 	char buf[BUFSIZ];
 	unsigned int *port_array;
 	int *pid_array;
@@ -475,6 +475,9 @@ static int *create_all_readers(const char *node, const char *port,
 
 	if (!pagesize)
 		return NULL;
+
+	if (msg_handle->flags & TRACECMD_MSG_FL_USE_TCP)
+		port_type = USE_TCP;
 
 	port_array = malloc(sizeof(*port_array) * cpus);
 	if (!port_array)
@@ -493,7 +496,7 @@ static int *create_all_readers(const char *node, const char *port,
 	/* Now create a port for each CPU */
 	for (cpu = 0; cpu < cpus; cpu++) {
 		connect_port = open_port(node, port, &pid, cpu,
-					 pagesize, start_port, use_tcp);
+					 pagesize, start_port, port_type);
 		if (connect_port < 0)
 			goto out_free;
 		port_array[cpu] = connect_port;
