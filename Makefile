@@ -287,7 +287,11 @@ CFLAGS ?= -g -Wall
 CPPFLAGS ?=
 LDFLAGS ?=
 
+ifndef NO_VSOCK
 VSOCK_DEFINED := $(shell if (echo "$(pound)include <linux/vm_sockets.h>" | $(CC) -E - >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
+else
+VSOCK_DEFINED := 0
+endif
 
 export VSOCK_DEFINED
 ifeq ($(VSOCK_DEFINED), 1)
