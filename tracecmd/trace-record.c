@@ -3976,19 +3976,22 @@ static int host_tsync(struct common_record_context *ctx,
 		      unsigned int tsync_port, char *proto)
 {
 	struct trace_guest *guest;
+	int fd;
 
 	if (!proto)
 		return -1;
+
 	guest = trace_get_guest(instance->cid, NULL);
 	if (guest == NULL)
 		return -1;
 
 	start_mapping_vcpus(guest);
 
+	fd = trace_open_vsock(instance->cid, tsync_port);
 	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
 						    instance->tsync_loop_interval,
-						    instance->cid, tsync_port,
-						    guest->pid, instance->cpu_count,
+						    fd, guest->pid,
+						    instance->cpu_count,
 						    proto, ctx->clock);
 	stop_mapping_vcpus(instance, guest);
 

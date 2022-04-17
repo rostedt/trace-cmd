@@ -493,7 +493,7 @@ tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
 int tracecmd_tsync_with_host_stop(struct tracecmd_time_sync *tsync);
 struct tracecmd_time_sync *
 tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
-			  unsigned int cid, unsigned int port, int guest_pid,
+			  unsigned int fd, int guest_pid,
 			  int guest_cpus, const char *proto_name, const char *clock);
 int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync);
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,

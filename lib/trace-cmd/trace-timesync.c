@@ -345,25 +345,6 @@ error:
 }
 
 #ifdef VSOCK
-static int vsock_open(unsigned int cid, unsigned int port)
-{
-	struct sockaddr_vm addr = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = cid,
-		.svm_port = port,
-	};
-	int sd;
-
-	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
-	if (sd < 0)
-		return -errno;
-
-	if (connect(sd, (struct sockaddr *)&addr, sizeof(addr)))
-		return -errno;
-
-	return sd;
-}
-
 static int vsock_make(void)
 {
 	struct sockaddr_vm addr = {
@@ -388,7 +369,7 @@ static int vsock_make(void)
 	return sd;
 }
 
-int __hidden vsock_get_port(int sd, unsigned int *port)
+static int vsock_get_port(int sd, unsigned int *port)
 {
 	struct sockaddr_vm addr;
 	socklen_t addr_len = sizeof(addr);
@@ -406,11 +387,6 @@ int __hidden vsock_get_port(int sd, unsigned int *port)
 }
 
 #else
-static int vsock_open(unsigned int cid, unsigned int port)
-{
-	return -ENOTSUP;
-}
-
 static int vsock_make(void)
 {
 	return -ENOTSUP;
@@ -811,8 +787,7 @@ static void *tsync_host_thread(void *data)
  * tracecmd_tsync_with_guest - Synchronize timestamps with guest
  *
  * @trace_id: Local ID for the current trace session
- * @cid: CID of the guest
- * @port: VSOCKET port, on which the guest listens for tsync requests
+ * @fd: file descriptor of guest
  * @guest_pid: PID of the host OS process, running the guest
  * @guest_cpus: Number of the guest VCPUs
  * @proto_name: Name of the negotiated time synchronization protocol
@@ -826,14 +801,13 @@ static void *tsync_host_thread(void *data)
  */
 struct tracecmd_time_sync *
 tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
-			  unsigned int cid, unsigned int port, int guest_pid,
+			  unsigned int fd, int guest_pid,
 			  int guest_cpus, const char *proto_name, const char *clock)
 {
 	struct tracecmd_time_sync *tsync;
 	cpu_set_t *pin_mask = NULL;
 	pthread_attr_t attrib;
 	size_t mask_size = 0;
-	int fd = -1;
 	int ret;
 
 	if (!proto_name)
@@ -846,9 +820,6 @@ tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
 	tsync->trace_id = trace_id;
 	tsync->loop_interval = loop_interval;
 	tsync->proto_name = strdup(proto_name);
-	fd = vsock_open(cid, port);
-	if (fd < 0)
-		goto error;
 
 	tsync->msg_handle = tracecmd_msg_handle_alloc(fd, 0);
 	if (!tsync->msg_handle) {
@@ -1034,7 +1005,6 @@ out:
 
 /**
  * tracecmd_tsync_with_host - Synchronize timestamps with host
- *
  * @tsync_protos: List of tsync protocols, supported by the host
  * @clock: Trace clock, used for that session
  * @port: returned, VSOCKET port, on which the guest listens for tsync requests
