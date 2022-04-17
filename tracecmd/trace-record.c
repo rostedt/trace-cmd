@@ -90,7 +90,7 @@ static bool fork_process;
 /* Max size to let a per cpu file get */
 static int max_kb;
 
-static bool use_tcp;
+static enum port_type port_type;
 
 static int do_ptrace;
 
@@ -3130,12 +3130,12 @@ static int connect_port(const char *host, unsigned int port)
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = use_tcp ? SOCK_STREAM : SOCK_DGRAM;
+	hints.ai_socktype = port_type == USE_TCP ? SOCK_STREAM : SOCK_DGRAM;
 
 	s = getaddrinfo(host, buf, &hints, &results);
 	if (s != 0)
 		die("connecting to %s server %s:%s",
-		    use_tcp ? "TCP" : "UDP", host, buf);
+		    port_type == USE_TCP ? "TCP" : "UDP", host, buf);
 
 	for (rp = results; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
@@ -3149,7 +3149,7 @@ static int connect_port(const char *host, unsigned int port)
 
 	if (rp == NULL)
 		die("Can not connect to %s server %s:%s",
-		    use_tcp ? "TCP" : "UDP", host, buf);
+		    port_type == USE_TCP ? "TCP" : "UDP", host, buf);
 
 	freeaddrinfo(results);
 
@@ -3439,11 +3439,11 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle,
 	/* TODO, test for ipv4 */
 	if (page_size >= UDP_MAX_PACKET) {
 		warning("page size too big for UDP using TCP in live read");
-		use_tcp = 1;
+		port_type = USE_TCP;
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 	}
 
-	if (use_tcp) {
+	if (port_type == USE_TCP) {
 		/* Send one option */
 		write(msg_handle->fd, "1", 2);
 		/* Size 4 */
@@ -3591,7 +3591,7 @@ again:
 		msg_handle->version = V3_PROTOCOL;
 	}
 
-	if (use_tcp)
+	if (port_type == USE_TCP)
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 
 	if (msg_handle->version == V3_PROTOCOL) {
@@ -6467,7 +6467,7 @@ static void parse_record_options(int argc,
 			if (IS_EXTRACT(ctx))
 				ctx->topt = 1; /* Extract top instance also */
 			else
-				use_tcp = 1;
+				port_type = USE_TCP;
 			break;
 		case 'b':
 			check_instance_die(ctx->instance, "-b");
