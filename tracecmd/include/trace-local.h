@@ -45,6 +45,7 @@ int trace_set_verbose(char *level);
 enum port_type {
 	USE_UDP,
 	USE_TCP,
+	USE_VSOCK
 };
 
 struct pid_record_data {
@@ -342,6 +343,8 @@ const char *tracecmd_guest_tsync(struct tracecmd_tsync_protos *tsync_protos,
 int trace_make_vsock(unsigned int port);
 int trace_get_vsock_port(int sd, unsigned int *port);
 int trace_open_vsock(unsigned int cid, unsigned int port);
+
+int get_local_cid(unsigned int *cid);
 
 char *trace_get_guest_file(const char *file, const char *guest);
 

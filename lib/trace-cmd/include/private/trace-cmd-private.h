@@ -374,6 +374,7 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
 
 enum tracecmd_msg_flags {
 	TRACECMD_MSG_FL_USE_TCP		= 1 << 0,
+	TRACECMD_MSG_FL_USE_VSOCK	= 1 << 1,
 };
 
 /* for both client and server */

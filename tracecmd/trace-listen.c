@@ -19,6 +19,10 @@
 #include <signal.h>
 #include <errno.h>
 
+#ifdef VSOCK
+#include <linux/vm_sockets.h>
+#endif
+
 #include "trace-local.h"
 #include "trace-msg.h"
 
@@ -33,6 +37,8 @@ static char *default_output_dir = ".";
 static char *output_dir;
 static char *default_output_file = "trace";
 static char *output_file;
+
+static bool use_vsock;
 
 static int backlog = 5;
 
@@ -141,7 +147,11 @@ static int process_child(int sfd, const char *host, const char *port,
 			 int cpu, int page_size, enum port_type type)
 {
 	struct sockaddr_storage peer_addr;
-	socklen_t peer_addr_len;
+#ifdef VSOCK
+	struct sockaddr_vm vm_addr;
+#endif
+	struct sockaddr *addr;
+	socklen_t addr_len;
 	char buf[page_size];
 	char *tempfile;
 	int left;
@@ -161,10 +171,20 @@ static int process_child(int sfd, const char *host, const char *port,
 		pdie("creating %s", tempfile);
 
 	if (type == USE_TCP) {
+		addr = (struct sockaddr *)&peer_addr;
+		addr_len = sizeof(peer_addr);
+#ifdef VSOCK
+	} else if (type == USE_VSOCK) {
+		addr = (struct sockaddr *)&vm_addr;
+		addr_len = sizeof(vm_addr);
+#endif
+	}
+
+	if (type == USE_TCP || type == USE_VSOCK) {
 		if (listen(sfd, backlog) < 0)
 			pdie("listen");
-		peer_addr_len = sizeof(peer_addr);
-		cfd = accept(sfd, (struct sockaddr *)&peer_addr, &peer_addr_len);
+
+		cfd = accept(sfd, addr, &addr_len);
 		if (cfd < 0 && errno == EINTR)
 			goto done;
 		if (cfd < 0)
@@ -202,6 +222,18 @@ static int process_child(int sfd, const char *host, const char *port,
 	exit(0);
 }
 
+static int setup_vsock_port(int start_port, int *sfd)
+{
+	int sd;
+
+	sd = trace_vsock_make(start_port);
+	if (sd < 0)
+		return -errno;
+	*sfd = sd;
+
+	return start_port;
+}
+
 #define START_PORT_SEARCH 1500
 #define MAX_PORT_SEARCH 6000
 
@@ -213,6 +245,8 @@ static int bind_a_port(int start_port, int *sfd, enum port_type type)
 	int s;
 	int num_port = start_port;
 
+	if (type == USE_VSOCK)
+		return setup_vsock_port(start_port, sfd);
  again:
 	snprintf(buf, BUFSIZ, "%d", num_port);
 
@@ -478,6 +512,8 @@ static int *create_all_readers(const char *node, const char *port,
 
 	if (msg_handle->flags & TRACECMD_MSG_FL_USE_TCP)
 		port_type = USE_TCP;
+	else if (msg_handle->flags & TRACECMD_MSG_FL_USE_VSOCK)
+		port_type = USE_VSOCK;
 
 	port_array = malloc(sizeof(*port_array) * cpus);
 	if (!port_array)
@@ -700,8 +736,8 @@ static int do_fork(int cfd)
 	return 0;
 }
 
-static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
-			  socklen_t peer_addr_len)
+static int do_connection(int cfd, struct sockaddr *addr,
+			  socklen_t addr_len)
 {
 	struct tracecmd_msg_handle *msg_handle;
 	char host[NI_MAXHOST], service[NI_MAXSERV];
@@ -714,17 +750,25 @@ static int do_connection(int cfd, struct sockaddr_storage *peer_addr,
 
 	msg_handle = tracecmd_msg_handle_alloc(cfd, 0);
 
-	s = getnameinfo((struct sockaddr *)peer_addr, peer_addr_len,
-			host, NI_MAXHOST,
-			service, NI_MAXSERV, NI_NUMERICSERV);
+	if (use_vsock) {
+#ifdef VSOCK
+		struct sockaddr_vm *vm_addr = (struct sockaddr_vm *)addr;
+		snprintf(host, NI_MAXHOST, "V%d", vm_addr->svm_cid);
+		snprintf(service, NI_MAXSERV, "%d", vm_addr->svm_port);
+#endif
+	} else {
+		s = getnameinfo((struct sockaddr *)addr, addr_len,
+				host, NI_MAXHOST,
+				service, NI_MAXSERV, NI_NUMERICSERV);
 
-	if (s == 0)
-		tracecmd_plog("Connected with %s:%s\n", host, service);
-	else {
-		tracecmd_plog("Error with getnameinfo: %s\n", gai_strerror(s));
-		close(cfd);
-		tracecmd_msg_handle_close(msg_handle);
-		return -1;
+		if (s == 0)
+			tracecmd_plog("Connected with %s:%s\n", host, service);
+		else {
+			tracecmd_plog("Error with getnameinfo: %s\n", gai_strerror(s));
+			close(cfd);
+			tracecmd_msg_handle_close(msg_handle);
+			return -1;
+		}
 	}
 
 	process_client(msg_handle, host, service);
@@ -816,14 +860,25 @@ static void clean_up(void)
 static void do_accept_loop(int sfd)
 {
 	struct sockaddr_storage peer_addr;
-	socklen_t peer_addr_len;
+#ifdef VSOCK
+	struct sockaddr_vm vm_addr;
+#endif
+	struct sockaddr *addr;
+	socklen_t addr_len;
 	int cfd, pid;
 
-	peer_addr_len = sizeof(peer_addr);
+	if (use_vsock) {
+#ifdef VSOCK
+		addr = (struct sockaddr *)&vm_addr;
+		addr_len = sizeof(vm_addr);
+#endif
+	} else {
+		addr = (struct sockaddr *)&peer_addr;
+		addr_len = sizeof(peer_addr);
+	}
 
 	do {
-		cfd = accept(sfd, (struct sockaddr *)&peer_addr,
-			     &peer_addr_len);
+		cfd = accept(sfd, addr, &addr_len);
 		if (cfd < 0 && errno == EINTR) {
 			clean_up();
 			continue;
@@ -831,7 +886,7 @@ static void do_accept_loop(int sfd)
 		if (cfd < 0)
 			pdie("connecting");
 
-		pid = do_connection(cfd, &peer_addr, peer_addr_len);
+		pid = do_connection(cfd, addr, addr_len);
 		if (pid > 0)
 			add_process(pid);
 
@@ -866,16 +921,27 @@ static void sigstub(int sig)
 {
 }
 
-static void do_listen(char *port)
+static int get_vsock(const char *port)
+{
+	unsigned int cid;
+	int sd;
+
+	sd = trace_vsock_make(atoi(port));
+	if (sd < 0)
+		return sd;
+
+	cid = trace_vsock_local_cid();
+	if (cid >= 0)
+		printf("listening on @%u:%s\n", cid, port);
+
+	return sd;
+}
+
+static int get_network(char *port)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, s;
-
-	if (!tracecmd_get_debug())
-		signal_setup(SIGCHLD, sigstub);
-
-	make_pid_file();
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -902,6 +968,24 @@ static void do_listen(char *port)
 		pdie("Could not bind");
 
 	freeaddrinfo(result);
+
+	return sfd;
+}
+
+static void do_listen(char *port)
+{
+	int sfd;
+
+	if (!tracecmd_get_debug())
+		signal_setup(SIGCHLD, sigstub);
+
+	make_pid_file();
+
+	if (use_vsock)
+		sfd = get_vsock(port);
+	else
+		sfd = get_network(port);
+
 
 	if (listen(sfd, backlog) < 0)
 		pdie("listen");
@@ -949,7 +1033,7 @@ void trace_listen(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long (argc-1, argv+1, "+hp:o:d:l:D",
+		c = getopt_long (argc-1, argv+1, "+hp:Vo:d:l:D",
 			long_options, &option_index);
 		if (c == -1)
 			break;
@@ -962,6 +1046,9 @@ void trace_listen(int argc, char **argv)
 			break;
 		case 'd':
 			output_dir = optarg;
+			break;
+		case 'V':
+			use_vsock = true;
 			break;
 		case 'o':
 			output_file = optarg;

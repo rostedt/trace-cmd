@@ -214,10 +214,14 @@ static int make_tinit(struct tracecmd_msg_handle *msg_handle,
 	int opt_num = 0;
 	int data_size = 0;
 
-	if (msg_handle->flags & TRACECMD_MSG_FL_USE_TCP) {
+	if (msg_handle->flags & (TRACECMD_MSG_FL_USE_TCP |
+				 TRACECMD_MSG_FL_USE_VSOCK)) {
+		msg->buf = msg_handle->flags & TRACECMD_MSG_FL_USE_TCP ?
+			strdup("tcp") : strdup("vsock");
+		if (!msg->buf)
+			return -1;
 		opt_num++;
-		msg->buf = strdup("tcp");
-		data_size += 4;
+		data_size += strlen(msg->buf) + 1;
 	}
 
 	msg->tinit.cpus = htonl(cpu_count);
@@ -566,9 +570,12 @@ out:
 static bool process_option(struct tracecmd_msg_handle *msg_handle,
 			   const char *opt)
 {
-	/* currently the only option we have is to use TCP */
 	if (strcmp(opt, "tcp") == 0) {
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
+		return true;
+	}
+	if (strcmp(opt, "vsock") == 0) {
+		msg_handle->flags |= TRACECMD_MSG_FL_USE_VSOCK;
 		return true;
 	}
 	return false;

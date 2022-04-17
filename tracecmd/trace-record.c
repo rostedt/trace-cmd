@@ -3128,6 +3128,9 @@ static int connect_port(const char *host, unsigned int port)
 
 	snprintf(buf, BUFSIZ, "%u", port);
 
+	if (port_type == USE_VSOCK)
+		return trace_vsock_open(atoi(host), port);
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = port_type == USE_TCP ? SOCK_STREAM : SOCK_DGRAM;
@@ -3531,9 +3534,30 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 	}
 }
 
-static struct tracecmd_msg_handle *setup_network(struct buffer_instance *instance)
+static int connect_vsock(char *vhost)
 {
-	struct tracecmd_msg_handle *msg_handle = NULL;
+	char *cid;
+	char *port;
+	char *p;
+	int sd;
+
+	host = strdup(vhost);
+	if (!host)
+		die("alloctating server");
+
+	cid = strtok_r(host, ":", &p);
+	port = strtok_r(NULL, "", &p);
+
+	if (!port)
+		die("vsocket must have format of 'CID:PORT'");
+
+	sd = trace_vsock_open(atoi(cid), atoi(port));
+
+	return sd;
+}
+
+static int connect_ip(char *thost)
+{
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, s;
@@ -3545,10 +3569,10 @@ static struct tracecmd_msg_handle *setup_network(struct buffer_instance *instanc
 		server = strdup("localhost");
 		if (!server)
 			die("alloctating server");
-		port = host;
+		port = thost;
 		host = server;
 	} else {
-		host = strdup(host);
+		host = strdup(thost);
 		if (!host)
 			die("alloctating server");
 		server = strtok_r(host, ":", &p);
@@ -3559,7 +3583,6 @@ static struct tracecmd_msg_handle *setup_network(struct buffer_instance *instanc
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-again:
 	s = getaddrinfo(server, port, &hints, &result);
 	if (s != 0)
 		die("getaddrinfo: %s", gai_strerror(s));
@@ -3580,6 +3603,26 @@ again:
 
 	freeaddrinfo(result);
 
+	return sfd;
+}
+
+static struct tracecmd_msg_handle *setup_network(struct buffer_instance *instance)
+{
+	struct tracecmd_msg_handle *msg_handle = NULL;
+	int sfd;
+
+again:
+	switch (port_type) {
+	case USE_VSOCK:
+		sfd = connect_vsock(host);
+		break;
+	default:
+		sfd = connect_ip(host);
+	}
+
+	if (sfd < 0)
+		return NULL;
+
 	if (msg_handle) {
 		msg_handle->fd = sfd;
 	} else {
@@ -3591,14 +3634,23 @@ again:
 		msg_handle->version = V3_PROTOCOL;
 	}
 
-	if (port_type == USE_TCP)
+	switch (port_type) {
+	case USE_TCP:
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
+		break;
+	case USE_VSOCK:
+		msg_handle->flags |= TRACECMD_MSG_FL_USE_VSOCK;
+		break;
+	default:
+		break;
+	}
 
 	if (msg_handle->version == V3_PROTOCOL) {
 		check_protocol_version(msg_handle);
 		if (msg_handle->version == V1_PROTOCOL) {
 			/* reconnect to the server for using the v1 protocol */
 			close(sfd);
+			free(host);
 			goto again;
 		}
 		communicate_with_listener_v3(msg_handle, &instance->client_ports);
@@ -3649,6 +3701,8 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 	int ret;
 
 	msg_handle = setup_network(instance);
+	if (!msg_handle)
+		die("Failed to make connection");
 
 	/* Now create the handle through this socket */
 	if (msg_handle->version == V3_PROTOCOL) {
@@ -6159,7 +6213,7 @@ static void parse_record_options(int argc,
 		if (IS_EXTRACT(ctx))
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
-			opts = "+hae:f:FA:p:cC:dDGo:O:s:r:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
+			opts = "+hae:f:FA:p:cC:dDGo:O:s:r:V:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -6450,6 +6504,17 @@ static void parse_record_options(int argc,
 			if (ctx->output)
 				die("-N incompatible with -o");
 			host = optarg;
+			break;
+		case 'V':
+			cmd_check_die(ctx, CMD_set, *(argv+1), "-V");
+			if (!IS_RECORD(ctx))
+				die("-V only available with record");
+			if (IS_RECORD_AGENT(ctx))
+				die("-V incompatible with agent recording");
+			if (ctx->output)
+				die("-V incompatible with -o");
+			host = optarg;
+			port_type = USE_VSOCK;
 			break;
 		case 'm':
 			if (max_kb)
