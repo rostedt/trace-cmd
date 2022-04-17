@@ -22,6 +22,8 @@ struct tracecmd_time_sync {
 	void				*context;
 	int				guest_pid;
 	int				vcpu_count;
+	int				remote_id;
+	int				local_id;
 };
 
 struct clock_sync_offsets {

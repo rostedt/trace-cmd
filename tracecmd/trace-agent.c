@@ -140,6 +140,35 @@ static char *get_clock(int argc, char **argv)
 	return NULL;
 }
 
+#ifdef VSOCK
+static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
+{
+	struct sockaddr_vm addr;
+	socklen_t addr_len = sizeof(addr);
+
+	memset(&addr, 0, sizeof(addr));
+	if (getsockname(fd, (struct sockaddr *)&addr, &addr_len))
+		return -1;
+	if (addr.svm_family != AF_VSOCK)
+		return -1;
+	*lcid = addr.svm_cid;
+
+	memset(&addr, 0, sizeof(addr));
+	addr_len = sizeof(addr);
+	if (getpeername(fd, (struct sockaddr *)&addr, &addr_len))
+		return -1;
+	if (addr.svm_family != AF_VSOCK)
+		return -1;
+	*rcid = addr.svm_cid;
+
+	return 0;
+}
+#else
+static inline int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid) {
+	return -1;
+}
+#endif
+
 static void agent_handle(int sd, int nr_cpus, int page_size)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
@@ -147,6 +176,8 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 	struct tracecmd_msg_handle *msg_handle;
 	char *tsync_proto = NULL;
 	unsigned long long trace_id;
+	unsigned int remote_id;
+	unsigned int local_id;
 	unsigned int tsync_port = 0;
 	unsigned int *ports;
 	char **argv = NULL;
@@ -176,8 +207,16 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 	if (!use_fifos)
 		make_vsocks(nr_cpus, fds, ports);
 	if (tsync_protos && tsync_protos->names) {
+		if (get_vsocket_params(msg_handle->fd, &local_id,
+				       &remote_id)) {
+			warning("Failed to get local and remote ids");
+			/* Just make something up */
+			remote_id = -1;
+			local_id = -2;
+		}
 		tsync = tracecmd_tsync_with_host(tsync_protos,
-						 get_clock(argc, argv));
+						 get_clock(argc, argv),
+						 remote_id, local_id);
 		if (tsync)
 			tracecmd_tsync_get_session_params(tsync, &tsync_proto, &tsync_port);
 		else

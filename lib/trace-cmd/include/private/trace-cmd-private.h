@@ -489,7 +489,7 @@ int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const cha
 bool tsync_proto_is_supported(const char *proto_name);
 struct tracecmd_time_sync *
 tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
-			 const char *clock);
+			 const char *clock, int remote_id, int local_id);
 int tracecmd_tsync_with_host_stop(struct tracecmd_time_sync *tsync);
 struct tracecmd_time_sync *
 tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,

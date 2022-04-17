@@ -405,29 +405,6 @@ int __hidden vsock_get_port(int sd, unsigned int *port)
 	return 0;
 }
 
-static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
-{
-	struct sockaddr_vm addr;
-	socklen_t addr_len = sizeof(addr);
-
-	memset(&addr, 0, sizeof(addr));
-	if (getsockname(fd, (struct sockaddr *)&addr, &addr_len))
-		return -1;
-	if (addr.svm_family != AF_VSOCK)
-		return -1;
-	*lcid = addr.svm_cid;
-
-	memset(&addr, 0, sizeof(addr));
-	addr_len = sizeof(addr);
-	if (getpeername(fd, (struct sockaddr *)&addr, &addr_len))
-		return -1;
-	if (addr.svm_family != AF_VSOCK)
-		return -1;
-	*rcid = addr.svm_cid;
-
-	return 0;
-}
-
 #else
 static int vsock_open(unsigned int cid, unsigned int port)
 {
@@ -444,12 +421,6 @@ static int vsock_get_port(int sd, unsigned int *port)
 {
 	return -ENOTSUP;
 }
-
-static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
-{
-	return -ENOTSUP;
-}
-
 #endif /* VSOCK */
 
 static struct tracefs_instance *
@@ -498,12 +469,8 @@ static int clock_context_init(struct tracecmd_time_sync *tsync,
 	clock->is_guest = guest;
 	clock->is_server = clock->is_guest;
 
-	if (get_vsocket_params(tsync->msg_handle->fd, &clock->local_id,
-			       &clock->remote_id))
-		goto error;
-
 	clock->instance = clock_synch_create_instance(tsync->clock_str,
-						      clock->remote_id);
+						      tsync->remote_id);
 	if (!clock->instance)
 		goto error;
 
@@ -1071,6 +1038,8 @@ out:
  * @tsync_protos: List of tsync protocols, supported by the host
  * @clock: Trace clock, used for that session
  * @port: returned, VSOCKET port, on which the guest listens for tsync requests
+ * @remote_id: Identifier to uniquely identify the remote host
+ * @local_id: Identifier to uniquely identify the local machine
  *
  * On success, a pointer to time sync context is returned, or NULL in
  * case of an error. The context must be freed with tracecmd_tsync_free()
@@ -1080,7 +1049,7 @@ out:
  */
 struct tracecmd_time_sync *
 tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
-			 const char *clock)
+			 const char *clock, int remote_id, int local_id)
 {
 	struct tracecmd_time_sync *tsync;
 	cpu_set_t *pin_mask = NULL;
@@ -1109,6 +1078,9 @@ tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
 	tsync->msg_handle = tracecmd_msg_handle_alloc(fd, 0);
 	if (clock)
 		tsync->clock_str = strdup(clock);
+
+	tsync->remote_id = remote_id;
+	tsync->local_id = local_id;
 
 	pthread_attr_init(&attrib);
 	tsync->vcpu_count = tracecmd_count_cpus();
