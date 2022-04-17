@@ -344,61 +344,6 @@ error:
 	return -1;
 }
 
-#ifdef VSOCK
-static int vsock_make(void)
-{
-	struct sockaddr_vm addr = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = VMADDR_CID_ANY,
-		.svm_port = VMADDR_PORT_ANY,
-	};
-	int sd;
-
-	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
-	if (sd < 0)
-		return -errno;
-
-	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
-
-	if (bind(sd, (struct sockaddr *)&addr, sizeof(addr)))
-		return -errno;
-
-	if (listen(sd, SOMAXCONN))
-		return -errno;
-
-	return sd;
-}
-
-static int vsock_get_port(int sd, unsigned int *port)
-{
-	struct sockaddr_vm addr;
-	socklen_t addr_len = sizeof(addr);
-
-	if (getsockname(sd, (struct sockaddr *)&addr, &addr_len))
-		return -errno;
-
-	if (addr.svm_family != AF_VSOCK)
-		return -EINVAL;
-
-	if (port)
-		*port = addr.svm_port;
-
-	return 0;
-}
-
-#else
-static int vsock_make(void)
-{
-	return -ENOTSUP;
-
-}
-
-static int vsock_get_port(int sd, unsigned int *port)
-{
-	return -ENOTSUP;
-}
-#endif /* VSOCK */
-
 static struct tracefs_instance *
 clock_synch_create_instance(const char *clock, unsigned int cid)
 {
@@ -1005,6 +950,7 @@ out:
 
 /**
  * tracecmd_tsync_with_host - Synchronize timestamps with host
+ * @fd: File descriptor connecting with the host
  * @tsync_protos: List of tsync protocols, supported by the host
  * @clock: Trace clock, used for that session
  * @port: returned, VSOCKET port, on which the guest listens for tsync requests
@@ -1018,17 +964,16 @@ out:
  * until tracecmd_tsync_with_host_stop() is called.
  */
 struct tracecmd_time_sync *
-tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
+tracecmd_tsync_with_host(int fd,
+			 const struct tracecmd_tsync_protos *tsync_protos,
 			 const char *clock, int remote_id, int local_id)
 {
 	struct tracecmd_time_sync *tsync;
 	cpu_set_t *pin_mask = NULL;
 	pthread_attr_t attrib;
 	size_t mask_size = 0;
-	unsigned int port;
 	const char *proto;
 	int ret;
-	int fd;
 
 	tsync = calloc(1, sizeof(struct tracecmd_time_sync));
 	if (!tsync)
@@ -1039,12 +984,6 @@ tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
 	if (!proto)
 		goto error;
 	tsync->proto_name = strdup(proto);
-	fd = vsock_make();
-	if (fd < 0)
-		goto error;
-
-	if (vsock_get_port(fd, &port) < 0)
-		goto error;
 	tsync->msg_handle = tracecmd_msg_handle_alloc(fd, 0);
 	if (clock)
 		tsync->clock_str = strdup(clock);
@@ -1072,10 +1011,11 @@ tracecmd_tsync_with_host(const struct tracecmd_tsync_protos *tsync_protos,
 
 error:
 	if (tsync) {
-		if (tsync->msg_handle)
+		if (tsync->msg_handle) {
+			/* Do not close the fd that was passed it */
+			tsync->msg_handle->fd = -1;
 			tracecmd_msg_handle_close(tsync->msg_handle);
-		else if (fd >= 0)
-			close(fd);
+		}
 		free(tsync->clock_str);
 		free(tsync);
 	}
@@ -1098,37 +1038,23 @@ int tracecmd_tsync_with_host_stop(struct tracecmd_time_sync *tsync)
 }
 
 /**
- * tracecmd_tsync_get_session_params - Get parameters of established time sync session
- *
+ * tracecmd_tsync_get_selected_proto - Return the seleceted time sync protocol
  * @tsync: Time sync context, representing a running time sync session
  * @selected_proto: return, name of the selected time sync protocol for this session
- * @tsync_port: return, a VSOCK port on which new time sync requests are accepted.
  *
  * Returns 0 on success, or -1 in case of an error.
  *
  */
-int tracecmd_tsync_get_session_params(struct tracecmd_time_sync *tsync,
-				      char **selected_proto,
-				      unsigned int *tsync_port)
+int tracecmd_tsync_get_selected_proto(struct tracecmd_time_sync *tsync,
+				      char **selected_proto)
 {
-	int ret;
-
 	if (!tsync)
 		return -1;
 
-	if (tsync_port) {
-		if (!tsync->msg_handle)
-			return -1;
-		ret = vsock_get_port(tsync->msg_handle->fd, tsync_port);
-		if (ret < 0)
-			return ret;
-	}
 	if (selected_proto) {
 		if (!tsync->proto_name)
 			return -1;
 		(*selected_proto) = strdup(tsync->proto_name);
-
 	}
-
 	return 0;
 }

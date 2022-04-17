@@ -3228,8 +3228,7 @@ int trace_open_vsock(unsigned int cid, unsigned int port)
 	die("vsock is not supported");
 	return -1;
 }
-
-static bool can_splice_read_vsock(void)
+static inline bool can_splice_read_vsock(void)
 {
 	return false;
 }
@@ -3976,6 +3975,7 @@ static int host_tsync(struct common_record_context *ctx,
 		      unsigned int tsync_port, char *proto)
 {
 	struct trace_guest *guest;
+	int guest_pid = -1;
 	int fd;
 
 	if (!proto)
@@ -3985,12 +3985,13 @@ static int host_tsync(struct common_record_context *ctx,
 	if (guest == NULL)
 		return -1;
 
+	guest_pid = guest->pid;
 	start_mapping_vcpus(guest);
 
 	fd = trace_open_vsock(instance->cid, tsync_port);
 	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
 						    instance->tsync_loop_interval,
-						    fd, guest->pid,
+						    fd, guest_pid,
 						    instance->cpu_count,
 						    proto, ctx->clock);
 	stop_mapping_vcpus(instance, guest);

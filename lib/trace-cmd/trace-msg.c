@@ -629,7 +629,8 @@ static int flush_cache(struct tracecmd_msg_handle *msg_handle)
 
 void tracecmd_msg_handle_close(struct tracecmd_msg_handle *msg_handle)
 {
-	close(msg_handle->fd);
+	if (msg_handle->fd >= 0)
+		close(msg_handle->fd);
 	if (msg_handle->cfd >= 0)
 		close(msg_handle->cfd);
 	free(msg_handle);

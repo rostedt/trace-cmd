@@ -141,6 +141,31 @@ static char *get_clock(int argc, char **argv)
 }
 
 #ifdef VSOCK
+
+static int vsock_make(void)
+{
+	struct sockaddr_vm addr = {
+		.svm_family = AF_VSOCK,
+		.svm_cid = VMADDR_CID_ANY,
+		.svm_port = VMADDR_PORT_ANY,
+	};
+	int sd;
+
+	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
+	if (sd < 0)
+		return -errno;
+
+	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+
+	if (bind(sd, (struct sockaddr *)&addr, sizeof(addr)))
+		return -errno;
+
+	if (listen(sd, SOMAXCONN))
+		return -errno;
+
+	return sd;
+}
+
 static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
 {
 	struct sockaddr_vm addr;
@@ -163,9 +188,47 @@ static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
 
 	return 0;
 }
+
+static int vsock_get_port(int sd, unsigned int *port)
+{
+	struct sockaddr_vm addr;
+	socklen_t addr_len = sizeof(addr);
+
+	if (getsockname(sd, (struct sockaddr *)&addr, &addr_len))
+		return -errno;
+
+	if (addr.svm_family != AF_VSOCK)
+		return -EINVAL;
+
+	if (port)
+		*port = addr.svm_port;
+
+	return 0;
+}
 #else
-static inline int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid) {
+static inline bool can_splice_read_vsock(void)
+{
+	return false;
+}
+
+static inline int vsock_make(void)
+{
+	return -ENOTSUP;
+
+}
+
+static inline  int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid) {
 	return -1;
+}
+
+static inline int vsock_get_port(int sd, unsigned int *port)
+{
+	return -1;
+}
+
+static int vsock_get_port(int sd, unsigned int *port)
+{
+	return -ENOTSUP;
 }
 #endif
 
@@ -185,6 +248,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 	bool use_fifos;
 	int *fds;
 	int ret;
+	int fd;
 
 	fds = calloc(nr_cpus, sizeof(*fds));
 	ports = calloc(nr_cpus, sizeof(*ports));
@@ -214,13 +278,19 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 			remote_id = -1;
 			local_id = -2;
 		}
-		tsync = tracecmd_tsync_with_host(tsync_protos,
-						 get_clock(argc, argv),
-						 remote_id, local_id);
-		if (tsync)
-			tracecmd_tsync_get_session_params(tsync, &tsync_proto, &tsync_port);
-		else
+		fd = vsock_make();
+		if (fd >= 0 && vsock_get_port(fd, &tsync_port) >= 0) {
+			tsync = tracecmd_tsync_with_host(fd, tsync_protos,
+							 get_clock(argc, argv),
+							 remote_id, local_id);
+		}
+		if (tsync) {
+			tracecmd_tsync_get_selected_proto(tsync, &tsync_proto);
+		} else {
 			warning("Failed to negotiate timestamps synchronization with the host");
+			if (fd >= 0)
+				close(fd);
+		}
 	}
 	trace_id = tracecmd_generate_traceid();
 	ret = tracecmd_msg_send_trace_resp(msg_handle, nr_cpus, page_size,
