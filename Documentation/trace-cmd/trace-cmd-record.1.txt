@@ -259,6 +259,14 @@ OPTIONS
     Note: This option is not supported with latency tracer plugins:
       wakeup, wakeup_rt, irqsoff, preemptoff and preemptirqsoff
 
+*-V* 'cid:port'::
+    If recording on a guest VM and the host is running *trace-cmd listen* with
+    the *-V* option as well, or if this is recording on the host, and a guest
+    in running *trace-cmd listen* with the *-V* option, then connect to the
+    listener (the same as connecting with the *-N* option via the network).
+    This has the same limitations as the *-N* option above with respect to
+    latency tracer plugins.
+
 *-t*::
     This option is used with *-N*, when there's a need to send the live data
     with TCP packets instead of UDP. Although TCP is not nearly as fast as

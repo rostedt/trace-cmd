@@ -26,6 +26,10 @@ OPTIONS
     This options causes trace-cmd listen to go into a daemon mode and run in
     the background.
 
+*-V*::
+    Listen on a vsocket instead. This is useful for tracing between host and
+    guest VMs.
+
 *-d* 'dir'::
     This option specifies a directory to write the data files into.
 
