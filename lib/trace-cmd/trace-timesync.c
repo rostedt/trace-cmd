@@ -498,12 +498,12 @@ static int clock_context_init(struct tracecmd_time_sync *tsync,
 	clock->is_guest = guest;
 	clock->is_server = clock->is_guest;
 
-	if (get_vsocket_params(tsync->msg_handle->fd, &clock->local_cid,
-			       &clock->remote_cid))
+	if (get_vsocket_params(tsync->msg_handle->fd, &clock->local_id,
+			       &clock->remote_id))
 		goto error;
 
 	clock->instance = clock_synch_create_instance(tsync->clock_str,
-						      clock->remote_cid);
+						      clock->remote_id);
 	if (!clock->instance)
 		goto error;
 

@@ -49,9 +49,9 @@ struct clock_sync_context {
 							 * calculated offsets per CPU
 							 */
 
-	/* Identifiers of local and remote time sync peers: cid and port */
-	unsigned int			local_cid;
-	unsigned int			remote_cid;
+	/* Identifiers of local and remote time sync peers */
+	unsigned int			local_id;
+	unsigned int			remote_id;
 };
 
 int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int roles,
