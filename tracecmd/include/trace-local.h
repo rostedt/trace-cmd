@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <dirent.h>	/* for DIR */
 #include <ctype.h>	/* for isdigit() */
+#include <errno.h>
 #include <limits.h>
 
 #include "trace-cmd-private.h"
@@ -338,6 +339,53 @@ int trace_get_vsock_port(int sd, unsigned int *port);
 int trace_open_vsock(unsigned int cid, unsigned int port);
 
 char *trace_get_guest_file(const char *file, const char *guest);
+
+#ifdef VSOCK
+int trace_vsock_open(unsigned int cid, unsigned int port);
+int trace_vsock_make(unsigned int port);
+int trace_vsock_make_any(void);
+int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid);
+int trace_vsock_get_port(int sd, unsigned int *port);
+bool trace_vsock_can_splice_read(void);
+int trace_vsock_local_cid(void);
+#else
+static inline int trace_vsock_open(unsigned int cid, unsigned int port)
+{
+	return -ENOTSUP;
+}
+
+static inline int trace_vsock_make(unsigned int port)
+{
+	return -ENOTSUP;
+
+}
+
+static inline int trace_vsock_make_any(void)
+{
+	return -ENOTSUP;
+
+}
+
+static inline int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
+{
+	return -ENOTSUP;
+}
+
+static inline int trace_vsock_get_port(int sd, unsigned int *port)
+{
+	return -ENOTSUP;
+}
+
+static inline bool trace_vsock_can_splice_read(void)
+{
+	return false;
+}
+
+static inline int trace_vsock_local_cid(void)
+{
+	return -ENOTSUP;
+}
+#endif /* VSOCK */
 
 /* No longer in event-utils.h */
 __printf(1,2)

@@ -8,9 +8,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#ifdef VSOCK
-#include <linux/vm_sockets.h>
-#endif
 #include <linux/limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -65,10 +62,8 @@ static struct tsync_proto *tsync_proto_find(const char *proto_name)
  */
 void tracecmd_tsync_init(void)
 {
-#ifdef VSOCK
 	ptp_clock_sync_register();
 	kvm_clock_sync_register();
-#endif
 }
 
 int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int roles,

@@ -65,7 +65,18 @@ int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int role
 					      long long *, unsigned int));
 int tracecmd_tsync_proto_unregister(char *proto_name);
 
+#ifdef VSOCK
 int ptp_clock_sync_register(void);
 int kvm_clock_sync_register(void);
+#else
+static inline int ptp_clock_sync_register(void)
+{
+	return 0;
+}
+static inline int kvm_clock_sync_register(void)
+{
+	return 0;
+}
+#endif
 
 #endif /* _TRACE_TSYNC_LOCAL_H */

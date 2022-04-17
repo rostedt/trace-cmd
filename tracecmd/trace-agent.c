@@ -14,73 +14,13 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <linux/vm_sockets.h>
 #include <pthread.h>
 
 #include "trace-local.h"
 #include "trace-msg.h"
-
-#define GET_LOCAL_CID	0x7b9
-
-static int get_local_cid(unsigned int *cid)
-{
-	int fd, ret = 0;
-
-	fd = open("/dev/vsock", O_RDONLY);
-	if (fd < 0)
-		return -errno;
-
-	if (ioctl(fd, GET_LOCAL_CID, cid))
-		ret = -errno;
-
-	close(fd);
-	return ret;
-}
-
-int trace_make_vsock(unsigned int port)
-{
-	struct sockaddr_vm addr = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = VMADDR_CID_ANY,
-		.svm_port = port,
-	};
-	int sd;
-
-	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
-	if (sd < 0)
-		return -errno;
-
-	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
-
-	if (bind(sd, (struct sockaddr *)&addr, sizeof(addr)))
-		return -errno;
-
-	if (listen(sd, SOMAXCONN))
-		return -errno;
-
-	return sd;
-}
-
-int trace_get_vsock_port(int sd, unsigned int *port)
-{
-	struct sockaddr_vm addr;
-	socklen_t addr_len = sizeof(addr);
-
-	if (getsockname(sd, (struct sockaddr *)&addr, &addr_len))
-		return -errno;
-
-	if (addr.svm_family != AF_VSOCK)
-		return -EINVAL;
-
-	if (port)
-		*port = addr.svm_port;
-
-	return 0;
-}
 
 static void make_vsocks(int nr, int *fds, unsigned int *ports)
 {
@@ -88,11 +28,11 @@ static void make_vsocks(int nr, int *fds, unsigned int *ports)
 	int i, fd, ret;
 
 	for (i = 0; i < nr; i++) {
-		fd = trace_make_vsock(VMADDR_PORT_ANY);
+		fd = trace_vsock_make_any();
 		if (fd < 0)
 			die("Failed to open vsocket");
 
-		ret = trace_get_vsock_port(fd, &port);
+		ret = trace_vsock_get_port(fd, &port);
 		if (ret < 0)
 			die("Failed to get vsocket address");
 
@@ -140,98 +80,6 @@ static char *get_clock(int argc, char **argv)
 	return NULL;
 }
 
-#ifdef VSOCK
-
-static int vsock_make(void)
-{
-	struct sockaddr_vm addr = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = VMADDR_CID_ANY,
-		.svm_port = VMADDR_PORT_ANY,
-	};
-	int sd;
-
-	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
-	if (sd < 0)
-		return -errno;
-
-	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
-
-	if (bind(sd, (struct sockaddr *)&addr, sizeof(addr)))
-		return -errno;
-
-	if (listen(sd, SOMAXCONN))
-		return -errno;
-
-	return sd;
-}
-
-static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
-{
-	struct sockaddr_vm addr;
-	socklen_t addr_len = sizeof(addr);
-
-	memset(&addr, 0, sizeof(addr));
-	if (getsockname(fd, (struct sockaddr *)&addr, &addr_len))
-		return -1;
-	if (addr.svm_family != AF_VSOCK)
-		return -1;
-	*lcid = addr.svm_cid;
-
-	memset(&addr, 0, sizeof(addr));
-	addr_len = sizeof(addr);
-	if (getpeername(fd, (struct sockaddr *)&addr, &addr_len))
-		return -1;
-	if (addr.svm_family != AF_VSOCK)
-		return -1;
-	*rcid = addr.svm_cid;
-
-	return 0;
-}
-
-static int vsock_get_port(int sd, unsigned int *port)
-{
-	struct sockaddr_vm addr;
-	socklen_t addr_len = sizeof(addr);
-
-	if (getsockname(sd, (struct sockaddr *)&addr, &addr_len))
-		return -errno;
-
-	if (addr.svm_family != AF_VSOCK)
-		return -EINVAL;
-
-	if (port)
-		*port = addr.svm_port;
-
-	return 0;
-}
-#else
-static inline bool can_splice_read_vsock(void)
-{
-	return false;
-}
-
-static inline int vsock_make(void)
-{
-	return -ENOTSUP;
-
-}
-
-static inline  int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid) {
-	return -1;
-}
-
-static inline int vsock_get_port(int sd, unsigned int *port)
-{
-	return -1;
-}
-
-static int vsock_get_port(int sd, unsigned int *port)
-{
-	return -ENOTSUP;
-}
-#endif
-
 static void agent_handle(int sd, int nr_cpus, int page_size)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
@@ -278,8 +126,8 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 			remote_id = -1;
 			local_id = -2;
 		}
-		fd = vsock_make();
-		if (fd >= 0 && vsock_get_port(fd, &tsync_port) >= 0) {
+		fd = trace_vsock_make_any();
+		if (fd >= 0 && trace_vsock_get_port(fd, &tsync_port) >= 0) {
 			tsync = tracecmd_tsync_with_host(fd, tsync_protos,
 							 get_clock(argc, argv),
 							 remote_id, local_id);
@@ -356,12 +204,13 @@ static void agent_serve(unsigned int port, bool do_daemon)
 	nr_cpus = tracecmd_count_cpus();
 	page_size = getpagesize();
 
-	sd = trace_make_vsock(port);
+	sd = trace_vsock_make(port);
 	if (sd < 0)
 		die("Failed to open vsocket");
 	tracecmd_tsync_init();
 
-	if (!get_local_cid(&cid))
+	cid = trace_vsock_local_cid();
+	if (cid >= 0)
 		printf("listening on @%u:%u\n", cid, port);
 
 	if (do_daemon && daemon(1, 0))

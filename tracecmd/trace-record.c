@@ -37,9 +37,6 @@
 #include <poll.h>
 #include <pwd.h>
 #include <grp.h>
-#ifdef VSOCK
-#include <linux/vm_sockets.h>
-#endif
 
 #include "tracefs.h"
 #include "version.h"
@@ -3159,81 +3156,6 @@ static int connect_port(const char *host, unsigned int port)
 	return sfd;
 }
 
-#ifdef VSOCK
-int trace_open_vsock(unsigned int cid, unsigned int port)
-{
-	struct sockaddr_vm addr = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = cid,
-		.svm_port = port,
-	};
-	int sd;
-
-	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
-	if (sd < 0)
-		return -errno;
-
-	if (connect(sd, (struct sockaddr *)&addr, sizeof(addr)))
-		return -errno;
-
-	return sd;
-}
-
-static int try_splice_read_vsock(void)
-{
-	int ret, sd, brass[2];
-
-	sd = socket(AF_VSOCK, SOCK_STREAM, 0);
-	if (sd < 0)
-		return -errno;
-
-	ret = pipe(brass);
-	if (ret < 0)
-		goto out_close_sd;
-
-	/*
-	 * On kernels that don't support splice reading from vsockets
-	 * this will fail with EINVAL, or ENOTCONN otherwise.
-	 * Technically, it should never succeed but if it does, claim splice
-	 * reading is supported.
-	 */
-	ret = splice(sd, NULL, brass[1], NULL, 10, 0);
-	if (ret < 0)
-		ret = errno != EINVAL;
-	else
-		ret = 1;
-
-	close(brass[0]);
-	close(brass[1]);
-out_close_sd:
-	close(sd);
-	return ret;
-}
-
-static bool can_splice_read_vsock(void)
-{
-	static bool initialized, res;
-
-	if (initialized)
-		return res;
-
-	res = try_splice_read_vsock() > 0;
-	initialized = true;
-	return res;
-}
-
-#else
-int trace_open_vsock(unsigned int cid, unsigned int port)
-{
-	die("vsock is not supported");
-	return -1;
-}
-static inline bool can_splice_read_vsock(void)
-{
-	return false;
-}
-#endif
-
 static int do_accept(int sd)
 {
 	int cd;
@@ -3366,14 +3288,14 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 		if (instance->use_fifos)
 			fd = instance->fds[cpu];
 		else
-			fd = trace_open_vsock(instance->cid, instance->client_ports[cpu]);
+			fd = trace_vsock_open(instance->cid, instance->client_ports[cpu]);
 		if (fd < 0)
 			die("Failed to connect to agent");
 
 		flags = recorder_flags;
 		if (instance->use_fifos)
 			flags |= TRACECMD_RECORD_NOBRASS;
-		else if (!can_splice_read_vsock())
+		else if (!trace_vsock_can_splice_read())
 			flags |= TRACECMD_RECORD_NOSPLICE;
 		return tracecmd_create_recorder_virt(file, cpu, flags, fd);
 	}
@@ -3988,7 +3910,7 @@ static int host_tsync(struct common_record_context *ctx,
 	guest_pid = guest->pid;
 	start_mapping_vcpus(guest);
 
-	fd = trace_open_vsock(instance->cid, tsync_port);
+	fd = trace_vsock_open(instance->cid, tsync_port);
 	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
 						    instance->tsync_loop_interval,
 						    fd, guest_pid,
@@ -4019,7 +3941,7 @@ static void connect_to_agent(struct common_record_context *ctx,
 		use_fifos = nr_fifos > 0;
 	}
 
-	sd = trace_open_vsock(instance->cid, instance->port);
+	sd = trace_vsock_open(instance->cid, instance->port);
 	if (sd < 0)
 		die("Failed to connect to vsocket @%u:%u",
 		    instance->cid, instance->port);

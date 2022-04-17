@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <linux/vm_sockets.h>
 #include <sys/types.h>
 #include <linux/types.h>
 #include <time.h>
