@@ -405,8 +405,7 @@ int __hidden vsock_get_port(int sd, unsigned int *port)
 	return 0;
 }
 
-static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *lport,
-			      unsigned int *rcid, unsigned int *rport)
+static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
 {
 	struct sockaddr_vm addr;
 	socklen_t addr_len = sizeof(addr);
@@ -416,7 +415,6 @@ static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *lport,
 		return -1;
 	if (addr.svm_family != AF_VSOCK)
 		return -1;
-	*lport = addr.svm_port;
 	*lcid = addr.svm_cid;
 
 	memset(&addr, 0, sizeof(addr));
@@ -425,7 +423,6 @@ static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *lport,
 		return -1;
 	if (addr.svm_family != AF_VSOCK)
 		return -1;
-	*rport = addr.svm_port;
 	*rcid = addr.svm_cid;
 
 	return 0;
@@ -448,8 +445,7 @@ static int vsock_get_port(int sd, unsigned int *port)
 	return -ENOTSUP;
 }
 
-static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *lport,
-			      unsigned int *rcid, unsigned int *rport)
+static int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
 {
 	return -ENOTSUP;
 }
@@ -503,8 +499,7 @@ static int clock_context_init(struct tracecmd_time_sync *tsync,
 	clock->is_server = clock->is_guest;
 
 	if (get_vsocket_params(tsync->msg_handle->fd, &clock->local_cid,
-			       &clock->local_port, &clock->remote_cid,
-			       &clock->remote_port))
+			       &clock->remote_cid))
 		goto error;
 
 	clock->instance = clock_synch_create_instance(tsync->clock_str,

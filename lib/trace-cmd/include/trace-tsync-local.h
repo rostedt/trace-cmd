@@ -51,9 +51,7 @@ struct clock_sync_context {
 
 	/* Identifiers of local and remote time sync peers: cid and port */
 	unsigned int			local_cid;
-	unsigned int			local_port;
 	unsigned int			remote_cid;
-	unsigned int			remote_port;
 };
 
 int tracecmd_tsync_proto_register(const char *proto_name, int accuracy, int roles,
