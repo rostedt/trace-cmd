@@ -137,8 +137,8 @@ static void remove_pid_file(void)
 	unlink(buf);
 }
 
-static int process_udp_child(int sfd, const char *host, const char *port,
-			     int cpu, int page_size, int use_tcp)
+static int process_child(int sfd, const char *host, const char *port,
+			 int cpu, int page_size, int use_tcp)
 {
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
@@ -205,7 +205,7 @@ static int process_udp_child(int sfd, const char *host, const char *port,
 #define START_PORT_SEARCH 1500
 #define MAX_PORT_SEARCH 6000
 
-static int udp_bind_a_port(int start_port, int *sfd, int use_tcp)
+static int bind_a_port(int start_port, int *sfd, int use_tcp)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
@@ -223,7 +223,7 @@ static int udp_bind_a_port(int start_port, int *sfd, int use_tcp)
 
 	s = getaddrinfo(NULL, buf, &hints, &result);
 	if (s != 0)
-		pdie("getaddrinfo: error opening udp socket");
+		pdie("getaddrinfo: error opening socket");
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		*sfd = socket(rp->ai_family, rp->ai_socktype,
@@ -249,40 +249,40 @@ static int udp_bind_a_port(int start_port, int *sfd, int use_tcp)
 	return num_port;
 }
 
-static void fork_udp_reader(int sfd, const char *node, const char *port,
-			    int *pid, int cpu, int pagesize, int use_tcp)
+static void fork_reader(int sfd, const char *node, const char *port,
+			int *pid, int cpu, int pagesize, int use_tcp)
 {
 	int ret;
 
 	*pid = fork();
 
 	if (*pid < 0)
-		pdie("creating udp reader");
+		pdie("creating reader");
 
 	if (!*pid) {
-		ret = process_udp_child(sfd, node, port, cpu, pagesize, use_tcp);
+		ret = process_child(sfd, node, port, cpu, pagesize, use_tcp);
 		if (ret < 0)
-			pdie("Problem with udp reader %d", ret);
+			pdie("Problem with reader %d", ret);
 	}
 
 	close(sfd);
 }
 
-static int open_udp(const char *node, const char *port, int *pid,
-		    int cpu, int pagesize, int start_port, int use_tcp)
+static int open_port(const char *node, const char *port, int *pid,
+		     int cpu, int pagesize, int start_port, int use_tcp)
 {
 	int sfd;
 	int num_port;
 
 	/*
-	 * udp_bind_a_port() currently does not return an error, but if that
+	 * bind_a_port() currently does not return an error, but if that
 	 * changes in the future, we have a check for it now.
 	 */
-	num_port = udp_bind_a_port(start_port, &sfd, use_tcp);
+	num_port = bind_a_port(start_port, &sfd, use_tcp);
 	if (num_port < 0)
 		return num_port;
 
-	fork_udp_reader(sfd, node, port, pid, cpu, pagesize, use_tcp);
+	fork_reader(sfd, node, port, pid, cpu, pagesize, use_tcp);
 
 	return num_port;
 }
@@ -468,7 +468,7 @@ static int *create_all_readers(const char *node, const char *port,
 	unsigned int *port_array;
 	int *pid_array;
 	unsigned int start_port;
-	unsigned int udp_port;
+	unsigned int connect_port;
 	int cpus = msg_handle->cpu_count;
 	int cpu;
 	int pid;
@@ -490,19 +490,19 @@ static int *create_all_readers(const char *node, const char *port,
 
 	start_port = START_PORT_SEARCH;
 
-	/* Now create a UDP port for each CPU */
+	/* Now create a port for each CPU */
 	for (cpu = 0; cpu < cpus; cpu++) {
-		udp_port = open_udp(node, port, &pid, cpu,
-				    pagesize, start_port, use_tcp);
-		if (udp_port < 0)
+		connect_port = open_port(node, port, &pid, cpu,
+					 pagesize, start_port, use_tcp);
+		if (connect_port < 0)
 			goto out_free;
-		port_array[cpu] = udp_port;
+		port_array[cpu] = connect_port;
 		pid_array[cpu] = pid;
 		/*
 		 * Due to some bugging finding ports,
 		 * force search after last port
 		 */
-		start_port = udp_port + 1;
+		start_port = connect_port + 1;
 	}
 
 	if (msg_handle->version == V3_PROTOCOL) {
