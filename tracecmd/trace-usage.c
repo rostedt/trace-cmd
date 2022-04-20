@@ -325,7 +325,6 @@ static struct usage_help usage_help[] = {
 		"          -l logfile to write messages to.\n"
 		"          --verbose 'level' Set the desired log level\n"
 	},
-#ifdef VSOCK
 	{
 		"agent",
 		"listen on a vsocket for trace clients",
@@ -344,7 +343,6 @@ static struct usage_help usage_help[] = {
 		"          -g FIFOs group owner\n"
 		"          -a Attach FIFOs to guest VM config\n"
 	},
-#endif
 	{
 		"list",
 		"list the available events, plugins or options",

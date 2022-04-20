@@ -21,8 +21,8 @@ ifeq ($(PERF_DEFINED), 1)
 OBJS += trace-perf.o
 endif
 OBJS += trace-timesync.o
-ifeq ($(VSOCK_DEFINED), 1)
 OBJS += trace-timesync-ptp.o
+ifeq ($(VSOCK_DEFINED), 1)
 OBJS += trace-timesync-kvm.o
 endif
 OBJS += trace-compress.o
