@@ -306,6 +306,12 @@ extern struct buffer_instance *first_instance;
 #define is_guest(instance)	((instance)->flags & BUFFER_FL_GUEST)
 #define is_network(instance)	((instance)->flags & BUFFER_FL_NETWORK)
 
+#define START_PORT_SEARCH 1500
+#define MAX_PORT_SEARCH 6000
+
+int trace_net_make(int port, enum port_type type);
+int trace_net_search(int start_port, int *sfd, enum port_type type);
+
 struct buffer_instance *allocate_instance(const char *name);
 void add_instance(struct buffer_instance *instance, int cpu_count);
 void update_first_instance(struct buffer_instance *instance, int topt);

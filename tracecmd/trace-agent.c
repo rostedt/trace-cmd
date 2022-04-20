@@ -41,6 +41,32 @@ static void make_vsocks(int nr, int *fds, unsigned int *ports)
 	}
 }
 
+static void make_net(int nr, int *fds, unsigned int *ports)
+{
+	int port;
+	int i, fd;
+	int start_port = START_PORT_SEARCH;
+
+	for (i = 0; i < nr; i++) {
+		port = trace_net_search(start_port, &fd, USE_TCP);
+		if (port < 0)
+			die("Failed to open socket");
+		if (listen(fd, 5) < 0)
+			die("Failed to listen on port %d\n", port);
+		fds[i] = fd;
+		ports[i] = port;
+		start_port = port + 1;
+	}
+}
+
+static void make_sockets(int nr, int *fds, unsigned int *ports, bool network)
+{
+	if (network)
+		return make_net(nr, fds, ports);
+	else
+		return make_vsocks(nr, fds, ports);
+}
+
 static int open_agent_fifos(int nr_cpus, int *fds)
 {
 	char path[PATH_MAX];
@@ -80,7 +106,7 @@ static char *get_clock(int argc, char **argv)
 	return NULL;
 }
 
-static void agent_handle(int sd, int nr_cpus, int page_size)
+static void agent_handle(int sd, int nr_cpus, int page_size, bool network)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
 	struct tracecmd_time_sync *tsync = NULL;
@@ -117,17 +143,31 @@ static void agent_handle(int sd, int nr_cpus, int page_size)
 		use_fifos = false;
 
 	if (!use_fifos)
-		make_vsocks(nr_cpus, fds, ports);
+		make_sockets(nr_cpus, fds, ports, network);
 	if (tsync_protos && tsync_protos->names) {
-		if (get_vsocket_params(msg_handle->fd, &local_id,
-				       &remote_id)) {
-			warning("Failed to get local and remote ids");
-			/* Just make something up */
-			remote_id = -1;
-			local_id = -2;
+		if (network) {
+			/* For now just use something */
+			remote_id = 2;
+			local_id = 1;
+			tsync_port = trace_net_search(START_PORT_SEARCH, &fd, USE_TCP);
+			if (listen(fd, 5) < 0)
+				die("Failed to listen on %d\n", tsync_port);
+		} else {
+			if (get_vsocket_params(msg_handle->fd, &local_id,
+					       &remote_id)) {
+				warning("Failed to get local and remote ids");
+				/* Just make something up */
+				remote_id = -1;
+				local_id = -2;
+			}
+			fd = trace_vsock_make_any();
+			if (fd >= 0 &&
+			    trace_vsock_get_port(fd, &tsync_port) < 0) {
+				close(fd);
+				fd = -1;
+			}
 		}
-		fd = trace_vsock_make_any();
-		if (fd >= 0 && trace_vsock_get_port(fd, &tsync_port) >= 0) {
+		if (fd >= 0) {
 			tsync = tracecmd_tsync_with_host(fd, tsync_protos,
 							 get_clock(argc, argv),
 							 remote_id, local_id);
@@ -193,7 +233,7 @@ static pid_t do_fork()
 	return fork();
 }
 
-static void agent_serve(unsigned int port, bool do_daemon)
+static void agent_serve(unsigned int port, bool do_daemon, bool network)
 {
 	int sd, cd, nr_cpus;
 	unsigned int cid;
@@ -204,14 +244,21 @@ static void agent_serve(unsigned int port, bool do_daemon)
 	nr_cpus = tracecmd_count_cpus();
 	page_size = getpagesize();
 
-	sd = trace_vsock_make(port);
+	if (network) {
+		sd = trace_net_make(port, USE_TCP);
+		if (listen(sd, 5) < 0)
+			die("Failed to listen on %d\n", port);
+	} else
+		sd = trace_vsock_make(port);
 	if (sd < 0)
-		die("Failed to open vsocket");
+		die("Failed to open socket");
 	tracecmd_tsync_init();
 
-	cid = trace_vsock_local_cid();
-	if (cid >= 0)
-		printf("listening on @%u:%u\n", cid, port);
+	if (!network) {
+		cid = trace_vsock_local_cid();
+		if (cid >= 0)
+			printf("listening on @%u:%u\n", cid, port);
+	}
 
 	if (do_daemon && daemon(1, 0))
 		die("daemon");
@@ -231,7 +278,7 @@ static void agent_serve(unsigned int port, bool do_daemon)
 		if (pid == 0) {
 			close(sd);
 			signal(SIGCHLD, SIG_DFL);
-			agent_handle(cd, nr_cpus, page_size);
+			agent_handle(cd, nr_cpus, page_size, network);
 		}
 		if (pid > 0)
 			handler_pid = pid;
@@ -250,6 +297,7 @@ void trace_agent(int argc, char **argv)
 {
 	bool do_daemon = false;
 	unsigned int port = TRACE_AGENT_DEFAULT_PORT;
+	bool network = false;
 
 	if (argc < 2)
 		usage(argv);
@@ -267,13 +315,16 @@ void trace_agent(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long(argc-1, argv+1, "+hp:D",
+		c = getopt_long(argc-1, argv+1, "+hp:DN",
 				long_options, &option_index);
 		if (c == -1)
 			break;
 		switch (c) {
 		case 'h':
 			usage(argv);
+			break;
+		case 'N':
+			network = true;
 			break;
 		case 'p':
 			port = atoi(optarg);
@@ -296,5 +347,5 @@ void trace_agent(int argc, char **argv)
 	if (optind < argc-1)
 		usage(argv);
 
-	agent_serve(port, do_daemon);
+	agent_serve(port, do_daemon, network);
 }

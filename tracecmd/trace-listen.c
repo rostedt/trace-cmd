@@ -234,51 +234,67 @@ static int setup_vsock_port(int start_port, int *sfd)
 	return start_port;
 }
 
-#define START_PORT_SEARCH 1500
-#define MAX_PORT_SEARCH 6000
-
-static int bind_a_port(int start_port, int *sfd, enum port_type type)
+int trace_net_make(int port, enum port_type type)
 {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	char buf[BUFSIZ];
+	int sd;
 	int s;
-	int num_port = start_port;
 
-	if (type == USE_VSOCK)
-		return setup_vsock_port(start_port, sfd);
- again:
-	snprintf(buf, BUFSIZ, "%d", num_port);
+	snprintf(buf, BUFSIZ, "%d", port);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = type == USE_TCP ? SOCK_STREAM : SOCK_DGRAM;
 	hints.ai_flags = AI_PASSIVE;
+
+	switch (type) {
+	case USE_TCP:
+		hints.ai_socktype = SOCK_STREAM;
+		break;
+	case USE_UDP:
+		hints.ai_socktype = SOCK_DGRAM;
+		break;
+	default:
+		return -1;
+	}
 
 	s = getaddrinfo(NULL, buf, &hints, &result);
 	if (s != 0)
 		pdie("getaddrinfo: error opening socket");
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
-		*sfd = socket(rp->ai_family, rp->ai_socktype,
-			      rp->ai_protocol);
-		if (*sfd < 0)
+		sd = socket(rp->ai_family, rp->ai_socktype,
+			    rp->ai_protocol);
+		if (sd < 0)
 			continue;
 
-		if (bind(*sfd, rp->ai_addr, rp->ai_addrlen) == 0)
+		if (bind(sd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;
 
-		close(*sfd);
+		close(sd);
 	}
+	freeaddrinfo(result);
 
-	if (rp == NULL) {
-		freeaddrinfo(result);
+	if (rp == NULL)
+		return -1;
+
+	return sd;
+}
+
+int trace_net_search(int start_port, int *sfd, enum port_type type)
+{
+	int num_port = start_port;
+
+	if (type == USE_VSOCK)
+		return setup_vsock_port(start_port, sfd);
+ again:
+	*sfd = trace_net_make(num_port, type);
+	if (*sfd < 0) {
 		if (++num_port > MAX_PORT_SEARCH)
 			pdie("No available ports to bind");
 		goto again;
 	}
-
-	freeaddrinfo(result);
 
 	return num_port;
 }
@@ -309,10 +325,10 @@ static int open_port(const char *node, const char *port, int *pid,
 	int num_port;
 
 	/*
-	 * bind_a_port() currently does not return an error, but if that
+	 * trace_net_search() currently does not return an error, but if that
 	 * changes in the future, we have a check for it now.
 	 */
-	num_port = bind_a_port(start_port, &sfd, type);
+	num_port = trace_net_search(start_port, &sfd, type);
 	if (num_port < 0)
 		return num_port;
 
