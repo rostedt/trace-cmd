@@ -62,7 +62,8 @@ static void make_net(int nr, int *fds, unsigned int *ports)
 	}
 }
 
-static void make_sockets(int nr, int *fds, unsigned int *ports, bool network)
+static void make_sockets(int nr, int *fds, unsigned int *ports,
+			 const char * network)
 {
 	if (network)
 		return make_net(nr, fds, ports);
@@ -109,7 +110,7 @@ static char *get_clock(int argc, char **argv)
 	return NULL;
 }
 
-static void trace_print_connection(int fd, bool network)
+static void trace_print_connection(int fd, const char *network)
 {
 	int ret;
 
@@ -121,7 +122,7 @@ static void trace_print_connection(int fd, bool network)
 		tracecmd_debug("Could not print connection fd:%d\n", fd);
 }
 
-static void agent_handle(int sd, int nr_cpus, int page_size, bool network)
+static void agent_handle(int sd, int nr_cpus, int page_size, const char *network)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
 	struct tracecmd_time_sync *tsync = NULL;
@@ -203,7 +204,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size, bool network)
 		die("Failed to send trace response");
 
 	trace_record_agent(msg_handle, nr_cpus, fds, argc, argv,
-			   use_fifos, trace_id);
+			   use_fifos, trace_id, network);
 
 	if (tsync) {
 		tracecmd_tsync_with_host_stop(tsync);
@@ -248,13 +249,22 @@ static pid_t do_fork()
 	return fork();
 }
 
-static void agent_serve(unsigned int port, bool do_daemon, bool network)
+static void agent_serve(unsigned int port, bool do_daemon, const char *network)
 {
+	struct sockaddr_storage net_addr;
+	struct sockaddr *addr = NULL;
+	socklen_t *addr_len_p = NULL;
+	socklen_t addr_len = sizeof(net_addr);
 	int sd, cd, nr_cpus;
 	unsigned int cid;
 	pid_t pid;
 
 	signal(SIGCHLD, handle_sigchld);
+
+	if (network) {
+		addr = (struct sockaddr *)&net_addr;
+		addr_len_p = &addr_len;
+	}
 
 	nr_cpus = tracecmd_count_cpus();
 	page_size = getpagesize();
@@ -279,7 +289,7 @@ static void agent_serve(unsigned int port, bool do_daemon, bool network)
 		die("daemon");
 
 	for (;;) {
-		cd = accept(sd, NULL, NULL);
+		cd = accept(sd, addr, addr_len_p);
 		if (cd < 0) {
 			if (errno == EINTR)
 				continue;
@@ -287,6 +297,12 @@ static void agent_serve(unsigned int port, bool do_daemon, bool network)
 		}
 		if (tracecmd_get_debug())
 			trace_print_connection(cd, network);
+
+		if (network && !trace_net_cmp_connection(&net_addr, network)) {
+			dprint("Client does not match '%s'\n", network);
+			close(cd);
+			continue;
+		}
 
 		if (handler_pid)
 			goto busy;
@@ -314,7 +330,7 @@ void trace_agent(int argc, char **argv)
 {
 	bool do_daemon = false;
 	unsigned int port = TRACE_AGENT_DEFAULT_PORT;
-	bool network = false;
+	const char *network = NULL;
 
 	if (argc < 2)
 		usage(argv);
@@ -332,7 +348,7 @@ void trace_agent(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long(argc-1, argv+1, "+hp:DN",
+		c = getopt_long(argc-1, argv+1, "+hp:DN:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -341,7 +357,7 @@ void trace_agent(int argc, char **argv)
 			usage(argv);
 			break;
 		case 'N':
-			network = true;
+			network = optarg;
 			break;
 		case 'p':
 			port = atoi(optarg);

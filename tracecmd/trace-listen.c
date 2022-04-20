@@ -756,6 +756,61 @@ static int do_fork(int cfd)
 	return 0;
 }
 
+bool trace_net_cmp_connection(struct sockaddr_storage *addr, const char *name)
+{
+	char host[NI_MAXHOST], nhost[NI_MAXHOST];
+	char service[NI_MAXSERV];
+	socklen_t addr_len = sizeof(*addr);
+	struct addrinfo *result, *rp;
+	struct addrinfo hints;
+	bool found = false;
+	int s;
+
+	if (getnameinfo((struct sockaddr *)addr, addr_len,
+			host, NI_MAXHOST,
+			service, NI_MAXSERV, NI_NUMERICSERV))
+		return -1;
+
+	if (strcmp(host, name) == 0)
+		return true;
+
+	/* Check other IPs that name could be for */
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	/* Check other IPs that name could be for */
+	s = getaddrinfo(name, NULL, &hints, &result);
+	if (s != 0)
+		return false;
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		if (getnameinfo(rp->ai_addr, rp->ai_addrlen,
+				nhost, NI_MAXHOST,
+				service, NI_MAXSERV, NI_NUMERICSERV))
+			continue;
+		if (strcmp(host, nhost) == 0) {
+			found = 1;
+			break;
+		}
+	}
+
+	freeaddrinfo(result);
+	return found;
+}
+
+bool trace_net_cmp_connection_fd(int fd, const char *name)
+{
+	struct sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
+
+	if (getpeername(fd, (struct sockaddr *)&addr, &addr_len))
+		return false;
+
+	return trace_net_cmp_connection(&addr, name);
+};
+
 int trace_net_print_connection(int fd)
 {
 	char host[NI_MAXHOST], service[NI_MAXSERV];

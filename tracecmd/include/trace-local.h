@@ -122,7 +122,7 @@ void trace_convert(int argc, char **argv);
 int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 		       int cpus, int *fds,
 		       int argc, char **argv, bool use_fifos,
-		       unsigned long long trace_id);
+		       unsigned long long trace_id, const char *host);
 
 struct hook_list;
 
@@ -267,6 +267,7 @@ struct buffer_instance {
 
 	struct tracecmd_msg_handle *msg_handle;
 	struct tracecmd_output *network_handle;
+	const char		*host;
 
 	struct pid_addr_maps	*pid_maps;
 
@@ -309,9 +310,13 @@ extern struct buffer_instance *first_instance;
 #define START_PORT_SEARCH 1500
 #define MAX_PORT_SEARCH 6000
 
+struct sockaddr_storage;
+
 int trace_net_make(int port, enum port_type type);
 int trace_net_search(int start_port, int *sfd, enum port_type type);
 int trace_net_print_connection(int fd);
+bool trace_net_cmp_connection(struct sockaddr_storage *addr, const char *name);
+bool trace_net_cmp_connection_fd(int fd, const char *name);
 
 struct buffer_instance *allocate_instance(const char *name);
 void add_instance(struct buffer_instance *instance, int cpu_count);

@@ -3426,8 +3426,16 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 		if (is_agent(instance)) {
 			if (instance->use_fifos)
 				fd = instance->fds[cpu];
-			else
+			else {
+ again:
 				fd = do_accept(instance->fds[cpu]);
+				if (instance->host &&
+				    !trace_net_cmp_connection_fd(fd, instance->host)) {
+					dprint("Client does not match '%s' for cpu:%d\n",
+					       instance->host, cpu);
+					goto again;
+				}
+			}
 		} else {
 			fd = connect_port(host, instance->client_ports[cpu],
 					  instance->port_type);
@@ -7275,7 +7283,7 @@ int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 		       int cpus, int *fds,
 		       int argc, char **argv,
 		       bool use_fifos,
-		       unsigned long long trace_id)
+		       unsigned long long trace_id, const char *host)
 {
 	struct common_record_context ctx;
 	char **argv_plus;
@@ -7304,6 +7312,7 @@ int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 	ctx.instance->use_fifos = use_fifos;
 	ctx.instance->flags |= BUFFER_FL_AGENT;
 	ctx.instance->msg_handle = msg_handle;
+	ctx.instance->host = host;
 	msg_handle->version = V3_PROTOCOL;
 	top_instance.trace_id = trace_id;
 	record_trace(argc, argv, &ctx);
