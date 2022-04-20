@@ -480,6 +480,8 @@ enum{
 enum tracecmd_time_sync_role {
 	TRACECMD_TIME_SYNC_ROLE_HOST	= (1 << 0),
 	TRACECMD_TIME_SYNC_ROLE_GUEST	= (1 << 1),
+	TRACECMD_TIME_SYNC_ROLE_CLIENT	= (1 << 2),
+	TRACECMD_TIME_SYNC_ROLE_SERVER	= (1 << 3),
 };
 
 /* Timestamp synchronization flags */

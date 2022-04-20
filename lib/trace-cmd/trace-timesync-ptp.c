@@ -702,7 +702,9 @@ int ptp_clock_sync_register(void)
 {
 	return tracecmd_tsync_proto_register(PTP_NAME, PTP_ACCURACY,
 					     TRACECMD_TIME_SYNC_ROLE_GUEST |
-					     TRACECMD_TIME_SYNC_ROLE_HOST,
+					     TRACECMD_TIME_SYNC_ROLE_HOST |
+					     TRACECMD_TIME_SYNC_ROLE_CLIENT |
+					     TRACECMD_TIME_SYNC_ROLE_SERVER,
 					     0, TRACECMD_TSYNC_FLAG_INTERPOLATE,
 					     ptp_clock_sync_init,
 					     ptp_clock_sync_free,
