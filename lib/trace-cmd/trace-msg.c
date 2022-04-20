@@ -31,17 +31,7 @@
 typedef __u32 u32;
 typedef __be32 be32;
 
-static inline void dprint(const char *fmt, ...)
-{
-	va_list ap;
-
-	if (!tracecmd_get_debug())
-		return;
-
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-}
+#define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
 
 /* Two (4k) pages is the max transfer for now */
 #define MSG_MAX_LEN			8192

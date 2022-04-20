@@ -43,6 +43,9 @@ enum {
 	RINGBUF_TYPE_TIME_STAMP		= 31,
 };
 
+/* Can be overridden */
+void tracecmd_debug(const char *fmt, ...);
+
 void tracecmd_record_ref(struct tep_record *record);
 
 void tracecmd_set_debug(bool set_debug);
