@@ -1,0 +1,62 @@
+TRACE-CMD-AGENT(1)
+==================
+
+NAME
+----
+trace-cmd-agent - Run as an agent on a machine (to be controlled by another machine)
+
+SYNOPSIS
+--------
+*trace-cmd agent* ['OPTIONS']
+
+DESCRIPTION
+-----------
+The trace-cmd(1) agent listens over a vsocket (for virtual machines) or a TCP port
+for connections to control the tracing of the machine. The agent will then start
+tracing on the local machine and pass the data to the controlling connection.
+
+OPTIONS
+-------
+*-N* 'client'::
+    Listen over TCP instead of a vsocket. Must pass in a client host name or IP address
+    to allow connection to. It will only connect to the specified client. Note, any process
+    on that client can control the agent.
+
+    *This is a very insecure setting. Only use on a trusted network*
+    *Only use if the client machine is totally trusted*
+
+*-p* 'port'::
+    This option will specify the port to listen to.
+
+*-D*::
+    This options causes trace-cmd agent to go into a daemon mode and run in
+    the background.
+
+*--verbose*[='level']::
+     Set the log level. Supported log levels are "none", "critical", "error", "warning",
+     "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting the log
+     level to specific value enables all logs from that and all previous levels.
+     The level will default to "info" if one is not specified.
+
+     Example: enable all critical, error and warning logs
+
+      trace-cmd listen --verbose=warning
+
+SEE ALSO
+--------
+trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),
+trace-cmd-stop(1), trace-cmd-extract(1), trace-cmd-reset(1),
+trace-cmd-split(1), trace-cmd-list(1)
+
+AUTHOR
+------
+Written by Steven Rostedt, <rostedt@goodmis.org>
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
+
+COPYING
+-------
+Copyright \(C) 2010 Red Hat, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).

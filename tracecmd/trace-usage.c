@@ -330,6 +330,9 @@ static struct usage_help usage_help[] = {
 		"listen on a vsocket for trace clients",
 		" %s agent -p port[-D]\n"
 		"          Creates a vsocket to listen for clients.\n"
+		"          -N Connect to IP via TCP instead of vsockets\n"
+		"             *** Insecure setting, only use on a trusted network ***\n"
+		"             ***   Only use if the client is totally trusted.    ***\n"
 		"          -p port number to listen on.\n"
 		"          -D run in daemon mode.\n"
 		"          --verbose 'level' Set the desired log level\n"
