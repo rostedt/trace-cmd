@@ -10,11 +10,16 @@
 #include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/syscall.h>
 
 #include "trace-local.h"
 
 int silence_warnings;
 int show_status;
+
+#ifndef gettid
+#define gettid() syscall(__NR_gettid)
+#endif
 
 void warning(const char *fmt, ...)
 {
@@ -43,6 +48,19 @@ void *malloc_or_die(unsigned int size)
 	if (!data)
 		die("malloc");
 	return data;
+}
+
+void tracecmd_debug(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!tracecmd_get_debug())
+		return;
+
+	va_start(ap, fmt);
+	printf("[%d] ", (int)gettid());
+	vprintf(fmt, ap);
+	va_end(ap);
 }
 
 static struct trace_log_severity {
