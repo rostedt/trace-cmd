@@ -90,8 +90,6 @@ static bool fork_process;
 /* Max size to let a per cpu file get */
 static int max_kb;
 
-static enum port_type port_type;
-
 static int do_ptrace;
 
 static int filter_task;
@@ -3119,7 +3117,7 @@ static void finish(int sig)
 	finished = 1;
 }
 
-static int connect_port(const char *host, unsigned int port)
+static int connect_port(const char *host, unsigned int port, enum port_type type)
 {
 	struct addrinfo hints;
 	struct addrinfo *results, *rp;
@@ -3128,17 +3126,17 @@ static int connect_port(const char *host, unsigned int port)
 
 	snprintf(buf, BUFSIZ, "%u", port);
 
-	if (port_type == USE_VSOCK)
+	if (type == USE_VSOCK)
 		return trace_vsock_open(atoi(host), port);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = port_type == USE_TCP ? SOCK_STREAM : SOCK_DGRAM;
+	hints.ai_socktype = type == USE_TCP ? SOCK_STREAM : SOCK_DGRAM;
 
 	s = getaddrinfo(host, buf, &hints, &results);
 	if (s != 0)
 		die("connecting to %s server %s:%s",
-		    port_type == USE_TCP ? "TCP" : "UDP", host, buf);
+		    type == USE_TCP ? "TCP" : "UDP", host, buf);
 
 	for (rp = results; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
@@ -3152,7 +3150,7 @@ static int connect_port(const char *host, unsigned int port)
 
 	if (rp == NULL)
 		die("Can not connect to %s server %s:%s",
-		    port_type == USE_TCP ? "TCP" : "UDP", host, buf);
+		    type == USE_TCP ? "TCP" : "UDP", host, buf);
 
 	freeaddrinfo(results);
 
@@ -3359,7 +3357,8 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 			else
 				fd = do_accept(instance->fds[cpu]);
 		} else {
-			fd = connect_port(host, instance->client_ports[cpu]);
+			fd = connect_port(host, instance->client_ports[cpu],
+					  instance->port_type);
 		}
 		if (fd < 0)
 			die("Failed connecting to client");
@@ -3414,8 +3413,9 @@ static void check_first_msg_from_server(struct tracecmd_msg_handle *msg_handle)
 }
 
 static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle,
-					 unsigned int **client_ports)
+					 struct buffer_instance *instance)
 {
+	unsigned int *client_ports;
 	char buf[BUFSIZ];
 	ssize_t n;
 	int cpu, i;
@@ -3442,11 +3442,11 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle,
 	/* TODO, test for ipv4 */
 	if (page_size >= UDP_MAX_PACKET) {
 		warning("page size too big for UDP using TCP in live read");
-		port_type = USE_TCP;
+		instance->port_type = USE_TCP;
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 	}
 
-	if (port_type == USE_TCP) {
+	if (instance->port_type == USE_TCP) {
 		/* Send one option */
 		write(msg_handle->fd, "1", 2);
 		/* Size 4 */
@@ -3457,8 +3457,8 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle,
 		/* No options */
 		write(msg_handle->fd, "0", 2);
 
-	*client_ports = malloc(local_cpu_count * sizeof(*client_ports));
-	if (!*client_ports)
+	client_ports = malloc(local_cpu_count * sizeof(*client_ports));
+	if (!client_ports)
 		die("Failed to allocate client ports for %d cpus", local_cpu_count);
 
 	/*
@@ -3476,8 +3476,10 @@ static void communicate_with_listener_v1(struct tracecmd_msg_handle *msg_handle,
 		if (i == BUFSIZ)
 			die("read bad port number");
 		buf[i] = 0;
-		(*client_ports)[cpu] = atoi(buf);
+		client_ports[cpu] = atoi(buf);
 	}
+
+	instance->client_ports = client_ports;
 }
 
 static void communicate_with_listener_v3(struct tracecmd_msg_handle *msg_handle,
@@ -3609,10 +3611,11 @@ static int connect_ip(char *thost)
 static struct tracecmd_msg_handle *setup_network(struct buffer_instance *instance)
 {
 	struct tracecmd_msg_handle *msg_handle = NULL;
+	enum port_type type = instance->port_type;
 	int sfd;
 
 again:
-	switch (port_type) {
+	switch (type) {
 	case USE_VSOCK:
 		sfd = connect_vsock(host);
 		break;
@@ -3634,7 +3637,7 @@ again:
 		msg_handle->version = V3_PROTOCOL;
 	}
 
-	switch (port_type) {
+	switch (type) {
 	case USE_TCP:
 		msg_handle->flags |= TRACECMD_MSG_FL_USE_TCP;
 		break;
@@ -3657,7 +3660,7 @@ again:
 	}
 
 	if (msg_handle->version == V1_PROTOCOL)
-		communicate_with_listener_v1(msg_handle, &instance->client_ports);
+		communicate_with_listener_v1(msg_handle, instance);
 
 	return msg_handle;
 }
@@ -6514,7 +6517,7 @@ static void parse_record_options(int argc,
 			if (ctx->output)
 				die("-V incompatible with -o");
 			host = optarg;
-			port_type = USE_VSOCK;
+			ctx->instance->port_type = USE_VSOCK;
 			break;
 		case 'm':
 			if (max_kb)
@@ -6532,7 +6535,7 @@ static void parse_record_options(int argc,
 			if (IS_EXTRACT(ctx))
 				ctx->topt = 1; /* Extract top instance also */
 			else
-				port_type = USE_TCP;
+				ctx->instance->port_type = USE_TCP;
 			break;
 		case 'b':
 			check_instance_die(ctx->instance, "-b");

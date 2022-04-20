@@ -43,7 +43,7 @@ extern int show_status;
 int trace_set_verbose(char *level);
 
 enum port_type {
-	USE_UDP,
+	USE_UDP			= 0,	/* Default setting */
 	USE_TCP,
 	USE_VSOCK
 };
@@ -285,6 +285,7 @@ struct buffer_instance {
 	int			*fds;
 	bool			use_fifos;
 
+	enum port_type		port_type;	/* Default to USE_UDP (zero) */
 	int			tsync_loop_interval;
 	struct tracecmd_time_sync *tsync;
 };
