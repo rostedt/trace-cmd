@@ -56,6 +56,8 @@
 #define FUNC_STACK_TRACE "func_stack_trace"
 #define TSC_CLOCK	"x86-tsc"
 
+#define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
+
 enum trace_type {
 	TRACE_TYPE_RECORD	= 1,
 	TRACE_TYPE_START	= (1 << 1),
@@ -3139,6 +3141,9 @@ static struct addrinfo *do_getaddrinfo(const char *host, unsigned int port,
 		return NULL;
 	}
 
+	dprint("Attached port %s: %d to results: %p\n",
+	       type == USE_TCP ? "TCP" : "UDP", port, results);
+
 	return results;
 }
 
@@ -3159,6 +3164,8 @@ static int connect_addr(struct addrinfo *results)
 
 	if (rp == NULL)
 		return -1;
+
+	dprint("connect results: %p with fd: %d\n", results, sfd);
 
 	return sfd;
 }
@@ -3193,7 +3200,9 @@ static int do_accept(int sd)
 	int cd;
 
 	for (;;) {
+		dprint("Wait on accept: %d\n", sd);
 		cd = accept(sd, NULL, NULL);
+		dprint("accepted: %d\n", cd);
 		if (cd < 0) {
 			if (errno == EINTR)
 				continue;

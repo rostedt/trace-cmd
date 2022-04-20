@@ -26,6 +26,8 @@
 #include "trace-local.h"
 #include "trace-msg.h"
 
+#define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
+
 #define MAX_OPTION_SIZE 4096
 
 #define _VAR_DIR_Q(dir)		#dir
@@ -278,6 +280,8 @@ int trace_net_make(int port, enum port_type type)
 
 	if (rp == NULL)
 		return -1;
+
+	dprint("Create listen port: %d fd:%d\n", port, sd);
 
 	return sd;
 }

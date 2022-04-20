@@ -22,6 +22,8 @@
 #include "trace-local.h"
 #include "trace-msg.h"
 
+#define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
+
 static void make_vsocks(int nr, int *fds, unsigned int *ports)
 {
 	unsigned int port;
@@ -55,6 +57,7 @@ static void make_net(int nr, int *fds, unsigned int *ports)
 			die("Failed to listen on port %d\n", port);
 		fds[i] = fd;
 		ports[i] = port;
+		dprint("CPU[%d]: fd:%d port:%d\n", i, fd, port);
 		start_port = port + 1;
 	}
 }
