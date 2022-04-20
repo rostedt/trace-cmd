@@ -189,6 +189,7 @@ enum buffer_instance_flags {
 	BUFFER_FL_AGENT		= 1 << 3,
 	BUFFER_FL_HAS_CLOCK	= 1 << 4,
 	BUFFER_FL_TSC2NSEC	= 1 << 5,
+	BUFFER_FL_NETWORK	= 1 << 6,
 };
 
 struct func_list {
@@ -280,6 +281,7 @@ struct buffer_instance {
 	int			argc;
 	char			**argv;
 
+	struct addrinfo		*result;
 	unsigned int		cid;
 	unsigned int		port;
 	int			*fds;
@@ -302,6 +304,7 @@ extern struct buffer_instance *first_instance;
 
 #define is_agent(instance)	((instance)->flags & BUFFER_FL_AGENT)
 #define is_guest(instance)	((instance)->flags & BUFFER_FL_GUEST)
+#define is_network(instance)	((instance)->flags & BUFFER_FL_NETWORK)
 
 struct buffer_instance *allocate_instance(const char *name);
 void add_instance(struct buffer_instance *instance, int cpu_count);
