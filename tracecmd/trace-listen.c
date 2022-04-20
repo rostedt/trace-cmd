@@ -756,6 +756,28 @@ static int do_fork(int cfd)
 	return 0;
 }
 
+int trace_net_print_connection(int fd)
+{
+	char host[NI_MAXHOST], service[NI_MAXSERV];
+	struct sockaddr_storage net_addr;
+	socklen_t addr_len;
+
+	addr_len = sizeof(net_addr);
+	if (getpeername(fd, (struct sockaddr *)&net_addr, &addr_len))
+		return -1;
+
+	if (getnameinfo((struct sockaddr *)&net_addr, addr_len,
+			host, NI_MAXHOST,
+			service, NI_MAXSERV, NI_NUMERICSERV))
+		return -1;
+
+	if (tracecmd_get_debug())
+		tracecmd_debug("Connected to %s:%s fd:%d\n", host, service, fd);
+	else
+		tracecmd_plog("Connected to %s:%s\n", host, service);
+	return 0;
+}
+
 static int do_connection(int cfd, struct sockaddr *addr,
 			  socklen_t addr_len)
 {

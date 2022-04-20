@@ -109,6 +109,18 @@ static char *get_clock(int argc, char **argv)
 	return NULL;
 }
 
+static void trace_print_connection(int fd, bool network)
+{
+	int ret;
+
+	if (network)
+		ret = trace_net_print_connection(fd);
+	else
+		ret = trace_vsock_print_connection(fd);
+	if (ret < 0)
+		tracecmd_debug("Could not print connection fd:%d\n", fd);
+}
+
 static void agent_handle(int sd, int nr_cpus, int page_size, bool network)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
@@ -273,6 +285,8 @@ static void agent_serve(unsigned int port, bool do_daemon, bool network)
 				continue;
 			die("accept");
 		}
+		if (tracecmd_get_debug())
+			trace_print_connection(cd, network);
 
 		if (handler_pid)
 			goto busy;

@@ -94,6 +94,26 @@ int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
 	return 0;
 }
 
+int trace_vsock_print_connection(int fd)
+{
+	struct sockaddr_vm vm_addr;
+	socklen_t addr_len;
+	int cid, port;
+
+	addr_len = sizeof(vm_addr);
+	if (getpeername(fd, (struct sockaddr *)&vm_addr, &addr_len))
+		return -1;
+	if (vm_addr.svm_family != AF_VSOCK)
+		return -1;
+	cid = vm_addr.svm_cid;
+	port = vm_addr.svm_port;
+	if (tracecmd_get_debug())
+		tracecmd_debug("Connected to @%u:%u fd:%d\n", cid, port, fd);
+	else
+		tracecmd_plog("Connected to @%u:%u\n", cid, port);
+	return 0;
+}
+
 static int try_splice_read_vsock(void)
 {
 	int ret, sd, brass[2];

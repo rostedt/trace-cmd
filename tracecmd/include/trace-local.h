@@ -311,6 +311,7 @@ extern struct buffer_instance *first_instance;
 
 int trace_net_make(int port, enum port_type type);
 int trace_net_search(int start_port, int *sfd, enum port_type type);
+int trace_net_print_connection(int fd);
 
 struct buffer_instance *allocate_instance(const char *name);
 void add_instance(struct buffer_instance *instance, int cpu_count);
@@ -366,6 +367,7 @@ int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid);
 int trace_vsock_get_port(int sd, unsigned int *port);
 bool trace_vsock_can_splice_read(void);
 int trace_vsock_local_cid(void);
+int trace_vsock_print_connection(int fd);
 #else
 static inline int trace_vsock_open(unsigned int cid, unsigned int port)
 {
@@ -402,6 +404,10 @@ static inline bool trace_vsock_can_splice_read(void)
 static inline int trace_vsock_local_cid(void)
 {
 	return -ENOTSUP;
+}
+static inline int trace_vsock_print_connection(int fd)
+{
+	return -1;
 }
 #endif /* VSOCK */
 
