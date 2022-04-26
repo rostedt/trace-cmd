@@ -23,8 +23,14 @@ COMMANDS
   record  - record a live trace and write a trace.dat file to the
             local disk or to the network.
 
+  set     - set a ftrace configuration parameter.
+
   report  - reads a trace.dat file and converts the binary data to a
             ASCII text readable format.
+
+  stream  - Start tracing and read the output directly
+
+  profile - Start profiling and read the output directly
 
   hist    - show a histogram of the events.
 
@@ -42,8 +48,12 @@ COMMANDS
   extract - extract the data from the kernel buffer and create a trace.dat
             file.
 
+  show    - display the contents of one of the Ftrace Linux kernel tracing files
+
   reset   - disables all tracing and gives back the system performance.
             (clears all data from the kernel buffers)
+
+  clear   - clear the content of the Ftrace ring buffers.
 
   split   - splits a trace.dat file into smaller files.
 
@@ -51,7 +61,13 @@ COMMANDS
 
   listen  - open up a port to listen for remote tracing connections.
 
+  agent   - listen on a vsocket for trace clients
+
+  setup-guest - create FIFOs for tracing guest VMs
+
   restore - restore the data files of a crashed run of trace-cmd record
+
+  snapshot- take snapshot of running trace
 
   stack   - run and display the stack tracer
 
@@ -59,6 +75,8 @@ COMMANDS
                  whether all formats are parseable
 
   convert   - convert trace files
+
+  dump    - read out the meta data from a trace file
 
 OPTIONS
 -------
