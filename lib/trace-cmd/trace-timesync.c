@@ -240,6 +240,23 @@ tsync_proto_select(const struct tracecmd_tsync_protos *protos,
 }
 
 /**
+ * tracecmd_tsync_get_proto - return the appropriate synchronization protocol
+ * @protos: The list of synchronization protocols to choose from
+ * @clock: The clock that is being used (or NULL for unknown).
+ *
+ * Retuns pointer to a protocol name, that can be used with the peer, or NULL
+ *	  in case there is no match with supported protocols.
+ *	  The returned string MUST NOT be freed by the caller
+ */
+__hidden const char *
+tracecmd_tsync_get_proto(const struct tracecmd_tsync_protos *protos,
+			 const char *clock)
+{
+	return tsync_proto_select(protos, clock,
+				  TRACECMD_TIME_SYNC_ROLE_GUEST);
+}
+
+/**
  * tracecmd_tsync_proto_getall - Returns list of all supported
  *				 time sync protocols
  * @protos: return, allocated list of time sync protocol names,
@@ -948,7 +965,7 @@ out:
 /**
  * tracecmd_tsync_with_host - Synchronize timestamps with host
  * @fd: File descriptor connecting with the host
- * @tsync_protos: List of tsync protocols, supported by the host
+ * @proto: The selected protocol
  * @clock: Trace clock, used for that session
  * @port: returned, VSOCKET port, on which the guest listens for tsync requests
  * @remote_id: Identifier to uniquely identify the remote host
@@ -961,25 +978,19 @@ out:
  * until tracecmd_tsync_with_host_stop() is called.
  */
 struct tracecmd_time_sync *
-tracecmd_tsync_with_host(int fd,
-			 const struct tracecmd_tsync_protos *tsync_protos,
-			 const char *clock, int remote_id, int local_id)
+tracecmd_tsync_with_host(int fd, const char *proto, const char *clock,
+			 int remote_id, int local_id)
 {
 	struct tracecmd_time_sync *tsync;
 	cpu_set_t *pin_mask = NULL;
 	pthread_attr_t attrib;
 	size_t mask_size = 0;
-	const char *proto;
 	int ret;
 
 	tsync = calloc(1, sizeof(struct tracecmd_time_sync));
 	if (!tsync)
 		return NULL;
 
-	proto = tsync_proto_select(tsync_protos, clock,
-				   TRACECMD_TIME_SYNC_ROLE_GUEST);
-	if (!proto)
-		goto error;
 	tsync->proto_name = strdup(proto);
 	tsync->msg_handle = tracecmd_msg_handle_alloc(fd, 0);
 	if (clock)
@@ -1032,26 +1043,4 @@ error:
 int tracecmd_tsync_with_host_stop(struct tracecmd_time_sync *tsync)
 {
 	return pthread_join(tsync->thread, NULL);
-}
-
-/**
- * tracecmd_tsync_get_selected_proto - Return the seleceted time sync protocol
- * @tsync: Time sync context, representing a running time sync session
- * @selected_proto: return, name of the selected time sync protocol for this session
- *
- * Returns 0 on success, or -1 in case of an error.
- *
- */
-int tracecmd_tsync_get_selected_proto(struct tracecmd_time_sync *tsync,
-				      char **selected_proto)
-{
-	if (!tsync)
-		return -1;
-
-	if (selected_proto) {
-		if (!tsync->proto_name)
-			return -1;
-		(*selected_proto) = strdup(tsync->proto_name);
-	}
-	return 0;
 }

@@ -127,7 +127,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
 	struct tracecmd_time_sync *tsync = NULL;
 	struct tracecmd_msg_handle *msg_handle;
-	char *tsync_proto = NULL;
+	const char *tsync_proto = NULL;
 	unsigned long long trace_id;
 	unsigned int remote_id;
 	unsigned int local_id;
@@ -155,12 +155,15 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 	if (ret < 0)
 		die("Failed to receive trace request");
 
+	tsync_proto = tracecmd_tsync_get_proto(tsync_protos,
+					       get_clock(argc, argv));
+
 	if (use_fifos && open_agent_fifos(nr_cpus, fds))
 		use_fifos = false;
 
 	if (!use_fifos)
 		make_sockets(nr_cpus, fds, ports, network);
-	if (tsync_protos && tsync_protos->names) {
+	if (tsync_proto) {
 		if (network) {
 			/* For now just use something */
 			remote_id = 2;
@@ -184,13 +187,11 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 			}
 		}
 		if (fd >= 0) {
-			tsync = tracecmd_tsync_with_host(fd, tsync_protos,
+			tsync = tracecmd_tsync_with_host(fd, tsync_proto,
 							 get_clock(argc, argv),
 							 remote_id, local_id);
 		}
-		if (tsync) {
-			tracecmd_tsync_get_selected_proto(tsync, &tsync_proto);
-		} else {
+		if (!tsync) {
 			warning("Failed to negotiate timestamps synchronization with the host");
 			if (fd >= 0)
 				close(fd);

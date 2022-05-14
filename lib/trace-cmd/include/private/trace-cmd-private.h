@@ -497,9 +497,8 @@ void tracecmd_tsync_init(void);
 int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock, int role);
 bool tsync_proto_is_supported(const char *proto_name);
 struct tracecmd_time_sync *
-tracecmd_tsync_with_host(int fd,
-			 const struct tracecmd_tsync_protos *tsync_protos,
-			 const char *clock, int remote_id, int local_id);
+tracecmd_tsync_with_host(int fd, const char *proto, const char *clock,
+			 int remote_id, int local_id);
 int tracecmd_tsync_with_host_stop(struct tracecmd_time_sync *tsync);
 struct tracecmd_time_sync *
 tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
@@ -509,8 +508,8 @@ int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync);
 int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
 			       int *count, long long **ts,
 			       long long **offsets, long long **scalings, long long **frac);
-int tracecmd_tsync_get_selected_proto(struct tracecmd_time_sync *tsync,
-				      char **selected_proto);
+const char *tracecmd_tsync_get_proto(const struct tracecmd_tsync_protos *protos,
+			 const char *clock);
 void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
 int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 				    struct tracecmd_time_sync *tsync);
