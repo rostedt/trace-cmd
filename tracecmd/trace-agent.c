@@ -144,17 +144,22 @@ static int wait_for_connection(int fd)
 	return sd;
 }
 
-static void agent_handle(int sd, int nr_cpus, int page_size, const char *network)
+static void agent_handle(int sd, int nr_cpus, int page_size,
+			 int cid, int rcid, const char *network)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
 	struct tracecmd_time_sync *tsync = NULL;
 	struct tracecmd_msg_handle *msg_handle;
 	const char *tsync_proto = NULL;
+	unsigned long long peer_trace_id;
 	unsigned long long trace_id;
+	unsigned long flags = rcid >= 0 ? TRACECMD_MSG_FL_PROXY : 0;
 	unsigned int remote_id;
 	unsigned int local_id;
 	unsigned int tsync_port = 0;
 	unsigned int *ports;
+	unsigned int client_cpus = 0;
+	unsigned int guests = 0;
 	char **argv = NULL;
 	int argc = 0;
 	bool use_fifos;
@@ -167,13 +172,20 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 	if (!fds || !ports)
 		die("Failed to allocate memory");
 
-	msg_handle = tracecmd_msg_handle_alloc(sd, 0);
+	msg_handle = tracecmd_msg_handle_alloc(sd, flags);
 	if (!msg_handle)
 		die("Failed to allocate message handle");
 
-	ret = tracecmd_msg_recv_trace_req(msg_handle, &argc, &argv,
-					  &use_fifos, &trace_id,
-					  &tsync_protos);
+	if (rcid >= 0)
+		ret = tracecmd_msg_recv_trace_proxy(msg_handle, &argc, &argv,
+						    &use_fifos, &peer_trace_id,
+						    &tsync_protos,
+						    &client_cpus,
+						    &guests);
+	else
+		ret = tracecmd_msg_recv_trace_req(msg_handle, &argc, &argv,
+						  &use_fifos, &peer_trace_id,
+						  &tsync_protos);
 	if (ret < 0)
 		die("Failed to receive trace request");
 
@@ -270,14 +282,15 @@ static pid_t do_fork()
 	return fork();
 }
 
-static void agent_serve(unsigned int port, bool do_daemon, const char *network)
+static void agent_serve(unsigned int port, bool do_daemon, int proxy_id,
+			const char *network)
 {
 	struct sockaddr_storage net_addr;
 	struct sockaddr *addr = NULL;
 	socklen_t *addr_len_p = NULL;
 	socklen_t addr_len = sizeof(net_addr);
 	int sd, cd, nr_cpus;
-	unsigned int cid;
+	unsigned int cid = -1, rcid = -1;
 	pid_t pid;
 
 	signal(SIGCHLD, handle_sigchld);
@@ -316,6 +329,21 @@ static void agent_serve(unsigned int port, bool do_daemon, const char *network)
 				continue;
 			die("accept");
 		}
+		if (proxy_id >= 0) {
+			/* Only works with vsockets */
+			if (get_vsocket_params(cd, NULL, &rcid) < 0) {
+				dprint("Failed to find connected cid");
+				close(cd);
+				continue;
+			}
+			if (rcid != proxy_id) {
+				dprint("Cid %d does not match expected cid %d\n",
+				       rcid, proxy_id);
+				close(cd);
+				continue;
+			}
+		}
+
 		if (tracecmd_get_debug())
 			trace_print_connection(cd, network);
 
@@ -332,7 +360,7 @@ static void agent_serve(unsigned int port, bool do_daemon, const char *network)
 		if (pid == 0) {
 			close(sd);
 			signal(SIGCHLD, SIG_DFL);
-			agent_handle(cd, nr_cpus, page_size, network);
+			agent_handle(cd, nr_cpus, page_size, cid, rcid, network);
 		}
 		if (pid > 0)
 			handler_pid = pid;
@@ -352,6 +380,7 @@ void trace_agent(int argc, char **argv)
 	bool do_daemon = false;
 	unsigned int port = TRACE_AGENT_DEFAULT_PORT;
 	const char *network = NULL;
+	int proxy_id = -1;
 
 	if (argc < 2)
 		usage(argv);
@@ -369,7 +398,7 @@ void trace_agent(int argc, char **argv)
 			{NULL, 0, NULL, 0}
 		};
 
-		c = getopt_long(argc-1, argv+1, "+hp:DN:",
+		c = getopt_long(argc-1, argv+1, "+hp:DN:P:",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -382,9 +411,16 @@ void trace_agent(int argc, char **argv)
 			break;
 		case 'p':
 			port = atoi(optarg);
+			if (proxy_id >= 0)
+				die("-N cannot be used with -P");
 			break;
 		case 'D':
 			do_daemon = true;
+			break;
+		case 'P':
+			proxy_id = atoi(optarg);
+			if (network)
+				die("-P cannot be used with -N");
 			break;
 		case DO_DEBUG:
 			tracecmd_set_debug(true);
@@ -401,5 +437,5 @@ void trace_agent(int argc, char **argv)
 	if (optind < argc-1)
 		usage(argv);
 
-	agent_serve(port, do_daemon, network);
+	agent_serve(port, do_daemon, proxy_id, network);
 }

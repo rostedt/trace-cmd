@@ -190,6 +190,7 @@ enum buffer_instance_flags {
 	BUFFER_FL_HAS_CLOCK	= 1 << 4,
 	BUFFER_FL_TSC2NSEC	= 1 << 5,
 	BUFFER_FL_NETWORK	= 1 << 6,
+	BUFFER_FL_PROXY		= 1 << 7,
 };
 
 struct func_list {
@@ -305,6 +306,7 @@ extern struct buffer_instance *first_instance;
 
 #define is_agent(instance)	((instance)->flags & BUFFER_FL_AGENT)
 #define is_guest(instance)	((instance)->flags & BUFFER_FL_GUEST)
+#define is_proxy(instance)	((instance)->flags & BUFFER_FL_PROXY)
 #define is_network(instance)	((instance)->flags & BUFFER_FL_NETWORK)
 
 #define START_PORT_SEARCH 1500

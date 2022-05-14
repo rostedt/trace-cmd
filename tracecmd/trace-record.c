@@ -3861,6 +3861,7 @@ static void connect_to_agent(struct common_record_context *ctx,
 	unsigned int *ports;
 	int i, *fds = NULL;
 	bool use_fifos = false;
+	int siblings = 0;
 
 	if (!no_fifos) {
 		nr_fifos = open_guest_fifos(instance->name, &fds);
@@ -3891,11 +3892,19 @@ static void connect_to_agent(struct common_record_context *ctx,
 	if (instance->tsync_loop_interval >= 0)
 		tracecmd_tsync_proto_getall(&protos, instance->clock, role);
 
-	ret = tracecmd_msg_send_trace_req(msg_handle, instance->argc,
-					  instance->argv, use_fifos,
-					  top_instance.trace_id, protos);
+	if (is_proxy(instance))
+		ret = tracecmd_msg_send_trace_proxy(msg_handle, instance->argc,
+						    instance->argv, use_fifos,
+						    top_instance.trace_id, protos,
+						    tracecmd_count_cpus(),
+						    siblings);
+	else
+		ret = tracecmd_msg_send_trace_req(msg_handle, instance->argc,
+						  instance->argv, use_fifos,
+						  top_instance.trace_id, protos);
 	if (ret < 0)
-		die("Failed to send trace request");
+		die("Failed to send trace %s",
+		    is_proxy(instance) ? "proxy" : "request");
 
 	if (protos) {
 		free(protos->names);
@@ -5622,6 +5631,7 @@ enum {
 	OPT_cmdlines_size	= 258,
 	OPT_poll		= 259,
 	OPT_name		= 260,
+	OPT_proxy		= 261
 };
 
 void trace_stop(int argc, char **argv)
@@ -6004,6 +6014,7 @@ static void parse_record_options(int argc,
 	char *sav;
 	int name_counter = 0;
 	int negative = 0;
+	bool is_proxy = false;
 	struct buffer_instance *instance, *del_list = NULL;
 	int do_children = 0;
 	int fpids_count = 0;
@@ -6044,6 +6055,7 @@ static void parse_record_options(int argc,
 			{"verbose", optional_argument, NULL, OPT_verbose},
 			{"compression", required_argument, NULL, OPT_compression},
 			{"file-version", required_argument, NULL, OPT_file_ver},
+			{"proxy", required_argument, NULL, OPT_proxy},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -6059,7 +6071,8 @@ static void parse_record_options(int argc,
 		 * If the current instance is to record a guest, then save
 		 * all the arguments for this instance.
 		 */
-		if (c != 'B' && c != 'A' && c != OPT_name && is_guest(ctx->instance)) {
+		if (c != 'B' && (c != 'A' || is_proxy) && c != OPT_name &&
+		    is_guest(ctx->instance)) {
 			add_arg(ctx->instance, c, opts, long_options, optarg);
 			if (c == 'C')
 				ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
@@ -6131,12 +6144,16 @@ static void parse_record_options(int argc,
 				die("Failed to allocate name");
 			break;
 
+		case OPT_proxy:
+			is_proxy = true;
+			/* fall through */
 		case 'A': {
 			char *name = NULL;
 			int cid = -1, port = -1;
 
 			if (!IS_RECORD(ctx))
-				die("-A is only allowed for record operations");
+				die("%s is only allowed for record operations",
+				    is_proxy ? "--proxy" : "-A");
 
 			name = parse_guest_name(optarg, &cid, &port, &result);
 			if (cid == -1 && !result)
@@ -6162,6 +6179,9 @@ static void parse_record_options(int argc,
 				ctx->instance->flags |= BUFFER_FL_NETWORK;
 				ctx->instance->port_type = USE_TCP;
 			}
+
+			if (is_proxy)
+				ctx->instance->flags |= BUFFER_FL_PROXY;
 
 			ctx->instance->flags |= BUFFER_FL_GUEST;
 			ctx->instance->result = result;
@@ -6385,6 +6405,8 @@ static void parse_record_options(int argc,
 			ctx->instance->buffer_size = atoi(optarg);
 			break;
 		case 'B':
+			/* Turn off proxy for the next options */
+			is_proxy = false;
 			ctx->instance = allocate_instance(optarg);
 			if (!ctx->instance)
 				die("Failed to create instance");
@@ -7032,6 +7054,7 @@ void trace_record(int argc, char **argv)
  * @argv: The arguments to pass to the record session
  * @use_fifos: True if fifos are used instead of sockets.
  * @trace_id: The agent's trace_id
+ * @rcid: Remote cid if the agent is a proxy, negative otherwise.
  * @host: Set if this is an IP connection and not a vsocket one
  *
  * This is used to enable tracing via the record command just
@@ -7043,8 +7066,7 @@ void trace_record(int argc, char **argv)
  */
 int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 		       int cpus, int *fds,
-		       int argc, char **argv,
-		       bool use_fifos,
+		       int argc, char **argv, bool use_fifos,
 		       unsigned long long trace_id, const char *host)
 {
 	struct common_record_context ctx;
