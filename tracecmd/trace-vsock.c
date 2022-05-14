@@ -76,20 +76,24 @@ int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid)
 	struct sockaddr_vm addr;
 	socklen_t addr_len = sizeof(addr);
 
-	memset(&addr, 0, sizeof(addr));
-	if (getsockname(fd, (struct sockaddr *)&addr, &addr_len))
-		return -1;
-	if (addr.svm_family != AF_VSOCK)
-		return -1;
-	*lcid = addr.svm_cid;
+	if (lcid) {
+		memset(&addr, 0, sizeof(addr));
+		if (getsockname(fd, (struct sockaddr *)&addr, &addr_len))
+			return -1;
+		if (addr.svm_family != AF_VSOCK)
+			return -1;
+		*lcid = addr.svm_cid;
+	}
 
-	memset(&addr, 0, sizeof(addr));
-	addr_len = sizeof(addr);
-	if (getpeername(fd, (struct sockaddr *)&addr, &addr_len))
-		return -1;
-	if (addr.svm_family != AF_VSOCK)
-		return -1;
-	*rcid = addr.svm_cid;
+	if (rcid) {
+		memset(&addr, 0, sizeof(addr));
+		addr_len = sizeof(addr);
+		if (getpeername(fd, (struct sockaddr *)&addr, &addr_len))
+			return -1;
+		if (addr.svm_family != AF_VSOCK)
+			return -1;
+		*rcid = addr.svm_cid;
+	}
 
 	return 0;
 }
