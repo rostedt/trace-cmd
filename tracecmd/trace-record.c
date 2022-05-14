@@ -720,8 +720,15 @@ static void tell_guests_to_stop(struct common_record_context *ctx)
 
 	/* Send close message to guests */
 	for_all_instances(instance) {
-		if (is_guest(instance))
+		if (is_guest(instance)) {
 			tracecmd_msg_send_close_msg(instance->msg_handle);
+			if (is_proxy(instance) && instance->proxy_fd >= 0) {
+				/* The proxy will send more data now */
+				if (tracecmd_msg_read_data(instance->msg_handle, instance->proxy_fd))
+					warning("Failed receiving finishing metadata");
+				close(instance->proxy_fd);
+			}
+		}
 	}
 
 	for_all_instances(instance) {
@@ -3973,7 +3980,15 @@ static void setup_guest(struct buffer_instance *instance)
 	/* Start reading tracing metadata */
 	if (tracecmd_msg_read_data(msg_handle, fd))
 		die("Failed receiving metadata");
-	close(fd);
+
+	/*
+	 * If connected to a proxy, then it still needs to send
+	 * the host / guest timings from its POV.
+	 */
+	if (is_proxy(instance))
+		instance->proxy_fd = fd;
+	else
+		close(fd);
 }
 
 static void setup_agent(struct buffer_instance *instance,
@@ -3986,9 +4001,14 @@ static void setup_agent(struct buffer_instance *instance,
 	tracecmd_write_cmdlines(network_handle);
 	tracecmd_write_cpus(network_handle, instance->cpu_count);
 	tracecmd_write_buffer_info(network_handle);
-	tracecmd_write_options(network_handle);
-	tracecmd_write_meta_strings(network_handle);
-	tracecmd_msg_finish_sending_data(instance->msg_handle);
+	if (instance->msg_handle->flags & TRACECMD_MSG_FL_PROXY) {
+		tracecmd_prepare_options(network_handle, 0, SEEK_CUR);
+		tracecmd_msg_flush_data(instance->msg_handle);
+	} else {
+		tracecmd_write_options(network_handle);
+		tracecmd_write_meta_strings(network_handle);
+		tracecmd_msg_finish_sending_data(instance->msg_handle);
+	}
 	instance->network_handle = network_handle;
 }
 
@@ -4014,6 +4034,9 @@ static void start_threads(enum trace_type type, struct common_record_context *ct
 	for_all_instances(instance) {
 		int *brass = NULL;
 		int x, pid;
+
+		/* May be set by setup_guest() but all others is -1 */
+		instance->proxy_fd = -1;
 
 		if (is_agent(instance)) {
 			setup_agent(instance, ctx);
@@ -6890,6 +6913,12 @@ static void record_trace(int argc, char **argv,
 
 	if (!latency)
 		wait_threads();
+
+	if (is_proxy_server(ctx->instance) && ctx->instance->network_handle) {
+		tracecmd_write_options(ctx->instance->network_handle);
+		tracecmd_write_meta_strings(ctx->instance->network_handle);
+		tracecmd_msg_finish_sending_data(ctx->instance->msg_handle);
+	}
 
 	if (IS_RECORD(ctx)) {
 		record_data(ctx);

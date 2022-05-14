@@ -280,6 +280,8 @@ struct buffer_instance {
 	int			buffer_size;
 	int			cpu_count;
 
+	int			proxy_fd;
+
 	int			argc;
 	char			**argv;
 
@@ -308,6 +310,9 @@ extern struct buffer_instance *first_instance;
 #define is_guest(instance)	((instance)->flags & BUFFER_FL_GUEST)
 #define is_proxy(instance)	((instance)->flags & BUFFER_FL_PROXY)
 #define is_network(instance)	((instance)->flags & BUFFER_FL_NETWORK)
+#define is_proxy_server(instance)					\
+	((instance)->msg_handle &&					\
+	 (instance)->msg_handle->flags & TRACECMD_MSG_FL_PROXY)
 
 #define START_PORT_SEARCH 1500
 #define MAX_PORT_SEARCH 6000
