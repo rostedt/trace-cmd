@@ -19,6 +19,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <linux/types.h>
 
@@ -590,11 +591,9 @@ tracecmd_msg_handle_alloc(int fd, unsigned long flags)
 int tracecmd_msg_handle_cache(struct tracecmd_msg_handle *msg_handle)
 {
 	if (msg_handle->cfd < 0) {
-		strcpy(msg_handle->cfile, MSG_CACHE_FILE);
-		msg_handle->cfd = mkstemp(msg_handle->cfile);
+		msg_handle->cfd = memfd_create("trace_msg_cache", 0);
 		if (msg_handle->cfd < 0)
 			return -1;
-		unlink(msg_handle->cfile);
 	}
 	msg_handle->cache = true;
 	return 0;
