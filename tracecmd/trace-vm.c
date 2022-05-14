@@ -54,6 +54,38 @@ bool trace_have_guests_pid(void)
 	return true;
 }
 
+/* Find all the tasks associated with the guest pid */
+static void find_tasks(struct trace_guest *guest)
+{
+	struct dirent *dent;
+	char *path;
+	DIR *dir;
+	int ret;
+	int tasks = 0;
+
+	ret = asprintf(&path, "/proc/%d/task", guest->pid);
+	if (ret < 0)
+		return;
+
+	dir = opendir(path);
+	free(path);
+	if (!dir)
+		return;
+
+	while ((dent = readdir(dir))) {
+		int *pids;
+		if (!(dent->d_type == DT_DIR && is_digits(dent->d_name)))
+			continue;
+		pids = realloc(guest->task_pids, sizeof(int) * (tasks + 2));
+		if (!pids)
+			break;
+		pids[tasks++] = strtol(dent->d_name, NULL, 0);
+		pids[tasks] = -1;
+		guest->task_pids = pids;
+	}
+	closedir(dir);
+}
+
 static void find_pid_by_cid(struct trace_guest *guest);
 
 static struct trace_guest *add_guest(unsigned int cid, const char *name)
@@ -74,6 +106,7 @@ static struct trace_guest *add_guest(unsigned int cid, const char *name)
 	guest->pid = -1;
 
 	find_pid_by_cid(guest);
+	find_tasks(guest);
 
 	return guest;
 }
