@@ -3978,12 +3978,42 @@ static void stop_mapping_vcpus(int cpu_count, struct trace_guest *guest)
 	tracefs_instance_free(guest->instance);
 }
 
+static struct tracecmd_time_sync *
+trace_tsync_as_host(int fd, unsigned long long trace_id,
+		    int loop_interval, int guest_id,
+		    int guest_cpus, const char *proto_name,
+		    const char *clock)
+{
+	struct tracecmd_time_sync *tsync;
+	struct trace_guest *guest;
+	int guest_pid = -1;
+
+	if (fd < 0)
+		return NULL;
+
+	if (guest_id >= 0) {
+		guest = trace_get_guest(guest_id, NULL);
+		if (guest == NULL)
+			return NULL;
+		guest_pid = guest->pid;
+		start_mapping_vcpus(guest);
+	}
+
+	tsync = tracecmd_tsync_with_guest(trace_id, loop_interval, fd,
+					  guest_pid, guest_cpus, proto_name,
+					  clock);
+
+	if (guest_id >= 0)
+		stop_mapping_vcpus(guest_cpus, guest);
+
+	return tsync;
+}
+
 static int host_tsync(struct common_record_context *ctx,
 		      struct buffer_instance *instance,
 		      unsigned int tsync_port, char *proto)
 {
-	struct trace_guest *guest;
-	int guest_pid = -1;
+	int guest_id = -1;
 	int fd;
 
 	if (!proto)
@@ -3993,27 +4023,16 @@ static int host_tsync(struct common_record_context *ctx,
 		fd = connect_port(instance->name, tsync_port,
 				  instance->port_type);
 	} else {
-		guest = trace_get_guest(instance->cid, NULL);
-		if (guest == NULL)
-			return -1;
-
-		guest_pid = guest->pid;
-		start_mapping_vcpus(guest);
+		guest_id = instance->cid;
 		fd = trace_vsock_open(instance->cid, tsync_port);
 	}
 
-	instance->tsync = tracecmd_tsync_with_guest(top_instance.trace_id,
-						    instance->tsync_loop_interval,
-						    fd, guest_pid,
-						    instance->cpu_count,
-						    proto, ctx->clock);
-	if (!is_network(instance))
-		stop_mapping_vcpus(instance->cpu_count, guest);
+	instance->tsync = trace_tsync_as_host(fd, top_instance.trace_id,
+					      instance->tsync_loop_interval,
+					      guest_id, instance->cpu_count,
+					      proto, ctx->clock);
 
-	if (!instance->tsync)
-		return -1;
-
-	return 0;
+	return instance->tsync ? 0 : -1;
 }
 
 static void connect_to_agent(struct common_record_context *ctx,
