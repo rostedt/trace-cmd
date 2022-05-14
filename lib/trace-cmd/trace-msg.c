@@ -823,6 +823,26 @@ int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 	return ret;
 }
 
+/**
+ * tracecmd_msg_flush_data - Send the current cache data over the network
+ * @msg_handle: message handle, holding the communication context
+ *
+ * Send the content in the cache file over the nework, reset the file
+ * and start the cache up again (with nothing in it).
+ */
+int tracecmd_msg_flush_data(struct tracecmd_msg_handle *msg_handle)
+{
+	struct tracecmd_msg msg;
+	int ret;
+
+	flush_cache(msg_handle);
+	tracecmd_msg_init(MSG_FIN_DATA, &msg);
+	ret = tracecmd_msg_send(msg_handle, &msg);
+	if (ret < 0)
+		return ret;
+	return tracecmd_msg_handle_cache(msg_handle);
+}
+
 int tracecmd_msg_finish_sending_data(struct tracecmd_msg_handle *msg_handle)
 {
 	struct tracecmd_msg msg;
