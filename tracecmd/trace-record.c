@@ -3919,8 +3919,7 @@ static int map_vcpus(struct tep_event *event, struct tep_record *record,
 	return i == tmap->max_cpus;
 }
 
-static void stop_mapping_vcpus(struct buffer_instance *instance,
-			       struct trace_guest *guest)
+static void stop_mapping_vcpus(int cpu_count, struct trace_guest *guest)
 {
 	struct trace_mapping tmap = { };
 	struct tep_handle *tep;
@@ -3931,7 +3930,7 @@ static void stop_mapping_vcpus(struct buffer_instance *instance,
 		return;
 
 	tmap.pids = guest->task_pids;
-	tmap.max_cpus = instance->cpu_count;
+	tmap.max_cpus = cpu_count;
 
 	tmap.map = malloc(sizeof(*tmap.map) * tmap.max_cpus);
 	if (!tmap.map)
@@ -4009,7 +4008,7 @@ static int host_tsync(struct common_record_context *ctx,
 						    instance->cpu_count,
 						    proto, ctx->clock);
 	if (!is_network(instance))
-		stop_mapping_vcpus(instance, guest);
+		stop_mapping_vcpus(instance->cpu_count, guest);
 
 	if (!instance->tsync)
 		return -1;
