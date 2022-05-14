@@ -238,17 +238,26 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 
 	if (tsync_proto) {
 		fd = wait_for_connection(fd);
-		tsync = trace_tsync_as_guest(fd, tsync_proto, get_clock(argc, argv),
-					     remote_id, local_id);
+
+		if (rcid >= 0) {
+			tsync = trace_tsync_as_host(fd, trace_id, 0, rcid,
+						    client_cpus, tsync_proto,
+						    get_clock(argc, argv));
+		} else {
+			tsync = trace_tsync_as_guest(fd, tsync_proto,
+						     get_clock(argc, argv),
+						     remote_id, local_id);
+		}
 		if (!tsync)
 			close(fd);
 	}
 
 	trace_record_agent(msg_handle, nr_cpus, fds, argc, argv,
-			   use_fifos, trace_id, network);
+			   use_fifos, tsync, trace_id, rcid, network);
 
 	if (tsync) {
-		tracecmd_tsync_with_host_stop(tsync);
+		if (rcid < 0)
+			tracecmd_tsync_with_host_stop(tsync);
 		tracecmd_tsync_free(tsync);
 	}
 

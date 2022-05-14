@@ -121,8 +121,9 @@ void trace_convert(int argc, char **argv);
 
 int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 		       int cpus, int *fds,
-		       int argc, char **argv, bool use_fifos,
-		       unsigned long long trace_id, const char *host);
+		       int argc, char **argv,
+		       bool use_fifos, struct tracecmd_time_sync *tsync,
+		       unsigned long long trace_id, int rcid, const char *host);
 
 struct hook_list;
 

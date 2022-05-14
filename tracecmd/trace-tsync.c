@@ -228,15 +228,17 @@ struct tracecmd_time_sync *
 trace_tsync_as_guest(int fd, const char *tsync_proto, const char *clock,
 	       unsigned int remote_id, unsigned int local_id)
 {
-	struct tracecmd_time_sync *tsync;
+	struct tracecmd_time_sync *tsync = NULL;
 
 	if (fd < 0)
-		return NULL;
+		 return NULL;
 
-	tsync = tracecmd_tsync_with_host(fd, tsync_proto, clock,
-					 remote_id, local_id);
-	if (!tsync)
+	tsync = tracecmd_tsync_with_host(fd, tsync_proto,
+					 clock, remote_id, local_id);
+	if (!tsync) {
 		warning("Failed to negotiate timestamps synchronization with the host");
+		return NULL;
+	}
 
 	return tsync;
 }

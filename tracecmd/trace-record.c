@@ -686,6 +686,12 @@ add_tsc2nsec(struct tracecmd_output *handle, struct tsc_nsec *tsc2nsec)
 	tracecmd_add_option_v(handle, TRACECMD_OPTION_TSC2NSEC, vector, 3);
 }
 
+static void guest_tsync_complete(struct buffer_instance *instance)
+{
+	tracecmd_tsync_with_host_stop(instance->tsync);
+	tracecmd_tsync_free(instance->tsync);
+}
+
 static void host_tsync_complete(struct common_record_context *ctx,
 				struct buffer_instance *instance)
 {
@@ -732,8 +738,12 @@ static void tell_guests_to_stop(struct common_record_context *ctx)
 	}
 
 	for_all_instances(instance) {
-		if (is_guest(instance))
-			host_tsync_complete(ctx, instance);
+		if (is_guest(instance)) {
+			if (is_proxy(instance))
+				guest_tsync_complete(instance);
+			else
+				host_tsync_complete(ctx, instance);
+		}
 	}
 
 	/* Wait for guests to acknowledge */
@@ -3850,11 +3860,15 @@ static int host_tsync(struct common_record_context *ctx,
 		fd = trace_vsock_open(instance->cid, tsync_port);
 	}
 
-	instance->tsync = trace_tsync_as_host(fd, top_instance.trace_id,
-					      instance->tsync_loop_interval,
-					      guest_id, instance->cpu_count,
-					      proto, ctx->clock);
-
+	if (is_proxy(instance)) {
+		instance->tsync = trace_tsync_as_guest(fd, proto, ctx->clock,
+						       guest_id, -1);
+	} else {
+		instance->tsync = trace_tsync_as_host(fd, top_instance.trace_id,
+						      instance->tsync_loop_interval,
+						      guest_id, instance->cpu_count,
+						      proto, ctx->clock);
+	}
 	return instance->tsync ? 0 : -1;
 }
 
@@ -4266,6 +4280,7 @@ enum {
 	DATA_FL_DATE		= 1,
 	DATA_FL_OFFSET		= 2,
 	DATA_FL_GUEST		= 4,
+	DATA_FL_PROXY		= 8,
 };
 
 static void add_options(struct tracecmd_output *handle, struct common_record_context *ctx)
@@ -6234,6 +6249,11 @@ static void parse_record_options(int argc,
 			ctx->instance->name = name;
 			add_instance(ctx->instance, 0);
 			ctx->data_flags |= DATA_FL_GUEST;
+
+			/* Do not send a clock to a proxy */
+			if (is_proxy)
+				ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
+
 			break;
 		}
 		case 'F':
@@ -6705,6 +6725,8 @@ static void finalize_record_trace(struct common_record_context *ctx)
 			tracecmd_msg_wait(ctx->instance->msg_handle);
 			if (ctx->tsc2nsec.mult)
 				add_tsc2nsec(ctx->instance->network_handle, &ctx->tsc2nsec);
+			tracecmd_write_guest_time_shift(ctx->instance->network_handle,
+							ctx->instance->tsync);
 			tracecmd_msg_send_options(ctx->instance->msg_handle,
 						  ctx->instance->network_handle);
 		}
@@ -6820,7 +6842,7 @@ static void record_trace(int argc, char **argv,
 	if (!ctx->output)
 		ctx->output = DEFAULT_INPUT_FILE;
 
-	if (ctx->data_flags & DATA_FL_GUEST)
+	if (ctx->data_flags & (DATA_FL_GUEST | DATA_FL_PROXY))
 		set_tsync_params(ctx);
 
 	make_instances();
@@ -7128,8 +7150,9 @@ void trace_record(int argc, char **argv)
  */
 int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 		       int cpus, int *fds,
-		       int argc, char **argv, bool use_fifos,
-		       unsigned long long trace_id, const char *host)
+		       int argc, char **argv,
+		       bool use_fifos, struct tracecmd_time_sync *tsync,
+		       unsigned long long trace_id, int rcid, const char *host)
 {
 	struct common_record_context ctx;
 	char **argv_plus;
@@ -7157,8 +7180,12 @@ int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 	ctx.instance->fds = fds;
 	ctx.instance->use_fifos = use_fifos;
 	ctx.instance->flags |= BUFFER_FL_AGENT;
+	if (rcid >= 0)
+		ctx.data_flags |= DATA_FL_PROXY;
 	ctx.instance->msg_handle = msg_handle;
 	ctx.instance->host = host;
+	ctx.instance->tsync = tsync;
+	ctx.instance->cid = rcid;
 	msg_handle->version = V3_PROTOCOL;
 	top_instance.trace_id = trace_id;
 	record_trace(argc, argv, &ctx);
