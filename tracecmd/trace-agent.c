@@ -122,6 +122,28 @@ static void trace_print_connection(int fd, const char *network)
 		tracecmd_debug("Could not print connection fd:%d\n", fd);
 }
 
+static int wait_for_connection(int fd)
+{
+	int sd;
+
+	if (fd < 0)
+		return -1;
+
+	while (true) {
+		tracecmd_debug("Listening on fd:%d\n", fd);
+		sd = accept(fd, NULL, NULL);
+		tracecmd_debug("Accepted fd:%d\n", sd);
+		if (sd < 0) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		}
+		break;
+	}
+	close(fd);
+	return sd;
+}
+
 static void agent_handle(int sd, int nr_cpus, int page_size, const char *network)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
@@ -186,16 +208,6 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 				fd = -1;
 			}
 		}
-		if (fd >= 0) {
-			tsync = tracecmd_tsync_with_host(fd, tsync_proto,
-							 get_clock(argc, argv),
-							 remote_id, local_id);
-		}
-		if (!tsync) {
-			warning("Failed to negotiate timestamps synchronization with the host");
-			if (fd >= 0)
-				close(fd);
-		}
 	}
 	trace_id = tracecmd_generate_traceid();
 	ret = tracecmd_msg_send_trace_resp(msg_handle, nr_cpus, page_size,
@@ -203,6 +215,19 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 					   tsync_proto, tsync_port);
 	if (ret < 0)
 		die("Failed to send trace response");
+
+	if (tsync_proto) {
+		fd = wait_for_connection(fd);
+		if (fd >= 0)
+			tsync = tracecmd_tsync_with_host(fd, tsync_proto,
+							 get_clock(argc, argv),
+							 remote_id, local_id);
+		if (!tsync) {
+			warning("Failed to negotiate timestamps synchronization with the host");
+			if (fd >= 0)
+				close(fd);
+		}
+	}
 
 	trace_record_agent(msg_handle, nr_cpus, fds, argc, argv,
 			   use_fifos, trace_id, network);

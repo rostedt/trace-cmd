@@ -938,28 +938,9 @@ int tracecmd_tsync_with_guest_stop(struct tracecmd_time_sync *tsync)
 static void *tsync_agent_thread(void *data)
 {
 	struct tracecmd_time_sync *tsync = data;
-	long ret = 0;
-	int sd;
-
-	while (true) {
-		tracecmd_debug("Listening on fd:%d\n", tsync->msg_handle->fd);
-		sd = accept(tsync->msg_handle->fd, NULL, NULL);
-		tracecmd_debug("Accepted fd:%d\n", sd);
-		if (sd < 0) {
-			if (errno == EINTR)
-				continue;
-			ret = -1;
-			goto out;
-		}
-		break;
-	}
-	close(tsync->msg_handle->fd);
-	tsync->msg_handle->fd = sd;
 
 	tsync_with_host(tsync);
-
-out:
-	pthread_exit((void *)ret);
+	pthread_exit(NULL);
 }
 
 /**
