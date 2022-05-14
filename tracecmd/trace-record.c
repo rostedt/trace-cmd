@@ -7191,6 +7191,24 @@ void trace_record(int argc, char **argv)
 	exit(0);
 }
 
+/**
+ * trace_record_agent - record command running from the agent
+ * @msg_handle: The handle to communicate with the peer
+ * @cpus: The number of CPUs the agent has to record
+ * @fds: The array of file descriptors for the CPUs
+ * @argc: The number of arguments to pass to the record session
+ * @argv: The arguments to pass to the record session
+ * @use_fifos: True if fifos are used instead of sockets.
+ * @trace_id: The agent's trace_id
+ * @host: Set if this is an IP connection and not a vsocket one
+ *
+ * This is used to enable tracing via the record command just
+ * like trace-cmd record, but it is being done via the agent
+ * and all the data is being transfered to the peer that is
+ * connected on the other end of the sockets.
+ *
+ *  Returns zero on success, negative otherwise.
+ */
 int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
 		       int cpus, int *fds,
 		       int argc, char **argv,
