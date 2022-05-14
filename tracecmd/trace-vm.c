@@ -54,6 +54,8 @@ bool trace_have_guests_pid(void)
 	return true;
 }
 
+static void find_pid_by_cid(struct trace_guest *guest);
+
 static struct trace_guest *add_guest(unsigned int cid, const char *name)
 {
 	struct trace_guest *guest;
@@ -70,6 +72,8 @@ static struct trace_guest *add_guest(unsigned int cid, const char *name)
 		die("allocating guest name");
 	guest->cid = cid;
 	guest->pid = -1;
+
+	find_pid_by_cid(guest);
 
 	return guest;
 }
@@ -307,11 +311,8 @@ struct trace_guest *trace_get_guest(unsigned int cid, const char *name)
 
 	if (cid > 0) {
 		guest = get_guest_by_cid(cid);
-		if (!guest && name) {
+		if (!guest && name)
 			guest = add_guest(cid, name);
-			if (guest)
-				find_pid_by_cid(guest);
-		}
 	}
 	return guest;
 }
@@ -321,7 +322,6 @@ struct trace_guest *trace_get_guest(unsigned int cid, const char *name)
 #define VM_CID_ID	"address='"
 static void read_guest_cid(char *name)
 {
-	struct trace_guest *guest;
 	char *cmd = NULL;
 	char line[512];
 	char *cid;
@@ -343,9 +343,7 @@ static void read_guest_cid(char *name)
 		cid_id = strtol(cid + strlen(VM_CID_ID), NULL, 10);
 		if ((cid_id == INT_MIN || cid_id == INT_MAX) && errno == ERANGE)
 			continue;
-		guest = add_guest(cid_id, name);
-		if (guest)
-			find_pid_by_cid(guest);
+		add_guest(cid_id, name);
 		break;
 	}
 
