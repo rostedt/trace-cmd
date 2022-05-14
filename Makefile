@@ -163,7 +163,7 @@ export NO_PYTHON
 # $(call test-build, snippet, ret) -> ret if snippet compiles
 #                                  -> empty otherwise
 test-build = $(if $(shell sh -c 'echo "$(1)" | \
-	$(CC) -o /dev/null -c -x c - > /dev/null 2>&1 && echo y'), $2)
+	$(CC) -o /dev/null -x c - > /dev/null 2>&1 && echo y'), $2)
 
 UDIS86_AVAILABLE := $(call test-build,\#include <udis86.h>, y)
 ifneq ($(strip $(UDIS86_AVAILABLE)), y)
