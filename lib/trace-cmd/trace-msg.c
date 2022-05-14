@@ -108,7 +108,8 @@ struct tracecmd_msg_header {
 	C(TRACE_RESP,	7,	sizeof(struct tracecmd_msg_trace_resp)),\
 	C(CLOSE_RESP,	8,	0),					\
 	C(TIME_SYNC,	9,	sizeof(struct tracecmd_msg_tsync)),	\
-	C(TRACE_PROXY,	10,	sizeof(struct tracecmd_msg_trace_proxy)),
+	C(TRACE_PROXY,	10,	sizeof(struct tracecmd_msg_trace_proxy)), \
+	C(CONT,		11,	0),
 
 #undef C
 #define C(a,b,c)	MSG_##a = b
@@ -783,6 +784,14 @@ int tracecmd_msg_send_close_resp_msg(struct tracecmd_msg_handle *msg_handle)
 	return tracecmd_msg_send(msg_handle, &msg);
 }
 
+int tracecmd_msg_cont(struct tracecmd_msg_handle *msg_handle)
+{
+	struct tracecmd_msg msg;
+
+	tracecmd_msg_init(MSG_CONT, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
+}
+
 int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 			   const char *buf, int size)
 {
@@ -824,6 +833,42 @@ int tracecmd_msg_data_send(struct tracecmd_msg_handle *msg_handle,
 }
 
 /**
+ * tracecmd_msg_send_options - Send options over the network
+ * @msg_handle: message handle, holding the communication context
+ * @handle: The output file that has the options to send
+ *
+ * Send options over the network. This is used when the output handle
+ * has more options to send over the network after the trace. Some
+ * options are sent before, and some sent afterward. Since the receiving
+ * side needs to know the location to update the indexes, it will
+ * handle the section header. This just sends out the raw content to
+ * the receiver (requires that both sides have the same endianess, as
+ * no conversion is made of the content of the options).
+ *
+ * Returns 0 on success and -1 on error.
+ */
+int tracecmd_msg_send_options(struct tracecmd_msg_handle *msg_handle,
+			      struct tracecmd_output *handle)
+{
+	struct tracecmd_msg msg;
+	size_t len;
+	void *buf;
+	int ret;
+
+	buf = trace_get_options(handle, &len);
+	if (!buf)
+		return -1;
+
+	ret = tracecmd_msg_data_send(msg_handle, buf, len);
+	free(buf);
+	if (ret < 0)
+		return ret;
+
+	tracecmd_msg_init(MSG_FIN_DATA, &msg);
+	return tracecmd_msg_send(msg_handle, &msg);
+}
+
+/**
  * tracecmd_msg_flush_data - Send the current cache data over the network
  * @msg_handle: message handle, holding the communication context
  *
@@ -856,32 +901,89 @@ int tracecmd_msg_finish_sending_data(struct tracecmd_msg_handle *msg_handle)
 	return 0;
 }
 
+static int read_msg_data(struct tracecmd_msg_handle *msg_handle,
+			 struct tracecmd_msg *msg)
+{
+	int cmd;
+	int ret;
+
+	ret = tracecmd_msg_recv_wait(msg_handle->fd, msg);
+	if (ret < 0) {
+		tracecmd_warning("reading client %d (%s)", ret, strerror(ret));
+		return ret;
+	}
+
+	cmd = ntohl(msg->hdr.cmd);
+	if (cmd == MSG_FIN_DATA) {
+		/* Finish receiving data */
+		return 0;
+	} else if (cmd != MSG_SEND_DATA) {
+		ret = handle_unexpected_msg(msg_handle, msg);
+		if (ret < 0)
+			return -1;
+		return 0;
+	}
+
+	return msg_buf_len(msg);
+}
+
+/**
+ * tracecmd_msg_read_options - Receive options from over the network
+ * @msg_handle: message handle, holding the communication context
+ * @handle: The output file to write the options to.
+ *
+ * Receive the options sent by tracecmd_msg_send_options().
+ * See that function's documentation for mor details.
+ *
+ * Returns 0 on success and -1 on error.
+ */
+int tracecmd_msg_read_options(struct tracecmd_msg_handle *msg_handle,
+			      struct tracecmd_output *handle)
+{
+	struct tracecmd_msg msg;
+	size_t len = 0;
+	void *buf = NULL;
+	void *tmp;
+	int ret;
+	int n;
+
+	memset(&msg, 0, sizeof(msg));
+	while (!tracecmd_msg_done(msg_handle)) {
+		n = read_msg_data(msg_handle, &msg);
+		if (n <= 0)
+			break;
+
+		tmp = realloc(buf, n + len);
+		if (!tmp)
+			goto error;
+		buf = tmp;
+		memcpy(buf + len, msg.buf, n);
+		len += n;
+		msg_free(&msg);
+	}
+	msg_free(&msg);
+
+	ret = trace_append_options(handle, buf, len);
+	free(buf);
+
+	return ret;
+ error:
+	msg_free(&msg);
+	free(buf);
+	return -1;
+}
+
 int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 {
 	struct tracecmd_msg msg;
-	int t, n, cmd;
+	int t, n;
 	ssize_t s;
 	int ret;
 
 	while (!tracecmd_msg_done(msg_handle)) {
-		ret = tracecmd_msg_recv_wait(msg_handle->fd, &msg);
-		if (ret < 0) {
-			tracecmd_warning("reading client %d (%s)", ret, strerror(ret));
-			return ret;
-		}
-
-		cmd = ntohl(msg.hdr.cmd);
-		if (cmd == MSG_FIN_DATA) {
-			/* Finish receiving data */
+		n = read_msg_data(msg_handle, &msg);
+		if (n <= 0)
 			break;
-		} else if (cmd != MSG_SEND_DATA) {
-			ret = handle_unexpected_msg(msg_handle, &msg);
-			if (ret < 0)
-				goto error;
-			goto next;
-		}
-
-		n = msg_buf_len(&msg);
 		t = n;
 		s = 0;
 		while (t > 0) {
@@ -896,10 +998,9 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 			t -= s;
 			s = n - t;
 		}
-
-next:
 		msg_free(&msg);
 	}
+	msg_free(&msg);
 
 	return 0;
 
@@ -945,6 +1046,11 @@ static int tracecmd_msg_wait_for_cmd(struct tracecmd_msg_handle *msg_handle, enu
 error:
 	msg_free(&msg);
 	return ret;
+}
+
+int tracecmd_msg_wait(struct tracecmd_msg_handle *msg_handle)
+{
+	return tracecmd_msg_wait_for_cmd(msg_handle, MSG_CONT);
 }
 
 int tracecmd_msg_wait_close(struct tracecmd_msg_handle *msg_handle)

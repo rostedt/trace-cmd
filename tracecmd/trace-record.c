@@ -739,8 +739,10 @@ static void tell_guests_to_stop(struct common_record_context *ctx)
 	/* Wait for guests to acknowledge */
 	for_all_instances(instance) {
 		if (is_guest(instance)) {
-			tracecmd_msg_wait_close_resp(instance->msg_handle);
-			tracecmd_msg_handle_close(instance->msg_handle);
+			if (!is_proxy(instance)) {
+				tracecmd_msg_wait_close_resp(instance->msg_handle);
+				tracecmd_msg_handle_close(instance->msg_handle);
+			}
 		}
 	}
 }
@@ -4365,15 +4367,18 @@ static void record_data(struct common_record_context *ctx)
 {
 	struct tracecmd_output *handle;
 	struct buffer_instance *instance;
+	bool have_proxy = false;
 	bool local = false;
 	int max_cpu_count = local_cpu_count;
 	char **temp_files;
 	int i;
 
 	for_all_instances(instance) {
-		if (is_guest(instance))
+		if (is_guest(instance)) {
 			write_guest_file(instance);
-		else if (host && instance->msg_handle)
+			if (is_proxy(instance))
+				have_proxy = true;
+		} else if (host && instance->msg_handle)
 			finish_network(instance->msg_handle);
 		else
 			local = true;
@@ -4421,6 +4426,22 @@ static void record_data(struct common_record_context *ctx)
 		tracecmd_set_quiet(handle, quiet);
 
 		add_options(handle, ctx);
+
+		/*
+		 * If we connected to a proxy, then it will now send us
+		 * the tsync data for our file.
+		 */
+		if (have_proxy) {
+			for_all_instances(instance) {
+				if (!is_proxy(instance))
+					continue;
+				/* Tell proxy we are ready for the rest */
+				tracecmd_msg_cont(instance->msg_handle);
+				tracecmd_msg_read_options(instance->msg_handle, handle);
+				tracecmd_msg_wait_close_resp(instance->msg_handle);
+				tracecmd_msg_handle_close(instance->msg_handle);
+			}
+		}
 
 		/* Only record the top instance under TRACECMD_OPTION_CPUSTAT*/
 		if (!no_top_instance() && !top_instance.msg_handle) {
@@ -6679,6 +6700,14 @@ static void finalize_record_trace(struct common_record_context *ctx)
 		if (instance->flags & BUFFER_FL_KEEP)
 			write_tracing_on(instance,
 					 instance->tracing_on_init_val);
+		if (is_proxy_server(instance) && instance->network_handle) {
+			/* Now wait for the recorder to be ready for us to send more */
+			tracecmd_msg_wait(ctx->instance->msg_handle);
+			if (ctx->tsc2nsec.mult)
+				add_tsc2nsec(ctx->instance->network_handle, &ctx->tsc2nsec);
+			tracecmd_msg_send_options(ctx->instance->msg_handle,
+						  ctx->instance->network_handle);
+		}
 		if (is_agent(instance)) {
 			tracecmd_msg_send_close_resp_msg(instance->msg_handle);
 			tracecmd_output_close(instance->network_handle);
@@ -6915,6 +6944,10 @@ static void record_trace(int argc, char **argv,
 		wait_threads();
 
 	if (is_proxy_server(ctx->instance) && ctx->instance->network_handle) {
+		tracecmd_tsync_with_guest_stop(ctx->instance->tsync);
+		trace_add_guest_info(ctx->instance->network_handle, ctx->instance);
+		if (ctx->tsc2nsec.mult)
+			add_tsc2nsec(ctx->instance->network_handle, &ctx->tsc2nsec);
 		tracecmd_write_options(ctx->instance->network_handle);
 		tracecmd_write_meta_strings(ctx->instance->network_handle);
 		tracecmd_msg_finish_sending_data(ctx->instance->msg_handle);

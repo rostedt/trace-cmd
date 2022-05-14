@@ -421,6 +421,8 @@ int tracecmd_msg_send_close_msg(struct tracecmd_msg_handle *msg_handle);
 int tracecmd_msg_send_close_resp_msg(struct tracecmd_msg_handle *msg_handle);
 int tracecmd_msg_wait_close(struct tracecmd_msg_handle *msg_handle);
 int tracecmd_msg_wait_close_resp(struct tracecmd_msg_handle *msg_handle);
+int tracecmd_msg_cont(struct tracecmd_msg_handle *msg_handle);
+int tracecmd_msg_wait(struct tracecmd_msg_handle *msg_handle);
 
 /* for server */
 int tracecmd_msg_initial_setting(struct tracecmd_msg_handle *msg_handle);
@@ -430,6 +432,10 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd);
 int tracecmd_msg_collect_data(struct tracecmd_msg_handle *msg_handle, int ofd);
 bool tracecmd_msg_done(struct tracecmd_msg_handle *msg_handle);
 void tracecmd_msg_set_done(struct tracecmd_msg_handle *msg_handle);
+int tracecmd_msg_read_options(struct tracecmd_msg_handle *msg_handle,
+			      struct tracecmd_output *handle);
+int tracecmd_msg_send_options(struct tracecmd_msg_handle *msg_handle,
+			      struct tracecmd_output *handle);
 
 int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int argc, char **argv, bool use_fifos,
