@@ -335,6 +335,7 @@ void show_options(const char *prefix, struct buffer_instance *buffer);
 struct trace_guest {
 	struct tracefs_instance *instance;
 	char *name;
+	unsigned long long trace_id;
 	int cid;
 	int pid;
 	int cpu_max;

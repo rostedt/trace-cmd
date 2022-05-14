@@ -434,26 +434,39 @@ int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu)
 void
 trace_add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance)
 {
+	unsigned long long trace_id;
 	struct trace_guest *guest;
 	const char *name;
 	char *buf, *p;
+	int cpus;
 	int size;
 	int pid;
 	int i;
 
 	if (is_network(instance)) {
 		name = instance->name;
+		cpus = instance->cpu_count;
+		trace_id = instance->trace_id;
 	} else {
 		guest = trace_get_guest(instance->cid, NULL);
 		if (!guest)
 			return;
+		cpus = guest->cpu_max;
 		name = guest->name;
+		/*
+		 * If this is a proxy, the trace_id of the guest is
+		 * in the guest descriptor (added in trace_tsync_as_host().
+		 */
+		if (guest->trace_id)
+			trace_id = guest->trace_id;
+		else
+			trace_id = instance->trace_id;
 	}
 
 	size = strlen(name) + 1;
 	size += sizeof(long long);	/* trace_id */
 	size += sizeof(int);		/* cpu count */
-	size += instance->cpu_count * 2 * sizeof(int);	/* cpu,pid pair */
+	size += cpus * 2 * sizeof(int);	/* cpu,pid pair */
 
 	buf = calloc(1, size);
 	if (!buf)
@@ -462,17 +475,16 @@ trace_add_guest_info(struct tracecmd_output *handle, struct buffer_instance *ins
 	strcpy(p, name);
 	p += strlen(name) + 1;
 
-	memcpy(p, &instance->trace_id, sizeof(long long));
+	memcpy(p, &trace_id, sizeof(long long));
 	p += sizeof(long long);
 
-	memcpy(p, &instance->cpu_count, sizeof(int));
+	memcpy(p, &cpus, sizeof(int));
 	p += sizeof(int);
-	for (i = 0; i < instance->cpu_count; i++) {
-		pid = -1;
-		if (!is_network(instance)) {
-			if (i < guest->cpu_max)
-				pid = guest->cpu_pid[i];
-		}
+	for (i = 0; i < cpus; i++) {
+		if (is_network(instance))
+			pid = -1;
+		else
+			pid = guest->cpu_pid[i];
 		memcpy(p, &i, sizeof(int));
 		p += sizeof(int);
 		memcpy(p, &pid, sizeof(int));

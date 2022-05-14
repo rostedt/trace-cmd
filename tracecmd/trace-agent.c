@@ -153,6 +153,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 	struct tracecmd_time_sync *tsync = NULL;
 	struct tracecmd_msg_handle *msg_handle;
 	const char *tsync_proto = NULL;
+	struct trace_guest *guest;
 	unsigned long long peer_trace_id;
 	unsigned long long trace_id;
 	unsigned long flags = rcid >= 0 ? TRACECMD_MSG_FL_PROXY : 0;
@@ -178,16 +179,21 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 	if (!msg_handle)
 		die("Failed to allocate message handle");
 
-	if (rcid >= 0)
+	if (rcid >= 0) {
 		ret = tracecmd_msg_recv_trace_proxy(msg_handle, &argc, &argv,
 						    &use_fifos, &peer_trace_id,
 						    &tsync_protos,
 						    &client_cpus,
 						    &guests);
-	else
+		/* Update the guests peer_trace_id */
+		guest = trace_get_guest(rcid, NULL);
+		if (guest)
+			guest->trace_id = peer_trace_id;
+	} else {
 		ret = tracecmd_msg_recv_trace_req(msg_handle, &argc, &argv,
 						  &use_fifos, &peer_trace_id,
 						  &tsync_protos);
+	}
 	if (ret < 0)
 		die("Failed to receive trace request");
 
