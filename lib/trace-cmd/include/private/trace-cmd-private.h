@@ -333,6 +333,7 @@ int tracecmd_write_buffer_info(struct tracecmd_output *handle);
 
 int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus);
 int tracecmd_write_cmdlines(struct tracecmd_output *handle);
+int tracecmd_prepare_options(struct tracecmd_output *handle, off64_t offset, int whence);
 int tracecmd_write_options(struct tracecmd_output *handle);
 int tracecmd_write_meta_strings(struct tracecmd_output *handle);
 int tracecmd_append_options(struct tracecmd_output *handle);

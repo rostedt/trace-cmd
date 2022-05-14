@@ -69,6 +69,7 @@ struct tracecmd_output {
 	unsigned long		strings_offs;
 
 	unsigned long long	options_start;
+	unsigned long long	options_next;
 	bool			big_endian;
 	bool			do_compress;
 	struct tracecmd_compression *compress;
@@ -1841,6 +1842,66 @@ static int write_options_v6(struct tracecmd_output *handle)
 	return 0;
 }
 
+static int update_options_start(struct tracecmd_output *handle, off64_t offset)
+{
+	if (do_lseek(handle, handle->options_start, SEEK_SET) == (off64_t)-1)
+		return -1;
+	offset = convert_endian_8(handle, offset);
+	if (do_write_check(handle, &offset, 8))
+		return -1;
+	return 0;
+}
+
+/**
+ * tracecmd_pepare_options - perpare a previous options for the next
+ * @handle: The handle to update the options for.
+ * @offset: The offset to set the previous options to.
+ * @whence: Where in the file to offset from.
+ *
+ * In a case of cached writes for network access, the options offset
+ * cannot be written once it goes over the network. This is used
+ * to update the next options to a known location.
+ *
+ * tracecmd_write_options() must be called when the offset is at the next
+ * location, otherwise the data file will end up corrupted.
+ *
+ * Returns zero on success and -1 on error.
+ */
+int tracecmd_prepare_options(struct tracecmd_output *handle, off64_t offset, int whence)
+{
+	tsize_t curr;
+	int ret;
+
+	/* No options to start with? */
+	if (!handle->options_start)
+		return 0;
+
+	curr = do_lseek(handle, 0, SEEK_CUR);
+
+	switch (whence) {
+	case SEEK_SET:
+		/* just use offset */
+		break;
+	case SEEK_CUR:
+		offset += curr;
+		break;
+	case SEEK_END:
+		offset = do_lseek(handle, offset, SEEK_END);
+		if (offset == (off64_t)-1)
+			return -1;
+		break;
+	}
+	ret = update_options_start(handle, offset);
+	if (ret < 0)
+		return -1;
+
+	handle->options_next = offset;
+
+	curr = do_lseek(handle, curr, SEEK_SET);
+
+	return curr == -1 ? -1 : 0;
+}
+
 static int write_options(struct tracecmd_output *handle)
 {
 	struct tracecmd_option *options;
@@ -1849,6 +1910,7 @@ static int write_options(struct tracecmd_output *handle)
 	unsigned int endian4;
 	bool new = false;
 	tsize_t offset;
+	int ret;
 
 	/* Check if there are unsaved options */
 	list_for_each_entry(options, &handle->options, list) {
@@ -1857,18 +1919,34 @@ static int write_options(struct tracecmd_output *handle)
 			break;
 		}
 	}
-	if (!new)
+	/*
+	 * Even if there are no new options, if options_next is set, it requires
+	 * adding a new empty options section as the previous one already
+	 * points to it.
+	 */
+	if (!new && !handle->options_next)
 		return 0;
 	offset = do_lseek(handle, 0, SEEK_CUR);
 
+	if (handle->options_next) {
+		/* options_start was already updated */
+		if (handle->options_next != offset) {
+			tracecmd_warning("Options offset (%lld) does not match expected (%lld)",
+					 offset, handle->options_next);
+			return -1;
+		}
+		handle->options_next = 0;
+		/* Will be updated at the end */
+		handle->options_start = 0;
+	}
+
 	/* Append to the previous options section, if any */
 	if (handle->options_start) {
-		if (do_lseek(handle, handle->options_start, SEEK_SET) == (off64_t)-1)
+		ret = update_options_start(handle, offset);
+		if (ret < 0)
 			return -1;
-		endian8 = convert_endian_8(handle, offset);
-		if (do_write_check(handle, &endian8, 8))
-			return -1;
-		if (do_lseek(handle, offset, SEEK_SET) == (off_t)-1)
+		offset = do_lseek(handle, offset, SEEK_SET);
+		if (offset == (off_t)-1)
 			return -1;
 	}
 
