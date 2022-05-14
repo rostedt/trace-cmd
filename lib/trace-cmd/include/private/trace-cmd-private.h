@@ -378,6 +378,7 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
 enum tracecmd_msg_flags {
 	TRACECMD_MSG_FL_USE_TCP		= 1 << 0,
 	TRACECMD_MSG_FL_USE_VSOCK	= 1 << 1,
+	TRACECMD_MSG_FL_PROXY		= 1 << 2,
 };
 
 #define MSG_CACHE_FILE "/tmp/trace_msg_cacheXXXXXX"
@@ -431,10 +432,21 @@ int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int argc, char **argv, bool use_fifos,
 				unsigned long long trace_id,
 				struct tracecmd_tsync_protos *protos);
+int tracecmd_msg_send_trace_proxy(struct tracecmd_msg_handle *msg_handle,
+				  int argc, char **argv, bool use_fifos,
+				  unsigned long long trace_id,
+				  struct tracecmd_tsync_protos *protos,
+				  unsigned int nr_cpus,
+				  unsigned int siblings);
 int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
 				int *argc, char ***argv, bool *use_fifos,
 				unsigned long long *trace_id,
 				struct tracecmd_tsync_protos **protos);
+int tracecmd_msg_recv_trace_proxy(struct tracecmd_msg_handle *msg_handle,
+				  int *argc, char ***argv, bool *use_fifos,
+				  unsigned long long *trace_id,
+				  struct tracecmd_tsync_protos **protos,
+				  unsigned int *cpus, unsigned int *siblings);
 
 int tracecmd_msg_send_trace_resp(struct tracecmd_msg_handle *msg_handle,
 				 int nr_cpus, int page_size,

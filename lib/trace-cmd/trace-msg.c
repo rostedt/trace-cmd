@@ -71,6 +71,12 @@ struct tracecmd_msg_trace_req {
 	u64 trace_id;
 } __packed;
 
+struct tracecmd_msg_trace_proxy {
+	struct tracecmd_msg_trace_req req;
+	be32 cpus;
+	be32 siblings;
+} __packed;
+
 struct tracecmd_msg_trace_resp {
 	be32 flags;
 	be32 cpus;
@@ -101,7 +107,8 @@ struct tracecmd_msg_header {
 	C(TRACE_REQ,	6,	sizeof(struct tracecmd_msg_trace_req)),	\
 	C(TRACE_RESP,	7,	sizeof(struct tracecmd_msg_trace_resp)),\
 	C(CLOSE_RESP,	8,	0),					\
-	C(TIME_SYNC,	9,	sizeof(struct tracecmd_msg_tsync)),
+	C(TIME_SYNC,	9,	sizeof(struct tracecmd_msg_tsync)),	\
+	C(TRACE_PROXY,	10,	sizeof(struct tracecmd_msg_trace_proxy)),
 
 #undef C
 #define C(a,b,c)	MSG_##a = b
@@ -134,6 +141,7 @@ struct tracecmd_msg {
 		struct tracecmd_msg_tinit	tinit;
 		struct tracecmd_msg_rinit	rinit;
 		struct tracecmd_msg_trace_req	trace_req;
+		struct tracecmd_msg_trace_proxy	trace_proxy;
 		struct tracecmd_msg_trace_resp	trace_resp;
 		struct tracecmd_msg_tsync	tsync;
 	};
@@ -1007,7 +1015,7 @@ static int make_trace_req(struct tracecmd_msg *msg, int argc, char **argv,
 	msg->buf = buf;
 	msg->hdr.size = htonl(ntohl(msg->hdr.size) + size);
 
-	return 0;
+	return size;
 }
 
 int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
@@ -1023,6 +1031,26 @@ int tracecmd_msg_send_trace_req(struct tracecmd_msg_handle *msg_handle,
 	if (ret < 0)
 		return ret;
 
+	return tracecmd_msg_send(msg_handle, &msg);
+}
+
+int tracecmd_msg_send_trace_proxy(struct tracecmd_msg_handle *msg_handle,
+				  int argc, char **argv, bool use_fifos,
+				  unsigned long long trace_id,
+				  struct tracecmd_tsync_protos *protos,
+				  unsigned int nr_cpus,
+				  unsigned int siblings)
+{
+	struct tracecmd_msg msg;
+	int ret;
+
+	tracecmd_msg_init(MSG_TRACE_PROXY, &msg);
+	ret = make_trace_req(&msg, argc, argv, use_fifos, trace_id, protos);
+	if (ret < 0)
+		return ret;
+
+	msg.trace_proxy.cpus = htonl(nr_cpus);
+	msg.trace_proxy.siblings = htonl(siblings);
 	return tracecmd_msg_send(msg_handle, &msg);
 }
 
@@ -1119,16 +1147,12 @@ out:
 
 }
 
-/*
- * NOTE: On success, the returned `argv` should be freed with:
- *     free(argv[0]);
- *     free(argv);
- * and `tsync_protos` with free(tsync_protos);
- */
-int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
-				int *argc, char ***argv, bool *use_fifos,
-				unsigned long long *trace_id,
-				struct tracecmd_tsync_protos **protos)
+static int msg_recv_trace_req_proxy(struct tracecmd_msg_handle *msg_handle,
+				    int *argc, char ***argv, bool *use_fifos,
+				    unsigned long long *trace_id,
+				    struct tracecmd_tsync_protos **protos,
+				    unsigned int *cpus,
+				    unsigned int *siblings)
 {
 	struct tracecmd_msg msg;
 	unsigned int param_id;
@@ -1141,7 +1165,16 @@ int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
 	if (ret < 0)
 		return ret;
 
-	if (ntohl(msg.hdr.cmd) != MSG_TRACE_REQ) {
+	switch (ntohl(msg.hdr.cmd)) {
+	case MSG_TRACE_PROXY:
+		if (cpus)
+			*cpus = ntohl(msg.trace_proxy.cpus);
+		if (siblings)
+			*siblings = ntohl(msg.trace_proxy.siblings);
+		/* fall through */
+	case MSG_TRACE_REQ:
+		break;
+	default:
 		ret = -ENOTSUP;
 		goto out;
 	}
@@ -1190,6 +1223,37 @@ out:
 		handle_unexpected_msg(msg_handle, &msg);
 	msg_free(&msg);
 	return ret;
+}
+
+/*
+ * NOTE: On success, the returned `argv` should be freed with:
+ *     free(argv[0]);
+ *     free(argv);
+ * and `tsync_protos` with free(tsync_protos);
+ */
+int tracecmd_msg_recv_trace_req(struct tracecmd_msg_handle *msg_handle,
+				int *argc, char ***argv, bool *use_fifos,
+				unsigned long long *trace_id,
+				struct tracecmd_tsync_protos **protos)
+{
+	return msg_recv_trace_req_proxy(msg_handle, argc, argv, use_fifos,
+					trace_id, protos, NULL, NULL);
+}
+
+/*
+ * NOTE: On success, the returned `argv` should be freed with:
+ *     free(argv[0]);
+ *     free(argv);
+ * and `tsync_protos` with free(tsync_protos);
+ */
+int tracecmd_msg_recv_trace_proxy(struct tracecmd_msg_handle *msg_handle,
+				  int *argc, char ***argv, bool *use_fifos,
+				  unsigned long long *trace_id,
+				  struct tracecmd_tsync_protos **protos,
+				  unsigned int *cpus, unsigned int *siblings)
+{
+	return msg_recv_trace_req_proxy(msg_handle, argc, argv, use_fifos,
+					trace_id, protos, cpus, siblings);
 }
 
 /**
