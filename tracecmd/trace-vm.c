@@ -386,3 +386,64 @@ int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu)
 	}
 	return -1;
 }
+
+/**
+ * trace_add_guest_info - Add the guest info into the trace file option
+ * @handle: The file handle that the guest info option is added to
+ * @instance: The instance that that represents the guest
+ *
+ * Adds information about the guest from the @instance into an option
+ * for the @instance. It records the trace_id, the number of CPUs,
+ * as well as the PIDs of the host that represent the CPUs.
+ */
+void
+trace_add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance)
+{
+	struct trace_guest *guest;
+	const char *name;
+	char *buf, *p;
+	int size;
+	int pid;
+	int i;
+
+	if (is_network(instance)) {
+		name = instance->name;
+	} else {
+		guest = trace_get_guest(instance->cid, NULL);
+		if (!guest)
+			return;
+		name = guest->name;
+	}
+
+	size = strlen(name) + 1;
+	size += sizeof(long long);	/* trace_id */
+	size += sizeof(int);		/* cpu count */
+	size += instance->cpu_count * 2 * sizeof(int);	/* cpu,pid pair */
+
+	buf = calloc(1, size);
+	if (!buf)
+		return;
+	p = buf;
+	strcpy(p, name);
+	p += strlen(name) + 1;
+
+	memcpy(p, &instance->trace_id, sizeof(long long));
+	p += sizeof(long long);
+
+	memcpy(p, &instance->cpu_count, sizeof(int));
+	p += sizeof(int);
+	for (i = 0; i < instance->cpu_count; i++) {
+		pid = -1;
+		if (!is_network(instance)) {
+			if (i < guest->cpu_max)
+				pid = guest->cpu_pid[i];
+		}
+		memcpy(p, &i, sizeof(int));
+		p += sizeof(int);
+		memcpy(p, &pid, sizeof(int));
+		p += sizeof(int);
+	}
+
+	tracecmd_add_option(handle, TRACECMD_OPTION_GUEST, size, buf);
+	free(buf);
+}

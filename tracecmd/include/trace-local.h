@@ -339,6 +339,7 @@ bool trace_have_guests_pid(void);
 void read_qemu_guests(void);
 int get_guest_pid(unsigned int guest_cid);
 int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu);
+void trace_add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance);
 
 /* moved from trace-cmd.h */
 void tracecmd_remove_instances(void);
