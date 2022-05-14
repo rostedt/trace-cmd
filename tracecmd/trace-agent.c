@@ -144,6 +144,23 @@ static int wait_for_connection(int fd)
 	return sd;
 }
 
+static struct tracecmd_time_sync *
+trace_tsync_as_guest(int fd, const char *tsync_proto, const char *clock,
+	       unsigned int remote_id, unsigned int local_id)
+{
+	struct tracecmd_time_sync *tsync;
+
+	if (fd < 0)
+		return NULL;
+
+	tsync = tracecmd_tsync_with_host(fd, tsync_proto, clock,
+					 remote_id, local_id);
+	if (!tsync)
+		warning("Failed to negotiate timestamps synchronization with the host");
+
+	return tsync;
+}
+
 static void agent_handle(int sd, int nr_cpus, int page_size, const char *network)
 {
 	struct tracecmd_tsync_protos *tsync_protos = NULL;
@@ -218,15 +235,10 @@ static void agent_handle(int sd, int nr_cpus, int page_size, const char *network
 
 	if (tsync_proto) {
 		fd = wait_for_connection(fd);
-		if (fd >= 0)
-			tsync = tracecmd_tsync_with_host(fd, tsync_proto,
-							 get_clock(argc, argv),
-							 remote_id, local_id);
-		if (!tsync) {
-			warning("Failed to negotiate timestamps synchronization with the host");
-			if (fd >= 0)
-				close(fd);
-		}
+		tsync = trace_tsync_as_guest(fd, tsync_proto, get_clock(argc, argv),
+					     remote_id, local_id);
+		if (!tsync)
+			close(fd);
 	}
 
 	trace_record_agent(msg_handle, nr_cpus, fds, argc, argv,
