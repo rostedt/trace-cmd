@@ -389,6 +389,7 @@ struct tracecmd_msg_handle {
 	short			cpu_count;
 	short			version;	/* Current protocol version */
 	unsigned long		flags;
+	off64_t			cache_start_offset;
 	bool			done;
 	bool			cache;
 	int			cfd;
