@@ -38,6 +38,7 @@ TRACE_CMD_OBJS += trace-clear.o
 TRACE_CMD_OBJS += trace-vm.o
 TRACE_CMD_OBJS += trace-convert.o
 TRACE_CMD_OBJS += trace-agent.o
+TRACE_CMD_OBJS += trace-tsync.o
 TRACE_CMD_OBJS += trace-setup-guest.o
 ifeq ($(VSOCK_DEFINED), 1)
 TRACE_CMD_OBJS += trace-vsock.o

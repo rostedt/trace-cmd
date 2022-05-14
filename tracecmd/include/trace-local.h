@@ -341,6 +341,16 @@ int get_guest_pid(unsigned int guest_cid);
 int get_guest_vcpu_pid(unsigned int guest_cid, unsigned int guest_vcpu);
 void trace_add_guest_info(struct tracecmd_output *handle, struct buffer_instance *instance);
 
+struct tracecmd_time_sync *
+trace_tsync_as_host(int fd, unsigned long long trace_id,
+		    int loop_interval, int guest_id,
+		    int guest_cpus, const char *proto_name,
+		    const char *clock);
+
+struct tracecmd_time_sync *
+trace_tsync_as_guest(int fd, const char *tsync_proto, const char *clock,
+	       unsigned int remote_id, unsigned int local_id);
+
 /* moved from trace-cmd.h */
 void tracecmd_remove_instances(void);
 int tracecmd_add_event(const char *event_str, int stack);
