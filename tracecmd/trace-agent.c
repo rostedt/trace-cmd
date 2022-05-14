@@ -22,6 +22,8 @@
 #include "trace-local.h"
 #include "trace-msg.h"
 
+#define GUEST_NAME	"::GUEST::"
+
 #define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
 
 static void make_vsocks(int nr, int *fds, unsigned int *ports)
@@ -377,6 +379,7 @@ enum {
 
 void trace_agent(int argc, char **argv)
 {
+	struct trace_guest *guest;
 	bool do_daemon = false;
 	unsigned int port = TRACE_AGENT_DEFAULT_PORT;
 	const char *network = NULL;
@@ -419,8 +422,11 @@ void trace_agent(int argc, char **argv)
 			break;
 		case 'P':
 			proxy_id = atoi(optarg);
-			if (network)
-				die("-P cannot be used with -N");
+
+			guest = trace_get_guest(proxy_id, GUEST_NAME);
+			if (!guest)
+				die("Failed to allocate guest instance");
+
 			break;
 		case DO_DEBUG:
 			tracecmd_set_debug(true);
