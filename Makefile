@@ -184,6 +184,15 @@ endef
 # have flush/fua block layer instead of barriers?
 blk-flags := $(call test-build,$(BLK_TC_FLUSH_SOURCE),-DHAVE_BLK_TC_FLUSH)
 
+define MEMFD_CREATE_SOURCE
+#define _GNU_SOURCE
+#include <sys/mman.h>
+int main(void) { return memfd_create(\"test\", 0); }
+endef
+
+# have memfd_create available
+memfd-flags := $(call test-build,$(MEMFD_CREATE_SOURCE),-DHAVE_MEMFD_CREATE)
+
 ifeq ("$(origin O)", "command line")
 
   saved-output := $(O)
@@ -363,7 +372,7 @@ endif
 # Append required CFLAGS
 override CFLAGS += $(INCLUDES) $(VAR_DIR)
 override CFLAGS += $(PLUGIN_DIR_TRACECMD_SQ)
-override CFLAGS += $(udis86-flags) $(blk-flags)
+override CFLAGS += $(udis86-flags) $(blk-flags) $(memfd-flags)
 override LDFLAGS += $(udis86-ldflags)
 
 CMD_TARGETS = trace-cmd $(BUILD_PYTHON)

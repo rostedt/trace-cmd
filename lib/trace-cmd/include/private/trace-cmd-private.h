@@ -380,6 +380,8 @@ enum tracecmd_msg_flags {
 	TRACECMD_MSG_FL_USE_VSOCK	= 1 << 1,
 };
 
+#define MSG_CACHE_FILE "/tmp/trace_msg_cacheXXXXXX"
+
 /* for both client and server */
 struct tracecmd_msg_handle {
 	int			fd;
@@ -389,6 +391,9 @@ struct tracecmd_msg_handle {
 	bool			done;
 	bool			cache;
 	int			cfd;
+#ifndef HAVE_MEMFD_CREATE
+	char			cfile[sizeof(MSG_CACHE_FILE)];
+#endif
 };
 
 struct tracecmd_tsync_protos {
