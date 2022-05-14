@@ -4186,7 +4186,7 @@ static void setup_agent(struct buffer_instance *instance,
 	instance->network_handle = network_handle;
 }
 
-void start_threads(enum trace_type type, struct common_record_context *ctx)
+static void start_threads(enum trace_type type, struct common_record_context *ctx)
 {
 	struct buffer_instance *instance;
 	int total_cpu_count = 0;
