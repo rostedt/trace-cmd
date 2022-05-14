@@ -56,18 +56,22 @@ bool trace_have_guests_pid(void)
 
 static struct trace_guest *add_guest(unsigned int cid, const char *name)
 {
+	struct trace_guest *guest;
+
 	guests = realloc(guests, (guests_len + 1) * sizeof(*guests));
 	if (!guests)
 		die("allocating new guest");
-	memset(&guests[guests_len], 0, sizeof(struct trace_guest));
-	guests[guests_len].name = strdup(name);
-	if (!guests[guests_len].name)
-		die("allocating guest name");
-	guests[guests_len].cid = cid;
-	guests[guests_len].pid = -1;
-	guests_len++;
 
-	return &guests[guests_len - 1];
+	guest = &guests[guests_len++];
+
+	memset(guest, 0, sizeof(*guest));
+	guest->name = strdup(name);
+	if (!guest->name)
+		die("allocating guest name");
+	guest->cid = cid;
+	guest->pid = -1;
+
+	return guest;
 }
 
 static struct tracefs_instance *start_trace_connect(void)
