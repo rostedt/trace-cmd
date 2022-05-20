@@ -530,7 +530,7 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
 			       int *count, long long **ts,
 			       long long **offsets, long long **scalings, long long **frac);
 const char *tracecmd_tsync_get_proto(const struct tracecmd_tsync_protos *protos,
-			 const char *clock);
+			 const char *clock, enum tracecmd_time_sync_role role);
 void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
 int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 				    struct tracecmd_time_sync *tsync);

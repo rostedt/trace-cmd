@@ -157,6 +157,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 	unsigned long long peer_trace_id;
 	unsigned long long trace_id;
 	unsigned long flags = rcid >= 0 ? TRACECMD_MSG_FL_PROXY : 0;
+	enum tracecmd_time_sync_role tsync_role = TRACECMD_TIME_SYNC_ROLE_GUEST;
 	unsigned int remote_id;
 	unsigned int local_id;
 	unsigned int tsync_port = 0;
@@ -180,6 +181,7 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 		die("Failed to allocate message handle");
 
 	if (rcid >= 0) {
+		tsync_role = TRACECMD_TIME_SYNC_ROLE_HOST;
 		ret = tracecmd_msg_recv_trace_proxy(msg_handle, &argc, &argv,
 						    &use_fifos, &peer_trace_id,
 						    &tsync_protos,
@@ -197,8 +199,8 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 	if (ret < 0)
 		die("Failed to receive trace request");
 
-	tsync_proto = tracecmd_tsync_get_proto(tsync_protos,
-					       get_clock(argc, argv));
+	tsync_proto = tracecmd_tsync_get_proto(tsync_protos, get_clock(argc, argv),
+					       tsync_role);
 
 	if (use_fifos && open_agent_fifos(nr_cpus, fds))
 		use_fifos = false;
