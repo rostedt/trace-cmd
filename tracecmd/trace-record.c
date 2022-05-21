@@ -3630,7 +3630,7 @@ static int connect_ip(char *thost)
 	char *port;
 	char *p;
 
-	if (!strchr(host, ':')) {
+	if (!strchr(thost, ':')) {
 		server = strdup("localhost");
 		if (!server)
 			die("alloctating server");
@@ -3662,19 +3662,24 @@ static struct tracecmd_msg_handle *setup_network(struct buffer_instance *instanc
 {
 	struct tracecmd_msg_handle *msg_handle = NULL;
 	enum port_type type = instance->port_type;
+	char *thost = strdup(host);
 	int sfd;
 
+	if (!thost)
+		die("Failed to allocate host");
 again:
 	switch (type) {
 	case USE_VSOCK:
-		sfd = connect_vsock(host);
+		sfd = connect_vsock(thost);
 		break;
 	default:
-		sfd = connect_ip(host);
+		sfd = connect_ip(thost);
 	}
 
-	if (sfd < 0)
+	if (sfd < 0) {
+		free(thost);
 		return NULL;
+	}
 
 	if (msg_handle) {
 		msg_handle->fd = sfd;
@@ -3704,6 +3709,7 @@ again:
 			/* reconnect to the server for using the v1 protocol */
 			close(sfd);
 			free(host);
+			host = NULL;
 			goto again;
 		}
 		communicate_with_listener_v3(msg_handle, &instance->client_ports);
@@ -3712,6 +3718,7 @@ again:
 	if (msg_handle->version == V1_PROTOCOL)
 		communicate_with_listener_v1(msg_handle, instance);
 
+	free(thost);
 	return msg_handle;
 }
 
