@@ -3796,18 +3796,17 @@ setup_connection(struct buffer_instance *instance, struct common_record_context 
 		if (ret)
 			goto error;
 	} else {
+		/*
+		 * V3 can handle compression, but V1 can not.
+		 * Set the file version back to 6.
+		 */
+		ctx->file_version = FILE_VERSION_MIN;
+		ctx->compression = false;
 		network_handle = tracecmd_output_create_fd(msg_handle->fd);
 		if (!network_handle)
 			goto error;
 		if (tracecmd_output_set_version(network_handle, ctx->file_version))
 			goto error;
-
-		if (ctx->compression) {
-			if (tracecmd_output_set_compression(network_handle, ctx->compression))
-				goto error;
-		} else if (ctx->file_version >= FILE_VERSION_COMPRESSION) {
-			tracecmd_output_set_compression(network_handle, "any");
-		}
 
 		if (tracecmd_output_write_headers(network_handle, listed_events))
 			goto error;
