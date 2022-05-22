@@ -75,22 +75,22 @@ static int read_ll_from_file(char *file, long long *res)
 
 static bool kvm_scaling_check_vm_cpu(char *vname, char *cpu)
 {
-	long long scaling, frac;
 	bool has_scaling = false;
 	bool has_frac = false;
+	struct stat st;
 	char *path;
 	int ret;
 
 	if (asprintf(&path, "%s/%s/%s", vname, cpu, KVM_DEBUG_SCALING_FILE) < 0)
 		return false;
-	ret = read_ll_from_file(path, &scaling);
+	ret = stat(path, &st);
 	free(path);
 	if (!ret)
 		has_scaling = true;
 
 	if (asprintf(&path, "%s/%s/%s", vname, cpu, KVM_DEBUG_FRACTION_FILE) < 0)
 		return false;
-	ret = read_ll_from_file(path, &frac);
+	ret = stat(path, &st);
 	free(path);
 	if (!ret)
 		has_frac = true;
