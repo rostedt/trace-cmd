@@ -73,6 +73,11 @@ static int read_ll_from_file(char *file, long long *res)
 	return 0;
 }
 
+/*
+ * Returns true if both scaling and fraction exist or both do
+ * not exist. false if one exists without the other or if there
+ * is a memory error.
+ */
 static bool kvm_scaling_check_vm_cpu(char *vname, char *cpu)
 {
 	bool has_scaling = false;
@@ -101,46 +106,66 @@ static bool kvm_scaling_check_vm_cpu(char *vname, char *cpu)
 	return true;
 }
 
+/*
+ * Returns true if a VCPU exists with a tsc-offset file and that
+ * the scaling files for ratio and fraction both exist or both
+ * do not exist. False if there is no VM with a tsc-offset or
+ * there is only one of the two scaling files, or there's a
+ * memory issue.
+ */
 static bool kvm_scaling_check_vm(char *name)
 {
 	struct dirent *entry;
 	char *vdir;
 	DIR *dir;
+	bool valid = false;
 
 	if (asprintf(&vdir, "%s/%s", KVM_DEBUG_FS, name) < 0)
-		return true;
+		return false;
 
 	dir = opendir(vdir);
 	if (!dir) {
 		free(vdir);
-		return true;
+		return false;
 	}
 	while ((entry = readdir(dir))) {
-		if (entry->d_type == DT_DIR && !strncmp(entry->d_name, "vcpu", 4) &&
-		    !kvm_scaling_check_vm_cpu(vdir, entry->d_name))
-			break;
+		if (entry->d_type == DT_DIR && !strncmp(entry->d_name, "vcpu", 4)) {
+			if (!kvm_scaling_check_vm_cpu(vdir, entry->d_name))
+				break;
+			valid = true;
+		}
 	}
 
 	closedir(dir);
 	free(vdir);
-	return entry == NULL;
+	return valid && entry == NULL;
 }
+
+/*
+ * Returns true if all VMs have a tsc-offset file and that
+ * the scaling files for ratio and fraction both exist or both
+ * do not exist. False if a VM with a tsc-offset or there is only
+ * one of the two scaling files, or no VM exists or there's a memory issue.
+ */
 static bool kvm_scaling_check(void)
 {
 	struct dirent *entry;
 	DIR *dir;
+	bool valid = false;
 
 	dir = opendir(KVM_DEBUG_FS);
 	if (!dir)
 		return true;
 
 	while ((entry = readdir(dir))) {
-		if (entry->d_type == DT_DIR && isdigit(entry->d_name[0]) &&
-		    !kvm_scaling_check_vm(entry->d_name))
-			break;
+		if (entry->d_type == DT_DIR && isdigit(entry->d_name[0])) {
+			if (!kvm_scaling_check_vm(entry->d_name))
+				break;
+			valid = true;
+		}
 	}
 	closedir(dir);
-	return entry == NULL;
+	return valid && entry == NULL;
 }
 
 static bool kvm_support_check(bool guest)
@@ -148,6 +173,7 @@ static bool kvm_support_check(bool guest)
 	struct stat st;
 	int ret;
 
+	/* The kvm files are only in the host so we can ignore guests */
 	if (guest)
 		return true;
 
