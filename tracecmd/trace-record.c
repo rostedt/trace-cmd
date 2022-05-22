@@ -3905,7 +3905,11 @@ static void connect_to_agent(struct common_record_context *ctx,
 			die("Failed to connect to host %s:%u",
 			    instance->name, instance->port);
 	} else {
-		role = TRACECMD_TIME_SYNC_ROLE_HOST;
+		/* If connecting to a proxy, then this is the guest */
+		if (is_proxy(ctx->instance))
+			role = TRACECMD_TIME_SYNC_ROLE_GUEST;
+		else
+			role = TRACECMD_TIME_SYNC_ROLE_HOST;
 		sd = trace_vsock_open(instance->cid, instance->port);
 		if (sd < 0)
 			die("Failed to connect to vsocket @%u:%u",
