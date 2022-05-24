@@ -3849,15 +3849,28 @@ static int open_guest_fifos(const char *guest, int **fds)
 	return i;
 }
 
+static bool clock_is_supported(struct tracefs_instance *instance, const char *clock);
+
 static int host_tsync(struct common_record_context *ctx,
 		      struct buffer_instance *instance,
 		      unsigned int tsync_port, char *proto)
 {
+	struct buffer_instance *iter_instance;
 	int guest_id = -1;
 	int fd;
 
 	if (!proto)
 		return -1;
+
+	/* If connecting to a proxy, the clock may still need to be set */
+	if (strcmp(proto, "kvm") == 0 &&
+	    clock_is_supported(NULL, TSC_CLOCK)) {
+		ctx->clock = TSC_CLOCK;
+		for_all_instances(iter_instance) {
+			iter_instance->clock = TSC_CLOCK;
+			set_clock(ctx, iter_instance);
+		}
+	}
 
 	if (is_network(instance)) {
 		fd = connect_port(instance->name, tsync_port,
