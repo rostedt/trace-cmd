@@ -3483,6 +3483,8 @@ static int handle_options(struct tracecmd_input *handle)
 								 buf + 4, 4);
 			handle->tsc_calc.offset = tep_read_number(handle->pevent,
 								  buf + 8, 8);
+			if (!(handle->flags & TRACECMD_FL_RAW_TS))
+				handle->flags |= TRACECMD_FL_IN_USECS;
 			break;
 		case TRACECMD_OPTION_HEADER_INFO:
 		case TRACECMD_OPTION_FTRACE_EVENTS:
@@ -3864,6 +3866,10 @@ static void extract_trace_clock(struct tracecmd_input *handle, char *line)
 	/* Clear usecs if raw timestamps are requested */
 	if (handle->flags & TRACECMD_FL_RAW_TS)
 		handle->flags &= ~TRACECMD_FL_IN_USECS;
+
+	/* tsc_calc is a conversion to nanoseconds */
+	if (handle->tsc_calc.mult)
+		return;
 
 	/* Clear usecs if not one of the specified clocks */
 	if (strcmp(clock, "local") && strcmp(clock, "global") &&
