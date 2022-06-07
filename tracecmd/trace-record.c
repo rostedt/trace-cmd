@@ -195,6 +195,7 @@ struct common_record_context {
 	enum trace_cmd curr_cmd;
 	struct buffer_instance *instance;
 	const char *output;
+	const char *temp;
 	char *date2ts;
 	char *user;
 	const char *clock;
@@ -526,6 +527,23 @@ static char *get_temp_file(struct buffer_instance *instance, int cpu)
 	char *file = NULL;
 	int size;
 
+	if (instance->temp_dir) {
+		if (!instance->temp_file) {
+			const char *f = output_file + strlen(output_file) - 1;;
+			int ret;
+
+			for (; f > output_file && *f != '/'; f--)
+				;
+			if (*f == '/')
+				f++;
+			ret = asprintf(&instance->temp_file, "%s/%s",
+				       instance->temp_dir, f);
+			if (ret < 0)
+				die("Failed to create temp file");
+		}
+		output_file = instance->temp_file;
+	}
+
 	name = tracefs_instance_get_name(instance->tracefs);
 	if (name) {
 		size = snprintf(file, 0, "%s.%s.cpu%d", output_file, name, cpu);
@@ -570,9 +588,14 @@ static void put_temp_file(char *file)
 
 static void delete_temp_file(struct buffer_instance *instance, int cpu)
 {
-	const char *output_file = instance->output_file;
+	const char *output_file;
 	const char *name;
 	char file[PATH_MAX];
+
+	if (instance->temp_file)
+		output_file = instance->temp_file;
+	else
+		output_file = instance->output_file;
 
 	name = tracefs_instance_get_name(instance->tracefs);
 	if (name)
@@ -5714,7 +5737,8 @@ enum {
 	OPT_cmdlines_size	= 258,
 	OPT_poll		= 259,
 	OPT_name		= 260,
-	OPT_proxy		= 261
+	OPT_proxy		= 261,
+	OPT_temp		= 262
 };
 
 void trace_stop(int argc, char **argv)
@@ -6139,6 +6163,7 @@ static void parse_record_options(int argc,
 			{"compression", required_argument, NULL, OPT_compression},
 			{"file-version", required_argument, NULL, OPT_file_ver},
 			{"proxy", required_argument, NULL, OPT_proxy},
+			{"temp", required_argument, NULL, OPT_temp},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -6410,6 +6435,11 @@ static void parse_record_options(int argc,
 					close(fd);
 				}
 			}
+			break;
+		case OPT_temp:
+			if (ctx->temp)
+				die("Only one temp directory can be listed");
+			ctx->temp = optarg;
 			break;
 		case 'O':
 			check_instance_die(ctx->instance, "-O");
@@ -6873,6 +6903,8 @@ static void record_trace(int argc, char **argv,
 
 	/* Save the state of tracing_on before starting */
 	for_all_instances(instance) {
+		if (ctx->temp)
+			instance->temp_dir = ctx->temp;
 		instance->output_file = strdup(ctx->output);
 		if (!instance->output_file)
 			die("Failed to allocate output file name for instance");

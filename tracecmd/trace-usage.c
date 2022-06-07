@@ -53,6 +53,7 @@ static struct usage_help usage_help[] = {
 		"          -q print no output to the screen\n"
 		"          -G when profiling, set soft and hard irqs as global\n"
 		"          --quiet print no output to the screen\n"
+		"          --temp specify a directory to store the temp files used to create trace.dat\n"
 		"          --module filter module name\n"
 		"          --by-comm used with --profile, merge events for related comms\n"
 		"          --profile enable tracing options needed for report --profile\n"

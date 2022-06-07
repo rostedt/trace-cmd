@@ -344,6 +344,14 @@ OPTIONS
     any events (like sched_switch), unless they are specifically specified
     on the command line (i.e. -p function -e sched_switch -e sched_wakeup)
 
+*--temp* 'directory'::
+    When *trace-cmd* is recording the trace, it records the per CPU data into
+    a separate file for each CPU. At the end of the trace, these files are
+    concatenated onto the final trace.dat file. If the final file is on a network
+    file system, it may not be appropriate to copy these temp files into the
+    same location. *--temp* can be used to tell *trace-cmd* where those temp
+    files should be created.
+
 *--ts-offset offset*::
     Add an offset for the timestamp in the trace.dat file. This will add a
     offset option into the trace.dat file such that a trace-cmd report will

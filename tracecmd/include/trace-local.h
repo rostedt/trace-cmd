@@ -232,6 +232,8 @@ struct buffer_instance {
 	unsigned long long	trace_id;
 	char			*cpumask;
 	char			*output_file;
+	const char		*temp_dir;
+	char			*temp_file;
 	struct event_list	*events;
 	struct event_list	**event_next;
 	bool			delete;
