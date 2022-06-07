@@ -71,21 +71,24 @@ char *append_file(const char *dir, const char *name)
 
 static char *get_fd_content(int fd, const char *file)
 {
+	size_t total = 0;
+	size_t alloc;
 	char *str = NULL;
-	int cnt = 0;
 	int ret;
 
 	for (;;) {
-		str = realloc(str, BUFSIZ * ++cnt);
+		alloc = ((total + BUFSIZ) / BUFSIZ) * BUFSIZ;
+		str = realloc(str, alloc + 1);
 		if (!str)
 			die("malloc");
-		ret = read(fd, str + BUFSIZ * (cnt - 1), BUFSIZ);
+		ret = read(fd, str + total, alloc - total);
 		if (ret < 0)
 			die("reading %s\n", file);
-		if (ret < BUFSIZ)
+		total += ret;
+		if (!ret)
 			break;
 	}
-	str[BUFSIZ * (cnt-1) + ret] = 0;
+	str[total] = 0;
 
 	return str;
 }
