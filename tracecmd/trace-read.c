@@ -157,7 +157,8 @@ static void print_event_name(struct trace_seq *s, struct tep_event *event)
 
 enum time_fmt {
 	TIME_FMT_LAT		= 1,
-	TIME_FMT_NORMAL		= 2,
+	TIME_FMT_NORMAL,
+	TIME_FMT_TS,
 };
 
 static const char *time_format(struct tracecmd_input *handle, enum time_fmt tf)
@@ -172,11 +173,11 @@ static const char *time_format(struct tracecmd_input *handle, enum time_fmt tf)
 	default:
 		if (tracecmd_get_flags(handle) & TRACECMD_FL_IN_USECS) {
 			if (tep_test_flag(tep, TEP_NSEC_OUTPUT))
-				return " %9.1d:";
+				return tf == TIME_FMT_NORMAL ? " %9.1d:" : "%9.1d";
 			else
-				return " %6.1000d:";
+				return tf == TIME_FMT_NORMAL ? " %6.1000d:" : "%6.1000d";
 		} else
-			return "%12d:";
+			return tf == TIME_FMT_NORMAL ? "%12d:" : "%12d";
 	}
 }
 
@@ -1507,6 +1508,19 @@ static void set_event_flags(struct tep_handle *pevent, struct event_str *list,
 	}
 }
 
+static void show_event_ts(struct tracecmd_input *handle,
+			  struct tep_record *record)
+{
+	const char *tfmt = time_format(handle, TIME_FMT_TS);
+	struct tep_handle *tep = tracecmd_get_tep(handle);
+	struct trace_seq s;
+
+	trace_seq_init(&s);
+	tep_print_event(tep, &s, record, tfmt, TEP_PRINT_TIME);
+	printf("%s", s.buffer);
+	trace_seq_destroy(&s);
+}
+
 static void add_hook(const char *arg)
 {
 	struct hook_list *hook;
@@ -1543,6 +1557,8 @@ enum {
 	OPT_events	= 254,
 	OPT_cpu		= 255,
 	OPT_cpus	= 256,
+	OPT_first	= 257,
+	OPT_last	= 258,
 };
 
 void trace_report (int argc, char **argv)
@@ -1571,6 +1587,8 @@ void trace_report (int argc, char **argv)
 	int show_version = 0;
 	int show_events = 0;
 	int show_cpus = 0;
+	int show_first = 0;
+	int show_last = 0;
 	int print_events = 0;
 	int nanosec = 0;
 	int no_date = 0;
@@ -1601,6 +1619,7 @@ void trace_report (int argc, char **argv)
 			{"events", no_argument, NULL, OPT_events},
 			{"event", required_argument, NULL, OPT_event},
 			{"filter-test", no_argument, NULL, 'T'},
+			{"first-event", no_argument, NULL, OPT_first},
 			{"kallsyms", required_argument, NULL, OPT_kallsyms},
 			{"pid", required_argument, NULL, OPT_pid},
 			{"comm", required_argument, NULL, OPT_comm},
@@ -1610,6 +1629,7 @@ void trace_report (int argc, char **argv)
 			{"stat", no_argument, NULL, OPT_stat},
 			{"boundary", no_argument, NULL, OPT_boundary},
 			{"debug", no_argument, NULL, OPT_debug},
+			{"last-event", no_argument, NULL, OPT_last},
 			{"profile", no_argument, NULL, OPT_profile},
 			{"uname", no_argument, NULL, OPT_uname},
 			{"version", no_argument, NULL, OPT_version},
@@ -1753,6 +1773,14 @@ void trace_report (int argc, char **argv)
 			break;
 		case OPT_stat:
 			show_stat = 1;
+			break;
+		case OPT_first:
+			show_first = 1;
+			show_cpus = 1;
+			break;
+		case OPT_last:
+			show_last = 1;
+			show_cpus = 1;
 			break;
 		case OPT_boundary:
 			/* Debug to look at buffer breaks */
@@ -1923,6 +1951,7 @@ void trace_report (int argc, char **argv)
 		}
 
 		if (show_cpus) {
+			struct tep_record *record;
 			int cpus;
 			int ret;
 			int i;
@@ -1935,8 +1964,23 @@ void trace_report (int argc, char **argv)
 			cpus = tracecmd_cpus(handle);
 			printf("List of CPUs in %s with data:\n", inputs->file);
 			for (i = 0; i < cpus; i++) {
-				if (tracecmd_read_cpu_first(handle, i))
-					printf("  %d\n", i);
+				if ((record = tracecmd_read_cpu_first(handle, i))) {
+					printf("  %d", i);
+					if (show_first) {
+						printf("\tFirst event:");
+						show_event_ts(handle, record);
+					}
+					if (show_last) {
+						tracecmd_free_record(record);
+						record = tracecmd_read_cpu_last(handle, i);
+						if (record) {
+							printf("\tLast event:");
+							show_event_ts(handle, record);
+						}
+					}
+					tracecmd_free_record(record);
+					printf("\n");
+				}
 			}
 			continue;
 		}
