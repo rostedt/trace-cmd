@@ -221,13 +221,38 @@ OPTIONS
       <idle>-0       0d.h1. 106467.859747: function:             ktime_get <-- tick_check_idle
 ----
 
-    The 0d.h1. denotes this information. The first character is never a '.'
-    and represents what CPU the trace was recorded on (CPU 0). The 'd' denotes
-    that interrupts were disabled. The 'h' means that this was called inside
-    an interrupt handler. The '1' is the preemption disabled (preempt_count)
-    was set to one.  The two '.'s are "need_resched" flag and kernel lock
-    counter.  If the "need_resched" flag is set, then that character would be a
-    'N'.
+    The 0d.h1. denotes this information.
+
+    It starts with a number. This represents the CPU number that the event occurred
+    on.
+
+    The second character is one of the following:
+
+	'd' - Interrupts are disabled
+	'.' - Interrupts are enabled
+	'X' - Has flags that are not yet known by trace-cmd
+
+    The third character is the "need rescheduling" flag.
+
+	'N' - A schedule is set to take place
+	'.' - No scheduling is set
+
+    The fourth character represents the context the event was in when it triggered
+
+	'h' - Hard interrupt context
+	's' - Soft interrupt context
+	'H' - Hard interrupt context that interrupted a soft interrupt
+	'.' - Normal context
+
+    The next is a number (should be less than 10), that represents the preemption
+    depth (the number of times preempt_disable() is called without preempt_enable()).
+    '.' means preemption is enabled.
+
+    On some systems, "migrate disable" may exist, in which case a number will be
+    shown for that, or '.' meaning migration is enabled.
+
+    If lockdep in enabled on the system, then the number represents the depth of
+    locks that are held when the event triggered. '.' means no locks are held.
 
 *-w*::
     If both the 'sched_switch' and 'sched_wakeup' events are enabled, then
