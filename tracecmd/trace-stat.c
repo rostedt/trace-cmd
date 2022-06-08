@@ -860,6 +860,7 @@ static void stat_instance(struct buffer_instance *instance, bool opt)
 	report_kprobes(instance);
 	report_uprobes(instance);
 	report_file(instance, "set_event_pid", "", "Filtered event PIDs:\n");
+	report_file(instance, "set_event_notrace_pid", "", "Filtered notrace event PIDs:\n");
 	report_file(instance, "set_ftrace_pid", "no pid",
 		    "Filtered function tracer PIDs:\n");
 	if (opt) {
