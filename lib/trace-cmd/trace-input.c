@@ -1285,7 +1285,7 @@ static int chunk_cmp(const void *A, const void *B)
 	if (CHUNK_CHECK_OFFSET(b, a->offset))
 		return 0;
 
-	if (b->offset < a->offset)
+	if (a->offset < b->offset)
 		return -1;
 
 	return 1;
