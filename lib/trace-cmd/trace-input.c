@@ -2699,13 +2699,14 @@ static int init_cpu_zpage(struct tracecmd_input *handle, int cpu)
 	cpu_data->compress.last_chunk = 0;
 
 	cpu_data->file_offset = handle->next_offset;
+	cpu_data->file_size = 0;
 
 	for (i = 0; i < count; i++)
 		cpu_data->file_size += cpu_data->compress.chunks[i].size;
 
 	cpu_data->offset = cpu_data->file_offset;
 	cpu_data->size = cpu_data->file_size;
-	handle->next_offset = (handle->next_offset + cpu_data->size + handle->page_size - 1) &
+	handle->next_offset = (handle->next_offset + cpu_data->file_size + handle->page_size - 1) &
 		~(handle->page_size - 1);
 	return 0;
 }
