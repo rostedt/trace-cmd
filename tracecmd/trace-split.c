@@ -40,6 +40,7 @@ enum split_types {
 struct cpu_data {
 	unsigned long long		ts;
 	unsigned long long		offset;
+	unsigned long long		missed_events;
 	struct tep_record		*record;
 	int				cpu;
 	int				fd;
@@ -137,18 +138,37 @@ static int write_record(struct tracecmd_input *handle,
 	return 1;
 }
 
+#define MISSING_EVENTS (1UL << 31)
+#define MISSING_STORED (1UL << 30)
+
+#define COMMIT_MASK ((1 << 27) - 1)
+
 static void write_page(struct tep_handle *pevent,
 		       struct cpu_data *cpu_data, int long_size)
 {
+	unsigned long long *ptr = NULL;
+	unsigned int flags = 0;
+
+	if (cpu_data->missed_events) {
+		flags |= MISSING_EVENTS;
+		if (cpu_data->missed_events > 0) {
+			flags |= MISSING_STORED;
+			ptr = cpu_data->page + cpu_data->index;
+		}
+	}
+
 	if (long_size == 8) {
-		unsigned long long index = cpu_data->index - 16;
+		unsigned long long index = cpu_data->index - 16 + flags;;
 		*(unsigned long long *)cpu_data->commit =
 				tep_read_number(pevent, &index, 8);
 	} else {
-		unsigned int index = cpu_data->index - 12;
+		unsigned int index = cpu_data->index - 12 + flags;;
 		*(unsigned int *)cpu_data->commit =
 			tep_read_number(pevent, &index, 4);
 	}
+	if (ptr)
+		*ptr = tep_read_number(pevent, &cpu_data->missed_events, 8);
+
 	write(cpu_data->fd, cpu_data->page, page_size);
 }
 
@@ -224,7 +244,8 @@ static int parse_cpu(struct tracecmd_input *handle,
 		start = record->ts;
 
 	while (record && (!end || record->ts <= end)) {
-		if (cpu_data[cpu].index + record->record_size > page_size) {
+		if ((cpu_data[cpu].index + record->record_size > page_size) ||
+		    record->missed_events) {
 
 			if (type == SPLIT_PAGES && ++pages > count_limit)
 				break;
@@ -236,6 +257,8 @@ static int parse_cpu(struct tracecmd_input *handle,
 				if (!cpu_data[cpu].page)
 					die("Failed to allocate page");
 			}
+
+			cpu_data[cpu].missed_events = record->missed_events;
 
 			memset(cpu_data[cpu].page, 0, page_size);
 			ptr = cpu_data[cpu].page;
