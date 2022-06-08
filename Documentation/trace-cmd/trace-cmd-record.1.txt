@@ -77,9 +77,10 @@ OPTIONS
     may depend on what version of the kernel you have. Basically, it will
     let you use C notation to check if an event should be processed or not.
 
-----------------------------------------
+[source,bison]
+----
     ==, >=, <=, >, <, &, |, && and ||
-----------------------------------------
+----
 
     The above are usually safe to use to compare fields.
 
@@ -408,22 +409,22 @@ EXAMPLES
 
 The basic way to trace all events:
 
-------------------------------
+[source,shell]
+----
  # trace-cmd record -e all ls > /dev/null
  # trace-cmd report
        trace-cmd-13541 [003] 106260.693809: filemap_fault: address=0x128122 offset=0xce
        trace-cmd-13543 [001] 106260.693809: kmalloc: call_site=81128dd4 ptr=0xffff88003dd83800 bytes_req=768 bytes_alloc=1024 gfp_flags=GFP_KERNEL|GFP_ZERO
               ls-13545 [002] 106260.693809: kfree: call_site=810a7abb ptr=0x0
               ls-13545 [002] 106260.693818: sys_exit_write:       0x1
-
-
-------------------------------
+----
 
 
 
 To use the function tracer with sched switch tracing:
 
-------------------------------
+[source,shell]
+----
  # trace-cmd record -p function -e sched_switch ls > /dev/null
  # trace-cmd report
               ls-13587 [002] 106467.860310: function: hrtick_start_fair <-- pick_next_task_fair
@@ -434,12 +435,11 @@ To use the function tracer with sched switch tracing:
        trace-cmd-13585 [001] 106467.860318: function: _raw_spin_unlock <-- __do_fault
               ls-13587 [002] 106467.860320: function: native_load_sp0 <-- __switch_to
        trace-cmd-13586 [003] 106467.860322: function: down_read_trylock <-- do_page_fault
-
-
-------------------------------
+----
 
 Here is a nice way to find what interrupts have the highest latency:
-------------------------------------------
+[source,shell]
+----
  # trace-cmd record -p function_graph -e irq_handler_entry  -l do_IRQ sleep 10
  # trace-cmd report
           <idle>-0     [000] 157412.933969: funcgraph_entry:                  |  do_IRQ() {
@@ -457,12 +457,11 @@ Here is a nice way to find what interrupts have the highest latency:
           <idle>-0     [000] 157417.888373: funcgraph_entry:                  |  do_IRQ() {
           <idle>-0     [000] 157417.888381: irq_handler_entry:    irq=48 name=eth0
           <idle>-0     [000] 157417.888398: funcgraph_exit:       + 25.943 us |  }
-
-
-------------------------------------------
+----
 
 An example of the profile:
-------------------------------------------
+[source,shell]
+----
  # trace-cmd record --profile sleep 1
  # trace-cmd report --profile --comm sleep
 task: sleep-21611
@@ -496,7 +495,7 @@ task: sleep-21611
        => ttwu_do_wakeup (0xffffffff810606eb)
        => ttwu_do_activate.constprop.124 (0xffffffff810607c8)
        => try_to_wake_up (0xffffffff8106340a)
-------------------------------------------
+----
 
 SEE ALSO
 --------

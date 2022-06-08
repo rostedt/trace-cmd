@@ -65,6 +65,8 @@ OPTIONS
 EXAMPLES
 --------
 
+[source,shell]
+----
 # trace-cmd dump --summary -i trace.dat
 
  Tracing meta data in file trace.dat:
@@ -83,8 +85,10 @@ EXAMPLES
 	8 [CPUs with tracing data]
 	[12 options]
 	[Flyrecord tracing data]
-------------------------------------------
+----
 
+[source,shell]
+----
 # trace-cmd dump --flyrecord -i trace.dat
 	[Flyrecord tracing data]
 		 7176192 0	[offset, size of cpu 0]
@@ -95,8 +99,10 @@ EXAMPLES
 		 7184384 0	[offset, size of cpu 5]
 		 7184384 0	[offset, size of cpu 6]
 		 7184384 0	[offset, size of cpu 7]
-------------------------------------------
+----
 
+[source,shell]
+----
 # trace-cmd dump --summary --systems -i trace.dat
 
  Tracing meta data in file trace.dat:
@@ -118,11 +124,14 @@ EXAMPLES
 	8 [CPUs with tracing data]
 	[11 options]
 	[Flyrecord tracing data]
-------------------------------------------
+----
 
+[source,shell]
+----
 # trace-cmd dump --summary --systems -i trace.dat
 File trace.dat is a valid trace-cmd file
-------------------------------------------
+----
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd.dat(1)

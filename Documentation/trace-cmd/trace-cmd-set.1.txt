@@ -62,9 +62,10 @@ OPTIONS
     may depend on what version of the kernel you have. Basically, it will
     let you use C notation to check if an event should be processed or not.
 
-----------------------------------------
+[source,bison]
+----
     ==, >=, <=, >, <, &, |, && and ||
-----------------------------------------
+----
 
     The above are usually safe to use to compare fields.
 
@@ -242,15 +243,17 @@ EXAMPLES
 
 Enable all events for tracing:
 
-------------------------------
+[source,shell]
+----
  # trace-cmd set -e all
-------------------------------
+----
 
 Set the function tracer:
 
-------------------------------
+[source,shell]
+----
  # trace-cmd set -p function
-------------------------------
+----
 
 
 SEE ALSO
