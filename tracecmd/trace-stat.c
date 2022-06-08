@@ -863,6 +863,8 @@ static void stat_instance(struct buffer_instance *instance, bool opt)
 	report_file(instance, "set_event_notrace_pid", "", "Filtered notrace event PIDs:\n");
 	report_file(instance, "set_ftrace_pid", "no pid",
 		    "Filtered function tracer PIDs:\n");
+	report_file(instance, "set_ftrace_notrace_pid", "no pid",
+		    "Filtered function tracer notrace PIDs:\n");
 	if (opt) {
 		printf("\nOptions:\n");
 		show_options("   ", instance);
