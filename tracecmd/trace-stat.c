@@ -818,6 +818,11 @@ static void report_uprobes(struct buffer_instance *instance)
 	report_probes(instance, "uprobe_events", "Uprobe events");
 }
 
+static void report_synthetic(struct buffer_instance *instance)
+{
+	report_probes(instance, "synthetic_events", "Synthetic events");
+}
+
 static void report_traceon(struct buffer_instance *instance)
 {
 	char *str;
@@ -859,6 +864,7 @@ static void stat_instance(struct buffer_instance *instance, bool opt)
 	report_file(instance, "tracing_max_latency", "0", "Max Latency: ");
 	report_kprobes(instance);
 	report_uprobes(instance);
+	report_synthetic(instance);
 	report_file(instance, "set_event_pid", "", "Filtered event PIDs:\n");
 	report_file(instance, "set_event_notrace_pid", "", "Filtered notrace event PIDs:\n");
 	report_file(instance, "set_ftrace_pid", "no pid",
