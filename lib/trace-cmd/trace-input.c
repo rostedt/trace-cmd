@@ -5382,12 +5382,14 @@ static int copy_trace_data_from_v6(struct tracecmd_input *in_handle,
 static int copy_trace_data_from_v7(struct tracecmd_input *in_handle,
 				   struct tracecmd_output *out_handle)
 {
-	int ret = 0;
+	int ret;
 	int i;
 
 	/* Force using temporary files for trace data decompression */
 	in_handle->read_zpage = false;
-	tracecmd_init_data(in_handle);
+	ret = tracecmd_init_data(in_handle);
+	if (ret < 0)
+		return ret;
 	tracecmd_set_out_clock(out_handle, in_handle->trace_clock);
 
 	/* copy top buffer */
