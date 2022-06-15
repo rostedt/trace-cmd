@@ -1401,8 +1401,11 @@ static void *allocate_page_map(struct tracecmd_input *handle,
 	int ret;
 	int fd;
 
-	if (handle->cpu_compressed && handle->read_zpage)
-		return read_zpage(handle, cpu, offset);
+	if (handle->cpu_compressed) {
+		if (handle->read_zpage)
+			return read_zpage(handle, cpu, offset);
+		offset -= cpu_data->file_offset;
+	}
 
 	if (handle->read_page) {
 		map = malloc(handle->page_size);
@@ -1419,7 +1422,7 @@ static void *allocate_page_map(struct tracecmd_input *handle,
 	map_size = handle->page_map_size;
 	map_offset = offset & ~(map_size - 1);
 
-	if (map_offset < cpu_data->file_offset) {
+	if (!handle->cpu_compressed && map_offset < cpu_data->file_offset) {
 		map_size -= cpu_data->file_offset - map_offset;
 		map_offset = cpu_data->file_offset;
 	}
@@ -1442,10 +1445,9 @@ static void *allocate_page_map(struct tracecmd_input *handle,
 		map_size -= map_offset + map_size -
 			(cpu_data->file_offset + cpu_data->file_size);
 
-	if (cpu_data->compress.fd >= 0) {
-		map_offset -= cpu_data->file_offset;
+	if (cpu_data->compress.fd >= 0)
 		fd = cpu_data->compress.fd;
-	} else
+	else
 		fd = handle->fd;
  again:
 	page_map->size = map_size;
