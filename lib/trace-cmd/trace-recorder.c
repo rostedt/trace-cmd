@@ -220,6 +220,41 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 	return NULL;
 }
 
+static void verify_splice(const char *file, unsigned *flags)
+{
+	int brass[2];
+	int ret;
+	int fd;
+
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+	if (fd < 0)
+		return; /* Will fail by the caller too */
+
+	if (pipe(brass) < 0)
+		goto fail_pipe;
+
+	ret = splice(brass[0], NULL, fd, NULL, 0, SPLICE_F_NONBLOCK);
+	if (ret < 0)
+		goto fail_splice;
+
+ out_pipe:
+	close(brass[0]);
+	close(brass[1]);
+ out:
+	close(fd);
+	return;
+
+ fail_pipe:
+	tracecmd_warning("Failed opening pipe, trying read/write");
+	*flags |= TRACECMD_RECORD_NOSPLICE;
+	goto out;
+
+ fail_splice:
+	tracecmd_warning("Failed splice to file, trying read/write");
+	*flags |= TRACECMD_RECORD_NOSPLICE;
+	goto out_pipe;
+}
+
 struct tracecmd_recorder *
 tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, const char *buffer)
 {
@@ -232,6 +267,9 @@ __tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags,
 {
 	struct tracecmd_recorder *recorder;
 	int fd;
+
+	if (!(flags & TRACECMD_RECORD_NOSPLICE))
+		verify_splice(file, &flags);
 
 	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 	if (fd < 0)
