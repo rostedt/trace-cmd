@@ -8,7 +8,7 @@ TARGETS = $(bdir)/trace-utest
 
 OBJS =
 OBJS += trace-utest.o
-OBJS += tracefs-utest.o
+OBJS += tracecmd-utest.o
 
 LIBS += -lcunit $(LIBTRACEEVENT_LDLAGS) $(LIBTRACEFS_LDLAGS)
 
