@@ -6,6 +6,8 @@
 #ifndef _TRACE_UTEST_H_
 #define _TRACE_UTEST_H_
 
-void test_tracefs_lib(void);
+extern const char *argv0;
+
+void test_tracecmd_lib(void);
 
 #endif /* _TRACE_UTEST_H_ */

@@ -442,7 +442,7 @@ gui: force
 	@echo "  Please use its new home at https://git.kernel.org/pub/scm/utils/trace-cmd/kernel-shark.git/"
 	@echo "***************************"
 
-test: force $(LIBTRACECMD_STATIC)
+test: force trace-cmd
 ifneq ($(CUNIT_INSTALLED),1)
 	$(error CUnit framework not installed, cannot build unit tests))
 endif
