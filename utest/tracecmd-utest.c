@@ -5,27 +5,101 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
+
+#include <tracefs.h>
 
 #include "trace-utest.h"
 
 static char tracecmd_exec[PATH_MAX];
 
 #define TRACECMD_SUITE		"trace-cmd"
+#define TRACECMD_FILE		"__trace_test__.dat"
+#define TRACECMD_OUT		"-o", TRACECMD_FILE
+#define TRACECMD_IN		"-i", TRACECMD_FILE
+
+static void silent_output(void)
+{
+	close(STDOUT_FILENO);
+	open("/dev/null", O_WRONLY);
+	close(STDERR_FILENO);
+	open("/dev/null", O_WRONLY);
+}
+
+static int run_trace(const char *cmd, ...)
+{
+	const char *param;
+	va_list ap;
+	char **tmp;
+	char **argv;
+	int status;
+	int ret = -1;
+	pid_t pid;
+
+	argv = tracefs_list_add(NULL, tracecmd_exec);
+	if (!argv)
+		return -1;
+
+	tmp = tracefs_list_add(argv, cmd);
+	if (!tmp)
+		goto out;
+	argv = tmp;
+
+	va_start(ap, cmd);
+	for (param = va_arg(ap, const char *);
+	     param; param = va_arg(ap, const char *)) {
+		tmp = tracefs_list_add(argv, param);
+		if (!tmp)
+			goto out;
+		argv = tmp;
+	}
+	va_end(ap);
+
+	pid = fork();
+	if (pid < 0)
+		goto out;
+	if (!pid) {
+		if (!show_output)
+			silent_output();
+		ret = execvp(tracecmd_exec, argv);
+		exit (ret);
+	}
+
+	ret = waitpid(pid, &status, 0);
+	if (ret != pid) {
+		ret = -1;
+		goto out;
+	}
+
+	ret = WEXIT_STATUS(status);
+ out:
+	tracefs_list_free(argv);
+	return ret;
+}
 
 static void test_trace_record_report(void)
 {
+	int ret;
+
+	ret = run_trace("record", TRACECMD_OUT, "-e", "sched", "sleep", "1", NULL);
+	CU_TEST(ret == 0);
+	ret = run_trace("report", TRACECMD_IN, NULL);
+	CU_TEST(ret == 0);
 }
 
 static int test_suite_destroy(void)
 {
+	unlink(TRACECMD_FILE);
 	return 0;
 }
 

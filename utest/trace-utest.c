@@ -14,6 +14,7 @@
 #include "trace-utest.h"
 
 const char *argv0;
+bool show_output;
 
 enum unit_tests {
 	RUN_NONE	= 0,
@@ -41,10 +42,11 @@ int main(int argc, char **argv)
 	for (;;) {
 		int c;
 		int index = 0;
-		const char *opts = "+hsr:";
+		const char *opts = "+hsr:v";
 		static struct option long_options[] = {
 			{"silent", no_argument, NULL, 's'},
 			{"run", required_argument, NULL, 'r'},
+			{"verbose", no_argument, NULL, 'v'},
 			{"help", no_argument, NULL, 'h'},
 			{NULL, 0, NULL, 0}
 		};
@@ -61,6 +63,9 @@ int main(int argc, char **argv)
 			break;
 		case 's':
 			verbose = CU_BRM_SILENT;
+			break;
+		case 'v':
+			show_output = true;
 			break;
 		case 'h':
 		default:
