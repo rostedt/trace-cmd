@@ -71,7 +71,7 @@ FORMAT OF THE SECTION HEADER
   <2 bytes> unsigned short integer, section flags:
     1 = the section is compressed.
   <4 bytes> ID of a string, description of the section.
-  <4 bytes> unsigned integer, size of the section in the file.
+  <8 bytes> long long unsigned integer, size of the section in the file.
 
   If the section is compressed, the above is the compressed size.
   The section must be uncompressed on reading. The described format of
