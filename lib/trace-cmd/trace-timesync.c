@@ -382,8 +382,7 @@ clock_synch_delete_instance(struct tracefs_instance *inst)
 	tracefs_instance_free(inst);
 }
 
-static int clock_context_init(struct tracecmd_time_sync *tsync,
-			      struct tsync_proto **proto, bool guest)
+static int clock_context_init(struct tracecmd_time_sync *tsync, bool guest)
 {
 	struct clock_sync_context *clock = NULL;
 	struct tsync_proto *protocol;
@@ -417,7 +416,7 @@ static int clock_context_init(struct tracecmd_time_sync *tsync,
 	if (protocol->clock_sync_init && protocol->clock_sync_init(tsync) < 0)
 		goto error;
 
-	*proto = protocol;
+	tsync->proto = protocol;
 
 	return 0;
 error:
@@ -539,9 +538,9 @@ static void restore_pin_to_cpu(cpu_set_t *mask)
 	CPU_FREE(mask);
 }
 
-static int tsync_send(struct tracecmd_time_sync *tsync,
-		      struct tsync_proto *proto, unsigned int cpu)
+static int tsync_send(struct tracecmd_time_sync *tsync, unsigned int cpu)
 {
+	struct tsync_proto *proto = tsync->proto;
 	cpu_set_t *old_set = NULL;
 	long long timestamp = 0;
 	long long scaling = 0;
@@ -561,15 +560,10 @@ static void tsync_with_host(struct tracecmd_time_sync *tsync)
 {
 	char protocol[TRACECMD_TSYNC_PNAME_LENGTH];
 	struct tsync_probe_request_msg probe;
-	struct tsync_proto *proto;
 	unsigned int command;
 	unsigned int size;
 	char *msg;
 	int ret;
-
-	clock_context_init(tsync, &proto, true);
-	if (!tsync->context)
-		return;
 
 	msg = (char *)&probe;
 	size = sizeof(probe);
@@ -582,7 +576,7 @@ static void tsync_with_host(struct tracecmd_time_sync *tsync)
 		if (ret || strncmp(protocol, TRACECMD_TSYNC_PROTO_NONE, TRACECMD_TSYNC_PNAME_LENGTH) ||
 		    command != TRACECMD_TIME_SYNC_CMD_PROBE)
 			break;
-		ret = tsync_send(tsync, proto, probe.cpu);
+		ret = tsync_send(tsync, probe.cpu);
 		if (ret)
 			break;
 	}
@@ -630,8 +624,9 @@ static int record_sync_sample(struct clock_sync_offsets *offsets, int array_step
 }
 
 static int tsync_get_sample(struct tracecmd_time_sync *tsync, unsigned int cpu,
-			    struct tsync_proto *proto, int array_step)
+			    int array_step)
 {
+	struct tsync_proto *proto = tsync->proto;
 	struct clock_sync_context *clock;
 	long long timestamp = 0;
 	long long scaling = 0;
@@ -672,18 +667,11 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 {
 	struct tsync_probe_request_msg probe;
 	int ts_array_size = CLOCK_TS_ARRAY;
-	struct tsync_proto *proto;
 	struct timespec timeout;
 	bool first = true;
 	bool end = false;
 	int ret;
 	int i;
-
-	clock_context_init(tsync, &proto, false);
-	if (!tsync->context) {
-		pthread_barrier_wait(&tsync->first_sync);
-		return -1;
-	}
 
 	if (tsync->loop_interval > 0 &&
 	    tsync->loop_interval < (CLOCK_TS_ARRAY * 1000))
@@ -697,7 +685,7 @@ static int tsync_with_guest(struct tracecmd_time_sync *tsync)
 							  TRACECMD_TSYNC_PROTO_NONE,
 							  TRACECMD_TIME_SYNC_CMD_PROBE,
 							  sizeof(probe), (char *)&probe);
-			ret = tsync_get_sample(tsync, i, proto, ts_array_size);
+			ret = tsync_get_sample(tsync, i, ts_array_size);
 			if (ret)
 				break;
 		}
@@ -792,6 +780,10 @@ tracecmd_tsync_with_guest(unsigned long long trace_id, int loop_interval,
 	pthread_barrier_init(&tsync->first_sync, NULL, 2);
 	pthread_attr_init(&attrib);
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
+
+	clock_context_init(tsync, false);
+	if (!tsync->context)
+		goto error;
 
 	ret = pthread_create(&tsync->thread, &attrib, tsync_host_thread, tsync);
 	if (ret)
@@ -982,6 +974,10 @@ tracecmd_tsync_with_host(int fd, const char *proto, const char *clock,
 	pthread_attr_init(&attrib);
 	tsync->vcpu_count = tracecmd_count_cpus();
 	pthread_attr_setdetachstate(&attrib, PTHREAD_CREATE_JOINABLE);
+
+	clock_context_init(tsync, true);
+	if (!tsync->context)
+		goto error;
 
 	ret = pthread_create(&tsync->thread, &attrib, tsync_agent_thread, tsync);
 	if (ret) {

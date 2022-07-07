@@ -8,6 +8,8 @@
 
 #include <stdbool.h>
 
+struct tsync_proto;
+
 struct tracecmd_time_sync {
 	pthread_t			thread;
 	bool				thread_running;
@@ -19,6 +21,7 @@ struct tracecmd_time_sync {
 	pthread_barrier_t		first_sync;
 	char				*clock_str;
 	struct tracecmd_msg_handle	*msg_handle;
+	struct tsync_proto		*proto;
 	void				*context;
 	int				guest_pid;
 	int				vcpu_count;
