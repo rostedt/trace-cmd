@@ -835,7 +835,7 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 	int i, j;
 	int ret = -1;
 
-	if (!tsync->vcpu_count)
+	if (!tsync || !tsync->vcpu_count)
 		return -1;
 	vcount = 3 + (5 * tsync->vcpu_count);
 	vector = calloc(vcount, sizeof(struct iovec));
