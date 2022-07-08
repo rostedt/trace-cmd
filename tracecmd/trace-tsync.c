@@ -16,14 +16,105 @@ struct trace_mapping {
 	struct tep_format_field		*common_pid;
 	int				*pids;
 	int				*map;
+	int				*vcpu;
 	int				max_cpus;
 };
+
+static int cmp_tmap_vcpu(const void *A, const void *B)
+{
+	const int *a = A;
+	const int *b = B;
+
+	if (*a < *b)
+		return -1;
+	return *a > *b;
+}
+
+static int map_kvm_vcpus(int guest_pid, struct trace_mapping *tmap)
+{
+	struct dirent *entry;
+	const char *debugfs;
+	char *vm_dir_str = NULL;
+	char *pid_file = NULL;
+	char *kvm_dir;
+	int pid_file_len;
+	bool found = false;
+	DIR *dir;
+	int ret = -1;
+	int i;
+
+	tmap->vcpu = malloc(sizeof(*tmap->vcpu) * tmap->max_cpus);
+	if (!tmap->vcpu)
+		return -1;
+
+	memset(tmap->vcpu, -1, sizeof(*tmap->vcpu) * tmap->max_cpus);
+
+	debugfs = tracefs_debug_dir();
+	if (!debugfs)
+		return -1;
+
+	if (asprintf(&kvm_dir, "%s/kvm", debugfs) < 0)
+		return -1;
+
+	dir = opendir(kvm_dir);
+	if (!dir)
+		goto out;
+
+	if (asprintf(&pid_file, "%d-", guest_pid) <= 0)
+		goto out;
+
+	pid_file_len = strlen(pid_file);
+
+	while ((entry = readdir(dir))) {
+		if (entry->d_type != DT_DIR ||
+		    strncmp(entry->d_name, pid_file, pid_file_len) != 0)
+			continue;
+		if (asprintf(&vm_dir_str, "%s/%s", kvm_dir, entry->d_name) < 0)
+			goto out;
+		found = true;
+		break;
+	}
+	if (!found)
+		goto out;
+
+	closedir(dir);
+	dir = opendir(vm_dir_str);
+	if (!dir)
+		goto out;
+	i = 0;
+	while ((entry = readdir(dir))) {
+		if (entry->d_type != DT_DIR ||
+		    strncmp(entry->d_name, "vcpu", 4))
+			continue;
+		if (i == tmap->max_cpus)
+			goto out;
+		tmap->vcpu[i] = strtol(entry->d_name + 4, NULL, 10);
+		i++;
+	}
+
+	if (i < tmap->max_cpus)
+		goto out;
+
+	qsort(tmap->vcpu, tmap->max_cpus, sizeof(*tmap->vcpu), cmp_tmap_vcpu);
+
+	ret = 0;
+
+ out:
+	if (dir)
+		closedir(dir);
+	free(vm_dir_str);
+	free(pid_file);
+	free(kvm_dir);
+
+	return ret;
+}
 
 static int map_vcpus(struct tep_event *event, struct tep_record *record,
 		     int cpu, void *context)
 {
 	struct trace_mapping *tmap = context;
 	unsigned long long val;
+	int *vcpu;
 	int type;
 	int pid;
 	int ret;
@@ -53,9 +144,12 @@ static int map_vcpus(struct tep_event *event, struct tep_record *record,
 
 	cpu = (int)val;
 
+	vcpu = bsearch(&cpu, tmap->vcpu, tmap->max_cpus, sizeof(cpu), cmp_tmap_vcpu);
 	/* Sanity check, warn? */
-	if (cpu >= tmap->max_cpus)
+	if (!vcpu)
 		return 0;
+
+	cpu = vcpu - tmap->vcpu;
 
 	/* Already have this one? Should we check if it is the same? */
 	if (tmap->map[cpu] >= 0)
@@ -122,6 +216,10 @@ static void stop_mapping_vcpus(int cpu_count, struct trace_guest *guest)
 	tmap.map = malloc(sizeof(*tmap.map) * tmap.max_cpus);
 	if (!tmap.map)
 		return;
+
+	/* Check if the kvm vcpu mappings are the same */
+	if (map_kvm_vcpus(guest->pid, &tmap) < 0)
+		goto out;
 
 	for (i = 0; i < tmap.max_cpus; i++)
 		tmap.map[i] = -1;
