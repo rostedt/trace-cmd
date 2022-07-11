@@ -32,7 +32,7 @@ struct tracecmd_compression {
 	int				fd;
 	unsigned int			capacity;
 	unsigned int			capacity_read;
-	unsigned long			pointer;
+	unsigned int			pointer;
 	char				*buffer;
 	struct compress_proto		*proto;
 	struct tep_handle		*tep;
