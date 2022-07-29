@@ -980,6 +980,8 @@ int tracecmd_msg_read_data(struct tracecmd_msg_handle *msg_handle, int ofd)
 	ssize_t s;
 	int ret;
 
+	memset(&msg, 0, sizeof(msg));
+
 	while (!tracecmd_msg_done(msg_handle)) {
 		n = read_msg_data(msg_handle, &msg);
 		if (n <= 0)
