@@ -6180,7 +6180,7 @@ static void parse_record_options(int argc,
 		 * all the arguments for this instance.
 		 */
 		if (c != 'B' && (c != 'A' || is_proxy) && c != OPT_name &&
-		    is_guest(ctx->instance)) {
+		    is_guest(ctx->instance) && c != OPT_proxy) {
 			add_arg(ctx->instance, c, opts, long_options, optarg);
 			if (c == 'C')
 				ctx->instance->flags |= BUFFER_FL_HAS_CLOCK;
