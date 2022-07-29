@@ -3934,15 +3934,15 @@ static void connect_to_agent(struct common_record_context *ctx,
 		use_fifos = nr_fifos > 0;
 	}
 
-	if (ctx->instance->result) {
+	if (instance->result) {
 		role = TRACECMD_TIME_SYNC_ROLE_CLIENT;
-		sd = connect_addr(ctx->instance->result);
+		sd = connect_addr(instance->result);
 		if (sd < 0)
 			die("Failed to connect to host %s:%u",
 			    instance->name, instance->port);
 	} else {
 		/* If connecting to a proxy, then this is the guest */
-		if (is_proxy(ctx->instance))
+		if (is_proxy(instance))
 			role = TRACECMD_TIME_SYNC_ROLE_GUEST;
 		else
 			role = TRACECMD_TIME_SYNC_ROLE_HOST;
