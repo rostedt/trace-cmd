@@ -32,6 +32,11 @@ OPTIONS
     This options causes trace-cmd agent to go into a daemon mode and run in
     the background.
 
+*-P* 'cid'::
+    Allow an agent to also act as a proxy server, where it can be run on a host
+    and connect with a guest. 'cid' is the context ID (see *vsock*(7)) of the
+    client (e.g., guest VM) it will allow to connect.
+
 *--verbose*[='level']::
      Set the log level. Supported log levels are "none", "critical", "error", "warning",
      "info", "debug", "all" or their identifiers "0", "1", "2", "3", "4", "5", "6". Setting the log

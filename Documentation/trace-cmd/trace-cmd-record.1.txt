@@ -412,6 +412,12 @@ OPTIONS
     'name' - the name of the desired compression algorithms. Available algorithms can be listed with
     trace-cmd list -c
 
+*--proxy* 'vsocket'::
+    Use a vsocket proxy to reach the agent. Acts the same as *-A* (for an
+    agent) but will send the proxy connection to the agent. It is expected to
+    run on a privileged guest that the host is aware of (as denoted by the
+    'cid' in the *-P* option for the agent).
+
 EXAMPLES
 --------
 
