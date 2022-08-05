@@ -170,6 +170,7 @@ struct tracecmd_input {
 	int			page_map_size;
 	int			max_cpu;
 	int			cpus;
+	int			start_cpu;
 	int			ref;
 	int			nr_buffers;	/* buffer instances */
 	bool			use_trace_clock;
@@ -2576,6 +2577,96 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 	for (cpu = 0; cpu < handle->max_cpu; cpu++)
 		tracecmd_free_record(records[cpu]);
 
+	free(records);
+
+	return ret;
+}
+
+struct record_handle {
+	struct tep_record		*record;
+	struct tracecmd_input		*handle;
+};
+
+/**
+ * tracecmd_iterate_events_multi - iterate events over multiple handles
+ * @handles: An array of handles to iterate over
+ * @nr_handles: The number of handles in the @handles array.
+ * @callback: The callback function for each event
+ * @callback_data: The data to pass to the @callback.
+ *
+ * Will loop over all CPUs for each handle in @handles and call the
+ * @callback in the order of the timestamp for each event's record
+ * for each handle.
+ *
+ * Returns the -1 on error, or the value of the callbacks.
+ */
+int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
+				  int nr_handles,
+				  int (*callback)(struct tracecmd_input *handle,
+						  struct tep_record *,
+						  int, void *),
+				  void *callback_data)
+{
+	struct tracecmd_input *handle;
+	struct record_handle *records;
+	struct tep_record *record;
+	unsigned long long last_timestamp = 0;
+	int next_cpu;
+	int cpus = 0;
+	int all_cpus = 0;
+	int cpu;
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < nr_handles; i++) {
+		handle = handles[i];
+		cpus += handle->max_cpu;
+	}
+
+	records = calloc(cpus, sizeof(*records));
+	if (!records)
+		return -1;
+
+	for (i = 0; i < nr_handles; i++) {
+		handle = handles[i];
+		handle->start_cpu = all_cpus;
+		for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+			records[all_cpus + cpu].record = tracecmd_peek_data(handle, cpu);
+			records[all_cpus + cpu].handle = handle;
+		}
+		all_cpus += cpu;
+	}
+
+	do {
+		next_cpu = -1;
+		for (cpu = 0; cpu < all_cpus; cpu++) {
+			record = records[cpu].record;
+			if (!record)
+				continue;
+
+			if (next_cpu < 0 || record->ts < last_timestamp) {
+				next_cpu = cpu;
+				last_timestamp = record->ts;
+			}
+		}
+		if (next_cpu >= 0) {
+			record = records[next_cpu].record;
+			handle = records[next_cpu].handle;
+			cpu = next_cpu - handle->start_cpu;
+			/* Need to call read_data to increment to the next record */
+			record = tracecmd_read_data(handle, cpu);
+			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
+
+			ret = callback(handle, record, cpu, callback_data);
+			tracecmd_free_record(record);
+		}
+
+	} while (next_cpu >= 0 && ret >= 0);
+
+	/*
+	 * The records array contains only records that were taken via
+	 * tracecmd_peek_data(), and do not need to be freed.
+	 */
 	free(records);
 
 	return ret;

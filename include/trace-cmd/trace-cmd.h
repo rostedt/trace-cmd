@@ -54,6 +54,12 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 					    struct tep_record *,
 					    int, void *),
 			    void *callback_data);
+int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
+				  int nr_handles,
+				  int (*callback)(struct tracecmd_input *handle,
+						  struct tep_record *,
+						  int, void *),
+				  void *callback_data);
 
 void tracecmd_set_loglevel(enum tep_loglevel level);
 
