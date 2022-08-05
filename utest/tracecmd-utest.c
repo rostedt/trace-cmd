@@ -17,7 +17,7 @@
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
 
-#include <tracefs.h>
+#include <trace-cmd.h>
 
 #include "trace-utest.h"
 
@@ -244,6 +244,55 @@ static void test_trace_convert6(void)
 	CU_TEST(ret == 0);
 }
 
+struct callback_data {
+	long			counter;
+	struct trace_seq	seq;
+};
+
+static int read_events(struct tracecmd_input *handle, struct tep_record *record,
+		       int cpu, void *data)
+{
+	struct tep_handle *tep = tracecmd_get_tep(handle);
+	struct callback_data *cd = data;
+	struct trace_seq *seq = &cd->seq;
+
+	cd->counter++;
+
+	trace_seq_reset(seq);
+	tep_print_event(tep, seq, record, "%6.1000d", TEP_PRINT_TIME);
+	trace_seq_printf(seq, " [%03d] ", cpu);
+	tep_print_event(tep, seq, record, "%s-%d %s %s\n",
+			TEP_PRINT_COMM, TEP_PRINT_PID,
+			TEP_PRINT_NAME, TEP_PRINT_INFO);
+	trace_seq_do_printf(seq);
+	return 0;
+}
+
+static void test_trace_library_read(void)
+{
+	struct tracecmd_input *handle;
+	struct callback_data data;
+	struct stat st;
+	int ret;
+
+	data.counter = 0;
+	trace_seq_init(&data.seq);
+
+	/* If the trace data is already created, just use it, otherwise make it again */
+	if (stat(TRACECMD_FILE, &st) < 0) {
+		ret = run_trace("record", TRACECMD_OUT, "-e", "sched", "sleep", "1", NULL);
+		CU_TEST(ret == 0);
+	}
+
+	handle = tracecmd_open(TRACECMD_FILE, 0);
+	CU_TEST(handle != NULL);
+	ret = tracecmd_iterate_events(handle, NULL, 0, read_events, &data);
+	CU_TEST(ret == 0);
+
+	CU_TEST(data.counter > 0);
+	trace_seq_destroy(&data.seq);
+}
+
 static int test_suite_destroy(void)
 {
 	unlink(TRACECMD_FILE);
@@ -292,4 +341,6 @@ void test_tracecmd_lib(void)
 		    test_trace_record_report);
 	CU_add_test(suite, "Test convert from v7 to v6",
 		    test_trace_convert6);
+	CU_add_test(suite, "Use libraries to read file",
+		    test_trace_library_read);
 }
