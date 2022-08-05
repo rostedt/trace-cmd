@@ -2512,6 +2512,76 @@ tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu)
 }
 
 /**
+ * tracecmd_iterate_events - iterate events over a given handle
+ * @handle: The handle to iterate over
+ * @cpus: The CPU set to filter on (NULL for all CPUs)
+ * @cpu_size: The size of @cpus (ignored if @cpus is NULL)
+ * @callback: The callback function for each event
+ * @callback_data: The data to pass to the @callback.
+ *
+ * Will loop over all events in @handle (filtered by the given @cpus),
+ * and will call @callback for each event in order of the event's records
+ * timestamp.
+ *
+ * Returns the -1 on error, or the value of the callbacks.
+ */
+int tracecmd_iterate_events(struct tracecmd_input *handle,
+			    cpu_set_t *cpus, int cpu_size,
+			    int (*callback)(struct tracecmd_input *handle,
+					    struct tep_record *,
+					    int, void *),
+			    void *callback_data)
+{
+	struct tep_record **records;
+	struct tep_record *record;
+	unsigned long long last_timestamp = 0;
+	int next_cpu;
+	int cpu;
+	int ret = 0;
+
+	records = calloc(handle->max_cpu, sizeof(*records));
+	if (!records)
+		return -1;
+
+	for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+		if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpus))
+			continue;
+
+		records[cpu] = tracecmd_peek_data(handle, cpu);
+	}
+
+	do {
+		next_cpu = -1;
+		for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+			record = records[cpu];
+			if (!record)
+				continue;
+
+			if (next_cpu < 0 || record->ts < last_timestamp) {
+				next_cpu = cpu;
+				last_timestamp = record->ts;
+			}
+		}
+		if (next_cpu >= 0) {
+			/* Need to call read_data to increment to the next record */
+			record = tracecmd_read_data(handle, next_cpu);
+			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
+
+			ret = callback(handle, record, next_cpu, callback_data);
+			tracecmd_free_record(record);
+		}
+
+	} while (next_cpu >= 0 && ret >= 0);
+
+	for (cpu = 0; cpu < handle->max_cpu; cpu++)
+		tracecmd_free_record(records[cpu]);
+
+	free(records);
+
+	return ret;
+}
+
+/**
  * tracecmd_peek_next_data - return the next record
  * @handle: input handle to the trace.dat file
  * @rec_cpu: return pointer to the CPU that the record belongs to
