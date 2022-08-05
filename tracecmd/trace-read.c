@@ -41,11 +41,6 @@ static struct filter_str {
 } *filter_strings;
 static struct filter_str **filter_next = &filter_strings;
 
-struct filter {
-	struct filter		*next;
-	struct tep_event_filter	*filter;
-};
-
 struct event_str {
 	struct event_str	*next;
 	const char		*event;
@@ -59,8 +54,6 @@ struct handle_list {
 	struct input_files	*input_file;
 	const char		*file;
 	int			cpus;
-	struct filter		*event_filters;
-	struct filter		*event_filter_out;
 };
 static struct list_head handle_list;
 
@@ -100,7 +93,6 @@ static int show_wakeup;
 static int wakeup_id;
 static int wakeup_new_id;
 static int sched_id;
-static int stacktrace_id;
 
 static int profile;
 
@@ -573,16 +565,9 @@ static void make_pid_filter(struct tracecmd_input *handle,
 
 static void process_filters(struct handle_list *handles)
 {
-	struct filter **filter_next = &handles->event_filters;
-	struct filter **filter_out_next = &handles->event_filter_out;
-	struct filter *event_filter;
+	struct tracecmd_filter *trace_filter;
 	struct filter_str *filter;
-	struct tep_handle *pevent;
-	char errstr[200];
 	int filters = 0;
-	int ret;
-
-	pevent = tracecmd_get_tep(handles->handle);
 
 	make_pid_filter(handles->handle, handles->input_file);
 
@@ -592,29 +577,12 @@ static void process_filters(struct handle_list *handles)
 		filter = filter_strings;
 
 	for (; filter; filter = filter->next) {
-		event_filter = malloc(sizeof(*event_filter));
-		if (!event_filter)
-			die("Failed to allocate for event filter");
-		event_filter->next = NULL;
-		event_filter->filter = tep_filter_alloc(pevent);
-		if (!event_filter->filter)
-			die("malloc");
+		trace_filter = tracecmd_filter_add(handles->handle,
+						   filter->filter,
+						   filter->neg);
+		if (!trace_filter)
+			die("Failed to create event filter: %s", filter->filter);
 
-		ret = tep_filter_add_filter_str(event_filter->filter,
-						   filter->filter);
-		if (ret < 0) {
-			tep_strerror(pevent, ret, errstr, sizeof(errstr));
-			die("Error filtering: %s\n%s",
-			    filter->filter, errstr);
-		}
-
-		if (filter->neg) {
-			*filter_out_next = event_filter;
-			filter_out_next = &event_filter->next;
-		} else {
-			*filter_next = event_filter;
-			filter_next = &event_filter->next;
-		}
 		filters++;
 	}
 	if (filters && test_filters_mode)
@@ -993,10 +961,8 @@ static void read_latency(struct tracecmd_input *handle)
 }
 
 static int
-test_filters(struct tep_handle *pevent, struct filter *event_filters,
-	     struct tep_record *record, int neg)
+test_filters(struct tep_handle *pevent, struct tep_record *record)
 {
-	int found = 0;
 	int ret = FILTER_NONE;
 	int flags;
 
@@ -1006,19 +972,6 @@ test_filters(struct tep_handle *pevent, struct filter *event_filters,
 			return FILTER_MISS;
 		if (no_softirqs && (flags & TRACE_FLAG_SOFTIRQ))
 			return FILTER_MISS;
-	}
-
-	while (event_filters) {
-		ret = tep_filter_match(event_filters->filter, record);
-		switch (ret) {
-			case FILTER_NONE:
-			case FILTER_MATCH: 
-				found = 1;
-		}
-		/* We need to test all negative filters */
-		if (!neg && found)
-			break;
-		event_filters = event_filters->next;
 	}
 
 	return ret;
@@ -1033,84 +986,8 @@ struct stack_info {
 	struct stack_info	*next;
 	struct handle_list	*handles;
 	struct stack_info_cpu	*cpus;
-	int			stacktrace_id;
 	int			nr_cpus;
 };
-
-static int
-test_stacktrace(struct handle_list *handles, struct tep_record *record,
-		int last_printed)
-{
-	static struct stack_info *infos;
-	struct stack_info *info;
-	struct stack_info_cpu *cpu_info;
-	struct handle_list *h;
-	struct tracecmd_input *handle;
-	struct tep_handle *pevent;
-	struct tep_event *event;
-	static int init;
-	int ret;
-	int id;
-
-	if (!init) {
-		init = 1;
-
-		list_for_each_entry(h, &handle_list, list) {
-			info = malloc(sizeof(*info));
-			if (!info)
-				die("Failed to allocate handle");
-			info->handles = h;
-			info->nr_cpus = tracecmd_cpus(h->handle);
-
-			info->cpus = malloc(sizeof(*info->cpus) * info->nr_cpus);
-			if (!info->cpus)
-				die("Failed to allocate for %d cpus", info->nr_cpus);
-			memset(info->cpus, 0, sizeof(*info->cpus));
-
-			pevent = tracecmd_get_tep(h->handle);
-			event = tep_find_event_by_name(pevent, "ftrace",
-						       "kernel_stack");
-			if (event)
-				info->stacktrace_id = event->id;
-			else
-				info->stacktrace_id = 0;
-
-			info->next = infos;
-			infos = info;
-		}
-
-
-	}
-
-	handle = handles->handle;
-	pevent = tracecmd_get_tep(handle);
-
-	for (info = infos; info; info = info->next)
-		if (info->handles == handles)
-			break;
-
-	if (!info->stacktrace_id)
-		return 0;
-
-	cpu_info = &info->cpus[record->cpu];
-
-	id = tep_data_type(pevent, record);
-
-	/*
-	 * Print the stack trace if the previous event was printed.
-	 * But do not print the stack trace if it is explicitly
-	 * being filtered out.
-	 */
-	if (id == info->stacktrace_id) {
-		ret = test_filters(pevent, handles->event_filter_out, record, 1);
-		if (ret != FILTER_MATCH)
-			return cpu_info->last_printed;
-		return 0;
-	}
-
-	cpu_info->last_printed = last_printed;
-	return 0;
-}
 
 static void print_handle_file(struct handle_list *handles)
 {
@@ -1121,19 +998,6 @@ static void print_handle_file(struct handle_list *handles)
 		printf("%*s: ", max_file_size, handles->file);
 	else
 		printf("%*s  ", max_file_size, "");
-}
-
-static void free_filters(struct filter *event_filter)
-{
-	struct filter *filter;
-
-	while (event_filter) {
-		filter = event_filter;
-		event_filter = filter->next;
-
-		tep_filter_free(filter->filter);
-		free(filter);
-	}
 }
 
 static bool skip_record(struct handle_list *handles, struct tep_record *record, int cpu)
@@ -1159,27 +1023,19 @@ static bool skip_record(struct handle_list *handles, struct tep_record *record, 
 		found = false;
 	}
 
-	ret = test_filters(tep, handles->event_filters, record, 0);
+	ret = test_filters(tep, record);
 	switch (ret) {
 	case FILTER_NOEXIST:
-		/* Stack traces may still filter this */
-		if (stacktrace_id &&
-		    test_stacktrace(handles, record, 0))
-			found = true;
 		break;
 	case FILTER_NONE:
 	case FILTER_MATCH:
 		/* Test the negative filters (-v) */
-		ret = test_filters(tep, handles->event_filter_out,
-				   record, 1);
+		ret = test_filters(tep, record);
 		if (ret != FILTER_MATCH) {
 			found = true;
 			break;
 		}
 	}
-
-	if (record && stacktrace_id)
-		test_stacktrace(handles, record, 1);
 
 	return !found;
 }
@@ -1218,8 +1074,6 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 	unsigned long long ts, first_ts;
 	struct handle_list *handles;
 	struct tracecmd_input **handle_array;
-	struct tep_handle *pevent;
-	struct tep_event *event;
 	unsigned long long last_timestamp = 0;
 	int nr_handles = 0;
 	int first = 1;
@@ -1276,12 +1130,6 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 			tracecmd_print_version(handles->handle);
 			continue;
 		}
-
-		/* Find the kernel_stacktrace if available */
-		pevent = tracecmd_get_tep(handles->handle);
-		event = tep_find_event_by_name(pevent, "ftrace", "kernel_stack");
-		if (event)
-			stacktrace_id = event->id;
 
 		init_wakeup(handles->handle);
 		if (last_hook)
@@ -1353,9 +1201,6 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		do_trace_profile();
 
 	list_for_each_entry(handles, handle_list, list) {
-		free_filters(handles->event_filters);
-		free_filters(handles->event_filter_out);
-
 		show_test(handles->handle);
 	}
 }
