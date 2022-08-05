@@ -316,9 +316,12 @@ endif
 ZLIB_INSTALLED := $(shell if (printf "$(pound)include <zlib.h>\n void main(){deflateInit(NULL, Z_BEST_COMPRESSION);}" | $(CC) -o /dev/null -x c - -lz >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
 ifeq ($(ZLIB_INSTALLED), 1)
 export ZLIB_INSTALLED
+ZLIB_LDLAGS = -lz
 CFLAGS += -DHAVE_ZLIB
 $(info    Have zlib compression support)
 endif
+
+export ZLIB_LDLAGS
 
 TEST_LIBZSTD = $(shell sh -c "$(PKG_CONFIG) --atleast-version 1.4.0 libzstd > /dev/null 2>&1 && echo y")
 

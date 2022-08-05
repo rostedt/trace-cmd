@@ -50,12 +50,8 @@ all_objs := $(sort $(ALL_OBJS))
 all_deps := $(all_objs:$(bdir)/%.o=$(bdir)/.%.d)
 
 CONFIG_INCLUDES =
-CONFIG_LIBS	= -lrt -lpthread $(TRACE_LIBS) $(LIBZSTD_LDLAGS)
+CONFIG_LIBS	= -lrt -lpthread $(TRACE_LIBS) $(ZLIB_LDLAGS) $(LIBZSTD_LDLAGS)
 CONFIG_FLAGS	=
-
-ifeq ($(ZLIB_INSTALLED), 1)
-CONFIG_LIBS += -lz
-endif
 
 all: $(TARGETS)
 
