@@ -97,4 +97,9 @@ unsigned int get_meta_strings_size(struct tracecmd_input *handle);
 int trace_append_options(struct tracecmd_output *handle, void *buf, size_t len);
 void *trace_get_options(struct tracecmd_output *handle, size_t *len);
 
+/* filters */
+struct tracecmd_filter *tracecmd_filter_get(struct tracecmd_input *handle);
+void tracecmd_filter_set(struct tracecmd_input *handle, struct tracecmd_filter *filter);
+void tracecmd_filter_free(struct tracecmd_filter *filter);
+
 #endif /* _TRACE_CMD_LOCAL_H */

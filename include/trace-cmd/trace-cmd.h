@@ -66,4 +66,17 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 
 void tracecmd_set_loglevel(enum tep_loglevel level);
 
+enum tracecmd_filters {
+	TRACECMD_FILTER_NONE		= TEP_ERRNO__NO_FILTER,
+	TRACECMD_FILTER_NOT_FOUND	= TEP_ERRNO__FILTER_NOT_FOUND,
+	TRACECMD_FILTER_MISS		= TEP_ERRNO__FILTER_MISS,
+	TRACECMD_FILTER_MATCH		= TEP_ERRNO__FILTER_MATCH,
+};
+
+struct tracecmd_filter;
+struct tracecmd_filter *tracecmd_filter_add(struct tracecmd_input *handle,
+					    const char *filter_str, bool neg);
+enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
+					    struct tep_record *record);
+
 #endif /* _TRACE_CMD_H */

@@ -160,6 +160,7 @@ struct tracecmd_input {
 	struct tep_handle	*pevent;
 	struct tep_plugin_list	*plugin_list;
 	struct tracecmd_input	*parent;
+	struct tracecmd_filter	*filter;
 	unsigned long		file_state;
 	unsigned long long	trace_id;
 	unsigned long long	next_offset;
@@ -2580,7 +2581,10 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 			record = tracecmd_read_data(handle, next_cpu);
 			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
 
-			ret = callback(handle, record, next_cpu, callback_data);
+			if (!handle->filter ||
+			    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH)
+				ret = callback(handle, record, next_cpu, callback_data);
+
 			tracecmd_free_record(record);
 		}
 
@@ -2669,7 +2673,9 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 			record = tracecmd_read_data(handle, cpu);
 			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
 
-			ret = callback(handle, record, cpu, callback_data);
+			if (!handle->filter ||
+			    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH)
+				ret = callback(handle, record, next_cpu, callback_data);
 			tracecmd_free_record(record);
 		}
 
@@ -4716,6 +4722,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 	trace_tsync_offset_free(&handle->host);
 	trace_guests_free(handle);
 
+	tracecmd_filter_free(handle->filter);
+
 	if (handle->flags & TRACECMD_FL_BUFFER_INSTANCE)
 		tracecmd_close(handle->parent);
 	else {
@@ -6058,3 +6066,19 @@ int tracecmd_enable_tsync(struct tracecmd_input *handle, bool enable)
 	return 0;
 }
 
+__hidden struct tracecmd_filter *tracecmd_filter_get(struct tracecmd_input *handle)
+{
+	return handle->filter;
+}
+
+__hidden void tracecmd_filter_set(struct tracecmd_input *handle,
+				  struct tracecmd_filter *filter)
+{
+	/* This can be used to set filter to NULL though. */
+	if (handle->filter && filter) {
+		tracecmd_warning("Filter exists and setting a new one");
+		return;
+	}
+
+	handle->filter = filter;
+}

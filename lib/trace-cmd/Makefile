@@ -15,6 +15,7 @@ OBJS += trace-output.o
 OBJS += trace-recorder.o
 OBJS += trace-util.o
 OBJS += trace-filter-hash.o
+OBJS += trace-filter.o
 OBJS += trace-msg.o
 OBJS += trace-plugin.o
 ifeq ($(PERF_DEFINED), 1)
