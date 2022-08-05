@@ -215,6 +215,8 @@ struct tracecmd_input {
 
 	/* For custom profilers. */
 	tracecmd_show_data_func	show_data_func;
+
+	void			*private;
 };
 
 __thread struct tracecmd_input *tracecmd_curr_thread_handle;
@@ -243,6 +245,16 @@ unsigned long tracecmd_get_flags(struct tracecmd_input *handle)
 enum tracecmd_file_states tracecmd_get_file_state(struct tracecmd_input *handle)
 {
 	return handle->file_state;
+}
+
+void tracecmd_set_private(struct tracecmd_input *handle, void *data)
+{
+	handle->private = data;
+}
+
+void *tracecmd_get_private(struct tracecmd_input *handle)
+{
+	return handle->private;
 }
 
 #if DEBUG_RECORD
