@@ -323,6 +323,7 @@ endif
 
 export ZLIB_LDLAGS
 
+ifndef NO_LIBZSTD
 TEST_LIBZSTD = $(shell sh -c "$(PKG_CONFIG) --atleast-version 1.4.0 libzstd > /dev/null 2>&1 && echo y")
 
 ifeq ("$(TEST_LIBZSTD)", "y")
@@ -338,6 +339,7 @@ $(info	  *************************************************************)
 endif
 
 export LIBZSTD_CFLAGS LIBZSTD_LDLAGS ZSTD_INSTALLED
+endif
 
 CUNIT_INSTALLED := $(shell if (printf "$(pound)include <CUnit/Basic.h>\n void main(){CU_initialize_registry();}" | $(CC) -o /dev/null -x c - -lcunit >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
 export CUNIT_INSTALLED
