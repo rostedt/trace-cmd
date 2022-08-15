@@ -9,6 +9,10 @@
 #include "event-parse.h"
 #include "tracefs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct tracecmd_input;
 
 enum tracecmd_open_flags {
@@ -78,5 +82,8 @@ struct tracecmd_filter *tracecmd_filter_add(struct tracecmd_input *handle,
 					    const char *filter_str, bool neg);
 enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
 					    struct tep_record *record);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _TRACE_CMD_H */
