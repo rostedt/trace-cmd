@@ -57,6 +57,9 @@ To install trace-cmd
 To install the gui
     make install_gui
 
+To install libtracecmd libraries
+    make install_libs
+
 Note: The default install is relative to /usr/local
     The default install directory is /usr/local/bin
     The default plugin directory is /usr/local/lib/trace-cmd/plugins
