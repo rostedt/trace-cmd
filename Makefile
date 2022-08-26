@@ -216,7 +216,7 @@ export pkgconfig_dir PKG_CONFIG_FILE
 
 export prefix bindir src obj
 
-LIBS = -ldl
+LIBS ?= -ldl
 
 LIBTRACECMD_DIR = $(obj)/lib/trace-cmd
 LIBTRACECMD_STATIC = $(LIBTRACECMD_DIR)/libtracecmd.a

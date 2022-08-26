@@ -49,8 +49,11 @@ ALL_OBJS := $(TRACE_CMD_OBJS:%.o=$(bdir)/%.o)
 all_objs := $(sort $(ALL_OBJS))
 all_deps := $(all_objs:$(bdir)/%.o=$(bdir)/.%.d)
 
+LPTHREAD ?= -lpthread
+LRT ?= -lrt
+
 CONFIG_INCLUDES =
-CONFIG_LIBS	= -lrt -lpthread $(TRACE_LIBS) $(ZLIB_LDLAGS) $(LIBZSTD_LDLAGS)
+CONFIG_LIBS	= $(LRT) $(LPTHREAD) $(TRACE_LIBS) $(ZLIB_LDLAGS) $(LIBZSTD_LDLAGS)
 CONFIG_FLAGS	=
 
 all: $(TARGETS)
