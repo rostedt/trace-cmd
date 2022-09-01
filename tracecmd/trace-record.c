@@ -6653,7 +6653,6 @@ static void parse_record_options(int argc,
 		case OPT_compression:
 			cmd_check_die(ctx, CMD_start, *(argv+1), "--compression");
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--compression");
-			cmd_check_die(ctx, CMD_extract, *(argv+1), "--compression");
 			cmd_check_die(ctx, CMD_stream, *(argv+1), "--compression");
 			cmd_check_die(ctx, CMD_profile, *(argv+1), "--compression");
 			if (strcmp(optarg, "any") && strcmp(optarg, "none") &&
