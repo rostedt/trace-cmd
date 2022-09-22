@@ -25,13 +25,13 @@ Information about peers from the session is stored in the metadata of each
 trace file. These APIs use that information to extract and synchronize
 the trace data.
 
-The _tracecmd_get_traceid()_ function returns the trace ID stored in
+The *tracecmd_get_traceid()* function returns the trace ID stored in
 the trace file metadata associated with _handle_. Each peer from a trace
 session has an ID unique for that peer and that trace session only.
 This ID is used to match multiple trace files recorded in a same trace
 session.
 
-The _tracecmd_get_guest_cpumap()_ function gets the mapping of guest
+The *tracecmd_get_guest_cpumap()* function gets the mapping of guest
 virtual CPUs (VCPU) to the host process that represents those VCPUs and is
 stored in the metadata of the trace file associated with _handle_. This
 information is gathered during a host-guest trace session and is stored
@@ -47,9 +47,9 @@ The _name_, _vcpu_count_ and _cpu_pid_ values must *not* be freed.
 
 RETURN VALUE
 ------------
-The _tracecmd_get_traceid()_ function returns a 64 bit trace ID.
+The *tracecmd_get_traceid()* function returns a 64 bit trace ID.
 
-The _tracecmd_get_guest_cpumap()_ function returns -1 in case of
+The *tracecmd_get_guest_cpumap()* function returns -1 in case of
 an error or 0 otherwise. If 0 is returned, then the _name_, _vcpu_count_
 and _cpu_pid_ parameters contain the requested information.
 
@@ -107,10 +107,10 @@ FILES
 
 SEE ALSO
 --------
-_libtracefs(3)_,
-_libtraceevent(3)_,
-_trace-cmd(1)_
-_trace-cmd.dat(5)_
+*libtracefs(3)*,
+*libtraceevent(3)*,
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
 
 AUTHOR
 ------

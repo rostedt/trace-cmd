@@ -56,10 +56,10 @@ FILES
 
 SEE ALSO
 --------
-_libtraceevent(3)_
-_libtracefs(3)_
-_trace-cmd(1)_
-_trace-cmd.dat(5)_
+*libtraceevent(3)*
+*libtracefs(3)*
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
 
 AUTHOR
 ------

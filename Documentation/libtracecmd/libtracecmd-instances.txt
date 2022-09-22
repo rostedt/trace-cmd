@@ -22,36 +22,36 @@ DESCRIPTION
 This set of APIs can be used to get information and read tracing data
 from tracing instances stored in a trace file.
 
-The _tracecmd_buffer_instances()_ function gets the number of tracing
+The *tracecmd_buffer_instances()* function gets the number of tracing
 instances recorded in a trace file. The top instance is not counted.
 The _handle_ is a tracecmd_input handler returned by
-_tracecmd_open_head()_.
+*tracecmd_open_head()*.
 
-The _tracecmd_buffer_instance_name()_ function gets the name of the
+The *tracecmd_buffer_instance_name()* function gets the name of the
 tracing instance with given index _indx_, recorded in a trace file.
 The _indx_ is a number in the interval [0 .. count-1], where count
-is the number returned by _tracecmd_buffer_instances()_. The _handle_
-is a tracecmd_input handler returned by _tracecmd_open_head()_.
+is the number returned by *tracecmd_buffer_instances()*. The _handle_
+is a tracecmd_input handler returned by *tracecmd_open_head()*.
 
-The _tracecmd_buffer_instance_handle()_ allocates and initializes a
+The *tracecmd_buffer_instance_handle()* allocates and initializes a
 tracecmd_input handle, associated with trace instance with index
 _indx_ from a trace file.  The _handle_ is a tracecmd_input handler
-returned by _tracecmd_open_head()_. The _indx_ is a number in the
+returned by *tracecmd_open_head()*. The _indx_ is a number in the
 interval [0 .. count-1], where count is the number returned by
-_tracecmd_buffer_instances()_.
+*tracecmd_buffer_instances()*.
 
 RETURN VALUE
 ------------
-The _tracecmd_buffer_instances()_ function returns the number of tracing
+The *tracecmd_buffer_instances()* function returns the number of tracing
 instances recorded in a trace file.
 
-The _tracecmd_buffer_instance_name()_ function returns a string, the name
+The *tracecmd_buffer_instance_name()* function returns a string, the name
 of a tracing instance, or NULL in case of an error The string must *not*
 be freed.
 
-The _tracecmd_buffer_instance_handle()_ function returns a pointer to
+The *tracecmd_buffer_instance_handle()* function returns a pointer to
 newly allocated tracecmd_input handler or NULL in case if an error. The
-returned handler must be closed by _tracecmd_close()(3)_
+returned handler must be closed by *tracecmd_close()(3)*
 
 EXAMPLE
 -------
@@ -99,10 +99,10 @@ FILES
 
 SEE ALSO
 --------
-_libtracefs(3)_,
-_libtraceevent(3)_,
-_trace-cmd(1)_
-_trace-cmd.dat(5)_
+*libtracefs(3)*,
+*libtraceevent(3)*,
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
 
 AUTHOR
 ------

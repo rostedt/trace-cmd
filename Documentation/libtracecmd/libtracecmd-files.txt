@@ -22,7 +22,7 @@ void *tracecmd_close*(struct tracecmd_input pass:[*]_handle_);
 DESCRIPTION
 -----------
 This set of APIs can be used to open and close a trace file recorded by
-_trace-cmd(1)_ and containing tracing information from ftrace, the official
+*trace-cmd(1)* and containing tracing information from ftrace, the official
 Linux kernel tracer. The opened file is represented by a _tracecmd_input_
 structure, all other library APIs that work with the file require a pointer
 to the structure. The APIs for opening a trace file have a _flag_ input
@@ -33,37 +33,37 @@ is a combination of these options:
  TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS - Do not load system wide plugins, load only "local only"
 					plugins from user's home directory.
 
-The _tracecmd_open()_ function opens a given trace _file_, parses the
+The *tracecmd_open()* function opens a given trace _file_, parses the
 metadata headers from the file, allocates and initializes а _tracecmd_input_
 handler structure representing the file. It also initializes the handler
 for reading trace data from the file. The returned handler is ready to be
 used with _tracecmd_read__ APIs.
 
-The _tracecmd_open_fd()_ function does the same as _tracecmd_open()_, but
+The *tracecmd_open_fd()* function does the same as *tracecmd_open()*, but
 works with a file descriptor to a trace file, opened for reading.
 
-The _tracecmd_open_head()_ function is the same as _tracecmd_open()_, but
+The *tracecmd_open_head()* function is the same as *tracecmd_open()*, but
 does not initialize the handler for reading trace data. It reads and parses
-the metadata headers only. The _tracecmd_init_data()_ should be used before
+the metadata headers only. The *tracecmd_init_data()* should be used before
 using the _tracecmd_read__ APIs.
 
-The _tracecmd_init_data()_ function initializes a _handle_, allocated with
-_tracecmd_open_head()_, for reading trace data from the file associated with
+The *tracecmd_init_data()* function initializes a _handle_, allocated with
+*tracecmd_open_head()*, for reading trace data from the file associated with
 it. This API must be called before any of the _tracecmd_read__ APIs.
 
-The _tracecmd_close()_ function frees a _handle_, pointer to tracecmd_input
-structure, previously allocated with _tracecmd_open()_, _tracecmd_open_fd()_
-or _tracecmd_open_head()_ APIs.
+The *tracecmd_close()* function frees a _handle_, pointer to tracecmd_input
+structure, previously allocated with *tracecmd_open()*, *tracecmd_open_fd()*
+or *tracecmd_open_head()* APIs.
 
 RETURN VALUE
 ------------
-The _tracecmd_open()_, _tracecmd_open_fd()_ and _tracecmd_open_head()_
+The *tracecmd_open()*, *tracecmd_open_fd()* and *tracecmd_open_head()*
 functions return a pointer to tracecmd_input structure or NULL in case of
-an error. The returned structure must be free with _tracecmd_close()_.
-Note that if _tracecmd_open_fd()_ is used to allocate a tracecmd_input handler,
-when _tracecmd_close()_ is called to close it, that fd will be closed also.
+an error. The returned structure must be free with *tracecmd_close()*.
+Note that if *tracecmd_open_fd()* is used to allocate a tracecmd_input handler,
+when *tracecmd_close()* is called to close it, that fd will be closed also.
 
-The _tracecmd_init_data()_ function returns -1 in case of an error or
+The *tracecmd_init_data()* function returns -1 in case of an error or
 0 otherwise.
 
 EXAMPLE
@@ -139,10 +139,10 @@ FILES
 
 SEE ALSO
 --------
-_libtracefs(3)_,
-_libtraceevent(3)_,
-_trace-cmd(1)_
-_trace-cmd.dat(5)_
+*libtracefs(3)*,
+*libtraceevent(3)*,
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
 
 AUTHOR
 ------

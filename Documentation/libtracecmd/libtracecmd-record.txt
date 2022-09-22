@@ -22,38 +22,38 @@ struct tep_handle pass:[*]*tracecmd_get_tep*(struct tracecmd_input pass:[*]_hand
 DESCRIPTION
 -----------
 This set of APIs can be used to read tracing data from a trace file opened
-with _tracecmd_open()(3)_, _tracecmd_open_fd()(3)_ or _tracecmd_open_head()(3)_.
+with *tracecmd_open()(3)*, *tracecmd_open_fd()(3)* or *tracecmd_open_head()(3)*.
 
-The _tracecmd_read_cpu_first()_ function reads the first trace record
+The *tracecmd_read_cpu_first()* function reads the first trace record
 for a given _cpu_ from a trace file associated with _handle_. The returned
-record must be freed with _tracecmd_free_record()_.
+record must be freed with *tracecmd_free_record()*.
 
-The _tracecmd_read_data()_ function reads the next trace record for
+The *tracecmd_read_data()* function reads the next trace record for
 a given _cpu_ from a trace file associated with _handle_ and increments
-the read location pointer, so that the next call to _tracecmd_read_data()_
+the read location pointer, so that the next call to *tracecmd_read_data()*
 will not read the same record again. The returned record must be freed
-with _tracecmd_free_record()_.
+with *tracecmd_free_record()*.
 
-The _tracecmd_read_at()_ function reads a trace record from a specific
+The *tracecmd_read_at()* function reads a trace record from a specific
 _offset_ within the file associated with _handle_. The CPU on which the
 recorded event occurred is stored in the _cpu_. The function does not
 change the current read location pointer. The returned record must be
-freed with _tracecmd_free_record()_.
+freed with *tracecmd_free_record()*.
 
-The _tracecmd_free_record()_ function frees a _record_ returned by any
+The *tracecmd_free_record()* function frees a _record_ returned by any
 of the _tracecmd_read__ APIs.
 
-The _tracecmd_get_tep()_ function returns a tep context for a given
+The *tracecmd_get_tep()* function returns a tep context for a given
 _handle_.
 
 RETURN VALUE
 ------------
-The _tracecmd_read_cpu_first()_, _tracecmd_read_data()_ and
-_tracecmd_read_at()_ functions return a pointer to struct tep_record or
+The *tracecmd_read_cpu_first()*, *tracecmd_read_data()* and
+*tracecmd_read_at()* functions return a pointer to struct tep_record or
 NULL in case of an error.The returned record must be freed with
-_tracecmd_free_record()_.
+*tracecmd_free_record()*.
 
-The _tracecmd_get_tep()_ function returns a pointer to tep context or
+The *tracecmd_get_tep()* function returns a pointer to tep context or
 NULL if there is no tep context for the given _handle_. The returned
 tep pointer must *not* be freed.
 
@@ -108,10 +108,10 @@ FILES
 
 SEE ALSO
 --------
-_libtracefs(3)_,
-_libtraceevent(3)_,
-_trace-cmd(1)_
-_trace-cmd.dat(5)_
+*libtracefs(3)*,
+*libtraceevent(3)*,
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
 
 AUTHOR
 ------

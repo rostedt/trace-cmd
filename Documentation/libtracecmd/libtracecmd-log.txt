@@ -16,8 +16,8 @@ int *tracecmd_set_loglevel*(enum tep_loglevel _level_);
 
 DESCRIPTION
 -----------
-The _tracecmd_set_loglevel()_ function sets the level of the library logs that will be printed on
-the console. See _libtraceevent(3)_ for detailed desciription of the log levels. Setting the log
+The *tracecmd_set_loglevel()* function sets the level of the library logs that will be printed on
+the console. See *libtraceevent(3)* for detailed desciription of the log levels. Setting the log
 level to specific value means that logs from the previous levels will be printed too. For example
 _TEP_LOG_WARNING_ will print any logs with severity _TEP_LOG_WARNING_, _TEP_LOG_ERROR_ and
 _TEP_LOG_CRITICAL_. The default log level is _TEP_LOG_CRITICAL_.  When a new level is set, it is
@@ -48,10 +48,10 @@ FILES
 
 SEE ALSO
 --------
-_libtracefs(3)_,
-_libtraceevent(3)_,
-_trace-cmd(1)_
-_trace-cmd.dat(5)_
+*libtracefs(3)*,
+*libtraceevent(3)*,
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
 
 AUTHOR
 ------
