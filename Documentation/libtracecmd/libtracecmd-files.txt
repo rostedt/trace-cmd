@@ -4,7 +4,7 @@ libtracecmd(3)
 NAME
 ----
 tracecmd_open, tracecmd_open_fd, tracecmd_open_head, tracecmd_init_data,
-tracecmd_close - Open and close a trace file.
+tracecmd_close, tracecmd_set_private, tracecmd_get_private - Open and close a trace file.
 
 SYNOPSIS
 --------
@@ -17,6 +17,8 @@ struct tracecmd_input pass:[*]*tracecmd_open_fd*(int _fd_, int _flags_);
 struct tracecmd_input pass:[*]*tracecmd_open_head*(const char pass:[*]_file_, int _flags_);
 int *tracecmd_init_data*(struct tracecmd_input pass:[*]_handle_);
 void *tracecmd_close*(struct tracecmd_input pass:[*]_handle_);
+void *tracecmd_set_private*(struct tracecmd_input pass:[*]_handle_, void pass:[*]_data_);
+void pass:[*]*tracecmd_get_private*(struct tracecmd_input pass:[*]_handle_);
 --
 
 DESCRIPTION
@@ -55,6 +57,12 @@ The *tracecmd_close()* function frees a _handle_, pointer to tracecmd_input
 structure, previously allocated with *tracecmd_open()*, *tracecmd_open_fd()*
 or *tracecmd_open_head()* APIs.
 
+The *tracecmd_set_private()* function allows to add specific _data_ to the
+_handle_ that can be retrieved later.
+
+The *tracecmd_get_private()* function will retrieve the _data_ set by
+*tracecmd_set_private()* for the given _handle_.
+
 RETURN VALUE
 ------------
 The *tracecmd_open()*, *tracecmd_open_fd()* and *tracecmd_open_head()*
@@ -66,6 +74,8 @@ when *tracecmd_close()* is called to close it, that fd will be closed also.
 The *tracecmd_init_data()* function returns -1 in case of an error or
 0 otherwise.
 
+The *tracecmd_get_private()* returns the _data_ set by *tracecmd_set_private()*.
+
 EXAMPLE
 -------
 [source,c]
@@ -75,32 +85,46 @@ a trace file, which can be used depending on the use case.
 
 1. Open and initialise the trace file in а single step:
 
+#include <stdlib.h>
 #include <trace-cmd.h>
-...
-struct tracecmd_input *handle = tracecmd_open("trace.dat");
-	if (!handle) {
-		/* Failed to open trace.dat file */
+
+static int print_events(struct tracecmd_input *handle, struct tep_record *record, int cpu, void *data)
+{
+	static struct trace_seq seq;
+	struct tep_handle *tep = tracecmd_get_tep(handle);
+	const char *file = tracecmd_get_private(handle);
+
+	if (!seq.buffer)
+		trace_seq_init(&seq);
+
+	trace_seq_reset(&seq);
+	trace_seq_printf(&seq, "%s: ", file);
+	tep_print_event(tep, &seq, record, "%6.1000d [%03d] %s-%d %s: %s\n",
+			TEP_PRINT_TIME, TEP_PRINT_CPU, TEP_PRINT_COMM, TEP_PRINT_PID,
+			TEP_PRINT_NAME, TEP_PRINT_INFO);
+	trace_seq_terminate(&seq);
+	trace_seq_do_printf(&seq);
+	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	struct tracecmd_input *handle;
+
+	if (argc < 2) {
+		printf("usage: %s trace.dat\n", argv[0]);
+		exit(-1);
 	}
-...
-	/* Read tracing data from the file, using the handle */
-...
+
+	handle = tracecmd_open(argv[i], 0);
+	if (!handle)
+		exit(-1);
+
+	tracecmd_set_private(handles[nr_handles], argv[i]);
+	tracecmd_iterate_events(handles, NULL, 0, print_events, NULL);
+
 	tracecmd_close(handle);
-...
-int fd;
-	fd = = open("trace.dat", O_RDONLY);
-	if (fd < 0) {
-		/* Failed to open trace file for reading */
-	}
-	handle = tracecmd_open_fd(fd);
-	if (!handle) {
-		close(fd);
-		/* Failed to initialise handler for reading the trace file */
-	}
-...
-	/* Read tracing data from the file, using the handle */
-...
-	tracecmd_close(handle);
-...
+}
 
 2. Open and initialise the trace file in two steps. This allows to perform
 some processing based on metadata, read from the file, before initialising
