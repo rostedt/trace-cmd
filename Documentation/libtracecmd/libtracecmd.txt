@@ -63,6 +63,16 @@ Get traceing peer information from a trace file:
 	unsigned long long *tracecmd_get_traceid*(struct tracecmd_input pass:[*]_handle_);
 	int *tracecmd_get_guest_cpumap*(struct tracecmd_input pass:[*]_handle_, unsigned long long _trace_id_, const char pass:[*]pass:[*]_name_, int pass:[*]_vcpu_count_, const int pass:[*]pass:[*]_cpu_pid_);
 
+Mapping host and guest trace files:
+	int *tracecmd_map_vcpus*(struct tracecmd_input pass:[**]handles, int nr_handles);
+	struct tracecmd_cpu_map pass:[*]*tracecmd_get_cpu_map*(struct tracecmd_input pass:[*]handle, int cpu);
+	struct tracecmd_cpu_map pass:[*]*tracecmd_map_find_by_host_pid*(struct tracecmd_input pass:[*]handle,
+						      int host_pid);
+	int *tracecmd_map_get_host_pid*(struct tracecmd_cpu_map pass:[*]map);
+	struct tracecmd_input pass:[*]*tracecmd_map_get_guest*(struct tracecmd_cpu_map pass:[*]map);
+	void *tracecmd_map_set_private*(struct tracecmd_cpu_map pass:[*]map, void pass:[*]priv);
+	void pass:[*]*tracecmd_map_get_private*(struct tracecmd_cpu_map pass:[*]map);
+
 Control library logs:
 	int *tracecmd_set_loglevel*(enum tep_loglevel _level_);
 --

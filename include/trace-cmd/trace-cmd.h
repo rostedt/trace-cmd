@@ -88,6 +88,17 @@ enum tracecmd_filters {
 struct tracecmd_filter;
 struct tracecmd_filter *tracecmd_filter_add(struct tracecmd_input *handle,
 					    const char *filter_str, bool neg);
+
+struct tracecmd_cpu_map;
+int tracecmd_map_vcpus(struct tracecmd_input **handles, int nr_handles);
+struct tracecmd_cpu_map *tracecmd_get_cpu_map(struct tracecmd_input *handle, int cpu);
+struct tracecmd_cpu_map *tracecmd_map_find_by_host_pid(struct tracecmd_input *handle,
+						      int host_pid);
+struct tracecmd_input *tracecmd_map_get_guest(struct tracecmd_cpu_map *map);
+int tracecmd_map_get_host_pid(struct tracecmd_cpu_map *map);
+void tracecmd_map_set_private(struct tracecmd_cpu_map *map, void *priv);
+void *tracecmd_map_get_private(struct tracecmd_cpu_map *map);
+
 #ifdef __cplusplus
 }
 #endif

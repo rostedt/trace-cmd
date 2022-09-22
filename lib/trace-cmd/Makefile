@@ -18,6 +18,7 @@ OBJS += trace-filter-hash.o
 OBJS += trace-filter.o
 OBJS += trace-msg.o
 OBJS += trace-plugin.o
+OBJS += trace-maps.o
 ifeq ($(PERF_DEFINED), 1)
 OBJS += trace-perf.o
 endif

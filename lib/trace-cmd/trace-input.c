@@ -171,6 +171,7 @@ struct tracecmd_input {
 	struct tracecmd_input	*parent;
 	struct tracecmd_filter	*filter;
 	struct follow_event	*followers;
+	struct tracecmd_cpu_map *map;
 	unsigned long		file_state;
 	unsigned long long	trace_id;
 	unsigned long long	next_offset;
@@ -191,6 +192,7 @@ struct tracecmd_input {
 	bool			read_zpage; /* uncompress pages in memory, do not use tmp files */
 	bool			cpu_compressed;
 	int			file_version;
+	int			map_cnt;
 	unsigned int		cpustats_size;
 	struct cpu_zdata	latz;
 	struct cpu_data 	*cpu_data;
@@ -319,6 +321,34 @@ static const char *show_records(struct page **pages, int nr_pages)
 	return "";
 }
 #endif
+
+/**
+ * trace_set_guest_map - set map to input handle
+ * @handle: The handle to set the cpu map to
+ * @map: The cpu map for this handle (to the host)
+ *
+ * Assign the mapping of host to guest for a guest handle.
+ */
+__hidden void trace_set_guest_map(struct tracecmd_input *handle,
+				  struct tracecmd_cpu_map *map)
+{
+	handle->map = map;
+}
+
+__hidden struct tracecmd_cpu_map *trace_get_guest_map(struct tracecmd_input *handle)
+{
+	return handle->map;
+}
+
+__hidden void trace_set_guest_map_cnt(struct tracecmd_input *handle, int count)
+{
+	handle->map_cnt = count;
+}
+
+__hidden int trace_get_guest_map_cnt(struct tracecmd_input *handle)
+{
+	return handle->map_cnt;
+}
 
 static int init_cpu(struct tracecmd_input *handle, int cpu);
 
@@ -4801,6 +4831,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	free(handle->trace_clock);
 	free(handle->strings);
 	free(handle->version);
+	trace_guest_map_free(handle->map);
 	close(handle->fd);
 	free(handle->latz.chunks);
 	if (handle->latz.fd >= 0) {

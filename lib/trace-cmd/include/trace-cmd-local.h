@@ -52,6 +52,12 @@ struct data_file_write {
 enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
 					    struct tep_record *record);
 
+void trace_set_guest_map(struct tracecmd_input *handle, struct tracecmd_cpu_map *map);
+struct tracecmd_cpu_map *trace_get_guest_map(struct tracecmd_input *handle);
+void trace_set_guest_map_cnt(struct tracecmd_input *handle, int count);
+int trace_get_guest_map_cnt(struct tracecmd_input *handle);
+void trace_guest_map_free(struct tracecmd_cpu_map *map);
+
 void tracecmd_compress_init(void);
 void tracecmd_compress_free(void);
 
