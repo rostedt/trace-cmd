@@ -19,8 +19,10 @@ int __hidden trace_vsock_open(unsigned int cid, unsigned int port)
 	if (sd < 0)
 		return -errno;
 
-	if (connect(sd, (struct sockaddr *)&addr, sizeof(addr)))
+	if (connect(sd, (struct sockaddr *)&addr, sizeof(addr))) {
+		close(sd);
 		return -errno;
+	}
 
 	return sd;
 }
