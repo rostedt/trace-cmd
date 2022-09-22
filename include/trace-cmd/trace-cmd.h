@@ -55,6 +55,14 @@ struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *ha
 void tracecmd_set_private(struct tracecmd_input *handle, void *data);
 void *tracecmd_get_private(struct tracecmd_input *handle);
 
+int tracecmd_follow_event(struct tracecmd_input *handle,
+			  const char *system, const char *event_name,
+			  int (*callback)(struct tracecmd_input *handle,
+					  struct tep_event *,
+					  struct tep_record *,
+					  int, void *),
+			  void *callback_data);
+
 int tracecmd_iterate_events(struct tracecmd_input *handle,
 			    cpu_set_t *cpus, int cpu_size,
 			    int (*callback)(struct tracecmd_input *handle,
