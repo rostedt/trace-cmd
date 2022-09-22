@@ -49,6 +49,9 @@ struct data_file_write {
 	unsigned long long	file_data_offset;
 };
 
+enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
+					    struct tep_record *record);
+
 void tracecmd_compress_init(void);
 void tracecmd_compress_free(void);
 

@@ -44,8 +44,8 @@ static bool test_stacktraces(struct tracecmd_filter *filter, struct tep_record *
 		test_stacktrace(filter, record, filter->user_stacktrace_id);
 }
 
-enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
-					    struct tep_record *record)
+__hidden enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
+						     struct tep_record *record)
 {
 	bool found = false;
 	int ret;

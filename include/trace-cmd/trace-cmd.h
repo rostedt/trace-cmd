@@ -80,8 +80,6 @@ enum tracecmd_filters {
 struct tracecmd_filter;
 struct tracecmd_filter *tracecmd_filter_add(struct tracecmd_input *handle,
 					    const char *filter_str, bool neg);
-enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
-					    struct tep_record *record);
 #ifdef __cplusplus
 }
 #endif
