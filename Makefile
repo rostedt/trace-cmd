@@ -508,7 +508,7 @@ install_gui: force
 install_libs: libs
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/ $@
 
-doc:
+doc: check_doc
 	$(MAKE) -C $(src)/Documentation all
 
 doc_clean:
@@ -516,6 +516,9 @@ doc_clean:
 
 install_doc:
 	$(MAKE) -C $(src)/Documentation install
+
+check_doc: force
+	$(Q)$(src)/check-manpages.sh $(src)/Documentation/libtracecmd
 
 clean:
 	$(RM) *.o *~ *.a *.so .*.d
