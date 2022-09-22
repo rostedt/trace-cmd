@@ -35,7 +35,7 @@ static struct trace_guest *get_guest_by_name(const char *name)
 {
 	int i;
 
-	if (!guests)
+	if (!guests || !strlen(name))
 		return NULL;
 
 	for (i = 0; i < guests_len; i++)
