@@ -1,0 +1,291 @@
+libtracecmd(3)
+=============
+
+NAME
+----
+tracecmd_iterate_events, tracecmd_iterate_events_multi, tracecmd_follow_event,
+tracecmd_filter_add - Read events from a trace file
+
+SYNOPSIS
+--------
+[verse]
+--
+*#include <trace-cmd.h>*
+
+int *tracecmd_iterate_events*(struct tracecmd_input pass:[*]_handle_,
+			    cpu_set_t pass:[*]_cpus_, int _cpu_size_,
+			    int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+					    struct tep_record pass:[*],
+					    int, void pass:[*]),
+			    void pass:[*]_callback_data_);
+int *tracecmd_iterate_events_multi*(struct tracecmd_input pass:[**]_handles_,
+				  int _nr_handles_,
+				  int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+							   struct tep_record pass:[*],
+							   int, void pass:[*]),
+				  void pass:[*]_callback_data_);
+int *tracecmd_follow_event*(struct tracecmd_input pass:[*]_handle_,
+			  const char pass:[*]_system_, const char pass:[*]_event_name_,
+			  int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+					  struct tep_event pass:[*],
+					  struct tep_record pass:[*],
+					  int, void pass:[*]),
+			  void pass:[*]_callback_data_);
+struct tracecmd_filter pass:[*]*tracecmd_filter_add*(struct tracecmd_input *_handle_,
+					    const char pass:[*]_filter_str_, bool _neg_);
+--
+
+DESCRIPTION
+-----------
+This set of APIs can be used to iterate over events after opening a trace file
+using one of the open functions like *tracecmd_open(3)* or *tracecmd_open_fd(3)*.
+
+The function *tracecmd_iterate_events()* will iterate through all the
+events in the trace file defined by _handle_, where _handle_ is returned from
+one of the *tracecmd_open(3)* functions. It will call the _callback_() function
+on the events on the CPUs defined by _cpus_. The _cpu_size_ must be the size of
+_cpus_ (see *CPU_SET(3)*). If _cpus_ is NULL, then _cpu_size_ is ignored and _callback()_
+will be called for all events on all CPUs in the trace file. The _callback_data_
+is passed to the _callback()_ as its last parameter. _callback_ may be NULL, which
+is useful if *tracecmd_follow_event()* is used, but note if _callback_ is NULL, then
+_callback_data_ is ignored and not sent to the _callback_ of *tracecmd_follow_event()*.
+
+The function *tracecmd_iterate_events_multi()* is similar to *tracecmd_iterate_events()*
+except that it allows to iterate over more than one trace file. If *tracecmd agent(1)*
+is used to get a trace file for both the host and guest, make sure that the host trace
+file is the first entry in _handles_ and *tracecmd_iterate_events_multi()* will do
+the synchronization of the meta data for the guest files that come later in _handles_.
+_handles_ is an array of trace file descriptors that were opened by *tracecmd_open(3)*
+and friends. Note, unlike *tracecmd_iterate_events()*, *tracecmd_iterate_events_multi()*
+does not filter on CPUs, as it will cause the API to become too complex in knowing which
+handle to filter the CPUs on. If CPU filtering is desired, then the _callback_ should check
+the _record_->cpu to and return 0 if it is not the desired CPU to process. _nr_handles_
+denotes the number of elements in _handles_. The _callback_data_ is passed to the _callback_
+as its last parameter.  _callback_ may be NULL, which is useful if *tracecmd_follow_event()*
+is used, but note if _callback_ is NULL, then _callback_data_ is ignored and not sent to the
+_callback_ of *tracecmd_follow_event()*.
+
+The _callback()_ for both *tracecmd_iterate_events()* and *tracecmd_iterate_events_multi()* is of the prototype:
+
+int _callback()_(struct tracecmd_input pass:[*]_handle_, struct tep_record pass:[*]_record_,
+		 int _cpu_, void pass:[*]_data_);
+
+The _handle_ is the same _handle_ passed to *tracecmd_iterate_events()* or the current
+handle of _handles_ passed to *tracecmd_iterate_events_multi()* that the _record_ belongs to.
+The _record_ is the current event record. The _cpu_ is the current CPU being processed. Note, for
+*tracecmd_iterate_events_multi()* it may not be the actual CPU of the file, but the nth
+CPU of all the _handles_ put together. Use _record_->cpu to get the actual CPU that the
+event is on.
+
+The *tracecmd_follow_event()* function will attach to a trace file descriptor _handle_
+and call the _callback_ when the event described by _system_ and _name_ matches an event
+in the iteration of *tracecmd_iterate_events()* or *tracecmd_iterate_events_multi()*.
+For *tracecmd_iterate_events_multi()*, the _callback_ is only called if the _handle_
+matches the current trace file descriptor within _handles_. The _callback_data_ is
+passed as the last parameter to the _callback()_ function. Note, this _callback()_
+function will be called before the _callback()_ function of either *tracecmd_iterate_events()* or *tracecmd_iterate_events_multi()*.
+
+The _callback()_ prototype for *tracecmd_follow_event()_ is:
+
+int _callback()_(struct tracecmd_input pass:[*]_handle_, struct tep_event pass:[*]_event,
+		 struct tep_record pass:[*]_record_, int _cpu_, void pass:[*]_data_);
+
+The *tracecmd_filter_add()* function, adds a filter to _handle_ that affects
+both *tracecmd_iterate_events()* and *tracecmd_iterate_events_multi()*.
+The _filter_str_ is a character string defining a filter in a format that
+is defined by *tep_filter_add_filter_str(3)*. If _neg_ is true, then the events
+that match the filter will be skipped, otherwise the events that match will execute
+the _callback()_ function in the iterators.
+
+RETURN VALUE
+------------
+Both *tracecmd_iterate_events()* and *tracecmd_iterate_events_multi()* return zero
+if they successfully iterated all events (handling the follow and filters appropriately).
+Or an error value, which can include returning a non-zero result from the _callback()_
+function.
+
+EXAMPLE
+-------
+[source,c]
+--
+#define _GNU_SOURCE
+#include <sched.h>
+#include <stdlib.h>
+#include <getopt.h>
+#include <trace-cmd.h>
+
+struct private_data {
+	int		cpu;
+	const char	*file;
+};
+
+static int print_events(struct tracecmd_input *handle, struct tep_record *record, int cpu, void *data)
+{
+	static struct trace_seq seq;
+	struct tep_handle *tep = tracecmd_get_tep(handle);
+	struct private_data *pdata = tracecmd_get_private(handle);
+
+	/* For multi handles we need this */
+	if (pdata->cpu >= 0 && pdata->cpu != record->cpu)
+		return 0;
+
+	if (!seq.buffer)
+		trace_seq_init(&seq);
+
+	trace_seq_reset(&seq);
+	trace_seq_printf(&seq, "%s: ", pdata->file);
+	tep_print_event(tep, &seq, record, "%6.1000d [%03d] %s-%d %s: %s\n",
+			TEP_PRINT_TIME, TEP_PRINT_CPU, TEP_PRINT_COMM, TEP_PRINT_PID,
+			TEP_PRINT_NAME, TEP_PRINT_INFO);
+	trace_seq_terminate(&seq);
+	trace_seq_do_printf(&seq);
+	return 0;
+}
+
+static int print_event(struct tracecmd_input *handle, struct tep_event *event,
+		       struct tep_record *record, int cpu, void *data)
+{
+	return print_events(handle, record, cpu, data);
+}
+
+static void usage(const char *argv0)
+{
+	printf("usage: [-c cpu][-f filter][-e event] %s trace.dat [trace.dat ...]\n",
+	       argv0);
+	exit(-1);
+}
+
+int main(int argc, char **argv)
+{
+	struct tracecmd_input **handles = NULL;
+	const char *filter_str = NULL;
+	const char *argv0 = argv[0];
+	struct private_data *priv;
+	cpu_set_t *cpuset = NULL;
+	char *event = NULL;
+	size_t cpusize = 0;
+	int nr_handles = 0;
+	int cpu = -1;
+	int i;
+	int c;
+
+	while ((c = getopt(argc, argv, "c:f:e:")) >= 0) {
+		switch (c) {
+		case 'c':
+			/* filter all trace data to this one CPU. */
+			cpu = atoi(optarg);
+			break;
+		case 'f':
+			filter_str = optarg;
+			break;
+		case 'e':
+			event = optarg;
+			break;
+		default:
+			usage(argv0);
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0)
+		usage(argv0);
+
+	for (i = 0; i < argc; i++) {
+		handles = realloc(handles, sizeof(*handles) * (nr_handles + 1));
+		if (!handles)
+			exit(-1);
+		handles[nr_handles] = tracecmd_open(argv[i], 0);
+		if (!handles[nr_handles]) {
+			perror(argv[i]);
+			exit(-1);
+		}
+		if (filter_str) {
+			if (tracecmd_filter_add(handles[nr_handles], filter_str, false) == NULL) {
+				perror("adding filter");
+				exit(-1);
+			}
+		}
+		priv = calloc(1, sizeof(*priv));
+		if (!priv)
+			exit(-1);
+		priv->file = argv[i];
+		priv->cpu = cpu;
+		tracecmd_set_private(handles[nr_handles], priv);
+		if (event) {
+			if (tracecmd_follow_event(handles[nr_handles], NULL, event, print_event, NULL) < 0) {
+				printf("Could not follow event %s for file %s\n", event, argv[i]);
+				exit(-1);
+			}
+		}
+		nr_handles++;
+	}
+
+	/* Shortcut */
+	if (nr_handles == 1) {
+		if (cpu >= 0) {
+			cpuset = CPU_ALLOC(cpu + 1);
+			if (!cpuset)
+				exit(-1);
+			cpusize = CPU_ALLOC_SIZE(cpu + 1);
+			CPU_SET_S(cpu, cpusize, cpuset);
+		}
+		if (event)
+			tracecmd_iterate_events(handles[0], cpuset, cpusize, NULL, NULL);
+		else
+			tracecmd_iterate_events(handles[0], cpuset, cpusize, print_events, NULL);
+	} else {
+		if (event)
+			tracecmd_iterate_events_multi(handles, nr_handles, NULL, NULL);
+		else
+			tracecmd_iterate_events_multi(handles, nr_handles, print_events, NULL);
+	}
+
+	for (i = 0; i < nr_handles; i++) {
+		priv = tracecmd_get_private(handles[i]);
+		free(priv);
+		tracecmd_close(handles[i]);
+	}
+	free(handles);
+}
+--
+FILES
+-----
+[verse]
+--
+*trace-cmd.h*
+	Header file to include in order to have access to the library APIs.
+*-ltracecmd*
+	Linker switch to add when building a program that uses the library.
+--
+
+SEE ALSO
+--------
+*libtracefs(3)*,
+*libtraceevent(3)*,
+*trace-cmd(1)*
+*trace-cmd.dat(5)*
+
+AUTHOR
+------
+[verse]
+--
+*Steven Rostedt* <rostedt@goodmis.org>
+*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>
+--
+REPORTING BUGS
+--------------
+Report bugs to  <linux-trace-devel@vger.kernel.org>
+
+LICENSE
+-------
+libtracecmd is Free Software licensed under the GNU LGPL 2.1
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
+
+COPYING
+-------
+Copyright \(C) 2020 VMware, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).

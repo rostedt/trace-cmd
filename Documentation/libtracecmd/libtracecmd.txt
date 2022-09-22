@@ -27,6 +27,29 @@ Read tracing records from a trace file:
 	void *tracecmd_free_record*(struct tep_record pass:[*]_record_);
 	struct tep_handle pass:[*]*tracecmd_get_tep*(struct tracecmd_input pass:[*]_handle_);
 
+Iterating over events in a trace file:
+	int *tracecmd_iterate_events*(struct tracecmd_input pass:[*]_handle_,
+				    cpu_set_t pass:[*]_cpus_, int _cpu_size_,
+				    int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+						    struct tep_record pass:[*],
+						    int, void pass:[*]),
+				    void pass:[*]_callback_data_);
+	int *tracecmd_iterate_events_multi*(struct tracecmd_input pass:[**]_handles_,
+					  int _nr_handles_,
+					  int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+								   struct tep_record pass:[*],
+							   int, void pass:[*]),
+					  void pass:[*]_callback_data_);
+	int *tracecmd_follow_event*(struct tracecmd_input pass:[*]_handle_,
+				  const char pass:[*]_system_, const char pass:[*]_event_name_,
+				  int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+						  struct tep_event pass:[*],
+						  struct tep_record pass:[*],
+						  int, void pass:[*]),
+				  void pass:[*]_callback_data_);
+	struct tracecmd_filter pass:[*]*tracecmd_filter_add*(struct tracecmd_input *_handle_,
+						    const char pass:[*]_filter_str_, bool _neg_);
+
 Read tracing instances from a trace file:
 	int *tracecmd_buffer_instances*(struct tracecmd_input pass:[*]_handle_);
 	const char pass:[*]*tracecmd_buffer_instance_name*(struct tracecmd_input pass:[*]_handle_, int _indx_);
