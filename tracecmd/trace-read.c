@@ -1040,6 +1040,98 @@ static bool skip_record(struct handle_list *handles, struct tep_record *record, 
 	return !found;
 }
 
+struct kvm_cpu_map {
+	struct tracecmd_input		*guest_handle;
+	int				guest_vcpu;
+	int				host_pid;
+};
+
+static struct kvm_cpu_map *vcpu_maps;
+static int nr_vcpu_maps;
+
+static int cmp_map(const void *A, const void *B)
+{
+	const struct kvm_cpu_map *a = A;
+	const struct kvm_cpu_map *b = B;
+
+	if (a->host_pid < b->host_pid)
+		return -1;
+	return a->host_pid > b->host_pid;
+}
+
+static void map_vcpus(struct tracecmd_input **handles, int nr_handles)
+{
+	struct tracecmd_input *host_handle = handles[0];
+	unsigned long long traceid;
+	struct kvm_cpu_map *map;
+	const int *cpu_pids;
+	const char *name;
+	int vcpu_count;
+	int ret;
+	int i, k;
+
+	for (i = 1; i < nr_handles; i++) {
+		traceid = tracecmd_get_traceid(handles[i]);
+		ret = tracecmd_get_guest_cpumap(host_handle, traceid,
+						&name, &vcpu_count, &cpu_pids);
+		if (ret)
+			continue;
+		map = realloc(vcpu_maps, sizeof(*map) * (nr_vcpu_maps + vcpu_count));
+		if (!map)
+			die("Could not allocate vcpu maps");
+
+		vcpu_maps = map;
+		map += nr_vcpu_maps;
+		nr_vcpu_maps += vcpu_count;
+
+		for (k = 0; k < vcpu_count; k++) {
+			map[k].guest_handle = handles[i];
+			map[k].guest_vcpu = k;
+			map[k].host_pid = cpu_pids[k];
+		}
+	}
+	if (!vcpu_maps)
+		return;
+
+	qsort(vcpu_maps, nr_vcpu_maps, sizeof(*map), cmp_map);
+}
+
+
+const char *tep_plugin_kvm_get_func(struct tep_event *event,
+				    struct tep_record *record,
+				    unsigned long long *val)
+{
+	struct tep_handle *tep;
+	struct kvm_cpu_map *map;
+	struct kvm_cpu_map key;
+	unsigned long long rip = *val;
+	const char *func;
+	int pid;
+
+	if (!vcpu_maps || !nr_vcpu_maps)
+		return NULL;
+
+	/*
+	 * A kvm event is referencing an address of the guest.
+	 * get the PID of this event, and then find which guest
+	 * it belongs to. Then return the function name from that guest's
+	 * handle.
+	 */
+	pid = tep_data_pid(event->tep, record);
+
+	key.host_pid = pid;
+	map = bsearch(&key, vcpu_maps, nr_vcpu_maps, sizeof(*vcpu_maps), cmp_map);
+
+	if (!map)
+		return NULL;
+
+	tep = tracecmd_get_tep(map->guest_handle);
+	func = tep_find_function(tep, rip);
+	if (func)
+		*val = tep_find_function_address(tep, rip);
+	return func;
+}
+
 static int process_record(struct tracecmd_input *handle, struct tep_record *record,
 			  int cpu, void *data)
 {
@@ -1191,6 +1283,8 @@ static void read_data_info(struct list_head *handle_list, enum output_type otype
 		tracecmd_set_private(handles->handle, handles);
 		handle_array[nr_handles++] = handles->handle;
 	}
+
+	map_vcpus(handle_array, nr_handles);
 
 	tracecmd_iterate_events_multi(handle_array, nr_handles,
 				      process_record, &last_timestamp);
