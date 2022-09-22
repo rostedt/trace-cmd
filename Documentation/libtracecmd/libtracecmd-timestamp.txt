@@ -1,0 +1,138 @@
+libtracecmd(3)
+=============
+
+NAME
+----
+tracecmd_get_first_ts, tracecmd_add_ts_offset - Handle time stamps from a trace file.
+
+SYNOPSIS
+--------
+[verse]
+--
+*#include <trace-cmd.h>*
+
+unsigned long long *tracecmd_get_first_ts*(struct tracecmd_input pass:[*]_handle_);
+void *tracecmd_add_ts_offset*(struct tracecmd_input pass:[*]_handle_, long long _offset_);
+--
+
+DESCRIPTION
+-----------
+This set of APIs can be used to read tracing data from a trace file opened
+with _tracecmd_open()(3)_, _tracecmd_open_fd()(3)_ or _tracecmd_open_head()(3)_.
+
+The *tracecmd_get_first_ts()* function returns the time stamp of the first
+record in the _handle_.
+
+The *tracecmd_add_ts_offset()* function adds an offset to each of the records
+in the _handle_ that represents a trace file. This is useful for associating two
+different tracing files by their offset (for example a trace file from a host
+and a trace file from a guest that were not synchronized when created).
+
+RETURN VALUE
+------------
+The *tracecmd_get_first_ts()* function returns the timestamp of the first
+record in a trace file for the given _handle_.
+
+EXAMPLE
+-------
+[source,c]
+--
+#include <stdlib.h>
+#include <trace-cmd.h>
+
+static int print_events(struct tracecmd_input *handle, struct tep_record *record, int cpu, void *data)
+{
+	static struct trace_seq seq;
+	struct tep_handle *tep = tracecmd_get_tep(handle);
+	const char *file = tracecmd_get_private(handle);
+
+	if (!seq.buffer)
+		trace_seq_init(&seq);
+
+	trace_seq_reset(&seq);
+	trace_seq_printf(&seq, "%s: ", file);
+	tep_print_event(tep, &seq, record, "%6.1000d [%03d] %s-%d %s: %s\n",
+			TEP_PRINT_TIME, TEP_PRINT_CPU, TEP_PRINT_COMM, TEP_PRINT_PID,
+			TEP_PRINT_NAME, TEP_PRINT_INFO);
+	trace_seq_terminate(&seq);
+	trace_seq_do_printf(&seq);
+	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	struct tracecmd_input **handles = NULL;
+	unsigned long long ts, first_ts = 0;
+	int nr_handles = 0;
+	int i;
+
+	if (argc < 2) {
+		printf("usage: %s trace.dat [trace.dat ...]\n", argv[0]);
+		exit(-1);
+	}
+
+	for (i = 1; i < argc; i++) {
+		handles = realloc(handles, sizeof(*handles) * (nr_handles + 1));
+		if (!handles)
+			exit(-1);
+		handles[nr_handles] = tracecmd_open(argv[i], 0);
+		if (!handles[nr_handles])
+			exit(-1);
+		tracecmd_set_private(handles[nr_handles], argv[i]);
+		ts = tracecmd_get_first_ts(handles[nr_handles]);
+		if (!first_ts || ts < first_ts)
+			first_ts = ts;
+		nr_handles++;
+	}
+
+	/* Set the time stamp to start at the first record found */
+	for (i = 0; i < nr_handles; i++)
+		tracecmd_add_ts_offset(handles[i], -first_ts);
+
+	tracecmd_iterate_events_multi(handles, nr_handles, print_events, NULL);
+
+	for (i = 0; i < nr_handles; i++)
+		tracecmd_close(handles[i]);
+	free(handles);
+}
+--
+FILES
+-----
+[verse]
+--
+*trace-cmd.h*
+	Header file to include in order to have access to the library APIs.
+*-ltracecmd*
+	Linker switch to add when building a program that uses the library.
+--
+
+SEE ALSO
+--------
+_libtracefs(3)_,
+_libtraceevent(3)_,
+_trace-cmd(1)_
+_trace-cmd.dat(5)_
+
+AUTHOR
+------
+[verse]
+--
+*Steven Rostedt* <rostedt@goodmis.org>
+*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>
+--
+REPORTING BUGS
+--------------
+Report bugs to  <linux-trace-devel@vger.kernel.org>
+
+LICENSE
+-------
+libtracecmd is Free Software licensed under the GNU LGPL 2.1
+
+RESOURCES
+---------
+https://git.kernel.org/pub/scm/utils/trace-cmd/trace-cmd.git/
+
+COPYING
+-------
+Copyright \(C) 2020 VMware, Inc. Free use of this software is granted under
+the terms of the GNU Public License (GPL).
