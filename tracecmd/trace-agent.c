@@ -391,7 +391,8 @@ busy:
 
 enum {
 	OPT_verbose	= 254,
-	DO_DEBUG	= 255
+	OPT_debug	= 255,
+	OPT_notimeout	= 256,
 };
 
 void trace_agent(int argc, char **argv)
@@ -413,7 +414,8 @@ void trace_agent(int argc, char **argv)
 		static struct option long_options[] = {
 			{"port", required_argument, NULL, 'p'},
 			{"help", no_argument, NULL, '?'},
-			{"debug", no_argument, NULL, DO_DEBUG},
+			{"debug", no_argument, NULL, OPT_debug},
+			{"notimeout", no_argument, NULL, OPT_notimeout},
 			{"verbose", optional_argument, NULL, OPT_verbose},
 			{NULL, 0, NULL, 0}
 		};
@@ -445,8 +447,11 @@ void trace_agent(int argc, char **argv)
 				die("Failed to allocate guest instance");
 
 			break;
-		case DO_DEBUG:
+		case OPT_debug:
 			tracecmd_set_debug(true);
+			break;
+		case OPT_notimeout:
+			tracecmd_set_notimeout(true);
 			break;
 		case OPT_verbose:
 			if (trace_set_verbose(optarg) < 0)

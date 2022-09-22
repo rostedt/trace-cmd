@@ -51,6 +51,9 @@ void tracecmd_record_ref(struct tep_record *record);
 void tracecmd_set_debug(bool set_debug);
 bool tracecmd_get_debug(void);
 
+void tracecmd_set_notimeout(bool set_notimeout);
+bool tracecmd_get_notimeout(void);
+
 bool tracecmd_is_version_supported(unsigned int version);
 int tracecmd_default_file_version(void);
 

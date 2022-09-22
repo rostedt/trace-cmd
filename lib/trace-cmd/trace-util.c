@@ -30,6 +30,7 @@
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
 
 static bool debug;
+static bool notimeout;
 static int log_level = TEP_LOG_INFO;
 static FILE *logfp;
 
@@ -108,6 +109,30 @@ void tracecmd_set_debug(bool set_debug)
 bool tracecmd_get_debug(void)
 {
 	return debug;
+}
+
+/**
+ * tracecmd_set_notimeout - Do not timeout waiting for responses
+ * @set_notimeout: True or false to set notimeout mode.
+ *
+ * If @set_notimeout is true, then the library will not fail waiting for
+ * responses. This is useful when running the code under gdb.
+ * Note, if debug is set, then this makes no difference as it will always
+ * not timeout.
+ */
+void tracecmd_set_notimeout(bool set_notimeout)
+{
+	notimeout = set_notimeout;
+}
+
+/**
+ * tracecmd_get_notimeout - Get setting of notimeout of tracecmd library
+ * Returns true, if the tracecmd library has notimeout set.
+ *
+ */
+bool tracecmd_get_notimeout(void)
+{
+	return notimeout || debug;
 }
 
 void tracecmd_parse_cmdlines(struct tep_handle *pevent,

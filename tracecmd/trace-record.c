@@ -5738,7 +5738,8 @@ enum {
 	OPT_poll		= 259,
 	OPT_name		= 260,
 	OPT_proxy		= 261,
-	OPT_temp		= 262
+	OPT_temp		= 262,
+	OPT_notimeout		= 264,
 };
 
 void trace_stop(int argc, char **argv)
@@ -6149,6 +6150,7 @@ static void parse_record_options(int argc,
 			{"cmdlines-size", required_argument, NULL, OPT_cmdlines_size},
 			{"no-filter", no_argument, NULL, OPT_no_filter},
 			{"debug", no_argument, NULL, OPT_debug},
+			{"notimeout", no_argument, NULL, OPT_notimeout},
 			{"quiet", no_argument, NULL, OPT_quiet},
 			{"help", no_argument, NULL, '?'},
 			{"proc-map", no_argument, NULL, OPT_procmap},
@@ -6616,6 +6618,9 @@ static void parse_record_options(int argc,
 			break;
 		case OPT_debug:
 			tracecmd_set_debug(true);
+			break;
+		case OPT_notimeout:
+			tracecmd_set_notimeout(true);
 			break;
 		case OPT_module:
 			check_instance_die(ctx->instance, "--module");
