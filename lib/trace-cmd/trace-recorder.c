@@ -204,7 +204,9 @@ tracecmd_create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 		 * back to using page_size for splice(). It could also return
 		 * success, but not modify pipe_size.
 		 */
-		if (ret < 0 || !pipe_size)
+		if (ret > 0 && !pipe_size)
+			pipe_size = ret;
+		else if (ret < 0)
 			pipe_size = recorder->page_size;
 
 		recorder->pipe_size = pipe_size;
