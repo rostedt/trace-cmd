@@ -76,6 +76,13 @@ static struct trace_log_severity {
 	{ .id = TEP_LOG_ALL, .name = "all" },
 };
 
+void trace_set_loglevel(int level)
+{
+	tracecmd_set_loglevel(level);
+	tracefs_set_loglevel(level);
+	tep_set_loglevel(level);
+}
+
 int trace_set_verbose(char *level)
 {
 	int id;
@@ -89,7 +96,7 @@ int trace_set_verbose(char *level)
 		if (id >= TEP_LOG_NONE) {
 			if (id > TEP_LOG_ALL)
 				id = TEP_LOG_ALL;
-			tracecmd_set_loglevel(id);
+			trace_set_loglevel(id);
 			return 0;
 		}
 	} else {
@@ -98,7 +105,7 @@ int trace_set_verbose(char *level)
 
 		for (i = 0; i < size; i++) {
 			if (!strncmp(level, log_severity[i].name, strlen(log_severity[i].name))) {
-				tracecmd_set_loglevel(log_severity[i].id);
+				trace_set_loglevel(log_severity[i].id);
 				return 0;
 			}
 		}

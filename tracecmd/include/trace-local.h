@@ -40,6 +40,7 @@ void usage(char **argv);
 extern int silence_warnings;
 extern int show_status;
 
+void trace_set_loglevel(int level);
 int trace_set_verbose(char *level);
 
 enum port_type {

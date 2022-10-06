@@ -1565,6 +1565,8 @@ void trace_report (int argc, char **argv)
 
 	signal(SIGINT, sig_end);
 
+	trace_set_loglevel(TEP_LOG_INFO);
+
 	for (;;) {
 		int option_index = 0;
 		static struct option long_options[] = {

@@ -31,7 +31,7 @@
 
 static bool debug;
 static bool notimeout;
-static int log_level = TEP_LOG_INFO;
+static int log_level = TEP_LOG_WARNING;
 static FILE *logfp;
 
 const static struct {
@@ -393,8 +393,6 @@ trace_load_plugins(struct tep_handle *tep, int flags)
 void tracecmd_set_loglevel(enum tep_loglevel level)
 {
 	log_level = level;
-	tracefs_set_loglevel(level);
-	tep_set_loglevel(level);
 }
 
 void __weak tracecmd_warning(const char *fmt, ...)
