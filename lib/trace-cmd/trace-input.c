@@ -2648,6 +2648,29 @@ static int call_followers(struct tracecmd_input *handle,
 	return ret;
 }
 
+static int call_callbacks(struct tracecmd_input *handle, struct tep_record *record,
+			  int next_cpu,
+			  int (*callback)(struct tracecmd_input *handle,
+					  struct tep_record *,
+					  int, void *),
+			  void *callback_data)
+{
+	int ret = 0;
+
+	if (!record)
+		return 0;
+
+	if (!handle->filter ||
+	    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH) {
+		if (handle->nr_followers)
+			ret = call_followers(handle, record, next_cpu);
+		if (!ret && callback)
+			ret = callback(handle, record, next_cpu, callback_data);
+	}
+
+	return ret;
+}
+
 /**
  * tracecmd_iterate_events - iterate events over a given handle
  * @handle: The handle to iterate over
@@ -2709,13 +2732,9 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 			record = tracecmd_read_data(handle, next_cpu);
 			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
 
-			if (!handle->filter ||
-			    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH) {
-				if (handle->nr_followers)
-					ret = call_followers(handle, record, next_cpu);
-				if (!ret && callback)
-					ret = callback(handle, record, next_cpu, callback_data);
-			}
+			ret = call_callbacks(handle, record, next_cpu,
+					     callback, callback_data);
+
 			tracecmd_free_record(record);
 		}
 	} while (next_cpu >= 0 && ret >= 0);
@@ -2803,14 +2822,9 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 			record = tracecmd_read_data(handle, cpu);
 			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
 
-			if (!handle->filter ||
-			    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH) {
-				if (handle->nr_followers)
-					ret = call_followers(handle, record, next_cpu);
+			ret = call_callbacks(handle, record, next_cpu,
+					     callback, callback_data);
 
-				if (!ret && callback)
-					ret = callback(handle, record, next_cpu, callback_data);
-			}
 			tracecmd_free_record(record);
 		}
 
