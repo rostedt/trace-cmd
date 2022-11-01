@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "trace-cmd.h"
 #include "trace-cmd-private.h"
