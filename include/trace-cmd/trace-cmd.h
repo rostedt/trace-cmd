@@ -63,6 +63,13 @@ int tracecmd_follow_event(struct tracecmd_input *handle,
 					  int, void *),
 			  void *callback_data);
 
+int tracecmd_follow_missed_events(struct tracecmd_input *handle,
+				  int (*callback)(struct tracecmd_input *handle,
+						  struct tep_event *,
+						  struct tep_record *,
+						  int, void *),
+				  void *callback_data);
+
 int tracecmd_iterate_events(struct tracecmd_input *handle,
 			    cpu_set_t *cpus, int cpu_size,
 			    int (*callback)(struct tracecmd_input *handle,

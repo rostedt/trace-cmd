@@ -4,7 +4,7 @@ libtracecmd(3)
 NAME
 ----
 tracecmd_iterate_events, tracecmd_iterate_events_multi, tracecmd_follow_event,
-tracecmd_filter_add - Read events from a trace file
+tracecmd_follow_missed_events, tracecmd_filter_add - Read events from a trace file
 
 SYNOPSIS
 --------
@@ -31,6 +31,12 @@ int *tracecmd_follow_event*(struct tracecmd_input pass:[*]_handle_,
 					  struct tep_record pass:[*],
 					  int, void pass:[*]),
 			  void pass:[*]_callback_data_);
+int *tracecmd_follow_missed_events*(struct tracecmd_input pass:[*]_handle_,
+				   int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+						   struct tep_event pass:[*],
+						   struct tep_record pass:[*],
+						   int, void pass:[*]),
+				   void pass:[*]_callback_data_);
 struct tracecmd_filter pass:[*]*tracecmd_filter_add*(struct tracecmd_input *_handle_,
 					    const char pass:[*]_filter_str_, bool _neg_);
 --
@@ -80,6 +86,9 @@ event is on.
 The *tracecmd_follow_event()* function will attach to a trace file descriptor _handle_
 and call the _callback_ when the event described by _system_ and _name_ matches an event
 in the iteration of *tracecmd_iterate_events()* or *tracecmd_iterate_events_multi()*.
+Note, the _cpu_ is the nth CPU for both *tracecmd_iterate_events()* and
+*tracecmd_iterate_events_multi()*. If the actual CPU of the _record_ is needed, use
+_record_->cpu.
 For *tracecmd_iterate_events_multi()*, the _callback_ is only called if the _handle_
 matches the current trace file descriptor within _handles_. The _callback_data_ is
 passed as the last parameter to the _callback()_ function. Note, this _callback()_
@@ -89,6 +98,21 @@ The _callback()_ prototype for *tracecmd_follow_event()_ is:
 
 int _callback()_(struct tracecmd_input pass:[*]_handle_, struct tep_event pass:[*]_event,
 		 struct tep_record pass:[*]_record_, int _cpu_, void pass:[*]_data_);
+
+The *tracecmd_follow_missed_events()* function will attach to a trace file descriptor
+_handle_ and call the _callback_ when missed events are detected. The _event_ will
+hold the type of event that the _record_ is. The _record_ will hold the information
+of the missed events. The _cpu_ is the nth CPU for both *tracecmd_iterate_events()*
+and *tracecmd_iterate_events_multi()*. If the CPU that the missed events are for is
+needed, use _record_->cpu. If _record_->missed_events is a positive number, then it
+holds the number of missed events since the last event on its CPU, otherwise it
+will be negative, and that will mean that the number of missed events is unknown but
+missed events exist since the last event on the CPU.
+The _callback_ and _callback_data_ is the same format as *tracecmd_follow_event()* above.
+The missed events _callback_ is called before any of the other _callbacks_ and any
+filters that were added by *tracecmd_filter_add()* are ignored.
+If _callback_ returns a non zero, it will stop the iterator before it calls any of the
+other iterator callbacks for the given record.
 
 The *tracecmd_filter_add()* function, adds a filter to _handle_ that affects
 both *tracecmd_iterate_events()* and *tracecmd_iterate_events_multi()*.
@@ -146,6 +170,17 @@ static int print_event(struct tracecmd_input *handle, struct tep_event *event,
 		       struct tep_record *record, int cpu, void *data)
 {
 	return print_events(handle, record, cpu, data);
+}
+
+static int missed_events(struct tracecmd_input *handle, struct tep_event *event,
+			 struct tep_record *record, int cpu, void *data)
+{
+	if (record->missed_events > 0)
+		printf("CPU [%03d] has %d missed events\n",
+			 record->cpu, record->missed_events);
+	else
+		printf("CPU [%03d] has missed events\n", record->cpu);
+	return 0;
 }
 
 static void usage(const char *argv0)
@@ -218,6 +253,7 @@ int main(int argc, char **argv)
 				exit(-1);
 			}
 		}
+		tracecmd_follow_missed_events(handles[nr_handles], missed_events, NULL);
 		nr_handles++;
 	}
 

@@ -171,6 +171,7 @@ struct tracecmd_input {
 	struct tracecmd_input	*parent;
 	struct tracecmd_filter	*filter;
 	struct follow_event	*followers;
+	struct follow_event	*missed_followers;
 	struct tracecmd_cpu_map *map;
 	unsigned long		file_state;
 	unsigned long long	trace_id;
@@ -185,6 +186,7 @@ struct tracecmd_input {
 	int			start_cpu;
 	int			ref;
 	int			nr_followers;
+	int			nr_missed_followers;
 	int			nr_buffers;	/* buffer instances */
 	bool			use_trace_clock;
 	bool			read_page;
@@ -2626,6 +2628,57 @@ int tracecmd_follow_event(struct tracecmd_input *handle,
 	return 0;
 }
 
+/**
+ * tracecmd_follow_missed_events - Add callback for missed events for iterators
+ * @handle: The handle to get a callback from
+ * @callback: The function to call when missed events is detected
+ * @callback_data: The data to pass to @callback
+ *
+ * This attaches a callback to @handle where if tracecmd_iterate_events()
+ * or tracecmd_iterate_events_multi() is called, that if missed events
+ * is detected, it will call @callback, with the following parameters:
+ *  @handle: Same handle as passed to this function.
+ *  @event: The event pointer of the record with the missing events
+ *  @record; The event instance of @event.
+ *  @cpu: The cpu that the event happened on.
+ *  @callback_data: The same as @callback_data passed to the function.
+ *
+ * Note that when used with tracecmd_iterate_events_multi() that @cpu
+ * may be the nth CPU of all handles it is processing, so if the CPU
+ * that the @record is on is desired, then use @record->cpu.
+ *
+ * If the count of missing events is available, @record->missed_events
+ * will have a positive number holding the number of missed events since
+ * the last event on the same CPU, or just -1 if that number is unknown
+ * but missed events did happen.
+ *
+ * Returns 0 on success and -1 on error.
+ */
+int tracecmd_follow_missed_events(struct tracecmd_input *handle,
+				  int (*callback)(struct tracecmd_input *handle,
+						  struct tep_event *,
+						  struct tep_record *,
+						  int, void *),
+				  void *callback_data)
+{
+	struct follow_event *followers;
+	struct follow_event follow;
+
+	follow.event = NULL;
+	follow.callback = callback;
+	follow.callback_data = callback_data;
+
+	followers = realloc(handle->missed_followers, sizeof(*followers) *
+			    (handle->nr_missed_followers + 1));
+	if (!followers)
+		return -1;
+
+	handle->missed_followers = followers;
+	followers[handle->nr_missed_followers++] = follow;
+
+	return 0;
+}
+
 static int call_followers(struct tracecmd_input *handle,
 			  struct tep_record *record, int cpu)
 {
@@ -2648,6 +2701,27 @@ static int call_followers(struct tracecmd_input *handle,
 	return ret;
 }
 
+static int call_missed_events(struct tracecmd_input *handle,
+			      struct tep_record *record, int cpu)
+{
+	struct tep_handle *tep = tracecmd_get_tep(handle);
+	struct follow_event *followers = handle->missed_followers;
+	struct tep_event *event;
+	int ret = 0;
+	int i;
+
+	event = tep_find_event_by_record(tep, record);
+	if (!event)
+		return -1;
+
+	for (i = 0; i < handle->nr_missed_followers; i++) {
+		ret |= followers[i].callback(handle, event, record,
+					     cpu, followers[i].callback_data);
+	}
+
+	return ret;
+}
+
 static int call_callbacks(struct tracecmd_input *handle, struct tep_record *record,
 			  int next_cpu,
 			  int (*callback)(struct tracecmd_input *handle,
@@ -2659,6 +2733,12 @@ static int call_callbacks(struct tracecmd_input *handle, struct tep_record *reco
 
 	if (!record)
 		return 0;
+
+	if (record->missed_events)
+		ret = call_missed_events(handle, record, next_cpu);
+
+	if (ret)
+		return ret;
 
 	if (!handle->filter ||
 	    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH) {

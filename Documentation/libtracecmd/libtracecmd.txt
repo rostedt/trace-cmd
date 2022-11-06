@@ -47,6 +47,12 @@ Iterating over events in a trace file:
 						  struct tep_record pass:[*],
 						  int, void pass:[*]),
 				  void pass:[*]_callback_data_);
+	int *tracecmd_follow_missed_events*(struct tracecmd_input pass:[*]_handle_,
+					   int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+							   struct tep_event pass:[*],
+							   struct tep_record pass:[*],
+							   int, void pass:[*]),
+					   void pass:[*]_callback_data_);
 	struct tracecmd_filter pass:[*]*tracecmd_filter_add*(struct tracecmd_input *_handle_,
 						    const char pass:[*]_filter_str_, bool _neg_);
 
