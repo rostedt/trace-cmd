@@ -121,7 +121,7 @@ static int attach_guest_fifos(const char *guest, int nr_cpus)
 		"  <target type='virtio' name='%s%d'/>\n"
 		"</channel>";
 	char tmp_path[PATH_MAX], path[PATH_MAX];
-	char cmd[PATH_MAX], xml[PATH_MAX];
+	char cmd[PATH_MAX + 256], xml[PATH_MAX + 256];
 	int i, fd, ret = 0;
 
 	strcpy(tmp_path, "/tmp/pipexmlXXXXXX");
