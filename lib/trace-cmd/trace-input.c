@@ -2810,11 +2810,11 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 		if (next_cpu >= 0) {
 			/* Need to call read_data to increment to the next record */
 			record = tracecmd_read_data(handle, next_cpu);
-			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
 
 			ret = call_callbacks(handle, record, next_cpu,
 					     callback, callback_data);
 
+			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
 			tracecmd_free_record(record);
 		}
 	} while (next_cpu >= 0 && ret >= 0);
@@ -2900,12 +2900,12 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 			cpu = next_cpu - handle->start_cpu;
 			/* Need to call read_data to increment to the next record */
 			record = tracecmd_read_data(handle, cpu);
-			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
 
 			ret = call_callbacks(handle, record, next_cpu,
 					     callback, callback_data);
 
 			tracecmd_free_record(record);
+			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
 		}
 
 	} while (next_cpu >= 0 && ret >= 0);
