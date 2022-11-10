@@ -1565,7 +1565,7 @@ void trace_report (int argc, char **argv)
 
 	signal(SIGINT, sig_end);
 
-	trace_set_loglevel(TEP_LOG_INFO);
+	trace_set_loglevel(TEP_LOG_ERROR);
 
 	for (;;) {
 		int option_index = 0;
