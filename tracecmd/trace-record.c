@@ -3326,19 +3326,11 @@ create_recorder_instance_pipe(struct buffer_instance *instance,
 {
 	struct tracecmd_recorder *recorder;
 	unsigned flags = recorder_flags | TRACECMD_RECORD_BLOCK_SPLICE;
-	char *path;
-
-	path = tracefs_instance_get_dir(instance->tracefs);
-
-	if (!path)
-		die("malloc");
 
 	/* This is already the child */
 	close(brass[0]);
 
-	recorder = tracecmd_create_buffer_recorder_fd(brass[1], cpu, flags, path);
-
-	tracefs_put_tracing_file(path);
+	recorder = tracecmd_create_buffer_recorder_fd(brass[1], cpu, flags, instance->tracefs);
 
 	return recorder;
 }
@@ -3349,7 +3341,6 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 {
 	struct tracecmd_recorder *record;
 	struct addrinfo *result;
-	char *path;
 
 	if (is_guest(instance)) {
 		int fd;
@@ -3386,12 +3377,8 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 	if (!tracefs_instance_get_name(instance->tracefs))
 		return tracecmd_create_recorder_maxkb(file, cpu, recorder_flags, max_kb);
 
-	path = tracefs_instance_get_dir(instance->tracefs);
-
 	record = tracecmd_create_buffer_recorder_maxkb(file, cpu, recorder_flags,
-						       path, max_kb);
-	tracefs_put_tracing_file(path);
-
+						       instance->tracefs, max_kb);
 	return record;
 }
 
@@ -3402,6 +3389,7 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 static int create_recorder(struct buffer_instance *instance, int cpu,
 			   enum trace_type type, int *brass)
 {
+	struct tracefs_instance *recorder_instance = NULL;
 	long ret;
 	char *file;
 	pid_t pid;
@@ -3427,7 +3415,6 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 
 	if ((instance->client_ports && !is_guest(instance)) || is_agent(instance)) {
 		unsigned int flags = recorder_flags;
-		char *path = NULL;
 		int fd;
 
 		if (is_agent(instance)) {
@@ -3449,19 +3436,10 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 		}
 		if (fd < 0)
 			die("Failed connecting to client");
-		if (tracefs_instance_get_name(instance->tracefs) && !is_agent(instance)) {
-			path = tracefs_instance_get_dir(instance->tracefs);
-		} else {
-			const char *dir = tracefs_tracing_dir();
+		if (tracefs_instance_get_name(instance->tracefs) && !is_agent(instance))
+			recorder_instance = instance->tracefs;
 
-			if (dir)
-				path = strdup(dir);
-		}
-		if (!path)
-			die("can't get the tracing directory");
-
-		recorder = tracecmd_create_buffer_recorder_fd(fd, cpu, flags, path);
-		tracefs_put_tracing_file(path);
+		recorder = tracecmd_create_buffer_recorder_fd(fd, cpu, flags, recorder_instance);
 	} else {
 		file = get_temp_file(instance, cpu);
 		recorder = create_recorder_instance(instance, file, cpu, brass);
