@@ -264,7 +264,8 @@ static int read_events(struct tracecmd_input *handle, struct tep_record *record,
 	tep_print_event(tep, seq, record, "%s-%d %s %s\n",
 			TEP_PRINT_COMM, TEP_PRINT_PID,
 			TEP_PRINT_NAME, TEP_PRINT_INFO);
-	trace_seq_do_printf(seq);
+	if (show_output)
+		trace_seq_do_printf(seq);
 	return 0;
 }
 
