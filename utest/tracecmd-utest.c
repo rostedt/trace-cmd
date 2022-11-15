@@ -10,6 +10,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -111,9 +112,9 @@ static int run_trace(const char *cmd, ...)
 	return ret;
 }
 
-static int pipe_it(int *ofd, int *efd, const char *cmd, va_list ap)
+static int pipe_it(int *ofd, int *efd, int (*func)(void *),
+		   void *data)
 {
-	char **argv;
 	int obrass[2];
 	int ebrass[2];
 	pid_t pid;
@@ -130,9 +131,6 @@ static int pipe_it(int *ofd, int *efd, const char *cmd, va_list ap)
 		goto fail;
 
 	if (!pid) {
-		argv = get_args(cmd, ap);
-		if (!argv)
-			exit(-1);
 
 		close(obrass[0]);
 		close(STDOUT_FILENO);
@@ -144,7 +142,7 @@ static int pipe_it(int *ofd, int *efd, const char *cmd, va_list ap)
 		if (dup2(obrass[1], STDERR_FILENO) < 0)
 			exit(-1);
 
-		ret = execvp(tracecmd_exec, argv);
+		ret = func(data);
 		exit(ret);
 	}
 
@@ -165,26 +163,52 @@ static int pipe_it(int *ofd, int *efd, const char *cmd, va_list ap)
 	return -1;
 }
 
-static int grep_it(const char *match, const char *cmd, ...)
+struct do_grep {
+	const char		*cmd;
+	va_list			*ap;
+};
+
+static int do_grep(void *data)
 {
+	struct do_grep *gdata = data;
+	char **argv;
+	int ret;
+
+	argv = get_args(gdata->cmd, *gdata->ap);
+	if (!argv)
+		exit(-1);
+
+	ret = execvp(tracecmd_exec, argv);
+	tracefs_list_free(argv);
+	return ret;
+}
+
+struct do_grep_it {
+	const char		*match;
+	const char		*cmd;
+	va_list			*ap;
+};
+
+static int do_grep_it(void *data)
+{
+	struct do_grep_it *dgdata = data;
+	struct do_grep gdata;
 	FILE *fp;
 	regex_t reg;
-	va_list ap;
 	char *buf = NULL;
 	ssize_t n;
 	size_t l = 0;
-	bool found = false;
 	int ofd;
 	int efd;
 	int pid;
 	int ret;
 
-	if (regcomp(&reg, match, REG_ICASE|REG_NOSUB))
+	if (regcomp(&reg, dgdata->match, REG_ICASE|REG_NOSUB))
 		return -1;
 
-	va_start(ap, cmd);
-	pid = pipe_it(&ofd, &efd, cmd, ap);
-	va_end(ap);
+	gdata.cmd = dgdata->cmd;
+	gdata.ap = dgdata->ap;
+	pid = pipe_it(&ofd, &efd, do_grep, &gdata);
 
 	if (pid < 0) {
 		regfree(&reg);
@@ -197,10 +221,65 @@ static int grep_it(const char *match, const char *cmd, ...)
 
 	do {
 		n = getline(&buf, &l, fp);
-		if (show_output && n > 0)
-			printf("%s", buf);
 		if (n > 0 && regexec(&reg, buf, 0, NULL, 0) == 0)
+			printf("%s", buf);
+	} while (n >= 0);
+
+	free(buf);
+ out:
+	ret = wait_for_exec(pid);
+	if (fp)
+		fclose(fp);
+	else
+		perror("fp");
+	close(ofd);
+	close(efd);
+	regfree(&reg);
+
+	return ret > 0 ? 0 : ret;
+}
+
+struct do_grep_match {
+	const char		*match;
+	const char		*cmd;
+	va_list			*ap;
+};
+
+static int grep_match(const char *match, const char *cmd, ...)
+{
+	struct do_grep_it gdata;
+	FILE *fp;
+	va_list ap;
+	char *buf = NULL;
+	ssize_t n;
+	size_t l = 0;
+	bool found = false;
+	int ofd;
+	int efd;
+	int pid;
+	int ret;
+
+	va_start(ap, cmd);
+	gdata.match = match;
+	gdata.cmd = cmd;
+	gdata.ap = &ap;
+	pid = pipe_it(&ofd, &efd, do_grep_it, &gdata);
+	va_end(ap);
+
+	if (pid < 0)
+		return -1;
+
+	fp = fdopen(ofd, "r");
+	if (!fp)
+		goto out;
+
+	do {
+		n = getline(&buf, &l, fp);
+		if (n > 0) {
+			if (show_output)
+				printf("%s", buf);
 			found = true;
+		}
 	} while (n >= 0);
 
 	free(buf);
@@ -215,7 +294,6 @@ static int grep_it(const char *match, const char *cmd, ...)
 		close(ofd);
 	}
 	close(efd);
-	regfree(&reg);
 
 	return found ? 0 : 1;
 }
@@ -240,7 +318,7 @@ static void test_trace_convert6(void)
 		ret = run_trace("record", TRACECMD_OUT, "-e", "sched", "sleep", "1", NULL);
 		CU_TEST(ret == 0);
 	}
-	ret = grep_it("[ \t]6[ \t]*\\[Version\\]", "dump", TRACECMD_IN2, NULL);
+	ret = grep_match("[ \t]6[ \t]*\\[Version\\]", "dump", TRACECMD_IN2, NULL);
 	CU_TEST(ret == 0);
 }
 
