@@ -23,7 +23,7 @@ $(bdir):
 $(OBJS): | $(bdir)
 $(DEPS): | $(bdir)
 
-$(bdir)/trace-utest: $(OBJS)
+$(bdir)/trace-utest: $(OBJS) $(LIBTRACECMD_STATIC)
 	$(Q)$(do_app_build)
 
 $(bdir)/%.o: %.c
