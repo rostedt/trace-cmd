@@ -308,6 +308,76 @@ static void test_trace_record_report(void)
 	CU_TEST(ret == 0);
 }
 
+static int read_stats(const char *out, const char *match, const char *cmd, ...)
+{
+	struct do_grep_it gdata;
+	FILE *fp;
+	va_list ap;
+	bool found = false;
+	char *buf = NULL;
+	char *p;
+	ssize_t n;
+	size_t l = 0;
+	int ofd;
+	int efd;
+	int pid;
+	int ret;
+	int val;
+
+	va_start(ap, cmd);
+	gdata.match = match;
+	gdata.cmd = cmd;
+	gdata.ap = &ap;
+	pid = pipe_it(&ofd, &efd, do_grep_it, &gdata);
+	va_end(ap);
+
+	if (pid < 0)
+		return -1;
+
+	fp = fdopen(ofd, "r");
+	if (!fp)
+		goto out;
+
+	do {
+		n = getline(&buf, &l, fp);
+		if (n > 0) {
+			for (p = buf; isspace(*p); p++)
+				;
+			val = atoi(p);
+			found = true;
+			if (show_output)
+				printf("%s", buf);
+			CU_TEST(val < 10000000);
+		}
+	} while (n >= 0);
+
+	free(buf);
+ out:
+	ret = wait_for_exec(pid);
+	if (fp)
+		fclose(fp);
+	else {
+		perror("fp");
+	}
+	if (!found)
+		ret = -1;
+	close(ofd);
+	close(efd);
+	return ret > 0 ? 0 : ret;
+}
+
+static void test_trace_record_max(void)
+{
+	int ret;
+
+	ret = run_trace("record", TRACECMD_OUT, "-p", "function", "-m", "5000",
+			"sleep", "10", NULL);
+	CU_TEST(ret == 0);
+
+	ret = read_stats(TRACECMD_FILE, ".*bytes in size.*", "report", "--stat", NULL);
+	CU_TEST(ret == 0);
+}
+
 static void test_trace_convert6(void)
 {
 	struct stat st;
@@ -422,4 +492,6 @@ void test_tracecmd_lib(void)
 		    test_trace_convert6);
 	CU_add_test(suite, "Use libraries to read file",
 		    test_trace_library_read);
+	CU_add_test(suite, "Test max length",
+		    test_trace_record_max);
 }
