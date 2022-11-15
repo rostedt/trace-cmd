@@ -409,8 +409,8 @@ static inline void update_fd(struct tracecmd_recorder *recorder, int size)
 	recorder->count += size;
 
 	if (recorder->count >= recorder->page_size) {
+		recorder->pages += recorder->count / recorder->page_size;
 		recorder->count = 0;
-		recorder->pages++;
 	}
 
 	if (recorder->pages < recorder->max)
