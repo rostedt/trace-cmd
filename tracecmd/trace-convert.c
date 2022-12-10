@@ -104,6 +104,8 @@ void trace_convert(int argc, char **argv)
 		input_file = DEFAULT_INPUT_FILE;
 	if (!output_file)
 		usage(argv);
+	if (file_version >= FILE_VERSION_COMPRESSION && !compression)
+		compression = "any";
 
 	convert_file(input_file, output_file, file_version, compression);
 }

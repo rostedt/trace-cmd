@@ -13,7 +13,8 @@ DESCRIPTION
 -----------
 The trace-cmd(1) convert command converts trace file. It reads the input file and copies the data
 into an output file. The output file may be in different format, depending on the command line
-arguments.
+arguments. The default output is in version 7 and compressed (if
+compiled with compression support).
 
 OPTIONS
 -------
