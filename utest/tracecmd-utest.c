@@ -374,7 +374,7 @@ static void test_trace_record_max(void)
 			"sleep", "10", NULL);
 	CU_TEST(ret == 0);
 
-	ret = read_stats(TRACECMD_FILE, ".*bytes in size.*", "report", "--stat", NULL);
+	ret = read_stats(TRACECMD_FILE, ".*bytes in size.*", "report", TRACECMD_IN, "--stat", NULL);
 	CU_TEST(ret == 0);
 }
 
