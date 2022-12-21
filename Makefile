@@ -350,6 +350,9 @@ export INCLUDES
 # Required CFLAGS
 override CFLAGS += -D_GNU_SOURCE
 
+# Make sure 32 bit stat() works on large file systems
+override CFLAGS += -D_FILE_OFFSET_BITS=64
+
 ifndef NO_PTRACE
 ifneq ($(call try-cc,$(SOURCE_PTRACE),),y)
 	NO_PTRACE = 1
