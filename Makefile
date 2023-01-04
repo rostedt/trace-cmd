@@ -485,7 +485,8 @@ TAGS:	force
 
 cscope: force
 	$(RM) cscope*
-	$(call find_tag_files) | cscope -b -q
+	$(call find_tag_files) > cscope.files
+	cscope -b -q -f cscope.out
 
 install_plugins_tracecmd: force
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins install_plugins
