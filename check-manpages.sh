@@ -15,12 +15,19 @@ cd $1
 MAIN=libtracecmd
 MAIN_FILE=${MAIN}.txt
 
+PROCESSED=""
+
 # Ignore man pages that do not contain functions
 IGNORE=""
 
 for man in ${MAIN}-*.txt; do
 
-	sed -ne '/^NAME/,/^SYNOP/{/^[a-z]/{s/, *$//;s/,/\n/g;s/ //g;s/-.*$/-/;/-/{s/-//p;q};p}}' $man | while read a; do
+	for a in `sed -ne '/^NAME/,/^SYNOP/{/^[a-z]/{s/, *$//;s/,/\n/g;s/ //g;s/-.*$/-/;/-/{s/-//p;q};p}}' $man`; do
+		if [ "${PROCESSED/:${a} /}" != "${PROCESSED}" ]; then
+			P="${PROCESSED/:${a} */}"
+			echo "Found ${a} in ${man} and in ${P/* /}"
+		fi
+		PROCESSED="${man}:${a} ${PROCESSED}"
 		if [ "${IGNORE/$man/}" != "${IGNORE}" ]; then
 			continue
 		fi
