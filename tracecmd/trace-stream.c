@@ -24,11 +24,10 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 		  struct hook_list *hooks,
 		  tracecmd_handle_init_func handle_init, int global)
 {
-	struct tracecmd_input *trace_input;
 	struct tracecmd_output *trace_output;
+	struct tracecmd_input *trace_input;
 	static FILE *fp = NULL;
 	static int tfd;
-	static int ofd;
 	long flags;
 
 	if (instance->handle) {
@@ -42,23 +41,21 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 			return NULL;
 		tfd = fileno(fp);
 
-		ofd = dup(tfd);
-		trace_output = tracecmd_output_create_fd(ofd);
-		if (!trace_output) {
-			fclose(fp);
-			return NULL;
-		}
+		trace_output = tracecmd_output_create_fd(tfd);
+		if (!trace_output)
+			goto fail;
+
 		tracecmd_output_write_headers(trace_output, NULL);
+		tracecmd_output_flush(trace_output);
+		/* Don't close the descriptor, use it for reading */
 		tracecmd_output_free(trace_output);
 	}
 
-	lseek(ofd, 0, SEEK_SET);
+	lseek(tfd, 0, SEEK_SET);
 
-	trace_input = tracecmd_alloc_fd(ofd, 0);
-	if (!trace_input) {
-		close(ofd);
+	trace_input = tracecmd_alloc_fd(tfd, 0);
+	if (!trace_input)
 		goto fail;
-	}
 
 	if (tracecmd_read_headers(trace_input, TRACECMD_FILE_PRINTK) < 0)
 		goto fail_free_input;
@@ -82,7 +79,7 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 	tracecmd_close(trace_input);
  fail:
 	fclose(fp);
-
+	fp = NULL; /* Try again later? */
 	return NULL;
 }
 

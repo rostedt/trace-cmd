@@ -281,7 +281,7 @@ void tracecmd_output_free(struct tracecmd_output *handle)
 	free(handle);
 }
 
-void tracecmd_output_close(struct tracecmd_output *handle)
+void tracecmd_output_flush(struct tracecmd_output *handle)
 {
 	if (!handle)
 		return;
@@ -293,6 +293,14 @@ void tracecmd_output_close(struct tracecmd_output *handle)
 		/* write strings section */
 		save_string_section(handle, true);
 	}
+}
+
+void tracecmd_output_close(struct tracecmd_output *handle)
+{
+	if (!handle)
+		return;
+
+	tracecmd_output_flush(handle);
 
 	if (handle->fd >= 0) {
 		close(handle->fd);
