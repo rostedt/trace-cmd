@@ -3164,11 +3164,21 @@ static void expand_event_list(void)
 
 static void finish(void)
 {
+	static int secs = 1;
+
 	sleep_time = 0;
 
 	/* all done */
-	if (recorder)
+	if (recorder) {
 		tracecmd_stop_recording(recorder);
+		/*
+		 * We could just call the alarm if the above returned non zero,
+		 * as zero is suppose to guarantee that the reader woke up.
+		 * But as this is called from a signal handler, that may not
+		 * necessarily be the case.
+		 */
+		alarm(secs++);
+	}
 	finished = 1;
 }
 
@@ -3181,6 +3191,7 @@ static void flush(void)
 static void do_sig(int sig)
 {
 	switch (sig) {
+	case SIGALRM:
 	case SIGUSR1:
 	case SIGINT:
 		return finish();
@@ -3432,6 +3443,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 		signal(SIGINT, SIG_IGN);
 		signal(SIGUSR1, do_sig);
 		signal(SIGUSR2, do_sig);
+		signal(SIGALRM, do_sig);
 
 		if (rt_prio)
 			set_prio(rt_prio);
