@@ -4,6 +4,7 @@
  *
  */
 #include <stdio.h>
+#include <poll.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -83,16 +84,18 @@ trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 	return NULL;
 }
 
-int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv)
+int trace_stream_read(struct pid_record_data *pids, int nr_pids, long sleep_us)
 {
-	struct tep_record *record;
-	struct pid_record_data *pid;
 	struct pid_record_data *last_pid;
-	fd_set rfds;
-	int top_rfd = 0;
-	int nr_fd;
+	struct pid_record_data *pid;
+	struct tep_record *record;
+	struct pollfd pollfd[nr_pids];
+	long sleep_ms = sleep_us > 0 ? (sleep_us + 999) / 1000 : sleep_us;
 	int ret;
 	int i;
+
+	if (!nr_pids)
+		return 0;
 
 	last_pid = NULL;
 
@@ -118,25 +121,18 @@ int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval 
 		return 1;
 	}
 
-	nr_fd = 0;
-	FD_ZERO(&rfds);
-
 	for (i = 0; i < nr_pids; i++) {
 		/* Do not process closed pipes */
-		if (pids[i].closed)
+		if (pids[i].closed) {
+			memset(pollfd + i, 0, sizeof(*pollfd));
 			continue;
-		nr_fd++;
-		if (pids[i].brass[0] > top_rfd)
-			top_rfd = pids[i].brass[0];
+		}
 
-		FD_SET(pids[i].brass[0], &rfds);
+		pollfd[i].fd = pids[i].brass[0];
+		pollfd[i].events = POLLIN;
 	}
 
-	if (!nr_fd)
-		return 0;
-
-	ret = select(top_rfd + 1, &rfds, NULL, NULL, tv);
-
+	ret = poll(pollfd, nr_pids, sleep_ms);
 	if (ret > 0)
 		goto again;
 

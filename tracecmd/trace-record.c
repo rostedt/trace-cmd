@@ -73,7 +73,7 @@ static int rt_prio;
 static int keep;
 
 static int latency;
-static int sleep_time = 1000;
+static long sleep_time = 1000;
 static int recorder_threads;
 static struct pid_record_data *pids;
 static int buffers;
@@ -798,8 +798,7 @@ static void stop_threads(enum trace_type type)
 	/* Flush out the pipes */
 	if (type & TRACE_TYPE_STREAM) {
 		do {
-			struct timeval tv = { 0, 0 };
-			ret = trace_stream_read(pids, recorder_threads, &tv);
+			ret = trace_stream_read(pids, recorder_threads, 0);
 		} while (ret > 0);
 	}
 }
@@ -1307,7 +1306,6 @@ static void update_task_filter(void)
 
 static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int options)
 {
-	struct timeval tv = { 1, 0 };
 	int ret;
 
 	if (type & TRACE_TYPE_STREAM)
@@ -1319,7 +1317,7 @@ static pid_t trace_waitpid(enum trace_type type, pid_t pid, int *status, int opt
 			return ret;
 
 		if (type & TRACE_TYPE_STREAM)
-			trace_stream_read(pids, recorder_threads, &tv);
+			trace_stream_read(pids, recorder_threads, sleep_time);
 	} while (1);
 }
 
@@ -1640,14 +1638,13 @@ static inline void ptrace_attach(struct buffer_instance *instance, int pid) { }
 
 static void trace_or_sleep(enum trace_type type, bool pwait)
 {
-	struct timeval tv = { 1 , 0 };
 	int i;
 
 	if (pwait)
 		ptrace_wait(type);
 	else if (type & TRACE_TYPE_STREAM) {
 		/* Returns zero if it did not read anything (and did a sleep) */
-		if (trace_stream_read(pids, recorder_threads, &tv) > 0)
+		if (trace_stream_read(pids, recorder_threads, sleep_time) > 0)
 			return;
 		/* Force a flush if nothing was read (including on errors) */
 		for (i = 0; i < recorder_threads; i++) {
@@ -7021,7 +7018,7 @@ static void record_trace(int argc, char **argv,
 			trace_or_sleep(type, pwait);
 		/* Streams need to be flushed one more time */
 		if (type & TRACE_TYPE_STREAM)
-			trace_stream_read(pids, recorder_threads, NULL);
+			trace_stream_read(pids, recorder_threads, -1);
 	}
 
 	tell_guests_to_stop(ctx);

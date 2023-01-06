@@ -137,7 +137,7 @@ struct tracecmd_input *
 trace_stream_init(struct buffer_instance *instance, int cpu, int fd, int cpus,
 		  struct hook_list *hooks,
 		  tracecmd_handle_init_func handle_init, int global);
-int trace_stream_read(struct pid_record_data *pids, int nr_pids, struct timeval *tv);
+int trace_stream_read(struct pid_record_data *pids, int nr_pids, long sleep_us);
 
 void trace_show_data(struct tracecmd_input *handle, struct tep_record *record);
 
