@@ -323,6 +323,8 @@ static long read_data(struct tracecmd_recorder *recorder)
 	long r, w;
 
 	r = tracefs_cpu_read(recorder->tcpu, buf, nonblock);
+	if (r < 0)
+		return r;
 
 	left = r;
 	do {
