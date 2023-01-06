@@ -317,11 +317,12 @@ static inline void update_fd(struct tracecmd_recorder *recorder, int size)
  */
 static long read_data(struct tracecmd_recorder *recorder)
 {
+	bool nonblock = recorder->stop;
 	char buf[recorder->subbuf_size];
 	long left;
 	long r, w;
 
-	r = tracefs_cpu_read(recorder->tcpu, buf, false);
+	r = tracefs_cpu_read(recorder->tcpu, buf, nonblock);
 
 	left = r;
 	do {
@@ -344,11 +345,13 @@ static long read_data(struct tracecmd_recorder *recorder)
  */
 static long direct_splice_data(struct tracecmd_recorder *recorder)
 {
-	return tracefs_cpu_pipe(recorder->tcpu, recorder->fd, false);
+	bool nonblock = recorder->stop;
+	return tracefs_cpu_pipe(recorder->tcpu, recorder->fd, nonblock);
 }
 
 static long move_data(struct tracecmd_recorder *recorder)
 {
+	bool nonblock = recorder->stop;
 	long ret;
 
 	if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
@@ -357,7 +360,7 @@ static long move_data(struct tracecmd_recorder *recorder)
 	if (recorder->flags & TRACECMD_RECORD_NOBRASS)
 		return direct_splice_data(recorder);
 
-	ret = tracefs_cpu_write(recorder->tcpu, recorder->fd, false);
+	ret = tracefs_cpu_write(recorder->tcpu, recorder->fd, nonblock);
 	if (ret > 0)
 		update_fd(recorder, ret);
 	return ret;
