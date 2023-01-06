@@ -7019,6 +7019,9 @@ static void record_trace(int argc, char **argv,
 		}
 		while (!finished && wait_indefinitely)
 			trace_or_sleep(type, pwait);
+		/* Streams need to be flushed one more time */
+		if (type & TRACE_TYPE_STREAM)
+			trace_stream_read(pids, recorder_threads, NULL);
 	}
 
 	tell_guests_to_stop(ctx);
