@@ -798,7 +798,8 @@ static void stop_threads(enum trace_type type)
 	/* Flush out the pipes */
 	if (type & TRACE_TYPE_STREAM) {
 		do {
-			ret = trace_stream_read(pids, recorder_threads, NULL);
+			struct timeval tv = { 0, 0 };
+			ret = trace_stream_read(pids, recorder_threads, &tv);
 		} while (ret > 0);
 	}
 }
