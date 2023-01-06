@@ -7161,10 +7161,14 @@ void trace_stream(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
+	/* Default sleep time is half a second for streaming */
+	sleep_time = 500000;
+
 	parse_record_options(argc, argv, CMD_stream, &ctx);
 	record_trace_command(argc, argv, &ctx);
 	exit(0);
 }
+
 
 void trace_profile(int argc, char **argv)
 {
