@@ -102,9 +102,9 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 	free(recorder);
 }
 
-static void set_nonblock(struct tracecmd_recorder *recorder)
+static int set_nonblock(struct tracecmd_recorder *recorder)
 {
-	tracefs_cpu_stop(recorder->tcpu);
+	return tracefs_cpu_stop(recorder->tcpu);
 }
 
 static struct tracecmd_recorder *
@@ -437,12 +437,12 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 	return 0;
 }
 
-void tracecmd_stop_recording(struct tracecmd_recorder *recorder)
+int tracecmd_stop_recording(struct tracecmd_recorder *recorder)
 {
 	if (!recorder)
-		return;
-
-	set_nonblock(recorder);
+		return -1;
 
 	recorder->stop = 1;
+
+	return set_nonblock(recorder);
 }
