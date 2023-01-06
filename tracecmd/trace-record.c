@@ -3164,6 +3164,8 @@ static void expand_event_list(void)
 
 static void finish(void)
 {
+	sleep_time = 0;
+
 	/* all done */
 	if (recorder)
 		tracecmd_stop_recording(recorder);
