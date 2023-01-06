@@ -1641,12 +1641,21 @@ static inline void ptrace_attach(struct buffer_instance *instance, int pid) { }
 static void trace_or_sleep(enum trace_type type, bool pwait)
 {
 	struct timeval tv = { 1 , 0 };
+	int i;
 
 	if (pwait)
 		ptrace_wait(type);
-	else if (type & TRACE_TYPE_STREAM)
-		trace_stream_read(pids, recorder_threads, &tv);
-	else
+	else if (type & TRACE_TYPE_STREAM) {
+		/* Returns zero if it did not read anything (and did a sleep) */
+		if (trace_stream_read(pids, recorder_threads, &tv) > 0)
+			return;
+		/* Force a flush if nothing was read (including on errors) */
+		for (i = 0; i < recorder_threads; i++) {
+			if (pids[i].pid > 0) {
+				kill(pids[i].pid, SIGUSR2);
+			}
+		}
+	} else
 		sleep(10);
 }
 
@@ -3156,12 +3165,29 @@ static void expand_event_list(void)
 		expand_event_instance(instance);
 }
 
-static void finish(int sig)
+static void finish(void)
 {
 	/* all done */
 	if (recorder)
 		tracecmd_stop_recording(recorder);
 	finished = 1;
+}
+
+static void flush(void)
+{
+	if (recorder)
+		tracecmd_flush_recording(recorder, false);
+}
+
+static void do_sig(int sig)
+{
+	switch (sig) {
+	case SIGUSR1:
+	case SIGINT:
+		return finish();
+	case SIGUSR2:
+		return flush();
+	}
 }
 
 static struct addrinfo *do_getaddrinfo(const char *host, unsigned int port,
@@ -3405,7 +3431,8 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 			return pid;
 
 		signal(SIGINT, SIG_IGN);
-		signal(SIGUSR1, finish);
+		signal(SIGUSR1, do_sig);
+		signal(SIGUSR2, do_sig);
 
 		if (rt_prio)
 			set_prio(rt_prio);
@@ -3451,7 +3478,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 		die ("can't create recorder");
 
 	if (type == TRACE_TYPE_EXTRACT) {
-		ret = tracecmd_flush_recording(recorder);
+		ret = tracecmd_flush_recording(recorder, true);
 		tracecmd_free_recorder(recorder);
 		recorder = NULL;
 		return ret;
@@ -6945,7 +6972,7 @@ static void record_trace(int argc, char **argv,
 	allocate_seq();
 
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
-		signal(SIGINT, finish);
+		signal(SIGINT, do_sig);
 		if (!latency)
 			start_threads(type, ctx);
 	}

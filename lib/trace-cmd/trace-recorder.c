@@ -366,12 +366,18 @@ static long move_data(struct tracecmd_recorder *recorder)
 	return ret;
 }
 
-long tracecmd_flush_recording(struct tracecmd_recorder *recorder)
+long tracecmd_flush_recording(struct tracecmd_recorder *recorder, bool finish)
 {
 	char buf[recorder->subbuf_size];
 	long total = 0;
 	long wrote = 0;
 	long ret;
+
+	if (!recorder)
+		return 0;
+
+	if (!finish)
+		return tracefs_cpu_flush_write(recorder->tcpu, recorder->fd);
 
 	set_nonblock(recorder);
 
@@ -421,7 +427,7 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 	} while (!recorder->stop);
 
 	/* Flush out the rest */
-	ret = tracecmd_flush_recording(recorder);
+	ret = tracecmd_flush_recording(recorder, true);
 
 	if (ret < 0)
 		return ret;

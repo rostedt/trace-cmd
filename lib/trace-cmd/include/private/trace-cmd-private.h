@@ -378,7 +378,7 @@ struct tracecmd_recorder *tracecmd_create_buffer_recorder_maxkb(const char *file
 
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 void tracecmd_stop_recording(struct tracecmd_recorder *recorder);
-long tracecmd_flush_recording(struct tracecmd_recorder *recorder);
+long tracecmd_flush_recording(struct tracecmd_recorder *recorder, bool finish);
 
 enum tracecmd_msg_flags {
 	TRACECMD_MSG_FL_USE_TCP		= 1 << 0,
