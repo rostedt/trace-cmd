@@ -5,7 +5,6 @@
  */
 
 /** FIXME: Convert numbers based on machine and file */
-#define _LARGEFILE64_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

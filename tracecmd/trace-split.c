@@ -3,7 +3,6 @@
  * Copyright (C) 2010 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
  *
  */
-#define _LARGEFILE64_SOURCE
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>

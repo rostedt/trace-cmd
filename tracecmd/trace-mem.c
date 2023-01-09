@@ -11,7 +11,6 @@
  * was written for the newer version. I decided to do some of it here
  * in C.
  */
-#define _LARGEFILE64_SOURCE
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
