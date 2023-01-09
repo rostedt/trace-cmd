@@ -51,7 +51,7 @@ static int append_file(int size, int dst, int src)
 	char buf[size];
 	int r;
 
-	lseek64(src, 0, SEEK_SET);
+	lseek(src, 0, SEEK_SET);
 
 	/* If there's an error, then we are pretty much screwed :-p */
 	do {
@@ -82,10 +82,10 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 					  recorder->fd2, recorder->fd1);
 			/* Error on copying, then just keep fd1 */
 			if (ret) {
-				lseek64(recorder->fd1, 0, SEEK_END);
+				lseek(recorder->fd1, 0, SEEK_END);
 				goto close;
 			}
-			lseek64(recorder->fd1, 0, SEEK_SET);
+			lseek(recorder->fd1, 0, SEEK_SET);
 			ftruncate(recorder->fd1, 0);
 		}
 		append_file(recorder->page_size, recorder->fd1, recorder->fd2);
@@ -305,7 +305,7 @@ static inline void update_fd(struct tracecmd_recorder *recorder, int size)
 		fd = recorder->fd1;
 
 	/* Zero out the new file we are writing to */
-	lseek64(fd, 0, SEEK_SET);
+	lseek(fd, 0, SEEK_SET);
 	ftruncate(fd, 0);
 
 	recorder->fd = fd;

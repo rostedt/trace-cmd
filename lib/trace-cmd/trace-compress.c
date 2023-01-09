@@ -117,12 +117,12 @@ static inline int buffer_extend(struct tracecmd_compression *handle, unsigned in
  *
  * Returns the new file pointer on success, or -1 in case of an error.
  */
-off64_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off64_t offset, int whence)
+off_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off_t offset, int whence)
 {
 	unsigned long p;
 
 	if (!handle || !handle->buffer)
-		return (off64_t)-1;
+		return (off_t)-1;
 
 	switch (whence) {
 	case SEEK_CUR:
@@ -135,11 +135,11 @@ off64_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off64_t off
 		p = offset;
 		break;
 	default:
-		return (off64_t)-1;
+		return (off_t)-1;
 	}
 
 	if (buffer_extend(handle, p))
-		return (off64_t)-1;
+		return (off_t)-1;
 
 	handle->pointer = p;
 
@@ -678,7 +678,7 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 	unsigned int size;
 	unsigned int all;
 	unsigned int r;
-	off64_t offset;
+	off_t offset;
 	char *buf_from;
 	char *buf_to;
 	int endian4;
@@ -700,7 +700,7 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 		return -1;
 
 	/* save the initial offset and write 0 as initial chunk count */
-	offset = lseek64(handle->fd, 0, SEEK_CUR);
+	offset = lseek(handle->fd, 0, SEEK_CUR);
 	write_fd(handle->fd, &chunks, 4);
 
 	do {
@@ -760,13 +760,13 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 	if (all)
 		return -1;
 
-	if (lseek64(handle->fd, offset, SEEK_SET) == (off_t)-1)
+	if (lseek(handle->fd, offset, SEEK_SET) == (off_t)-1)
 		return -1;
 
 	endian4 = tep_read_number(handle->tep, &chunks, 4);
 	/* write chunks count*/
 	write_fd(handle->fd, &chunks, 4);
-	if (lseek64(handle->fd, 0, SEEK_END) == (off_t)-1)
+	if (lseek(handle->fd, 0, SEEK_END) == (off_t)-1)
 		return -1;
 
 	if (read_size)
@@ -796,7 +796,7 @@ int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 	struct tracecmd_compress_chunk *chunks = NULL;
 	unsigned long long size = 0;
 	unsigned int count = 0;
-	off64_t offset;
+	off_t offset;
 	int ret = -1;
 	char buf[4];
 	int i;
@@ -804,8 +804,8 @@ int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 	if (!handle)
 		return -1;
 
-	offset = lseek64(handle->fd, 0, SEEK_CUR);
-	if (offset == (off64_t)-1)
+	offset = lseek(handle->fd, 0, SEEK_CUR);
+	if (offset == (off_t)-1)
 		return -1;
 
 	if (read(handle->fd, buf, 4) != 4)
@@ -822,7 +822,7 @@ int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 		goto out;
 
 	for (i = 0; i < count; i++) {
-		chunks[i].zoffset = lseek64(handle->fd, 0, SEEK_CUR);
+		chunks[i].zoffset = lseek(handle->fd, 0, SEEK_CUR);
 		if (chunks[i].zoffset == (off_t)-1)
 			goto out;
 		if (read(handle->fd, buf, 4) != 4)
@@ -833,13 +833,13 @@ int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 			goto out;
 		chunks[i].size = tep_read_number(handle->tep, buf, 4);
 		size += chunks[i].size;
-		if (lseek64(handle->fd, chunks[i].zsize, SEEK_CUR) == (off64_t)-1)
+		if (lseek(handle->fd, chunks[i].zsize, SEEK_CUR) == (off_t)-1)
 			goto out;
 	}
 
 	ret = count;
 out:
-	if (lseek64(handle->fd, offset, SEEK_SET) == (off64_t)-1)
+	if (lseek(handle->fd, offset, SEEK_SET) == (off_t)-1)
 		ret = -1;
 
 	if (ret > 0 && chunks_info)
@@ -872,7 +872,7 @@ int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
 	if (!handle || !handle->proto || !handle->proto->uncompress_block || !chunk || !data)
 		return -1;
 
-	if (lseek64(handle->fd, chunk->zoffset + 8, SEEK_SET) == (off_t)-1)
+	if (lseek(handle->fd, chunk->zoffset + 8, SEEK_SET) == (off_t)-1)
 		return -1;
 
 	bytes_in = malloc(chunk->zsize);

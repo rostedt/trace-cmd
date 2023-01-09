@@ -183,26 +183,26 @@ static int __msg_write(int fd, struct tracecmd_msg *msg, bool network)
 	return __do_write_check(fd, msg->buf, data_size);
 }
 
-__hidden off64_t msg_lseek(struct tracecmd_msg_handle *msg_handle, off64_t offset, int whence)
+__hidden off_t msg_lseek(struct tracecmd_msg_handle *msg_handle, off_t offset, int whence)
 {
-	off64_t cache_offset = msg_handle->cache_start_offset;
-	off64_t ret;
+	off_t cache_offset = msg_handle->cache_start_offset;
+	off_t ret;
 
 	/*
 	 * lseek works only if the handle is in cache mode,
 	 * cannot seek on a network socket
 	 */
 	if (!msg_handle->cache || msg_handle->cfd < 0)
-		return (off64_t)-1;
+		return (off_t)-1;
 
 	if (whence == SEEK_SET) {
 		if (offset < cache_offset)
-			return (off64_t)-1;
+			return (off_t)-1;
 		offset -= cache_offset;
 	}
 
-	ret = lseek64(msg_handle->cfd, offset, whence);
-	if (ret == (off64_t)-1)
+	ret = lseek(msg_handle->cfd, offset, whence);
+	if (ret == (off_t)-1)
 		return ret;
 
 	return ret + cache_offset;
@@ -639,7 +639,7 @@ static int flush_cache(struct tracecmd_msg_handle *msg_handle)
 	if (!msg_handle->cache || fd < 0)
 		return 0;
 	msg_handle->cache = false;
-	if (lseek64(fd, 0, SEEK_SET) == (off64_t)-1)
+	if (lseek(fd, 0, SEEK_SET) == (off_t)-1)
 		return -1;
 	do {
 		ret = read(fd, buf, MSG_MAX_DATA_LEN);
@@ -650,8 +650,8 @@ static int flush_cache(struct tracecmd_msg_handle *msg_handle)
 			break;
 	} while (ret >= 0);
 
-	msg_handle->cache_start_offset = lseek64(fd, 0, SEEK_CUR);
-	if (msg_handle->cache_start_offset == (off64_t)-1)
+	msg_handle->cache_start_offset = lseek(fd, 0, SEEK_CUR);
+	if (msg_handle->cache_start_offset == (off_t)-1)
 		return -1;
 
 	close(fd);

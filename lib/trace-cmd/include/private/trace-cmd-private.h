@@ -106,7 +106,7 @@ const char *tracecmd_get_trace_clock(struct tracecmd_input *handle);
 const char *tracecmd_get_cpustats(struct tracecmd_input *handle);
 const char *tracecmd_get_uname(struct tracecmd_input *handle);
 const char *tracecmd_get_version(struct tracecmd_input *handle);
-off64_t tracecmd_get_cpu_file_size(struct tracecmd_input *handle, int cpu);
+off_t tracecmd_get_cpu_file_size(struct tracecmd_input *handle, int cpu);
 
 static inline int tracecmd_host_bigendian(void)
 {
@@ -336,7 +336,7 @@ int tracecmd_write_buffer_info(struct tracecmd_output *handle);
 
 int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus);
 int tracecmd_write_cmdlines(struct tracecmd_output *handle);
-int tracecmd_prepare_options(struct tracecmd_output *handle, off64_t offset, int whence);
+int tracecmd_prepare_options(struct tracecmd_output *handle, off_t offset, int whence);
 int tracecmd_write_options(struct tracecmd_output *handle);
 int tracecmd_write_meta_strings(struct tracecmd_output *handle);
 int tracecmd_append_options(struct tracecmd_output *handle);
@@ -394,7 +394,7 @@ struct tracecmd_msg_handle {
 	short			cpu_count;
 	short			version;	/* Current protocol version */
 	unsigned long		flags;
-	off64_t			cache_start_offset;
+	off_t			cache_start_offset;
 	bool			done;
 	bool			cache;
 	int			cfd;
@@ -543,8 +543,8 @@ int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 struct tracecmd_compress_chunk {
 	unsigned int		size;
 	unsigned int		zsize;
-	off64_t			zoffset;
-	off64_t			offset;
+	off_t			zoffset;
+	off_t			offset;
 };
 struct tracecmd_compression;
 struct tracecmd_compression_proto {
@@ -570,7 +570,7 @@ int tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst
 int tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, int len, off_t offset);
 int tracecmd_compress_buffer_write(struct tracecmd_compression *handle,
 				   const void *data, unsigned long long size);
-off64_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off64_t offset, int whence);
+off_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off_t offset, int whence);
 int tracecmd_compress_proto_get_name(struct tracecmd_compression *compress,
 				     const char **name, const char **version);
 bool tracecmd_compress_is_supported(const char *name, const char *version);

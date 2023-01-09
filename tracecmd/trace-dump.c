@@ -101,7 +101,7 @@ static int do_lseek(int fd, int offset, int whence)
 	if (read_compress)
 		return tracecmd_compress_lseek(compress, offset, whence);
 
-	return lseek64(fd, offset, whence);
+	return lseek(fd, offset, whence);
 }
 
 static int read_file_string(int fd, char *dst, int len)
@@ -446,7 +446,7 @@ static void dump_section_header(int fd, enum dump_items v, unsigned short *flags
 	const char *desc;
 	int desc_id;
 
-	offset = lseek64(fd, 0, SEEK_CUR);
+	offset = lseek(fd, 0, SEEK_CUR);
 	if (read_file_number(fd, &id, 2))
 		die("cannot read the section id");
 
@@ -500,13 +500,13 @@ static void dump_option_buffer(int fd, unsigned short option, int size)
 		return;
 	}
 
-	current = lseek64(fd, 0, SEEK_CUR);
-	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+	current = lseek(fd, 0, SEEK_CUR);
+	if (lseek(fd, offset, SEEK_SET) == (off_t)-1)
 		die("cannot goto buffer offset %lld", offset);
 
 	dump_section_header(fd, FLYRECORD, &flags);
 
-	if (lseek64(fd, current, SEEK_SET) == (off_t)-1)
+	if (lseek(fd, current, SEEK_SET) == (off_t)-1)
 		die("cannot go back to buffer option");
 
 	do_print(OPTIONS|FLYRECORD, "\t\t[Option BUFFER, %d bytes]\n", size);
@@ -773,7 +773,7 @@ static void dump_sections(int fd, int count)
 	unsigned short flags;
 
 	while (sec) {
-		if (lseek64(fd, sec->offset, SEEK_SET) == (off_t)-1)
+		if (lseek(fd, sec->offset, SEEK_SET) == (off_t)-1)
 			die("cannot goto option offset %lld", sec->offset);
 
 		dump_section_header(fd, sec->verbosity, &flags);
@@ -826,7 +826,7 @@ static int dump_option_done(int fd, int size)
 	if (!offset)
 		return 0;
 
-	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+	if (lseek(fd, offset, SEEK_SET) == (off_t)-1)
 		die("cannot goto next options offset %lld", offset);
 
 	do_print(OPTIONS, "\n\n");
@@ -1006,7 +1006,7 @@ static void dump_therest(int fd)
 		else if (strncmp(str, HEAD_FLYRECORD, 10) == 0)
 			dump_flyrecord(fd);
 		else {
-			lseek64(fd, -10, SEEK_CUR);
+			lseek(fd, -10, SEEK_CUR);
 			break;
 		}
 	}
@@ -1060,7 +1060,7 @@ static void get_meta_strings(int fd)
 	unsigned short fl, id;
 	int desc_id;
 
-	offset = lseek64(fd, 0, SEEK_CUR);
+	offset = lseek(fd, 0, SEEK_CUR);
 	do {
 		if (read_file_number(fd, &id, 2))
 			break;
@@ -1074,7 +1074,7 @@ static void get_meta_strings(int fd)
 			if ((fl & TRACECMD_SEC_FL_COMPRESS)) {
 				read_file_number(fd, &csize, 4);
 				read_file_number(fd, &rsize, 4);
-				lseek64(fd, -8, SEEK_CUR);
+				lseek(fd, -8, SEEK_CUR);
 				if (uncompress_block())
 					break;
 			} else {
@@ -1083,12 +1083,12 @@ static void get_meta_strings(int fd)
 			read_metadata_strings(fd, rsize);
 			uncompress_reset();
 		} else {
-			if (lseek64(fd, size, SEEK_CUR) == (off_t)-1)
+			if (lseek(fd, size, SEEK_CUR) == (off_t)-1)
 				break;
 		}
 	} while (1);
 
-	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+	if (lseek(fd, offset, SEEK_SET) == (off_t)-1)
 		die("cannot restore the original file location");
 }
 
@@ -1102,9 +1102,9 @@ static int walk_v7_sections(int fd)
 	int desc_id;
 	const char *desc;
 
-	offset = lseek64(fd, 0, SEEK_CUR);
+	offset = lseek(fd, 0, SEEK_CUR);
 	do {
-		soffset = lseek64(fd, 0, SEEK_CUR);
+		soffset = lseek(fd, 0, SEEK_CUR);
 		if (read_file_number(fd, &id, 2))
 			break;
 
@@ -1149,11 +1149,11 @@ static int walk_v7_sections(int fd)
 				 id, soffset, desc, fl, size);
 		}
 
-		if (lseek64(fd, size, SEEK_CUR) == (off_t)-1)
+		if (lseek(fd, size, SEEK_CUR) == (off_t)-1)
 			break;
 	} while (1);
 
-	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+	if (lseek(fd, offset, SEEK_SET) == (off_t)-1)
 		die("cannot restore the original file location");
 
 	return count;
@@ -1170,7 +1170,7 @@ static void dump_v7_file(int fd)
 	get_meta_strings(fd);
 	sections = walk_v7_sections(fd);
 
-	if (lseek64(fd, offset, SEEK_SET) == (off_t)-1)
+	if (lseek(fd, offset, SEEK_SET) == (off_t)-1)
 		die("cannot goto options offset %lld", offset);
 
 	dump_options(fd);

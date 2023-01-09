@@ -195,7 +195,7 @@ static void print_event(struct trace_seq *s, struct tracecmd_input *handle,
 #define TEST_READ_AT 0
 #if TEST_READ_AT
 #define DO_TEST
-static off64_t test_read_at_offset;
+static off_t test_read_at_offset;
 static int test_read_at_copy = 100;
 static int test_read_at_index;
 static void show_test(struct tracecmd_input *handle)
