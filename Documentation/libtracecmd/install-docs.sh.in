@@ -1,0 +1,20 @@
+#!/bin/bash
+# SPDX-License-Identifier: LGPL-2.1
+#
+# Copyright (c) 2023 Daniel Wagner, SUSE LLC
+
+for section in 1 3 5; do
+    while IFS= read -r -d '' man; do
+        [ ! -d "${DESTDIR}@MANDIR@/man${section}" ] && install -d "${DESTDIR}@MANDIR@/man${section}"
+
+        echo Installing "${man}" to "${DESTDIR}@MANDIR@/man${section}"
+        install -m 0644 "${man}" "${DESTDIR}@MANDIR@/man${section}/"
+    done< <(find "@SRCDIR@" -name "*\.${section}" -type f -print0)
+done
+
+while IFS= read -r -d '' html; do
+    [ ! -d "${DESTDIR}@HTMLDIR@"  ] && install -d "${DESTDIR}@HTMLDIR@"
+
+    echo Installing "${html}" to "${DESTDIR}@HTMLDIR@"
+    install -m 0644 "${html}" "${DESTDIR}@HTMLDIR@"
+done< <(find "@SRCDIR@" -name "*\.html" -type f -print0)

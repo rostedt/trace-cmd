@@ -1,0 +1,19 @@
+# -*- mode: meson -*-
+# SPDX-License-Identifier: LGPL-2.1
+
+option('vsock', type : 'boolean', value : true,
+       description : 'build with vsock support')
+option('ptrace', type : 'boolean', value : true,
+       description : 'build with ptrace support')
+option('htmldir', type : 'string', value : 'share/doc/libtracecmd-doc',
+       description : 'directory for HTML documentation')
+option('asciidoctor', type : 'boolean', value: false,
+       description : 'use asciidoctor instead of asciidoc')
+option('docbook-xls-172', type : 'boolean', value : false,
+       description : 'enable docbook XLS 172 workaround')
+option('asciidoc-no-roff', type : 'boolean', value : false,
+       description : 'enable no roff workaround')
+option('man-bold-literal', type : 'boolean', value : false,
+       description : 'enable bold literals')
+option('docbook-suppress-sp', type : 'boolean', value : false,
+       description : 'docbook suppress sp')
