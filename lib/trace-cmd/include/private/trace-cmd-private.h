@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include "event-parse.h"
 #include "trace-cmd/trace-cmd.h"
+#include "trace-cmd-private-python.h"
 
 #define __packed __attribute__((packed))
 #define __hidden __attribute__((visibility ("hidden")))
@@ -194,9 +195,7 @@ void tracecmd_ref(struct tracecmd_input *handle);
 int tracecmd_read_headers(struct tracecmd_input *handle,
 			  enum tracecmd_file_states state);
 int tracecmd_get_parsing_failures(struct tracecmd_input *handle);
-int tracecmd_long_size(struct tracecmd_input *handle);
 int tracecmd_page_size(struct tracecmd_input *handle);
-int tracecmd_cpus(struct tracecmd_input *handle);
 int tracecmd_copy_headers(struct tracecmd_input *in_handle,
 			  struct tracecmd_output *out_handle,
 			  enum tracecmd_file_states start_state,
@@ -230,25 +229,10 @@ void tracecmd_print_stats(struct tracecmd_input *handle);
 void tracecmd_print_uname(struct tracecmd_input *handle);
 void tracecmd_print_version(struct tracecmd_input *handle);
 
-struct tep_record *
-tracecmd_peek_data(struct tracecmd_input *handle, int cpu);
-
-static inline struct tep_record *
-tracecmd_peek_data_ref(struct tracecmd_input *handle, int cpu)
-{
-	struct tep_record *rec = tracecmd_peek_data(handle, cpu);
-	if (rec)
-		rec->ref_count++;
-	return rec;
-}
-
 int tracecmd_latency_data_read(struct tracecmd_input *handle, char **buf, size_t *size);
 
 struct tep_record *
 tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record);
-
-struct tep_record *
-tracecmd_read_next_data(struct tracecmd_input *handle, int *rec_cpu);
 
 struct tep_record *
 tracecmd_peek_next_data(struct tracecmd_input *handle, int *rec_cpu);

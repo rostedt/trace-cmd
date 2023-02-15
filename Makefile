@@ -144,7 +144,7 @@ endif
 ifndef NO_PYTHON
 PYTHON		:= ctracecmd.so
 
-PYTHON_VERS ?= python
+PYTHON_VERS ?= python3
 PYTHON_PKGCONFIG_VERS ?= $(PYTHON_VERS)
 
 # Can build python?

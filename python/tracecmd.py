@@ -18,9 +18,10 @@
 # 2009-Dec-17:	Initial version by Darren Hart <dvhltc@us.ibm.com>
 #
 
-from functools import update_wrapper
+from functools import cached_property
+from collections.abc import Mapping
+from itertools import chain
 from ctracecmd import *
-from UserDict import DictMixin
 
 """
 Python interface to the tracecmd library for parsing ftrace traces
@@ -33,25 +34,7 @@ and it is recommended applications not use it directly.
 TODO: consider a complete class hierarchy of ftrace events...
 """
 
-def cached_property(func, name=None):
-    if name is None:
-        name = func.__name__
-    def _get(self):
-        try:
-            return self.__cached_properties[name]
-        except AttributeError:
-            self.__cached_properties = {}
-        except KeyError:
-            pass
-        value = func(self)
-        self.__cached_properties[name] = value
-        return value
-    update_wrapper(_get, func)
-    def _del(self):
-        self.__cached_properties.pop(name, None)
-    return property(_get, None, _del)
-
-class Event(object, DictMixin):
+class Event(Mapping):
     """
     This class can be used to access event data
     according to an event's record and format.
@@ -67,16 +50,30 @@ class Event(object, DictMixin):
                 self.num_field("common_pid"), self.comm, self.type)
 
     def __del__(self):
-        free_record(self._record)
+        tracecmd_free_record(self._record)
 
     def __getitem__(self, n):
-        f = tep_find_field(self._format, n)
+        if n.startswith('common_'):
+            f = tep_find_common_field(self._format, n)
+        else:
+            f = tep_find_field(self._format, n)
         if f is None:
             raise KeyError("no field '%s'" % n)
         return Field(self._record, f)
 
+    def __iter__(self):
+        yield from chain(self.common_keys, self.keys)
+
+    def __len__(self):
+        return len(self.common_keys) + len(self.keys)
+
+    @cached_property
+    def common_keys(self):
+        return py_format_get_keys(self._format, True)
+
+    @cached_property
     def keys(self):
-        return py_format_get_keys(self._format)
+        return py_format_get_keys(self._format, False)
 
     @cached_property
     def comm(self):
@@ -88,7 +85,7 @@ class Event(object, DictMixin):
 
     @cached_property
     def name(self):
-        return event_format_name_get(self._format)
+        return tep_event_name_get(self._format)
 
     @cached_property
     def pid(self):
@@ -182,15 +179,8 @@ class Trace(object):
     used to manage the trace and extract events from it.
     """
     def __init__(self, filename):
-        self._handle = tracecmd_alloc(filename)
-
-        if tracecmd_read_headers(self._handle):
-            raise FileFormatError("Invalid headers")
-
-        if tracecmd_init_data(self._handle):
-            raise FileFormatError("Failed to init data")
-
-        self._pevent = tracecmd_get_pevent(self._handle)
+        self._handle = tracecmd_open(filename, 0)
+        self._pevent = tracecmd_get_tep(self._handle)
 
     @cached_property
     def cpus(self):
@@ -242,8 +232,12 @@ class Trace(object):
 # Basic builtin test, execute module directly
 if __name__ == "__main__":
     t = Trace("trace.dat")
-    print("Trace contains data for %d cpus" % (t.cpus))
+    print(f"Trace contains data for {t.cpus} cpus, long has {t.long_size} bytes")
 
+    print("Peek the first event on CPU0")
+    print("\t%s" % (t.peek_event(0)))
+
+    print("Events by CPUs")
     for cpu in range(0, t.cpus):
         print("CPU %d" % (cpu))
         ev = t.read_event(cpu)
@@ -251,5 +245,10 @@ if __name__ == "__main__":
             print("\t%s" % (ev))
             ev = t.read_event(cpu)
 
+    t = Trace("trace.dat")
 
-
+    print("Events by time")
+    ev = t.read_next_event()
+    while ev:
+        print("\t%s" % (ev))
+        ev = t.read_next_event()

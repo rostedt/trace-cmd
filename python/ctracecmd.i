@@ -15,6 +15,7 @@
 
 %{
 #include "trace-cmd.h"
+#include "trace-cmd-private-python.h"
 #include "event-parse.h"
 #include "event-utils.h"
 #include <Python.h>
@@ -176,14 +177,14 @@ static PyObject *py_field_get_str(struct tep_format_field *f, struct tep_record 
 				strnlen((char *)r->data + f->offset, f->size));
 }
 
-static PyObject *py_format_get_keys(struct tep_event *ef)
+static PyObject *py_format_get_keys(struct tep_event *ef, bool common_keys)
 {
 	PyObject *list;
 	struct tep_format_field *f;
 
 	list = PyList_New(0);
 
-	for (f = ef->format.fields; f; f = f->next) {
+	for (f = common_keys ? ef->format.common_fields : ef->format.fields; f; f = f->next) {
 		if (PyList_Append(list, PyUnicode_FromString(f->name))) {
 			Py_DECREF(list);
 			return NULL;
@@ -214,7 +215,7 @@ static int python_callback(struct trace_seq *s,
 		SWIG_NewPointerObj(SWIG_as_voidptr(event),
 				   SWIGTYPE_p_tep_event, 0));
 
-	result = PyObject_CallObject(context, arglist);
+	result = PyObject_Call(context, arglist, NULL);
 	Py_XDECREF(arglist);
 	if (result && result != Py_None) {
 		if (!PyInt_Check(result)) {
@@ -239,6 +240,8 @@ static int python_callback(struct trace_seq *s,
 
 %ignore trace_seq_vprintf;
 %ignore vpr_stat;
+%ignore tep_plugin_kvm_get_func;
+%ignore tep_plugin_kvm_put_func;
 
 /* SWIG can't grok these, define them to nothing */
 #define __trace
@@ -246,5 +249,6 @@ static int python_callback(struct trace_seq *s,
 #define __thread
 
 %include "trace-cmd.h"
+%include "trace-cmd-private-python.h"
 %include <trace-seq.h>
 %include <event-parse.h>
