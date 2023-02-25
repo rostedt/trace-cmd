@@ -25,5 +25,6 @@ tracecmd_plugin_dir
 libtracecmd.pc
 build_prefix
 build_install
+build_uninstall
 build_libs_install
 ltc_version.h
