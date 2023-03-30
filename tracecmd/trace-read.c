@@ -562,30 +562,40 @@ static void make_pid_filter(struct tracecmd_input *handle,
 	}
 }
 
+static int __process_filters(struct tracecmd_input *handle,
+			     struct filter_str *filters)
+{
+	struct tracecmd_filter *trace_filter;
+
+	for (; filters; filters = filters->next) {
+		trace_filter = tracecmd_filter_add(handle,
+						   filters->filter,
+						   filters->neg);
+		if (!trace_filter)
+			die("Failed to create event filter: %s",
+			    filters->filter);
+	}
+
+	return !!filters;
+}
+
 static void process_filters(struct handle_list *handles)
 {
 	struct input_files *input_file = handles->input_file ?: last_input_file;
-	struct tracecmd_filter *trace_filter;
-	struct filter_str *filter;
-	int filters = 0;
+	int added = 0;
 
 	make_pid_filter(handles->handle, input_file);
 
+	/*
+	 * Order of filter processing matters. Apply the global filters
+	 * before file-specific ones.
+	 */
+	added += __process_filters(handles->handle, filter_strings);
 	if (input_file)
-		filter = input_file->filter_str;
-	else
-		filter = filter_strings;
+		added += __process_filters(handles->handle,
+					   input_file->filter_str);
 
-	for (; filter; filter = filter->next) {
-		trace_filter = tracecmd_filter_add(handles->handle,
-						   filter->filter,
-						   filter->neg);
-		if (!trace_filter)
-			die("Failed to create event filter: %s", filter->filter);
-
-		filters++;
-	}
-	if (filters && test_filters_mode)
+	if (added && test_filters_mode)
 		exit(0);
 }
 
