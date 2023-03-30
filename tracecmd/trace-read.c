@@ -564,14 +564,15 @@ static void make_pid_filter(struct tracecmd_input *handle,
 
 static void process_filters(struct handle_list *handles)
 {
+	struct input_files *input_file = handles->input_file ?: last_input_file;
 	struct tracecmd_filter *trace_filter;
 	struct filter_str *filter;
 	int filters = 0;
 
-	make_pid_filter(handles->handle, handles->input_file);
+	make_pid_filter(handles->handle, input_file);
 
-	if (handles->input_file)
-		filter = handles->input_file->filter_str;
+	if (input_file)
+		filter = input_file->filter_str;
 	else
 		filter = filter_strings;
 
