@@ -69,8 +69,12 @@ OPTIONS
     is only to the microsecond. To see the full timestamp, add the *-t* option.
 
 *-F* 'filter'::
-    Add a filter to limit what events are displayed. The format of the filter
-    is:
+    Add a filter to limit what events are displayed.  Filters defined
+    after an input file (specified with *-i*) only apply to that
+    input file. Filters provided before any input file is given are
+    considered global and apply to all input files.
+
+    The format of the filter is:
 
 [source,bison]
 ----
