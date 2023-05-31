@@ -671,13 +671,13 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 {
 	unsigned int rchunk = 0;
 	unsigned int chunks = 0;
-	unsigned int wsize = 0;
 	unsigned int rsize = 0;
 	unsigned int rmax = 0;
 	unsigned int csize;
 	unsigned int size;
 	unsigned int all;
 	unsigned int r;
+	off_t end_offset;
 	off_t offset;
 	char *buf_from;
 	char *buf_to;
@@ -748,8 +748,6 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 			ret = write_fd(handle->fd, buf_to, size);
 			if (ret != size)
 				break;
-			/* data + compress header */
-			wsize += (size + 8);
 			chunks++;
 		}
 	} while (all > 0);
@@ -766,13 +764,14 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 	endian4 = tep_read_number(handle->tep, &chunks, 4);
 	/* write chunks count*/
 	write_fd(handle->fd, &chunks, 4);
-	if (lseek(handle->fd, 0, SEEK_END) == (off_t)-1)
+	end_offset = lseek(handle->fd, 0, SEEK_END);
+	if (end_offset == (off_t)-1)
 		return -1;
 
 	if (read_size)
 		*read_size = rsize;
 	if (write_size)
-		*write_size = wsize;
+		*write_size = end_offset - offset;
 	return 0;
 }
 
