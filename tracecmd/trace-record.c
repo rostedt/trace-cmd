@@ -5295,7 +5295,8 @@ void tracecmd_remove_instances(void)
 			close(instance->tracing_on_fd);
 			instance->tracing_on_fd = 0;
 		}
-		tracefs_instance_destroy(instance->tracefs);
+		if (tracefs_instance_is_new(instance->tracefs))
+			tracefs_instance_destroy(instance->tracefs);
 	}
 }
 
@@ -6055,7 +6056,8 @@ static inline void remove_instances(struct buffer_instance *instances)
 		del = instances;
 		instances = instances->next;
 		free(del->name);
-		tracefs_instance_destroy(del->tracefs);
+		if (tracefs_instance_is_new(del->tracefs))
+			tracefs_instance_destroy(del->tracefs);
 		tracefs_instance_free(del->tracefs);
 		free(del);
 	}
