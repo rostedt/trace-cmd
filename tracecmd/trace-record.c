@@ -7141,7 +7141,7 @@ void trace_extract(int argc, char **argv)
 
 	type = get_trace_cmd_type(ctx.curr_cmd);
 
-	update_first_instance(ctx.instance, 1);
+	update_first_instance(ctx.instance, ctx.topt);
 	check_function_plugin();
 
 	if (!ctx.output)
