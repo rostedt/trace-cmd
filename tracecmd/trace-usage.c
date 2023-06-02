@@ -334,7 +334,7 @@ static struct usage_help usage_help[] = {
 	{
 		"agent",
 		"listen on a vsocket for trace clients",
-		" %s agent -p port[-D][-N][-P cid]\n"
+		" %s agent -p port[-D][-N IP][-P cid]\n"
 		"          Creates a vsocket to listen for clients.\n"
 		"          -N Connect to IP via TCP instead of vsockets\n"
 		"             *** Insecure setting, only use on a trusted network ***\n"
