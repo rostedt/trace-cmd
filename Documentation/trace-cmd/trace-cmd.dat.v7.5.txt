@@ -226,6 +226,10 @@ OPTIONS SECTION
        <4 bytes> unsigned integer, time shift.
        <8 bytes> unsigned long long integer, time offset.
 
+  STRINGS: id 15, size vary
+    The STRINGS option holds a list of nul terminated strings that holds the names of the
+    other sections.
+
   HEADER_INFO: id 16, size 8
     The HEADER_INFO option data is:
       <8 bytes> long long unsigned integer, offset into the trace file where the HEADER INFO
@@ -419,14 +423,18 @@ BUFFER FLYRECORD SECTION
 BUFFER TEXT SECTION
 ------------------------
 
+  Section ID: 22
+
   This section contains latency tracing data, ASCII text taken from the
   target's debugfs/tracing/trace file.
 
 STRINGS SECTION
 ------------------------
 
-  All strings from trace file metadata are stored in string section in the file. The section
-  contains a list of NULL terminated ASCII strings. An ID of the string is used in the file
+  Section ID: 15
+
+  All strings of the trace file metadata are stored in a string section within the file. The section
+  contains a list of nul terminated ASCII strings. An ID of the string is used in the file
   meta data, which is the offset of the actual string into the string section. Strings can be stored
   into multiple string sections in the file.
 
