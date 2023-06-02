@@ -696,8 +696,10 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 		return -1;
 
 	buf_to = malloc(csize);
-	if (!buf_to)
+	if (!buf_to) {
+		free(buf_from);
 		return -1;
+	}
 
 	/* save the initial offset and write 0 as initial chunk count */
 	offset = lseek(handle->fd, 0, SEEK_CUR);
