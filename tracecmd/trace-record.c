@@ -382,11 +382,9 @@ struct buffer_instance *allocate_instance(const char *name)
 	return instance;
 
 error:
-	if (instance) {
-		free(instance->name);
-		tracefs_instance_free(instance->tracefs);
-		free(instance);
-	}
+	free(instance->name);
+	tracefs_instance_free(instance->tracefs);
+	free(instance);
 	return NULL;
 }
 
