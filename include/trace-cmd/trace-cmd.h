@@ -48,6 +48,8 @@ int tracecmd_get_guest_cpumap(struct tracecmd_input *handle,
 			      int *vcpu_count, const int **cpu_pid);
 unsigned long long tracecmd_get_first_ts(struct tracecmd_input *handle);
 void tracecmd_add_ts_offset(struct tracecmd_input *handle, long long offset);
+int tracecmd_get_tsc2nsec(struct tracecmd_input *handle,
+			  int *mult, int *shift, unsigned long long *offset);
 int tracecmd_buffer_instances(struct tracecmd_input *handle);
 const char *tracecmd_buffer_instance_name(struct tracecmd_input *handle, int indx);
 struct tracecmd_input *tracecmd_buffer_instance_handle(struct tracecmd_input *handle, int indx);

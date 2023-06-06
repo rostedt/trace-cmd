@@ -3,7 +3,7 @@ libtracecmd(3)
 
 NAME
 ----
-tracecmd_get_first_ts, tracecmd_add_ts_offset - Handle time stamps from a trace file.
+tracecmd_get_first_ts, tracecmd_add_ts_offset, tracecmd_get_tsc2nsec - Handle time stamps from a trace file.
 
 SYNOPSIS
 --------
@@ -13,6 +13,7 @@ SYNOPSIS
 
 unsigned long long *tracecmd_get_first_ts*(struct tracecmd_input pass:[*]_handle_);
 void *tracecmd_add_ts_offset*(struct tracecmd_input pass:[*]_handle_, long long _offset_);
+int *tracecmd_get_tsc2nsec*(struct tracecmd_input pass:[*]_handle_, int pass:[*]_mult_, int pass[*]_shift_, unsigned long long pass:[*]_offset_);
 --
 
 DESCRIPTION
@@ -28,10 +29,22 @@ in the _handle_ that represents a trace file. This is useful for associating two
 different tracing files by their offset (for example a trace file from a host
 and a trace file from a guest that were not synchronized when created).
 
+The *tracecmd_get_tsc2nsec* returns the calculation values that convert the
+raw timestamp into nanoseconds. The parameters are pointers to the storage to save
+the values, or NULL to ignore them. The multiplier will be saved in _mult_, the
+shift value will be saved in _shift_, and the offset value will be saved in
+_offset_, if the corresponding parameters are not NULL.
+
 RETURN VALUE
 ------------
 The *tracecmd_get_first_ts()* function returns the timestamp of the first
 record in a trace file for the given _handle_.
+
+The *tracecmd_get_tsc2nsec*() returns 0 if the tracing clock supports the
+shift values and -1 otherwise. Note, that if the trace file has the TSC2NSEC
+option, the values returned in the parameters may still be valid even if the
+function itself returns -1. The return value only notes if the values will
+be used in the calculations of the given clock.
 
 EXAMPLE
 -------
@@ -63,7 +76,11 @@ int main(int argc, char **argv)
 {
 	struct tracecmd_input **handles = NULL;
 	unsigned long long ts, first_ts = 0;
+	unsigned long long offset;
+	int multi;
+	int shift;
 	int nr_handles = 0;
+	int ret;
 	int i;
 
 	if (argc < 2) {
@@ -78,6 +95,11 @@ int main(int argc, char **argv)
 		handles[nr_handles] = tracecmd_open(argv[i], 0);
 		if (!handles[nr_handles])
 			exit(-1);
+
+		ret = tracecmd_get_tsc2nsec(handles[nr_handles], &multi, &shift, &offset);
+		if (!ret)
+			printf(" %s has tsc2nsec calculations of mult:%d shift:%d offset:%lld\n",
+				argv[i], multi, shift, offset);
 		tracecmd_set_private(handles[nr_handles], argv[i]);
 		ts = tracecmd_get_first_ts(handles[nr_handles]);
 		if (!first_ts || ts < first_ts)

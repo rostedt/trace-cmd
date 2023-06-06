@@ -64,6 +64,7 @@ Read tracing instances from a trace file:
 Handle time stamps from a trace file:
 	unsigned long long *tracecmd_get_first_ts*(struct tracecmd_input pass:[*]_handle_);
 	void *tracecmd_add_ts_offset*(struct tracecmd_input pass:[*]_handle_, long long _offset_);
+	int *tracecmd_get_tsc2nsec*(struct tracecmd_input pass:[*]_handle_, int pass:[*]_mult_, int pass[*]_shift_, unsigned long long pass:[*]_offset_);
 
 Get traceing peer information from a trace file:
 	unsigned long long *tracecmd_get_traceid*(struct tracecmd_input pass:[*]_handle_);

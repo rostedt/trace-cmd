@@ -6136,6 +6136,33 @@ const char *tracecmd_get_trace_clock(struct tracecmd_input *handle)
 }
 
 /**
+ * tracecmd_get_tsc2nsec - get the calculation numbers to convert to nsecs
+ * @mult: If not NULL, points to where to save the multiplier
+ * @shift: If not NULL, points to where to save the shift.
+ * @offset: If not NULL, points to where to save the offset.
+ *
+ * This only returns a value if the clock is of a raw type.
+ * (currently just x86-tsc is supported).
+ *
+ * Returns 0 on success, or -1 on not supported clock (but may still fill
+ * in the values).
+ */
+int tracecmd_get_tsc2nsec(struct tracecmd_input *handle,
+			  int *mult, int *shift, unsigned long long *offset)
+{
+	if (mult)
+		*mult = handle->tsc_calc.mult;
+	if (shift)
+		*shift = handle->tsc_calc.shift;
+	if (offset)
+		*offset = handle->tsc_calc.offset;
+
+	return handle->top_buffer.clock &&
+		(strcmp(handle->top_buffer.clock, "x86-tsc") == 0 ||
+		 strcmp(handle->top_buffer.clock, "tsc2nsec") == 0) ? 0 : -1;
+}
+
+/**
  * tracecmd_get_cpustats - return the saved cpu stats
  * @handle: input handle for the trace.dat file
  *
