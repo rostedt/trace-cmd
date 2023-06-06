@@ -2818,8 +2818,13 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 		}
 	} while (next_cpu >= 0 && ret >= 0);
 
-	for (cpu = 0; cpu < handle->max_cpu; cpu++)
-		tracecmd_free_record(records[cpu]);
+	/* Need to unlock and free the records */
+	for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+		if (!records[cpu])
+			continue;
+		record = tracecmd_read_data(handle, cpu);
+		tracecmd_free_record(record);
+	}
 
 	free(records);
 
@@ -2908,6 +2913,19 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 		}
 
 	} while (next_cpu >= 0 && ret >= 0);
+
+	/* Unlock and free the records */
+	for (cpu = 0; cpu < all_cpus; cpu++) {
+		int local_cpu;
+
+		if (!records[cpu].record)
+			continue;
+
+		handle = records[cpu].handle;
+		local_cpu = cpu - handle->start_cpu;
+		record = tracecmd_read_data(handle, local_cpu);
+		tracecmd_free_record(record);
+	}
 
 	/*
 	 * The records array contains only records that were taken via
