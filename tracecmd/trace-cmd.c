@@ -50,6 +50,27 @@ void *malloc_or_die(unsigned int size)
 	return data;
 }
 
+/* Same as strtok_r(), but allows empty tokens */
+char *strparse(char *str, char delim, char **save)
+{
+	char *next;
+
+	if (!str) {
+		str = *save;
+		if ((*save)[0] == '\0')
+			return NULL;
+	}
+
+	next = strchr(str, delim);
+	if (next) {
+		*next = '\0';
+		*save = next + 1;
+	} else {
+		*save = str + strlen(str);
+	}
+	return str;
+}
+
 void tracecmd_debug(const char *fmt, ...)
 {
 	va_list ap;
@@ -156,6 +177,7 @@ struct command commands[] = {
 	{"list", trace_list},
 	{"help", trace_usage},
 	{"dump", trace_dump},
+	{"attach", trace_attach},
 	{"convert", trace_convert},
 	{"-h", trace_usage},
 };

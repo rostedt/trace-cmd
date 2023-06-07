@@ -118,6 +118,8 @@ void trace_usage(int argc, char **argv);
 
 void trace_dump(int argc, char **argv);
 
+void trace_attach(int argc, char **argv);
+
 void trace_convert(int argc, char **argv);
 
 int trace_record_agent(struct tracecmd_msg_handle *msg_handle,
@@ -362,6 +364,8 @@ trace_tsync_as_host(int fd, unsigned long long trace_id,
 struct tracecmd_time_sync *
 trace_tsync_as_guest(int fd, const char *tsync_proto, const char *clock,
 	       unsigned int remote_id, unsigned int local_id);
+
+char *strparse(char *str, char delim, char **save);
 
 /* moved from trace-cmd.h */
 void tracecmd_remove_instances(void);

@@ -430,6 +430,15 @@ static struct usage_help usage_help[] = {
 		"          --verbose 'level' Set the desired log level\n"
 	},
 	{
+		"attach",
+		"Attach a host and guest trace.dat file",
+		" %s attach [options] host_file guest_file vcpu_pid,...\n"
+		"          -s  offset,scale,fraction[,timestamp] conversion to sync guest timestamp\n"
+		"          host_file The trace.dat file from the host\n"
+		"          guest_file The trace.dat file from the guest\n"
+		"          vcpu_pid list of process ids from the host that represent the vCPUs of the guest\n"
+	},
+	{
 		"convert",
 		"convert trace file to different version",
 		" %s convert [options]\n"
