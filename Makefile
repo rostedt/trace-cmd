@@ -456,6 +456,9 @@ ifneq ($(CUNIT_INSTALLED),1)
 endif
 	$(Q)$(MAKE) -C $(src)/utest $@
 
+test_mem: force test
+	$(Q)$(MAKE) -C $(src)/utest $@
+
 plugins_tracecmd: force $(obj)/lib/trace-cmd/plugins/tracecmd_plugin_dir
 	$(Q)$(MAKE) -C $(src)/lib/trace-cmd/plugins
 
