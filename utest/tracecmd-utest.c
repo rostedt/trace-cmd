@@ -131,6 +131,7 @@ static int pipe_it(int *ofd, int *efd, int (*func)(void *),
 		goto fail;
 
 	if (!pid) {
+		char shret[32];
 
 		close(obrass[0]);
 		close(STDOUT_FILENO);
@@ -143,6 +144,23 @@ static int pipe_it(int *ofd, int *efd, int (*func)(void *),
 			exit(-1);
 
 		ret = func(data);
+
+		/*
+		 * valgrind triggers its reports when the application
+		 * exits. If the application does a fork() and the child
+		 * exits, it will still trigger the valgrind report for
+		 * all the allocations that were not freed by the parent.
+		 *
+		 * To prevent valgrind from triggering, do an execl() on
+		 * a basic shell that will simply exit with the return value.
+		 * This will quiet valgrind from reporting memory that has
+		 * been allocated by the parent up to here.
+		 */
+		snprintf(shret, 32, "exit %d", ret);
+		execl("/usr/bin/sh", "/usr/bin/sh", "-c", shret, NULL);
+		execl("/bin/sh", "/bin/sh", "-c", shret, NULL);
+
+		/* If the above execl() fails, simply do an exit */
 		exit(ret);
 	}
 
