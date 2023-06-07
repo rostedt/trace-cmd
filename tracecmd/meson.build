@@ -4,6 +4,7 @@
 
 sources = [
     'trace-agent.c',
+    'trace-attach.c',
     'trace-check-events.c',
     'trace-clear.c',
     'trace-cmd.c',
