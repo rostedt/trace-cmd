@@ -4942,6 +4942,8 @@ void tracecmd_close(struct tracecmd_input *handle)
 	free(handle->trace_clock);
 	free(handle->strings);
 	free(handle->version);
+	free(handle->followers);
+	free(handle->missed_followers);
 	trace_guest_map_free(handle->map);
 	close(handle->fd);
 	free(handle->latz.chunks);
