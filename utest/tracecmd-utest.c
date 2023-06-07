@@ -438,6 +438,8 @@ static void test_trace_library_read(void)
 	ret = tracecmd_iterate_events(handle, NULL, 0, read_events, &data);
 	CU_TEST(ret == 0);
 
+	tracecmd_close(handle);
+
 	CU_TEST(data.counter > 0);
 	trace_seq_destroy(&data.seq);
 }
