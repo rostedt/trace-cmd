@@ -2816,7 +2816,7 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
 			tracecmd_free_record(record);
 		}
-	} while (next_cpu >= 0 && ret >= 0);
+	} while (next_cpu >= 0 && ret == 0);
 
 	/* Need to unlock and free the records */
 	for (cpu = 0; cpu < handle->max_cpu; cpu++) {
@@ -2912,7 +2912,7 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
 		}
 
-	} while (next_cpu >= 0 && ret >= 0);
+	} while (next_cpu >= 0 && ret == 0);
 
 	/* Unlock and free the records */
 	for (cpu = 0; cpu < all_cpus; cpu++) {
