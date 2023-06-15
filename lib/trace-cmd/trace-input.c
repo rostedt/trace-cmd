@@ -2820,10 +2820,15 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 
 	/* Need to unlock and free the records */
 	for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+		int offset;
+
 		if (!records[cpu])
 			continue;
-		record = tracecmd_read_data(handle, cpu);
-		tracecmd_free_record(record);
+
+		offset = (int)(records[cpu]->offset & (handle->page_size - 1));
+		free_next(handle, cpu);
+		/* Reset the buffer to read the cached record again */
+		kbuffer_read_at_offset(handle->cpu_data[cpu].kbuf, offset, NULL);
 	}
 
 	free(records);
@@ -2917,20 +2922,20 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 	/* Unlock and free the records */
 	for (cpu = 0; cpu < all_cpus; cpu++) {
 		int local_cpu;
+		int offset;
 
 		if (!records[cpu].record)
 			continue;
 
 		handle = records[cpu].handle;
 		local_cpu = cpu - handle->start_cpu;
-		record = tracecmd_read_data(handle, local_cpu);
-		tracecmd_free_record(record);
+
+		offset = (int)(records[cpu].record->offset & (handle->page_size - 1));
+		free_next(handle, local_cpu);
+		/* Reset the buffer to read the cached record again */
+		kbuffer_read_at_offset(handle->cpu_data[cpu].kbuf, offset, NULL);
 	}
 
-	/*
-	 * The records array contains only records that were taken via
-	 * tracecmd_peek_data(), and do not need to be freed.
-	 */
 	free(records);
 
 	return ret;
