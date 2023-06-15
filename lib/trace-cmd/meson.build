@@ -45,6 +45,8 @@ if libtracecmd_standalone_build
         dependencies: [
             libtraceevent_dep,
             libtracefs_dep,
+            threads_dep,
+            dl_dep,
             zlib_dep,
             libzstd_dep,
             audit_dep],
@@ -77,6 +79,8 @@ else
         dependencies: [
             libtraceevent_dep,
             libtracefs_dep,
+            threads_dep,
+            dl_dep,
             zlib_dep,
             libzstd_dep,
             audit_dep],
