@@ -27,6 +27,9 @@ conf = configuration_data()
 libtraceevent_dep = dependency('libtraceevent', version: '>= 1.5.0', required: true)
 libtracefs_dep = dependency('libtracefs', version: '>= 1.6.0', required: true)
 
+threads_dep = dependency('threads', required: true)
+dl_dep = cc.find_library('dl', required : false)
+
 zlib_dep = dependency('zlib', required: false)
 conf.set('HAVE_ZLIB', zlib_dep.found(), description: 'Is zlib avialable?')
 
