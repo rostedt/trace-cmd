@@ -40,6 +40,12 @@ Iterating over events in a trace file:
 								   struct tep_record pass:[*],
 							   int, void pass:[*]),
 					  void pass:[*]_callback_data_);
+	int *tracecmd_iterate_events_reverse*(struct tracecmd_input pass:[*]_handle_,
+				    cpu_set_t pass:[*]_cpus_, int _cpu_size_,
+				    int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+						    struct tep_record pass:[*],
+						    int, void pass:[*]),
+				    void pass:[*]_callback_data_, bool _cont_);
 	int *tracecmd_follow_event*(struct tracecmd_input pass:[*]_handle_,
 				  const char pass:[*]_system_, const char pass:[*]_event_name_,
 				  int (pass:[*]_callback_)(struct tracecmd_input pass:[*],

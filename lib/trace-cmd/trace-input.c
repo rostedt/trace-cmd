@@ -2836,6 +2836,211 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 	return ret;
 }
 
+static struct tep_record *
+load_records(struct tracecmd_input *handle, int cpu,
+	     unsigned long long page_offset, unsigned long long start_offset)
+{
+	struct tep_record *last_record = NULL;
+	struct tep_record *record;
+	unsigned long long page_end = page_offset + handle->page_size;
+
+	if (get_page(handle, cpu, page_offset) < 0)
+		return NULL;
+
+	update_page_info(handle, cpu);
+
+	if (start_offset)
+		page_end = start_offset + 1;
+
+	for (;;) {
+		record = tracecmd_read_data(handle, cpu);
+		if (!record || record->offset >= page_end) {
+			/* Make sure the cpu_data page is still valid */
+			get_page(handle, cpu, page_offset);
+			tracecmd_free_record(record);
+			break;
+		}
+		/*
+		 * Hijack the record->priv, as we know that it points
+		 * to handle->cpu_data[cpu].page, and use that as
+		 * a link list of all the records on this page going
+		 * backwards.
+		 */
+		record->priv = last_record;
+		last_record = record;
+	}
+
+	return last_record;
+}
+
+static void free_last_record(struct tracecmd_input *handle, struct tep_record *record,
+			     int cpu)
+{
+	record->priv = handle->cpu_data[cpu].page;
+	tracecmd_free_record(record);
+}
+
+static void free_last_records(struct tracecmd_input *handle, struct tep_record *records,
+			      int cpu)
+{
+	struct tep_record *last_record;
+
+	while (records) {
+		last_record = records;
+		records = last_record->priv;
+		free_last_record(handle, last_record, cpu);
+	}
+}
+
+static void initialize_last_events(struct tracecmd_input *handle,
+				   struct tep_record **last_records,
+				   cpu_set_t *cpu_set, int cpu_size,
+				   int cpus, bool cont)
+{
+	unsigned long long page_offset;
+	unsigned long long start_offset = 0;
+	struct tep_record *record;
+	int cpu;
+
+	for (cpu = 0; cpu < cpus; cpu++) {
+		if (cpu_set && !CPU_ISSET_S(cpu, cpu_size, cpu_set))
+			continue;
+
+		if (!handle->cpu_data[cpu].file_size)
+			continue;
+
+		if (cont) {
+			record = tracecmd_read_data(handle, cpu);
+			if (record)
+				page_offset = start_offset = record->offset;
+			tracecmd_free_record(record);
+		}
+
+		if (!start_offset) {
+			/* Find the start of the last page for this CPU */
+			page_offset = handle->cpu_data[cpu].file_offset +
+				handle->cpu_data[cpu].file_size;
+		}
+		page_offset = calc_page_offset(handle, page_offset - 1);
+
+		last_records[cpu] = load_records(handle, cpu, page_offset, start_offset);
+	}
+}
+
+static struct tep_record *peek_last_event(struct tracecmd_input *handle,
+					  struct tep_record **last_records, int cpu)
+{
+	struct tep_record *record = last_records[cpu];
+	struct page *page = handle->cpu_data[cpu].page;
+	unsigned long long page_offset;
+
+	if (record)
+		return record;
+
+	page_offset = page->offset - handle->page_size;
+	if (page_offset < handle->cpu_data[cpu].file_offset)
+		return NULL;
+
+	last_records[cpu] = load_records(handle, cpu, page_offset, 0);
+	return peek_last_event(handle, last_records, cpu);
+}
+
+static struct tep_record *next_last_event(struct tracecmd_input *handle,
+					  struct tep_record **last_records, int cpu)
+{
+	struct tep_record *record = last_records[cpu];
+	struct page *page = handle->cpu_data[cpu].page;
+
+	if (!record)
+		return NULL;
+
+	last_records[cpu] = record->priv;
+	record->priv = page;
+
+	return record;
+}
+
+/**
+ * tracecmd_iterate_events_reverse - iterate events over a given handle backwards
+ * @handle: The handle to iterate over
+ * @cpus: The CPU set to filter on (NULL for all CPUs)
+ * @cpu_size: The size of @cpus (ignored if @cpus is NULL)
+ * @callback: The callback function for each event
+ * @callback_data: The data to pass to the @callback.
+ * @cont: If true, start where it left off, otherwise start at the end.
+ *
+ * Will loop over all events in @handle (filtered by the given @cpus),
+ * and will call @callback for each event in reverse order.
+ *
+ * Returns the -1 on error, or the value of the callbacks.
+ */
+int tracecmd_iterate_events_reverse(struct tracecmd_input *handle,
+				    cpu_set_t *cpus, int cpu_size,
+				    int (*callback)(struct tracecmd_input *handle,
+						    struct tep_record *,
+						    int, void *),
+				    void *callback_data, bool cont)
+{
+	unsigned long long last_timestamp = 0;
+	struct tep_record **records;
+	struct tep_record *record;
+	int next_cpu;
+	int max_cpus = handle->max_cpu;
+	int cpu;
+	int ret = 0;
+
+	if (!callback && !handle->nr_followers) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	records = calloc(max_cpus, sizeof(*records));
+	if (!records)
+		return -1;
+
+	initialize_last_events(handle, records, cpus, cpu_size, max_cpus, cont);
+
+	do {
+		next_cpu = -1;
+		for (cpu = 0; cpu < max_cpus; cpu++) {
+			if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpus))
+				continue;
+			record = peek_last_event(handle, records, cpu);
+			if (!record)
+				continue;
+
+			if (next_cpu < 0 || record->ts > last_timestamp) {
+				next_cpu = cpu;
+				last_timestamp = record->ts;
+			}
+		}
+		if (next_cpu >= 0) {
+			record = next_last_event(handle, records, next_cpu);;
+			ret = call_callbacks(handle, record, next_cpu,
+					     callback, callback_data);
+			tracecmd_free_record(record);
+		}
+	} while (next_cpu >= 0 && ret == 0);
+
+	for (cpu = 0; cpu < max_cpus; cpu++) {
+		int offset;
+
+		/* Get the next record to set the index to. */
+		record = peek_last_event(handle, records, cpu);
+		if (!record)
+			continue;
+		/* Reset the buffer to read the cached record again */
+		offset = record->offset & (handle->page_size - 1);
+		free_last_records(handle, records[cpu], cpu);
+		/* Reset the buffer to read the cached record again */
+		kbuffer_read_at_offset(handle->cpu_data[cpu].kbuf, offset, NULL);
+	}
+
+	free(records);
+
+	return ret;
+}
+
 struct record_handle {
 	struct tep_record		*record;
 	struct tracecmd_input		*handle;

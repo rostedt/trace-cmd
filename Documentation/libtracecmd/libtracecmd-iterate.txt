@@ -24,6 +24,12 @@ int *tracecmd_iterate_events_multi*(struct tracecmd_input pass:[**]_handles_,
 							   struct tep_record pass:[*],
 							   int, void pass:[*]),
 				  void pass:[*]_callback_data_);
+int *tracecmd_iterate_events_reverse*(struct tracecmd_input pass:[*]_handle_,
+			    cpu_set_t pass:[*]_cpus_, int _cpu_size_,
+			    int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
+					    struct tep_record pass:[*],
+					    int, void pass:[*]),
+			    void pass:[*]_callback_data_, bool _cont_);
 int *tracecmd_follow_event*(struct tracecmd_input pass:[*]_handle_,
 			  const char pass:[*]_system_, const char pass:[*]_event_name_,
 			  int (pass:[*]_callback_)(struct tracecmd_input pass:[*],
@@ -71,7 +77,20 @@ as its last parameter.  _callback_ may be NULL, which is useful if *tracecmd_fol
 is used, but note if _callback_ is NULL, then _callback_data_ is ignored and not sent to the
 _callback_ of *tracecmd_follow_event()*.
 
-The _callback()_ for both *tracecmd_iterate_events()* and *tracecmd_iterate_events_multi()* is of the prototype:
+The function *tracecmd_iterate_events_reverse()* works pretty much the same way as
+*tracecmd_iterate_events()* works, but instead of calling the _callback_() function for
+each event in order of the timestamp, it will call the _callback_() function for
+each event in reverse order of the timestamp. If _cont_ is false, it will start by
+calling the event with the oldest timestamp in the trace.dat file. If _cont_ is set
+to true, then it will start whereever the current position of the tracing data is.
+For instance, if the _callback()_ return something other than zero it will exit the
+iteration. If *tracecmd_iterate_events_reverse()* is called again with _cont_ to true
+it will continue where it left off. If _cont_ is false, it will start again at the event
+with the oldest timestamp. The _handle_, _cpus_, _cpu_size_, and _callback_data_ act the
+same as *tracecmd_iterate_events()*.
+
+The _callback()_ for both *tracecmd_iterate_events()*, *tracecmd_iterate_events_reverse()*
+and *tracecmd_iterate_events_multi()* is of the prototype:
 
 int _callback()_(struct tracecmd_input pass:[*]_handle_, struct tep_record pass:[*]_record_,
 		 int _cpu_, void pass:[*]_data_);
@@ -123,10 +142,10 @@ the _callback()_ function in the iterators.
 
 RETURN VALUE
 ------------
-Both *tracecmd_iterate_events()* and *tracecmd_iterate_events_multi()* return zero
-if they successfully iterated all events (handling the follow and filters appropriately).
-Or an error value, which can include returning a non-zero result from the _callback()_
-function.
+Both *tracecmd_iterate_events()*, *tracecmd_iterate_events_reverse()* and
+*tracecmd_iterate_events_multi()* return zero if they successfully iterated all events
+(handling the follow and filters appropriately). Or an error value, which can include
+returning a non-zero result from the _callback()_ function.
 
 EXAMPLE
 -------
