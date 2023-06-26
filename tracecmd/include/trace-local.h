@@ -461,4 +461,8 @@ static inline bool is_digits(const char *s)
 
 bool trace_tsc2nsec_is_supported(void);
 
+void make_pid_name(char *buf, const char *pidfile_basename);
+void remove_pid_file(const char *pidfile_basename);
+void make_pid_file(const char *pidfile_basename);
+
 #endif /* __TRACE_LOCAL_H */

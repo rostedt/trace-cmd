@@ -34,6 +34,8 @@
 
 #define VAR_RUN_DIR		VAR_DIR_Q(VAR_DIR) "/run"
 
+#define LISTEN_PIDFILE		"trace-cmd-net.pid"
+
 static char *default_output_dir = ".";
 static char *output_dir;
 static char *default_output_file = "trace";
@@ -52,7 +54,8 @@ static bool done;
 #define pdie(fmt, ...)					\
 	do {						\
 		tracecmd_plog_error(fmt, ##__VA_ARGS__);\
-		remove_pid_file();			\
+		if (do_daemon)				\
+			remove_pid_file(LISTEN_PIDFILE);\
 		exit(-1);				\
 	} while (0)
 
@@ -126,21 +129,16 @@ static void finish(int sig)
 	done = true;
 }
 
-static void make_pid_name(int mode, char *buf)
+void make_pid_name(char *buf, const char *pidfile_basename)
 {
-	snprintf(buf, PATH_MAX, VAR_RUN_DIR "/trace-cmd-net.pid");
+	snprintf(buf, PATH_MAX, VAR_RUN_DIR "/%s", pidfile_basename);
 }
 
-static void remove_pid_file(void)
+void remove_pid_file(const char *pidfile_basename)
 {
 	char buf[PATH_MAX];
-	int mode = do_daemon;
 
-	if (!do_daemon)
-		return;
-
-	make_pid_name(mode, buf);
-
+	make_pid_name(buf, pidfile_basename);
 	unlink(buf);
 }
 
@@ -991,16 +989,12 @@ static void do_accept_loop(int sfd)
 	clean_up();
 }
 
-static void make_pid_file(void)
+void make_pid_file(const char *pidfile_basename)
 {
 	char buf[PATH_MAX];
-	int mode = do_daemon;
 	int fd;
 
-	if (!do_daemon)
-		return;
-
-	make_pid_name(mode, buf);
+	make_pid_name(buf, pidfile_basename);
 
 	fd = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
@@ -1075,7 +1069,8 @@ static void do_listen(char *port)
 	if (!tracecmd_get_debug())
 		signal_setup(SIGCHLD, sigstub);
 
-	make_pid_file();
+	if (do_daemon)
+		make_pid_file(LISTEN_PIDFILE);
 
 	if (use_vsock)
 		sfd = get_vsock(port);
@@ -1090,7 +1085,8 @@ static void do_listen(char *port)
 
 	kill_clients();
 
-	remove_pid_file();
+	if (do_daemon)
+		remove_pid_file(LISTEN_PIDFILE);
 }
 
 static void start_daemon(void)
