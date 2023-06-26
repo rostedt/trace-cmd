@@ -515,6 +515,35 @@ task: sleep-21611
        => try_to_wake_up (0xffffffff8106340a)
 ----
 
+An example of using --daemonize together with guest/host tracing:
+[source,shell]
+----
+$ sudo trace-cmd record --daemonize -p nop -e 'sched:sched_process_exec' -A guest -p nop -e net &&
+> ping -c 1 10.20.1.2 &&
+> sudo start-stop-daemon --stop --signal INT --retry 20 --pidfile /var/run/trace-cmd-record.pid &&
+> sudo trace-cmd report -i trace.dat -i trace-guest.dat | head
+Negotiated kvm time sync protocol with guest guest
+Send SIGINT to pid 3071371 to stop recording
+PING 10.20.1.2 (10.20.1.2) 56(84) bytes of data.
+64 bytes from 10.20.1.2: icmp_seq=1 ttl=64 time=0.134 ms
+--- 10.20.1.2 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.134/0.134/0.134/0.000 ms
+CPU0 data recorded at offset=0x14f000
+    229 bytes in size (4096 uncompressed)
+....
+      trace.dat: cpus=28
+trace-guest.dat: cpus=1
+      trace.dat:           ping-3071450 [013] 1196830.834258: sched_process_exec:     filename=/bin/ping pid=3071450 old_pid=3071450
+trace-guest.dat:           <idle>-0     [000] 1196830.835990: napi_gro_receive_entry: dev=eth1 napi_id=0x2002 queue_mapping=1 skbaddr=0xffff95d051a5c400 vlan_tagged=0 vlan_proto=0x0000 vlan_tci=0x0000 protocol=0x0800 ip_summed=0 hash=0x00000000 l4_hash=0 len=84 data_len=0 truesize=768 mac_header_valid=1 mac_header=-14 nr_frags=0 gso_size=0 gso_type=0
+trace-guest.dat:           <idle>-0     [000] 1196830.835997: napi_gro_receive_exit:  ret=3
+trace-guest.dat:           <idle>-0     [000] 1196830.835998: netif_receive_skb:      dev=eth1 skbaddr=0xffff95d051a5c400x len=84
+trace-guest.dat:           <idle>-0     [000] 1196830.836021: net_dev_queue:          dev=eth1 skbaddr=0xffff95d051a5c700x len=98
+trace-guest.dat:           <idle>-0     [000] 1196830.836024: net_dev_start_xmit:     dev=eth1 queue_mapping=0 skbaddr=0xffff95d051a5c700 vlan_tagged=0 vlan_proto=0x0000 vlan_tci=0x0000 protocol=0x0800 ip_summed=0 len=98 data_len=0 network_offset=14 transport_offset_valid=1 transport_offset=34 tx_flags=0 gso_size=0 gso_segs=0 gso_type=0
+trace-guest.dat:           <idle>-0     [000] 1196830.836069: net_dev_xmit:           dev=eth1 skbaddr=0xffff95d051a5c700 len=98 rc=0
+      trace.dat:           sudo-3071451 [015] 1196830.838262: sched_process_exec:     filename=/usr/bin/sudo pid=3071451 old_pid=3071451
+----
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-report(1), trace-cmd-start(1), trace-cmd-stop(1),
