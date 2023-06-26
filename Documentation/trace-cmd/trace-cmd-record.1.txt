@@ -420,6 +420,7 @@ OPTIONS
 
 *--daemonize*
     Run trace-cmd in the background as a daemon after recording has started.
+    Creates a pidfile at /var/run/trace-cmd-record.pid with the pid of trace-cmd during the recording.
 
 EXAMPLES
 --------

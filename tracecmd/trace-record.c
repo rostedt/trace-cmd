@@ -46,6 +46,8 @@
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
+#define RECORD_PIDFILE	"trace-cmd-record.pid"
+
 #define TRACE_CTRL	"tracing_on"
 #define TRACE		"trace"
 #define AVAILABLE	"available_tracers"
@@ -92,6 +94,8 @@ static bool quiet;
 static bool fork_process;
 
 static bool do_daemonize;
+
+static bool created_pidfile;
 
 /* Max size to let a per cpu file get */
 static int max_kb;
@@ -645,6 +649,9 @@ void die(const char *fmt, ...)
 		perror("trace-cmd");
 	else
 		ret = -1;
+
+	if (created_pidfile)
+		remove_pid_file(RECORD_PIDFILE);
 
 	kill_threads();
 	va_start(ap, fmt);
@@ -1737,6 +1744,9 @@ static void daemonize_finish(void)
 
 	if (kill(getppid(), SIGRTMIN) == -1)
 		die("daemonize: kill");
+
+	make_pid_file(RECORD_PIDFILE);
+	created_pidfile = true;
 }
 
 static void trace_or_sleep(enum trace_type type, bool pwait)
@@ -7225,6 +7235,9 @@ static void record_trace(int argc, char **argv,
 
 	destroy_stats();
 	finalize_record_trace(ctx);
+
+	if (created_pidfile)
+		remove_pid_file(RECORD_PIDFILE);
 }
 
 /*
