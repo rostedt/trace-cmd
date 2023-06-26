@@ -91,6 +91,8 @@ static bool quiet;
 
 static bool fork_process;
 
+static bool do_daemonize;
+
 /* Max size to let a per cpu file get */
 static int max_kb;
 
@@ -1634,6 +1636,109 @@ static inline void ptrace_attach(struct buffer_instance *instance, int pid) { }
 
 #endif /* NO_PTRACE */
 
+static bool child_detached;
+
+static void daemonize_set_child_detached(int s)
+{
+	child_detached = true;
+}
+
+static void daemonize_start(void)
+{
+	int devnull;
+	int status;
+	int pid;
+	int rc;
+
+	pid = fork();
+	if (pid == -1)
+		die("daemonize: fork failed");
+
+	if (pid == 0) { /* child */
+		/*
+		 * We keep stdout and stderr open to allow the user to
+		 * see output and errors after the daemonization (the user can
+		 * choose to supress it with >/dev/null if the user wants).
+		 *
+		 * No reason to keep stdin open (it might interfere with the
+		 * shell), we redirect it to /dev/null.
+		 */
+		devnull = open("/dev/null", O_RDONLY);
+		if (devnull == -1)
+			die("daemonize: open /dev/null failed");
+
+		if (devnull > 0) {
+			if (dup2(devnull, 0) == -1)
+				die("daemonize: dup2");
+			close(0);
+		}
+
+		return;
+
+		/*
+		 * The child returns to back to the caller, but the parent waits until
+		 * SIGRTMIN is received from the child (by calling daemonize_finish()),
+		 * or the child exits for some reason (usually an indication of
+		 * an error), which ever comes first.
+		 *
+		 * Then the parent exits (with the status code of the child,
+		 * if it finished early, or with 0 if SIGRTMIN was received),
+		 * which causes the child (and its entire process tree) to be
+		 * inherited by init.
+		 *
+		 * Note that until the child calls daemonize_finish(), it still has
+		 * the same session id as the parent, so it can die together with
+		 * the parent before daemonization finished (purposefully, since the
+		 * user might send a quick Ctrl^C to cancel the command, and we don't
+		 * want background processes staying alive in that case)
+		 */
+	} else { /* parent */
+		struct sigaction sa = {
+			/* disable SA_RESTART, to allow waitpid() to be interrupted by SIGRTMIN */
+			.sa_flags = 0,
+			.sa_handler = daemonize_set_child_detached
+		};
+
+		if (sigemptyset(&sa.sa_mask) == -1)
+			die("daemonize: sigemptyset failed");
+
+		if (sigaddset(&sa.sa_mask, SIGRTMIN) == -1)
+			die("daemonize: sigaddset failed");
+
+		if (sigprocmask(SIG_UNBLOCK, &sa.sa_mask, NULL) == -1)
+			die("daemonize: sigprocmask failed");
+
+		if (sigaction(SIGRTMIN, &sa, NULL) == -1)
+			die("daemonize: sigaction failed");
+
+		do {
+			rc = waitpid(pid, &status, 0);
+		} while (!child_detached && ((rc == -1) && (errno == EINTR)));
+
+		if (child_detached)
+			exit(0);
+		else if (rc == pid)
+			exit(WIFEXITED(status));
+		else
+			die("daemonize: waitpid failed");
+
+		__builtin_unreachable();
+	}
+}
+
+static void daemonize_finish(void)
+{
+	/*
+	 * setsid() will also set the sid to be the pgid to all currently
+	 * running threads in the process group (such as the tsync thread).
+	 */
+	if (setsid() == -1)
+		die("daemonize: setsid");
+
+	if (kill(getppid(), SIGRTMIN) == -1)
+		die("daemonize: kill");
+}
+
 static void trace_or_sleep(enum trace_type type, bool pwait)
 {
 	int i;
@@ -1748,6 +1853,9 @@ static void run_cmd(enum trace_type type, const char *user, int argc, char **arg
 
 		execute_program(argc, argv);
 	}
+
+	if (do_daemonize)
+		daemonize_finish();
 	if (fork_process)
 		exit(0);
 	if (do_ptrace) {
@@ -5790,6 +5898,7 @@ enum {
 	OPT_proxy		= 261,
 	OPT_temp		= 262,
 	OPT_notimeout		= 264,
+	OPT_daemonize		= 265,
 };
 
 void trace_stop(int argc, char **argv)
@@ -6217,6 +6326,7 @@ static void parse_record_options(int argc,
 			{"file-version", required_argument, NULL, OPT_file_ver},
 			{"proxy", required_argument, NULL, OPT_proxy},
 			{"temp", required_argument, NULL, OPT_temp},
+			{"daemonize", no_argument, NULL, OPT_daemonize},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -6690,6 +6800,11 @@ static void parse_record_options(int argc,
 				die("--fork option used for 'start' command only");
 			fork_process = true;
 			break;
+		case OPT_daemonize:
+			if (!IS_RECORD(ctx))
+				die("--daemonize option used for 'record' command only");
+			do_daemonize = true;
+			break;
 		case OPT_tsc2nsec:
 			ret = get_tsc_nsec(&ctx->tsc2nsec.shift,
 					   &ctx->tsc2nsec.mult);
@@ -6933,6 +7048,9 @@ static void record_trace(int argc, char **argv,
 	struct buffer_instance *instance;
 	struct filter_pids *pid;
 
+	if (do_daemonize)
+		daemonize_start();
+
 	/*
 	 * If top_instance doesn't have any plugins or events, then
 	 * remove it from being processed.
@@ -7051,8 +7169,15 @@ static void record_trace(int argc, char **argv,
 				}
 			}
 		}
-		/* sleep till we are woken with Ctrl^C */
-		printf("Hit Ctrl^C to stop recording\n");
+
+		if (do_daemonize) {
+			daemonize_finish();
+			printf("Send SIGINT to pid %d to stop recording\n", getpid());
+		} else {
+			/* sleep till we are woken with Ctrl^C */
+			printf("Hit Ctrl^C to stop recording\n");
+		}
+
 		for_all_instances(instance) {
 			/* If an instance is not tracing individual processes
 			 * or there is an error while waiting for a process to

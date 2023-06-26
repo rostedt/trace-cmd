@@ -81,6 +81,7 @@ static struct usage_help usage_help[] = {
 		"                        available algorithms can be listed with trace-cmd list -c\n"
 		"          --proxy vsocket to reach the agent. Acts the same as -A (for an agent)\n"
 		"              but will send the proxy connection to the agent.\n"
+		"          --daemonize run trace-cmd in the background as a daemon after recording has started\n"
 	},
 	{
 		"set",

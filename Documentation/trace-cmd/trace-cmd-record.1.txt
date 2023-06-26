@@ -418,6 +418,9 @@ OPTIONS
     run on a privileged guest that the host is aware of (as denoted by the
     'cid' in the *-P* option for the agent).
 
+*--daemonize*
+    Run trace-cmd in the background as a daemon after recording has started.
+
 EXAMPLES
 --------
 
