@@ -6,7 +6,7 @@ project(
     'libtracecmd', ['c'],
     meson_version: '>= 0.50.0',
     license: 'GPL-2.0',
-    version: '1.4.0',
+    version: '1.5.dev',
     default_options: [
         'c_std=gnu99',
         'buildtype=debug',
