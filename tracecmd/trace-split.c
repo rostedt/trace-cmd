@@ -546,7 +546,7 @@ void trace_split (int argc, char **argv)
 	if (!output)
 		output = strdup(input_file);
 
-	if (!repeat) {
+	if (!repeat && strcmp(output, input_file) == 0) {
 		output = realloc(output, strlen(output) + 3);
 		strcat(output, ".1");
 	}
