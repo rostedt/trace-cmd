@@ -345,8 +345,9 @@ static double parse_file(struct tracecmd_input *handle,
 	int fd;
 
 	output = strdup(output_file);
-	dir = dirname(output);
+	/* Extract basename() first, as dirname() truncates output */
 	base = basename(output);
+	dir = dirname(output);
 
 	ohandle = tracecmd_copy(handle, output_file, TRACECMD_FILE_CMD_LINES, 0, NULL);
 
