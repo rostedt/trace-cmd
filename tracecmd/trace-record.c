@@ -1655,7 +1655,7 @@ static void daemonize_start(void)
 	int devnull;
 	int status;
 	int pid;
-	int rc;
+	int ret;
 
 	pid = fork();
 	if (pid == -1)
@@ -1719,12 +1719,12 @@ static void daemonize_start(void)
 			die("daemonize: sigaction failed");
 
 		do {
-			rc = waitpid(pid, &status, 0);
-		} while (!child_detached && ((rc == -1) && (errno == EINTR)));
+			ret = waitpid(pid, &status, 0);
+		} while (!child_detached && ((ret < 0) && (errno == EINTR)));
 
 		if (child_detached)
 			exit(0);
-		else if (rc == pid)
+		else if (ret == pid)
 			exit(WIFEXITED(status));
 		else
 			die("daemonize: waitpid failed");
