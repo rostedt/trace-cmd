@@ -3344,6 +3344,7 @@ static void do_sig(int sig)
 	case SIGALRM:
 	case SIGUSR1:
 	case SIGINT:
+	case SIGTERM:
 		return finish();
 	case SIGUSR2:
 		return flush();
@@ -3591,6 +3592,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 			return pid;
 
 		signal(SIGINT, SIG_IGN);
+		signal(SIGTERM, SIG_IGN);
 		signal(SIGUSR1, do_sig);
 		signal(SIGUSR2, do_sig);
 		signal(SIGALRM, do_sig);
@@ -7146,6 +7148,7 @@ static void record_trace(int argc, char **argv,
 
 	if (type & (TRACE_TYPE_RECORD | TRACE_TYPE_STREAM)) {
 		signal(SIGINT, do_sig);
+		signal(SIGTERM, do_sig);
 		if (!latency)
 			start_threads(type, ctx);
 	}
@@ -7182,7 +7185,7 @@ static void record_trace(int argc, char **argv,
 
 		if (do_daemonize) {
 			daemonize_finish();
-			printf("Send SIGINT to pid %d to stop recording\n", getpid());
+			printf("Send SIGINT/SIGTERM to pid %d to stop recording\n", getpid());
 		} else {
 			/* sleep till we are woken with Ctrl^C */
 			printf("Hit Ctrl^C to stop recording\n");
