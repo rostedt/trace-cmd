@@ -363,9 +363,9 @@ OPTIONS
 *--tsync-interval*::
     Set the loop interval, in ms, for timestamps synchronization with guests:
         If a negative number is specified, timestamps synchronization is disabled
-        If 0 is specified, no loop is performed - timestamps offset is calculated only twice,"
+        If 0 is specified, no loop is performed - timestamps offset is calculated only twice,
         at the beginning and at the end of the trace.
-        Timestamps synchronization with guests works only if there is support for VSOCK.\n"
+        Timestamps synchronization with guests works only if there is support for VSOCK.
 
 *--tsc2nsec*::
     Convert the current clock to nanoseconds, using tsc multiplier and shift from the Linux
