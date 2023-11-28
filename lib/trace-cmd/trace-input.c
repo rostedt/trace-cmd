@@ -16,6 +16,7 @@
 
 #include "trace-write-local.h"
 #include "trace-cmd-local.h"
+#include "trace-rbtree.h"
 #include "trace-local.h"
 #include "kbuffer.h"
 #include "list.h"
@@ -66,7 +67,7 @@ struct page {
 };
 
 struct zchunk_cache {
-	struct list_head		list;
+	struct trace_rbtree_node	node;
 	struct tracecmd_compress_chunk *chunk;
 	void				*map;
 	int				ref;
@@ -78,7 +79,7 @@ struct cpu_zdata {
 	char			file[26]; /* strlen(COMPR_TEMP_FILE) */
 	unsigned int		count;
 	unsigned int		last_chunk;
-	struct list_head	cache;
+	struct trace_rbtree	cache;
 	struct tracecmd_compress_chunk	*chunks;
 };
 
@@ -1378,21 +1379,24 @@ static struct tracecmd_compress_chunk *get_zchunk(struct cpu_data *cpu, off_t of
 	return chunk;
 }
 
-static void free_zpage(struct cpu_data *cpu_data, void *map)
+static void free_zpage(struct cpu_data *cpu_data, off_t offset)
 {
+	struct trace_rbtree_node *node;
 	struct zchunk_cache *cache;
 
-	list_for_each_entry(cache, &cpu_data->compress.cache, list) {
-		if (map <= cache->map && map > (cache->map + cache->chunk->size))
-			goto found;
-	}
-	return;
+	node = trace_rbtree_find(&cpu_data->compress.cache, (void *)&offset);
 
-found:
+	if (!node)
+		return;
+
+	cache = container_of(node, struct zchunk_cache, node);
+
 	cache->ref--;
 	if (cache->ref)
 		return;
-	list_del(&cache->list);
+
+	trace_rbtree_delete(&cpu_data->compress.cache, node);
+
 	free(cache->map);
 	free(cache);
 }
@@ -1401,6 +1405,7 @@ static void *read_zpage(struct tracecmd_input *handle, int cpu, off_t offset)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
 	struct tracecmd_compress_chunk *chunk;
+	struct trace_rbtree_node *node;
 	struct zchunk_cache *cache;
 	void *map = NULL;
 	int pindex;
@@ -1409,11 +1414,11 @@ static void *read_zpage(struct tracecmd_input *handle, int cpu, off_t offset)
 	offset -= cpu_data->file_offset;
 
 	/* Look in the cache of already loaded chunks */
-	list_for_each_entry(cache, &cpu_data->compress.cache, list) {
-		if (CHUNK_CHECK_OFFSET(cache->chunk, offset)) {
-			cache->ref++;
-			goto out;
-		}
+	node = trace_rbtree_find(&cpu_data->compress.cache, (void *)&offset);
+	if (node) {
+		cache = container_of(node, struct zchunk_cache, node);
+		cache->ref++;
+		goto out;
 	}
 
 	chunk =  get_zchunk(cpu_data, offset);
@@ -1435,7 +1440,7 @@ static void *read_zpage(struct tracecmd_input *handle, int cpu, off_t offset)
 	cache->ref = 1;
 	cache->chunk = chunk;
 	cache->map = map;
-	list_add(&cache->list, &cpu_data->compress.cache);
+	trace_rbtree_insert(&cpu_data->compress.cache, &cache->node);
 
 	/* a chunk can hold multiple pages, get the requested one */
 out:
@@ -1606,7 +1611,7 @@ static void __free_page(struct tracecmd_input *handle, struct page *page)
 	if (handle->read_page)
 		free(page->map);
 	else if (handle->read_zpage)
-		free_zpage(cpu_data, page->map);
+		free_zpage(cpu_data, page->offset);
 	else
 		free_page_map(page->page_map);
 
@@ -2102,7 +2107,7 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 	/* If the page was already mapped, we need to reset it */
 	if (ret)
 		update_page_info(handle, cpu);
-		
+
 	free_next(handle, cpu);
 
 	return tracecmd_read_data(handle, cpu);
@@ -3348,6 +3353,35 @@ static int init_cpu_zpage(struct tracecmd_input *handle, int cpu)
 	return 0;
 }
 
+static int compress_cmp(const struct trace_rbtree_node *A,
+			const struct trace_rbtree_node *B)
+{
+	const struct zchunk_cache *cacheA;
+	const struct zchunk_cache *cacheB;
+
+	cacheA = container_of(A, struct zchunk_cache, node);
+	cacheB = container_of(B, struct zchunk_cache, node);
+
+	return chunk_cmp(cacheA->chunk, cacheB->chunk);
+}
+
+static int compress_search(const struct trace_rbtree_node *A,
+			   const void *data)
+{
+	const struct zchunk_cache *cache;
+	off_t offset = *(off_t *)data;
+
+	cache = container_of(A, struct zchunk_cache, node);
+
+	if (CHUNK_CHECK_OFFSET(cache->chunk, offset))
+		return 0;
+
+	if (cache->chunk->offset < offset)
+		return -1;
+
+	return 1;
+}
+
 static int init_cpu(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
@@ -3368,7 +3402,8 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 	cpu_data->timestamp = 0;
 
 	list_head_init(&cpu_data->page_maps);
-	list_head_init(&cpu_data->compress.cache);
+
+	trace_rbtree_init(&cpu_data->compress.cache, compress_cmp, compress_search);
 
 	if (!cpu_data->size) {
 		tracecmd_info("CPU %d is empty", cpu);
@@ -5131,10 +5166,10 @@ void tracecmd_close(struct tracecmd_input *handle)
 				close(cpu_data->compress.fd);
 				unlink(cpu_data->compress.file);
 			}
-			while (!list_empty(&cpu_data->compress.cache)) {
-				cache = container_of(cpu_data->compress.cache.next,
-						     struct zchunk_cache, list);
-				list_del(&cache->list);
+			while (cpu_data->compress.cache.node) {
+				struct trace_rbtree_node *node;
+				node = trace_rbtree_pop_nobalance(&cpu_data->compress.cache);
+				cache = container_of(node, struct zchunk_cache, node);
 				free(cache->map);
 				free(cache);
 			}

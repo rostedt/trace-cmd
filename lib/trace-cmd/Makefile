@@ -9,6 +9,7 @@ DEFAULT_TARGET = $(LIBTRACECMD_STATIC)
 
 OBJS =
 OBJS += trace-hash.o
+OBJS += trace-rbtree.o
 OBJS += trace-hooks.o
 OBJS += trace-input.o
 OBJS += trace-output.o
