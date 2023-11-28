@@ -1813,6 +1813,11 @@ static void execute_program(int argc, char **argv)
 		if (!path)
 			die("can't search for '%s' if $PATH is NULL", argv[0]);
 
+		/* Do not modify the actual environment variable */
+		path = strdup(path);
+		if (!path)
+			die("Failed to allocate PATH");
+
 		for (entry = strtok_r(path, ":", &saveptr);
 		     entry; entry = strtok_r(NULL, ":", &saveptr)) {
 
@@ -1823,6 +1828,7 @@ static void execute_program(int argc, char **argv)
 				break;
 
 		}
+		free(path);
 	} else {
 		strncpy(buf, argv[0], sizeof(buf));
 	}
