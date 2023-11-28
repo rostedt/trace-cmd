@@ -1708,6 +1708,14 @@ static void execute_program(int argc, char **argv)
 				break;
 
 		}
+
+		/*
+		 * reset PATH to saveptr, as strtok_r overwrites the string
+		 * returned by getenv() which backs the PATH environment
+		 * variable.
+		 */
+		if (setenv("PATH", saveptr, 1))
+			die("Failed to reset PATH to %s (%s)", saveptr, strerror(errno));
 	} else {
 		strncpy(buf, argv[0], sizeof(buf));
 	}
