@@ -4,6 +4,7 @@
 
 sources = [
     'trace-hash.c',
+    'trace-rbtree.c',
     'trace-hooks.c',
     'trace-input.c',
     'trace-output.c',
