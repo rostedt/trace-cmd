@@ -11,16 +11,16 @@
 #include "trace-local.h"
 
 enum {
-	OPT_tracing_on			= 255,
-	OPT_current_tracer		= 254,
-	OPT_buffer_size_kb		= 253,
-	OPT_buffer_total_size_kb	= 252,
-	OPT_ftrace_filter		= 251,
-	OPT_ftrace_notrace		= 250,
-	OPT_ftrace_pid			= 249,
-	OPT_graph_function		= 248,
-	OPT_graph_notrace		= 247,
-	OPT_cpumask			= 246,
+	OPT_cpumask			= 240,
+	OPT_graph_notrace,
+	OPT_graph_function,
+	OPT_ftrace_pid,
+	OPT_ftrace_notrace,
+	OPT_ftrace_filter,
+	OPT_buffer_total_size_kb,
+	OPT_buffer_size_kb,
+	OPT_current_tracer,
+	OPT_tracing_on,
 };
 
 void trace_show(int argc, char **argv)
