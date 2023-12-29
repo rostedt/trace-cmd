@@ -61,6 +61,7 @@ Iterating over events in a trace file:
 					   void pass:[*]_callback_data_);
 	struct tracecmd_filter pass:[*]*tracecmd_filter_add*(struct tracecmd_input *_handle_,
 						    const char pass:[*]_filter_str_, bool _neg_);
+	int *tracecmd_iterate_reset*(struct tracecmd_input pass:[*]_handle_);
 
 Read tracing instances from a trace file:
 	int *tracecmd_buffer_instances*(struct tracecmd_input pass:[*]_handle_);

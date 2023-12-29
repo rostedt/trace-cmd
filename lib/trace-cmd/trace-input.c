@@ -2114,6 +2114,38 @@ tracecmd_read_cpu_first(struct tracecmd_input *handle, int cpu)
 }
 
 /**
+ * tracecmd_iterate_reset - Set the handle to iterate from the beginning
+ * @handle: input handle for the trace.dat file
+ *
+ * This causes tracecmd_iterate_events*() to start from the beginning
+ * of the trace.dat file.
+ */
+int tracecmd_iterate_reset(struct tracecmd_input *handle)
+{
+	unsigned long long page_offset;
+	int cpu;
+	int ret = 0;
+	int r;
+
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
+		page_offset = calc_page_offset(handle, handle->cpu_data[cpu].file_offset);
+
+		r = get_page(handle, cpu, page_offset);
+		if (r < 0) {
+			ret = -1;
+			continue; /* ?? */
+		}
+
+		/* If the page was already mapped, we need to reset it */
+		if (r)
+			update_page_info(handle, cpu);
+
+		free_next(handle, cpu);
+	}
+	return ret;
+}
+
+/**
  * tracecmd_read_cpu_last - get the last record in a CPU
  * @handle: input handle for the trace.dat file
  * @cpu: the CPU to search

@@ -4,7 +4,7 @@ libtracecmd(3)
 NAME
 ----
 tracecmd_iterate_events, tracecmd_iterate_events_multi, tracecmd_follow_event,
-tracecmd_follow_missed_events, tracecmd_filter_add - Read events from a trace file
+tracecmd_follow_missed_events, tracecmd_filter_add, tracecmd_iterate_reset - Read events from a trace file
 
 SYNOPSIS
 --------
@@ -45,6 +45,7 @@ int *tracecmd_follow_missed_events*(struct tracecmd_input pass:[*]_handle_,
 				   void pass:[*]_callback_data_);
 struct tracecmd_filter pass:[*]*tracecmd_filter_add*(struct tracecmd_input *_handle_,
 					    const char pass:[*]_filter_str_, bool _neg_);
+int *tracecmd_iterate_reset*(struct tracecmd_input pass:[*]_handle_);
 --
 
 DESCRIPTION
@@ -140,12 +141,19 @@ is defined by *tep_filter_add_filter_str(3)*. If _neg_ is true, then the events
 that match the filter will be skipped, otherwise the events that match will execute
 the _callback()_ function in the iterators.
 
+The *tracecmd_iterate_reset()* sets the _handle_ back to start at the beginning, so that
+the next call to *tracecmd_iterate_events()* starts back at the first event again, instead
+of continuing where it left off.
+
 RETURN VALUE
 ------------
 Both *tracecmd_iterate_events()*, *tracecmd_iterate_events_reverse()* and
 *tracecmd_iterate_events_multi()* return zero if they successfully iterated all events
 (handling the follow and filters appropriately). Or an error value, which can include
 returning a non-zero result from the _callback()_ function.
+
+*tracecmd_iterate_reset()* returns 0 on success and -1 if an error occurred. Note,
+if -1 is returned, a partial reset may have also happened.
 
 EXAMPLE
 -------
