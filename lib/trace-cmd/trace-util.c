@@ -557,6 +557,7 @@ int tracecmd_stack_tracer_status(int *status)
 
 	buf[n] = 0;
 
+	errno = 0;
 	num = strtol(buf, NULL, 10);
 
 	/* Check for various possible errors */
