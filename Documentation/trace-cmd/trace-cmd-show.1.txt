@@ -60,6 +60,11 @@ OPTIONS
 *--buffer_total_size*::
      Show the total size of all buffers.
 
+*--buffer_subbuf_size*::
+     Show the size in kilobytes of the sub-buffers of the ring buffer.
+     The ring buffer is broken up into equal size sub-buffers were an event can only
+     be as big as the sub-buffer data section (the size minus its meta data).
+
 *--ftrace_filter*::
      Show what function filters are set.
 

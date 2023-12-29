@@ -180,6 +180,7 @@ static struct usage_help usage_help[] = {
 		"          --current_tracer\n"
 		"          --buffer_size (for buffer_size_kb)\n"
 		"          --buffer_total_size (for buffer_total_size_kb)\n"
+		"          --buffer_subbuf_size (for buffer_subbuf_size_kb)\n"
 		"          --ftrace_filter (for set_ftrace_filter)\n"
 		"          --ftrace_notrace (for set_ftrace_notrace)\n"
 		"          --ftrace_pid (for set_ftrace_pid)\n"
