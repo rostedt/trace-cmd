@@ -20,6 +20,7 @@ enum {
 	OPT_buffer_subbuf_size_kb,
 	OPT_buffer_total_size_kb,
 	OPT_buffer_size_kb,
+	OPT_buffer_percent,
 	OPT_current_tracer,
 	OPT_tracing_on,
 };
@@ -44,6 +45,7 @@ void trace_show(int argc, char **argv)
 		{"buffer_size", no_argument, NULL, OPT_buffer_size_kb},
 		{"buffer_total_size", no_argument, NULL, OPT_buffer_total_size_kb},
 		{"buffer_subbuf_size", no_argument, NULL, OPT_buffer_subbuf_size_kb},
+		{"buffer_percent", no_argument, NULL, OPT_buffer_percent},
 		{"ftrace_filter", no_argument, NULL, OPT_ftrace_filter},
 		{"ftrace_notrace", no_argument, NULL, OPT_ftrace_notrace},
 		{"ftrace_pid", no_argument, NULL, OPT_ftrace_pid},
@@ -106,6 +108,10 @@ void trace_show(int argc, char **argv)
 			break;
 		case OPT_buffer_subbuf_size_kb:
 			show_instance_file(instance, "buffer_subbuf_size_kb");
+			stop = 1;
+			break;
+		case OPT_buffer_percent:
+			show_instance_file(instance, "buffer_percent");
 			stop = 1;
 			break;
 		case OPT_ftrace_filter:
