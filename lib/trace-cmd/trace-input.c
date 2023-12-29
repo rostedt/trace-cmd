@@ -3143,7 +3143,7 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 		offset = (int)(records[cpu].record->offset & (handle->page_size - 1));
 		free_next(handle, local_cpu);
 		/* Reset the buffer to read the cached record again */
-		kbuffer_read_at_offset(handle->cpu_data[cpu].kbuf, offset, NULL);
+		kbuffer_read_at_offset(handle->cpu_data[local_cpu].kbuf, offset, NULL);
 	}
 
 	free(records);
