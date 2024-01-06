@@ -88,6 +88,12 @@ OPTIONS
 *--graph_notrace*::
      Show the functions that will not be graphed.
 
+*--hist* '[system:]event'::
+     Show the content of a histogram "hist" file for a given event
+
+*--trigger* '[system:]event'::
+     Show the content of the "trigger" file for a given event
+
 *--cpumask*::
      Show the mask of CPUs that tracing will trace.
 
