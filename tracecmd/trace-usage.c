@@ -455,7 +455,25 @@ static struct usage_help usage_help[] = {
 		"                            any  - auto select the best available compression algorithm\n"
 		"                            none - do not compress the trace file\n"
 		"                            name - the name of the desired compression algorithms\n"
-		"                        available algorithms can be listed with trace-cmd list -c\n"	},
+		"                        available algorithms can be listed with trace-cmd list -c\n"
+	},
+	{
+		"sqlhist",
+		"Run a SQL like query to create histogram or synthetic events (see man tracefs_sql(3))\n",
+		"%s sql [-n name][-e][-s][-S fields][-m var][-c var][-T][-t dir][-f file | 'sql-command-line']\n"
+		"  -n name - name of synthetic event 'Anonymous' if left off\n"
+		"  -t dir - use dir instead of /sys/kernel/tracing\n"
+		"  -e - execute the commands to create the synthetic event\n"
+		"  -m - trigger the action when var is a new max.\n"
+		"  -c - trigger the action when var changes.\n"
+		"  -s - used with -m or -c to do a snapshot of the tracing buffer\n"
+		"  -S - used with -m or -c to save fields of the end event (comma deliminated)\n"
+		"  -T - used with -m or -c to do both a snapshot and a trace\n"
+		"  -f file - read sql lines from file otherwise from the command line\n"
+		"	    if file is '-' then read from standard input.\n\n"
+		" See man tracefs_sql(3) for sql-command-line\n"
+	},
+
 	{
 		NULL, NULL, NULL
 	}

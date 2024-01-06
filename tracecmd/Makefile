@@ -41,6 +41,7 @@ TRACE_CMD_OBJS += trace-attach.o
 TRACE_CMD_OBJS += trace-agent.o
 TRACE_CMD_OBJS += trace-tsync.o
 TRACE_CMD_OBJS += trace-setup-guest.o
+TRACE_CMD_OBJS += trace-sqlhist.o
 ifeq ($(VSOCK_DEFINED), 1)
 TRACE_CMD_OBJS += trace-vsock.o
 endif

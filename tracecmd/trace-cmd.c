@@ -179,6 +179,7 @@ struct command commands[] = {
 	{"dump", trace_dump},
 	{"attach", trace_attach},
 	{"convert", trace_convert},
+	{"sqlhist", trace_sqlhist},
 	{"-h", trace_usage},
 };
 
