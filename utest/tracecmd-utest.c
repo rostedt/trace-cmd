@@ -32,6 +32,13 @@ static char tracecmd_exec[PATH_MAX];
 #define TRACECMD_IN		"-i", TRACECMD_FILE
 #define TRACECMD_IN2		"-i", TRACECMD_FILE2
 
+#define TRACECMD_SQL_HIST	"SELECT irq FROM irq_handler_entry"
+#define TRACECMD_SQL_READ_HIST	"show", "--hist", "irq_handler_entry"
+
+#define SYNTH_EVENT		"wakeup"
+#define TRACECMD_SQL_SYNTH	"-e", "-n", SYNTH_EVENT, "SELECT start.pid AS this_pid, (end.TIMESTAMP_USECS - start.TIMESTAMP_USECS) AS delta FROM sched_waking as start JOIN sched_switch AS end ON start.pid = end.next_pid"
+#define TRACECMD_SQL_START_SYNTH "start", "-e", SYNTH_EVENT
+
 static char **get_args(const char *cmd, va_list ap)
 {
 	const char *param;
@@ -326,6 +333,25 @@ static void test_trace_record_report(void)
 	CU_TEST(ret == 0);
 }
 
+static void test_trace_sqlhist_hist(void)
+{
+	int ret;
+
+	ret = run_trace("sqlhist", "-e", TRACECMD_SQL_HIST, NULL);
+	CU_TEST(ret == 0);
+	ret = grep_match(" *Hits: [0-9][0-9]*", TRACECMD_SQL_READ_HIST, NULL);
+	CU_TEST(ret == 0);
+	ret = run_trace("sqlhist", TRACECMD_SQL_SYNTH, NULL);
+	CU_TEST(ret == 0);
+	ret = run_trace(TRACECMD_SQL_START_SYNTH, NULL);
+	CU_TEST(ret == 0);
+	sleep(1);
+	ret = grep_match(SYNTH_EVENT ":", "show", NULL);
+	CU_TEST(ret == 0);
+
+	tracefs_instance_reset(NULL);
+}
+
 static int read_stats(const char *out, const char *match, const char *cmd, ...)
 {
 	struct do_grep_it gdata;
@@ -508,6 +534,8 @@ void test_tracecmd_lib(void)
 	}
 	CU_add_test(suite, "Simple record and report",
 		    test_trace_record_report);
+	CU_add_test(suite, "Create a histogram",
+		    test_trace_sqlhist_hist);
 	CU_add_test(suite, "Test convert from v7 to v6",
 		    test_trace_convert6);
 	CU_add_test(suite, "Use libraries to read file",
