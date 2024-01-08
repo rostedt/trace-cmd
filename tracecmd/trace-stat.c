@@ -633,6 +633,8 @@ static void report_buffers(struct buffer_instance *instance)
 	char *str;
 	char *cont;
 	char file[FILE_SIZE];
+	int pagesize;
+	int bufsize;
 	int cpu;
 
 	str = tracefs_instance_file_read(instance->tracefs, "buffer_size_kb", NULL);
@@ -677,6 +679,11 @@ static void report_buffers(struct buffer_instance *instance)
 	cont = strstrip(str);
 	printf("\nBuffer total size in kilobytes:\n");
 	printf("   %s\n", str);
+
+	pagesize = getpagesize();
+	bufsize = tracefs_instance_get_subbuf_size(instance->tracefs);
+	if (bufsize > 0 && bufsize * 1024 != pagesize)
+		printf("\nSub-buffer size in kilobytes:\n   %d\n", bufsize);
 
  out:
 	free(str);
