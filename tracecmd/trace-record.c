@@ -5419,8 +5419,7 @@ void tracecmd_remove_instances(void)
 			close(instance->tracing_on_fd);
 			instance->tracing_on_fd = 0;
 		}
-		if (tracefs_instance_is_new(instance->tracefs))
-			tracefs_instance_destroy(instance->tracefs);
+		tracefs_instance_destroy(instance->tracefs);
 	}
 }
 
