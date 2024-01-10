@@ -286,7 +286,9 @@ struct buffer_instance {
 	int			tracing_on_init_val;
 	int			tracing_on_fd;
 	int			buffer_size;
+	int			old_buffer_size;
 	int			subbuf_size;
+	int			old_subbuf_size;
 	int			cpu_count;
 
 	int			proxy_fd;

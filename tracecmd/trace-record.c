@@ -2522,6 +2522,26 @@ static void update_reset_triggers(void)
 	}
 }
 
+static void reset_buffer_files_instance(struct buffer_instance *instance)
+{
+	if (instance->old_buffer_size != instance->buffer_size)
+		tracefs_instance_set_buffer_size(instance->tracefs,
+						 instance->old_buffer_size, -1);
+
+	if (instance->old_subbuf_size != instance->subbuf_size)
+		tracefs_instance_set_subbuf_size(instance->tracefs,
+						 instance->old_subbuf_size);
+}
+
+static void reset_buffer_files(void)
+{
+	struct buffer_instance *instance;
+
+	for_all_instances(instance) {
+		reset_buffer_files_instance(instance);
+	}
+}
+
 static void update_reset_files(void)
 {
 	struct reset_file *reset;
@@ -2536,6 +2556,8 @@ static void update_reset_files(void)
 		free(reset->reset);
 		free(reset);
 	}
+
+	reset_buffer_files();
 }
 
 static void
@@ -5110,6 +5132,7 @@ static void set_buffer_size_instance(struct buffer_instance *instance)
 	if (buffer_size < 0)
 		die("buffer size must be positive");
 
+	instance->old_buffer_size = tracefs_instance_get_buffer_size(instance->tracefs, 0);
 	ret = tracefs_instance_set_buffer_size(instance->tracefs, buffer_size, -1);
 	if (ret < 0)
 		warning("Can't set buffer size");
@@ -5129,6 +5152,7 @@ static void set_subbuf_size_instance(struct buffer_instance *instance)
 	if (subbuf_size < 0)
 		die("sub-buffer size must be positive");
 
+	instance->old_subbuf_size = tracefs_instance_get_subbuf_size(instance->tracefs);
 	ret = tracefs_instance_set_subbuf_size(instance->tracefs, subbuf_size);
 	if (ret < 0)
 		warning("Can't set sub-buffer size");
