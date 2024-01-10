@@ -314,7 +314,7 @@ void trace_rbtree_delete(struct trace_rbtree *tree, struct trace_rbtree_node *no
 	struct trace_rbtree_node *x, *y;
 	bool do_fixup = false;
 
-	if (!node->left && !node->right) {
+	if (!node->left && !node->right && !node->parent) {
 		tree->node = NULL;
 		goto out;
 	}
@@ -329,9 +329,10 @@ void trace_rbtree_delete(struct trace_rbtree *tree, struct trace_rbtree_node *no
 	else
 		x = y->right;
 
-	x->parent = y->parent;
+	if (x)
+		x->parent = y->parent;
 
-	if (!x->parent) {
+	if (!y->parent) {
 		tree->node = x;
 	} else {
 		if (is_left(y))
@@ -367,6 +368,7 @@ void trace_rbtree_delete(struct trace_rbtree *tree, struct trace_rbtree_node *no
  out:
 	node->parent = node->left = node->right = NULL;
 	tree->nr_nodes--;
+	check_tree(tree);
 }
 
 __hidden struct trace_rbtree_node *trace_rbtree_next(struct trace_rbtree *tree,
