@@ -5099,10 +5099,7 @@ static char *get_date_to_ts(void)
 static void set_buffer_size_instance(struct buffer_instance *instance)
 {
 	int buffer_size = instance->buffer_size;
-	char buf[BUFSIZ];
-	char *path;
 	int ret;
-	int fd;
 
 	if (is_guest(instance))
 		return;
@@ -5113,29 +5110,38 @@ static void set_buffer_size_instance(struct buffer_instance *instance)
 	if (buffer_size < 0)
 		die("buffer size must be positive");
 
-	snprintf(buf, BUFSIZ, "%d", buffer_size);
-
-	path = tracefs_instance_get_file(instance->tracefs, "buffer_size_kb");
-	fd = open(path, O_WRONLY);
-	if (fd < 0) {
-		warning("can't open %s", path);
-		goto out;
-	}
-
-	ret = write(fd, buf, strlen(buf));
+	ret = tracefs_instance_set_buffer_size(instance->tracefs, buffer_size, -1);
 	if (ret < 0)
-		warning("Can't write to %s", path);
-	close(fd);
- out:
-	tracefs_put_tracing_file(path);
+		warning("Can't set buffer size");
+}
+
+static void set_subbuf_size_instance(struct buffer_instance *instance)
+{
+	int subbuf_size = instance->subbuf_size;
+	int ret;
+
+	if (is_guest(instance))
+		return;
+
+	if (!subbuf_size)
+		return;
+
+	if (subbuf_size < 0)
+		die("sub-buffer size must be positive");
+
+	ret = tracefs_instance_set_subbuf_size(instance->tracefs, subbuf_size);
+	if (ret < 0)
+		warning("Can't set sub-buffer size");
 }
 
 void set_buffer_size(void)
 {
 	struct buffer_instance *instance;
 
-	for_all_instances(instance)
+	for_all_instances(instance) {
 		set_buffer_size_instance(instance);
+		set_subbuf_size_instance(instance);
+	}
 }
 
 static int
@@ -5916,6 +5922,7 @@ enum {
 	OPT_temp		= 262,
 	OPT_notimeout		= 264,
 	OPT_daemonize		= 265,
+	OPT_subbuf		= 266,
 };
 
 void trace_stop(int argc, char **argv)
@@ -6343,6 +6350,7 @@ static void parse_record_options(int argc,
 			{"file-version", required_argument, NULL, OPT_file_ver},
 			{"proxy", required_argument, NULL, OPT_proxy},
 			{"temp", required_argument, NULL, OPT_temp},
+			{"subbuf-size", required_argument, NULL, OPT_subbuf},
 			{"daemonize", no_argument, NULL, OPT_daemonize},
 			{NULL, 0, NULL, 0}
 		};
@@ -6828,6 +6836,10 @@ static void parse_record_options(int argc,
 			if (ret)
 				die("TSC to nanosecond is not supported");
 			ctx->instance->flags |= BUFFER_FL_TSC2NSEC;
+			break;
+		case OPT_subbuf:
+			check_instance_die(ctx->instance, "--subbuf-size");
+			ctx->instance->subbuf_size = atoi(optarg);
 			break;
 		case OPT_poll:
 			cmd_check_die(ctx, CMD_set, *(argv+1), "--poll");

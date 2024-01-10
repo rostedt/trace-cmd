@@ -198,6 +198,21 @@ OPTIONS
     inside the kernel. Using "-b 10000" on a machine with 4 CPUs will make
     Ftrace have a total buffer size of 40 Megs.
 
+*--subbuf-size*::
+    The Linux kernel tracing ring buffer is broken up into sub-buffers.
+    These sub-buffers are typically the size of the architecture "page-size".
+    (4096 or x86). An event can only be as big as the data portion of a
+    sub-buffer, but in most cases that's not an issue. But the time the
+    writer takes to switch from one sub-buffer to the next has a bit more
+    overhead than adding events within the sub-buffer. By increasing its
+    size, it will allow bigger events (although that is seldom an issue)
+    but also speed up the tracing itself.
+
+    The downside of larger sub-buffers is that a "read" of the ring buffer
+    will pull the sub-buffer size out of the ring buffer and replace it
+    with a new sub-buffer. This may not have any real impact, but it may
+    change the behavior slightly. Or it may not!
+
 *-B* 'buffer-name'::
     If the kernel supports multiple buffers, this will add a buffer with
     the given name. If the buffer name already exists, that buffer is just
