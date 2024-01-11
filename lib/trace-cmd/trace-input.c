@@ -6345,7 +6345,7 @@ int tracecmd_page_size(struct tracecmd_input *handle)
 }
 
 /**
- * tracecmd_page_size - return the number of CPUs recorded
+ * tracecmd_cpus - return the number of CPUs recorded
  * @handle: input handle for the trace.dat file
  */
 int tracecmd_cpus(struct tracecmd_input *handle)
