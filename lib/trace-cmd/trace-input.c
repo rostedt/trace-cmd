@@ -2976,6 +2976,10 @@ static struct tep_record *peek_last_event(struct tracecmd_input *handle,
 	if (record)
 		return record;
 
+	/* page can be NULL if the size is zero */
+	if (!page)
+		return NULL;
+
 	page_offset = page->offset - handle->page_size;
 	if (page_offset < handle->cpu_data[cpu].file_offset)
 		return NULL;
