@@ -2810,9 +2810,9 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 					    int, void *),
 			    void *callback_data)
 {
-	struct tep_record **records;
 	struct tep_record *record;
-	unsigned long long last_timestamp = 0;
+	unsigned long long *timestamps;
+	unsigned long long ts, last_timestamp = 0;
 	int next_cpu;
 	int cpu;
 	int ret = 0;
@@ -2822,42 +2822,53 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	records = calloc(handle->cpus, sizeof(*records));
-	if (!records)
+	timestamps = calloc(handle->cpus, sizeof(*timestamps));
+	if (!timestamps)
 		return -1;
 
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpus))
 			continue;
 
-		records[cpu] = tracecmd_peek_data(handle, cpu);
+		record = tracecmd_peek_data(handle, cpu);
+		timestamps[cpu] = record ? record->ts : -1ULL;
 	}
 
 	do {
 		next_cpu = -1;
 		for (cpu = 0; cpu < handle->cpus; cpu++) {
-			record = records[cpu];
-			if (!record)
+			ts = timestamps[cpu];
+			if (ts == -1ULL)
 				continue;
 
-			if (next_cpu < 0 || record->ts < last_timestamp) {
+			if (next_cpu < 0 || ts < last_timestamp) {
 				next_cpu = cpu;
-				last_timestamp = record->ts;
+				last_timestamp = ts;
 			}
 		}
 		if (next_cpu >= 0) {
+			record = tracecmd_peek_data(handle, next_cpu);
+
+			/* Make sure the record is still what we expect it to be */
+			if (!record || record->ts != last_timestamp) {
+				timestamps[next_cpu] = record ? record->ts : -1ULL;
+				continue;
+			}
+
 			/* Need to call read_data to increment to the next record */
 			record = tracecmd_read_data(handle, next_cpu);
 
 			ret = call_callbacks(handle, record, next_cpu,
 					     callback, callback_data);
 
-			records[next_cpu] = tracecmd_peek_data(handle, next_cpu);
 			tracecmd_free_record(record);
+
+			record = tracecmd_peek_data(handle, next_cpu);
+			timestamps[next_cpu] = record ? record->ts : -1ULL;
 		}
 	} while (next_cpu >= 0 && ret == 0);
 
-	free(records);
+	free(timestamps);
 
 	return ret;
 }
@@ -3039,7 +3050,7 @@ int tracecmd_iterate_events_reverse(struct tracecmd_input *handle,
 }
 
 struct record_handle {
-	struct tep_record		*record;
+	unsigned long long		ts;
 	struct tracecmd_input		*handle;
 };
 
@@ -3066,7 +3077,7 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 	struct tracecmd_input *handle;
 	struct record_handle *records;
 	struct tep_record *record;
-	unsigned long long last_timestamp = 0;
+	unsigned long long ts, last_timestamp = 0;
 	int next_cpu;
 	int cpus = 0;
 	int all_cpus = 0;
@@ -3087,7 +3098,8 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 		handle = handles[i];
 		handle->start_cpu = all_cpus;
 		for (cpu = 0; cpu < handle->cpus; cpu++) {
-			records[all_cpus + cpu].record = tracecmd_peek_data(handle, cpu);
+			record = tracecmd_peek_data(handle, cpu);
+			records[all_cpus + cpu].ts = record ? record->ts : -1ULL;
 			records[all_cpus + cpu].handle = handle;
 		}
 		all_cpus += cpu;
@@ -3096,19 +3108,28 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 	do {
 		next_cpu = -1;
 		for (cpu = 0; cpu < all_cpus; cpu++) {
-			record = records[cpu].record;
-			if (!record)
+			ts = records[cpu].ts;
+			if (ts == -1ULL)
 				continue;
 
-			if (next_cpu < 0 || record->ts < last_timestamp) {
+			if (next_cpu < 0 || ts < last_timestamp) {
 				next_cpu = cpu;
-				last_timestamp = record->ts;
+				last_timestamp = ts;
 			}
 		}
 		if (next_cpu >= 0) {
-			record = records[next_cpu].record;
 			handle = records[next_cpu].handle;
 			cpu = next_cpu - handle->start_cpu;
+
+			/* Refresh record as callback could have changed */
+			record = tracecmd_peek_data(handle, cpu);
+
+			/* If the record updated, try again */
+			if (!record || record->ts != last_timestamp) {
+				records[next_cpu].ts = record ? record->ts : -1ULL;
+				continue;
+			}
+
 			/* Need to call read_data to increment to the next record */
 			record = tracecmd_read_data(handle, cpu);
 
@@ -3116,7 +3137,6 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 					     callback, callback_data);
 
 			tracecmd_free_record(record);
-			records[next_cpu].record = tracecmd_peek_data(handle, cpu);
 		}
 
 	} while (next_cpu >= 0 && ret == 0);
