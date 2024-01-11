@@ -461,6 +461,15 @@ static int read_events(struct tracecmd_input *handle, struct tep_record *record,
 	return 0;
 }
 
+static int read_events_10(struct tracecmd_input *handle, struct tep_record *record,
+			  int cpu, void *data)
+{
+	struct callback_data *cd = data;
+
+	read_events(handle, record, cpu, data);
+	return  cd->counter < 10 ? 0 : 1;
+}
+
 static void test_trace_library_read(void)
 {
 	struct tracecmd_input *handle;
@@ -486,6 +495,103 @@ static void test_trace_library_read(void)
 
 	CU_TEST(data.counter > 0);
 	trace_seq_destroy(&data.seq);
+}
+
+static void test_trace_library_read_inc(void)
+{
+	struct tracecmd_input *handle;
+	struct callback_data data;
+	struct stat st;
+	long save_count;
+	long total = 0;
+	int ret;
+
+	data.counter = 0;
+	trace_seq_init(&data.seq);
+
+	/* If the trace data is already created, just use it, otherwise make it again */
+	if (stat(TRACECMD_FILE, &st) < 0) {
+		ret = run_trace("record", TRACECMD_OUT, "-e", "sched", "sleep", "1", NULL);
+		CU_TEST(ret == 0);
+	}
+
+	/* First read all again */
+	handle = tracecmd_open(TRACECMD_FILE, 0);
+	CU_TEST(handle != NULL);
+	ret = tracecmd_iterate_events(handle, NULL, 0, read_events, &data);
+	CU_TEST(ret == 0);
+	CU_TEST(data.counter > 0);
+
+	/* Save the counter */
+	save_count = data.counter;
+
+	tracecmd_iterate_reset(handle);
+
+	/* Read 10 at a time */
+	do {
+		data.counter = 0;
+		ret = tracecmd_iterate_events(handle, NULL, 0, read_events_10, &data);
+		CU_TEST(ret >= 0);
+		CU_TEST(data.counter <= 10);
+		total += data.counter;
+	} while (data.counter);
+	CU_TEST(ret == 0);
+
+	CU_TEST(total == save_count);
+
+	trace_seq_destroy(&data.seq);
+	tracecmd_close(handle);
+}
+
+static void test_trace_library_read_back(void)
+{
+	struct tracecmd_input *handle;
+	struct callback_data data;
+	struct stat st;
+	long save_count;
+	int ret;
+
+	data.counter = 0;
+	trace_seq_init(&data.seq);
+
+	/* If the trace data is already created, just use it, otherwise make it again */
+	if (stat(TRACECMD_FILE, &st) < 0) {
+		ret = run_trace("record", TRACECMD_OUT, "-e", "sched", "sleep", "1", NULL);
+		CU_TEST(ret == 0);
+	}
+
+	/* First read all again */
+	handle = tracecmd_open(TRACECMD_FILE, 0);
+	CU_TEST(handle != NULL);
+	ret = tracecmd_iterate_events(handle, NULL, 0, read_events, &data);
+	CU_TEST(ret == 0);
+	CU_TEST(data.counter > 0);
+
+	/* Save the counter */
+	save_count = data.counter;
+
+	tracecmd_iterate_reset(handle);
+
+	/* Read backwards */
+	data.counter = 0;
+	ret = tracecmd_iterate_events_reverse(handle, NULL, 0, read_events, &data, false);
+	CU_TEST(ret == 0);
+	CU_TEST(data.counter == save_count);
+
+	/* Read forward again */
+	data.counter = 0;
+	ret = tracecmd_iterate_events(handle, NULL, 0, read_events, &data);
+	CU_TEST(ret == 0);
+	CU_TEST(data.counter == save_count);
+
+	/* Read backwards from where we left off */
+	data.counter = 0;
+	ret = tracecmd_iterate_events_reverse(handle, NULL, 0, read_events, &data, true);
+	CU_TEST(ret == 0);
+	CU_TEST(data.counter == save_count);
+
+	trace_seq_destroy(&data.seq);
+	tracecmd_close(handle);
 }
 
 static int test_suite_destroy(void)
@@ -540,6 +646,10 @@ void test_tracecmd_lib(void)
 		    test_trace_convert6);
 	CU_add_test(suite, "Use libraries to read file",
 		    test_trace_library_read);
+	CU_add_test(suite, "Use libraries to read file incremental",
+		    test_trace_library_read_inc);
+	CU_add_test(suite, "Use libraries to read file backwards",
+		    test_trace_library_read_back);
 	CU_add_test(suite, "Test max length",
 		    test_trace_record_max);
 }
