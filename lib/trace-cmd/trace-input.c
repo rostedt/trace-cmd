@@ -1384,6 +1384,8 @@ static void free_zpage(struct cpu_data *cpu_data, off_t offset)
 	struct trace_rbtree_node *node;
 	struct zchunk_cache *cache;
 
+	offset -= cpu_data->file_offset;
+
 	node = trace_rbtree_find(&cpu_data->compress.cache, (void *)&offset);
 
 	if (!node)
