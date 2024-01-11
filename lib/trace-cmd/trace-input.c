@@ -2822,11 +2822,11 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 		return -1;
 	}
 
-	records = calloc(handle->max_cpu, sizeof(*records));
+	records = calloc(handle->cpus, sizeof(*records));
 	if (!records)
 		return -1;
 
-	for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpus))
 			continue;
 
@@ -2835,7 +2835,7 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 
 	do {
 		next_cpu = -1;
-		for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+		for (cpu = 0; cpu < handle->cpus; cpu++) {
 			record = records[cpu];
 			if (!record)
 				continue;
@@ -2858,7 +2858,7 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 	} while (next_cpu >= 0 && ret == 0);
 
 	/* Need to unlock and free the records */
-	for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		int offset;
 
 		if (!records[cpu])
@@ -3028,7 +3028,7 @@ int tracecmd_iterate_events_reverse(struct tracecmd_input *handle,
 	struct tep_record **records;
 	struct tep_record *record;
 	int next_cpu;
-	int max_cpus = handle->max_cpu;
+	int max_cpus = handle->cpus;
 	int cpu;
 	int ret = 0;
 
@@ -3122,7 +3122,7 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 
 	for (i = 0; i < nr_handles; i++) {
 		handle = handles[i];
-		cpus += handle->max_cpu;
+		cpus += handle->cpus;
 	}
 
 	records = calloc(cpus, sizeof(*records));
@@ -3132,7 +3132,7 @@ int tracecmd_iterate_events_multi(struct tracecmd_input **handles,
 	for (i = 0; i < nr_handles; i++) {
 		handle = handles[i];
 		handle->start_cpu = all_cpus;
-		for (cpu = 0; cpu < handle->max_cpu; cpu++) {
+		for (cpu = 0; cpu < handle->cpus; cpu++) {
 			records[all_cpus + cpu].record = tracecmd_peek_data(handle, cpu);
 			records[all_cpus + cpu].handle = handle;
 		}
