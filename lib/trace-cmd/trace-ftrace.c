@@ -283,6 +283,14 @@ fgraph_ent_handler(struct trace_seq *s, struct tep_record *record,
 		return trace_seq_putc(s, '!');
 
 	rec = tracecmd_peek_next_data(tracecmd_curr_thread_handle, &cpu);
+
+	/*
+	 * If the next event is on another CPU, show it.
+	 * Even if the next event is the return of this function.
+	 */
+	if (cpu != record->cpu)
+		rec = NULL;
+
 	if (rec)
 		rec = get_return_for_leaf(s, cpu, pid, val, rec, finfo);
 
