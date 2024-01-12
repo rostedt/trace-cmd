@@ -125,7 +125,7 @@ incdir = include_directories(['.', 'include'])
 # trace-cmd (or the other way around). To reduce the development setup
 # complexity we add some of the 'top meson.build' from libtracecmd and
 # make it simpler to use.
-library_version = '1.3.0'
+library_version = '1.5.1'
 libtracecmd_standalone_build = false
 libtracecmd_ext_incdir = include_directories(
     [
