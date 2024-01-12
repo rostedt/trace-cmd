@@ -28,6 +28,7 @@ sources = [
     'trace-tsync.c',
     'trace-usage.c',
     'trace-vm.c',
+    'trace-sqlhist.c',
 ]
 
 if vsock_defined
