@@ -5722,9 +5722,8 @@ int tracecmd_copy_headers(struct tracecmd_input *in_handle,
 		if (end_state <= in_handle->file_state)
 			return 0;
 
-		ret = copy_command_lines(in_handle, out_handle);
-		if (ret < 0)
-			goto out;
+		/* Optional */
+		copy_command_lines(in_handle, out_handle);
 
 		/* fallthrough */
 	case TRACECMD_FILE_CPU_COUNT:
