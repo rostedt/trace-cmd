@@ -7122,6 +7122,10 @@ static void record_trace(int argc, char **argv,
 	if (!ctx->output)
 		ctx->output = DEFAULT_INPUT_FILE;
 
+	/* Make sure top_instance.output_file exists */
+	if (!top_instance.output_file)
+		top_instance.output_file = strdup(ctx->output);
+
 	if (ctx->data_flags & (DATA_FL_GUEST | DATA_FL_PROXY))
 		set_tsync_params(ctx);
 
@@ -7131,7 +7135,9 @@ static void record_trace(int argc, char **argv,
 	for_all_instances(instance) {
 		if (ctx->temp)
 			instance->temp_dir = ctx->temp;
-		instance->output_file = strdup(ctx->output);
+		/* The -o could have been done after -B */
+		if (!instance->output_file)
+			instance->output_file = strdup(ctx->output);
 		if (!instance->output_file)
 			die("Failed to allocate output file name for instance");
 		if (!ctx->manual && instance->flags & BUFFER_FL_PROFILE)
