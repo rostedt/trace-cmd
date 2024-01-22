@@ -198,7 +198,7 @@ static int parse_cpu(struct tracecmd_input *handle,
 		     unsigned long long start,
 		     unsigned long long end,
 		     int count_limit, int percpu, int cpu,
-		     enum split_types type)
+		     enum split_types type, bool *end_reached)
 {
 	struct tep_record *record;
 	struct tep_handle *pevent;
@@ -325,6 +325,9 @@ static int parse_cpu(struct tracecmd_input *handle,
 		}
 	}
 
+	if (record && (record->ts > end))
+		*end_reached = true;
+
 	if (record)
 		tracecmd_free_record(record);
 
@@ -352,7 +355,8 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 				     unsigned long long start,
 				     unsigned long long end, int percpu,
 				     int only_cpu, int count,
-				     enum split_types type)
+				     enum split_types type,
+				     bool *end_reached)
 {
 	unsigned long long current;
 	struct tracecmd_output *ohandle;
@@ -396,14 +400,14 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 
 	if (only_cpu >= 0) {
 		parse_cpu(handle, cpu_data, start, end, count,
-			  1, only_cpu, type);
+			  1, only_cpu, type, end_reached);
 	} else if (percpu) {
 		for (cpu = 0; cpu < cpus; cpu++)
 			parse_cpu(handle, cpu_data, start,
-				  end, count, percpu, cpu, type);
+				  end, count, percpu, cpu, type, end_reached);
 	} else
 		parse_cpu(handle, cpu_data, start,
-			  end, count, percpu, -1, type);
+			  end, count, percpu, -1, type, end_reached);
 
 	cpu_list = malloc(sizeof(*cpu_list) * cpus);
 	if (!cpu_list)
@@ -415,7 +419,6 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 	if (tracecmd_append_cpu_data(ohandle, cpus, cpu_list) < 0)
 		die("Failed to append tracing data\n");
 
-	current = end;
 	for (cpu = 0; cpu < cpus; cpu++) {
 		/* Set the tracecmd cursor to the next set of records */
 		if (cpu_data[cpu].offset) {
@@ -440,6 +443,7 @@ void trace_split (int argc, char **argv)
 	struct tracecmd_input *handle;
 	unsigned long long start_ns = 0, end_ns = 0;
 	unsigned long long current;
+	bool end_reached = false;
 	double start, end;
 	char *endptr;
 	char *output = NULL;
@@ -564,11 +568,12 @@ void trace_split (int argc, char **argv)
 			strcpy(output_file, output);
 			
 		current = parse_file(handle, output_file, start_ns, end_ns,
-				     percpu, cpu, count, type);
+				     percpu, cpu, count, type, &end_reached);
+
 		if (!repeat)
 			break;
 		start_ns = 0;
-	} while (current && (!end_ns || current < end_ns));
+	} while (!end_reached && (current && (!end_ns || current < end_ns)));
 
 	free(output);
 	free(output_file);
