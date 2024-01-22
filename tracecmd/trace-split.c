@@ -347,11 +347,12 @@ static int parse_cpu(struct tracecmd_input *handle,
 	return 0;
 }
 
-static double parse_file(struct tracecmd_input *handle,
-			 const char *output_file,
-			 unsigned long long start,
-			 unsigned long long end, int percpu, int only_cpu,
-			 int count, enum split_types type)
+static unsigned long long parse_file(struct tracecmd_input *handle,
+				     const char *output_file,
+				     unsigned long long start,
+				     unsigned long long end, int percpu,
+				     int only_cpu, int count,
+				     enum split_types type)
 {
 	unsigned long long current;
 	struct tracecmd_output *ohandle;
@@ -551,7 +552,6 @@ void trace_split (int argc, char **argv)
 		strcat(output, ".1");
 	}
 
-	current = start_ns;
 	output_file = malloc(strlen(output) + 50);
 	if (!output_file)
 		die("Failed to allocate for %s", output);
