@@ -19,10 +19,12 @@
 #include <ctype.h>
 #include <errno.h>
 
+#include "list.h"
 #include "trace-local.h"
 
 static unsigned int page_size;
 static const char *default_input_file = DEFAULT_INPUT_FILE;
+static const char *default_top_instance_name = "top";
 static const char *input_file;
 
 enum split_types {
@@ -48,6 +50,75 @@ struct cpu_data {
 	void				*page;
 	char				*file;
 };
+
+struct handle_list {
+	struct list_head		list;
+	const char			*name;
+	int				index;
+	struct tracecmd_input 		*handle;
+
+	/* Identify the top instance in the input trace. */
+	bool				was_top_instance;
+
+	/* Identify the top instance in each output trace. */
+	bool				is_top_instance;
+};
+
+static struct list_head handle_list;
+
+/**
+ * get_handle - Obtain a handle that must be closed once finished.
+ */
+static struct tracecmd_input *get_handle(struct handle_list *item)
+{
+	struct tracecmd_input *top_handle, *handle;
+
+	top_handle = tracecmd_open(input_file, 0);
+	if (!top_handle)
+		die("Error reading %s", input_file);
+
+	if (item->was_top_instance) {
+		return top_handle;
+	} else {
+		handle = tracecmd_buffer_instance_handle(top_handle, item->index);
+		if (!handle)
+			warning("Could not retrieve handle %s", item->name);
+
+		tracecmd_close(top_handle);
+		return handle;
+	}
+}
+
+static void add_handle(const char *name, int index, bool was_top_instance)
+{
+	struct handle_list *item;
+
+	item = calloc(1, sizeof(*item));
+	if (!item)
+		die("Failed to allocate handle item");
+
+	item->name = strdup(name);
+	if (!item->name)
+		die("Failed to duplicate %s", name);
+
+	item->index = index;
+	item->was_top_instance = was_top_instance;
+	item->handle = get_handle(item);
+	list_add_tail(&item->list, &handle_list);
+}
+
+static void free_handles(struct list_head *list)
+{
+	struct handle_list *item;
+
+	while (!list_empty(list)) {
+		item = container_of(list->next, struct handle_list, list);
+		list_del(&item->list);
+		free((char *)item->name);
+		tracecmd_close(item->handle);
+		free(item);
+	}
+}
 
 static int create_type_len(struct tep_handle *pevent, int time, int len)
 {
@@ -450,12 +521,15 @@ void trace_split (int argc, char **argv)
 	char *output_file;
 	enum split_types split_type = SPLIT_NONE;
 	enum split_types type = SPLIT_NONE;
+	int instances;
 	int count;
 	int repeat = 0;
 	int percpu = 0;
 	int cpu = -1;
 	int ac;
 	int c;
+
+	list_head_init(&handle_list);
 
 	if (strcmp(argv[1], "split") != 0)
 		usage(argv);
@@ -561,6 +635,20 @@ void trace_split (int argc, char **argv)
 		die("Failed to allocate for %s", output);
 	c = 1;
 
+	add_handle(default_top_instance_name, -1, true);
+	instances = tracecmd_buffer_instances(handle);
+	if (instances) {
+		const char *name;
+		int i;
+
+		for (i = 0; i < instances; i++) {
+			name = tracecmd_buffer_instance_name(handle, i);
+			if (!name)
+				die("error in reading buffer instance");
+			add_handle(name, i, false);
+		}
+	}
+
 	do {
 		if (repeat)
 			sprintf(output_file, "%s.%04d", output, c++);
@@ -579,6 +667,7 @@ void trace_split (int argc, char **argv)
 	free(output_file);
 
 	tracecmd_close(handle);
+	free_handles(&handle_list);
 
 	return;
 }
