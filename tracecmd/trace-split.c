@@ -421,6 +421,55 @@ static int parse_cpu(struct tracecmd_input *handle,
 	return 0;
 }
 
+static char *get_temp_file(const char *output_file, const char *name, int cpu)
+{
+	const char *dot;
+	char *file = NULL;
+	char *output;
+	char *base;
+	char *dir;
+	int ret;
+
+	if (name)
+		dot = ".";
+	else
+		dot = name = "";
+
+	output = strdup(output_file);
+	if (!output)
+		die("Failed to duplicate %s", output_file);
+
+	/* Extract basename() first, as dirname() truncates output */
+	base = basename(output);
+	dir = dirname(output);
+
+	ret = asprintf(&file, "%s/.tmp.%s.%s%s%d", dir, base, name, dot, cpu);
+	if (ret < 0)
+		die("Failed to allocate file for %s %s %s %d", dir, base, name, cpu);
+	free(output);
+	return file;
+}
+
+static void delete_temp_file(const char *name)
+{
+	unlink(name);
+}
+
+static void put_temp_file(char *file)
+{
+	free(file);
+}
+
+static void touch_file(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd < 0)
+		die("could not create file %s\n", file);
+	close(fd);
+}
+
 static unsigned long long parse_file(struct tracecmd_input *handle,
 				     const char *output_file,
 				     unsigned long long start,
@@ -434,18 +483,10 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 	struct cpu_data *cpu_data;
 	struct tep_record *record;
 	char **cpu_list;
-	char *output;
-	char *base;
 	char *file;
-	char *dir;
 	int cpus;
 	int cpu;
 	int fd;
-
-	output = strdup(output_file);
-	/* Extract basename() first, as dirname() truncates output */
-	base = basename(output);
-	dir = dirname(output);
 
 	ohandle = tracecmd_copy(handle, output_file, TRACECMD_FILE_CMD_LINES, 0, NULL);
 
@@ -455,11 +496,9 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 		die("Failed to allocate cpu_data for %d cpus", cpus);
 
 	for (cpu = 0; cpu < cpus; cpu++) {
-		int ret;
+		file = get_temp_file(output_file, NULL, cpu);
+		touch_file(file);
 
-		ret = asprintf(&file, "%s/.tmp.%s.%d", dir, base, cpu);
-		if (ret < 0)
-			die("Failed to allocate file for %s %s %d", dir, base, cpu);
 		fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 		cpu_data[cpu].cpu = cpu;
 		cpu_data[cpu].fd = fd;
@@ -498,12 +537,16 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 				current = record->ts + 1;
 			tracecmd_free_record(record);
 		}
-		unlink(cpu_data[cpu].file);
-		free(cpu_data[cpu].file);
+	}
+
+	for (cpu = 0; cpu < cpus; cpu++) {
+		close(cpu_data[cpu].fd);
+		delete_temp_file(cpu_data[cpu].file);
+		put_temp_file(cpu_data[cpu].file);
 	}
 	free(cpu_data);
 	free(cpu_list);
-	free(output);
+
 	tracecmd_output_close(ohandle);
 
 	return current;
