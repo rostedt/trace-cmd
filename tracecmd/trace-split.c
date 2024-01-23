@@ -398,6 +398,8 @@ static int parse_cpu(struct tracecmd_input *handle,
 
 	if (record && (record->ts > end))
 		*end_reached = true;
+	else
+		*end_reached = false;
 
 	if (record)
 		tracecmd_free_record(record);
@@ -479,76 +481,95 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 				     bool *end_reached)
 {
 	unsigned long long current = 0;
+	struct handle_list *handle_entry;
 	struct tracecmd_output *ohandle;
 	struct cpu_data *cpu_data;
 	struct tep_record *record;
+	bool all_end_reached = true;
 	char **cpu_list;
 	char *file;
 	int cpus;
 	int cpu;
+	int ret;
 	int fd;
 
 	ohandle = tracecmd_copy(handle, output_file, TRACECMD_FILE_CMD_LINES, 0, NULL);
-
-	cpus = tracecmd_cpus(handle);
-	cpu_data = malloc(sizeof(*cpu_data) * cpus);
-	if (!cpu_data)
-		die("Failed to allocate cpu_data for %d cpus", cpus);
-
-	for (cpu = 0; cpu < cpus; cpu++) {
-		file = get_temp_file(output_file, NULL, cpu);
-		touch_file(file);
-
-		fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-		cpu_data[cpu].cpu = cpu;
-		cpu_data[cpu].fd = fd;
-		cpu_data[cpu].file = file;
-		cpu_data[cpu].offset = 0;
-		if (start)
-			tracecmd_set_cpu_to_timestamp(handle, cpu, start);
-	}
-
-	if (only_cpu >= 0) {
-		parse_cpu(handle, cpu_data, start, end, count,
-			  1, only_cpu, type, end_reached);
-	} else if (percpu) {
-		for (cpu = 0; cpu < cpus; cpu++)
-			parse_cpu(handle, cpu_data, start,
-				  end, count, percpu, cpu, type, end_reached);
-	} else
-		parse_cpu(handle, cpu_data, start,
-			  end, count, percpu, -1, type, end_reached);
-
-	cpu_list = malloc(sizeof(*cpu_list) * cpus);
-	if (!cpu_list)
-		die("Failed to allocate cpu_list for %d cpus", cpus);
-	for (cpu = 0; cpu < cpus; cpu ++)
-		cpu_list[cpu] = cpu_data[cpu].file;
-
 	tracecmd_set_out_clock(ohandle, tracecmd_get_trace_clock(handle));
-	if (tracecmd_append_cpu_data(ohandle, cpus, cpu_list) < 0)
-		die("Failed to append tracing data\n");
 
-	for (cpu = 0; cpu < cpus; cpu++) {
-		/* Set the tracecmd cursor to the next set of records */
-		if (cpu_data[cpu].offset) {
-			record = tracecmd_read_at(handle, cpu_data[cpu].offset, NULL);
-			if (record && (!current || record->ts > current))
-				current = record->ts + 1;
-			tracecmd_free_record(record);
+	list_for_each_entry(handle_entry, &handle_list, list) {
+		struct tracecmd_input *curr_handle;
+		bool curr_end_reached = false;
+
+		curr_handle = handle_entry->handle;
+		cpus = tracecmd_cpus(curr_handle);
+		cpu_data = malloc(sizeof(*cpu_data) * cpus);
+		if (!cpu_data)
+			die("Failed to allocate cpu_data for %d cpus", cpus);
+
+		for (cpu = 0; cpu < cpus; cpu++) {
+			file = get_temp_file(output_file, handle_entry->name, cpu);
+			touch_file(file);
+
+			fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+			cpu_data[cpu].cpu = cpu;
+			cpu_data[cpu].fd = fd;
+			cpu_data[cpu].file = file;
+			cpu_data[cpu].offset = 0;
+			if (start)
+				tracecmd_set_cpu_to_timestamp(curr_handle, cpu, start);
 		}
-	}
 
-	for (cpu = 0; cpu < cpus; cpu++) {
-		close(cpu_data[cpu].fd);
-		delete_temp_file(cpu_data[cpu].file);
-		put_temp_file(cpu_data[cpu].file);
+		if (only_cpu >= 0) {
+			parse_cpu(curr_handle, cpu_data, start, end, count,
+				  1, only_cpu, type, &curr_end_reached);
+		} else if (percpu) {
+			for (cpu = 0; cpu < cpus; cpu++)
+				parse_cpu(curr_handle, cpu_data, start,
+					  end, count, percpu, cpu, type, &curr_end_reached);
+		} else {
+			parse_cpu(curr_handle, cpu_data, start,
+				  end, count, percpu, -1, type, &curr_end_reached);
+		}
+
+		/* End is reached when all instances finished. */
+		all_end_reached &= curr_end_reached;
+
+		cpu_list = malloc(sizeof(*cpu_list) * cpus);
+		if (!cpu_list)
+			die("Failed to allocate cpu_list for %d cpus", cpus);
+		for (cpu = 0; cpu < cpus; cpu++)
+			cpu_list[cpu] = cpu_data[cpu].file;
+
+		if (handle_entry->was_top_instance)
+			ret = tracecmd_append_cpu_data(ohandle, cpus, cpu_list);
+		else
+			ret = tracecmd_append_buffer_cpu_data(ohandle, handle_entry->name, cpus,
+							      cpu_list);
+		if (ret < 0)
+			die("Failed to append tracing data\n");
+
+		for (cpu = 0; cpu < cpus; cpu++) {
+			/* Set the tracecmd cursor to the next set of records */
+			if (cpu_data[cpu].offset) {
+				record = tracecmd_read_at(curr_handle, cpu_data[cpu].offset, NULL);
+				if (record && (!current || record->ts > current))
+					current = record->ts + 1;
+				tracecmd_free_record(record);
+			}
+		}
+
+		for (cpu = 0; cpu < cpus; cpu++) {
+			close(cpu_data[cpu].fd);
+			delete_temp_file(cpu_data[cpu].file);
+			put_temp_file(cpu_data[cpu].file);
+		}
+		free(cpu_data);
+		free(cpu_list);
 	}
-	free(cpu_data);
-	free(cpu_list);
 
 	tracecmd_output_close(ohandle);
 
+	*end_reached = all_end_reached;
 	return current;
 }
 
