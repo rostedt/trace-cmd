@@ -7,7 +7,7 @@ trace-cmd-report - show in ASCII a trace created by trace-cmd record
 
 SYNOPSIS
 --------
-*trace-cmd report* ['OPTIONS'] ['input-file']
+*trace-cmd report* ['OPTIONS'] ['input-file' ['input-file' ...]]
 
 DESCRIPTION
 -----------

@@ -1806,6 +1806,10 @@ void trace_report (int argc, char **argv)
 			usage(argv);
 		input_file = argv[optind + 1];
 		add_first_input(input_file, tsoffset);
+		for (int i = optind + 2; i < argc; i++) {
+			multi_inputs++;
+			add_input(argv[i]);
+		}
 	}
 
 	if (!multi_inputs) {
