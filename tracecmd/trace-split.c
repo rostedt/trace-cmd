@@ -358,7 +358,7 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 				     enum split_types type,
 				     bool *end_reached)
 {
-	unsigned long long current;
+	unsigned long long current = 0;
 	struct tracecmd_output *ohandle;
 	struct cpu_data *cpu_data;
 	struct tep_record *record;
