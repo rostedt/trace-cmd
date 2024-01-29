@@ -421,6 +421,9 @@ int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long s
 			if (ret < 0) {
 				if (errno == EINTR)
 					continue;
+				if ((recorder->flags & TRACECMD_RECORD_POLL) &&
+				    errno == EAGAIN)
+					continue;
 				return ret;
 			}
 			read += ret;
