@@ -53,9 +53,9 @@ struct cpu_data {
 
 struct handle_list {
 	struct list_head		list;
-	const char			*name;
+	char				*name;
 	int				index;
-	struct tracecmd_input 		*handle;
+	struct tracecmd_input		*handle;
 
 	/* Identify the top instance in the input trace. */
 	bool				was_top_instance;
@@ -114,7 +114,7 @@ static void free_handles(struct list_head *list)
 	while (!list_empty(list)) {
 		item = container_of(list->next, struct handle_list, list);
 		list_del(&item->list);
-		free((char *)item->name);
+		free(item->name);
 		tracecmd_close(item->handle);
 		free(item);
 	}
