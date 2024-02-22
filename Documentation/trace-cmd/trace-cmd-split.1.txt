@@ -86,6 +86,31 @@ OPTIONS
 
     This will split out all the events for cpu 1 in the file.
 
+*--top*::
+    This allows to keep the top buffer.
+    The top buffer can be renamed using the '-b' option.
+
+    trace-cmd split --top
+
+    This will keep only the top buffer.
+
+    trace-cmd split --top -b old_top
+
+    This will keep only the top buffer and rename it 'old_top'.
+
+*-B* 'buffer'::
+    This allows to keep the selected buffer.
+    A buffer can be promoted to the top buffer using the '-t' option.
+
+    trace-cmd split -B timer -B sched
+
+    This will keep the 'timer' and 'sched' buffers.
+
+    trace-cmd split -B timer -t -B sched
+
+    This will keep the 'timer' and 'sched' buffers, with the events
+    from the 'timer' buffer promoted to the top instance.
+
 SEE ALSO
 --------
 trace-cmd(1), trace-cmd-record(1), trace-cmd-report(1), trace-cmd-start(1),

@@ -59,9 +59,6 @@ struct handle_list {
 
 	/* Identify the top instance in the input trace. */
 	bool				was_top_instance;
-
-	/* Identify the top instance in each output trace. */
-	bool				is_top_instance;
 };
 
 static struct list_head handle_list;
@@ -109,15 +106,58 @@ static void add_handle(const char *name, int index, bool was_top_instance)
 
 static void free_handles(struct list_head *list)
 {
-	struct handle_list *item;
+	struct handle_list *item, *n;
 
-	while (!list_empty(list)) {
-		item = container_of(list->next, struct handle_list, list);
+	list_for_each_entry_safe(item, n, list, list) {
 		list_del(&item->list);
 		free(item->name);
 		tracecmd_close(item->handle);
 		free(item);
 	}
+}
+
+static struct list_head inst_list;
+
+struct inst_list {
+	struct list_head		list;
+	char				*name;
+	struct handle_list		*handle;
+
+	/* Identify the top instance in the input trace. */
+	bool				was_top_instance;
+
+	/* Identify the top instance in the output trace. */
+	bool				is_top_instance;
+};
+
+static void free_inst(struct list_head *list)
+{
+	struct inst_list *item, *n;
+
+	list_for_each_entry_safe(item, n, list, list) {
+		list_del(&item->list);
+		free(item->name);
+		free(item);
+	}
+}
+
+static struct inst_list *add_inst(const char *name, bool was_top_instance,
+				  bool is_top_instance)
+{
+	struct inst_list *item;
+
+	item = calloc(1, sizeof(*item));
+	if (!item)
+		die("Failed to allocate output_file item");
+
+	item->name = strdup(name);
+	if (!item->name)
+		die("Failed to duplicate %s", name);
+
+	item->was_top_instance = was_top_instance;
+	item->is_top_instance = is_top_instance;
+	list_add_tail(&item->list, &inst_list);
+	return item;
 }
 
 static int create_type_len(struct tep_handle *pevent, int time, int len)
@@ -481,8 +521,8 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 				     bool *end_reached)
 {
 	unsigned long long current = 0;
-	struct handle_list *handle_entry;
 	struct tracecmd_output *ohandle;
+	struct inst_list *inst_entry;
 	struct cpu_data *cpu_data;
 	struct tep_record *record;
 	bool all_end_reached = true;
@@ -496,18 +536,18 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 	ohandle = tracecmd_copy(handle, output_file, TRACECMD_FILE_CMD_LINES, 0, NULL);
 	tracecmd_set_out_clock(ohandle, tracecmd_get_trace_clock(handle));
 
-	list_for_each_entry(handle_entry, &handle_list, list) {
+	list_for_each_entry(inst_entry, &inst_list, list) {
 		struct tracecmd_input *curr_handle;
 		bool curr_end_reached = false;
 
-		curr_handle = handle_entry->handle;
+		curr_handle = inst_entry->handle->handle;
 		cpus = tracecmd_cpus(curr_handle);
 		cpu_data = malloc(sizeof(*cpu_data) * cpus);
 		if (!cpu_data)
 			die("Failed to allocate cpu_data for %d cpus", cpus);
 
 		for (cpu = 0; cpu < cpus; cpu++) {
-			file = get_temp_file(output_file, handle_entry->name, cpu);
+			file = get_temp_file(output_file, inst_entry->name, cpu);
 			touch_file(file);
 
 			fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
@@ -540,10 +580,10 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 		for (cpu = 0; cpu < cpus; cpu++)
 			cpu_list[cpu] = cpu_data[cpu].file;
 
-		if (handle_entry->was_top_instance)
+		if (inst_entry->is_top_instance)
 			ret = tracecmd_append_cpu_data(ohandle, cpus, cpu_list);
 		else
-			ret = tracecmd_append_buffer_cpu_data(ohandle, handle_entry->name, cpus,
+			ret = tracecmd_append_buffer_cpu_data(ohandle, inst_entry->name, cpus,
 							      cpu_list);
 		if (ret < 0)
 			die("Failed to append tracing data\n");
@@ -573,11 +613,80 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 	return current;
 }
 
+/* Map the instance names to their handle. */
+static void map_inst_handle(void)
+{
+	struct handle_list *handle_entry;
+	struct inst_list *inst_entry;
+
+	/*
+	 * No specific instance was given for this output file.
+	 * Add all the available instances.
+	 */
+	if (list_empty(&inst_list)) {
+		list_for_each_entry(handle_entry, &handle_list, list) {
+			add_inst(handle_entry->name, handle_entry->was_top_instance,
+				 handle_entry->was_top_instance);
+		}
+	}
+
+	list_for_each_entry(inst_entry, &inst_list, list) {
+		list_for_each_entry(handle_entry, &handle_list, list) {
+			if ((inst_entry->was_top_instance &&
+			     handle_entry->was_top_instance) ||
+			    (!inst_entry->was_top_instance &&
+			     !strcmp(handle_entry->name, inst_entry->name))) {
+				inst_entry->handle = handle_entry;
+				goto found;
+			}
+		}
+
+		warning("Requested instance %s was not found in trace.", inst_entry->name);
+		break;
+found:
+		continue;
+	}
+}
+
+static bool is_top_instance_unique(void)
+{
+	struct inst_list *inst_entry;
+	bool has_top_buffer = false;
+
+	/* Check there is at most one top buffer. */
+	list_for_each_entry(inst_entry, &inst_list, list) {
+		if (inst_entry->is_top_instance) {
+			if (has_top_buffer)
+				return false;
+			has_top_buffer = true;
+		}
+	}
+
+	return true;
+}
+
+enum {
+	OPT_top = 237,
+};
+
+/*
+ * Used to identify the arg. previously parsed.
+ * E.g. '-b' can only follow '--top'.
+ */
+enum prev_arg_type {
+	PREV_IS_NONE,
+	PREV_IS_TOP,
+	PREV_IS_BUFFER,
+};
+
 void trace_split (int argc, char **argv)
 {
 	struct tracecmd_input *handle;
 	unsigned long long start_ns = 0, end_ns = 0;
 	unsigned long long current;
+	enum prev_arg_type prev_arg_type;
+	struct inst_list *prev_inst = NULL;
+	int prev_arg_idx;
 	bool end_reached = false;
 	double start, end;
 	char *endptr;
@@ -593,12 +702,22 @@ void trace_split (int argc, char **argv)
 	int ac;
 	int c;
 
+	static struct option long_options[] = {
+		{"top", optional_argument, NULL, OPT_top},
+		{NULL, 0, NULL, 0},
+	};
+	int option_index = 0;
+
+	prev_arg_type = PREV_IS_NONE;
+
 	list_head_init(&handle_list);
+	list_head_init(&inst_list);
 
 	if (strcmp(argv[1], "split") != 0)
 		usage(argv);
 
-	while ((c = getopt(argc-1, argv+1, "+ho:i:s:m:u:e:p:rcC:")) >= 0) {
+	while ((c = getopt_long(argc - 1, argv + 1, "+ho:i:s:m:u:e:p:rcC:B:b:t",
+				long_options, &option_index)) >= 0) {
 		switch (c) {
 		case 'h':
 			usage(argv);
@@ -641,10 +760,46 @@ void trace_split (int argc, char **argv)
 		case 'i':
 			input_file = optarg;
 			break;
+		case OPT_top:
+			prev_arg_type = PREV_IS_TOP;
+			prev_arg_idx = optind;
+			prev_inst = add_inst(default_top_instance_name, true, true);
+			break;
+		case 'b':
+			/* 1 as --top takes no argument. */
+			if (prev_arg_type != PREV_IS_TOP &&
+			    (prev_arg_idx != optind - 1))
+				usage(argv);
+			prev_arg_type = PREV_IS_NONE;
+
+			prev_inst->is_top_instance = false;
+
+			free(prev_inst->name);
+			prev_inst->name = strdup(optarg);
+			if (!prev_inst->name)
+				die("Failed to duplicate %s", optarg);
+			break;
+		case 'B':
+			prev_arg_type = PREV_IS_BUFFER;
+			prev_arg_idx = optind;
+			prev_inst = add_inst(optarg, false, false);
+			break;
+		case 't':
+			/* 2 as -B takes an argument. */
+			if (prev_arg_type != PREV_IS_BUFFER &&
+			    (prev_arg_idx != optind - 2))
+				usage(argv);
+			prev_arg_type = PREV_IS_NONE;
+
+			prev_inst->is_top_instance = true;
+			break;
 		default:
 			usage(argv);
 		}
 	}
+
+	if (!is_top_instance_unique())
+		die("Can only have one top instance.");
 
 	ac = (argc - optind);
 
@@ -713,6 +868,8 @@ void trace_split (int argc, char **argv)
 		}
 	}
 
+	map_inst_handle();
+
 	do {
 		if (repeat)
 			sprintf(output_file, "%s.%04d", output, c++);
@@ -732,6 +889,7 @@ void trace_split (int argc, char **argv)
 
 	tracecmd_close(handle);
 	free_handles(&handle_list);
+	free_inst(&inst_list);
 
 	return;
 }
