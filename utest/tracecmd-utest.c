@@ -22,6 +22,10 @@
 
 #include "trace-utest.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
 static char tracecmd_exec[PATH_MAX];
 
 #define TRACECMD_SUITE		"trace-cmd"
