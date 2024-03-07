@@ -175,19 +175,46 @@ tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, struct trace
 
 static struct tracecmd_recorder *
 __tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags,
-				  struct tracefs_instance *instance, int tfd)
+				  struct tracefs_instance *instance, int tfd, int maxkb)
 {
 	struct tracecmd_recorder *recorder;
-	int fd;
+	int fd, fd2 = -1;
+	char *file2;
 
-	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+	fd = open(file, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
 	if (fd < 0)
 		return NULL;
 
-	recorder = create_buffer_recorder_fd2(fd, -1, cpu, flags, instance, 0, tfd);
+	if (maxkb) {
+		int len = strlen(file);
+
+		file2 = malloc(len + 3);
+		if (!file2)
+			return NULL;
+
+		sprintf(file2, "%s.1", file);
+
+		fd2 = open(file2, O_RDWR | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
+		if (fd2 < 0) {
+			close(fd);
+			unlink(file);
+			free(file2);
+			return NULL;
+		}
+	}
+
+	recorder = create_buffer_recorder_fd2(fd, fd2, cpu, flags, instance, maxkb, tfd);
 	if (!recorder) {
 		close(fd);
 		unlink(file);
+		if (fd2 != -1)
+			close(fd2);
+	}
+
+	if (fd2 != -1) {
+		/* Unlink file2, we need to add everything to file at the end */
+		unlink(file2);
+		free(file2);
 	}
 
 	return recorder;
@@ -242,7 +269,7 @@ struct tracecmd_recorder *
 tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags,
 				struct tracefs_instance *instance)
 {
-	return __tracecmd_create_buffer_recorder(file, cpu, flags, instance, -1);
+	return __tracecmd_create_buffer_recorder(file, cpu, flags, instance, -1, 0);
 }
 
 /**
@@ -255,9 +282,9 @@ tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags,
  */
 struct tracecmd_recorder *
 tracecmd_create_recorder_virt(const char *file, int cpu, unsigned flags,
-			      int trace_fd)
+			      int trace_fd, int maxkb)
 {
-	return __tracecmd_create_buffer_recorder(file, cpu, flags, NULL, trace_fd);
+	return __tracecmd_create_buffer_recorder(file, cpu, flags, NULL, trace_fd, maxkb);
 }
 
 struct tracecmd_recorder *tracecmd_create_recorder_fd(int fd, int cpu, unsigned flags)

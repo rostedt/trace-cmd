@@ -3584,7 +3584,7 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 			flags |= TRACECMD_RECORD_NOBRASS;
 		else if (!trace_vsock_can_splice_read())
 			flags |= TRACECMD_RECORD_NOSPLICE;
-		return tracecmd_create_recorder_virt(file, cpu, flags, fd);
+		return tracecmd_create_recorder_virt(file, cpu, flags, fd, max_kb);
 	}
 
 	if (brass)
