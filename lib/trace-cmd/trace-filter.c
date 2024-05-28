@@ -47,6 +47,7 @@ static bool test_stacktraces(struct tracecmd_filter *filter, struct tep_record *
 __hidden enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
 						     struct tep_record *record)
 {
+	bool is_stack = false;
 	bool found = false;
 	int ret;
 	int i;
@@ -94,6 +95,8 @@ __hidden enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *fil
 		/* If this is a stack trace and the last event was printed continue */
 		if (!test_stacktraces(filter, record))
 			return TRACECMD_FILTER_MISS;
+
+		is_stack = true;
 	}
 
 	found = false;
@@ -110,7 +113,7 @@ __hidden enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *fil
 	}
 
 	if (filter->last_printed)
-		filter->last_printed[record->cpu] = !found;
+		filter->last_printed[record->cpu] = !is_stack && !found;
 
 	return found ? TRACECMD_FILTER_MISS : TRACECMD_FILTER_MATCH;
 }
