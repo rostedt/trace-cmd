@@ -2813,9 +2813,12 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 	struct tep_record *record;
 	unsigned long long *timestamps;
 	unsigned long long ts, last_timestamp = 0;
+	int *cpu_list;
+	int cpu_count = 0;
 	int next_cpu;
 	int cpu;
 	int ret = 0;
+	int i;
 
 	if (!callback && !handle->nr_followers) {
 		errno = EINVAL;
@@ -2826,17 +2829,28 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 	if (!timestamps)
 		return -1;
 
+	cpu_list = calloc(handle->cpus, sizeof(*cpu_list));
+	if (!cpu_list) {
+		free(timestamps);
+		return -1;
+	}
+
 	for (cpu = 0; cpu < handle->cpus; cpu++) {
 		if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpus))
 			continue;
+		cpu_list[cpu_count++] = cpu;
+	}
 
+	for (i = 0; i < cpu_count; i++) {
+		cpu = cpu_list[i];
 		record = tracecmd_peek_data(handle, cpu);
 		timestamps[cpu] = record ? record->ts : -1ULL;
 	}
 
 	do {
 		next_cpu = -1;
-		for (cpu = 0; cpu < handle->cpus; cpu++) {
+		for (i = 0; i < cpu_count; i++) {
+			cpu = cpu_list[i];
 			ts = timestamps[cpu];
 			if (ts == -1ULL)
 				continue;
@@ -2869,6 +2883,7 @@ int tracecmd_iterate_events(struct tracecmd_input *handle,
 	} while (next_cpu >= 0 && ret == 0);
 
 	free(timestamps);
+	free(cpu_list);
 
 	return ret;
 }
