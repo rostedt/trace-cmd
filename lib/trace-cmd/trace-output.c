@@ -644,8 +644,10 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
 	offset = out_write_section_header(handle, TRACECMD_OPTION_HEADER_INFO,
 					  "headers", flags, true);
-	if (offset == (off_t)-1)
+	if (offset == (off_t)-1) {
+		put_tracing_file(path);
 		return -1;
+	}
 
 	out_compression_start(handle, compress);
 	ret = stat(path, &st);
@@ -671,23 +673,23 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		tracecmd_warning("can't read '%s'", path);
-		goto out_close;
+		goto out_free;
 	}
 
 	/* unfortunately, you can not stat debugfs files for size */
 	size = get_size_fd(fd);
 
 	if (do_write_check(handle, "header_page", 12))
-		goto out_close;
+		goto out_free;
 	endian8 = convert_endian_8(handle, size);
 	if (do_write_check(handle, &endian8, 8))
-		goto out_close;
+		goto out_free;
 	check_size = copy_file_fd(handle, fd, 0);
 	close(fd);
 	if (size != check_size) {
 		tracecmd_warning("wrong size for '%s' size=%lld read=%lld", path, size, check_size);
 		errno = EINVAL;
-		goto out_close;
+		goto out_free;
 	}
 	put_tracing_file(path);
 
@@ -698,21 +700,21 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		tracecmd_warning("can't read '%s'", path);
-		goto out_close;
+		goto out_free;
 	}
 
 	size = get_size_fd(fd);
 
 	if (do_write_check(handle, "header_event", 13))
-		goto out_close;
+		goto out_free;
 	endian8 = convert_endian_8(handle, size);
 	if (do_write_check(handle, &endian8, 8))
-		goto out_close;
+		goto out_free;
 	check_size = copy_file_fd(handle, fd, 0);
 	close(fd);
 	if (size != check_size) {
 		tracecmd_warning("wrong size for '%s'", path);
-		goto out_close;
+		goto out_free;
 	}
 	put_tracing_file(path);
 	if (out_compression_end(handle, compress))
@@ -724,6 +726,8 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 
 	return 0;
 
+ out_free:
+	put_tracing_file(path);
  out_close:
 	out_compression_reset(handle, compress);
 	if (fd >= 0)
