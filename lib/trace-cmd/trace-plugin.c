@@ -126,13 +126,13 @@ load_plugin(struct trace_plugin_context *trace, const char *path,
 	if (!func) {
 		tracecmd_warning("could not find func '%s' in plugin '%s'\n%s",
 				 TRACECMD_PLUGIN_LOADER_NAME, plugin, dlerror());
-		goto out_free;
+		goto out_close;
 	}
 
 	list = malloc(sizeof(*list));
 	if (!list) {
 		tracecmd_warning("could not allocate plugin memory");
-		goto out_free;
+		goto out_close;
 	}
 
 	list->next = *plugin_list;
@@ -144,6 +144,8 @@ load_plugin(struct trace_plugin_context *trace, const char *path,
 	func(trace);
 	return;
 
+ out_close:
+	dlclose(handle);
  out_free:
 	free(plugin);
 }
