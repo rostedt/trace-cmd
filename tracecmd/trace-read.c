@@ -482,7 +482,7 @@ static char *append_pid_filter(char *curr_filter, char *pid)
 	if (!curr_filter) {
 		filter = malloc(len);
 		if (!filter)
-			die("Failed to allocate for filter %s", curr_filter);
+			die("Failed to allocate pid filter");
 		sprintf(filter, ".*:" FILTER_FMT, pid, pid, pid);
 	} else {
 		curr_len = strlen(curr_filter);
