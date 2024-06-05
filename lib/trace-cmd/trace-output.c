@@ -1213,8 +1213,10 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
 	offset = out_write_section_header(handle, TRACECMD_OPTION_PRINTK, "printk", flags, true);
-	if (offset == (off_t)-1)
+	if (offset == (off_t)-1) {
+		put_tracing_file(path);
 		return -1;
+	}
 
 	out_compression_start(handle, compress);
 	ret = stat(path, &st);
