@@ -559,7 +559,7 @@ static char *get_temp_file(struct buffer_instance *instance, int cpu)
 		size = snprintf(file, 0, "%s.cpu%d", output_file, cpu);
 		file = malloc(size + 1);
 		if (!file)
-			die("Failed to allocate temp file for %s", name);
+			die("Failed to allocate temp file");
 		sprintf(file, "%s.cpu%d", output_file, cpu);
 	}
 
