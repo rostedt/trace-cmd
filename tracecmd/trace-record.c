@@ -2878,6 +2878,7 @@ static void update_pid_filters(struct buffer_instance *instance)
 	} while (ret >= 0 && len);
 
  out:
+	free(filter);
 	close(fd);
 }
 
