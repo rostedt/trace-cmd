@@ -1123,7 +1123,7 @@ static void set_proc_kptr_restrict(int reset)
 	if (write(fd, &buf, 1) > 0)
 		ret = 0;
 err:
-	if (fd > 0)
+	if (fd >= 0)
 		close(fd);
 	if (ret)
 		tracecmd_warning("can't set kptr_restrict");
