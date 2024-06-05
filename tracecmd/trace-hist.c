@@ -1043,8 +1043,10 @@ void trace_hist(int argc, char **argv)
 		die("can't open %s\n", input_file);
 
 	ret = tracecmd_read_headers(handle, 0);
-	if (ret)
+	if (ret) {
+		tracecmd_close(handle);
 		return;
+	}
 
 	ret = tracecmd_init_data(handle);
 	if (ret < 0)
