@@ -279,11 +279,11 @@ static void add_plugin_file(struct tep_handle *pevent, const char *path,
 	if (!ptr)
 		goto out_free;
 
+	pdata->files = ptr;
 	ptr[pdata->index] = strdup(name);
 	if (!ptr[pdata->index])
 		goto out_free;
 
-	pdata->files = ptr;
 	pdata->index++;
 	pdata->files[pdata->index] = NULL;
 	return;
