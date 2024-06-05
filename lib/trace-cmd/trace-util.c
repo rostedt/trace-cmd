@@ -453,7 +453,6 @@ void __weak tracecmd_debug(const char *fmt, ...)
 #define LOG_BUF_SIZE 1024
 static void __plog(const char *prefix, const char *fmt, va_list ap, FILE *fp)
 {
-	static int newline = 1;
 	char buf[LOG_BUF_SIZE];
 	int r;
 
@@ -463,11 +462,7 @@ static void __plog(const char *prefix, const char *fmt, va_list ap, FILE *fp)
 		r = LOG_BUF_SIZE;
 
 	if (logfp) {
-		if (newline)
-			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
-		else
-			fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
-		newline = buf[r - 1] == '\n';
+		fprintf(logfp, "[%d]%s%.*s", getpid(), prefix, r, buf);
 		fflush(logfp);
 		return;
 	}
