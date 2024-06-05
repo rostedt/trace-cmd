@@ -1230,12 +1230,12 @@ static int get_pid_addr_maps(struct buffer_instance *instance, int pid)
 				      (maps->nr_lib_maps + 1) * sizeof(*map));
 			if (!map)
 				goto out_fail;
+			maps->lib_maps = map;
 			map[maps->nr_lib_maps].end = end;
 			map[maps->nr_lib_maps].start = begin;
 			map[maps->nr_lib_maps].lib_name = strdup(mapname);
 			if (!map[maps->nr_lib_maps].lib_name)
 				goto out_fail;
-			maps->lib_maps = map;
 			maps->nr_lib_maps++;
 		}
 	}
