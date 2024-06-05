@@ -280,6 +280,7 @@ static int stop_trace_connect(struct tracefs_instance *open_instance)
 
 	tep = tracefs_local_events_system(NULL, systems);
 
+	trace_fields.found_pid = -1;
 	trace_fields.sched_waking = tep_find_event_by_name(tep, "sched", "sched_waking");
 	if (!trace_fields.sched_waking)
 		goto out;
@@ -295,7 +296,6 @@ static int stop_trace_connect(struct tracefs_instance *open_instance)
 	if (!trace_fields.sched_next)
 		goto out;
 
-	trace_fields.found_pid = -1;
 	trace_fields.pids = NULL;
 	add_pid(&trace_fields.pids, getpid());
 	tracefs_iterate_raw_events(tep, open_instance, NULL, 0, callback, &trace_fields);
