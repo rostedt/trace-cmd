@@ -453,9 +453,9 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 				goto out;
 
 			ret = -EIO;
+			t = size;
+			s = 0;
 			do {
-				t = size;
-				s = 0;
 				s = read(fd, option+s, t);
 				if (s <= 0) {
 					free(option);
