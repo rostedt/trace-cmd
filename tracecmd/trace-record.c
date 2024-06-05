@@ -3650,6 +3650,7 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 				    !trace_net_cmp_connection_fd(fd, instance->host)) {
 					dprint("Client does not match '%s' for cpu:%d\n",
 					       instance->host, cpu);
+					close(fd);
 					goto again;
 				}
 			}
