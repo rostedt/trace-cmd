@@ -422,7 +422,7 @@ static int __add_all_instances(const char *tracing_dir)
 	}
 
 	while ((dent = readdir(dir))) {
-		const char *name = strdup(dent->d_name);
+		const char *name = dent->d_name;
 		char *instance_path;
 		struct buffer_instance *instance;
 
