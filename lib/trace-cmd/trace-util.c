@@ -135,23 +135,6 @@ bool tracecmd_get_notimeout(void)
 	return notimeout || debug;
 }
 
-void tracecmd_parse_cmdlines(struct tep_handle *pevent,
-			     char *file, int size __maybe_unused)
-{
-	char *comm;
-	char *line;
-	char *next = NULL;
-	int pid;
-
-	line = strtok_r(file, "\n", &next);
-	while (line) {
-		sscanf(line, "%d %m[^\n]s", &pid, &comm);
-		tep_register_comm(pevent, comm, pid);
-		free(comm);
-		line = strtok_r(NULL, "\n", &next);
-	}
-}
-
 void tracecmd_parse_proc_kallsyms(struct tep_handle *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {
