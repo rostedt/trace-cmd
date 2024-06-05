@@ -714,10 +714,10 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 
 		do {
 			r = read(fd, buf_from + all, rchunk - all);
-			all += r;
-
 			if (r <= 0)
 				break;
+
+			all += r;
 		} while (all != rchunk);
 
 
