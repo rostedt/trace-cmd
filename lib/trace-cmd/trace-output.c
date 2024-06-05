@@ -685,7 +685,6 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 	if (do_write_check(handle, &endian8, 8))
 		goto out_free;
 	check_size = copy_file_fd(handle, fd, 0);
-	close(fd);
 	if (size != check_size) {
 		tracecmd_warning("wrong size for '%s' size=%lld read=%lld", path, size, check_size);
 		errno = EINVAL;
@@ -697,6 +696,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 	if (!path)
 		goto out_close;
 
+	close(fd);
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		tracecmd_warning("can't read '%s'", path);
