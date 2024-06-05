@@ -290,7 +290,7 @@ int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const cha
 		goto error;
 	plist->names = calloc(count, sizeof(char *));
 	if (!plist->names)
-		return -1;
+		goto error;
 
 	for (i = 0, proto = tsync_proto_list; proto && i < (count - 1); proto = proto->next) {
 		if (!(proto->roles & role))
