@@ -1247,7 +1247,6 @@ static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
 	unsigned int nr_args;
 	char *p, *buf_end;
 	char **args = NULL;
-	char *vagrs = NULL;
 	int ret;
 	int i;
 
@@ -1266,15 +1265,8 @@ static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
 		goto out;
 	}
 
-	vagrs = calloc(length, sizeof(char));
-	if (!vagrs) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(vagrs, buf, length);
-	buf_end = vagrs + length;
-	for (i = 0, p = vagrs; i < nr_args; i++, p++) {
+	buf_end = buf + length;
+	for (i = 0, p = buf; i < nr_args; i++, p++) {
 		if (p >= buf_end) {
 			ret = -EINVAL;
 			goto out;
@@ -1289,7 +1281,6 @@ static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
 
 out:
 	free(args);
-	free(vagrs);
 	return ret;
 
 }
