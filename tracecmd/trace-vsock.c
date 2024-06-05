@@ -43,12 +43,16 @@ int __hidden trace_vsock_make(unsigned int port)
 	setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
 	if (bind(sd, (struct sockaddr *)&addr, sizeof(addr)))
-		return -errno;
+		goto error;
 
 	if (listen(sd, SOMAXCONN))
-		return -errno;
+		goto error;
 
 	return sd;
+
+error:
+	close(sd);
+	return -errno;
 }
 
 int __hidden trace_vsock_make_any(void)
