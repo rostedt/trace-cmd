@@ -868,8 +868,10 @@ static void glob_events(struct tracecmd_output *handle,
 
 	path = malloc(events_len + strlen(str) +
 		      strlen("/format") + 2);
-	if (!path)
+	if (!path) {
+		put_tracing_file(events_path);
 		return;
+	}
 	path[0] = '\0';
 	strcat(path, events_path);
 	strcat(path, "/");
