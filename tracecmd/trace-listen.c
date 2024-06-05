@@ -457,8 +457,10 @@ static int communicate_with_client(struct tracecmd_msg_handle *msg_handle)
 				t = size;
 				s = 0;
 				s = read(fd, option+s, t);
-				if (s <= 0)
+				if (s <= 0) {
+					free(option);
 					goto out;
+				}
 				t -= s;
 				s = size - t;
 			} while (t);
