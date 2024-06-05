@@ -666,6 +666,7 @@ static int regex_event_buf(const char *file, int size, regex_t *epreg)
 	line = strtok(buf, "\n");
 	if (!line) {
 		tracecmd_warning("No newline found in '%s'", buf);
+		free(buf);
 		return 0;
 	}
 	/* skip name if it is there */
