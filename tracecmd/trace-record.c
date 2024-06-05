@@ -2506,6 +2506,7 @@ static void clear_func_filter(const char *file)
 		filter[len+1] = '\0';
 		write_file(file, filter);
 	}
+	free(buf);
 }
 
 static void update_reset_triggers(void)
