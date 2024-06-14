@@ -3415,6 +3415,8 @@ static int connect_addr(struct addrinfo *results)
 			     rp->ai_protocol);
 		if (sfd == -1)
 			continue;
+
+		set_tcp_no_delay(sfd, rp->ai_socktype);
 		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;
 		close(sfd);

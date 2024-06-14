@@ -11,6 +11,8 @@
 #include <ctype.h>	/* for isdigit() */
 #include <errno.h>
 #include <limits.h>
+#include <netinet/tcp.h>
+#include <netinet/in.h>
 
 #include "trace-cmd-private.h"
 #include "event-utils.h"
@@ -469,5 +471,13 @@ bool trace_tsc2nsec_is_supported(void);
 void make_pid_name(char *buf, const char *pidfile_basename);
 void remove_pid_file(const char *pidfile_basename);
 void make_pid_file(const char *pidfile_basename);
+
+static inline void set_tcp_no_delay(int sockfd, int socktype)
+{
+	int flag = 1;
+
+	if (socktype == SOCK_STREAM)
+		setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+}
 
 #endif /* __TRACE_LOCAL_H */

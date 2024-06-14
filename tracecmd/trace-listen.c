@@ -268,6 +268,7 @@ int trace_net_make(int port, enum port_type type)
 		if (sd < 0)
 			continue;
 
+		set_tcp_no_delay(sd, rp->ai_socktype);
 		if (bind(sd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;
 
@@ -1048,6 +1049,7 @@ static int get_network(char *port)
 		if (sfd < 0)
 			continue;
 
+		set_tcp_no_delay(sfd, rp->ai_socktype);
 		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;
 
