@@ -214,7 +214,7 @@ static int python_callback(struct trace_seq *s,
 		SWIG_NewPointerObj(SWIG_as_voidptr(event),
 				   SWIGTYPE_p_tep_event, 0));
 
-	result = PyEval_CallObject(context, arglist);
+	result = PyObject_CallObject(context, arglist);
 	Py_XDECREF(arglist);
 	if (result && result != Py_None) {
 		if (!PyInt_Check(result)) {
