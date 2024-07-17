@@ -27,12 +27,33 @@ struct tep_plugin_option trace_ftrace_options[] = {
 		"Show the depth of each entry",
 	},
 	{
+		.name = "retval-skip",
+		.plugin_alias = "fgraph",
+		.description =
+		"Skip printing function retval in function graph",
+	},
+	{
+		.name = "retval-dec",
+		.plugin_alias = "fgraph",
+		.description =
+		"Print function retval in decimal at function exit in function graph",
+	},
+	{
+		.name = "retval-hex",
+		.plugin_alias = "fgraph",
+		.description =
+		"Print function retval in hex at function exit in function graph",
+	},
+	{
 		.name = NULL,
 	}
 };
 
 static struct tep_plugin_option *fgraph_tail = &trace_ftrace_options[0];
 static struct tep_plugin_option *fgraph_depth = &trace_ftrace_options[1];
+static struct tep_plugin_option *fgraph_retval_skip = &trace_ftrace_options[2];
+static struct tep_plugin_option *fgraph_retval_dec = &trace_ftrace_options[3];
+static struct tep_plugin_option *fgraph_retval_hex = &trace_ftrace_options[4];
 
 static int find_ret_event(struct tracecmd_ftrace *finfo, struct tep_handle *pevent)
 {
@@ -235,11 +256,18 @@ print_graph_entry_leaf(struct trace_seq *s,
 		ret = trace_seq_printf(s, " (%lld)", depth);
 
 	/* Return Value */
-	if (ret && fgraph_retval_supported) {
-		if (!IS_LINUX_ERR_VALUE(retval))
-			ret = trace_seq_printf(s, " (ret=0x%llx)", retval);
-		else
+	if (ret && fgraph_retval_supported && !fgraph_retval_skip->set) {
+		if (fgraph_retval_dec->set) {
 			ret = trace_seq_printf(s, " (ret=%lld)", retval);
+		} else if (fgraph_retval_hex->set) {
+			ret = trace_seq_printf(s, " (ret=0x%llx)", retval);
+		} else {
+			/* Error codes are in decimal; others are in hex */
+			if (!IS_LINUX_ERR_VALUE(retval))
+				ret = trace_seq_printf(s, " (ret=0x%llx)", retval);
+			else
+				ret = trace_seq_printf(s, " (ret=%lld)", retval);
+		}
 	}
 
 	return ret;
@@ -385,11 +413,18 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 		trace_seq_printf(s, " (%lld)", depth);
 
 	/* Return Value */
-	if (fgraph_retval_supported) {
-		if (!IS_LINUX_ERR_VALUE(retval))
-			trace_seq_printf(s, " (ret=0x%llx)", retval);
-		else
+	if (fgraph_retval_supported && !fgraph_retval_skip->set) {
+		if (fgraph_retval_dec->set) {
 			trace_seq_printf(s, " (ret=%lld)", retval);
+		} else if (fgraph_retval_hex->set) {
+			trace_seq_printf(s, " (ret=0x%llx)", retval);
+		} else {
+			/* Error codes are in decimal; others are in hex */
+			if (!IS_LINUX_ERR_VALUE(retval))
+				trace_seq_printf(s, " (ret=0x%llx)", retval);
+			else
+				trace_seq_printf(s, " (ret=%lld)", retval);
+		}
 	}
 
 	return 0;
