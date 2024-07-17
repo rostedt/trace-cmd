@@ -10,6 +10,9 @@
 
 #include "trace-cmd-private.h"
 
+#define MAX_LINUX_ERRNO   4095
+#define IS_LINUX_ERR_VALUE(x) ((unsigned long long)(void *)(x) >= (unsigned long long)-MAX_LINUX_ERRNO)
+
 struct tep_plugin_option trace_ftrace_options[] = {
 	{
 		.name = "tailprint",
@@ -185,6 +188,8 @@ print_graph_entry_leaf(struct trace_seq *s,
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
 	unsigned long long val;
+	unsigned long long retval;
+	bool fgraph_retval_supported = true;
 	const char *func;
 	int ret;
 	int i;
@@ -194,6 +199,13 @@ print_graph_entry_leaf(struct trace_seq *s,
 
 	if (tep_get_field_val(s, finfo->fgraph_ret_event, "calltime", ret_rec, &calltime, 1))
 		return trace_seq_putc(s, '!');
+
+	if (!tep_find_field(finfo->fgraph_ret_event, "retval")) {
+		fgraph_retval_supported = false;
+	} else {
+		if (tep_get_field_val(s, finfo->fgraph_ret_event, "retval", ret_rec, &retval, 1))
+			return trace_seq_putc(s, '!');
+	}
 
 	duration = rettime - calltime;
 
@@ -221,6 +233,14 @@ print_graph_entry_leaf(struct trace_seq *s,
 
 	if (ret && fgraph_depth->set)
 		ret = trace_seq_printf(s, " (%lld)", depth);
+
+	/* Return Value */
+	if (ret && fgraph_retval_supported) {
+		if (!IS_LINUX_ERR_VALUE(retval))
+			ret = trace_seq_printf(s, " (ret=0x%llx)", retval);
+		else
+			ret = trace_seq_printf(s, " (ret=%lld)", retval);
+	}
 
 	return ret;
 }
@@ -316,6 +336,8 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 	unsigned long long duration, depth;
 	unsigned long long val;
 	const char *func;
+	unsigned long long retval;
+	bool fgraph_retval_supported = true;
 	int i;
 
 	ret_event_check(finfo, event->tep);
@@ -325,6 +347,13 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 
 	if (tep_get_field_val(s, event, "calltime", record, &calltime, 1))
 		return trace_seq_putc(s, '!');
+
+	if (!tep_find_field(event, "retval")) {
+		fgraph_retval_supported = false;
+	} else {
+		if (tep_get_field_val(s, event, "retval", record, &retval, 1))
+			return trace_seq_putc(s, '!');
+	}
 
 	duration = rettime - calltime;
 
@@ -354,6 +383,14 @@ fgraph_ret_handler(struct trace_seq *s, struct tep_record *record,
 
 	if (fgraph_depth->set)
 		trace_seq_printf(s, " (%lld)", depth);
+
+	/* Return Value */
+	if (fgraph_retval_supported) {
+		if (!IS_LINUX_ERR_VALUE(retval))
+			trace_seq_printf(s, " (ret=0x%llx)", retval);
+		else
+			trace_seq_printf(s, " (ret=%lld)", retval);
+	}
 
 	return 0;
 }
