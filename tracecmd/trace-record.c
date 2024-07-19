@@ -6745,7 +6745,8 @@ static void parse_record_options(int argc,
 			ctx->instance = allocate_instance(optarg);
 			if (!ctx->instance)
 				die("Failed to create instance");
-			ctx->instance->delete = negative;
+			if (IS_CMDSET(ctx))
+				ctx->instance->delete = negative;
 			negative = 0;
 			if (ctx->instance->delete) {
 				ctx->instance->next = del_list;
