@@ -22,13 +22,14 @@ if have_python_support
             swig,
             '-python',
             '-I' + meson.current_source_dir() + '/../include/trace-cmd',
+            '-I' + meson.current_source_dir() + '/../lib/trace-cmd/include/private',
             '-I' + libtraceevent_dep.get_pkgconfig_variable('prefix') + '/include/traceevent',
             '-o', '@OUTPUT1@',
             '@INPUT0@'],
         install: true,
         install_dir: [ python3.get_install_dir(pure: false, subdir: 'trace-cmd'), false])
 
-    incdir_py = include_directories(['.', '../include/trace-cmd'])
+    incdir_py = include_directories(['.', '../include/trace-cmd', '../lib/trace-cmd/include/private'])
 
     pyctracecmd_clib = python3.extension_module(
         '_ctracecmd',
