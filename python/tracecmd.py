@@ -88,7 +88,7 @@ class Event(object, DictMixin):
 
     @cached_property
     def name(self):
-        return event_format_name_get(self._format)
+        return tep_event_name_get(self._format)
 
     @cached_property
     def pid(self):
