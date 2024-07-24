@@ -527,7 +527,7 @@ install_doc:
 check_doc: force
 	$(Q)$(src)/check-manpages.sh $(src)/Documentation/libtracecmd
 
-clean:
+clean: clean_meson
 	$(RM) *.o *~ *.a *.so .*.d
 	$(RM) tags TAGS cscope* $(PKG_CONFIG_SOURCE_FILE) $(VERSION_FILE)
 	$(MAKE) -C $(src)/lib/trace-cmd clean
@@ -598,6 +598,18 @@ ctracecmd.so: force $(LIBTRACECMD_STATIC)
 PHONY += python
 python: $(PYTHON)
 
+meson:
+	$(MAKE) -f Makefile.meson
+
+meson_install:
+	$(MAKE) -f Makefile.meson install
+
+meson_docs:
+	$(MAKE) -f Makefile.meson docs
+
+PHONY += clean_meson
+clean_meson:
+	$(Q)$(MAKE) -f Makefile.meson $@
 
 dist:
 	git archive --format=tar --prefix=trace-cmd-$(TRACECMD_VERSION)/ HEAD \
