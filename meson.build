@@ -6,7 +6,7 @@ project(
     'trace-cmd', ['c'],
     meson_version: '>= 0.50.0',
     license: 'GPL-2.0',
-    version: '3.2.0',
+    version: '3.3.0',
     default_options: [
         'c_std=gnu99',
         'buildtype=debug',
