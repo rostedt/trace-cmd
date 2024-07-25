@@ -104,13 +104,6 @@ if get_option('docbook-suppress-sp')
     xmlto_extra += ['-m ',  confdir + 'manpage-suppress-sp.xsl']
 endif
 
-check_doc = custom_target(
-    'check-doc',
-    output: 'dummy',
-    command : [
-        top_source_dir + 'check-manpages.sh',
-        meson.current_source_dir()])
-
 gen = generator(
     asciidoc,
     output: '@BASENAME@.xml',
@@ -131,7 +124,6 @@ foreach txt, section : sources
         txt.underscorify() + '_man',
         input: xml,
         output: '@BASENAME@.' + section,
-        depends: check_doc,
         command: [
             xmlto,
             '-m', manpage_xsl,
@@ -145,7 +137,6 @@ foreach txt, section : sources
         txt.underscorify() + '_html',
         input: txt,
         output: '@BASENAME@.html',
-        depends: check_doc,
         command: [
             asciidoc,
             '-b', asciidoc_html,
