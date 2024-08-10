@@ -2742,10 +2742,10 @@ void tracecmd_disable_all_tracing(int disable_tracer)
 
 	tracecmd_disable_tracing();
 
-	if (disable_tracer) {
-		disable_func_stack_trace();
+	disable_func_stack_trace();
+
+	if (disable_tracer)
 		set_plugin("nop");
-	}
 
 	reset_events();
 
