@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <stdlib.h>
+#include <libgen.h>
 
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
