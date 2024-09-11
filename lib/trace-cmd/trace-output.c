@@ -2683,7 +2683,7 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 
 			if (read_size != data_files[i].file_size) {
 				errno = EINVAL;
-				tracecmd_warning("did not match size of %lld to %lld",
+				tracecmd_warning("did not match size of %llu to %llu",
 						 read_size, data_files[i].file_size);
 				goto out_free;
 			}
