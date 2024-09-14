@@ -179,8 +179,8 @@ struct tracecmd_ftrace {
 };
 
 struct tracecmd_proc_addr_map {
-	unsigned long long	start;
-	unsigned long long	end;
+	size_t			start;
+	size_t			end;
 	char			*lib_name;
 };
 
@@ -252,7 +252,7 @@ tracecmd_set_all_cpus_to_timestamp(struct tracecmd_input *handle,
 				   unsigned long long time);
 
 int tracecmd_set_cursor(struct tracecmd_input *handle,
-			int cpu, unsigned long long offset);
+			int cpu, size_t offset);
 unsigned long long
 tracecmd_get_cursor(struct tracecmd_input *handle, int cpu);
 
@@ -339,7 +339,7 @@ int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
 				    const char *name, int cpus, char * const *cpu_data_files);
 struct tracecmd_output *tracecmd_get_output_handle_fd(int fd);
 unsigned long tracecmd_get_out_file_version(struct tracecmd_output *handle);
-unsigned long long tracecmd_get_out_file_offset(struct tracecmd_output *handle);
+size_t tracecmd_get_out_file_offset(struct tracecmd_output *handle);
 
 /* --- Reading the Fly Recorder Trace --- */
 
@@ -550,10 +550,10 @@ void tracecmd_compress_destroy(struct tracecmd_compression *handle);
 int tracecmd_compress_block(struct tracecmd_compression *handle);
 int tracecmd_uncompress_block(struct tracecmd_compression *handle);
 void tracecmd_compress_reset(struct tracecmd_compression *handle);
-int tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst, int len);
-int tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, int len, off_t offset);
+ssize_t tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst, size_t len);
+ssize_t tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, size_t len, off_t offset);
 int tracecmd_compress_buffer_write(struct tracecmd_compression *handle,
-				   const void *data, unsigned long long size);
+				   const void *data, size_t size);
 off_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off_t offset, int whence);
 int tracecmd_compress_proto_get_name(struct tracecmd_compression *compress,
 				     const char **name, const char **version);
@@ -561,9 +561,9 @@ bool tracecmd_compress_is_supported(const char *name, const char *version);
 int tracecmd_compress_protos_get(char ***names, char ***versions);
 int tracecmd_compress_proto_register(struct tracecmd_compression_proto *proto);
 int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int chunk_size,
-				unsigned long long *read_size, unsigned long long *write_size);
+				size_t *read_size, size_t *write_size);
 int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,
-				unsigned long long *read_size, unsigned long long *write_size);
+				size_t *read_size, size_t *write_size);
 int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
 			      struct tracecmd_compress_chunk *chunk, char *data);
 int tracecmd_load_chunks_info(struct tracecmd_compression *handle,

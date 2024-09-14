@@ -30,9 +30,9 @@ static struct compress_proto *proto_list;
 
 struct tracecmd_compression {
 	int				fd;
-	unsigned int			capacity;
-	unsigned int			capacity_read;
-	unsigned int			pointer;
+	size_t				capacity;
+	size_t				capacity_read;
+	size_t				pointer;
 	char				*buffer;
 	struct compress_proto		*proto;
 	struct tep_handle		*tep;
@@ -40,10 +40,10 @@ struct tracecmd_compression {
 	void				*context;
 };
 
-static int read_fd(int fd, char *dst, int len)
+static ssize_t read_fd(int fd, char *dst, int len)
 {
 	size_t size = 0;
-	int r;
+	ssize_t r;
 
 	do {
 		r = read(fd, dst+size, len);
@@ -59,10 +59,10 @@ static int read_fd(int fd, char *dst, int len)
 	return size;
 }
 
-static long long write_fd(int fd, const void *data, size_t size)
+static ssize_t  write_fd(int fd, const void *data, size_t size)
 {
-	long long tot = 0;
-	long long w;
+	ssize_t  tot = 0;
+	ssize_t  w;
 
 	do {
 		w = write(fd, data + tot, size - tot);
@@ -77,8 +77,8 @@ static long long write_fd(int fd, const void *data, size_t size)
 	return tot;
 }
 
-static long long do_write(struct tracecmd_compression *handle,
-			  const void *data, unsigned long long size)
+static ssize_t  do_write(struct tracecmd_compression *handle,
+			  const void *data, size_t size)
 {
 	int ret;
 
@@ -91,9 +91,9 @@ static long long do_write(struct tracecmd_compression *handle,
 	return write_fd(handle->fd, data, size);
 }
 
-static inline int buffer_extend(struct tracecmd_compression *handle, unsigned int size)
+static inline int buffer_extend(struct tracecmd_compression *handle, size_t size)
 {
-	int extend;
+	ssize_t  extend;
 	char *buf;
 
 	if (size <= handle->capacity)
@@ -146,7 +146,7 @@ off_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off_t offset,
 	return p;
 }
 
-static int compress_read(struct tracecmd_compression *handle, char *dst, int len)
+static ssize_t compress_read(struct tracecmd_compression *handle, char *dst, size_t len)
 {
 
 	if (handle->pointer > handle->capacity_read)
@@ -172,9 +172,9 @@ static int compress_read(struct tracecmd_compression *handle, char *dst, int len
  *
  * On success returns the number of bytes read, or -1 on failure.
  */
-int tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, int len, off_t offset)
+ssize_t tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, size_t len, off_t offset)
 {
-	int ret;
+	ssize_t ret;
 
 	if (!handle || !handle->buffer || offset > handle->capacity_read)
 		return -1;
@@ -195,9 +195,9 @@ int tracecmd_compress_pread(struct tracecmd_compression *handle, char *dst, int 
  *
  * On success returns the number of bytes read, or -1 on failure.
  */
-int tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst, int len)
+ssize_t tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst, size_t len)
 {
-	int ret;
+	ssize_t ret;
 
 	if (!handle || !handle->buffer)
 		return -1;
@@ -363,7 +363,7 @@ out:
  * Returns 0 on success, or -1 on failure.
  */
 int tracecmd_compress_buffer_write(struct tracecmd_compression *handle,
-				   const void *data, unsigned long long size)
+				   const void *data, size_t size)
 {
 	if (!handle)
 		return -1;
@@ -667,16 +667,16 @@ error:
  * read and written data.
  */
 int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int chunk_size,
-				unsigned long long *read_size, unsigned long long *write_size)
+				size_t *read_size, size_t *write_size)
 {
-	unsigned int rchunk = 0;
-	unsigned int chunks = 0;
-	unsigned int rsize = 0;
-	unsigned int rmax = 0;
-	unsigned int csize;
-	unsigned int size;
-	unsigned int all;
-	unsigned int r;
+	size_t rchunk = 0;
+	size_t chunks = 0;
+	size_t rsize = 0;
+	size_t rmax = 0;
+	size_t csize;
+	size_t size;
+	size_t all;
+	size_t r;
 	off_t end_offset;
 	off_t offset;
 	char *buf_from;
@@ -795,7 +795,7 @@ int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 			      struct tracecmd_compress_chunk **chunks_info)
 {
 	struct tracecmd_compress_chunk *chunks = NULL;
-	unsigned long long size = 0;
+	size_t size = 0;
 	unsigned int count = 0;
 	off_t offset;
 	int ret = -1;
@@ -913,12 +913,12 @@ out:
  * the size of read and written data.
  */
 int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,
-				unsigned long long *read_size, unsigned long long *write_size)
+				size_t *read_size, size_t *write_size)
 {
-	unsigned int s_uncompressed;
-	unsigned int s_compressed;
-	unsigned int rsize = 0;
-	unsigned int wsize = 0;
+	size_t s_uncompressed;
+	size_t s_compressed;
+	size_t rsize = 0;
+	size_t wsize = 0;
 	char *bytes_out = NULL;
 	char *bytes_in = NULL;
 	int size_out = 0;

@@ -391,9 +391,9 @@ __hidden unsigned long long out_copy_fd_compress(struct tracecmd_output *handle,
 						 unsigned long long *write_size,
 						 int page)
 {
-	unsigned long long rsize = 0;
-	unsigned long long wsize = 0;
-	unsigned long long size;
+	size_t rsize = 0;
+	size_t wsize = 0;
+	size_t size;
 	int ret;
 
 	if (handle->compress) {
@@ -3019,7 +3019,7 @@ unsigned long tracecmd_get_out_file_version(struct tracecmd_output *handle)
 	return handle->file_version;
 }
 
-unsigned long long tracecmd_get_out_file_offset(struct tracecmd_output *handle)
+size_t tracecmd_get_out_file_offset(struct tracecmd_output *handle)
 {
 	return do_lseek(handle, 0, SEEK_CUR);
 }

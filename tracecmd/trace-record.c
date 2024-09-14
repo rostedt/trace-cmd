@@ -4407,7 +4407,7 @@ add_pid_maps(struct tracecmd_output *handle, struct buffer_instance *instance)
 		trace_seq_printf(&s, "%x %x %s\n",
 				 maps->pid, maps->nr_lib_maps, maps->proc_name);
 		for (i = 0; i < maps->nr_lib_maps; i++)
-			trace_seq_printf(&s, "%llx %llx %s\n",
+			trace_seq_printf(&s, "%zx %zx %s\n",
 					maps->lib_maps[i].start,
 					maps->lib_maps[i].end,
 					maps->lib_maps[i].lib_name);

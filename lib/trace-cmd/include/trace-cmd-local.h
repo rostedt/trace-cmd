@@ -93,7 +93,7 @@ out_add_buffer_option(struct tracecmd_output *handle, const char *name,
 
 struct cpu_data_source {
 	int fd;
-	int size;
+	ssize_t size;
 	off_t offset;
 };
 

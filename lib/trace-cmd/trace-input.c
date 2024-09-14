@@ -2342,8 +2342,7 @@ tracecmd_set_all_cpus_to_timestamp(struct tracecmd_input *handle,
  *  Now the next tracecmd_peek_data or tracecmd_read_data will return
  *  the original record.
  */
-int tracecmd_set_cursor(struct tracecmd_input *handle,
-			int cpu, unsigned long long offset)
+int tracecmd_set_cursor(struct tracecmd_input *handle, int cpu, size_t offset)
 {
 	struct cpu_data *cpu_data = &handle->cpu_data[cpu];
 	unsigned long long page_offset;
@@ -3304,8 +3303,8 @@ tracecmd_read_prev(struct tracecmd_input *handle, struct tep_record *record)
 static int init_cpu_zfile(struct tracecmd_input *handle, int cpu)
 {
 	struct cpu_data *cpu_data;
-	unsigned long long size;
 	off_t offset;
+	size_t size;
 
 	cpu_data = &handle->cpu_data[cpu];
 	offset = lseek(handle->fd, 0, SEEK_CUR);
@@ -3740,7 +3739,7 @@ static int trace_pid_map_load(struct tracecmd_input *handle, char *buf)
 		*line = '\0';
 		if (strlen(buf) > STR_PROCMAP_LINE_MAX)
 			break;
-		res = sscanf(buf, "%llx %llx %s", &maps->lib_maps[i].start,
+		res = sscanf(buf, "%zx %zx %s", &maps->lib_maps[i].start,
 			     &maps->lib_maps[i].end, mapname);
 		if (res != 3)
 			break;
@@ -4353,7 +4352,7 @@ static int init_cpu_data(struct tracecmd_input *handle)
 
 int init_latency_data(struct tracecmd_input *handle)
 {
-	unsigned long long wsize;
+	size_t wsize;
 	int ret;
 
 	if (!handle->cpu_compressed)
