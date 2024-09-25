@@ -15,7 +15,7 @@
 #include "trace-hash-local.h"
 #include "trace-local.h"
 #include "list.h"
-
+void warning(const char *fmt, ...); 
 static int sched_wakeup_type;
 static int sched_wakeup_new_type;
 static int sched_switch_type;

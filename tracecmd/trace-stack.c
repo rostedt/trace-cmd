@@ -19,7 +19,7 @@
 #include "trace-local.h"
 
 #define PROC_FILE "/proc/sys/kernel/stack_tracer_enabled"
-
+void warning(const char *fmt, ...); 
 enum stack_type {
 	STACK_START,
 	STACK_STOP,
