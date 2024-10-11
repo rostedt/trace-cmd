@@ -25,6 +25,7 @@ enum {
 	OPT_tracing_on,
 	OPT_hist,
 	OPT_trigger,
+	OPT_max_latency,
 };
 
 void trace_show(int argc, char **argv)
@@ -58,6 +59,7 @@ void trace_show(int argc, char **argv)
 		{"graph_function", no_argument, NULL, OPT_graph_function},
 		{"graph_notrace", no_argument, NULL, OPT_graph_notrace},
 		{"cpumask", no_argument, NULL, OPT_cpumask},
+		{"max_latency", no_argument, NULL, OPT_max_latency},
 		{"help", no_argument, NULL, '?'},
 		{NULL, 0, NULL, 0}
 	};
@@ -149,6 +151,10 @@ void trace_show(int argc, char **argv)
 			break;
 		case OPT_cpumask:
 			show_instance_file(instance, "tracing_cpumask");
+			stop = 1;
+			break;
+		case OPT_max_latency:
+			show_instance_file(instance, "tracing_max_latency");
 			stop = 1;
 			break;
 		default:

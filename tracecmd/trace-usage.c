@@ -189,6 +189,7 @@ static struct usage_help usage_help[] = {
 		"          --graph_function (for set_graph_function)\n"
 		"          --graph_notrace (for set_graph_notrace)\n"
 		"          --cpumask (for tracing_cpumask)\n"
+		"          --max_latency (for tracing_max_latency)\n"
 	},
 	{
 		"reset",
