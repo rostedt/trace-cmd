@@ -484,31 +484,20 @@ static void show_functions(const char *funcre)
 
 static void show_buffers(void)
 {
-	struct dirent *dent;
-	DIR *dir;
-	char *path;
-	int printed = 0;
+	char **list;
+	int i;
 
-	path = tracefs_get_tracing_file("instances");
-	dir = opendir(path);
-	tracefs_put_tracing_file(path);
-	if (!dir)
+	list = tracefs_instances(NULL);
+	if (!list)
 		die("Can not read instance directory");
 
-	while ((dent = readdir(dir))) {
-		const char *name = dent->d_name;
+	for (i = 0; list[i]; i++)
+		printf("%s\n", list[i]);
 
-		if (strcmp(name, ".") == 0 ||
-		    strcmp(name, "..") == 0)
-			continue;
-
-		printf("%s\n", name);
-		printed = 1;
-	}
-	closedir(dir);
-
-	if (!printed)
+	if (!i)
 		printf("No buffer instances defined\n");
+
+	tracefs_list_free(list);
 }
 
 
