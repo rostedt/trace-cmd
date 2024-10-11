@@ -236,16 +236,6 @@ static void process_events(process_file_func func, const char *re, int flags)
 		regfree(&event_reg);
 }
 
-static int show_file_write(char *buf, int len, int flags)
-{
-	return fwrite(buf, 1, len, stdout);
-}
-
-static void show_file_re(const char *name, const char *re)
-{
-	process_file_re(show_file_write, name, re, 0);
-}
-
 static char *get_event_file(const char *type, char *buf, int len)
 {
 	char *system;
@@ -476,10 +466,19 @@ static void show_clocks(void)
 
 static void show_functions(const char *funcre)
 {
-	if (funcre)
-		show_file_re("available_filter_functions", funcre);
-	else
+	char **list;
+	int i;
+
+	if (!funcre) {
 		show_file("available_filter_functions");
+		return;
+	}
+
+	if (tracefs_filter_functions(funcre, NULL, &list) < 0)
+		die("Failed to read filte functions");
+	for (i = 0; list[i]; i++)
+		printf("%s\n", list[i]);
+	tracefs_list_free(list);
 }
 
 
