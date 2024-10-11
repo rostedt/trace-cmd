@@ -113,23 +113,23 @@ static void report_file(struct buffer_instance *instance,
 	free(str);
 }
 
-static int report_instance(const char *name, void *data)
-{
-	bool *first = (bool *)data;
-
-	if (*first) {
-		*first = false;
-		printf("\nInstances:\n");
-	}
-	printf(" %s\n", name);
-	return 0;
-}
-
 static void report_instances(void)
 {
-	bool first = true;
+	char **list;
+	int i;
 
-	tracefs_instances_walk(report_instance, &first);
+	list = tracefs_instances(NULL);
+
+	if (!list || !list[0])
+		goto out;
+
+	printf("\nInstances:\n");
+
+	for (i = 0; list[i]; i++)
+		printf(" %s\n", list[i]);
+
+ out:
+	tracefs_list_free(list);
 }
 
 struct event_iter *trace_event_iter_alloc(const char *path)
