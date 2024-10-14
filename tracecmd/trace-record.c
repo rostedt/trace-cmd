@@ -6102,6 +6102,9 @@ void trace_reset(int argc, char **argv)
 				instance->flags &= ~BUFFER_FL_KEEP;
 			}
 			break;
+		default:
+			usage(argv);
+			break;
 		}
 	}
 	update_first_instance(instance, topt);
