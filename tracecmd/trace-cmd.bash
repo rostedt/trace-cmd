@@ -215,6 +215,33 @@ __trace_cmd_report_complete()
     esac
 }
 
+dynevent_options()
+{
+    local cur="$1"
+    local opts=("kprobe" "kretprobe" "uprobe" "uretprobe" "eprobe" "synth" "all")
+    COMPREPLY=( $(compgen -W "${opts[*]}" -- "${cur}") )
+}
+
+__trace_cmd_reset_complete()
+{
+    local prev=$1
+    local cur=$2
+    shift 2
+    local words=("$@")
+
+    case "$prev" in
+        -B)
+            show_instances "$cur"
+            ;;
+        -k)
+            dynevent_options "$cur"
+            ;;
+        *)
+            cmd_options reset "$cur"
+            ;;
+    esac
+}
+
 __trace_cmd_dump_complete()
 {
     local prev=$1
@@ -327,6 +354,10 @@ _trace_cmd_complete()
 	    ;;
 	report)
 	    __trace_cmd_report_complete "${prev}" "${cur}" ${words[@]}
+	    return 0
+	    ;;
+	reset)
+	    __trace_cmd_reset_complete "${prev}" "${cur}" "${words[@]}"
 	    return 0
 	    ;;
 	dump)
