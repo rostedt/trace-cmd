@@ -352,6 +352,11 @@ static void test_trace_sqlhist_hist(void)
 	sleep(1);
 	ret = grep_match(SYNTH_EVENT ":", "show", NULL);
 	CU_TEST(ret == 0);
+	/* Ensure synthetic events remain untouched after "trace-cmd reset -k synth". */
+	ret = run_trace("reset", "-k", "synth", NULL);
+	CU_TEST(ret == 0);
+	ret = grep_match(SYNTH_EVENT, "stat", NULL);
+	CU_TEST(ret == 0);
 
 	tracefs_instance_reset(NULL);
 }
@@ -598,6 +603,151 @@ static void test_trace_library_read_back(void)
 	tracecmd_close(handle);
 }
 
+static void test_trace_reset_kprobe(void)
+{
+	int ret;
+
+	/* Create a simple kprobe for do_sys_open */
+	ret = tracefs_instance_file_write(NULL, "kprobe_events", "p do_sys_open");
+	CU_TEST(ret > 0);
+
+	/* Ensure the kprobe is listed in "trace-cmd stat" output. */
+	ret = grep_match("p:kprobes/p_do_sys_open_0 do_sys_open", "stat", NULL);
+	CU_TEST(ret == 0);
+
+	/* Issue "trace-cmd reset", but keep kprobes. */
+	ret = run_trace("reset", "-k", "kprobe", NULL);
+	CU_TEST(ret == 0);
+
+	/* Verify the kprobe's existence after reset. */
+	ret = grep_match("p:kprobes/p_do_sys_open_0 do_sys_open", "stat", NULL);
+	CU_TEST(ret == 0);
+}
+
+static void test_trace_reset_kretprobe(void)
+{
+	int ret;
+
+	/* Create a simple kretprobe for do_sys_open */
+	ret = tracefs_instance_file_write(NULL, "kprobe_events", "r do_sys_open");
+	CU_TEST(ret > 0);
+
+	/* Ensure the kretprobe is listed in "trace-cmd stat" output. */
+	ret = grep_match("r[0-9]*:kprobes/r_do_sys_open_0 do_sys_open", "stat", NULL);
+	CU_TEST(ret == 0);
+
+	/* Issue "trace-cmd reset", but keep kretprobes. */
+	ret = run_trace("reset", "-k", "kretprobe", NULL);
+	CU_TEST(ret == 0);
+
+	/* Verify the kretprobe's existence after reset. */
+	ret = grep_match("r[0-9]*:kprobes/r_do_sys_open_0 do_sys_open", "stat", NULL);
+	CU_TEST(ret == 0);
+}
+
+static void test_trace_reset_uprobe(void)
+{
+	int ret;
+
+	/* Create a simple uprobe for do_sys_open */
+	ret = tracefs_instance_file_write(NULL, "uprobe_events", "p /bin/bash:0x4245c0");
+	CU_TEST(ret > 0);
+
+	/* Ensure the uprobe is listed in "trace-cmd stat" output. */
+	ret = grep_match("p:uprobes/p_bash_0x4245c0 /bin/bash:0x00000000004245c0", "stat", NULL);
+	CU_TEST(ret == 0);
+
+	/* Issue "trace-cmd reset", but keep uprobes. */
+	ret = run_trace("reset", "-k", "uprobe", NULL);
+	CU_TEST(ret == 0);
+
+	/* Verify the uprobe's existence after reset. */
+	ret = grep_match("p:uprobes/p_bash_0x4245c0 /bin/bash:0x00000000004245c0", "stat", NULL);
+	CU_TEST(ret == 0);
+}
+
+static void test_trace_reset_uretprobe(void)
+{
+	int ret;
+
+	/* Create a simple uretprobe for do_sys_open */
+	ret = tracefs_instance_file_write(NULL, "uprobe_events", "r /bin/bash:0x4245c0");
+	CU_TEST(ret > 0);
+
+	/* Ensure the uretprobe is listed in "trace-cmd stat" output. */
+	ret = grep_match("r:uprobes/p_bash_0x4245c0 /bin/bash:0x00000000004245c0", "stat", NULL);
+	CU_TEST(ret == 0);
+
+	/* Issue "trace-cmd reset", but keep uretprobes. */
+	ret = run_trace("reset", "-k", "uretprobe", NULL);
+	CU_TEST(ret == 0);
+
+	/* Verify the uretprobe's existence after reset. */
+	ret = grep_match("r:uprobes/p_bash_0x4245c0 /bin/bash:0x00000000004245c0", "stat", NULL);
+	CU_TEST(ret == 0);
+}
+
+static void test_trace_reset_eprobe(void)
+{
+	int fd;
+	bool matched = false;
+	size_t l = 0;
+	ssize_t n;
+	char *buf = NULL;
+	struct tracefs_dynevent *deprobe;
+	FILE *fp;
+
+	deprobe = tracefs_eprobe_alloc(NULL, "sopen_in", "syscalls", "sys_enter_openat", NULL);
+	CU_TEST(deprobe != NULL);
+
+	CU_TEST(tracefs_dynevent_create(deprobe) == 0);
+
+	/* Issue "trace-cmd reset", but keep eprobes. */
+	CU_TEST(run_trace("reset", "-k", "eprobe", NULL) == 0);
+
+	/* Verify the eprobe's existence after reset. */
+	fd = tracefs_instance_file_open(NULL, "dynamic_events", O_RDONLY);
+	CU_TEST(fd != -1);
+	fp = fdopen(fd, "r");
+	CU_TEST(fp != NULL);
+
+	while ((n = getline(&buf, &l, fp)) != -1) {
+		if (!strcmp(buf, "e:eprobes/sopen_in syscalls.sys_enter_openat\n")) {
+			matched = true;
+			break;
+		}
+	}
+	free(buf);
+
+	fclose(fp);
+
+	CU_TEST(matched == true);
+
+	CU_TEST(tracefs_dynevent_destroy(deprobe, false) == 0);
+
+	tracefs_dynevent_free(deprobe);
+}
+
+static void test_trace_reset(void)
+{
+	char *str;
+
+	test_trace_reset_kprobe();
+	test_trace_reset_kretprobe();
+	test_trace_reset_uprobe();
+	test_trace_reset_uretprobe();
+	test_trace_reset_eprobe();
+
+	/* Destroy all dynamic events. */
+	CU_TEST(run_trace("reset", NULL) == 0);
+
+	/* Paranoia check since "trace-cmd reset" may tell porkies. */
+	str = tracefs_instance_file_read(NULL, "dynamic_events", NULL);
+	CU_TEST(str == NULL);
+	if (str)
+		free(str);
+}
+
 static int test_suite_destroy(void)
 {
 	unlink(TRACECMD_FILE);
@@ -639,7 +789,7 @@ void test_tracecmd_lib(void)
 
 	suite = CU_add_suite(TRACECMD_SUITE, test_suite_init, test_suite_destroy);
 	if (suite == NULL) {
-		fprintf(stderr, "Suite \"%s\" cannot be ceated\n", TRACECMD_SUITE);
+		fprintf(stderr, "Suite \"%s\" cannot be created\n", TRACECMD_SUITE);
 		return;
 	}
 	CU_add_test(suite, "Simple record and report",
@@ -656,4 +806,5 @@ void test_tracecmd_lib(void)
 		    test_trace_library_read_back);
 	CU_add_test(suite, "Test max length",
 		    test_trace_record_max);
+	CU_add_test(suite, "Simple reset", test_trace_reset);
 }
