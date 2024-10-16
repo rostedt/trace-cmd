@@ -29,7 +29,7 @@
 #endif
 
 #define POLL_TIMEOUT_MS		1000
-
+void warning(const char *fmt, ...); 
 struct tracecmd_recorder {
 	struct tracefs_cpu *tcpu;
 	int		fd;
