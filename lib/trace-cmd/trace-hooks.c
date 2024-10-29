@@ -151,6 +151,8 @@ struct hook_list *tracecmd_create_event_hook(const char *arg)
 
 invalid_tok:
 	tracecmd_warning("Invalid hook format '%s'", arg);
+	free(hook->str);
+	free(hook);
 	return NULL;
 }
 
