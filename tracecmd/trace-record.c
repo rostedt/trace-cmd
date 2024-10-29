@@ -3811,7 +3811,7 @@ static void check_protocol_version(struct tracecmd_msg_handle *msg_handle)
 		msg_handle->version = V1_PROTOCOL;
 		tracecmd_plog("Use the v1 protocol\n");
 	} else {
-		if (memcmp(buf, "V3", n) != 0)
+		if (n < 3 || memcmp(buf, "V3", 3) != 0)
 			die("Cannot handle the protocol %s", buf);
 		/* OK, let's use v3 protocol */
 		write(fd, V3_MAGIC, sizeof(V3_MAGIC));
