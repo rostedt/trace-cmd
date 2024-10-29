@@ -2070,6 +2070,8 @@ __hidden void *trace_get_options(struct tracecmd_output *handle, size_t *len)
 	}
 
 	offset = do_lseek(&out_handle, 0, SEEK_CUR);
+	if (offset == (off_t)-1)
+		goto out;
 	buf = malloc(offset);
 	if (!buf)
 		goto out;
