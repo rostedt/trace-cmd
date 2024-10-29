@@ -2852,7 +2852,7 @@ static void update_pid_filters(struct buffer_instance *instance)
 	if (fd < 0)
 		die("Failed to access set_event_pid");
 
-	len = instance->len_filter_pids + instance->nr_filter_pids;
+	len = instance->len_filter_pids + instance->nr_filter_pids + 1;
 	filter = malloc(len);
 	if (!filter)
 		die("Failed to allocate pid filter");
