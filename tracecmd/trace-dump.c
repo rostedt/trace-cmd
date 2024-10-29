@@ -961,7 +961,7 @@ static void dump_clock(int fd)
 	}
 	if (read_file_number(fd, &size, 8))
 		die("cannot read clock size");
-	clock = calloc(1, size);
+	clock = calloc(1, size + 1);
 	if (!clock)
 		die("cannot allocate clock %lld bytes", size);
 
