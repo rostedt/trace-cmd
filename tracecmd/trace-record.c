@@ -3904,6 +3904,7 @@ again:
 
 	if (sfd < 0) {
 		free(thost);
+		tracecmd_msg_handle_close(msg_handle);
 		return NULL;
 	}
 
@@ -3934,6 +3935,7 @@ again:
 		if (msg_handle->version == V1_PROTOCOL) {
 			/* reconnect to the server for using the v1 protocol */
 			close(sfd);
+			msg_handle->fd = -1;
 			free(host);
 			host = NULL;
 			goto again;
