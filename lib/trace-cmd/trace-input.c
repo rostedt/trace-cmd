@@ -4006,7 +4006,7 @@ static int handle_options(struct tracecmd_input *handle)
 	char *cpustats = NULL;
 	struct hook_list *hook;
 	bool compress = false;
-	char *buf;
+	char *buf = NULL;
 	int cpus;
 	int ret;
 
@@ -4036,6 +4036,7 @@ static int handle_options(struct tracecmd_input *handle)
 		ret = read4(handle, &size);
 		if (ret)
 			goto out;
+		free(buf);
 		buf = malloc(size);
 		if (!buf) {
 			ret = -ENOMEM;
@@ -4189,14 +4190,12 @@ static int handle_options(struct tracecmd_input *handle)
 			tracecmd_warning("unknown option %d", option);
 			break;
 		}
-
-		free(buf);
-
 	}
 
 	ret = 0;
 
 out:
+	free(buf);
 	if (compress)
 		in_uncompress_reset(handle);
 	return ret;
