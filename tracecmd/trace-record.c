@@ -2374,6 +2374,7 @@ static void show_error(const char *file, const char *type)
 
  out:
 	printf("Failed %s of %s\n", type, file);
+	free(p);
 	free(path);
 	return;
 }
