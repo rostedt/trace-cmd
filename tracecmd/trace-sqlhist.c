@@ -137,7 +137,7 @@ void trace_sqlhist (int argc, char **argv)
 	bool execute = false;
 	char **save_fields = NULL;
 	const char *name;
-	const char *var;
+	const char *var = NULL;
 	char **save_argv;
 	int action = 0;
 	char *tok;
