@@ -31,7 +31,7 @@ static void default_perf_init_pe(struct perf_event_attr *pe)
 }
 
 /**
- * trace_perf_init - Initialize perf context
+ * tcmd_perf_init - Initialize perf context
  *
  * @perf: structure, representing perf context, that will be initialized.
  * @pages: Number of perf memory mapped pages.
@@ -39,12 +39,12 @@ static void default_perf_init_pe(struct perf_event_attr *pe)
  * @pid: PID, associated with this perf context.
  *
  * The perf context in initialized with default values. The caller can set
- * custom perf parameters in perf->pe, before calling trace_perf_open() API.
+ * custom perf parameters in perf->pe, before calling tcmd_perf_open() API.
  *
  * Returns 0 on success, or -1 in case of an error.
  *
  */
-int __hidden trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pid)
+int __hidden tcmd_perf_init(struct trace_perf *perf, int pages, int cpu, int pid)
 {
 	if (!perf)
 		return -1;
@@ -60,13 +60,13 @@ int __hidden trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pi
 }
 
 /**
- * trace_perf_close - Close perf session
+ * tcmd_perf_close - Close perf session
  *
  * @perf: structure, representing context of a running perf session, opened
- *	  with trace_perf_open()
+ *	  with tcmd_perf_open()
  *
  */
-void __hidden trace_perf_close(struct trace_perf *perf)
+void __hidden tcmd_perf_close(struct trace_perf *perf)
 {
 	if (perf->fd >= 0)
 		close(perf->fd);
@@ -77,15 +77,15 @@ void __hidden trace_perf_close(struct trace_perf *perf)
 }
 
 /**
- * trace_perf_open - Open perf session
+ * tcmd_perf_open - Open perf session
  *
  * @perf: structure, representing perf context that will be opened. It must be
- *	  initialized with trace_perf_init().
+ *	  initialized with tcmd_perf_init().
  *
  * Returns 0 on success, or -1 in case of an error. In case of success, the
- * session must be closed with trace_perf_close()
+ * session must be closed with tcmd_perf_close()
  */
-int __hidden trace_perf_open(struct trace_perf *perf)
+int __hidden tcmd_perf_open(struct trace_perf *perf)
 {
 	perf->fd = syscall(__NR_perf_event_open, &perf->pe, perf->pid, perf->cpu, -1, 0);
 	if (perf->fd < 0)
@@ -100,6 +100,6 @@ int __hidden trace_perf_open(struct trace_perf *perf)
 	return 0;
 
 error:
-	trace_perf_close(perf);
+	tcmd_perf_close(perf);
 	return -1;
 }

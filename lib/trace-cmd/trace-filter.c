@@ -44,8 +44,8 @@ static bool test_stacktraces(struct tracecmd_filter *filter, struct tep_record *
 		test_stacktrace(filter, record, filter->user_stacktrace_id);
 }
 
-__hidden enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
-						     struct tep_record *record)
+__hidden enum tracecmd_filters
+tcmd_filter_match(struct tracecmd_filter *filter, struct tep_record *record)
 {
 	bool is_stack = false;
 	bool found = false;
@@ -135,12 +135,12 @@ struct tracecmd_filter *tracecmd_filter_add(struct tracecmd_input *handle,
 
 	tep = tracecmd_get_tep(handle);
 
-	trace_filter = tracecmd_filter_get(handle);
+	trace_filter = tcmd_filter_get(handle);
 	if (!trace_filter) {
 		trace_filter = calloc(1, sizeof(*trace_filter));
 		if (!trace_filter)
 			goto fail;
-		tracecmd_filter_set(handle, trace_filter);
+		tcmd_filter_set(handle, trace_filter);
 		trace_filter->tep = tep;
 	}
 
@@ -188,7 +188,7 @@ static void free_filters (struct filter **filter, int nr)
 	free(filter);
 }
 
-__hidden void tracecmd_filter_free(struct tracecmd_filter *trace_filter)
+__hidden void tcmd_filter_free(struct tracecmd_filter *trace_filter)
 {
 	if (!trace_filter)
 		return;

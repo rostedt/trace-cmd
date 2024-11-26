@@ -609,7 +609,7 @@ static void init_wakeup(struct tracecmd_input *handle)
 
 	pevent = tracecmd_get_tep(handle);
 
-	trace_hash_init(&wakeup_hash, WAKEUP_HASH_SIZE);
+	tcmd_hash_init(&wakeup_hash, WAKEUP_HASH_SIZE);
 
 	event = tep_find_event_by_name(pevent, "sched", "sched_wakeup");
 	if (!event)
@@ -657,7 +657,7 @@ static void add_wakeup(unsigned int val, unsigned long long start)
 	struct wakeup_info *info;
 	struct trace_hash_item *item;
 
-	item = trace_hash_find(&wakeup_hash, key, NULL, NULL);
+	item = tcmd_hash_find(&wakeup_hash, key, NULL, NULL);
 	if (item) {
 		info = container_of(item, struct wakeup_info, hash);
 		/* Hmm, double wakeup? */
@@ -670,7 +670,7 @@ static void add_wakeup(unsigned int val, unsigned long long start)
 		die("Failed to allocate wakeup info");
 	info->hash.key = key;
 	info->start = start;
-	trace_hash_add(&wakeup_hash, &info->hash);
+	tcmd_hash_add(&wakeup_hash, &info->hash);
 }
 
 static unsigned long long max_lat = 0;
@@ -690,7 +690,7 @@ static void add_sched(unsigned int val, unsigned long long end, int rt)
 	struct wakeup_info *info;
 	unsigned long long cal;
 
-	item = trace_hash_find(&wakeup_hash, key, NULL, NULL);
+	item = tcmd_hash_find(&wakeup_hash, key, NULL, NULL);
 	if (!item)
 		return;
 
@@ -817,7 +817,7 @@ static void finish_wakeup(void)
 		}
 	}
 
-	trace_hash_free(&wakeup_hash);
+	tcmd_hash_free(&wakeup_hash);
 }
 
 void trace_show_data(struct tracecmd_input *handle, struct tep_record *record)

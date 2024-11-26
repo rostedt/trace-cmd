@@ -325,7 +325,7 @@ static void find_pid_by_cid(struct trace_guest *guest)
 	int fd;
 
 	instance = start_trace_connect();
-	fd = trace_vsock_open(guest->cid, -1);
+	fd = tcmd_vsock_open(guest->cid, -1);
 	guest->pid = stop_trace_connect(instance);
 	/* Just in case! */
 	if (fd >= 0)

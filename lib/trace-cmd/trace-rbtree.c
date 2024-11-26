@@ -13,7 +13,7 @@ enum {
 	BLACK,
 };
 
-void __hidden trace_rbtree_init(struct trace_rbtree *tree, trace_rbtree_cmp_fn cmp_fn,
+void __hidden tcmd_rbtree_init(struct trace_rbtree *tree, trace_rbtree_cmp_fn cmp_fn,
 				trace_rbtree_search_fn search_fn)
 {
 	memset(tree, 0, sizeof(*tree));
@@ -163,7 +163,7 @@ static void check_tree(struct trace_rbtree *tree)
 static inline void check_tree(struct trace_rbtree *tree) { }
 #endif
 
-int __hidden trace_rbtree_insert(struct trace_rbtree *tree,
+int __hidden tcmd_rbtree_insert(struct trace_rbtree *tree,
 				 struct trace_rbtree_node *node)
 {
 	struct trace_rbtree_node *uncle;
@@ -371,8 +371,9 @@ void trace_rbtree_delete(struct trace_rbtree *tree, struct trace_rbtree_node *no
 	check_tree(tree);
 }
 
-__hidden struct trace_rbtree_node *trace_rbtree_next(struct trace_rbtree *tree,
-						     struct trace_rbtree_node *node)
+__hidden struct trace_rbtree_node *
+tcmd_rbtree_next(struct trace_rbtree *tree,
+		 struct trace_rbtree_node *node)
 {
 	check_tree(tree);
 	/*

@@ -183,7 +183,7 @@ static int __msg_write(int fd, struct tracecmd_msg *msg, bool network)
 	return __do_write_check(fd, msg->buf, data_size);
 }
 
-__hidden off_t msg_lseek(struct tracecmd_msg_handle *msg_handle, off_t offset, int whence)
+__hidden off_t tcmd_msg_lseek(struct tracecmd_msg_handle *msg_handle, off_t offset, int whence)
 {
 	off_t cache_offset = msg_handle->cache_start_offset;
 	off_t ret;
@@ -855,7 +855,7 @@ int tracecmd_msg_send_options(struct tracecmd_msg_handle *msg_handle,
 	void *buf;
 	int ret;
 
-	buf = trace_get_options(handle, &len);
+	buf = tcmd_get_options(handle, &len);
 	if (!buf)
 		return -1;
 
@@ -963,7 +963,7 @@ int tracecmd_msg_read_options(struct tracecmd_msg_handle *msg_handle,
 	}
 	msg_free(&msg);
 
-	ret = trace_append_options(handle, buf, len);
+	ret = tcmd_append_options(handle, buf, len);
 	free(buf);
 
 	return ret;

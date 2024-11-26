@@ -399,27 +399,27 @@ int get_local_cid(unsigned int *cid);
 char *trace_get_guest_file(const char *file, const char *guest);
 
 #ifdef VSOCK
-int trace_vsock_open(unsigned int cid, unsigned int port);
-int trace_vsock_make(unsigned int port);
-int trace_vsock_make_any(void);
+int tcmd_vsock_open(unsigned int cid, unsigned int port);
+int tcmd_vsock_make(unsigned int port);
+int tcmd_vsock_make_any(void);
 int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *rcid);
-int trace_vsock_get_port(int sd, unsigned int *port);
-bool trace_vsock_can_splice_read(void);
-int trace_vsock_local_cid(void);
+int tcmd_vsock_get_port(int sd, unsigned int *port);
+bool tcmd_vsock_can_splice_read(void);
+int tcmd_vsock_local_cid(void);
 int trace_vsock_print_connection(int fd);
 #else
-static inline int trace_vsock_open(unsigned int cid, unsigned int port)
+static inline int tcmd_vsock_open(unsigned int cid, unsigned int port)
 {
 	return -ENOTSUP;
 }
 
-static inline int trace_vsock_make(unsigned int port)
+static inline int tcmd_vsock_make(unsigned int port)
 {
 	return -ENOTSUP;
 
 }
 
-static inline int trace_vsock_make_any(void)
+static inline int tcmd_vsock_make_any(void)
 {
 	return -ENOTSUP;
 
@@ -430,17 +430,17 @@ static inline int get_vsocket_params(int fd, unsigned int *lcid, unsigned int *r
 	return -ENOTSUP;
 }
 
-static inline int trace_vsock_get_port(int sd, unsigned int *port)
+static inline int tcmd_vsock_get_port(int sd, unsigned int *port)
 {
 	return -ENOTSUP;
 }
 
-static inline bool trace_vsock_can_splice_read(void)
+static inline bool tcmd_vsock_can_splice_read(void)
 {
 	return false;
 }
 
-static inline int trace_vsock_local_cid(void)
+static inline int tcmd_vsock_local_cid(void)
 {
 	return -ENOTSUP;
 }

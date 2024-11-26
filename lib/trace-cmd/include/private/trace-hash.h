@@ -18,10 +18,10 @@ struct trace_hash {
 	int			power;
 };
 
-int trace_hash_init(struct trace_hash *hash, int buckets);
-void trace_hash_free(struct trace_hash *hash);
-int trace_hash_add(struct trace_hash *hash, struct trace_hash_item *item);
-int trace_hash_empty(struct trace_hash *hash);
+int tcmd_hash_init(struct trace_hash *hash, int buckets);
+void tcmd_hash_free(struct trace_hash *hash);
+int tcmd_hash_add(struct trace_hash *hash, struct trace_hash_item *item);
+int tcmd_hash_empty(struct trace_hash *hash);
 
 static inline void trace_hash_del(struct trace_hash_item *item)
 {
@@ -49,7 +49,7 @@ static inline void trace_hash_del(struct trace_hash_item *item)
 typedef int (*trace_hash_func)(struct trace_hash_item *item, void *data);
 
 struct trace_hash_item *
-trace_hash_find(struct trace_hash *hash, unsigned long long key,
+tcmd_hash_find(struct trace_hash *hash, unsigned long long key,
 		trace_hash_func match, void *data);
 
 #endif /* _TRACE_HASH_H */

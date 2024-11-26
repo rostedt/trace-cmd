@@ -49,47 +49,48 @@ struct data_file_write {
 	unsigned long long	file_data_offset;
 };
 
-enum tracecmd_filters tracecmd_filter_match(struct tracecmd_filter *filter,
-					    struct tep_record *record);
+enum tracecmd_filters tcmd_filter_match(struct tracecmd_filter *filter,
+					struct tep_record *record);
 
-void trace_set_guest_map(struct tracecmd_input *handle, struct tracecmd_cpu_map *map);
-struct tracecmd_cpu_map *trace_get_guest_map(struct tracecmd_input *handle);
-void trace_set_guest_map_cnt(struct tracecmd_input *handle, int count);
-int trace_get_guest_map_cnt(struct tracecmd_input *handle);
-void trace_guest_map_free(struct tracecmd_cpu_map *map);
+void tcmd_set_guest_map(struct tracecmd_input *handle, struct tracecmd_cpu_map *map);
+struct tracecmd_cpu_map *tcmd_get_guest_map(struct tracecmd_input *handle);
+void tcmd_set_guest_map_cnt(struct tracecmd_input *handle, int count);
+int tcmd_get_guest_map_cnt(struct tracecmd_input *handle);
+void tcmd_guest_map_free(struct tracecmd_cpu_map *map);
 
 void tracecmd_compress_init(void);
 void tracecmd_compress_free(void);
 
-bool check_file_state(unsigned long file_version, int current_state, int new_state);
-bool check_out_state(struct tracecmd_output *handle, int new_state);
+bool tcmd_check_file_state(unsigned long file_version, int current_state, int new_state);
+bool tcmd_check_out_state(struct tracecmd_output *handle, int new_state);
 
-int out_uncompress_block(struct tracecmd_output *handle);
-int out_compression_start(struct tracecmd_output *handle, bool compress);
-int out_compression_end(struct tracecmd_output *handle, bool compress);
-void out_compression_reset(struct tracecmd_output *handle, bool compress);
-bool out_check_compression(struct tracecmd_output *handle);
+int tcmd_out_uncompress_block(struct tracecmd_output *handle);
+int tcmd_out_compression_start(struct tracecmd_output *handle, bool compress);
+int tcmd_out_compression_end(struct tracecmd_output *handle, bool compress);
+void tcmd_out_compression_reset(struct tracecmd_output *handle, bool compress);
+bool tcmd_out_check_compression(struct tracecmd_output *handle);
 
-void out_set_file_state(struct tracecmd_output *handle, int new_state);
-int out_save_options_offset(struct tracecmd_output *handle,
-			    unsigned long long start);
-unsigned long long out_copy_fd_compress(struct tracecmd_output *handle,
-					int fd, unsigned long long max,
-					unsigned long long *write_size, int page);
-void in_uncompress_reset(struct tracecmd_input *handle);
-int in_uncompress_block(struct tracecmd_input *handle);
+void tcmd_out_set_file_state(struct tracecmd_output *handle, int new_state);
+int tcmd_out_save_options_offset(struct tracecmd_output *handle,
+				 unsigned long long start);
+unsigned long long
+tcmd_out_copy_fd_compress(struct tracecmd_output *handle,
+			  int fd, unsigned long long max,
+			  unsigned long long *write_size, int page);
+void tcmd_in_uncompress_reset(struct tracecmd_input *handle);
+int tcmd_in_uncompress_block(struct tracecmd_input *handle);
 
 unsigned long long
-out_write_section_header(struct tracecmd_output *handle, unsigned short header_id,
-			 char *description, int flags, bool option);
-int out_update_section_header(struct tracecmd_output *handle, unsigned long long offset);
+tcmd_out_write_section_header(struct tracecmd_output *handle, unsigned short header_id,
+			      char *description, int flags, bool option);
+int tcmd_out_update_section_header(struct tracecmd_output *handle, unsigned long long offset);
 
-long long do_write_check(struct tracecmd_output *handle, const void *data, long long size);
+long long tcmd_do_write_check(struct tracecmd_output *handle, const void *data, long long size);
 
 struct tracecmd_option *
-out_add_buffer_option(struct tracecmd_output *handle, const char *name,
-		      unsigned short id, unsigned long long data_offset,
-		      int cpus, struct data_file_write *cpu_data, int page_size);
+tcmd_out_add_buffer_option(struct tracecmd_output *handle, const char *name,
+			   unsigned short id, unsigned long long data_offset,
+			   int cpus, struct data_file_write *cpu_data, int page_size);
 
 struct cpu_data_source {
 	int fd;
@@ -97,18 +98,18 @@ struct cpu_data_source {
 	off_t offset;
 };
 
-int out_write_cpu_data(struct tracecmd_output *handle, int cpus,
-		       struct cpu_data_source *data, const char *buff_name);
-int out_write_emty_cpu_data(struct tracecmd_output *handle, int cpus);
-off_t msg_lseek(struct tracecmd_msg_handle *msg_handle, off_t offset, int whence);
-unsigned long long get_last_option_offset(struct tracecmd_input *handle);
-unsigned int get_meta_strings_size(struct tracecmd_input *handle);
-int trace_append_options(struct tracecmd_output *handle, void *buf, size_t len);
-void *trace_get_options(struct tracecmd_output *handle, size_t *len);
+int tcmd_out_write_cpu_data(struct tracecmd_output *handle, int cpus,
+			    struct cpu_data_source *data, const char *buff_name);
+int tcmd_out_write_emty_cpu_data(struct tracecmd_output *handle, int cpus);
+off_t tcmd_msg_lseek(struct tracecmd_msg_handle *msg_handle, off_t offset, int whence);
+unsigned long long tcmd_get_last_option_offset(struct tracecmd_input *handle);
+unsigned int tcmd_get_meta_strings_size(struct tracecmd_input *handle);
+int tcmd_append_options(struct tracecmd_output *handle, void *buf, size_t len);
+void *tcmd_get_options(struct tracecmd_output *handle, size_t *len);
 
 /* filters */
-struct tracecmd_filter *tracecmd_filter_get(struct tracecmd_input *handle);
-void tracecmd_filter_set(struct tracecmd_input *handle, struct tracecmd_filter *filter);
-void tracecmd_filter_free(struct tracecmd_filter *filter);
+struct tracecmd_filter *tcmd_filter_get(struct tracecmd_input *handle);
+void tcmd_filter_set(struct tracecmd_input *handle, struct tracecmd_filter *filter);
+void tcmd_filter_free(struct tracecmd_filter *filter);
 
 #endif /* _TRACE_CMD_LOCAL_H */

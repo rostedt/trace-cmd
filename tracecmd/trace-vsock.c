@@ -6,7 +6,7 @@
 
 #include "trace-cmd-private.h"
 
-int __hidden trace_vsock_open(unsigned int cid, unsigned int port)
+int __hidden tcmd_vsock_open(unsigned int cid, unsigned int port)
 {
 	struct sockaddr_vm addr = {
 		.svm_family = AF_VSOCK,
@@ -27,7 +27,7 @@ int __hidden trace_vsock_open(unsigned int cid, unsigned int port)
 	return sd;
 }
 
-int __hidden trace_vsock_make(unsigned int port)
+int __hidden tcmd_vsock_make(unsigned int port)
 {
 	struct sockaddr_vm addr = {
 		.svm_family = AF_VSOCK,
@@ -55,12 +55,12 @@ error:
 	return -errno;
 }
 
-int __hidden trace_vsock_make_any(void)
+int __hidden tcmd_vsock_make_any(void)
 {
-	return trace_vsock_make(VMADDR_PORT_ANY);
+	return tcmd_vsock_make(VMADDR_PORT_ANY);
 }
 
-int __hidden trace_vsock_get_port(int sd, unsigned int *port)
+int __hidden tcmd_vsock_get_port(int sd, unsigned int *port)
 {
 	struct sockaddr_vm addr;
 	socklen_t addr_len = sizeof(addr);
@@ -155,7 +155,7 @@ out_close_sd:
 	return ret;
 }
 
-bool __hidden trace_vsock_can_splice_read(void)
+bool __hidden tcmd_vsock_can_splice_read(void)
 {
 	static bool initialized, res;
 
@@ -169,7 +169,7 @@ bool __hidden trace_vsock_can_splice_read(void)
 
 #define GET_LOCAL_CID	0x7b9
 
-int __hidden trace_vsock_local_cid(void)
+int __hidden tcmd_vsock_local_cid(void)
 {
 	int cid;
 	int fd;

@@ -116,7 +116,7 @@ int tracecmd_tsync_proto_unregister(char *proto_name)
 	return -1;
 }
 
-bool __hidden tsync_proto_is_supported(const char *proto_name)
+bool __hidden tcmd_tsync_proto_is_supported(const char *proto_name)
 {
 	if (tsync_proto_find(proto_name))
 		return true;
@@ -250,7 +250,8 @@ tsync_proto_select(const struct tracecmd_tsync_protos *protos,
  */
 __hidden const char *
 tracecmd_tsync_get_proto(const struct tracecmd_tsync_protos *protos,
-			 const char *clock, enum tracecmd_time_sync_role role)
+			 const char *clock,
+			 enum tracecmd_time_sync_role role)
 {
 	return tsync_proto_select(protos, clock, role);
 }

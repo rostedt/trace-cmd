@@ -280,7 +280,7 @@ static void add_plugin_file(struct tep_handle *pevent, const char *path,
 }
 
 /**
- * trace_util_find_plugin_files - find list of possible plugin files
+ * tcmd_util_find_plugin_files - find list of possible plugin files
  * @suffix: The suffix of the plugin files to find
  *
  * Searches the plugin directory for files that end in @suffix, and
@@ -291,9 +291,9 @@ static void add_plugin_file(struct tep_handle *pevent, const char *path,
  * the errno will be returned with the TRACECMD_ERR_MSK to denote
  * such an error occurred.
  *
- * Use trace_util_free_plugin_files() to free the result.
+ * Use tcmd_util_free_plugin_files() to free the result.
  */
-__hidden char **trace_util_find_plugin_files(const char *suffix)
+__hidden char **tcmd_util_find_plugin_files(const char *suffix)
 {
 	struct add_plugin_data pdata;
 
@@ -308,12 +308,12 @@ __hidden char **trace_util_find_plugin_files(const char *suffix)
 }
 
 /**
- * trace_util_free_plugin_files - free the result of trace_util_find_plugin_files()
- * @files: The result from trace_util_find_plugin_files()
+ * tcmd_util_free_plugin_files - free the result of tcmd_util_find_plugin_files()
+ * @files: The result from tcmd_util_find_plugin_files()
  *
- * Frees the contents that were allocated by trace_util_find_plugin_files().
+ * Frees the contents that were allocated by tcmd_util_find_plugin_files().
  */
-void __hidden trace_util_free_plugin_files(char **files)
+void __hidden tcmd_util_free_plugin_files(char **files)
 {
 	int i;
 
@@ -349,7 +349,7 @@ static char *get_source_plugins_dir(void)
 }
 
 __hidden struct tep_plugin_list *
-trace_load_plugins(struct tep_handle *tep, int flags)
+tcmd_load_plugins(struct tep_handle *tep, int flags)
 {
 	struct tep_plugin_list *list;
 	char *path;
@@ -659,7 +659,7 @@ static void __attribute__((destructor)) tracecmd_lib_free(void)
 	tracecmd_compress_free();
 }
 
-__hidden bool check_file_state(unsigned long file_version, int current_state, int new_state)
+__hidden bool tcmd_check_file_state(unsigned long file_version, int current_state, int new_state)
 {
 	if (file_version >= FILE_VERSION_SECTIONS) {
 		if (current_state < TRACECMD_FILE_INIT)

@@ -100,7 +100,7 @@ static int write_options(struct tracecmd_output *handle);
 static int save_string_section(struct tracecmd_output *handle, bool compress);
 
 __hidden long long
-do_write_check(struct tracecmd_output *handle, const void *data, long long size)
+tcmd_do_write_check(struct tracecmd_output *handle, const void *data, long long size)
 {
 	if (handle->do_compress)
 		return tracecmd_compress_buffer_write(handle->compress, data, size);
@@ -117,7 +117,7 @@ static inline off_t do_lseek(struct tracecmd_output *handle, off_t offset, int w
 		return tracecmd_compress_lseek(handle->compress, offset, whence);
 
 	if (handle->msg_handle)
-		return msg_lseek(handle->msg_handle, offset, whence);
+		return tcmd_msg_lseek(handle->msg_handle, offset, whence);
 
 	return lseek(handle->fd, offset, whence);
 }
@@ -155,7 +155,7 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 	return tep_read_number(handle->pevent, &val, 8);
 }
 
-__hidden void out_compression_reset(struct tracecmd_output *handle, bool compress)
+__hidden void tcmd_out_compression_reset(struct tracecmd_output *handle, bool compress)
 {
 	if (!compress || !handle->compress)
 		return;
@@ -164,7 +164,7 @@ __hidden void out_compression_reset(struct tracecmd_output *handle, bool compres
 	handle->do_compress = false;
 }
 
-__hidden int out_uncompress_block(struct tracecmd_output *handle)
+__hidden int tcmd_out_uncompress_block(struct tracecmd_output *handle)
 {
 	int ret = 0;
 
@@ -178,7 +178,7 @@ __hidden int out_uncompress_block(struct tracecmd_output *handle)
 	return ret;
 }
 
-__hidden int out_compression_start(struct tracecmd_output *handle, bool compress)
+__hidden int tcmd_out_compression_start(struct tracecmd_output *handle, bool compress)
 {
 	if (!compress || !handle->compress)
 		return 0;
@@ -189,7 +189,7 @@ __hidden int out_compression_start(struct tracecmd_output *handle, bool compress
 	return 0;
 }
 
-__hidden int out_compression_end(struct tracecmd_output *handle, bool compress)
+__hidden int tcmd_out_compression_end(struct tracecmd_output *handle, bool compress)
 {
 	if (!compress || !handle->compress)
 		return 0;
@@ -355,7 +355,7 @@ static tsize_t copy_file_fd(struct tracecmd_output *handle, int fd, unsigned lon
 		r = read(fd, buf, rsize);
 		if (r > 0) {
 			size += r;
-			if (do_write_check(handle, buf, r))
+			if (tcmd_do_write_check(handle, buf, r))
 				return 0;
 			if (max) {
 				max -= r;
@@ -386,10 +386,11 @@ static tsize_t copy_file(struct tracecmd_output *handle,
 }
 
 #define PAGES_IN_CHUNK 10
-__hidden unsigned long long out_copy_fd_compress(struct tracecmd_output *handle,
-						 int fd, unsigned long long max,
-						 unsigned long long *write_size,
-						 int page)
+__hidden unsigned long long
+tcmd_out_copy_fd_compress(struct tracecmd_output *handle,
+			  int fd, unsigned long long max,
+			  unsigned long long *write_size,
+			  int page)
 {
 	size_t rsize = 0;
 	size_t wsize = 0;
@@ -428,7 +429,7 @@ static tsize_t copy_file_compress(struct tracecmd_output *handle,
 		return 0;
 	}
 
-	ret = out_copy_fd_compress(handle, fd, 0, write_size, getpagesize());
+	ret = tcmd_out_copy_fd_compress(handle, fd, 0, write_size, getpagesize());
 	if (!ret)
 		tracecmd_warning("Can't compress '%s'", file);
 
@@ -500,8 +501,8 @@ int tracecmd_ftrace_enable(int set)
 }
 
 __hidden unsigned long long
-out_write_section_header(struct tracecmd_output *handle, unsigned short header_id,
-			 char *description, int flags, bool option)
+tcmd_out_write_section_header(struct tracecmd_output *handle, unsigned short header_id,
+			      char *description, int flags, bool option)
 {
 	tsize_t endian8;
 	tsize_t offset;
@@ -524,12 +525,12 @@ out_write_section_header(struct tracecmd_output *handle, unsigned short header_i
 	}
 	/* Section ID */
 	endian2 = convert_endian_2(handle, header_id);
-	if (do_write_check(handle, &endian2, 2))
+	if (tcmd_do_write_check(handle, &endian2, 2))
 		return (off_t)-1;
 
 	/* Section flags */
 	endian2 = convert_endian_2(handle, flags);
-	if (do_write_check(handle, &endian2, 2))
+	if (tcmd_do_write_check(handle, &endian2, 2))
 		return (off_t)-1;
 
 	/* Section description */
@@ -538,18 +539,18 @@ out_write_section_header(struct tracecmd_output *handle, unsigned short header_i
 	else
 		desc = -1;
 	endian4 = convert_endian_4(handle, desc);
-	if (do_write_check(handle, &endian4, 4))
+	if (tcmd_do_write_check(handle, &endian4, 4))
 		return (off_t)-1;
 
 	offset = do_lseek(handle, 0, SEEK_CUR);
 	size = 0;
 	/* Reserve for section size */
-	if (do_write_check(handle, &size, 8))
+	if (tcmd_do_write_check(handle, &size, 8))
 		return (off_t)-1;
 	return offset;
 }
 
-__hidden int out_update_section_header(struct tracecmd_output *handle, tsize_t offset)
+__hidden int tcmd_out_update_section_header(struct tracecmd_output *handle, tsize_t offset)
 {
 	tsize_t current;
 	tsize_t endian8;
@@ -570,7 +571,7 @@ __hidden int out_update_section_header(struct tracecmd_output *handle, tsize_t o
 		return -1;
 
 	endian8 = convert_endian_8(handle, size);
-	if (do_write_check(handle, &endian8, 8))
+	if (tcmd_do_write_check(handle, &endian8, 8))
 		return -1;
 	if (do_lseek(handle, current, SEEK_SET) == (off_t)-1)
 		return -1;
@@ -585,7 +586,7 @@ static int save_string_section(struct tracecmd_output *handle, bool compress)
 	if (!handle->strings || !handle->strings_p)
 		return 0;
 
-	if (!check_out_state(handle, TRACECMD_OPTION_STRINGS)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_OPTION_STRINGS)) {
 		tracecmd_warning("Cannot write strings, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -593,19 +594,19 @@ static int save_string_section(struct tracecmd_output *handle, bool compress)
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_STRINGS, "strings", flags, false);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_STRINGS, "strings", flags, false);
 	if (offset == (off_t)-1)
 		return -1;
 
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 
-	if (do_write_check(handle, handle->strings, handle->strings_p))
+	if (tcmd_do_write_check(handle, handle->strings, handle->strings_p))
 		goto error;
 
-	if (out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle, compress))
 		goto error;
 
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		return -1;
 
 	handle->strings_offs += handle->strings_p;
@@ -616,7 +617,7 @@ static int save_string_section(struct tracecmd_output *handle, bool compress)
 	return 0;
 
 error:
-	out_compression_reset(handle, compress);
+	tcmd_out_compression_reset(handle, compress);
 	return -1;
 }
 
@@ -630,7 +631,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 	int fd = -1;
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_HEADERS)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_HEADERS)) {
 		tracecmd_warning("Cannot read header files, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -642,30 +643,30 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_HEADER_INFO,
-					  "headers", flags, true);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_HEADER_INFO,
+					       "headers", flags, true);
 	if (offset == (off_t)-1) {
 		put_tracing_file(path);
 		return -1;
 	}
 
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* old style did not show this info, just add zero */
 		put_tracing_file(path);
-		if (do_write_check(handle, "header_page", 12))
+		if (tcmd_do_write_check(handle, "header_page", 12))
 			goto out_close;
 		size = 0;
-		if (do_write_check(handle, &size, 8))
+		if (tcmd_do_write_check(handle, &size, 8))
 			goto out_close;
-		if (do_write_check(handle, "header_event", 13))
+		if (tcmd_do_write_check(handle, "header_event", 13))
 			goto out_close;
-		if (do_write_check(handle, &size, 8))
+		if (tcmd_do_write_check(handle, &size, 8))
 			goto out_close;
-		if (out_compression_end(handle, compress))
+		if (tcmd_out_compression_end(handle, compress))
 			goto out_close;
-		if (out_update_section_header(handle, offset))
+		if (tcmd_out_update_section_header(handle, offset))
 			goto out_close;
 		return 0;
 	}
@@ -679,10 +680,10 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 	/* unfortunately, you can not stat debugfs files for size */
 	size = get_size_fd(fd);
 
-	if (do_write_check(handle, "header_page", 12))
+	if (tcmd_do_write_check(handle, "header_page", 12))
 		goto out_free;
 	endian8 = convert_endian_8(handle, size);
-	if (do_write_check(handle, &endian8, 8))
+	if (tcmd_do_write_check(handle, &endian8, 8))
 		goto out_free;
 	check_size = copy_file_fd(handle, fd, 0);
 	if (size != check_size) {
@@ -705,10 +706,10 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 
 	size = get_size_fd(fd);
 
-	if (do_write_check(handle, "header_event", 13))
+	if (tcmd_do_write_check(handle, "header_event", 13))
 		goto out_free;
 	endian8 = convert_endian_8(handle, size);
-	if (do_write_check(handle, &endian8, 8))
+	if (tcmd_do_write_check(handle, &endian8, 8))
 		goto out_free;
 	check_size = copy_file_fd(handle, fd, 0);
 	close(fd);
@@ -717,10 +718,10 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 		goto out_free;
 	}
 	put_tracing_file(path);
-	if (out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle, compress))
 		goto out_close;
 
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		goto out_close;
 	handle->file_state = TRACECMD_FILE_HEADERS;
 
@@ -729,7 +730,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
  out_free:
 	put_tracing_file(path);
  out_close:
-	out_compression_reset(handle, compress);
+	tcmd_out_compression_reset(handle, compress);
 	if (fd >= 0)
 		close(fd);
 	return -1;
@@ -750,7 +751,7 @@ static int copy_event_system(struct tracecmd_output *handle,
 		count++;
 
 	endian4 = convert_endian_4(handle, count);
-	if (do_write_check(handle, &endian4, 4))
+	if (tcmd_do_write_check(handle, &endian4, 4))
 		return -1;
 
 	for (elist = slist->events; elist; elist = elist->next) {
@@ -761,7 +762,7 @@ static int copy_event_system(struct tracecmd_output *handle,
 			/* unfortunately, you can not stat debugfs files for size */
 			size = get_size(format);
 			endian8 = convert_endian_8(handle, size);
-			if (do_write_check(handle, &endian8, 8))
+			if (tcmd_do_write_check(handle, &endian8, 8))
 				return -1;
 			check_size = copy_file(handle, format);
 			if (size != check_size) {
@@ -968,7 +969,7 @@ static int read_ftrace_files(struct tracecmd_output *handle, bool compress)
 	tsize_t offset;
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_FTRACE_EVENTS)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_FTRACE_EVENTS)) {
 		tracecmd_warning("Cannot read ftrace files, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -976,24 +977,24 @@ static int read_ftrace_files(struct tracecmd_output *handle, bool compress)
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_FTRACE_EVENTS,
-					  "ftrace events", flags, true);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_FTRACE_EVENTS,
+					       "ftrace events", flags, true);
 	if (offset == (off_t)-1)
 		return -1;
 
 	create_event_list_item(handle, &systems, &list);
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 
 	ret = copy_event_system(handle, systems);
 	if (!ret)
-		ret = out_compression_end(handle, compress);
+		ret = tcmd_out_compression_end(handle, compress);
 	else
-		out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle, compress);
 
 	free_list_events(systems);
 	if (ret)
 		return ret;
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		return -1;
 
 	handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
@@ -1027,7 +1028,7 @@ static int read_event_files(struct tracecmd_output *handle,
 	int endian4;
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_ALL_EVENTS)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_ALL_EVENTS)) {
 		tracecmd_warning("Cannot read event files, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -1035,8 +1036,8 @@ static int read_event_files(struct tracecmd_output *handle,
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_EVENT_FORMATS,
-					  "events format", flags, true);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_EVENT_FORMATS,
+					       "events format", flags, true);
 	if (offset == (off_t)-1)
 		return -1;
 	/*
@@ -1055,15 +1056,15 @@ static int read_event_files(struct tracecmd_output *handle,
 
 	for (slist = systems; slist; slist = slist->next)
 		count++;
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 	ret = -1;
 	endian4 = convert_endian_4(handle, count);
-	if (do_write_check(handle, &endian4, 4))
+	if (tcmd_do_write_check(handle, &endian4, 4))
 		goto out_free;
 
 	ret = 0;
 	for (slist = systems; !ret && slist; slist = slist->next) {
-		if (do_write_check(handle, slist->name,
+		if (tcmd_do_write_check(handle, slist->name,
 				   strlen(slist->name) + 1)) {
 			ret = -1;
 			continue;
@@ -1073,16 +1074,16 @@ static int read_event_files(struct tracecmd_output *handle,
 	if (ret)
 		goto out_free;
 
-	ret = out_compression_end(handle, compress);
+	ret = tcmd_out_compression_end(handle, compress);
 	if (ret)
 		goto out_free;
-	ret = out_update_section_header(handle, offset);
+	ret = tcmd_out_update_section_header(handle, offset);
 
  out_free:
 	if (!ret)
 		handle->file_state = TRACECMD_FILE_ALL_EVENTS;
 	else
-		out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle, compress);
 
 	free_list_events(systems);
 
@@ -1138,7 +1139,7 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 	struct stat st;
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_KALLSYMS)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_KALLSYMS)) {
 		tracecmd_warning("Cannot read kallsyms, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -1149,23 +1150,23 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_KALLSYMS,
-					  "kallsyms", flags, true);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_KALLSYMS,
+					       "kallsyms", flags, true);
 	if (offset == (off_t)-1)
 		return -1;
 
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* not found */
 		size = 0;
 		endian4 = convert_endian_4(handle, size);
-		ret = do_write_check(handle, &endian4, 4);
+		ret = tcmd_do_write_check(handle, &endian4, 4);
 		goto out;
 	}
 	size = get_size(path);
 	endian4 = convert_endian_4(handle, size);
-	ret = do_write_check(handle, &endian4, 4);
+	ret = tcmd_do_write_check(handle, &endian4, 4);
 	if (ret)
 		goto out;
 
@@ -1180,16 +1181,16 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 	}
 	set_proc_kptr_restrict(1);
 
-	ret = out_compression_end(handle, compress);
+	ret = tcmd_out_compression_end(handle, compress);
 	if (ret)
 		goto out;
 
-	ret = out_update_section_header(handle, offset);
+	ret = tcmd_out_update_section_header(handle, offset);
 out:
 	if (!ret)
 		handle->file_state = TRACECMD_FILE_KALLSYMS;
 	else
-		out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle, compress);
 	return ret;
 }
 
@@ -1202,7 +1203,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 	char *path;
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_PRINTK)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_PRINTK)) {
 		tracecmd_warning("Cannot read printk, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -1214,25 +1215,25 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_PRINTK, "printk", flags, true);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_PRINTK, "printk", flags, true);
 	if (offset == (off_t)-1) {
 		put_tracing_file(path);
 		return -1;
 	}
 
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* not found */
 		size = 0;
 		endian4 = convert_endian_4(handle, size);
-		if (do_write_check(handle, &endian4, 4))
+		if (tcmd_do_write_check(handle, &endian4, 4))
 			goto fail;
 		goto out;
 	}
 	size = get_size(path);
 	endian4 = convert_endian_4(handle, size);
-	if (do_write_check(handle, &endian4, 4))
+	if (tcmd_do_write_check(handle, &endian4, 4))
 		goto fail;
 	check_size = copy_file(handle, path);
 	if (size != check_size) {
@@ -1243,16 +1244,16 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 
  out:
 	put_tracing_file(path);
-	if (out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle, compress))
 		return -1;
 
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		return -1;
 	handle->file_state = TRACECMD_FILE_PRINTK;
 	return 0;
  fail:
 	put_tracing_file(path);
-	out_compression_reset(handle, compress);
+	tcmd_out_compression_reset(handle, compress);
 	return -1;
 }
 
@@ -1274,7 +1275,7 @@ static int save_tracing_file_data(struct tracecmd_output *handle,
 	if (ret >= 0) {
 		size = get_size(file);
 		endian8 = convert_endian_8(handle, size);
-		if (do_write_check(handle, &endian8, 8))
+		if (tcmd_do_write_check(handle, &endian8, 8))
 			goto out_free;
 		check_size = copy_file(handle, file);
 		if (size != check_size) {
@@ -1285,7 +1286,7 @@ static int save_tracing_file_data(struct tracecmd_output *handle,
 	} else {
 		size = 0;
 		endian8 = convert_endian_8(handle, size);
-		if (do_write_check(handle, &endian8, 8))
+		if (tcmd_do_write_check(handle, &endian8, 8))
 			goto out_free;
 	}
 	ret = 0;
@@ -1307,10 +1308,10 @@ static int write_compression_header(struct tracecmd_output *handle)
 		ver = "";
 	}
 
-	if (do_write_check(handle, name, strlen(name) + 1))
+	if (tcmd_do_write_check(handle, name, strlen(name) + 1))
 		return -1;
 
-	if (do_write_check(handle, ver, strlen(ver) + 1))
+	if (tcmd_do_write_check(handle, ver, strlen(ver) + 1))
 		return -1;
 
 	return 0;
@@ -1622,27 +1623,27 @@ static int output_write_init(struct tracecmd_output *handle)
 	buf[2] = 68;
 	memcpy(buf + 3, "tracing", 7);
 
-	if (do_write_check(handle, buf, 10))
+	if (tcmd_do_write_check(handle, buf, 10))
 		return -1;
 
 	sprintf(buf, "%lu", handle->file_version);
-	if (do_write_check(handle, buf, strlen(buf) + 1))
+	if (tcmd_do_write_check(handle, buf, strlen(buf) + 1))
 		return -1;
 
 	if (handle->big_endian)
 		buf[0] = 1;
 	else
 		buf[0] = 0;
-	if (do_write_check(handle, buf, 1))
+	if (tcmd_do_write_check(handle, buf, 1))
 		return -1;
 
 	/* save size of long (this may not be what the kernel is) */
 	buf[0] = sizeof(long);
-	if (do_write_check(handle, buf, 1))
+	if (tcmd_do_write_check(handle, buf, 1))
 		return -1;
 
 	endian4 = convert_endian_4(handle, handle->page_size);
-	if (do_write_check(handle, &endian4, 4))
+	if (tcmd_do_write_check(handle, &endian4, 4))
 		return -1;
 
 	if (handle->file_version >= FILE_VERSION_COMPRESSION) {
@@ -1654,7 +1655,7 @@ static int output_write_init(struct tracecmd_output *handle)
 		/* Write 0 as options offset and save its location */
 		offset = 0;
 		handle->options_start = do_lseek(handle, 0, SEEK_CUR);
-		if (do_write_check(handle, &offset, 8))
+		if (tcmd_do_write_check(handle, &offset, 8))
 			return -1;
 	}
 
@@ -1793,7 +1794,7 @@ int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus)
 {
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_CPU_COUNT)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_CPU_COUNT)) {
 		tracecmd_warning("Cannot write CPU count into the file, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -1801,7 +1802,7 @@ int tracecmd_write_cpus(struct tracecmd_output *handle, int cpus)
 
 	if (!HAS_SECTIONS(handle)) {
 		cpus = convert_endian_4(handle, cpus);
-		ret = do_write_check(handle, &cpus, 4);
+		ret = tcmd_do_write_check(handle, &cpus, 4);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -1822,35 +1823,35 @@ static int write_options_v6(struct tracecmd_output *handle)
 	/* If already written, ignore */
 	if (handle->file_state == TRACECMD_FILE_OPTIONS)
 		return 0;
-	if (!check_out_state(handle, TRACECMD_FILE_OPTIONS)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_OPTIONS)) {
 		tracecmd_warning("Cannot write options into the file, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
 	}
 
-	if (do_write_check(handle, "options  ", 10))
+	if (tcmd_do_write_check(handle, "options  ", 10))
 		return -1;
 	handle->options_start = do_lseek(handle, 0, SEEK_CUR);
 	list_for_each_entry(options, &handle->options, list) {
 		endian2 = convert_endian_2(handle, options->id);
-		if (do_write_check(handle, &endian2, 2))
+		if (tcmd_do_write_check(handle, &endian2, 2))
 			return -1;
 
 		endian4 = convert_endian_4(handle, options->size);
-		if (do_write_check(handle, &endian4, 4))
+		if (tcmd_do_write_check(handle, &endian4, 4))
 			return -1;
 
 		/* Save the data location in case it needs to be updated */
 		options->offset = do_lseek(handle, 0, SEEK_CUR);
 
-		if (do_write_check(handle, options->data,
+		if (tcmd_do_write_check(handle, options->data,
 				   options->size))
 			return -1;
 	}
 
 	option = TRACECMD_OPTION_DONE;
 
-	if (do_write_check(handle, &option, 2))
+	if (tcmd_do_write_check(handle, &option, 2))
 		return -1;
 
 	handle->file_state = TRACECMD_FILE_OPTIONS;
@@ -1862,7 +1863,7 @@ static int update_options_start(struct tracecmd_output *handle, off_t offset)
 	if (do_lseek(handle, handle->options_start, SEEK_SET) == (off_t)-1)
 		return -1;
 	offset = convert_endian_8(handle, offset);
-	if (do_write_check(handle, &offset, 8))
+	if (tcmd_do_write_check(handle, &offset, 8))
 		return -1;
 	return 0;
 }
@@ -1946,7 +1947,7 @@ static tsize_t write_options_start(struct tracecmd_output *handle)
 			return -1;
 	}
 
-	return out_write_section_header(handle, TRACECMD_OPTION_DONE, "options", 0, false);
+	return tcmd_out_write_section_header(handle, TRACECMD_OPTION_DONE, "options", 0, false);
 }
 
 static tsize_t write_options_end(struct tracecmd_output *handle, tsize_t offset)
@@ -1956,16 +1957,16 @@ static tsize_t write_options_end(struct tracecmd_output *handle, tsize_t offset)
 	unsigned int endian4;
 
 	endian2 = convert_endian_2(handle, TRACECMD_OPTION_DONE);
-	if (do_write_check(handle, &endian2, 2))
+	if (tcmd_do_write_check(handle, &endian2, 2))
 		return -1;
 	endian4 = convert_endian_4(handle, 8);
-	if (do_write_check(handle, &endian4, 4))
+	if (tcmd_do_write_check(handle, &endian4, 4))
 		return -1;
 	endian8 = 0;
 	handle->options_start = do_lseek(handle, 0, SEEK_CUR);
-	if (do_write_check(handle, &endian8, 8))
+	if (tcmd_do_write_check(handle, &endian8, 8))
 		return -1;
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		return -1;
 
 	return 0;
@@ -2003,14 +2004,14 @@ static int write_options(struct tracecmd_output *handle)
 		if (options->offset)
 			continue;
 		endian2 = convert_endian_2(handle, options->id);
-		if (do_write_check(handle, &endian2, 2))
+		if (tcmd_do_write_check(handle, &endian2, 2))
 			return -1;
 		endian4 = convert_endian_4(handle, options->size);
-		if (do_write_check(handle, &endian4, 4))
+		if (tcmd_do_write_check(handle, &endian4, 4))
 			return -1;
 		/* Save the data location */
 		options->offset = do_lseek(handle, 0, SEEK_CUR);
-		if (do_write_check(handle, options->data, options->size))
+		if (tcmd_do_write_check(handle, options->data, options->size))
 			return -1;
 	}
 
@@ -2018,7 +2019,7 @@ static int write_options(struct tracecmd_output *handle)
 }
 
 /**
- * trace_get_options - Get the current options from the output file handle
+ * tcmd_get_options - Get the current options from the output file handle
  * @handle: The output file descriptor that has options.
  * @len: Returns the length of the buffer allocated and returned.
  *
@@ -2033,7 +2034,7 @@ static int write_options(struct tracecmd_output *handle)
  *   the options to send, with @len set to the size of the content.
  *   NULL on error (and @len is undefined).
  */
-__hidden void *trace_get_options(struct tracecmd_output *handle, size_t *len)
+__hidden void *tcmd_get_options(struct tracecmd_output *handle, size_t *len)
 {
 	struct tracecmd_msg_handle msg_handle;
 	struct tracecmd_output out_handle;
@@ -2058,14 +2059,14 @@ __hidden void *trace_get_options(struct tracecmd_output *handle, size_t *len)
 		if (options->offset)
 			continue;
 		endian2 = convert_endian_2(handle, options->id);
-		if (do_write_check(&out_handle, &endian2, 2))
+		if (tcmd_do_write_check(&out_handle, &endian2, 2))
 			goto out;
 		endian4 = convert_endian_4(handle, options->size);
-		if (do_write_check(&out_handle, &endian4, 4))
+		if (tcmd_do_write_check(&out_handle, &endian4, 4))
 			goto out;
 		/* The option can not be referenced again */
 		options->offset = -1;
-		if (do_write_check(&out_handle, options->data, options->size))
+		if (tcmd_do_write_check(&out_handle, options->data, options->size))
 			goto out;
 	}
 
@@ -2090,7 +2091,7 @@ __hidden void *trace_get_options(struct tracecmd_output *handle, size_t *len)
 }
 
 /**
- * trace_append_options - Append options to the file
+ * tcmd_append_options - Append options to the file
  * @handle: The output file descriptor that has options.
  * @buf: The options to append.
  * @len: The length of @buf.
@@ -2101,8 +2102,8 @@ __hidden void *trace_get_options(struct tracecmd_output *handle, size_t *len)
  *
  * Returns 0 on success and -1 on error.
  */
-__hidden int trace_append_options(struct tracecmd_output *handle, void *buf,
-				  size_t len)
+__hidden int tcmd_append_options(struct tracecmd_output *handle, void *buf,
+				 size_t len)
 {
 	tsize_t offset;
 
@@ -2110,7 +2111,7 @@ __hidden int trace_append_options(struct tracecmd_output *handle, void *buf,
 	if (offset == (off_t)-1)
 		return -1;
 
-	if (do_write_check(handle, buf, len))
+	if (tcmd_do_write_check(handle, buf, len))
 		return -1;
 
 	return write_options_end(handle, offset);
@@ -2159,24 +2160,24 @@ static int append_options_v6(struct tracecmd_output *handle)
 
 	list_for_each_entry(options, &handle->options, list) {
 		endian2 = convert_endian_2(handle, options->id);
-		if (do_write_check(handle, &endian2, 2))
+		if (tcmd_do_write_check(handle, &endian2, 2))
 			return -1;
 
 		endian4 = convert_endian_4(handle, options->size);
-		if (do_write_check(handle, &endian4, 4))
+		if (tcmd_do_write_check(handle, &endian4, 4))
 			return -1;
 
 		/* Save the data location in case it needs to be updated */
 		options->offset = do_lseek(handle, 0, SEEK_CUR);
 
-		if (do_write_check(handle, options->data,
+		if (tcmd_do_write_check(handle, options->data,
 				   options->size))
 			return -1;
 	}
 
 	option = TRACECMD_OPTION_DONE;
 
-	if (do_write_check(handle, &option, 2))
+	if (tcmd_do_write_check(handle, &option, 2))
 		return -1;
 
 	return 0;
@@ -2274,7 +2275,7 @@ int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 	tsize_t offset;
 	int ret;
 
-	if (!check_out_state(handle, TRACECMD_FILE_CMD_LINES)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_CMD_LINES)) {
 		tracecmd_warning("Cannot write command lines into the file, unexpected state 0x%X",
 				 handle->file_state);
 		return -1;
@@ -2285,23 +2286,23 @@ int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 
 	if (compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_CMDLINES,
-					  "command lines", flags, true);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_CMDLINES,
+					       "command lines", flags, true);
 	if (offset == (off_t)-1)
 		return -1;
 
-	out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, compress);
 
 	ret = save_tracing_file_data(handle, "saved_cmdlines");
 	if (ret < 0) {
-		out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle, compress);
 		return ret;
 	}
 
-	if (out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle, compress))
 		return -1;
 
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		return -1;
 
 	handle->file_state = TRACECMD_FILE_CMD_LINES;
@@ -2333,9 +2334,9 @@ static char *get_clock(struct tracecmd_output *handle)
 }
 
 __hidden struct tracecmd_option *
-out_add_buffer_option(struct tracecmd_output *handle, const char *name,
-		      unsigned short id, unsigned long long data_offset,
-		      int cpus, struct data_file_write *cpu_data, int page_size)
+tcmd_out_add_buffer_option(struct tracecmd_output *handle, const char *name,
+			   unsigned short id, unsigned long long data_offset,
+			   int cpus, struct data_file_write *cpu_data, int page_size)
 {
 	struct tracecmd_option *option;
 	int i, j = 0, k = 0;
@@ -2455,13 +2456,13 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 	if (tracecmd_write_options(handle) < 0)
 		goto out_free;
 
-	if (!check_out_state(handle, TRACECMD_FILE_CPU_LATENCY)) {
+	if (!tcmd_check_out_state(handle, TRACECMD_FILE_CPU_LATENCY)) {
 		tracecmd_warning("Cannot write latency data into the file, unexpected state 0x%X",
 				 handle->file_state);
 		goto out_free;
 	}
 
-	if (!HAS_SECTIONS(handle) && do_write_check(handle, "latency  ", 10))
+	if (!HAS_SECTIONS(handle) && tcmd_do_write_check(handle, "latency  ", 10))
 		goto out_free;
 
 	path = get_tracing_file(handle, "trace");
@@ -2470,17 +2471,17 @@ struct tracecmd_output *tracecmd_create_file_latency(const char *output_file, in
 
 	offset = do_lseek(handle, 0, SEEK_CUR);
 	if (HAS_SECTIONS(handle) &&
-	    !out_add_buffer_option(handle, "", TRACECMD_OPTION_BUFFER_TEXT,
+	    !tcmd_out_add_buffer_option(handle, "", TRACECMD_OPTION_BUFFER_TEXT,
 				   offset, 0, NULL, getpagesize()))
 		goto out_free;
 	if (handle->compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
 
-	offset = out_write_section_header(handle, TRACECMD_OPTION_BUFFER_TEXT,
-					  "buffer latency", flags, false);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_BUFFER_TEXT,
+					       "buffer latency", flags, false);
 
 	copy_file_compress(handle, path, NULL);
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		goto out_free;
 
 	put_tracing_file(path);
@@ -2508,10 +2509,10 @@ static int save_clock(struct tracecmd_output *handle, char *clock)
 		return -1;
 
 	endian8 = convert_endian_8(handle, strlen(str));
-	ret = do_write_check(handle, &endian8, 8);
+	ret = tcmd_do_write_check(handle, &endian8, 8);
 	if (ret)
 		goto out;
-	ret = do_write_check(handle, str, strlen(str));
+	ret = tcmd_do_write_check(handle, str, strlen(str));
 
 out:
 	free(str);
@@ -2541,7 +2542,7 @@ static int update_buffer_cpu_offset_v6(struct tracecmd_output *handle,
 		return -1;
 	}
 
-	if (do_write_check(handle, &offset, 8))
+	if (tcmd_do_write_check(handle, &offset, 8))
 		return -1;
 
 	/* Go back to end of file */
@@ -2552,7 +2553,7 @@ static int update_buffer_cpu_offset_v6(struct tracecmd_output *handle,
 	return 0;
 }
 
-__hidden int out_write_emty_cpu_data(struct tracecmd_output *handle, int cpus)
+__hidden int tcmd_out_write_emty_cpu_data(struct tracecmd_output *handle, int cpus)
 {
 	unsigned long long zero = 0;
 	char *clock;
@@ -2563,24 +2564,24 @@ __hidden int out_write_emty_cpu_data(struct tracecmd_output *handle, int cpus)
 		return 0;
 
 	ret = handle->file_state == TRACECMD_FILE_CPU_FLYRECORD ? 0 :
-				    check_file_state(handle->file_version,
-						     handle->file_state,
-						     TRACECMD_FILE_CPU_FLYRECORD);
+				    tcmd_check_file_state(handle->file_version,
+							  handle->file_state,
+							  TRACECMD_FILE_CPU_FLYRECORD);
 	if (ret < 0) {
 		tracecmd_warning("Cannot write trace data into the file, unexpected state 0x%X",
 				 handle->file_state);
 		return ret;
 	}
 
-	if (do_write_check(handle, "flyrecord", 10))
+	if (tcmd_do_write_check(handle, "flyrecord", 10))
 		return -1;
 
 	for (i = 0; i < cpus; i++) {
 		/* Write 0 for trace data offset and size */
-		if (do_write_check(handle, &zero, 8))
+		if (tcmd_do_write_check(handle, &zero, 8))
 			return -1;
 
-		if (do_write_check(handle, &zero, 8))
+		if (tcmd_do_write_check(handle, &zero, 8))
 			return -1;
 	}
 	clock = get_clock(handle);
@@ -2591,8 +2592,9 @@ __hidden int out_write_emty_cpu_data(struct tracecmd_output *handle, int cpus)
 	return 0;
 }
 
-__hidden int out_write_cpu_data(struct tracecmd_output *handle,
-				int cpus, struct cpu_data_source *data, const char *buff_name)
+__hidden int tcmd_out_write_cpu_data(struct tracecmd_output *handle,
+				     int cpus, struct cpu_data_source *data,
+				     const char *buff_name)
 {
 	struct data_file_write *data_files = NULL;
 	enum tracecmd_section_flags flags = 0;
@@ -2607,9 +2609,9 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 
 	/* This can be called multiple times (when recording instances) */
 	ret = handle->file_state == TRACECMD_FILE_CPU_FLYRECORD ? 0 :
-				    check_file_state(handle->file_version,
-						     handle->file_state,
-						     TRACECMD_FILE_CPU_FLYRECORD);
+				    tcmd_check_file_state(handle->file_version,
+							  handle->file_state,
+							  TRACECMD_FILE_CPU_FLYRECORD);
 	if (ret < 0) {
 		tracecmd_warning("Cannot write trace data into the file, unexpected state 0x%X",
 				 handle->file_state);
@@ -2622,14 +2624,14 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		page_size = get_trace_page_size(handle, buff_name);
 
 	data_offs = do_lseek(handle, 0, SEEK_CUR);
-	if (!HAS_SECTIONS(handle) && do_write_check(handle, "flyrecord", 10))
+	if (!HAS_SECTIONS(handle) && tcmd_do_write_check(handle, "flyrecord", 10))
 		goto out_free;
 
 	if (handle->compress)
 		flags |= TRACECMD_SEC_FL_COMPRESS;
 	if (asprintf(&str, "buffer flyrecord %s", buff_name) < 1)
 		goto out_free;
-	offset = out_write_section_header(handle, TRACECMD_OPTION_BUFFER, str, flags, false);
+	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_BUFFER, str, flags, false);
 	free(str);
 	if (offset == (off_t)-1)
 		goto out_free;
@@ -2647,10 +2649,10 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		if (!HAS_SECTIONS(handle)) {
 			endian8 = 0;
 			data_files[i].file_data_offset = do_lseek(handle, 0, SEEK_CUR);
-			if (do_write_check(handle, &endian8, 8))
+			if (tcmd_do_write_check(handle, &endian8, 8))
 				goto out_free;
 			data_files[i].file_write_size = do_lseek(handle, 0, SEEK_CUR);
-			if (do_write_check(handle, &endian8, 8))
+			if (tcmd_do_write_check(handle, &endian8, 8))
 				goto out_free;
 		}
 	}
@@ -2679,9 +2681,9 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 		if (data[i].size) {
 			if (lseek(data[i].fd, data[i].offset, SEEK_SET) == (off_t)-1)
 				goto out_free;
-			read_size = out_copy_fd_compress(handle, data[i].fd,
-							 data[i].size, &data_files[i].write_size,
-							 page_size);
+			read_size = tcmd_out_copy_fd_compress(handle, data[i].fd,
+							      data[i].size, &data_files[i].write_size,
+							      page_size);
 
 			if (read_size != data_files[i].file_size) {
 				errno = EINVAL;
@@ -2698,13 +2700,13 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 			if (do_lseek(handle, data_files[i].file_data_offset, SEEK_SET) == (off_t)-1)
 				goto out_free;
 			endian8 = convert_endian_8(handle, data_files[i].data_offset);
-			if (do_write_check(handle, &endian8, 8))
+			if (tcmd_do_write_check(handle, &endian8, 8))
 				goto out_free;
 			/* Write the real CPU data size in the file */
 			if (do_lseek(handle, data_files[i].file_write_size, SEEK_SET) == (off_t)-1)
 				goto out_free;
 			endian8 = convert_endian_8(handle, data_files[i].write_size);
-			if (do_write_check(handle, &endian8, 8))
+			if (tcmd_do_write_check(handle, &endian8, 8))
 				goto out_free;
 			offset = data_files[i].data_offset + data_files[i].write_size;
 			if (do_lseek(handle, offset, SEEK_SET) == (off_t)-1)
@@ -2721,15 +2723,15 @@ __hidden int out_write_cpu_data(struct tracecmd_output *handle,
 	}
 
 	if (HAS_SECTIONS(handle) &&
-	    !out_add_buffer_option(handle, buff_name,  TRACECMD_OPTION_BUFFER,
-				   data_offs, cpus, data_files, page_size))
+	    !tcmd_out_add_buffer_option(handle, buff_name,  TRACECMD_OPTION_BUFFER,
+					data_offs, cpus, data_files, page_size))
 		goto out_free;
 
 	free(data_files);
 	if (do_lseek(handle, 0, SEEK_END) == (off_t)-1)
 		return -1;
 
-	if (out_update_section_header(handle, offset))
+	if (tcmd_out_update_section_header(handle, offset))
 		goto out_free;
 
 	handle->file_state = TRACECMD_FILE_CPU_FLYRECORD;
@@ -2781,7 +2783,7 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 	if (i < cpus)
 		ret = -1;
 	else
-		ret = out_write_cpu_data(handle, cpus, data, buff_name);
+		ret = tcmd_out_write_cpu_data(handle, cpus, data, buff_name);
 
 	for (i--; i >= 0; i--)
 		close(data[i].fd);
@@ -2855,8 +2857,8 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd)
 	tep_ref(handle->pevent);
 	handle->page_size = tracecmd_page_size(ihandle);
 	handle->file_version = tracecmd_get_in_file_version(ihandle);
-	handle->options_start = get_last_option_offset(ihandle);
-	handle->strings_offs = get_meta_strings_size(ihandle);
+	handle->options_start = tcmd_get_last_option_offset(ihandle);
+	handle->strings_offs = tcmd_get_meta_strings_size(ihandle);
 	list_head_init(&handle->options);
 	list_head_init(&handle->buffers);
 
@@ -2953,7 +2955,7 @@ struct tracecmd_output *tracecmd_copy(struct tracecmd_input *ihandle, const char
 		goto out_free;
 
 	if (state >= TRACECMD_FILE_CPU_LATENCY &&
-	    tracecmd_copy_trace_data(ihandle, handle) < 0)
+	    tcmd_copy_trace_data(ihandle, handle) < 0)
 		goto out_free;
 
 	if (HAS_SECTIONS(handle))
@@ -2970,22 +2972,22 @@ out_free:
 	return NULL;
 }
 
-__hidden void out_set_file_state(struct tracecmd_output *handle, int new_state)
+__hidden void tcmd_out_set_file_state(struct tracecmd_output *handle, int new_state)
 {
 	handle->file_state = new_state;
 }
 
-__hidden bool check_out_state(struct tracecmd_output *handle, int new_state)
+__hidden bool tcmd_check_out_state(struct tracecmd_output *handle, int new_state)
 {
-	return check_file_state(handle->file_version, handle->file_state, new_state);
+	return tcmd_check_file_state(handle->file_version, handle->file_state, new_state);
 }
 
-__hidden bool out_check_compression(struct tracecmd_output *handle)
+__hidden bool tcmd_out_check_compression(struct tracecmd_output *handle)
 {
 	return (handle->compress != NULL);
 }
 
-__hidden int out_save_options_offset(struct tracecmd_output *handle, unsigned long long start)
+__hidden int tcmd_out_save_options_offset(struct tracecmd_output *handle, unsigned long long start)
 {
 	unsigned long long new, en8;
 
@@ -2999,7 +3001,7 @@ __hidden int out_save_options_offset(struct tracecmd_output *handle, unsigned lo
 			return -1;
 
 		en8 = convert_endian_8(handle, start);
-		if (do_write_check(handle, &en8, 8))
+		if (tcmd_do_write_check(handle, &en8, 8))
 			return -1;
 
 		handle->options_start = new;

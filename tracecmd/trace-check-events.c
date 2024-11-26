@@ -59,7 +59,7 @@ void trace_check_events(int argc, char **argv)
 	if (!pevent)
 		exit(EINVAL);
 
-	list = trace_load_plugins(pevent, open_flags);
+	list = tcmd_load_plugins(pevent, open_flags);
 	ret = tracefs_fill_local_events(tracing, pevent, &parsing_failures);
 	if (ret || parsing_failures)
 		ret = EINVAL;

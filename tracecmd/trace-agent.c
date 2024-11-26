@@ -32,11 +32,11 @@ static void make_vsocks(int nr, int *fds, unsigned int *ports)
 	int i, fd, ret;
 
 	for (i = 0; i < nr; i++) {
-		fd = trace_vsock_make_any();
+		fd = tcmd_vsock_make_any();
 		if (fd < 0)
 			die("Failed to open vsocket");
 
-		ret = trace_vsock_get_port(fd, &port);
+		ret = tcmd_vsock_get_port(fd, &port);
 		if (ret < 0)
 			die("Failed to get vsocket address");
 
@@ -223,9 +223,9 @@ static void agent_handle(int sd, int nr_cpus, int page_size,
 				remote_id = -1;
 				local_id = -2;
 			}
-			fd = trace_vsock_make_any();
+			fd = tcmd_vsock_make_any();
 			if (fd >= 0 &&
-			    trace_vsock_get_port(fd, &tsync_port) < 0) {
+			    tcmd_vsock_get_port(fd, &tsync_port) < 0) {
 				close(fd);
 				fd = -1;
 			}
@@ -327,13 +327,13 @@ static void agent_serve(unsigned int port, bool do_daemon, int proxy_id,
 		if (listen(sd, 5) < 0)
 			die("Failed to listen on %d\n", port);
 	} else
-		sd = trace_vsock_make(port);
+		sd = tcmd_vsock_make(port);
 	if (sd < 0)
 		die("Failed to open socket");
 	tracecmd_tsync_init();
 
 	if (!network) {
-		cid = trace_vsock_local_cid();
+		cid = tcmd_vsock_local_cid();
 		if (cid >= 0)
 			printf("listening on @%u:%u\n", cid, port);
 	}

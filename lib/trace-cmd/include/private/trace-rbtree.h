@@ -24,11 +24,11 @@ struct trace_rbtree {
 	size_t				nr_nodes;
 };
 
-void trace_rbtree_init(struct trace_rbtree *tree, trace_rbtree_cmp_fn cmp_fn,
-		       trace_rbtree_search_fn search_fn);
+void tcmd_rbtree_init(struct trace_rbtree *tree, trace_rbtree_cmp_fn cmp_fn,
+		      trace_rbtree_search_fn search_fn);
 struct trace_rbtree_node *trace_rbtree_find(struct trace_rbtree *tree, const void *data);
 void trace_rbtree_delete(struct trace_rbtree *tree, struct trace_rbtree_node *node);
-int trace_rbtree_insert(struct trace_rbtree *tree, struct trace_rbtree_node *node);
+int tcmd_rbtree_insert(struct trace_rbtree *tree, struct trace_rbtree_node *node);
 struct trace_rbtree_node *trace_rbtree_pop_nobalance(struct trace_rbtree *tree);
 
 #endif /* _TRACE_RBTREE_H */

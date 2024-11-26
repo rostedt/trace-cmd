@@ -28,7 +28,7 @@
 
 #define TSCNSEC_CLOCK	"tsc2nsec"
 
-struct tep_plugin_list *trace_load_plugins(struct tep_handle *tep, int flags);
+struct tep_plugin_list *tcmd_load_plugins(struct tep_handle *tep, int flags);
 
 int *tracecmd_add_id(int *list, int id, int len);
 
@@ -204,8 +204,8 @@ int tracecmd_copy_buffer_descr(struct tracecmd_input *in_handle,
 			       struct tracecmd_output *out_handle);
 int tracecmd_copy_options(struct tracecmd_input *in_handle,
 			  struct tracecmd_output *out_handle);
-int tracecmd_copy_trace_data(struct tracecmd_input *in_handle,
-			     struct tracecmd_output *out_handle);
+int tcmd_copy_trace_data(struct tracecmd_input *in_handle,
+			 struct tracecmd_output *out_handle);
 void tracecmd_set_flag(struct tracecmd_input *handle, int flag);
 void tracecmd_clear_flag(struct tracecmd_input *handle, int flag);
 unsigned long tracecmd_get_flags(struct tracecmd_input *handle);
@@ -504,7 +504,7 @@ enum tracecmd_time_sync_role {
 
 void tracecmd_tsync_init(void);
 int tracecmd_tsync_proto_getall(struct tracecmd_tsync_protos **protos, const char *clock, int role);
-bool tsync_proto_is_supported(const char *proto_name);
+bool tcmd_tsync_proto_is_supported(const char *proto_name);
 struct tracecmd_time_sync *
 tracecmd_tsync_with_host(int fd, const char *proto, const char *clock,
 			 int remote_id, int local_id);
@@ -518,7 +518,7 @@ int tracecmd_tsync_get_offsets(struct tracecmd_time_sync *tsync, int cpu,
 			       int *count, long long **ts,
 			       long long **offsets, long long **scalings, long long **frac);
 const char *tracecmd_tsync_get_proto(const struct tracecmd_tsync_protos *protos,
-			 const char *clock, enum tracecmd_time_sync_role role);
+				     const char *clock, enum tracecmd_time_sync_role role);
 void tracecmd_tsync_free(struct tracecmd_time_sync *tsync);
 int tracecmd_write_guest_time_shift(struct tracecmd_output *handle,
 				    struct tracecmd_time_sync *tsync);
@@ -571,8 +571,8 @@ int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 /* --- Plugin handling --- */
 extern struct tep_plugin_option trace_ftrace_options[];
 
-char **trace_util_find_plugin_files(const char *suffix);
-void trace_util_free_plugin_files(char **files);
+char **tcmd_util_find_plugin_files(const char *suffix);
+void tcmd_util_free_plugin_files(char **files);
 
 /* Used for trace-cmd list */
 void tracecmd_ftrace_load_options(void);
@@ -633,9 +633,9 @@ struct trace_perf {
 	struct perf_event_attr pe;
 	struct perf_event_mmap_page *mmap;
 };
-int trace_perf_init(struct trace_perf *perf, int pages, int cpu, int pid);
-int trace_perf_open(struct trace_perf *perf);
-void trace_perf_close(struct trace_perf *perf);
+int tcmd_perf_init(struct trace_perf *perf, int pages, int cpu, int pid);
+int tcmd_perf_open(struct trace_perf *perf);
+void tcmd_perf_close(struct trace_perf *perf);
 #endif
 
 #endif /* _TRACE_CMD_PRIVATE_H */

@@ -226,7 +226,7 @@ add_start(struct task_data *task,
 	start->event_data = event_data;
 	start->cpu = record->cpu;
 	start->task = task;
-	trace_hash_add(&task->start_hash, &start->hash);
+	tcmd_hash_add(&task->start_hash, &start->hash);
 	if (event_data->migrate)
 		list_add(&start->list, &task->handle->migrate_starts);
 	else
@@ -270,7 +270,7 @@ find_event_hash(struct task_data *task, struct event_data_match *edata)
 		(unsigned long)edata->search_val +
 		(unsigned long)edata->val;
 	key = trace_hash(key);
-	item = trace_hash_find(&task->event_hash, key, match_event, edata);
+	item = tcmd_hash_find(&task->event_hash, key, match_event, edata);
 	if (item)
 		return event_from_item(item);
 
@@ -283,9 +283,9 @@ find_event_hash(struct task_data *task, struct event_data_match *edata)
 	event_hash->search_val = edata->search_val;
 	event_hash->val = edata->val;
 	event_hash->hash.key = key;
-	trace_hash_init(&event_hash->stacks, 32);
+	tcmd_hash_init(&event_hash->stacks, 32);
 
-	trace_hash_add(&task->event_hash, &event_hash->hash);
+	tcmd_hash_add(&task->event_hash, &event_hash->hash);
 
 	return event_hash;
 }
@@ -316,7 +316,7 @@ find_start(struct task_data *task, struct event_data *event_data,
 	edata.event_data = event_data;
 	edata.search_val = search_val;
 
-	item = trace_hash_find(&task->start_hash, key, match_start, data);
+	item = tcmd_hash_find(&task->start_hash, key, match_start, data);
 	if (!item)
 		return NULL;
 
@@ -360,7 +360,7 @@ static void add_event_stack(struct event_hash *event_hash,
 	for (key = 0, i = 0; i <= size - sizeof(int); i += sizeof(int))
 		key += trace_hash(*(int *)(caller + i));
 
-	item = trace_hash_find(&event_hash->stacks, key, match_stack, &match);
+	item = tcmd_hash_find(&event_hash->stacks, key, match_stack, &match);
 	if (!item) {
 		stack = malloc(sizeof(*stack) + size);
 		if (!stack) {
@@ -371,7 +371,7 @@ static void add_event_stack(struct event_hash *event_hash,
 		memcpy(&stack->caller, caller, size);
 		stack->size = size;
 		stack->hash.key = key;
-		trace_hash_add(&event_hash->stacks, &stack->hash);
+		tcmd_hash_add(&event_hash->stacks, &stack->hash);
 	} else
 		stack = stack_from_item(item);
 
@@ -474,8 +474,8 @@ static void init_task(struct handle_data *h, struct task_data *task)
 {
 	task->handle = h;
 
-	trace_hash_init(&task->start_hash, 16);
-	trace_hash_init(&task->event_hash, 32);
+	tcmd_hash_init(&task->start_hash, 16);
+	tcmd_hash_init(&task->event_hash, 32);
 }
 
 static struct task_data *
@@ -493,7 +493,7 @@ add_task(struct handle_data *h, int pid)
 
 	task->pid = pid;
 	task->hash.key = key;
-	trace_hash_add(&h->task_hash, &task->hash);
+	tcmd_hash_add(&h->task_hash, &task->hash);
 
 	init_task(h, task);
 
@@ -511,7 +511,7 @@ find_task(struct handle_data *h, int pid)
 	if (last_task && last_task->pid == pid)
 		return last_task;
 
-	item = trace_hash_find(&h->task_hash, key, match_task, data);
+	item = tcmd_hash_find(&h->task_hash, key, match_task, data);
 
 	if (item)
 		last_task = task_from_item(item);
@@ -726,7 +726,7 @@ find_event_data(struct handle_data *h, int id)
 	unsigned long long key = trace_hash(id);
 	void *data = (void *)(unsigned long)id;
 
-	item = trace_hash_find(&h->events, key, match_event_data, data);
+	item = tcmd_hash_find(&h->events, key, match_event_data, data);
 	if (item)
 		return event_data_from_item(item);
 	return NULL;
@@ -818,7 +818,7 @@ add_event(struct handle_data *h, const char *system, const char *event_name,
 	event_data->type = type;
 	event_data->hash.key = trace_hash(event_data->event->id);
 
-	trace_hash_add(&h->events, &event_data->hash);
+	tcmd_hash_add(&h->events, &event_data->hash);
 
 	return event_data;
 }
@@ -1298,9 +1298,9 @@ void trace_init_profile(struct tracecmd_input *handle, struct hook_list *hook,
 	h->next = handles;
 	handles = h;
 
-	trace_hash_init(&h->task_hash, 1024);
-	trace_hash_init(&h->events, 1024);
-	trace_hash_init(&h->group_hash, 512);
+	tcmd_hash_init(&h->task_hash, 1024);
+	tcmd_hash_init(&h->events, 1024);
+	tcmd_hash_init(&h->group_hash, 512);
 
 	h->handle = handle;
 	h->pevent = pevent;
@@ -2120,7 +2120,7 @@ static void free_event_hash(struct event_hash *event_hash)
 			free(stack);
 		}
 	}
-	trace_hash_free(&event_hash->stacks);
+	tcmd_hash_free(&event_hash->stacks);
 	free(event_hash);
 }
 
@@ -2143,7 +2143,7 @@ static void __free_task(struct task_data *task)
 			free(start);
 		}
 	}
-	trace_hash_free(&task->start_hash);
+	tcmd_hash_free(&task->start_hash);
 
 	trace_hash_for_each_bucket(bucket, &task->event_hash) {
 		trace_hash_while_item(item, bucket) {
@@ -2152,7 +2152,7 @@ static void __free_task(struct task_data *task)
 			free_event_hash(event_hash);
 		}
 	}
-	trace_hash_free(&task->event_hash);
+	tcmd_hash_free(&task->event_hash);
 
 	if (task->last_stack)
 		tracecmd_free_record(task->last_stack);
@@ -2179,14 +2179,14 @@ static void free_group(struct group_data *group)
 			free_event_hash(event_hash);
 		}
 	}
-	trace_hash_free(&group->event_hash);
+	tcmd_hash_free(&group->event_hash);
 	free(group);
 }
 
 static void show_global_task(struct handle_data *h,
 			     struct task_data *task)
 {
-	if (trace_hash_empty(&task->event_hash))
+	if (tcmd_hash_empty(&task->event_hash))
 		return;
 
 	output_task(h, task);
@@ -2294,10 +2294,9 @@ static void merge_event_stack(struct event_hash *event,
 
 	match.caller = stack->caller;
 	match.size = stack->size;
-	item = trace_hash_find(&event->stacks, stack->hash.key, match_stack,
-			       &match);
+	item = tcmd_hash_find(&event->stacks, stack->hash.key, match_stack, &match);
 	if (!item) {
-		trace_hash_add(&event->stacks, &stack->hash);
+		tcmd_hash_add(&event->stacks, &stack->hash);
 		return;
 	}
 	exist = stack_from_item(item);
@@ -2357,10 +2356,10 @@ static void merge_event_into_group(struct group_data *group,
 	edata.search_val = event->search_val;
 	edata.val = event->val;
 
-	item = trace_hash_find(&group->event_hash, key, match_event, &edata);
+	item = tcmd_hash_find(&group->event_hash, key, match_event, &edata);
 	if (!item) {
 		event->hash.key = key;
-		trace_hash_add(&group->event_hash, &event->hash);
+		tcmd_hash_add(&group->event_hash, &event->hash);
 		return;
 	}
 
@@ -2394,7 +2393,7 @@ static void add_group(struct handle_data *h, struct task_data *task)
 
 	key = trace_hash_str(task->comm);
 
-	item = trace_hash_find(&h->group_hash, key, match_group, data);
+	item = tcmd_hash_find(&h->group_hash, key, match_group, data);
 	if (item) {
 		grp = group_from_item(item);
 	} else {
@@ -2409,8 +2408,8 @@ static void add_group(struct handle_data *h, struct task_data *task)
 		if (!grp->comm)
 			die("strdup");
 		grp->hash.key = key;
-		trace_hash_add(&h->group_hash, &grp->hash);
-		trace_hash_init(&grp->event_hash, 32);
+		tcmd_hash_add(&h->group_hash, &grp->hash);
+		tcmd_hash_init(&grp->event_hash, 32);
 	}
 	task->group = grp;
 
@@ -2447,7 +2446,7 @@ int do_trace_profile(void)
 		if (merge_like_comms)
 			merge_tasks(h);
 		output_handle(h);
-		trace_hash_free(&h->task_hash);
+		tcmd_hash_free(&h->task_hash);
 	}
 
 	return 0;

@@ -325,29 +325,29 @@ static const char *show_records(struct page **pages, int nr_pages)
 #endif
 
 /**
- * trace_set_guest_map - set map to input handle
+ * tcmd_set_guest_map - set map to input handle
  * @handle: The handle to set the cpu map to
  * @map: The cpu map for this handle (to the host)
  *
  * Assign the mapping of host to guest for a guest handle.
  */
-__hidden void trace_set_guest_map(struct tracecmd_input *handle,
-				  struct tracecmd_cpu_map *map)
+__hidden void tcmd_set_guest_map(struct tracecmd_input *handle,
+				 struct tracecmd_cpu_map *map)
 {
 	handle->map = map;
 }
 
-__hidden struct tracecmd_cpu_map *trace_get_guest_map(struct tracecmd_input *handle)
+__hidden struct tracecmd_cpu_map *tcmd_get_guest_map(struct tracecmd_input *handle)
 {
 	return handle->map;
 }
 
-__hidden void trace_set_guest_map_cnt(struct tracecmd_input *handle, int count)
+__hidden void tcmd_set_guest_map_cnt(struct tracecmd_input *handle, int count)
 {
 	handle->map_cnt = count;
 }
 
-__hidden int trace_get_guest_map_cnt(struct tracecmd_input *handle)
+__hidden int tcmd_get_guest_map_cnt(struct tracecmd_input *handle)
 {
 	return handle->map_cnt;
 }
@@ -500,7 +500,7 @@ static int read8(struct tracecmd_input *handle, unsigned long long *size)
 	return 0;
 }
 
-__hidden void in_uncompress_reset(struct tracecmd_input *handle)
+__hidden void tcmd_in_uncompress_reset(struct tracecmd_input *handle)
 {
 	if (handle->compress) {
 		handle->read_compress = false;
@@ -508,7 +508,7 @@ __hidden void in_uncompress_reset(struct tracecmd_input *handle)
 	}
 }
 
-__hidden int in_uncompress_block(struct tracecmd_input *handle)
+__hidden int tcmd_in_uncompress_block(struct tracecmd_input *handle)
 {
 	int ret = 0;
 
@@ -542,7 +542,7 @@ static struct file_section *section_open(struct tracecmd_input *handle, int id)
 	if (lseek(handle->fd, sec->data_offset, SEEK_SET) == (off_t)-1)
 		return NULL;
 
-	if ((sec->flags & TRACECMD_SEC_FL_COMPRESS) && in_uncompress_block(handle))
+	if ((sec->flags & TRACECMD_SEC_FL_COMPRESS) && tcmd_in_uncompress_block(handle))
 		return NULL;
 
 	return sec;
@@ -551,7 +551,7 @@ static struct file_section *section_open(struct tracecmd_input *handle, int id)
 static void section_close(struct tracecmd_input *handle, struct file_section *sec)
 {
 	if (sec->flags & TRACECMD_SEC_FL_COMPRESS)
-		in_uncompress_reset(handle);
+		tcmd_in_uncompress_reset(handle);
 }
 
 static int section_add_or_update(struct tracecmd_input *handle, int id, int flags,
@@ -1181,7 +1181,7 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 		return -1;
 
 	section->data_offset = lseek(handle->fd, 0, SEEK_CUR);
-	if ((section->flags & TRACECMD_SEC_FL_COMPRESS) && in_uncompress_block(handle))
+	if ((section->flags & TRACECMD_SEC_FL_COMPRESS) && tcmd_in_uncompress_block(handle))
 		return -1;
 
 	switch (section->id) {
@@ -1209,7 +1209,7 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 	}
 
 	if (section->flags & TRACECMD_SEC_FL_COMPRESS)
-		in_uncompress_reset(handle);
+		tcmd_in_uncompress_reset(handle);
 
 	return ret;
 }
@@ -1441,7 +1441,7 @@ static void *read_zpage(struct tracecmd_input *handle, int cpu, off_t offset)
 	cache->ref = 1;
 	cache->chunk = chunk;
 	cache->map = map;
-	trace_rbtree_insert(&cpu_data->compress.cache, &cache->node);
+	tcmd_rbtree_insert(&cpu_data->compress.cache, &cache->node);
 
 	/* a chunk can hold multiple pages, get the requested one */
 out:
@@ -2777,7 +2777,7 @@ static int call_callbacks(struct tracecmd_input *handle, struct tep_record *reco
 		return ret;
 
 	if (!handle->filter ||
-	    tracecmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH) {
+	    tcmd_filter_match(handle->filter, record) == TRACECMD_FILTER_MATCH) {
 		if (handle->nr_followers)
 			ret = call_followers(handle, record, next_cpu);
 		if (!ret && callback)
@@ -3411,7 +3411,7 @@ static int init_cpu(struct tracecmd_input *handle, int cpu)
 
 	list_head_init(&cpu_data->page_maps);
 
-	trace_rbtree_init(&cpu_data->compress.cache, compress_cmp, compress_search);
+	tcmd_rbtree_init(&cpu_data->compress.cache, compress_cmp, compress_search);
 
 	if (!cpu_data->size) {
 		tracecmd_info("CPU %d is empty", cpu);
@@ -3829,12 +3829,12 @@ tracecmd_search_task_map(struct tracecmd_input *handle,
 	return lib;
 }
 
-__hidden unsigned int get_meta_strings_size(struct tracecmd_input *handle)
+__hidden unsigned int tcmd_get_meta_strings_size(struct tracecmd_input *handle)
 {
 	return handle->strings_size;
 }
 
-__hidden unsigned long long get_last_option_offset(struct tracecmd_input *handle)
+__hidden unsigned long long tcmd_get_last_option_offset(struct tracecmd_input *handle)
 {
 	return handle->options_last_offset;
 }
@@ -4021,7 +4021,7 @@ static int handle_options(struct tracecmd_input *handle)
 			compress = true;
 	}
 
-	if (compress && in_uncompress_block(handle))
+	if (compress && tcmd_in_uncompress_block(handle))
 		return -1;
 
 	for (;;) {
@@ -4181,7 +4181,7 @@ static int handle_options(struct tracecmd_input *handle)
 			break;
 		case TRACECMD_OPTION_DONE:
 			if (compress)
-				in_uncompress_reset(handle);
+				tcmd_in_uncompress_reset(handle);
 			ret = handle_option_done(handle, buf, size);
 			free(buf);
 			return ret;
@@ -4197,7 +4197,7 @@ static int handle_options(struct tracecmd_input *handle)
 out:
 	free(buf);
 	if (compress)
-		in_uncompress_reset(handle);
+		tcmd_in_uncompress_reset(handle);
 	return ret;
 }
 
@@ -4835,14 +4835,14 @@ static int read_metadata_strings(struct tracecmd_input *handle)
 				read4(handle, &csize);
 				read4(handle, &rsize);
 				do_lseek(handle, -8, SEEK_CUR);
-				if (in_uncompress_block(handle))
+				if (tcmd_in_uncompress_block(handle))
 					break;
 			} else {
 				rsize = size;
 			}
 			init_metadata_strings(handle, rsize);
 			if (flags & TRACECMD_SEC_FL_COMPRESS)
-				in_uncompress_reset(handle);
+				tcmd_in_uncompress_reset(handle);
 		} else {
 			if (lseek(handle->fd, size, SEEK_CUR) == (off_t)-1)
 				break;
@@ -4939,7 +4939,7 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 	    !(flags & TRACECMD_FL_LOAD_NO_SYSTEM_PLUGINS))
 		tracecmd_ftrace_overrides(handle, &handle->finfo);
 
-	handle->plugin_list = trace_load_plugins(handle->pevent, flags);
+	handle->plugin_list = tcmd_load_plugins(handle->pevent, flags);
 
 	tep_set_file_bigendian(handle->pevent, buf[0]);
 	tep_set_local_bigendian(handle->pevent, tracecmd_host_bigendian());
@@ -5196,7 +5196,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	free(handle->version);
 	free(handle->followers);
 	free(handle->missed_followers);
-	trace_guest_map_free(handle->map);
+	tcmd_guest_map_free(handle->map);
 	close(handle->fd);
 	free(handle->latz.chunks);
 	if (handle->latz.fd >= 0) {
@@ -5223,7 +5223,7 @@ void tracecmd_close(struct tracecmd_input *handle)
 	trace_tsync_offset_free(&handle->host);
 	trace_guests_free(handle);
 
-	tracecmd_filter_free(handle->filter);
+	tcmd_filter_free(handle->filter);
 
 	if (handle->flags & TRACECMD_FL_BUFFER_INSTANCE)
 		tracecmd_close(handle->parent);
@@ -5243,7 +5243,7 @@ static int read_copy_size8(struct tracecmd_input *in_handle,
 	if (do_read_check(in_handle, size, 8))
 		return -1;
 
-	if (do_write_check(out_handle, size, 8))
+	if (tcmd_do_write_check(out_handle, size, 8))
 		return -1;
 
 	*size = tep_read_number(in_handle->pevent, size, 8);
@@ -5257,7 +5257,7 @@ static int read_copy_size4(struct tracecmd_input *in_handle, struct tracecmd_out
 	if (do_read_check(in_handle, size, 4))
 		return -1;
 
-	if (do_write_check(out_handle, size, 4))
+	if (tcmd_do_write_check(out_handle, size, 4))
 		return -1;
 
 	*size = tep_read_number(in_handle->pevent, size, 4);
@@ -5276,7 +5276,7 @@ static int read_copy_data(struct tracecmd_input *in_handle,
 	if (do_read_check(in_handle, buf, size))
 		goto failed_read;
 
-	if (do_write_check(out_handle, buf, size))
+	if (tcmd_do_write_check(out_handle, buf, size))
 		goto failed_read;
 	
 	free(buf);
@@ -5291,28 +5291,28 @@ static int read_copy_data(struct tracecmd_input *in_handle,
 
 static bool check_in_state(struct tracecmd_input *handle, int new_state)
 {
-	return check_file_state(handle->file_version, handle->file_state, new_state);
+	return tcmd_check_file_state(handle->file_version, handle->file_state, new_state);
 }
 
 static int copy_header_files(struct tracecmd_input *in_handle,
 			     struct tracecmd_output *out_handle)
 {
-	bool compress = out_check_compression(out_handle);
+	bool compress = tcmd_out_check_compression(out_handle);
 	struct file_section *sec;
 	unsigned long long offset;
 	unsigned long long size;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_HEADERS) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_HEADERS))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_HEADERS))
 		return -1;
 
 	sec = section_open(in_handle, TRACECMD_OPTION_HEADER_INFO);
 	if (!sec)
 		return -1;
 
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_HEADER_INFO,
-					  "headers", TRACECMD_SEC_FL_COMPRESS, true);
-	out_compression_start(out_handle, compress);
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_HEADER_INFO,
+					       "headers", TRACECMD_SEC_FL_COMPRESS, true);
+	tcmd_out_compression_start(out_handle, compress);
 
 	/* "header_page"  */
 	if (read_copy_data(in_handle, 12, out_handle) < 0)
@@ -5335,25 +5335,25 @@ static int copy_header_files(struct tracecmd_input *in_handle,
 		goto error;
 
 	in_handle->file_state = TRACECMD_FILE_HEADERS;
-	if (out_compression_end(out_handle, compress))
+	if (tcmd_out_compression_end(out_handle, compress))
 		goto error;
 
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 	section_close(in_handle, sec);
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		goto error;
 
 	return 0;
 error:
-	out_compression_reset(out_handle, compress);
+	tcmd_out_compression_reset(out_handle, compress);
 	section_close(in_handle, sec);
 	return -1;
 }
 
 static int copy_ftrace_files(struct tracecmd_input *in_handle, struct tracecmd_output *out_handle)
 {
-	bool compress = out_check_compression(out_handle);
+	bool compress = tcmd_out_check_compression(out_handle);
 	struct file_section *sec;
 	unsigned long long offset;
 	unsigned long long size;
@@ -5361,16 +5361,16 @@ static int copy_ftrace_files(struct tracecmd_input *in_handle, struct tracecmd_o
 	unsigned int i;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_FTRACE_EVENTS) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_FTRACE_EVENTS))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_FTRACE_EVENTS))
 		return -1;
 
 	sec = section_open(in_handle, TRACECMD_OPTION_FTRACE_EVENTS);
 	if (!sec)
 		return -1;
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_FTRACE_EVENTS,
-					  "ftrace events", TRACECMD_SEC_FL_COMPRESS, true);
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_FTRACE_EVENTS,
+					       "ftrace events", TRACECMD_SEC_FL_COMPRESS, true);
 
-	out_compression_start(out_handle, compress);
+	tcmd_out_compression_start(out_handle, compress);
 
 	if (read_copy_size4(in_handle, out_handle, &count) < 0)
 		goto error;
@@ -5385,26 +5385,26 @@ static int copy_ftrace_files(struct tracecmd_input *in_handle, struct tracecmd_o
 	}
 
 	in_handle->file_state = TRACECMD_FILE_FTRACE_EVENTS;
-	if (out_compression_end(out_handle, compress))
+	if (tcmd_out_compression_end(out_handle, compress))
 		goto error;
 
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 
 	section_close(in_handle, sec);
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		goto error;
 
 	return 0;
 error:
-	out_compression_reset(out_handle, compress);
+	tcmd_out_compression_reset(out_handle, compress);
 	section_close(in_handle, sec);
 	return -1;
 }
 
 static int copy_event_files(struct tracecmd_input *in_handle, struct tracecmd_output *out_handle)
 {
-	bool compress = out_check_compression(out_handle);
+	bool compress = tcmd_out_check_compression(out_handle);
 	struct file_section *sec;
 	unsigned long long offset;
 	unsigned long long size;
@@ -5414,16 +5414,16 @@ static int copy_event_files(struct tracecmd_input *in_handle, struct tracecmd_ou
 	unsigned int i,x;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_ALL_EVENTS) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_ALL_EVENTS))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_ALL_EVENTS))
 		return -1;
 
 	sec = section_open(in_handle, TRACECMD_OPTION_EVENT_FORMATS);
 	if (!sec)
 		return -1;
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_EVENT_FORMATS,
-					  "events format", TRACECMD_SEC_FL_COMPRESS, true);
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_EVENT_FORMATS,
+					       "events format", TRACECMD_SEC_FL_COMPRESS, true);
 
-	out_compression_start(out_handle, compress);
+	tcmd_out_compression_start(out_handle, compress);
 
 	if (read_copy_size4(in_handle, out_handle, &systems) < 0)
 		goto error;
@@ -5432,7 +5432,7 @@ static int copy_event_files(struct tracecmd_input *in_handle, struct tracecmd_ou
 		system = read_string(in_handle);
 		if (!system)
 			goto error;
-		if (do_write_check(out_handle, system, strlen(system) + 1)) {
+		if (tcmd_do_write_check(out_handle, system, strlen(system) + 1)) {
 			free(system);
 			goto error;
 		}
@@ -5451,41 +5451,41 @@ static int copy_event_files(struct tracecmd_input *in_handle, struct tracecmd_ou
 	}
 
 	in_handle->file_state = TRACECMD_FILE_ALL_EVENTS;
-	if (out_compression_end(out_handle, compress))
+	if (tcmd_out_compression_end(out_handle, compress))
 		goto error;
 
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 
 	section_close(in_handle, sec);
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		goto error;
 
 	return 0;
 error:
-	out_compression_reset(out_handle, compress);
+	tcmd_out_compression_reset(out_handle, compress);
 	section_close(in_handle, sec);
 	return -1;
 }
 
 static int copy_proc_kallsyms(struct tracecmd_input *in_handle, struct tracecmd_output *out_handle)
 {
-	bool compress = out_check_compression(out_handle);
+	bool compress = tcmd_out_check_compression(out_handle);
 	struct file_section *sec;
 	unsigned long long offset;
 	unsigned int size;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_KALLSYMS) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_KALLSYMS))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_KALLSYMS))
 		return -1;
 
 	sec = section_open(in_handle, TRACECMD_OPTION_KALLSYMS);
 	if (!sec)
 		return -1;
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_KALLSYMS,
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_KALLSYMS,
 					  "kallsyms", TRACECMD_SEC_FL_COMPRESS, true);
 
-	out_compression_start(out_handle, compress);
+	tcmd_out_compression_start(out_handle, compress);
 	if (read_copy_size4(in_handle, out_handle, &size) < 0)
 		goto error;
 
@@ -5496,42 +5496,42 @@ static int copy_proc_kallsyms(struct tracecmd_input *in_handle, struct tracecmd_
 		goto error;
 out:
 	in_handle->file_state = TRACECMD_FILE_KALLSYMS;
-	if (out_compression_end(out_handle, compress))
+	if (tcmd_out_compression_end(out_handle, compress))
 		goto error;
 
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 
 	section_close(in_handle, sec);
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		goto error;
 
 	return 0;
 error:
-	out_compression_reset(out_handle, compress);
+	tcmd_out_compression_reset(out_handle, compress);
 	section_close(in_handle, sec);
 	return -1;
 }
 
 static int copy_ftrace_printk(struct tracecmd_input *in_handle, struct tracecmd_output *out_handle)
 {
-	bool compress = out_check_compression(out_handle);
+	bool compress = tcmd_out_check_compression(out_handle);
 	struct file_section *sec;
 	unsigned long long offset;
 	unsigned int size;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_PRINTK) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_PRINTK))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_PRINTK))
 		return -1;
 
 	sec = section_open(in_handle, TRACECMD_OPTION_PRINTK);
 	if (!sec)
 		return -1;
 
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_PRINTK,
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_PRINTK,
 					  "printk", TRACECMD_SEC_FL_COMPRESS, true);
 
-	out_compression_start(out_handle, compress);
+	tcmd_out_compression_start(out_handle, compress);
 
 	if (read_copy_size4(in_handle, out_handle, &size) < 0)
 		goto error;
@@ -5544,41 +5544,41 @@ static int copy_ftrace_printk(struct tracecmd_input *in_handle, struct tracecmd_
 
 out:
 	in_handle->file_state = TRACECMD_FILE_PRINTK;
-	if (out_compression_end(out_handle, compress))
+	if (tcmd_out_compression_end(out_handle, compress))
 		goto error;
 
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 
 	section_close(in_handle, sec);
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		goto error;
 
 	return 0;
 error:
-	out_compression_reset(out_handle, compress);
+	tcmd_out_compression_reset(out_handle, compress);
 	section_close(in_handle, sec);
 	return -1;
 }
 
 static int copy_command_lines(struct tracecmd_input *in_handle, struct tracecmd_output *out_handle)
 {
-	bool compress = out_check_compression(out_handle);
+	bool compress = tcmd_out_check_compression(out_handle);
 	struct file_section *sec;
 	unsigned long long offset;
 	unsigned long long size;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_CMD_LINES) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_CMD_LINES))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_CMD_LINES))
 		return -1;
 
 	sec = section_open(in_handle, TRACECMD_OPTION_CMDLINES);
 	if (!sec)
 		return -1;
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_CMDLINES,
-					  "command lines", TRACECMD_SEC_FL_COMPRESS, true);
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_CMDLINES,
+					       "command lines", TRACECMD_SEC_FL_COMPRESS, true);
 
-	out_compression_start(out_handle, compress);
+	tcmd_out_compression_start(out_handle, compress);
 
 	if (read_copy_size8(in_handle, out_handle, &size) < 0)
 		goto error;
@@ -5591,19 +5591,19 @@ static int copy_command_lines(struct tracecmd_input *in_handle, struct tracecmd_
 
 out:
 	in_handle->file_state = TRACECMD_FILE_CMD_LINES;
-	if (out_compression_end(out_handle, compress))
+	if (tcmd_out_compression_end(out_handle, compress))
 		goto error;
 
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 
 	section_close(in_handle, sec);
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		goto error;
 
 	return 0;
 error:
-	out_compression_reset(out_handle, compress);
+	tcmd_out_compression_reset(out_handle, compress);
 	section_close(in_handle, sec);
 	return -1;
 }
@@ -5613,7 +5613,7 @@ static int copy_cpu_count(struct tracecmd_input *in_handle, struct tracecmd_outp
 	unsigned int cpus;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_CPU_COUNT) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_CPU_COUNT))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_CPU_COUNT))
 		return -1;
 
 	if (!HAS_SECTIONS(in_handle)) {
@@ -5625,14 +5625,14 @@ static int copy_cpu_count(struct tracecmd_input *in_handle, struct tracecmd_outp
 
 	if (tracecmd_get_out_file_version(out_handle) < FILE_VERSION_SECTIONS) {
 		cpus = tep_read_number(in_handle->pevent, &cpus, 4);
-		if (do_write_check(out_handle, &cpus, 4))
+		if (tcmd_do_write_check(out_handle, &cpus, 4))
 			return -1;
 	} else {
 		tracecmd_add_option(out_handle, TRACECMD_OPTION_CPUCOUNT, sizeof(int), &cpus);
 	}
 
 	in_handle->file_state = TRACECMD_FILE_CPU_COUNT;
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 
 	return 0;
 }
@@ -5812,7 +5812,7 @@ static int copy_options_recursive(struct tracecmd_input *in_handle,
 			if (id != TRACECMD_OPTION_DONE)
 				return -1;
 
-			if (flags & TRACECMD_SEC_FL_COMPRESS && in_uncompress_block(in_handle))
+			if (flags & TRACECMD_SEC_FL_COMPRESS && tcmd_in_uncompress_block(in_handle))
 				return -1;
 
 			return copy_options_recursive(in_handle, out_handle);
@@ -5837,10 +5837,10 @@ static int copy_options_recursive(struct tracecmd_input *in_handle,
 			do_lseek(in_handle, en4, SEEK_CUR);
 			continue;
 		}
-		if (do_write_check(out_handle, &option, 2))
+		if (tcmd_do_write_check(out_handle, &option, 2))
 			return -1;
 
-		if (do_write_check(out_handle, &size, 4))
+		if (tcmd_do_write_check(out_handle, &size, 4))
 			return -1;
 
 		if (read_copy_data(in_handle, en4, out_handle))
@@ -5863,48 +5863,48 @@ static int copy_options(struct tracecmd_input *in_handle, struct tracecmd_output
 		if (id != TRACECMD_OPTION_DONE)
 			return -1;
 
-		if (flags & TRACECMD_SEC_FL_COMPRESS && in_uncompress_block(in_handle))
+		if (flags & TRACECMD_SEC_FL_COMPRESS && tcmd_in_uncompress_block(in_handle))
 			return -1;
 	}
 	start = tracecmd_get_out_file_offset(out_handle);
 	if (tracecmd_get_out_file_version(out_handle) < FILE_VERSION_SECTIONS) {
-		if (do_write_check(out_handle, "options  ", 10))
+		if (tcmd_do_write_check(out_handle, "options  ", 10))
 			return -1;
 	}
 
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_DONE, "options", 0, false);
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_DONE, "options", 0, false);
 
 	if (copy_options_recursive(in_handle, out_handle))
 		goto error;
 
 	id = TRACECMD_OPTION_DONE;
 	en2 = tep_read_number(in_handle->pevent, &id, 2);
-	if (do_write_check(out_handle, &en2, 2))
+	if (tcmd_do_write_check(out_handle, &en2, 2))
 		goto error;
 
 	if (tracecmd_get_out_file_version(out_handle) < FILE_VERSION_SECTIONS) {
-		out_save_options_offset(out_handle, start);
+		tcmd_out_save_options_offset(out_handle, start);
 	} else {
 		tmp = 8;
-		if (do_write_check(out_handle, &tmp, 4))
+		if (tcmd_do_write_check(out_handle, &tmp, 4))
 			goto error;
 
-		out_save_options_offset(out_handle, start);
+		tcmd_out_save_options_offset(out_handle, start);
 		start = 0;
-		if (do_write_check(out_handle, &start, 8))
+		if (tcmd_do_write_check(out_handle, &start, 8))
 			goto error;
 	}
-	out_update_section_header(out_handle, offset);
+	tcmd_out_update_section_header(out_handle, offset);
 	if (flags & TRACECMD_SEC_FL_COMPRESS)
-		in_uncompress_reset(in_handle);
+		tcmd_in_uncompress_reset(in_handle);
 	in_handle->file_state = TRACECMD_FILE_OPTIONS;
-	out_set_file_state(out_handle, in_handle->file_state);
+	tcmd_out_set_file_state(out_handle, in_handle->file_state);
 	/* Append local options */
 	return tracecmd_append_options(out_handle);
 
 error:
 	if (flags & TRACECMD_SEC_FL_COMPRESS)
-		in_uncompress_reset(in_handle);
+		tcmd_in_uncompress_reset(in_handle);
 	return 0;
 }
 
@@ -5912,7 +5912,7 @@ int tracecmd_copy_options(struct tracecmd_input *in_handle,
 			  struct tracecmd_output *out_handle)
 {
 	if (!check_in_state(in_handle, TRACECMD_FILE_OPTIONS) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_OPTIONS))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_OPTIONS))
 		return -1;
 
 	if (!in_handle->options_start)
@@ -5936,17 +5936,17 @@ static int copy_trace_latency(struct tracecmd_input *in_handle,
 	int fd;
 
 	if (tracecmd_get_out_file_version(out_handle) < FILE_VERSION_SECTIONS &&
-	    do_write_check(out_handle, "latency  ", 10))
+	    tcmd_do_write_check(out_handle, "latency  ", 10))
 		return -1;
 
 	offset = tracecmd_get_out_file_offset(out_handle);
 
 	if (tracecmd_get_out_file_version(out_handle) >= FILE_VERSION_SECTIONS &&
-	    !out_add_buffer_option(out_handle, buf_name, TRACECMD_OPTION_BUFFER_TEXT,
+	    !tcmd_out_add_buffer_option(out_handle, buf_name, TRACECMD_OPTION_BUFFER_TEXT,
 				   offset, 0, NULL, page_size))
 		return -1;
 
-	offset = out_write_section_header(out_handle, TRACECMD_OPTION_BUFFER_TEXT,
+	offset = tcmd_out_write_section_header(out_handle, TRACECMD_OPTION_BUFFER_TEXT,
 					  "buffer latency", TRACECMD_SEC_FL_COMPRESS, false);
 
 	if (in_handle->latz.fd >= 0)
@@ -5954,13 +5954,13 @@ static int copy_trace_latency(struct tracecmd_input *in_handle,
 	else
 		fd = in_handle->fd;
 
-	if (!out_copy_fd_compress(out_handle, fd, 0, &wsize, page_size))
+	if (!tcmd_out_copy_fd_compress(out_handle, fd, 0, &wsize, page_size))
 		return -1;
 
-	if (out_update_section_header(out_handle, offset))
+	if (tcmd_out_update_section_header(out_handle, offset))
 		return -1;
 
-	out_set_file_state(out_handle, TRACECMD_FILE_CPU_LATENCY);
+	tcmd_out_set_file_state(out_handle, TRACECMD_FILE_CPU_LATENCY);
 	return 0;
 }
 
@@ -5995,7 +5995,7 @@ static int copy_trace_flyrecord_data(struct tracecmd_input *in_handle,
 		}
 	}
 	if (total_size || tracecmd_get_out_file_version(out_handle) < FILE_VERSION_SECTIONS)
-		ret = out_write_cpu_data(out_handle, cpus, data, buff_name);
+		ret = tcmd_out_write_cpu_data(out_handle, cpus, data, buff_name);
 	else
 		ret = 0;
 	free(data);
@@ -6082,7 +6082,7 @@ static int copy_trace_data_from_v7(struct tracecmd_input *in_handle,
 		ret = copy_trace_flyrecord_data(in_handle, out_handle,
 						in_handle->top_buffer.name);
 	else if (tracecmd_get_out_file_version(out_handle) < FILE_VERSION_SECTIONS)
-		ret = out_write_emty_cpu_data(out_handle, in_handle->max_cpu);
+		ret = tcmd_out_write_emty_cpu_data(out_handle, in_handle->max_cpu);
 	if (ret)
 		return ret;
 
@@ -6092,13 +6092,13 @@ static int copy_trace_data_from_v7(struct tracecmd_input *in_handle,
 	return 0;
 }
 
-__hidden int tracecmd_copy_trace_data(struct tracecmd_input *in_handle,
+__hidden int tcmd_copy_trace_data(struct tracecmd_input *in_handle,
 				      struct tracecmd_output *out_handle)
 {
 	int ret;
 
 	if (!check_in_state(in_handle, TRACECMD_FILE_CPU_FLYRECORD) ||
-	    !check_out_state(out_handle, TRACECMD_FILE_CPU_FLYRECORD))
+	    !tcmd_check_out_state(out_handle, TRACECMD_FILE_CPU_FLYRECORD))
 		return -1;
 
 	if (in_handle->file_version < FILE_VERSION_SECTIONS)
@@ -6593,13 +6593,13 @@ int tracecmd_enable_tsync(struct tracecmd_input *handle, bool enable)
 	return 0;
 }
 
-__hidden struct tracecmd_filter *tracecmd_filter_get(struct tracecmd_input *handle)
+__hidden struct tracecmd_filter *tcmd_filter_get(struct tracecmd_input *handle)
 {
 	return handle->filter;
 }
 
-__hidden void tracecmd_filter_set(struct tracecmd_input *handle,
-				  struct tracecmd_filter *filter)
+__hidden void tcmd_filter_set(struct tracecmd_input *handle,
+			      struct tracecmd_filter *filter)
 {
 	/* This can be used to set filter to NULL though. */
 	if (handle->filter && filter) {

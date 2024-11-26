@@ -3439,7 +3439,7 @@ static int connect_port(const char *host, unsigned int port, enum port_type type
 	int sfd;
 
 	if (type == USE_VSOCK)
-		return trace_vsock_open(atoi(host), port);
+		return tcmd_vsock_open(atoi(host), port);
 
 	results = do_getaddrinfo(host, port, type);
 
@@ -3580,14 +3580,14 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 			fd = connect_addr(result);
 			freeaddrinfo(result);
 		} else
-			fd = trace_vsock_open(instance->cid, instance->client_ports[cpu]);
+			fd = tcmd_vsock_open(instance->cid, instance->client_ports[cpu]);
 		if (fd < 0)
 			die("Failed to connect to agent");
 
 		flags = recorder_flags;
 		if (instance->use_fifos)
 			flags |= TRACECMD_RECORD_NOBRASS;
-		else if (!trace_vsock_can_splice_read())
+		else if (!tcmd_vsock_can_splice_read())
 			flags |= TRACECMD_RECORD_NOSPLICE;
 		return tracecmd_create_recorder_virt(file, cpu, flags, fd, max_kb);
 	}
@@ -3843,7 +3843,7 @@ static int connect_vsock(char *vhost)
 	if (!port)
 		die("vsocket must have format of 'CID:PORT'");
 
-	sd = trace_vsock_open(atoi(cid), atoi(port));
+	sd = tcmd_vsock_open(atoi(cid), atoi(port));
 
 	return sd;
 }
@@ -4105,7 +4105,7 @@ static int host_tsync(struct common_record_context *ctx,
 				  instance->port_type);
 	} else {
 		guest_id = instance->cid;
-		fd = trace_vsock_open(instance->cid, tsync_port);
+		fd = tcmd_vsock_open(instance->cid, tsync_port);
 	}
 
 	if (is_proxy(instance)) {
@@ -4151,7 +4151,7 @@ static void connect_to_agent(struct common_record_context *ctx,
 			role = TRACECMD_TIME_SYNC_ROLE_GUEST;
 		else
 			role = TRACECMD_TIME_SYNC_ROLE_HOST;
-		sd = trace_vsock_open(instance->cid, instance->port);
+		sd = tcmd_vsock_open(instance->cid, instance->port);
 		if (sd < 0)
 			die("Failed to connect to vsocket @%u:%u",
 			    instance->cid, instance->port);
@@ -4192,7 +4192,7 @@ static void connect_to_agent(struct common_record_context *ctx,
 	if (ret < 0)
 		die("Failed to receive trace response %d", ret);
 	if (tsync_protos_reply && tsync_protos_reply[0]) {
-		if (tsync_proto_is_supported(tsync_protos_reply)) {
+		if (tcmd_tsync_proto_is_supported(tsync_protos_reply)) {
 			printf("Negotiated %s time sync protocol with guest %s\n",
 				tsync_protos_reply,
 				instance->name);
@@ -6325,17 +6325,17 @@ static int get_tsc_nsec(int *shift, int *mult)
 		goto out;
 
 	supported = -1;
-	if (trace_perf_init(&perf, 1, 0, getpid()))
+	if (tcmd_perf_init(&perf, 1, 0, getpid()))
 		return -1;
-	if (trace_perf_open(&perf))
+	if (tcmd_perf_open(&perf))
 		return -1;
 	cpu_shift = perf.mmap->time_shift;
 	cpu_mult = perf.mmap->time_mult;
 	for (i = 1; i < cpus; i++) {
-		trace_perf_close(&perf);
-		if (trace_perf_init(&perf, 1, i, getpid()))
+		tcmd_perf_close(&perf);
+		if (tcmd_perf_init(&perf, 1, i, getpid()))
 			break;
-		if (trace_perf_open(&perf))
+		if (tcmd_perf_open(&perf))
 			break;
 		if (perf.mmap->time_shift != cpu_shift ||
 		    perf.mmap->time_mult != cpu_mult) {
@@ -6344,7 +6344,7 @@ static int get_tsc_nsec(int *shift, int *mult)
 			break;
 		}
 	}
-	trace_perf_close(&perf);
+	tcmd_perf_close(&perf);
 	if (i < cpus)
 		return -1;
 
@@ -7107,7 +7107,7 @@ static void set_tsync_params(struct common_record_context *ctx)
 	 * force using the x86-tsc clock for this host-guest tracing session
 	 * and store TSC to nsec multiplier and shift.
 	 */
-		if (tsync_proto_is_supported("kvm") &&
+		if (tcmd_tsync_proto_is_supported("kvm") &&
 		    trace_have_guests_pid() &&
 		    clock_is_supported(NULL, TSC_CLOCK) &&
 		    !get_tsc_nsec(&shift, &mult) && mult) {

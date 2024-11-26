@@ -225,7 +225,7 @@ static int setup_vsock_port(int start_port, int *sfd)
 {
 	int sd;
 
-	sd = trace_vsock_make(start_port);
+	sd = tcmd_vsock_make(start_port);
 	if (sd < 0)
 		return -errno;
 	*sfd = sd;
@@ -1022,11 +1022,11 @@ static int get_vsock(const char *port)
 	unsigned int cid;
 	int sd;
 
-	sd = trace_vsock_make(atoi(port));
+	sd = tcmd_vsock_make(atoi(port));
 	if (sd < 0)
 		return sd;
 
-	cid = trace_vsock_local_cid();
+	cid = tcmd_vsock_local_cid();
 	if (cid >= 0)
 		printf("listening on @%u:%s\n", cid, port);
 

@@ -74,8 +74,8 @@ int tracecmd_map_vcpus(struct tracecmd_input **handles, int nr_handles)
 			gmap[k].self = &gmap[k];
 		}
 
-		trace_set_guest_map(handles[i], gmap);
-		trace_set_guest_map_cnt(handles[i], vcpu_count);
+		tcmd_set_guest_map(handles[i], gmap);
+		tcmd_set_guest_map_cnt(handles[i], vcpu_count);
 
 		/* Update the host mapping of all guests to the host */
 		map = realloc(vcpu_maps, sizeof(*map) * (nr_vcpu_maps + vcpu_count));
@@ -96,8 +96,8 @@ int tracecmd_map_vcpus(struct tracecmd_input **handles, int nr_handles)
 	/* We want to do a binary search via host_pid to find these mappings */
 	qsort(vcpu_maps, nr_vcpu_maps, sizeof(*map), cmp_map);
 
-	trace_set_guest_map(handles[0], vcpu_maps);
-	trace_set_guest_map_cnt(handles[0], nr_vcpu_maps);
+	tcmd_set_guest_map(handles[0], vcpu_maps);
+	tcmd_set_guest_map_cnt(handles[0], nr_vcpu_maps);
 
 	return mappings;
 
@@ -106,7 +106,7 @@ int tracecmd_map_vcpus(struct tracecmd_input **handles, int nr_handles)
 	return -1;
 }
 
-__hidden void trace_guest_map_free(struct tracecmd_cpu_map *map)
+__hidden void tcmd_guest_map_free(struct tracecmd_cpu_map *map)
 {
 	free(map);
 }
@@ -118,7 +118,7 @@ struct tracecmd_cpu_map *tracecmd_map_find_by_host_pid(struct tracecmd_input *ha
 	struct tracecmd_cpu_map key;
 	int nr_maps;
 
-	map = trace_get_guest_map(handle);
+	map = tcmd_get_guest_map(handle);
 	if (!map)
 		return NULL;
 
@@ -126,11 +126,11 @@ struct tracecmd_cpu_map *tracecmd_map_find_by_host_pid(struct tracecmd_input *ha
 	handle = map->host_handle;
 
 	/* And again, get the mapping of the host, as it has all the mappings */
-	map = trace_get_guest_map(handle);
+	map = tcmd_get_guest_map(handle);
 	if (!map)
 		return NULL;
 
-	nr_maps = trace_get_guest_map_cnt(handle);
+	nr_maps = tcmd_get_guest_map_cnt(handle);
 
 	key.host_pid = host_pid;
 
@@ -168,10 +168,10 @@ struct tracecmd_cpu_map *tracecmd_get_cpu_map(struct tracecmd_input *handle, int
 	struct tracecmd_cpu_map *map;
 	int cnt;
 
-	map = trace_get_guest_map(handle);
+	map = tcmd_get_guest_map(handle);
 	/* Make sure it's for the guest handle, as this could be a host handle */
 	map = map->self;
-	cnt = trace_get_guest_map_cnt(map->guest_handle);
+	cnt = tcmd_get_guest_map_cnt(map->guest_handle);
 	if (cnt <= cpu)
 		return NULL;
 
