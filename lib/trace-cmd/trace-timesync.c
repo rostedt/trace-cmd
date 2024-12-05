@@ -805,6 +805,7 @@ error:
 		tracecmd_msg_handle_close(tsync->msg_handle);
 	else if (fd >= 0)
 		close(fd);
+	free(tsync->proto_name);
 	free(tsync);
 
 	return NULL;
