@@ -1677,7 +1677,7 @@ static void daemonize_start(void)
 		if (devnull > 0) {
 			if (dup2(devnull, 0) == -1)
 				die("daemonize: dup2");
-			close(0);
+			close(devnull);
 		}
 
 		return;
