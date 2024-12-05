@@ -189,8 +189,10 @@ __tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags,
 		int len = strlen(file);
 
 		file2 = malloc(len + 3);
-		if (!file2)
+		if (!file2) {
+			close(fd);
 			return NULL;
+		}
 
 		sprintf(file2, "%s.1", file);
 
