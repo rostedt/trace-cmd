@@ -258,6 +258,7 @@ static void stop_mapping_vcpus(int cpu_count, struct trace_guest *guest)
  out_free:
 	tep_free(tep);
  out:
+	free(tmap.vcpu);
 	free(tmap.map);
 	tracefs_instance_destroy(guest->instance);
 	tracefs_instance_free(guest->instance);
