@@ -1034,8 +1034,10 @@ static int tracecmd_msg_wait_for_cmd(struct tracecmd_msg_handle *msg_handle, enu
 		if (ret < 0)
 			goto error;
 
-		if (ntohl(msg.hdr.cmd) == cmd)
+		if (ntohl(msg.hdr.cmd) == cmd) {
+			msg_free(&msg);
 			return 0;
+		}
 
 		error_operation(&msg);
 		ret = handle_unexpected_msg(msg_handle, &msg);
