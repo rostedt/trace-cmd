@@ -21,3 +21,7 @@ option('docbook-suppress-sp', type : 'boolean', value : false,
        description : 'docbook suppress sp')
 option('python', type : 'combo', choices : ['auto', 'true', 'false'],
        description : 'Generate trac-cmd Python bindings')
+option('doc', type : 'boolean', value: true,
+       description : 'produce documentation')
+option('utest', type : 'boolean', value: true,
+       description : 'build utest')

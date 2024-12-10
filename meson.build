@@ -140,9 +140,11 @@ subdir('lib/trace-cmd')
 # trace-cmd
 subdir('tracecmd')
 subdir('python')
-if cunit_dep.found()
+if get_option('utest') and cunit_dep.found()
     subdir('utest')
 endif
+
+if get_option('doc')
 subdir('Documentation/trace-cmd')
 
 custom_target(
@@ -150,3 +152,4 @@ custom_target(
     output: 'docs',
     depends: [html, man],
     command: ['echo'])
+endif
