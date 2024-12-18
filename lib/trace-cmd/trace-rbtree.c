@@ -372,8 +372,7 @@ void trace_rbtree_delete(struct trace_rbtree *tree, struct trace_rbtree_node *no
 }
 
 __hidden struct trace_rbtree_node *
-tcmd_rbtree_next(struct trace_rbtree *tree,
-		 struct trace_rbtree_node *node)
+tcmd_rbtree_next(struct trace_rbtree *tree, struct trace_rbtree_node *node)
 {
 	check_tree(tree);
 	/*

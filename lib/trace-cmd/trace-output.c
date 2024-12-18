@@ -387,9 +387,8 @@ static tsize_t copy_file(struct tracecmd_output *handle,
 
 #define PAGES_IN_CHUNK 10
 __hidden unsigned long long
-tcmd_out_copy_fd_compress(struct tracecmd_output *handle,
-			  int fd, unsigned long long max,
-			  unsigned long long *write_size,
+tcmd_out_copy_fd_compress(struct tracecmd_output *handle, int fd,
+			  unsigned long long max, unsigned long long *write_size,
 			  int page)
 {
 	size_t rsize = 0;

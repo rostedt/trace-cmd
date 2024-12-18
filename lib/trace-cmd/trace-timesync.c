@@ -250,8 +250,7 @@ tsync_proto_select(const struct tracecmd_tsync_protos *protos,
  */
 __hidden const char *
 tracecmd_tsync_get_proto(const struct tracecmd_tsync_protos *protos,
-			 const char *clock,
-			 enum tracecmd_time_sync_role role)
+			 const char *clock, enum tracecmd_time_sync_role role)
 {
 	return tsync_proto_select(protos, clock, role);
 }

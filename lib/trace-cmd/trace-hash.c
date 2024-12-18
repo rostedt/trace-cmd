@@ -64,8 +64,7 @@ int __hidden tcmd_hash_add(struct trace_hash *hash, struct trace_hash_item *item
 }
 
  __hidden struct trace_hash_item *
-tcmd_hash_find(struct trace_hash *hash,
-	       unsigned long long key,
+tcmd_hash_find(struct trace_hash *hash, unsigned long long key,
 	       trace_hash_func match, void *data)
 {
 	struct trace_hash_item *item;

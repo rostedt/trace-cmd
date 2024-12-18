@@ -73,10 +73,9 @@ bool tcmd_out_check_compression(struct tracecmd_output *handle);
 void tcmd_out_set_file_state(struct tracecmd_output *handle, int new_state);
 int tcmd_out_save_options_offset(struct tracecmd_output *handle,
 				 unsigned long long start);
-unsigned long long
-tcmd_out_copy_fd_compress(struct tracecmd_output *handle,
-			  int fd, unsigned long long max,
-			  unsigned long long *write_size, int page);
+unsigned long long tcmd_out_copy_fd_compress(struct tracecmd_output *handle,
+					     int fd, unsigned long long max,
+					     unsigned long long *write_size, int page);
 void tcmd_in_uncompress_reset(struct tracecmd_input *handle);
 int tcmd_in_uncompress_block(struct tracecmd_input *handle);
 
