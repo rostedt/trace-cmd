@@ -82,7 +82,7 @@ Enable all events for tracing:
   # cat /sys/kernel/debug/kvm/63170-15/vcpu0/tsc-offset
  -27950965013436847
 
-  # trace-cmd record -C tsc2nesc -e kvm -e sched -e irq -e timer
+  # trace-cmd record -C tsc2nsec -e kvm -e sched -e irq -e timer
 
 # on guest:
 
