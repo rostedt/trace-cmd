@@ -1247,7 +1247,7 @@ error:
 static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
 {
 	unsigned int nr_args;
-	char *p, *buf_end;
+	char *p = NULL, *buf_end;
 	char **args = NULL;
 	int ret;
 	int i;
@@ -1267,8 +1267,15 @@ static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
 		goto out;
 	}
 
-	buf_end = buf + length;
-	for (i = 0, p = buf; i < nr_args; i++, p++) {
+	p = malloc(length);
+	if (!p) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	memcpy(p, buf, length);
+
+	buf_end = p + length;
+	for (i = 0; i < nr_args; i++, p++) {
 		if (p >= buf_end) {
 			ret = -EINVAL;
 			goto out;
@@ -1282,6 +1289,7 @@ static int get_trace_req_args(char *buf, int length, int *argc, char ***argv)
 	return 0;
 
 out:
+	free(p);
 	free(args);
 	return ret;
 
