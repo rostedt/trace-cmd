@@ -476,7 +476,7 @@ static void show_functions(const char *funcre)
 
 	if (tracefs_filter_functions(funcre, NULL, &list) < 0)
 		die("Failed to read filte functions");
-	for (i = 0; list[i]; i++)
+	for (i = 0; list && list[i]; i++)
 		printf("%s\n", list[i]);
 	tracefs_list_free(list);
 }
