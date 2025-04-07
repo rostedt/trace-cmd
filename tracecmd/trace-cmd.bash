@@ -348,7 +348,7 @@ _trace_cmd_complete()
 	    __trace_cmd_extract_complete "${prev}" "${cur}" ${words[@]}
 	    return 0
 	    ;;
-	record|stream|start|profile)
+	record|stream|start|set|profile)
 	    __trace_cmd_record_complete "${prev}" "${cur}" ${words[@]}
 	    return 0
 	    ;;
