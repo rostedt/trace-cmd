@@ -84,6 +84,12 @@ __trace_cmd_list_complete()
 				 sed -e 's/.*\(-.\).*/\1/')
 	    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
 	    ;;
+	-e)
+	    local list=$(trace-cmd list -e "$cur")
+	    local events=$(for e in $list; do echo ${e/*:/}; done | sort -u)
+	    local systems=$(for s in $list; do echo ${s/:*/:}; done | sort -u)
+	    COMPREPLY=( $(compgen -W "all ${events} ${systems}" -- "${cur}") )
+	    ;;
 	*)
 	    size=${#words[@]}
 	    if [ $size -gt 3 ]; then
