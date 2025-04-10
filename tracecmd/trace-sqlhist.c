@@ -28,7 +28,7 @@ static int do_sql(const char *instance_name,
 	struct tep_handle *tep;
 	struct trace_seq seq;
 	enum tracefs_synth_handler handler;
-	char *err;
+	char *err = NULL;
 	int ret;
 
 	if ((action & ACTIONS) && !var)
