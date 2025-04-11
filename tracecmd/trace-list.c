@@ -466,6 +466,8 @@ static void show_clocks(void)
 
 static void show_functions(const char *funcre)
 {
+	bool found = false;
+	char *new_re = NULL;
 	char **list;
 	int i;
 
@@ -474,11 +476,33 @@ static void show_functions(const char *funcre)
 		return;
 	}
 
+	/* if the re doesn't have any regular expressions, then add them */
+	for (i = 0; !found && funcre[i]; i++) {
+		if (funcre[i] == '\\')
+			continue;
+		switch (funcre[i]) {
+		case '*':
+		case '[':
+		case '(':
+		case '.':
+		case '?':
+			found = true;
+		}
+	}
+
+	if (!found) {
+		/* Add glob around expression */
+		if (asprintf(&new_re, "*%s*", funcre) < 0)
+			die("Failed to allocate memory");
+		funcre = new_re;
+	}
+
 	if (tracefs_filter_functions(funcre, NULL, &list) < 0)
 		die("Failed to read filte functions");
 	for (i = 0; list && list[i]; i++)
 		printf("%s\n", list[i]);
 	tracefs_list_free(list);
+	free(new_re);
 }
 
 
