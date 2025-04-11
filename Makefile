@@ -70,6 +70,8 @@ bindir_relative = bin
 bindir = $(prefix)/$(bindir_relative)
 man_dir = $(prefix)/share/man
 man_dir_SQ = '$(subst ','\'',$(man_dir))'
+completion_dir = $(prefix)/share/bash-completion/completions
+completion_dir_SQ = '$(subst ','\'',$(completion_dir))'
 html_install_SQ = '$(subst ','\'',$(html_install))'
 img_install_SQ = '$(subst ','\'',$(img_install))'
 libdir = $(prefix)/$(libdir_relative)
@@ -78,9 +80,6 @@ includedir = $(prefix)/include
 includedir_SQ = '$(subst ','\'',$(includedir))'
 pkgconfig_dir ?= $(word 1,$(shell $(PKG_CONFIG) 		\
 			--variable pc_path pkg-config | tr ":" " "))
-
-etcdir ?= /etc
-etcdir_SQ = '$(subst ','\'',$(etcdir))'
 
 export man_dir man_dir_SQ html_install html_install_SQ INSTALL
 export img_install img_install_SQ libdir libdir_SQ includedir_SQ
@@ -114,8 +113,6 @@ var_dir_SQ = '$(subst ','\'',$(var_dir))'
 HELP_DIR = -DHELP_DIR=$(html_install)
 HELP_DIR_SQ = '$(subst ','\'',$(HELP_DIR))'
 #' emacs highlighting gets confused by the above escaped quote.
-
-BASH_COMPLETE_DIR ?= $(etcdir)/bash_completion.d
 
 export PLUGIN_DIR_TRACECMD
 export PYTHON_DIR
@@ -500,7 +497,7 @@ install_python: force
 	$(Q)$(MAKE) -C $(src)/python $@
 
 install_bash_completion: force
-	$(Q)$(call do_install_data,$(src)/tracecmd/trace-cmd.bash,$(BASH_COMPLETE_DIR))
+	$(Q)$(call do_install_data,$(src)/tracecmd/trace-cmd.bash,$(completion_dir))
 
 install_cmd: all_cmd install_plugins install_python install_bash_completion
 	$(Q)$(call do_install,$(obj)/tracecmd/trace-cmd,$(bindir_SQ))
