@@ -715,7 +715,8 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 
 	/* save the initial offset and write 0 as initial chunk count */
 	offset = lseek(handle->fd, 0, SEEK_CUR);
-	write_fd(handle->fd, &chunks, 4);
+	if (write_fd(handle->fd, &chunks, 4) != 4)
+		return -1;
 
 	do {
 		all = 0;
@@ -780,7 +781,8 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 	if (read_size_val(handle->tep, chunks, &endian4) < 0)
 		return -1;
 	/* write chunks count*/
-	write_fd(handle->fd, &endian4, 4);
+	if (write_fd(handle->fd, &endian4, 4) != 4)
+		return -1;
 	end_offset = lseek(handle->fd, 0, SEEK_END);
 	if (end_offset == (off_t)-1)
 		return -1;
@@ -989,7 +991,8 @@ int tracecmd_uncompress_copy_to(struct tracecmd_compression *handle, int fd,
 		if (ret < 0)
 			break;
 
-		write_fd(fd, bytes_out, ret);
+		if (write_fd(fd, bytes_out, ret) != ret)
+			break;
 		wsize += ret;
 		chunks--;
 	}
