@@ -177,6 +177,8 @@ static struct usage_help usage_help[] = {
 		"          -f display the file path that is being dumped\n"
 		"          The following options shows the corresponding file name\n"
 		"           and then exits.\n"
+		"          --hist event (show the hist file of an event)\n"
+		"          --trigger event (show the trigger file of an event)\n"
 		"          --tracing_on\n"
 		"          --current_tracer\n"
 		"          --buffer_size (for buffer_size_kb)\n"

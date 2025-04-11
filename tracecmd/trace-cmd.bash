@@ -145,6 +145,10 @@ __trace_cmd_show_complete()
 	-B)
 	    show_instances "$cur"
 	    ;;
+	--hist|--trigger)
+	    local list=`list_events $cur`
+	    COMPREPLY=( $(compgen -W "all ${list}" -- "${cur}") )
+	    ;;
 	*)
 	    cmd_options show "$cur"
 	    ;;
