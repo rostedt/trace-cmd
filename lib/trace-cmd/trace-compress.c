@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <unistd.h>
 
 #include "trace-cmd-private.h"
@@ -75,6 +76,16 @@ static ssize_t  write_fd(int fd, const void *data, size_t size)
 	} while (tot != size);
 
 	return tot;
+}
+
+static int read_size_val(struct tep_handle *tep, size_t size, int *endian4)
+{
+	if (size > UINT_MAX)
+		return -1;
+
+	*endian4 = size;
+	*endian4 = tep_read_number(tep, endian4, 4);
+	return 0;
 }
 
 static ssize_t  do_write(struct tracecmd_compression *handle,
@@ -331,7 +342,8 @@ int tracecmd_compress_block(struct tracecmd_compression *handle)
 		goto out;
 
 	/* Write uncompressed data size */
-	endian4 = tep_read_number(handle->tep, &handle->pointer, 4);
+	if (read_size_val(handle->tep, handle->pointer, &endian4) < 0)
+		goto out;
 	ret = do_write(handle, &endian4, 4);
 	if (ret != 4) {
 		ret = -1;
@@ -735,13 +747,15 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 			}
 			size = ret;
 			/* Write compressed data size */
-			endian4 = tep_read_number(handle->tep, &size, 4);
+			if (read_size_val(handle->tep, size, &endian4) < 0)
+				break;
 			ret = write_fd(handle->fd, &endian4, 4);
 			if (ret != 4)
 				break;
 
 			/* Write uncompressed data size */
-			endian4 = tep_read_number(handle->tep, &all, 4);
+			if (read_size_val(handle->tep, all, &endian4) < 0)
+				break;
 			ret = write_fd(handle->fd, &endian4, 4);
 			if (ret != 4)
 				break;
@@ -763,9 +777,10 @@ int tracecmd_compress_copy_from(struct tracecmd_compression *handle, int fd, int
 	if (lseek(handle->fd, offset, SEEK_SET) == (off_t)-1)
 		return -1;
 
-	endian4 = tep_read_number(handle->tep, &chunks, 4);
+	if (read_size_val(handle->tep, chunks, &endian4) < 0)
+		return -1;
 	/* write chunks count*/
-	write_fd(handle->fd, &chunks, 4);
+	write_fd(handle->fd, &endian4, 4);
 	end_offset = lseek(handle->fd, 0, SEEK_END);
 	if (end_offset == (off_t)-1)
 		return -1;
