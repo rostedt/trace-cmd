@@ -237,7 +237,7 @@ __trace_cmd_report_complete()
 	    plugin_options "$cur"
 	    ;;
         *)
-	    cmd_options report "$cur"
+	    cmd_options_files report "$cur"
 	    ;;
     esac
 }
