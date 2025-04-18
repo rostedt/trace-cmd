@@ -25,7 +25,7 @@
 #define GUEST_NAME	"::GUEST::"
 
 #define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
-
+void warning(const char *fmt, ...); 
 static void make_vsocks(int nr, int *fds, unsigned int *ports)
 {
 	unsigned int port;
