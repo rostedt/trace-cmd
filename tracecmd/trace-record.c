@@ -2248,7 +2248,8 @@ reset_events_instance(struct buffer_instance *instance)
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
 	tracefs_put_tracing_file(path);
-	if (ret < 0)
+	/* no request flags, so only GLOB_NOSPACE and GLOB_NOMATCH */
+	if (ret != 0)
 		return;
 
 	for (i = 0; i < globbuf.gl_pathc; i++) {
@@ -3210,8 +3211,9 @@ static int expand_event_files(struct buffer_instance *instance,
 	tracefs_put_tracing_file(path);
 	free(p);
 
-	if (ret < 0)
-		die("No filters found");
+	/* no request flags, so only GLOB_NOSPACE and GLOB_NOMATCH */
+	if (ret != 0)
+		return 1;
 
 	for (i = 0; i < globbuf.gl_pathc; i++) {
 		int len;
