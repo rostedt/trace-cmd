@@ -882,7 +882,8 @@ static void glob_events(struct tracecmd_output *handle,
 	globbuf.gl_offs = 0;
 	ret = glob(path, 0, NULL, &globbuf);
 	free(path);
-	if (ret < 0)
+	/* no request flags, so only GLOB_NOSPACE and GLOB_NOMATCH */
+	if (ret != 0)
 		return;
 
 	for (i = 0; i < globbuf.gl_pathc; i++) {
