@@ -571,6 +571,11 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 				  end, count, percpu, -1, type, &curr_end_reached);
 		}
 
+		for (cpu = 0; cpu < cpus; cpu++) {
+			close(cpu_data[cpu].fd);
+			cpu_data[cpu].fd = -1;
+		}
+
 		/* End is reached when all instances finished. */
 		all_end_reached &= curr_end_reached;
 
@@ -599,7 +604,6 @@ static unsigned long long parse_file(struct tracecmd_input *handle,
 		}
 
 		for (cpu = 0; cpu < cpus; cpu++) {
-			close(cpu_data[cpu].fd);
 			delete_temp_file(cpu_data[cpu].file);
 			put_temp_file(cpu_data[cpu].file);
 		}
