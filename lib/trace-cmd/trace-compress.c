@@ -132,8 +132,11 @@ off_t tracecmd_compress_lseek(struct tracecmd_compression *handle, off_t offset,
 {
 	unsigned long p;
 
-	if (!handle || !handle->buffer)
+	if (!handle)
 		return (off_t)-1;
+
+	if (!handle->buffer)
+		return (whence == SEEK_CUR && offset == 0) ? 0 : (off_t)-1;
 
 	switch (whence) {
 	case SEEK_CUR:
