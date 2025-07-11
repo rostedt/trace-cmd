@@ -577,6 +577,39 @@ __hidden int tcmd_out_update_section_header(struct tracecmd_output *handle, tsiz
 	return 0;
 }
 
+/*
+ * For files that can change while reading them (like /proc/kallsyms) the
+ * normal "size != check_size" can fail. That's because from the time the file
+ * size is determined and written into the output to the time the actual data
+ * is copied into the output, the size can change. In this case, the size that
+ * was stored in the output needs to be updated.
+ */
+static int update_endian_4(struct tracecmd_output *handle,
+			   off_t offset, int val)
+{
+	tsize_t current;
+	int endian4;
+
+	if (offset == (off_t)-1)
+		return -1;
+
+	current = do_lseek(handle, 0, SEEK_CUR);
+	if (current == (off_t)-1)
+		return -1;
+
+	if (do_lseek(handle, offset, SEEK_SET) == (off_t)-1)
+		return -1;
+
+	endian4 = convert_endian_4(handle, val);
+	if (tcmd_do_write_check(handle, &endian4, 4))
+		return -1;
+
+	if (do_lseek(handle, current, SEEK_SET) == (off_t)-1)
+		return -1;
+
+	return 0;
+}
+
 static int save_string_section(struct tracecmd_output *handle, bool compress)
 {
 	enum tracecmd_section_flags flags = 0;
@@ -1135,6 +1168,7 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 	enum tracecmd_section_flags flags = 0;
 	unsigned int size, check_size, endian4;
 	const char *path = "/proc/kallsyms";
+	off_t size_offset;
 	tsize_t offset;
 	struct stat st;
 	int ret;
@@ -1166,13 +1200,15 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 	}
 	size = get_size(path);
 	endian4 = convert_endian_4(handle, size);
+	size_offset = do_lseek(handle, 0, SEEK_CUR);
 	ret = tcmd_do_write_check(handle, &endian4, 4);
 	if (ret)
 		goto out;
 
 	set_proc_kptr_restrict(0);
 	check_size = copy_file(handle, path);
-	if (size != check_size) {
+	if (size != check_size &&
+	    update_endian_4(handle, size_offset, check_size)) {
 		errno = EINVAL;
 		tracecmd_warning("error in size of file '%s'", path);
 		set_proc_kptr_restrict(1);
