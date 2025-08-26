@@ -1964,22 +1964,23 @@ static void save_option(struct buffer_instance *instance, const char *option)
 
 static int set_option(struct buffer_instance *instance, const char *option)
 {
-	FILE *fp;
 	char *path;
+	int ret;
+	int fd;
 
 	path = tracefs_instance_get_file(instance->tracefs, "trace_options");
-	fp = fopen(path, "w");
-	if (!fp)
+	fd = open(path, O_WRONLY | O_TRUNC);
+	if (fd < 0)
 		warning("writing to '%s'", path);
 	tracefs_put_tracing_file(path);
 
-	if (!fp)
+	if (fd < 0)
 		return -1;
 
-	fwrite(option, 1, strlen(option), fp);
-	fclose(fp);
+	ret = write(fd, option, strlen(option));
+	close(fd);
 
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 static void disable_func_stack_trace_instance(struct buffer_instance *instance)
