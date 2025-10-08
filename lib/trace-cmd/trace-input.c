@@ -34,7 +34,7 @@
 
 /* for debugging read instead of mmap */
 static int force_read = 0;
-
+void warning(const char *fmt, ...); 
 struct page_map {
 	struct list_head	list;
 	off_t			offset;
