@@ -2995,6 +2995,25 @@ static struct tep_record *next_last_event(struct tracecmd_input *handle,
 	return record;
 }
 
+static void free_last_events(struct tracecmd_input *handle,
+			     struct tep_record **last_records,
+			     cpu_set_t *cpu_set, int cpu_size,
+			     int cpus)
+{
+	struct tep_record *record;
+	int cpu;
+
+	for (cpu = 0; cpu < cpus; cpu++) {
+		if (cpus && !CPU_ISSET_S(cpu, cpu_size, cpu_set))
+			continue;
+
+		do {
+			record = next_last_event(handle, last_records, cpu);
+			tracecmd_free_record(record);
+		} while (record);
+	}
+}
+
 /**
  * tracecmd_iterate_events_reverse - iterate events over a given handle backwards
  * @handle: The handle to iterate over
@@ -3057,6 +3076,7 @@ int tracecmd_iterate_events_reverse(struct tracecmd_input *handle,
 		}
 	} while (next_cpu >= 0 && ret == 0);
 
+	free_last_events(handle, records, cpus, cpu_size, max_cpus);
 	free(records);
 
 	return ret;
