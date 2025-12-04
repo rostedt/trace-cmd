@@ -3036,6 +3036,7 @@ int tracecmd_iterate_events_reverse(struct tracecmd_input *handle,
 				    void *callback_data, bool cont)
 {
 	unsigned long long last_timestamp = 0;
+	unsigned long long page_offset = 0;
 	struct tep_record **records;
 	struct tep_record *record;
 	int next_cpu;
@@ -3072,12 +3073,25 @@ int tracecmd_iterate_events_reverse(struct tracecmd_input *handle,
 			record = next_last_event(handle, records, next_cpu);;
 			ret = call_callbacks(handle, record, next_cpu,
 					     callback, callback_data);
+			if (ret)
+				page_offset = record->offset;
 			tracecmd_free_record(record);
 		}
 	} while (next_cpu >= 0 && ret == 0);
 
 	free_last_events(handle, records, cpus, cpu_size, max_cpus);
 	free(records);
+
+	/*
+	 * If the callback exited out early, then set the cursor back
+	 * to the location of that record so that if this gets called
+	 * again with cont = true, it will continue where it left off.
+	 */
+	if (page_offset) {
+		/* Set the internal cursor to the last record that was read */
+		record = tracecmd_read_at(handle, page_offset, NULL);
+		tracecmd_free_record(record);
+	}
 
 	return ret;
 }
