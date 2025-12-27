@@ -4976,7 +4976,6 @@ struct tracecmd_input *tracecmd_alloc_fd(int fd, int flags)
 	handle->plugin_list = tcmd_load_plugins(handle->pevent, flags);
 
 	tep_set_file_bigendian(handle->pevent, buf[0]);
-	tep_set_local_bigendian(handle->pevent, tracecmd_host_bigendian());
 
 	do_read_check(handle, buf, 1);
 	handle->long_size = buf[0];
