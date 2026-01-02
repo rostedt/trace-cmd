@@ -343,7 +343,7 @@ void add_instance(struct buffer_instance *instance, int cpu_count);
 void update_first_instance(struct buffer_instance *instance, int topt);
 
 void show_instance_file(struct buffer_instance *instance, const char *name);
-void show_options(const char *prefix, struct buffer_instance *buffer);
+void show_options(const char *prefix, struct buffer_instance *buffer, const char *re);
 
 struct trace_guest {
 	struct tracefs_instance *instance;

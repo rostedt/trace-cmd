@@ -851,7 +851,7 @@ static void stat_instance(struct buffer_instance *instance, bool opt)
 		    "Filtered function tracer notrace PIDs:\n");
 	if (opt) {
 		printf("\nOptions:\n");
-		show_options("   ", instance);
+		show_options("   ", instance, NULL);
 	}
 	report_traceon(instance);
 	report_file(instance, "error_log", "", "Error log:\n");

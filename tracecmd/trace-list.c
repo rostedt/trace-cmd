@@ -389,13 +389,21 @@ static void show_tracers(void)
 	show_file("available_tracers");
 }
 
-void show_options(const char *prefix, struct buffer_instance *buffer)
+void show_options(const char *prefix, struct buffer_instance *buffer, const char *re)
 {
 	struct tracefs_instance *instance = buffer ? buffer->tracefs : NULL;
 	struct dirent *dent;
 	struct stat st;
+	regex_t reg;
 	char *path;
 	DIR *dir;
+
+	if (re && strlen(re)) {
+		if (regcomp(&reg, re, REG_ICASE|REG_NOSUB))
+			die("invalid function regex '%s'", re);
+	} else {
+		re = NULL;
+	}
 
 	if (!prefix)
 		prefix = "";
@@ -421,6 +429,9 @@ void show_options(const char *prefix, struct buffer_instance *buffer)
 
 		if (strcmp(name, ".") == 0 ||
 		    strcmp(name, "..") == 0)
+			continue;
+
+		if (re && regexec(&reg, name, 0, NULL, 0) != 0)
 			continue;
 
 		ret = asprintf(&file, "options/%s", name);
@@ -645,6 +656,7 @@ void trace_list(int argc, char **argv)
 	const char *arg;
 	const char *funcre = NULL;
 	const char *eventre = NULL;
+	const char *optionre = NULL;
 
 	for (i = 2; i < argc; i++) {
 		arg = NULL;
@@ -694,6 +706,7 @@ void trace_list(int argc, char **argv)
 				break;
 			case 'o':
 				options = 1;
+				optionre = arg;
 				show_all = 0;
 				break;
 			case 'f':
@@ -735,7 +748,7 @@ void trace_list(int argc, char **argv)
 		show_tracers();
 
 	if (options)
-		show_options(NULL, NULL);
+		show_options(NULL, NULL, optionre);
 
 	if (plug)
 		show_plugins();
@@ -763,7 +776,7 @@ void trace_list(int argc, char **argv)
 		printf("\ntracers:\n");
 		show_tracers();
 		printf("\noptions:\n");
-		show_options(NULL, NULL);
+		show_options(NULL, NULL, NULL);
 		show_compression();
 	}
 
