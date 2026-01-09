@@ -20,7 +20,7 @@
 #include <errno.h>
 
 #include "trace-local.h"
-
+void warning(const char *fmt, ...); 
 static struct tracecmd_output *create_output(const char *file,
 					     const char *tracing_dir, const char *kallsyms)
 {

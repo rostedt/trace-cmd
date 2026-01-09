@@ -29,7 +29,7 @@
 /* We can't depend on the host size for size_t, all must be 64 bit */
 typedef unsigned long long	tsize_t;
 typedef long long		stsize_t;
-
+void warning(const char *fmt, ...); 
 struct tracecmd_option {
 	unsigned short	id;
 	int		size;
