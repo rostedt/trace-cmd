@@ -253,6 +253,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	unsigned long long val;
 	unsigned long long retval;
 	bool fgraph_retval_supported = true;
+	const char *retfunc = NULL;
 	const char *func;
 	int ret;
 	int i;
@@ -269,6 +270,10 @@ print_graph_entry_leaf(struct trace_seq *s,
 		if (tep_get_field_val(s, finfo->fgraph_ret_event, "retval", ret_rec, &retval, 1))
 			return trace_seq_putc(s, '!');
 	}
+
+	/* In case this is a retaddr event */
+	if (!tep_get_field_val(s, event, "retaddr", record, &val, 1))
+		retfunc = tep_find_function(pevent, val);
 
 	duration = rettime - calltime;
 
@@ -299,6 +304,9 @@ print_graph_entry_leaf(struct trace_seq *s,
 	if (ret && fgraph_depth->set)
 		ret = trace_seq_printf(s, " (%lld)", depth);
 
+	if (retfunc)
+		ret = trace_seq_printf(s, " /* <-%s */", retfunc);
+
 	/* Return Value */
 	if (ret && fgraph_retval_supported && !fgraph_retval_skip->set) {
 		if (fgraph_retval_dec->set) {
@@ -324,6 +332,7 @@ static int print_graph_nested(struct trace_seq *s,
 	struct tep_handle *pevent = event->tep;
 	unsigned long long depth;
 	unsigned long long val;
+	const char *retfunc = NULL;
 	const char *func;
 	int ret;
 	int i;
@@ -337,6 +346,10 @@ static int print_graph_nested(struct trace_seq *s,
 	if (tep_get_field_val(s, event, "depth", record, &depth, 1))
 		return trace_seq_putc(s, '!');
 
+	/* In case this is a retaddr event */
+	if (!tep_get_field_val(s, event, "retaddr", record, &val, 1))
+		retfunc = tep_find_function(pevent, val);
+
 	/* Function */
 	for (i = 0; i < (int)(depth * TRACE_GRAPH_INDENT); i++)
 		trace_seq_putc(s, ' ');
@@ -346,12 +359,20 @@ static int print_graph_nested(struct trace_seq *s,
 
 	func = tep_find_function(pevent, val);
 
+
 	if (func) {
 		ret = trace_seq_printf(s, "%s(", func);
 		print_args(s, event, record, func);
-		ret = trace_seq_puts(s, ") {");
-	} else
-		ret = trace_seq_printf(s, "%llx() {", val);
+		if (retfunc)
+			ret = trace_seq_printf(s, ") /* <-%s */ {", retfunc);
+		else
+			ret = trace_seq_puts(s, ") {");
+	} else {
+		if (retfunc)
+			ret = trace_seq_printf(s, "%llx() /* <-%s */ {", val, retfunc);
+		else
+			ret = trace_seq_puts(s, ") {");
+	}
 
 	if (ret && fgraph_depth->set)
 		ret = trace_seq_printf(s, " (%lld)", depth);
@@ -502,6 +523,9 @@ int tracecmd_ftrace_overrides(struct tracecmd_input *handle,
 				      function_handler, NULL);
 
 	tep_register_event_handler(pevent, -1, "ftrace", "funcgraph_entry",
+				      fgraph_ent_handler, finfo);
+
+	tep_register_event_handler(pevent, -1, "ftrace", "fgraph_retaddr_entry",
 				      fgraph_ent_handler, finfo);
 
 	tep_register_event_handler(pevent, -1, "ftrace", "funcgraph_exit",
