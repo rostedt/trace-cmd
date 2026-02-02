@@ -58,6 +58,13 @@ OPTIONS
 
     trace-cmd list -f '^sched.*'
 
+    If *--proto* is also added to the command line, the functions will also have
+    show their prototypes if BTF is available.
+
+*--proto*::
+    If BTF is available on the running kernel, it will also show the function
+    parameters with *-f*.
+
 *-P*::
     List the plugin files that get loaded on trace-cmd report.
 

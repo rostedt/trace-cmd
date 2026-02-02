@@ -6,10 +6,12 @@
 
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "tracefs.h"
 #include "trace-local.h"
 
+#define BTF_FILE	"/sys/kernel/btf/vmlinux"
 
 static void dump_file_content(const char *path)
 {
@@ -474,9 +476,71 @@ static void show_clocks(void)
 	free(clocks);
 }
 
-
-static void show_functions(const char *funcre)
+#ifdef HAVE_KERNEL_BTF
+static struct tep_handle *load_btf(void)
 {
+	struct tep_handle *tep;
+	struct stat st;
+	ssize_t size;
+	char *buf;
+	int ret;
+	int fd;
+	int r, s = 0;
+
+	ret = stat(BTF_FILE, &st);
+	if (ret < 0)
+		return NULL;
+
+	size = st.st_size;
+	buf = malloc(size);
+	if (!buf)
+		return NULL;
+
+	fd = open(BTF_FILE, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	while (size) {
+		r = read(fd, buf + s, size);
+		if (r < 0)
+			break;
+		s += r;
+		size -= r;
+	}
+	close(fd);
+
+	tep = tep_alloc();
+
+	if (!tep || tep_load_btf(tep, buf, s) < 0) {
+		tep_free(tep);
+		tep = NULL;
+	}
+
+	free(buf);
+	return tep;
+}
+
+static int btf_list_args(struct tep_handle *tep, struct trace_seq *s,
+			 const char *func)
+{
+	return tep_btf_list_args(tep, s, func);
+}
+#else
+static inline struct tep_handle *load_btf(void)
+{
+	return NULL;
+}
+static int btf_list_args(struct tep_handle *tep, struct trace_seq *s,
+			 const char *func)
+{
+	return 0;
+}
+#endif
+
+static void show_functions(const char *funcre, int params)
+{
+	struct tep_handle *tep = NULL;
+	struct trace_seq s;
 	bool found = false;
 	char *new_re = NULL;
 	char **list;
@@ -485,6 +549,13 @@ static void show_functions(const char *funcre)
 	if (!funcre) {
 		show_file("available_filter_functions");
 		return;
+	}
+
+	trace_seq_init(&s);
+	if (params) {
+		tep = load_btf();
+		if (!tep)
+			params = 0;
 	}
 
 	/* if the re doesn't have any regular expressions, then add them */
@@ -510,8 +581,18 @@ static void show_functions(const char *funcre)
 
 	if (tracefs_filter_functions(funcre, NULL, &list) < 0)
 		die("Failed to read filte functions");
-	for (i = 0; list && list[i]; i++)
-		printf("%s\n", list[i]);
+	for (i = 0; list && list[i]; i++) {
+		printf("%s", list[i]);
+		if (params) {
+			trace_seq_reset(&s);
+			if (btf_list_args(tep, &s, list[i]) >= 0) {
+				printf("(");
+				trace_seq_do_printf(&s);
+				printf(")");
+			}
+		}
+		printf("\n");
+	}
 	tracefs_list_free(list);
 	free(new_re);
 }
@@ -652,6 +733,7 @@ void trace_list(int argc, char **argv)
 	int systems = 0;
 	int show_all = 1;
 	int compression = 0;
+	int params = 0;
 	int i;
 	const char *arg;
 	const char *funcre = NULL;
@@ -731,6 +813,10 @@ void trace_list(int argc, char **argv)
 					flags |= SHOW_EVENT_FULL;
 					break;
 				}
+				if (strcmp(argv[i], "--proto") == 0) {
+					params = 1;
+					break;
+				}
 				fprintf(stderr, "list: invalid option -- '%s'\n",
 					argv[i]);
 			default:
@@ -757,7 +843,7 @@ void trace_list(int argc, char **argv)
 		show_plugin_options();
 
 	if (funcs)
-		show_functions(funcre);
+		show_functions(funcre, params);
 
 	if (buffers)
 		show_buffers();

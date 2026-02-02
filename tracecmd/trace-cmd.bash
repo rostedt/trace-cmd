@@ -108,7 +108,7 @@ __trace_cmd_list_complete()
     case "$prev" in
 	list)
 	    local cmds=$(trace-cmd list -h |egrep "^ {10}-" | \
-				 sed -e 's/.*\(-.\).*/\1/')
+				 sed -e 's/^ *\(-[^ ]*\).*/\1/')
 	    COMPREPLY=( $(compgen -W "${cmds}" -- "${cur}") )
 	    ;;
 	-e)
