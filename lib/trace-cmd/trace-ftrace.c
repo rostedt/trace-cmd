@@ -198,6 +198,48 @@ static void print_graph_duration(struct trace_seq *s, unsigned long long duratio
 	trace_seq_puts(s, "|  ");
 }
 
+/* Returns true if it printed args, otherwise it returns false */
+static bool print_args(struct trace_seq *s, struct tep_event *event,
+		       struct tep_record *record, const char *func)
+{
+	struct tep_format_field *field;
+	int long_size = tep_get_long_size(event->tep);
+	void *args;
+	int len;
+
+	if (!long_size)
+		long_size = sizeof(long);
+
+	field = tep_find_field(event, "args");
+	if (!field)
+		return false;
+
+	len = record->size - field->offset;
+
+	len /= long_size;
+
+	args = record->data + field->offset;
+
+#ifdef HAVE_KERNEL_BTF
+	tep_btf_print_args(event->tep, s, args, len, long_size, func);
+#else
+	for (int i = 0; i < len; i++) {
+		void *arg;
+
+		if (i)
+			trace_seq_puts(s, ", ");
+
+		arg = args + i * long_size;
+		if (long_size == 4)
+			trace_seq_printf(s, "%x", *(unsigned int *)arg);
+		else
+			trace_seq_printf(s, "%llx", *(unsigned long long *)arg);
+	}
+#endif
+
+	return true;
+}
+
 static int
 print_graph_entry_leaf(struct trace_seq *s,
 		       struct tep_event *event,
@@ -247,9 +289,11 @@ print_graph_entry_leaf(struct trace_seq *s,
 		return trace_seq_putc(s, '!');
 	func = tep_find_function(pevent, val);
 
-	if (func)
-		ret = trace_seq_printf(s, "%s();", func);
-	else
+	if (func) {
+		ret = trace_seq_printf(s, "%s(", func);
+		print_args(s, event, record, func);
+		ret = trace_seq_puts(s, ");");
+	} else
 		ret = trace_seq_printf(s, "%llx();", val);
 
 	if (ret && fgraph_depth->set)
@@ -302,9 +346,11 @@ static int print_graph_nested(struct trace_seq *s,
 
 	func = tep_find_function(pevent, val);
 
-	if (func)
-		ret = trace_seq_printf(s, "%s() {", func);
-	else
+	if (func) {
+		ret = trace_seq_printf(s, "%s(", func);
+		print_args(s, event, record, func);
+		ret = trace_seq_puts(s, ") {");
+	} else
 		ret = trace_seq_printf(s, "%llx() {", val);
 
 	if (ret && fgraph_depth->set)
