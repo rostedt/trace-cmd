@@ -97,7 +97,7 @@ struct list_event_system {
 #define HAS_SECTIONS(H) ((H)->file_version >= FILE_VERSION_SECTIONS)
 
 static int write_options(struct tracecmd_output *handle);
-static int save_string_section(struct tracecmd_output *handle, bool compress);
+static int save_string_section(struct tracecmd_output *handle);
 
 __hidden long long
 tcmd_do_write_check(struct tracecmd_output *handle, const void *data, long long size)
@@ -290,7 +290,7 @@ void tracecmd_output_flush(struct tracecmd_output *handle)
 		write_options(handle);
 
 		/* write strings section */
-		save_string_section(handle, true);
+		save_string_section(handle);
 	}
 }
 
@@ -610,9 +610,9 @@ static int update_endian_4(struct tracecmd_output *handle,
 	return 0;
 }
 
-static int save_string_section(struct tracecmd_output *handle, bool compress)
+static int save_string_section(struct tracecmd_output *handle)
 {
-	enum tracecmd_section_flags flags = 0;
+	enum tracecmd_section_flags flags = TRACECMD_SEC_FL_COMPRESS;
 	tsize_t offset;
 
 	if (!handle->strings || !handle->strings_p)
@@ -624,18 +624,16 @@ static int save_string_section(struct tracecmd_output *handle, bool compress)
 		return -1;
 	}
 
-	if (compress)
-		flags |= TRACECMD_SEC_FL_COMPRESS;
 	offset = tcmd_out_write_section_header(handle, TRACECMD_OPTION_STRINGS, "strings", flags, false);
 	if (offset == (off_t)-1)
 		return -1;
 
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle, true);
 
 	if (tcmd_do_write_check(handle, handle->strings, handle->strings_p))
 		goto error;
 
-	if (tcmd_out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle, true))
 		goto error;
 
 	if (tcmd_out_update_section_header(handle, offset))
@@ -649,7 +647,7 @@ static int save_string_section(struct tracecmd_output *handle, bool compress)
 	return 0;
 
 error:
-	tcmd_out_compression_reset(handle, compress);
+	tcmd_out_compression_reset(handle, true);
 	return -1;
 }
 
@@ -2158,7 +2156,7 @@ int tracecmd_write_meta_strings(struct tracecmd_output *handle)
 	if (!HAS_SECTIONS(handle))
 		return 0;
 
-	return save_string_section(handle, true);
+	return save_string_section(handle);
 }
 
 int tracecmd_write_options(struct tracecmd_output *handle)
