@@ -270,6 +270,11 @@ OPTIONS SECTION
       <string> a null terminated ASCII string, trace clock used for events timestamps in
       this trace instance.
 
+  BTF_FILE: id 23, size 8
+    The BTF_FILE option data is:
+     A compressed data from the host file /sys/kernel/btf/vmlinux, using the
+     compression algorthim defined by the trace.dat header. The compression data
+     includes the size of the uncompressed output.
 
 HEADER INFO SECTION
 -------------------
@@ -437,6 +442,20 @@ STRINGS SECTION
   contains a list of nul terminated ASCII strings. An ID of the string is used in the file
   meta data, which is the offset of the actual string into the string section. Strings can be stored
   into multiple string sections in the file.
+
+BTF FILE SECTION
+----------------
+
+  Section ID: 23
+
+  Directly after the section header comes the information mapping
+  a PID to a process name.
+
+  The next 8 bytes contain a 64-bit word that holds the size of the
+  data mapping the PID to a process name.
+
+  The next set of data is of the size defined by the previous 8 bytes
+  and contains the information from /sys/kernel/btf/vmlinux.
 
 SEE ALSO
 --------
