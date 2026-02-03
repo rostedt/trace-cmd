@@ -65,10 +65,9 @@ bool tcmd_check_file_state(unsigned long file_version, int current_state, int ne
 bool tcmd_check_out_state(struct tracecmd_output *handle, int new_state);
 
 int tcmd_out_uncompress_block(struct tracecmd_output *handle);
-int tcmd_out_compression_start(struct tracecmd_output *handle, bool compress);
-int tcmd_out_compression_end(struct tracecmd_output *handle, bool compress);
-void tcmd_out_compression_reset(struct tracecmd_output *handle, bool compress);
-bool tcmd_out_check_compression(struct tracecmd_output *handle);
+int tcmd_out_compression_start(struct tracecmd_output *handle);
+int tcmd_out_compression_end(struct tracecmd_output *handle);
+void tcmd_out_compression_reset(struct tracecmd_output *handle);
 
 void tcmd_out_set_file_state(struct tracecmd_output *handle, int new_state);
 int tcmd_out_save_options_offset(struct tracecmd_output *handle,

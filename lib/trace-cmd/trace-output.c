@@ -155,9 +155,9 @@ static unsigned long long convert_endian_8(struct tracecmd_output *handle,
 	return tep_read_number(handle->pevent, &val, 8);
 }
 
-__hidden void tcmd_out_compression_reset(struct tracecmd_output *handle, bool compress)
+__hidden void tcmd_out_compression_reset(struct tracecmd_output *handle)
 {
-	if (!compress || !handle->compress)
+	if (!handle->compress)
 		return;
 
 	tracecmd_compress_reset(handle->compress);
@@ -178,9 +178,9 @@ __hidden int tcmd_out_uncompress_block(struct tracecmd_output *handle)
 	return ret;
 }
 
-__hidden int tcmd_out_compression_start(struct tracecmd_output *handle, bool compress)
+__hidden int tcmd_out_compression_start(struct tracecmd_output *handle)
 {
-	if (!compress || !handle->compress)
+	if (!handle->compress)
 		return 0;
 
 	tracecmd_compress_reset(handle->compress);
@@ -189,9 +189,9 @@ __hidden int tcmd_out_compression_start(struct tracecmd_output *handle, bool com
 	return 0;
 }
 
-__hidden int tcmd_out_compression_end(struct tracecmd_output *handle, bool compress)
+__hidden int tcmd_out_compression_end(struct tracecmd_output *handle)
 {
-	if (!compress || !handle->compress)
+	if (!handle->compress)
 		return 0;
 
 	handle->do_compress = false;
@@ -628,12 +628,12 @@ static int save_string_section(struct tracecmd_output *handle)
 	if (offset == (off_t)-1)
 		return -1;
 
-	tcmd_out_compression_start(handle, true);
+	tcmd_out_compression_start(handle);
 
 	if (tcmd_do_write_check(handle, handle->strings, handle->strings_p))
 		goto error;
 
-	if (tcmd_out_compression_end(handle, true))
+	if (tcmd_out_compression_end(handle))
 		goto error;
 
 	if (tcmd_out_update_section_header(handle, offset))
@@ -647,7 +647,7 @@ static int save_string_section(struct tracecmd_output *handle)
 	return 0;
 
 error:
-	tcmd_out_compression_reset(handle, true);
+	tcmd_out_compression_reset(handle);
 	return -1;
 }
 
@@ -680,7 +680,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 		return -1;
 	}
 
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle);
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* old style did not show this info, just add zero */
@@ -694,7 +694,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 			goto out_close;
 		if (tcmd_do_write_check(handle, &size, 8))
 			goto out_close;
-		if (tcmd_out_compression_end(handle, compress))
+		if (tcmd_out_compression_end(handle))
 			goto out_close;
 		if (tcmd_out_update_section_header(handle, offset))
 			goto out_close;
@@ -748,7 +748,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
 		goto out_free;
 	}
 	put_tracing_file(path);
-	if (tcmd_out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle))
 		goto out_close;
 
 	if (tcmd_out_update_section_header(handle, offset))
@@ -760,7 +760,7 @@ static int read_header_files(struct tracecmd_output *handle, bool compress)
  out_free:
 	put_tracing_file(path);
  out_close:
-	tcmd_out_compression_reset(handle, compress);
+	tcmd_out_compression_reset(handle);
 	if (fd >= 0)
 		close(fd);
 	return -1;
@@ -1014,13 +1014,13 @@ static int read_ftrace_files(struct tracecmd_output *handle, bool compress)
 		return -1;
 
 	create_event_list_item(handle, &systems, &list);
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle);
 
 	ret = copy_event_system(handle, systems);
 	if (!ret)
-		ret = tcmd_out_compression_end(handle, compress);
+		ret = tcmd_out_compression_end(handle);
 	else
-		tcmd_out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle);
 
 	free_list_events(systems);
 	if (ret)
@@ -1087,7 +1087,7 @@ static int read_event_files(struct tracecmd_output *handle,
 
 	for (slist = systems; slist; slist = slist->next)
 		count++;
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle);
 	ret = -1;
 	endian4 = convert_endian_4(handle, count);
 	if (tcmd_do_write_check(handle, &endian4, 4))
@@ -1105,7 +1105,7 @@ static int read_event_files(struct tracecmd_output *handle,
 	if (ret)
 		goto out_free;
 
-	ret = tcmd_out_compression_end(handle, compress);
+	ret = tcmd_out_compression_end(handle);
 	if (ret)
 		goto out_free;
 	ret = tcmd_out_update_section_header(handle, offset);
@@ -1114,7 +1114,7 @@ static int read_event_files(struct tracecmd_output *handle,
 	if (!ret)
 		handle->file_state = TRACECMD_FILE_ALL_EVENTS;
 	else
-		tcmd_out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle);
 
 	free_list_events(systems);
 
@@ -1187,7 +1187,7 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 	if (offset == (off_t)-1)
 		return -1;
 
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle);
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* not found */
@@ -1215,7 +1215,7 @@ static int read_proc_kallsyms(struct tracecmd_output *handle, bool compress)
 	}
 	set_proc_kptr_restrict(1);
 
-	ret = tcmd_out_compression_end(handle, compress);
+	ret = tcmd_out_compression_end(handle);
 	if (ret)
 		goto out;
 
@@ -1224,7 +1224,7 @@ out:
 	if (!ret)
 		handle->file_state = TRACECMD_FILE_KALLSYMS;
 	else
-		tcmd_out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle);
 	return ret;
 }
 
@@ -1255,7 +1255,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 		return -1;
 	}
 
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle);
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* not found */
@@ -1278,7 +1278,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 
  out:
 	put_tracing_file(path);
-	if (tcmd_out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle))
 		return -1;
 
 	if (tcmd_out_update_section_header(handle, offset))
@@ -1287,7 +1287,7 @@ static int read_ftrace_printk(struct tracecmd_output *handle, bool compress)
 	return 0;
  fail:
 	put_tracing_file(path);
-	tcmd_out_compression_reset(handle, compress);
+	tcmd_out_compression_reset(handle);
 	return -1;
 }
 
@@ -2325,15 +2325,15 @@ int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 	if (offset == (off_t)-1)
 		return -1;
 
-	tcmd_out_compression_start(handle, compress);
+	tcmd_out_compression_start(handle);
 
 	ret = save_tracing_file_data(handle, "saved_cmdlines");
 	if (ret < 0) {
-		tcmd_out_compression_reset(handle, compress);
+		tcmd_out_compression_reset(handle);
 		return ret;
 	}
 
-	if (tcmd_out_compression_end(handle, compress))
+	if (tcmd_out_compression_end(handle))
 		return -1;
 
 	if (tcmd_out_update_section_header(handle, offset))
@@ -3014,11 +3014,6 @@ __hidden void tcmd_out_set_file_state(struct tracecmd_output *handle, int new_st
 __hidden bool tcmd_check_out_state(struct tracecmd_output *handle, int new_state)
 {
 	return tcmd_check_file_state(handle->file_version, handle->file_state, new_state);
-}
-
-__hidden bool tcmd_out_check_compression(struct tracecmd_output *handle)
-{
-	return (handle->compress != NULL);
 }
 
 __hidden int tcmd_out_save_options_offset(struct tracecmd_output *handle, unsigned long long start)
