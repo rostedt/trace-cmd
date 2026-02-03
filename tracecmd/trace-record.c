@@ -4633,12 +4633,46 @@ error:
 	return NULL;
 }
 
+static void check_need_btf(bool *need_btf, struct tracefs_instance *instance)
+{
+	bool func_graph_trace;
+	bool func_trace;
+	char *current;
+
+	/* Nothing to do if it's already set */
+	if (*need_btf)
+		return;
+
+	current = tracefs_instance_file_read(instance, "current_tracer", NULL);
+	if (!current)
+		return;
+
+	func_trace = strcmp(current, "function\n") == 0;
+	func_graph_trace = strcmp(current, "function_graph\n") == 0;
+
+	free(current);
+	if (!func_trace && !func_graph_trace)
+		return;
+
+	if (func_trace)
+		current = tracefs_instance_file_read(instance, "options/func-args", NULL);
+	else
+		current = tracefs_instance_file_read(instance, "options/funcgraph-args", NULL);
+	if (!current)
+		return;
+
+	*need_btf = strncmp(current, "1", 1) == 0;
+
+	free(current);
+}
+
 static void record_data(struct common_record_context *ctx)
 {
 	struct tracecmd_output *handle;
 	struct buffer_instance *instance;
 	bool have_proxy = false;
 	bool local = false;
+	bool need_btf = false;
 	int max_cpu_count = local_cpu_count;
 	char **temp_files;
 	int i;
@@ -4734,11 +4768,17 @@ static void record_data(struct common_record_context *ctx)
 							tracefs_instance_get_name(instance->tracefs),
 							cpus);
 				add_buffer_stat(handle, instance);
+				check_need_btf(&need_btf, instance->tracefs);
 			}
 		}
 
-		if (!no_top_instance() && !top_instance.msg_handle)
+		if (!no_top_instance() && !top_instance.msg_handle) {
 			print_stat(&top_instance);
+			check_need_btf(&need_btf, top_instance.tracefs);
+		}
+
+		if (need_btf)
+			tracecmd_append_btf_file(handle);
 
 		for_all_instances(instance) {
 			add_pid_maps(handle, instance);

@@ -2324,6 +2324,70 @@ int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 	return 0;
 }
 
+#define BTF_FILE "/sys/kernel/btf/vmlinux"
+
+int tracecmd_append_btf_file(struct tracecmd_output *handle)
+{
+	tsize_t offset, size, check_size;
+	struct tracecmd_option *option;
+	struct iovec *vect;
+	struct stat st;
+	int ret;
+
+	if (!HAS_SECTIONS(handle))
+		return -1;
+
+	ret = stat(BTF_FILE, &st);
+	if (ret < 0)
+		return -1;
+
+	offset = write_compress_section_header(handle, TRACECMD_OPTION_BTF_FILE, "BTF", true);
+	if (offset == (off_t)-1)
+		return -1;
+
+	tcmd_out_compression_start(handle);
+
+	check_size = copy_file(handle, BTF_FILE);
+	if (st.st_size != check_size) {
+		errno = EINVAL;
+		tracecmd_warning("error in size of file '%s'", BTF_FILE);
+		return -1;
+	}
+
+	if (tcmd_out_compression_end(handle))
+		return -1;
+
+	if (tcmd_out_update_section_header(handle, offset))
+		return -1;
+
+	return 0;
+
+	/*
+	 * BTF file
+	 *  - data offset in the file
+	 *  - data size
+	 */
+
+	vect = calloc(2, sizeof(struct iovec));
+	if (!vect)
+		return -1;
+	vect[0].iov_base = &offset;
+	vect[0].iov_len = 8;
+	vect[1].iov_base = &size;
+	vect[1].iov_len = 8;
+
+	option = tracecmd_add_option_v(handle, TRACECMD_OPTION_BTF_FILE, vect, 2);
+	free(vect);
+
+	if (!option)
+		return -1;
+
+	if (do_lseek(handle, 0, SEEK_END) == (off_t)-1)
+		return -1;
+
+	return 0;
+}
+
 static char *get_clock(struct tracecmd_output *handle)
 {
 	struct tracefs_instance *inst;

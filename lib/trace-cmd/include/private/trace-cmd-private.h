@@ -159,6 +159,7 @@ enum {
 	TRACECMD_OPTION_PRINTK,
 	TRACECMD_OPTION_CMDLINES,
 	TRACECMD_OPTION_BUFFER_TEXT,
+	TRACECMD_OPTION_BTF_FILE,
 	TRACECMD_OPTION_MAX,
 };
 
@@ -340,6 +341,7 @@ int tracecmd_append_buffer_cpu_data(struct tracecmd_output *handle,
 struct tracecmd_output *tracecmd_get_output_handle_fd(int fd);
 unsigned long tracecmd_get_out_file_version(struct tracecmd_output *handle);
 size_t tracecmd_get_out_file_offset(struct tracecmd_output *handle);
+int tracecmd_append_btf_file(struct tracecmd_output *handle);
 
 /* --- Reading the Fly Recorder Trace --- */
 
@@ -568,6 +570,7 @@ int tracecmd_uncompress_chunk(struct tracecmd_compression *handle,
 			      struct tracecmd_compress_chunk *chunk, char *data);
 int tracecmd_load_chunks_info(struct tracecmd_compression *handle,
 			      struct tracecmd_compress_chunk **chunks_info);
+void *tracecmd_uncompress_buffer(struct tracecmd_compression *handle, size_t *size);
 /* --- Plugin handling --- */
 extern struct tep_plugin_option trace_ftrace_options[];
 

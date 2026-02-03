@@ -1026,6 +1026,28 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 	return 0;
 }
 
+#ifdef HAVE_KERNEL_BTF
+static int read_btf(struct tracecmd_input *handle)
+{
+	void *raw_data;
+	size_t size;
+
+	raw_data = tracecmd_uncompress_buffer(handle->compress, &size);
+	if (!raw_data)
+		return -1;
+
+	tep_load_btf(handle->pevent, raw_data, size);
+
+	free(raw_data);
+	return 0;
+}
+#else
+static inline int read_btf(struct tracecmd_input *handle)
+{
+	return 0;
+}
+#endif
+
 static int read_and_parse_cmdlines(struct tracecmd_input *handle);
 
 /**
@@ -1202,6 +1224,9 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 		break;
 	case TRACECMD_OPTION_CMDLINES:
 		ret = read_and_parse_cmdlines(handle);
+		break;
+	case TRACECMD_OPTION_BTF_FILE:
+		ret = read_btf(handle);
 		break;
 	default:
 		ret = 0;
@@ -4208,6 +4233,7 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_KALLSYMS:
 		case TRACECMD_OPTION_PRINTK:
 		case TRACECMD_OPTION_CMDLINES:
+		case TRACECMD_OPTION_BTF_FILE:
 			if (size < 8)
 				break;
 			section_add_or_update(handle, option, -1,

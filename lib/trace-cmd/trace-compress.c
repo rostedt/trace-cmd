@@ -366,6 +366,32 @@ out:
 	free(buf);
 	return ret;
 }
+/**
+ * tracecmd_uncompress_buffer - Returned the current uncompressed buffer
+ * @handle: compression handle
+ * @size: A pointer to place the size of the uncompressed buffer in
+ *
+ * Returns the current uncompressed buffer and resets the compression
+ * @handle.
+ *
+ * Returns the buffer (must be freed with free()) or NULL.
+ *  @size (if not NULL) will contain the size of the uncompressed buffer.
+ */
+void *tracecmd_uncompress_buffer(struct tracecmd_compression *handle, size_t *size)
+{
+	void *buffer;
+
+	if (!handle)
+		return NULL;
+
+	if (size)
+		*size = handle->capacity;
+
+	buffer = handle->buffer;
+	handle->buffer = NULL;
+	tracecmd_compress_reset(handle);
+	return buffer;
+}
 
 /**
  * tracecmd_compress_buffer_write - write() to compression buffer

@@ -230,6 +230,8 @@ LIBTRACEFS=libtracefs
 TEST_LIBTRACEEVENT := $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
 TEST_LIBTRACEFS := $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEFS_MIN_VERSION) $(LIBTRACEFS) > /dev/null 2>&1 && echo y")
 
+TEST_LIBTRACEEVENT_BTF := $(shell sh -c "$(PKG_CONFIG) --atleast-version 1.9 $(LIBTRACEEVENT) > /dev/null 2>&1 && echo y")
+
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
 LIBTRACEEVENT_CFLAGS := $(shell sh -c "$(PKG_CONFIG) --cflags $(LIBTRACEEVENT)")
 LIBTRACEEVENT_LDLAGS := $(shell sh -c "$(PKG_CONFIG) --libs $(LIBTRACEEVENT)")
@@ -245,6 +247,13 @@ warning:
 	@echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/ "
 	@echo "**"
 	@echo "********************************************"
+endif
+
+ifeq ("$(TEST_LIBTRACEEVENT_BTF)", "y")
+CFLAGS += -DHAVE_KERNEL_BTF
+else
+.PHONY: warning
+$(info    Min version libtraceevent 1.9 not found. Will not use BTF for function args)
 endif
 
 export LIBTRACEEVENT_CFLAGS LIBTRACEEVENT_LDLAGS
