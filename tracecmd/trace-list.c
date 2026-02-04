@@ -476,7 +476,6 @@ static void show_clocks(void)
 	free(clocks);
 }
 
-#ifdef HAVE_KERNEL_BTF
 static struct tep_handle *load_btf(void)
 {
 	struct tep_handle *tep;
@@ -519,23 +518,6 @@ static struct tep_handle *load_btf(void)
 	free(buf);
 	return tep;
 }
-
-static int btf_list_args(struct tep_handle *tep, struct trace_seq *s,
-			 const char *func)
-{
-	return tep_btf_list_args(tep, s, func);
-}
-#else
-static inline struct tep_handle *load_btf(void)
-{
-	return NULL;
-}
-static int btf_list_args(struct tep_handle *tep, struct trace_seq *s,
-			 const char *func)
-{
-	return 0;
-}
-#endif
 
 static void show_functions(const char *funcre, int params)
 {
@@ -585,7 +567,7 @@ static void show_functions(const char *funcre, int params)
 		printf("%s", list[i]);
 		if (params) {
 			trace_seq_reset(&s);
-			if (btf_list_args(tep, &s, list[i]) >= 0) {
+			if (tep_btf_list_args(tep, &s, list[i]) >= 0) {
 				printf("(");
 				trace_seq_do_printf(&s);
 				printf(")");

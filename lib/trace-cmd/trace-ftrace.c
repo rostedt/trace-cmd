@@ -220,22 +220,7 @@ static bool print_args(struct trace_seq *s, struct tep_event *event,
 
 	args = record->data + field->offset;
 
-#ifdef HAVE_KERNEL_BTF
 	tep_btf_print_args(event->tep, s, args, len, long_size, func);
-#else
-	for (int i = 0; i < len; i++) {
-		void *arg;
-
-		if (i)
-			trace_seq_puts(s, ", ");
-
-		arg = args + i * long_size;
-		if (long_size == 4)
-			trace_seq_printf(s, "%x", *(unsigned int *)arg);
-		else
-			trace_seq_printf(s, "%llx", *(unsigned long long *)arg);
-	}
-#endif
 
 	return true;
 }

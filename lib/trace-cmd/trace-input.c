@@ -1026,7 +1026,6 @@ static int read_ftrace_printk(struct tracecmd_input *handle)
 	return 0;
 }
 
-#ifdef HAVE_KERNEL_BTF
 static int read_btf(struct tracecmd_input *handle)
 {
 	void *raw_data;
@@ -1041,12 +1040,6 @@ static int read_btf(struct tracecmd_input *handle)
 	free(raw_data);
 	return 0;
 }
-#else
-static inline int read_btf(struct tracecmd_input *handle)
-{
-	return 0;
-}
-#endif
 
 static int read_modules(struct tracecmd_input *handle)
 {

@@ -24,11 +24,8 @@ htmldir = join_paths(prefixdir, get_option('htmldir'))
 
 conf = configuration_data()
 
-libtraceevent_dep = dependency('libtraceevent', version: '>= 1.5.0', required: true)
-libtraceevent_btf_dep = dependency('libtraceevent', version: '>= 1.9', required: false)
+libtraceevent_dep = dependency('libtraceevent', version: '>= 1.9.0', required: true)
 libtracefs_dep = dependency('libtracefs', version: '>= 1.8.0', required: true)
-
-conf.set('HAVE_KERNEL_BTF', libtraceevent_btf_dep.found(), description: 'Is BTF parsing available?')
 
 threads_dep = dependency('threads', required: true)
 dl_dep = cc.find_library('dl', required : false)
