@@ -7457,6 +7457,9 @@ void trace_extract(int argc, char **argv)
 		/* Some instances may not be created yet */
 		if (instance->tracing_on_init_val < 0)
 			instance->tracing_on_init_val = 1;
+
+		/* Keep all instances */
+		instance->flags |= BUFFER_FL_KEEP;
 	}
 
 	/* Extracting data records all events in the system. */
