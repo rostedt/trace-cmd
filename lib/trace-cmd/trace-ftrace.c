@@ -272,7 +272,7 @@ print_graph_entry_leaf(struct trace_seq *s,
 	}
 
 	/* In case this is a retaddr event */
-	if (!tep_get_field_val(s, event, "retaddr", record, &val, 1))
+	if (!tep_get_field_val(s, event, "retaddr", record, &val, 0))
 		retfunc = tep_find_function(pevent, val);
 
 	duration = rettime - calltime;
@@ -347,7 +347,7 @@ static int print_graph_nested(struct trace_seq *s,
 		return trace_seq_putc(s, '!');
 
 	/* In case this is a retaddr event */
-	if (!tep_get_field_val(s, event, "retaddr", record, &val, 1))
+	if (!tep_get_field_val(s, event, "retaddr", record, &val, 0))
 		retfunc = tep_find_function(pevent, val);
 
 	/* Function */

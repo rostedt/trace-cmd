@@ -4778,6 +4778,22 @@ static void record_data(struct common_record_context *ctx)
 							cpus);
 				add_buffer_stat(handle, instance);
 				check_need_btf(&need_btf, instance->tracefs);
+				if (instance->last_boot_info && instance->name) {
+					char *buf;
+					int len;
+
+					if (asprintf(&buf, "%s:%s", instance->name,
+						     instance->last_boot_info) < 0) {
+						warning("Failed to add last_boot_info");
+						continue;
+					}
+					len = strlen(instance->name);
+					len += strlen(instance->last_boot_info) + 2;
+
+					tracecmd_add_option(handle, TRACECMD_OPTION_LAST_BOOT_INFO,
+							    len, buf);
+					free(buf);
+				}
 			}
 		}
 
@@ -7428,6 +7444,37 @@ void trace_set(int argc, char **argv)
 	exit(0);
 }
 
+static void read_last_boot_info(void)
+{
+	struct buffer_instance *instance;
+	char *path;
+	char *buf;
+
+	for_all_instances(instance) {
+		if (is_guest(instance))
+			continue;
+
+		if (!tracefs_file_exists(instance->tracefs, "last_boot_info"))
+			continue;
+
+		path = tracefs_instance_get_file(instance->tracefs, "last_boot_info");
+		if (!path) {
+			warning("Could not read last_boot_info");
+			return;
+		}
+		buf = read_file(path);
+		tracefs_put_tracing_file(path);
+		if (!buf) {
+			warning("Could not copy last_boot_info");
+			return;
+		}
+		if (strncmp(buf, "# Current", 9) == 0)
+			free(buf);
+		else
+			instance->last_boot_info = buf;
+	}
+}
+
 void trace_extract(int argc, char **argv)
 {
 	struct common_record_context ctx;
@@ -7468,6 +7515,8 @@ void trace_extract(int argc, char **argv)
 
 	if (ctx.events)
 		expand_event_list();
+
+	read_last_boot_info();
 
 	page_size = getpagesize();
 	update_plugins(type);

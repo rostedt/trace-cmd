@@ -276,6 +276,13 @@ OPTIONS SECTION
      compression algorthim defined by the trace.dat header. The compression data
      includes the size of the uncompressed output.
 
+  LAST_BOOT_INFO: id 24, size vary
+    The LAST_BOOT_INFO option data contains the content of the last_boot_info if
+     the file existed for an instance. It starts with the instance name, followed
+     by a colon ":" and then the content of the last_boot_info file. Currently
+     the instance name is not used, but exists in case in the future there are
+     more than one instance with this file.
+
 HEADER INFO SECTION
 -------------------
 

@@ -298,6 +298,8 @@ struct buffer_instance {
 	int			argc;
 	char			**argv;
 
+	char			*last_boot_info;
+
 	struct addrinfo		*result;
 	unsigned int		cid;
 	unsigned int		port;

@@ -4227,6 +4227,18 @@ static int handle_options(struct tracecmd_input *handle)
 			if (!(handle->flags & TRACECMD_FL_RAW_TS))
 				handle->flags |= TRACECMD_FL_IN_USECS;
 			break;
+		case TRACECMD_OPTION_LAST_BOOT_INFO:
+			{
+				char *file;
+
+				/* Skip the name of the instance (for now) */
+				file = strchr(buf, ':');
+				if (!file)
+					break;
+				file++;
+				tep_parse_last_boot_info(handle->pevent, file);
+				break;
+			}
 		case TRACECMD_OPTION_HEADER_INFO:
 		case TRACECMD_OPTION_FTRACE_EVENTS:
 		case TRACECMD_OPTION_EVENT_FORMATS:
