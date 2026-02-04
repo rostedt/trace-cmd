@@ -5932,36 +5932,39 @@ void init_top_instance(void)
 	init_instance(&top_instance);
 }
 
+#define LONG_OPT(opt)		(0x80 + ((opt) << 8))
+#define IS_LONG_OPT(opt)	((opt) & 0x80)
+
 enum {
-	OPT_compression		= 237,
-	OPT_file_ver		= 238,
-	OPT_verbose		= 239,
-	OPT_tsc2nsec		= 240,
-	OPT_fork		= 241,
-	OPT_tsyncinterval	= 242,
-	OPT_user		= 243,
-	OPT_procmap		= 244,
-	OPT_quiet		= 245,
-	OPT_debug		= 246,
-	OPT_no_filter		= 247,
-	OPT_max_graph_depth	= 248,
-	OPT_tsoffset		= 249,
-	OPT_bycomm		= 250,
-	OPT_stderr		= 251,
-	OPT_profile		= 252,
-	OPT_nosplice		= 253,
-	OPT_funcstack		= 254,
-	OPT_date		= 255,
-	OPT_module		= 256,
-	OPT_nofifos		= 257,
-	OPT_cmdlines_size	= 258,
-	OPT_poll		= 259,
-	OPT_name		= 260,
-	OPT_proxy		= 261,
-	OPT_temp		= 262,
-	OPT_notimeout		= 264,
-	OPT_daemonize		= 265,
-	OPT_subbuf		= 266,
+	OPT_compression		= LONG_OPT(0),
+	OPT_file_ver		= LONG_OPT(1),
+	OPT_verbose		= LONG_OPT(2),
+	OPT_tsc2nsec		= LONG_OPT(3),
+	OPT_fork		= LONG_OPT(4),
+	OPT_tsyncinterval	= LONG_OPT(5),
+	OPT_user		= LONG_OPT(6),
+	OPT_procmap		= LONG_OPT(7),
+	OPT_quiet		= LONG_OPT(8),
+	OPT_debug		= LONG_OPT(9),
+	OPT_no_filter		= LONG_OPT(10),
+	OPT_max_graph_depth	= LONG_OPT(11),
+	OPT_tsoffset		= LONG_OPT(12),
+	OPT_bycomm		= LONG_OPT(13),
+	OPT_stderr		= LONG_OPT(14),
+	OPT_profile		= LONG_OPT(15),
+	OPT_nosplice		= LONG_OPT(16),
+	OPT_funcstack		= LONG_OPT(17),
+	OPT_date		= LONG_OPT(18),
+	OPT_module		= LONG_OPT(19),
+	OPT_nofifos		= LONG_OPT(20),
+	OPT_cmdlines_size	= LONG_OPT(21),
+	OPT_poll		= LONG_OPT(22),
+	OPT_name		= LONG_OPT(23),
+	OPT_proxy		= LONG_OPT(24),
+	OPT_temp		= LONG_OPT(25),
+	OPT_notimeout		= LONG_OPT(26),
+	OPT_daemonize		= LONG_OPT(27),
+	OPT_subbuf		= LONG_OPT(28),
 };
 
 void trace_stop(int argc, char **argv)
@@ -6222,7 +6225,7 @@ static void add_arg(struct buffer_instance *instance,
 	int i, ret;
 
 	/* Short or long arg */
-	if (!(c & 0x80)) {
+	if (!IS_LONG_OPT(c)) {
 		ptr = strchr(opts, c);
 		if (!ptr)
 			return; /* Not found? */
