@@ -4666,13 +4666,21 @@ static void check_need_btf(bool *need_btf, struct tracefs_instance *instance)
 	free(current);
 }
 
+#define IS_EXTRACT(ctx) ((ctx)->curr_cmd == CMD_extract)
+#define IS_START(ctx) ((ctx)->curr_cmd == CMD_start)
+#define IS_CMDSET(ctx) ((ctx)->curr_cmd == CMD_set)
+#define IS_STREAM(ctx) ((ctx)->curr_cmd == CMD_stream)
+#define IS_PROFILE(ctx) ((ctx)->curr_cmd == CMD_profile)
+#define IS_RECORD(ctx) ((ctx)->curr_cmd == CMD_record)
+#define IS_RECORD_AGENT(ctx) ((ctx)->curr_cmd == CMD_record_agent)
+
 static void record_data(struct common_record_context *ctx)
 {
 	struct tracecmd_output *handle;
 	struct buffer_instance *instance;
 	bool have_proxy = false;
 	bool local = false;
-	bool need_btf = false;
+	bool need_btf = IS_EXTRACT(ctx);
 	int max_cpu_count = local_cpu_count;
 	char **temp_files;
 	int i;
@@ -6232,14 +6240,6 @@ static void init_common_record_context(struct common_record_context *ctx,
 	ctx->file_version = tracecmd_default_file_version();
 	init_top_instance();
 }
-
-#define IS_EXTRACT(ctx) ((ctx)->curr_cmd == CMD_extract)
-#define IS_START(ctx) ((ctx)->curr_cmd == CMD_start)
-#define IS_CMDSET(ctx) ((ctx)->curr_cmd == CMD_set)
-#define IS_STREAM(ctx) ((ctx)->curr_cmd == CMD_stream)
-#define IS_PROFILE(ctx) ((ctx)->curr_cmd == CMD_profile)
-#define IS_RECORD(ctx) ((ctx)->curr_cmd == CMD_record)
-#define IS_RECORD_AGENT(ctx) ((ctx)->curr_cmd == CMD_record_agent)
 
 static void add_argv(struct buffer_instance *instance, char *arg, bool prepend)
 {
