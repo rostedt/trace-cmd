@@ -254,11 +254,16 @@ OPTIONS
 *-k*::
     By default, when trace-cmd is finished tracing, it will reset the buffers
     and disable all the tracing that it enabled. This option keeps trace-cmd
-    from disabling the tracer and reseting the buffer. This option is useful for
+    from disabling the tracer and resetting the buffer. This option is useful for
     debugging trace-cmd.
 
     Note: usually trace-cmd will set the "tracing_on" file back to what it
     was before it was called. This option will leave that file set to zero.
+
+*-K*::
+    By default, when before trace-cmd starts recording, it will reset the buffers
+    and clear events as well as any triggers and such. This option keeps trace-cmd
+    from doing that. It is similar to *trace-cmd set* but still records data.
 
 *-i*::
     By default, if an event is listed that trace-cmd does not find, it

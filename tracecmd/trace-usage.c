@@ -50,6 +50,7 @@ static struct usage_help usage_help[] = {
 		"          -b change kernel buffersize (in kilobytes per CPU)\n"
 		"          -B create sub buffer and following events will be enabled here\n"
 		"          -k do not reset the buffers after tracing.\n"
+		"          -K do not reset the buffers before tracing.\n"
 		"          -i do not fail if an event is not found\n"
 		"          -q print no output to the screen\n"
 		"          -G when profiling, set soft and hard irqs as global\n"

@@ -73,6 +73,7 @@ static tracecmd_handle_init_func handle_init = NULL;
 static int rt_prio;
 
 static int keep;
+static int Keep; // do not reset before tracing
 
 static int latency;
 static long sleep_time = 1000;
@@ -6441,9 +6442,6 @@ static void parse_record_options(int argc,
 
 	init_common_record_context(ctx, curr_cmd);
 
-	if (IS_CMDSET(ctx))
-		keep = 1;
-
 	for (;;) {
 		int option_index = 0;
 		int ret;
@@ -6486,7 +6484,7 @@ static void parse_record_options(int argc,
 		if (IS_EXTRACT(ctx))
 			opts = "+haf:Fp:co:O:sr:g:l:n:P:N:tb:B:ksiT";
 		else
-			opts = "+hae:f:FA:p:cC:dDGo:O:s:r:V:vg:l:n:P:N:tb:R:B:ksSiTm:M:H:q";
+			opts = "+hae:f:FA:p:cC:dDGo:O:s:r:V:vg:l:n:P:N:tb:R:B:kKsSiTm:M:H:q";
 		c = getopt_long (argc-1, argv+1, opts, long_options, &option_index);
 		if (c == -1)
 			break;
@@ -6855,6 +6853,9 @@ static void parse_record_options(int argc,
 			if (IS_PROFILE(ctx))
 				ctx->instance->flags |= BUFFER_FL_PROFILE;
 			break;
+		case 'K':
+			Keep = 1;
+			/* fall through */
 		case 'k':
 			cmd_check_die(ctx, CMD_set, *(argv+1), "-k");
 			keep = 1;
@@ -7219,7 +7220,7 @@ static void record_trace(int argc, char **argv,
 		ctx->topt = 1;
 
 	update_first_instance(ctx->instance, ctx->topt);
-	if (!IS_CMDSET(ctx)) {
+	if (!Keep) {
 		check_doing_something();
 		check_function_plugin();
 	}
@@ -7261,7 +7262,7 @@ static void record_trace(int argc, char **argv,
 
 	if (!is_guest(ctx->instance))
 		fset = set_ftrace(ctx->instance, !ctx->disable, ctx->total_disable);
-	if (!IS_CMDSET(ctx))
+	if (!Keep)
 		tracecmd_disable_all_tracing(1);
 
 	for_all_instances(instance)
@@ -7317,7 +7318,7 @@ static void record_trace(int argc, char **argv,
 
 		update_task_filter();
 
-		if (!IS_CMDSET(ctx))
+		if (!Keep)
 			tracecmd_enable_tracing();
 
 		if (type & (TRACE_TYPE_START | TRACE_TYPE_SET))
@@ -7419,6 +7420,9 @@ void trace_set(int argc, char **argv)
 {
 	struct common_record_context ctx;
 
+	/* Keep the current settings */
+	Keep = 1;
+	keep = 1;
 	parse_record_options(argc, argv, CMD_set, &ctx);
 	record_trace_command(argc, argv, &ctx);
 	exit(0);
