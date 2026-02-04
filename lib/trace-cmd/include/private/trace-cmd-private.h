@@ -161,6 +161,7 @@ enum {
 	TRACECMD_OPTION_BUFFER_TEXT,
 	TRACECMD_OPTION_BTF_FILE,
 	TRACECMD_OPTION_LAST_BOOT_INFO,
+	TRACECMD_OPTION_MODULES_FILE,
 	TRACECMD_OPTION_MAX,
 };
 
@@ -343,6 +344,7 @@ struct tracecmd_output *tracecmd_get_output_handle_fd(int fd);
 unsigned long tracecmd_get_out_file_version(struct tracecmd_output *handle);
 size_t tracecmd_get_out_file_offset(struct tracecmd_output *handle);
 int tracecmd_append_btf_file(struct tracecmd_output *handle);
+int tracecmd_append_modules_file(struct tracecmd_output *handle);
 
 /* --- Reading the Fly Recorder Trace --- */
 

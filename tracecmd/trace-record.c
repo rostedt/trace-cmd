@@ -4793,6 +4793,9 @@ static void record_data(struct common_record_context *ctx)
 					tracecmd_add_option(handle, TRACECMD_OPTION_LAST_BOOT_INFO,
 							    len, buf);
 					free(buf);
+
+					/* Also add modules */
+					tracecmd_append_modules_file(handle);
 				}
 			}
 		}

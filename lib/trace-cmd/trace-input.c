@@ -1048,6 +1048,21 @@ static inline int read_btf(struct tracecmd_input *handle)
 }
 #endif
 
+static int read_modules(struct tracecmd_input *handle)
+{
+	char *modules;
+	size_t size;
+
+	modules = tracecmd_uncompress_buffer(handle->compress, &size);
+	if (!modules)
+		return -1;
+
+	tep_load_modules(handle->pevent, modules, size);
+
+	free(modules);
+	return 0;
+}
+
 static int read_and_parse_cmdlines(struct tracecmd_input *handle);
 
 /**
@@ -1227,6 +1242,9 @@ static int handle_section(struct tracecmd_input *handle, struct file_section *se
 		break;
 	case TRACECMD_OPTION_BTF_FILE:
 		ret = read_btf(handle);
+		break;
+	case TRACECMD_OPTION_MODULES_FILE:
+		ret = read_modules(handle);
 		break;
 	default:
 		ret = 0;
@@ -4246,6 +4264,7 @@ static int handle_options(struct tracecmd_input *handle)
 		case TRACECMD_OPTION_PRINTK:
 		case TRACECMD_OPTION_CMDLINES:
 		case TRACECMD_OPTION_BTF_FILE:
+		case TRACECMD_OPTION_MODULES_FILE:
 			if (size < 8)
 				break;
 			section_add_or_update(handle, option, -1,

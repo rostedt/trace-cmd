@@ -47,6 +47,8 @@ enum dump_items {
 	CLOCK		= (1 << 11),
 	SECTIONS	= (1 << 12),
 	STRINGS		= (1 << 13),
+	LAST_BOOT_INFO	= (1 << 14),
+	MODULES_FILE	= (1 << 15),
 };
 
 struct file_section {
@@ -421,6 +423,22 @@ static void dump_cmdlines(int fd)
 	do_print((SUMMARY | CMDLINES), "%d bytes]\n", size);
 
 	read_dump_string(fd, size, CMDLINES);
+}
+
+static void dump_modules(int fd)
+{
+	unsigned int size = 0;
+	char buf[1024];
+	int len;
+
+	do_print((SUMMARY | MODULES_FILE), "\t[Saved modules]\n");
+
+	while ((len = read_compressed(fd, buf, 1024)) > 0) {
+		do_print((SUMMARY | MODULES_FILE), "%*s", len, buf);
+		size += len;
+	}
+
+	do_print((SUMMARY | MODULES_FILE), "\n[%d bytes]\n", size);
 }
 
 static void dump_cpus_count(int fd)
@@ -801,6 +819,9 @@ static void dump_sections(int fd, int count)
 		case TRACECMD_OPTION_CMDLINES:
 			dump_cmdlines(fd);
 			break;
+		case TRACECMD_OPTION_MODULES_FILE:
+			dump_modules(fd);
+			break;
 		}
 		uncompress_reset();
 		sec = sec->next;
@@ -920,6 +941,12 @@ static int dump_options_read(int fd)
 			break;
 		case TRACECMD_OPTION_CMDLINES:
 			dump_option_section(fd, size, option, "CMDLINES", CMDLINES);
+			break;
+		case TRACECMD_OPTION_LAST_BOOT_INFO:
+			dump_option_string(fd, size, "LAST_BOOT_INFO");
+			break;
+		case TRACECMD_OPTION_MODULES_FILE:
+			dump_option_section(fd, size, option, "MODULES_FILE", MODULES_FILE);
 			break;
 		case TRACECMD_OPTION_DONE:
 			uncompress_reset();
@@ -1231,6 +1258,7 @@ enum {
 	OPT_ftrace	= 253,
 	OPT_head_event	= 254,
 	OPT_head_page	= 255,
+	OPT_modules	= 256,
 };
 
 void trace_dump(int argc, char **argv)
@@ -1257,6 +1285,7 @@ void trace_dump(int argc, char **argv)
 			{"kallsyms", no_argument, NULL, OPT_kallsyms},
 			{"printk", no_argument, NULL, OPT_printk},
 			{"cmd-lines", no_argument, NULL, OPT_cmd_lines},
+			{"modules", no_argument, NULL, OPT_modules},
 			{"options", no_argument, NULL, OPT_options},
 			{"flyrecord", no_argument, NULL, OPT_flyrecord},
 			{"clock", no_argument, NULL, OPT_clock},
@@ -1320,6 +1349,9 @@ void trace_dump(int argc, char **argv)
 			break;
 		case OPT_clock:
 			verbosity |= CLOCK;
+			break;
+		case OPT_modules:
+			verbosity |= MODULES_FILE;
 			break;
 		case OPT_verbose:
 			if (trace_set_verbose(optarg) < 0)

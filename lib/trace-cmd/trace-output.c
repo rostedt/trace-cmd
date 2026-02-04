@@ -2324,6 +2324,38 @@ int tracecmd_write_cmdlines(struct tracecmd_output *handle)
 	return 0;
 }
 
+#define MODULES_FILE "/proc/modules"
+
+int tracecmd_append_modules_file(struct tracecmd_output *handle)
+{
+	tsize_t offset;
+	struct stat st;
+	int ret;
+
+	if (!HAS_SECTIONS(handle))
+		return -1;
+
+	ret = stat(MODULES_FILE, &st);
+	if (ret < 0)
+		return -1;
+
+	offset = write_compress_section_header(handle, TRACECMD_OPTION_MODULES_FILE, "modules", true);
+	if (offset == (off_t)-1)
+		return -1;
+
+	tcmd_out_compression_start(handle);
+
+	copy_file(handle, MODULES_FILE);
+
+	if (tcmd_out_compression_end(handle))
+		return -1;
+
+	if (tcmd_out_update_section_header(handle, offset))
+		return -1;
+
+	return 0;
+}
+
 #define BTF_FILE "/sys/kernel/btf/vmlinux"
 
 int tracecmd_append_btf_file(struct tracecmd_output *handle)
