@@ -529,8 +529,11 @@ static void show_functions(const char *funcre, int params)
 	int i;
 
 	if (!funcre) {
-		show_file("available_filter_functions");
-		return;
+		if (!params) {
+			show_file("available_filter_functions");
+			return;
+		}
+		funcre = "^.*";
 	}
 
 	trace_seq_init(&s);
