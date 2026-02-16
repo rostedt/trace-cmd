@@ -21,7 +21,7 @@
 #include "tracefs.h"
 #include "event-utils.h"
 #include "trace-tsync-local.h"
-
+void warning(const char *fmt, ...); 
 struct tsync_proto {
 	struct tsync_proto *next;
 	char proto_name[TRACECMD_TSYNC_PNAME_LENGTH];

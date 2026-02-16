@@ -42,7 +42,7 @@ typedef __be32 be32;
 #define MSG_MAX_DATA_LEN		(MSG_MAX_LEN - MSG_HDR_LEN)
 
 unsigned int page_size;
-
+void warning(const char *fmt, ...); 
 struct tracecmd_msg_tinit {
 	be32 cpus;
 	be32 page_size;
