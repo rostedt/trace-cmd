@@ -30,7 +30,7 @@ $(DEPS): $(bdir)/.%.d: %.c
 
 $(PLUGIN_OBJS): $(bdir)/%.o : $(bdir)/.%.d
 
-PLUGINS_INSTALL = $(subst .so,.install,$(PLUGINS))
+PLUGINS_INSTALL = $(patsubst %.so,%.install,$(PLUGINS))
 
 $(PLUGINS_INSTALL): $(bdir)/%.install : $(bdir)/%.so force
 	$(Q)$(call do_install_data,$<,$(plugin_tracecmd_dir_SQ))
