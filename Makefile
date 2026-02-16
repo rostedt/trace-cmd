@@ -47,6 +47,8 @@ $(call allow-override,LDCONFIG,ldconfig)
 
 export LD_SO_CONF_PATH LDCONFIG
 
+MAKE:=$(MAKE) CC=$(CC)
+
 EXT = -std=gnu99
 INSTALL = install
 
