@@ -28,7 +28,7 @@
 
 #define LOCAL_PLUGIN_DIR ".trace-cmd/plugins"
 #define PROC_STACK_FILE "/proc/sys/kernel/stack_tracer_enabled"
-
+void warning(const char *fmt, ...); 
 static bool debug;
 static bool notimeout;
 static int log_level = TEP_LOG_WARNING;

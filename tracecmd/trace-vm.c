@@ -14,7 +14,7 @@
 
 #include "trace-local.h"
 #include "trace-msg.h"
-
+void warning(const char *fmt, ...); 
 static struct trace_guest *guests;
 static size_t guests_len;
 

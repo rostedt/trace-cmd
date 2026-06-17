@@ -35,7 +35,7 @@
 #define VAR_RUN_DIR		VAR_DIR_Q(VAR_DIR) "/run"
 
 #define LISTEN_PIDFILE		"trace-cmd-net.pid"
-
+void warning(const char *fmt, ...); 
 static char *default_output_dir = ".";
 static char *output_dir;
 static char *default_output_file = "trace";

@@ -32,7 +32,7 @@
 #define stack_from_item(item)	container_of(item, struct stack_data, hash)
 #define group_from_item(item)	container_of(item, struct group_data, hash)
 #define event_data_from_item(item)	container_of(item, struct event_data, hash)
-
+void warning(const char *fmt, ...); 
 static unsigned long long nsecs_per_sec(unsigned long long ts)
 {
 	return ts / NSEC_PER_SEC;

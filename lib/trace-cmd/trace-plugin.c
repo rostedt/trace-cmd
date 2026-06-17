@@ -13,7 +13,7 @@
 #include "trace-cmd-local.h"
 
 #define LOCAL_PLUGIN_DIR ".local/lib/trace-cmd/plugins/"
-
+void warning(const char *fmt, ...); 
 struct trace_plugin_list {
 	struct trace_plugin_list	*next;
 	char				*name;

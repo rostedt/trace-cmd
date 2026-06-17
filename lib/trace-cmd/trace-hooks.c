@@ -11,7 +11,7 @@
 #include "trace-cmd-private.h"
 #include "trace-cmd-local.h"
 #include "event-utils.h"
-
+void warning(const char *fmt, ...); 
 struct hook_list *tracecmd_create_event_hook(const char *arg)
 {
 	struct hook_list *hook;

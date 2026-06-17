@@ -24,7 +24,7 @@
 #include "trace-hash-local.h"
 #include "kbuffer.h"
 #include "list.h"
-
+void warning(const char *fmt, ...); 
 /*
  * tep_func_repeat_format is defined as a weak variable in the
  * libtraceevent library function plugin, to allow applications

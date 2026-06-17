@@ -59,7 +59,7 @@
 #define TSC_CLOCK	"x86-tsc"
 
 #define dprint(fmt, ...)	tracecmd_debug(fmt, ##__VA_ARGS__)
-
+void warning(const char *fmt, ...); 
 enum trace_type {
 	TRACE_TYPE_RECORD	= 1,
 	TRACE_TYPE_START	= (1 << 1),
