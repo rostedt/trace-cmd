@@ -2828,7 +2828,7 @@ __hidden int tcmd_out_write_cpu_data(struct tracecmd_output *handle,
 		}
 		if (!tracecmd_get_quiet(handle)) {
 			if (handle->compress) {
-				fprintf(stderr, "    %llu bytes compressed (%llu uncompressed)\n",
+				fprintf(stderr, "    %llu bytes stored (%llu uncompressed)\n",
 					(unsigned long long)data_files[i].write_size,
 					(unsigned long long)data_files[i].file_size);
 			} else {
