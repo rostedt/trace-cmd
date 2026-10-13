@@ -10,6 +10,8 @@
 #include <poll.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "tracefs.h"
 #include "trace-cmd-private.h"
@@ -43,7 +45,16 @@ struct tracecmd_recorder {
 	int		pages;
 	int		count;
 	unsigned	flags;
+	struct tracecmd_compression *compress;
+	struct tep_handle *compress_tep;
+	size_t		compress_block_size;
+	size_t		compress_pending;
+	unsigned long long	raw_size;
+	char		*raw_size_file;
+	bool		stream_compression;
 };
+
+#define TRACE_RECORD_COMPRESS_PAGES	10
 
 static int append_file(int size, int dst, int src)
 {
@@ -89,6 +100,26 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 		}
 		append_file(recorder->page_size, recorder->fd1, recorder->fd2);
 	}
+	if (recorder->compress) {
+		if (recorder->compress_pending &&
+		    tracecmd_compress_stream_block(recorder->compress))
+			; /* The recorder is already being torn down. */
+		tracecmd_compress_stream_end(recorder->compress);
+		tracecmd_compress_destroy(recorder->compress);
+	}
+	if (recorder->stream_compression && recorder->raw_size_file) {
+		int fd = open(recorder->raw_size_file,
+			      O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (fd >= 0) {
+			uint64_t size = recorder->raw_size;
+			if (write(fd, &size, sizeof(size)) != sizeof(size))
+				unlink(recorder->raw_size_file);
+			close(fd);
+		}
+	}
+	if (recorder->compress_tep)
+		tep_free(recorder->compress_tep);
+	free(recorder->raw_size_file);
  close:
 	tracefs_cpu_close(recorder->tcpu);
 
@@ -99,6 +130,49 @@ void tracecmd_free_recorder(struct tracecmd_recorder *recorder)
 		close(recorder->fd2);
 
 	free(recorder);
+}
+
+int tracecmd_recorder_set_compression(struct tracecmd_recorder *recorder,
+				      const char *compression)
+{
+	const char *name = compression;
+
+	if (!recorder || recorder->compress)
+		return -1;
+	if (recorder->max)
+		return -1;
+	if (!name || !strcmp(name, "any"))
+		name = NULL;
+	if (!name || strcmp(name, "none")) {
+		recorder->compress_tep = tep_alloc();
+		if (!recorder->compress_tep) {
+			errno = ENOMEM;
+			return -1;
+		}
+		tep_set_file_bigendian(recorder->compress_tep,
+				       tracecmd_host_bigendian());
+		recorder->compress = tracecmd_compress_alloc(
+			name, NULL, recorder->fd, recorder->compress_tep, NULL);
+		if (!recorder->compress) {
+			errno = ENOTSUP;
+			goto fail;
+		}
+		recorder->compress_block_size =
+			TRACE_RECORD_COMPRESS_PAGES * getpagesize();
+		if (tracecmd_compress_stream_start(recorder->compress)) {
+			if (!errno)
+				errno = EIO;
+			goto fail;
+		}
+		recorder->stream_compression = true;
+	}
+	return 0;
+fail:
+	tracecmd_compress_destroy(recorder->compress);
+	recorder->compress = NULL;
+	tep_free(recorder->compress_tep);
+	recorder->compress_tep = NULL;
+	return -1;
 }
 
 static int set_nonblock(struct tracecmd_recorder *recorder)
@@ -113,7 +187,7 @@ create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 	struct tracecmd_recorder *recorder;
 	bool nonblock = false;
 
-	recorder = malloc(sizeof(*recorder));
+	recorder = calloc(1, sizeof(*recorder));
 	if (!recorder)
 		return NULL;
 
@@ -211,6 +285,19 @@ __tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags,
 		unlink(file);
 		if (fd2 != -1)
 			close(fd2);
+	}
+	if (recorder) {
+		if (asprintf(&recorder->raw_size_file, "%s%s", file,
+			     TRACE_CMD_RAW_SIZE_SUFFIX) < 0) {
+			tracecmd_free_recorder(recorder);
+			recorder = NULL;
+		} else {
+			/*
+			 * A stale marker from an interrupted streaming run must
+			 * never make a later raw recording look precompressed.
+			 */
+			unlink(recorder->raw_size_file);
+		}
 	}
 
 	if (fd2 != -1) {
@@ -354,6 +441,30 @@ static long read_data(struct tracecmd_recorder *recorder)
 	if (r < 0)
 		return r;
 
+	if (recorder->compress) {
+		size_t done = 0;
+		while (done < (size_t)r) {
+			size_t space = recorder->compress_block_size -
+				recorder->compress_pending;
+			size_t size = (size_t)r - done;
+			if (size > space)
+				size = space;
+			if (tracecmd_compress_buffer_write(recorder->compress,
+							   buf + done, size))
+				return -1;
+			done += size;
+			recorder->compress_pending += size;
+			recorder->raw_size += size;
+			if (recorder->compress_pending ==
+			    recorder->compress_block_size) {
+				if (tracecmd_compress_stream_block(recorder->compress))
+					return -1;
+				recorder->compress_pending = 0;
+			}
+		}
+		return r;
+	}
+
 	left = r;
 	do {
 		w = write(recorder->fd, buf + (r - left), left);
@@ -412,14 +523,20 @@ long tracecmd_flush_recording(struct tracecmd_recorder *recorder, bool finish)
 	set_nonblock(recorder);
 
 	do {
-		ret = tracefs_cpu_flush_write(recorder->tcpu, recorder->fd);
+		ret = move_data(recorder);
 		if (ret > 0)
 			wrote += ret;
 	} while (ret > 0);
 
-	/* Make sure we finish off with a page size boundary */
-	wrote &= recorder->subbuf_size - 1;
-	if (wrote) {
+	/*
+	 * The page padding is part of the old raw-recording format.  A
+	 * streaming compressor owns the output fd and the bytes in @wrote are
+	 * already in its input buffer; writing padding directly would corrupt
+	 * the compressed stream.
+	 */
+	if (!recorder->compress)
+		wrote &= recorder->subbuf_size - 1;
+	if (!recorder->compress && wrote) {
 		memset(buf, 0, recorder->subbuf_size);
 		write(recorder->fd, buf, recorder->subbuf_size - wrote);
 		total += recorder->subbuf_size;

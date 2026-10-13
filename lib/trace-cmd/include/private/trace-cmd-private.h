@@ -37,6 +37,7 @@ int *tracecmd_add_id(int *list, int id, int len);
 
 #define FILE_VERSION_SECTIONS		7
 #define FILE_VERSION_COMPRESSION	7
+#define TRACE_CMD_RAW_SIZE_SUFFIX	".rawsize"
 
 enum {
 	RINGBUF_TYPE_PADDING		= 29,
@@ -364,6 +365,8 @@ struct tracecmd_recorder *tracecmd_create_recorder_maxkb(const char *file, int c
 struct tracecmd_recorder *tracecmd_create_buffer_recorder_fd(int fd, int cpu, unsigned flags, struct tracefs_instance *instance);
 struct tracecmd_recorder *tracecmd_create_buffer_recorder(const char *file, int cpu, unsigned flags, struct tracefs_instance *instance);
 struct tracecmd_recorder *tracecmd_create_buffer_recorder_maxkb(const char *file, int cpu, unsigned flags, struct tracefs_instance *instance, int maxkb);
+int tracecmd_recorder_set_compression(struct tracecmd_recorder *recorder,
+				      const char *compression);
 
 int tracecmd_start_recording(struct tracecmd_recorder *recorder, unsigned long sleep);
 int tracecmd_stop_recording(struct tracecmd_recorder *recorder);
@@ -553,6 +556,9 @@ struct tracecmd_compression *tracecmd_compress_alloc(const char *name, const cha
 						     struct tracecmd_msg_handle *msg_handle);
 void tracecmd_compress_destroy(struct tracecmd_compression *handle);
 int tracecmd_compress_block(struct tracecmd_compression *handle);
+int tracecmd_compress_stream_start(struct tracecmd_compression *handle);
+int tracecmd_compress_stream_block(struct tracecmd_compression *handle);
+int tracecmd_compress_stream_end(struct tracecmd_compression *handle);
 int tracecmd_uncompress_block(struct tracecmd_compression *handle);
 void tracecmd_compress_reset(struct tracecmd_compression *handle);
 ssize_t tracecmd_compress_buffer_read(struct tracecmd_compression *handle, char *dst, size_t len);
