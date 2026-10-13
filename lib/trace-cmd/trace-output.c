@@ -2827,12 +2827,14 @@ __hidden int tcmd_out_write_cpu_data(struct tracecmd_output *handle,
 				goto out_free;
 		}
 		if (!tracecmd_get_quiet(handle)) {
-			fprintf(stderr, "    %llu bytes in size",
-				(unsigned long long)data_files[i].write_size);
-			if (handle->compress)
-				fprintf(stderr, " (%llu uncompressed)",
+			if (handle->compress) {
+				fprintf(stderr, "    %llu bytes compressed (%llu uncompressed)\n",
+					(unsigned long long)data_files[i].write_size,
 					(unsigned long long)data_files[i].file_size);
-			fprintf(stderr, "\n");
+			} else {
+				fprintf(stderr, "    %llu bytes in size\n",
+					(unsigned long long)data_files[i].write_size);
+			}
 		}
 	}
 
