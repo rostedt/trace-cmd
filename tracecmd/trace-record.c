@@ -140,6 +140,9 @@ struct event_list {
 
 struct tracecmd_event_list *listed_events;
 
+static bool stream_compression;
+static const char *recorder_compression;
+
 struct events {
 	struct events *sibling;
 	struct events *children;
@@ -207,6 +210,7 @@ struct common_record_context {
 	char *user;
 	const char *clock;
 	const char *compression;
+	bool stream_compression;
 	struct tsc_nsec tsc2nsec;
 	int data_flags;
 	int tsync_loop_interval;
@@ -608,6 +612,12 @@ static void delete_temp_file(struct buffer_instance *instance, int cpu)
 	else
 		snprintf(file, PATH_MAX, "%s.cpu%d", output_file, cpu);
 	unlink(file);
+	{
+		char raw_size_file[PATH_MAX];
+		snprintf(raw_size_file, sizeof(raw_size_file), "%s%s",
+			 file, TRACE_CMD_RAW_SIZE_SUFFIX);
+		unlink(raw_size_file);
+	}
 }
 
 static int kill_thread_instance(int start, struct buffer_instance *instance)
@@ -3589,6 +3599,8 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 			die("Failed to connect to agent");
 
 		flags = recorder_flags;
+		if (stream_compression)
+			flags |= TRACECMD_RECORD_NOSPLICE;
 		if (instance->use_fifos)
 			flags |= TRACECMD_RECORD_NOBRASS;
 		else if (!tcmd_vsock_can_splice_read())
@@ -3599,11 +3611,20 @@ create_recorder_instance(struct buffer_instance *instance, const char *file, int
 	if (brass)
 		return create_recorder_instance_pipe(instance, cpu, brass);
 
-	if (!tracefs_instance_get_name(instance->tracefs))
-		return tracecmd_create_recorder_maxkb(file, cpu, recorder_flags, max_kb);
+	if (!tracefs_instance_get_name(instance->tracefs)) {
+		unsigned flags = recorder_flags;
+		if (stream_compression)
+			flags |= TRACECMD_RECORD_NOSPLICE;
+		return tracecmd_create_recorder_maxkb(file, cpu, flags, max_kb);
+	}
 
-	record = tracecmd_create_buffer_recorder_maxkb(file, cpu, recorder_flags,
+	{
+		unsigned flags = recorder_flags;
+		if (stream_compression)
+			flags |= TRACECMD_RECORD_NOSPLICE;
+		record = tracecmd_create_buffer_recorder_maxkb(file, cpu, flags,
 						       instance->tracefs, max_kb);
+	}
 	return record;
 }
 
@@ -3644,6 +3665,8 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 	if ((instance->client_ports && !is_guest(instance)) || is_agent(instance)) {
 		unsigned int flags = recorder_flags;
 		int fd;
+		if (stream_compression)
+			flags |= TRACECMD_RECORD_NOSPLICE;
 
 		if (is_agent(instance)) {
 			if (instance->use_fifos)
@@ -3677,6 +3700,9 @@ static int create_recorder(struct buffer_instance *instance, int cpu,
 
 	if (!recorder)
 		die ("can't create recorder");
+	if (stream_compression &&
+	    tracecmd_recorder_set_compression(recorder, recorder_compression))
+		die("can't enable streaming compression");
 
 	if (type == TRACE_TYPE_EXTRACT) {
 		ret = tracecmd_flush_recording(recorder, true);
@@ -4291,6 +4317,31 @@ static void start_threads(enum trace_type type, struct common_record_context *ct
 	int i = 0;
 	int ret;
 
+	if (ctx->stream_compression) {
+		if (ctx->compression && !strcmp(ctx->compression, "none"))
+			die("--stream-compression requires compression support");
+		if (ctx->file_version && ctx->file_version < FILE_VERSION_COMPRESSION)
+			die("--stream-compression requires file version %d or newer",
+			    FILE_VERSION_COMPRESSION);
+		if (max_kb)
+			die("--stream-compression cannot be used with -m");
+		if (!ctx->compression)
+			ctx->compression = "any";
+		/*
+		 * The recorder reserves and later patches the chunk count in each
+		 * CPU temporary file.  Network, guest, agent and FIFO recorders
+		 * are not seekable, so silently enabling this mode there would
+		 * create an invalid compressed stream.
+		*/
+		for_all_instances(instance) {
+			if (host || is_guest(instance) || is_agent(instance) ||
+			    instance->client_ports || instance->use_fifos)
+				die("--stream-compression is supported only for local "
+				    "seekable CPU files");
+		}
+	}
+	stream_compression = ctx->stream_compression;
+	recorder_compression = ctx->compression;
 	for_all_instances(instance) {
 		/* Start the connection now to find out how many CPUs we need */
 		if (is_guest(instance))
@@ -6033,6 +6084,7 @@ enum {
 	OPT_notimeout		= LONG_OPT(26),
 	OPT_daemonize		= LONG_OPT(27),
 	OPT_subbuf		= LONG_OPT(28),
+	OPT_stream_compression	= LONG_OPT(29),
 };
 
 void trace_stop(int argc, char **argv)
@@ -6506,6 +6558,7 @@ static void parse_record_options(int argc,
 			{"temp", required_argument, NULL, OPT_temp},
 			{"subbuf-size", required_argument, NULL, OPT_subbuf},
 			{"daemonize", no_argument, NULL, OPT_daemonize},
+			{"stream-compression", no_argument, NULL, OPT_stream_compression},
 			{NULL, 0, NULL, 0}
 		};
 
@@ -7018,6 +7071,15 @@ static void parse_record_options(int argc,
 			    !tracecmd_compress_is_supported(optarg, NULL))
 				die("Compression algorithm  %s is not supported", optarg);
 			ctx->compression = strdup(optarg);
+			break;
+		case OPT_stream_compression:
+			cmd_check_die(ctx, CMD_extract, *(argv+1), "--stream-compression");
+			cmd_check_die(ctx, CMD_start, *(argv+1), "--stream-compression");
+			cmd_check_die(ctx, CMD_set, *(argv+1), "--stream-compression");
+			cmd_check_die(ctx, CMD_stream, *(argv+1), "--stream-compression");
+			cmd_check_die(ctx, CMD_profile, *(argv+1), "--stream-compression");
+			cmd_check_die(ctx, CMD_record_agent, *(argv+1), "--stream-compression");
+			ctx->stream_compression = true;
 			break;
 		case OPT_file_ver:
 			if (ctx->curr_cmd != CMD_record && ctx->curr_cmd != CMD_record_agent)

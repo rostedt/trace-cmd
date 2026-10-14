@@ -10,7 +10,6 @@
 #include "trace-cmd-private.h"
 
 #define FILE_VERSION_DEFAULT		7
-
 /* Can be overridden */
 void tracecmd_warning(const char *fmt, ...);
 void tracecmd_critical(const char *fmt, ...);
@@ -94,6 +93,8 @@ struct cpu_data_source {
 	int fd;
 	ssize_t size;
 	off_t offset;
+	unsigned long long raw_size;
+	bool precompressed;
 };
 
 int tcmd_out_write_cpu_data(struct tracecmd_output *handle, int cpus,
