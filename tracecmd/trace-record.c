@@ -384,6 +384,7 @@ struct buffer_instance *allocate_instance(const char *name)
 		instance->tracefs = tracefs_instance_create(name);
 		if (!instance->tracefs)
 			goto error;
+		instance->flags |= BUFFER_FL_KEEP;
 	}
 
 	return instance;
