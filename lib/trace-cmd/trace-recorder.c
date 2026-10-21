@@ -146,6 +146,8 @@ create_buffer_recorder_fd2(int fd, int fd2, int cpu, unsigned flags,
 
 	if (tfd >= 0)
 		recorder->tcpu = tracefs_cpu_alloc_fd(tfd, recorder->page_size, nonblock);
+	else if (recorder->flags & TRACECMD_RECORD_NOSPLICE)
+		recorder->tcpu = tracefs_cpu_open_mapped(instance, cpu, nonblock);
 	else
 		recorder->tcpu = tracefs_cpu_open(instance, cpu, nonblock);
 
