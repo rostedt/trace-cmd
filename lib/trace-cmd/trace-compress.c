@@ -39,6 +39,8 @@ struct tracecmd_compression {
 	struct tep_handle		*tep;
 	struct tracecmd_msg_handle	*msg_handle;
 	void				*context;
+	off_t				stream_offset;
+	unsigned int			stream_chunks;
 };
 
 static ssize_t read_fd(int fd, char *dst, int len)
@@ -391,6 +393,71 @@ void *tracecmd_uncompress_buffer(struct tracecmd_compression *handle, size_t *si
 	handle->buffer = NULL;
 	tracecmd_compress_reset(handle);
 	return buffer;
+}
+
+/*
+ * A trace-cmd CPU data stream is a chunked compression block:
+ *
+ *   u32 chunk_count
+ *   repeated { u32 compressed_size, u32 uncompressed_size, data }
+ *
+ * The normal file writer can seek back after reading a complete temporary
+ * file and fill in chunk_count.  Recorders cannot do that at every read, so
+ * these helpers reserve the count and update it when the recorder exits.
+ */
+int tracecmd_compress_stream_start(struct tracecmd_compression *handle)
+{
+	unsigned int zero = 0;
+	int endian4;
+
+	if (!handle || handle->msg_handle || handle->fd < 0)
+		return -1;
+
+	handle->stream_offset = lseek(handle->fd, 0, SEEK_CUR);
+	if (handle->stream_offset == (off_t)-1)
+		return -1;
+
+	endian4 = tep_read_number(handle->tep, &zero, sizeof(zero));
+	if (write_fd(handle->fd, &endian4, sizeof(endian4)) != sizeof(endian4))
+		return -1;
+
+	handle->stream_chunks = 0;
+	return 0;
+}
+
+int tracecmd_compress_stream_block(struct tracecmd_compression *handle)
+{
+	if (!handle || !handle->pointer)
+		return -1;
+
+	if (tracecmd_compress_block(handle))
+		return -1;
+
+	handle->stream_chunks++;
+	return 0;
+}
+
+int tracecmd_compress_stream_end(struct tracecmd_compression *handle)
+{
+	unsigned int chunks;
+	off_t end;
+	int endian4;
+
+	if (!handle || handle->msg_handle || handle->fd < 0)
+		return -1;
+
+	end = lseek(handle->fd, 0, SEEK_CUR);
+	if (end == (off_t)-1 ||
+	    lseek(handle->fd, handle->stream_offset, SEEK_SET) == (off_t)-1)
+		return -1;
+
+	chunks = handle->stream_chunks;
+	endian4 = tep_read_number(handle->tep, &chunks, sizeof(chunks));
+	if (write_fd(handle->fd, &endian4, sizeof(endian4)) != sizeof(endian4) ||
+	    lseek(handle->fd, end, SEEK_SET) == (off_t)-1)
+		return -1;
+
+	return 0;
 }
 
 /**

@@ -2746,7 +2746,8 @@ __hidden int tcmd_out_write_cpu_data(struct tracecmd_output *handle,
 		goto out_free;
 
 	for (i = 0; i < cpus; i++) {
-		data_files[i].file_size = data[i].size;
+		data_files[i].file_size = data[i].precompressed ?
+			data[i].raw_size : data[i].size;
 		/*
 		 * Place 0 for the data offset and size, and save the offsets to
 		 * updated them with the correct data later.
@@ -2786,11 +2787,19 @@ __hidden int tcmd_out_write_cpu_data(struct tracecmd_output *handle,
 		if (data[i].size) {
 			if (lseek(data[i].fd, data[i].offset, SEEK_SET) == (off_t)-1)
 				goto out_free;
-			read_size = tcmd_out_copy_fd_compress(handle, data[i].fd,
-							      data[i].size, &data_files[i].write_size,
-							      page_size);
+			if (data[i].precompressed) {
+				read_size = copy_file_fd(handle, data[i].fd,
+							 data[i].size);
+				data_files[i].write_size = read_size;
+			} else {
+				read_size = tcmd_out_copy_fd_compress(handle, data[i].fd,
+								      data[i].size,
+								      &data_files[i].write_size,
+								      page_size);
+			}
 
-			if (read_size != data_files[i].file_size) {
+			if (read_size != (data[i].precompressed ?
+					  data[i].size : data_files[i].file_size)) {
 				errno = EINVAL;
 				tracecmd_warning("did not match size of %llu to %llu",
 						 read_size, data_files[i].file_size);
@@ -2818,12 +2827,14 @@ __hidden int tcmd_out_write_cpu_data(struct tracecmd_output *handle,
 				goto out_free;
 		}
 		if (!tracecmd_get_quiet(handle)) {
-			fprintf(stderr, "    %llu bytes in size",
-				(unsigned long long)data_files[i].write_size);
-			if (handle->compress)
-				fprintf(stderr, " (%llu uncompressed)",
+			if (handle->compress) {
+				fprintf(stderr, "    %llu bytes stored (%llu uncompressed)\n",
+					(unsigned long long)data_files[i].write_size,
 					(unsigned long long)data_files[i].file_size);
-			fprintf(stderr, "\n");
+			} else {
+				fprintf(stderr, "    %llu bytes in size\n",
+					(unsigned long long)data_files[i].write_size);
+			}
 		}
 	}
 
@@ -2869,6 +2880,10 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 		return -1;
 
 	for (i = 0; i < cpus; i++) {
+		char *raw_size_file;
+		int raw_fd;
+		unsigned long long raw_size;
+
 		ret = stat(cpu_data_files[i], &st);
 		if (ret < 0) {
 			tracecmd_warning("can not stat '%s'", cpu_data_files[i]);
@@ -2882,6 +2897,21 @@ int tracecmd_write_cpu_data(struct tracecmd_output *handle,
 
 		data[i].size = st.st_size;
 		data[i].offset = 0;
+		data[i].precompressed = false;
+		data[i].raw_size = 0;
+		if (asprintf(&raw_size_file, "%s%s", cpu_data_files[i],
+			     TRACE_CMD_RAW_SIZE_SUFFIX) >= 0) {
+			raw_fd = open(raw_size_file, O_RDONLY);
+			free(raw_size_file);
+			if (raw_fd >= 0 &&
+			    read(raw_fd, &raw_size, sizeof(raw_size)) ==
+			    sizeof(raw_size)) {
+				data[i].precompressed = true;
+				data[i].raw_size = raw_size;
+			}
+			if (raw_fd >= 0)
+				close(raw_fd);
+		}
 		size += st.st_size;
 	}
 
