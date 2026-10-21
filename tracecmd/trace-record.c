@@ -262,6 +262,8 @@ static void add_reset_trigger(const char *file)
 	if (!reset)
 		die("Failed to allocate reset");
 	reset->path = strdup(file);
+	if (!reset->path)
+		die("Failed to allocate path");
 
 	reset->next = reset_triggers;
 	reset_triggers = reset;
