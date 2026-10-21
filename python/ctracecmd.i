@@ -19,6 +19,13 @@
 #include "event-parse.h"
 #include "event-utils.h"
 #include <Python.h>
+/* Compatibility macros for Python 3 */
+#if PY_VERSION_HEX >= 0x03000000
+#define PyInt_Check(x) PyLong_Check(x)
+#define PyInt_AsLong(x) PyLong_AsLong(x)
+#define PyInt_FromLong(x) PyLong_FromLong(x)
+#define PyString_Format(fmt, args)  PyUnicode_Format(fmt, args)
+#endif
 %}
 
 
